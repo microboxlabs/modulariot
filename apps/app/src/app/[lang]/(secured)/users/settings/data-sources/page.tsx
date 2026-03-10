@@ -15,11 +15,11 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
   const userSettings = (dictionary.pages as I18nRecord)
     ?.userSettings as I18nRecord;
 
-  // Resolve siteId from the user's Alfresco site membership
-  const sites = session ? await getUserSites(session) : [];
-  const siteId = sites[0]?.shortName ?? "";
-
   try {
+    // Resolve siteId from the user's Alfresco site membership
+    const sites = session ? await getUserSites(session) : [];
+    const siteId = sites[0]?.shortName ?? "";
+
     return (
       <RouteGuard
         path="/users/settings/data-sources"

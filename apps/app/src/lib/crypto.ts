@@ -16,16 +16,24 @@ function getEncryptionKey(): Buffer {
       "DATA_SOURCE_ENCRYPTION_KEY environment variable is required"
     );
   }
-  // Key must be 32 bytes for AES-256. Accept hex-encoded (64 chars) or raw 32-byte string.
+  // Key must be 32 bytes for AES-256 (createCipheriv). Accept hex-encoded (64 chars) or raw 32-byte UTF-8 string.
+  let buf: Buffer;
   if (key.length === 64) {
-    _cachedKey = Buffer.from(key, "hex");
-  } else if (key.length === 32) {
-    _cachedKey = Buffer.from(key, "utf-8");
+    buf = Buffer.from(key, "hex");
+    if (buf.length !== 32) {
+      throw new Error(
+        "DATA_SOURCE_ENCRYPTION_KEY contains invalid hex characters — createCipheriv requires exactly 32 bytes"
+      );
+    }
   } else {
-    throw new Error(
-      "DATA_SOURCE_ENCRYPTION_KEY must be 32 bytes (or 64 hex chars)"
-    );
+    buf = Buffer.from(key, "utf-8");
+    if (buf.length !== 32) {
+      throw new Error(
+        `DATA_SOURCE_ENCRYPTION_KEY must be exactly 32 bytes for createCipheriv (got ${buf.length} bytes)`
+      );
+    }
   }
+  _cachedKey = buf;
   return _cachedKey;
 }
 

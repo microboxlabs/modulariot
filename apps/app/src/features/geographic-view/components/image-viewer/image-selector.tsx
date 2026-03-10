@@ -72,8 +72,8 @@ function FilmstripFrame({
                 e.preventDefault();
                 try {
                   await downloadImage(image, dictionary);
-                } catch (error) {
-                  console.error("Download error:", error);
+                } catch {
+                  // Download failed silently
                 }
               }}
             >
@@ -372,8 +372,7 @@ export function ImageComponent({
                   } else if (image) {
                     await downloadImage(image, dictionary);
                   }
-                } catch (error) {
-                  console.error("Download error:", error);
+                } catch {
                   if (image) {
                     await downloadImage(image, dictionary);
                   }

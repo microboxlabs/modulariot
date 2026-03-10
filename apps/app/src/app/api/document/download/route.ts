@@ -15,11 +15,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // documentId arrives as the Alfresco node content path
-    // Format: "{protocol}/{storeType}/{uuid}" — e.g. "workspace/SpacesStore/1c903be0-..."
-    // This is the slash-separated form of the nodeRef (workspace://SpacesStore/{uuid})
-    // and maps directly to the legacy API path: /alfresco/s/api/node/content/{nodeContentPath}
-    const nodeContentPath = documentId;
+    // documentId can arrive as:
+    // 1. Just the UUID: "1c903be0-..."
+    // 2. Full path: "workspace/SpacesStore/1c903be0-..."
+    // Normalize to full path format for Alfresco legacy API
+    const nodeContentPath = documentId.includes("/")
+      ? documentId
+      : `workspace/SpacesStore/${documentId}`;
 
     const { url, headers } = prepareAlfrescoAuth(
       `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${nodeContentPath}?a=true`,
@@ -56,8 +58,7 @@ export async function GET(req: NextRequest) {
         Expires: "0",
       },
     });
-  } catch (error) {
-    console.error(error);
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch document" },
       { status: 500 }

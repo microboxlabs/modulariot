@@ -179,8 +179,7 @@ export default function ImageViewer({
                     try {
                       await downloadImage(images[selected], dictionary);
                       toast.success("Imagen descargada");
-                    } catch (error) {
-                      console.error("Download error:", error);
+                    } catch {
                       toast.error("Error al descargar imagen");
                     }
                   }}

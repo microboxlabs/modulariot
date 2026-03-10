@@ -72,8 +72,9 @@ export default function ReplaceImageModal({
       <ModalBody>
         <div className="flex flex-col gap-4">
           {/* Drag and Drop Zone */}
-          <div
-            className={`flex w-full p-6 flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all duration-200 ${
+          <label
+            htmlFor="replace-file-input"
+            className={`flex w-full p-6 flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all duration-200 cursor-pointer ${
               isDragOver
                 ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
                 : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
@@ -124,32 +125,23 @@ export default function ReplaceImageModal({
                   {tr("bento.multimedia.subtitle", dictionary)}
                 </p>
               </div>
-              <div className="relative">
-                <input
-                  type="file"
-                  id="replace-file-input"
-                  className="hidden"
-                  accept=".jpg,.jpeg,.png"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setReplaceFile(e.target.files[0]);
-                    }
-                  }}
-                />
-                <Button
-                  color="blue"
-                  onClick={() => {
-                    document.getElementById("replace-file-input")?.click();
-                  }}
-                >
-                  <div className="flex flex-row items-center justify-center gap-2">
-                    <MdOutlineFileUpload className="w-4 h-4" />
-                    {tr("bento.multimedia.selectFile", dictionary)}
-                  </div>
-                </Button>
+              <input
+                type="file"
+                id="replace-file-input"
+                className="hidden"
+                accept=".jpg,.jpeg,.png"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    setReplaceFile(e.target.files[0]);
+                  }
+                }}
+              />
+              <div className="flex flex-row items-center justify-center gap-2 text-white bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg">
+                <MdOutlineFileUpload className="w-4 h-4" />
+                {tr("bento.multimedia.selectFile", dictionary)}
               </div>
             </div>
-          </div>
+          </label>
 
           {/* Selected file preview */}
           {replaceFile && (

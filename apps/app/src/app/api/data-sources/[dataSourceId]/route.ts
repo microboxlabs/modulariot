@@ -80,6 +80,50 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
   }
 }
 
+function applyOptionalFields(
+  updateBody: Record<string, unknown>,
+  data: Record<string, unknown>
+) {
+  const fields = ["name", "type", "url", "isActive", "authMethod", "clientId", "tokenUrl"];
+  for (const field of fields) {
+    if (data[field] !== undefined) updateBody[field] = data[field];
+  }
+  if (data.description !== undefined) updateBody.description = data.description ?? "";
+  if (data.scope !== undefined) updateBody.scope = data.scope ?? "";
+}
+
+async function resolveTokenSecret(
+  session: Parameters<typeof getDataSource>[0],
+  dataSourceId: string,
+  token: string,
+  updateBody: Record<string, unknown>
+) {
+  const existing = await getDataSource(session, dataSourceId);
+  const isUnchanged =
+    existing?.tokenSuffix && token === `****${existing.tokenSuffix}`;
+  if (!isUnchanged) {
+    updateBody.encryptedToken = encrypt(token);
+    updateBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
+  }
+}
+
+async function resolveClientSecret(
+  session: Parameters<typeof getDataSource>[0],
+  dataSourceId: string,
+  clientSecret: string,
+  updateBody: Record<string, unknown>
+) {
+  const existing = await getDataSource(session, dataSourceId);
+  const isUnchanged =
+    existing?.clientSecretSuffix &&
+    clientSecret === `****${existing.clientSecretSuffix}`;
+  if (!isUnchanged) {
+    updateBody.encryptedClientSecret = encrypt(clientSecret);
+    updateBody.clientSecretSuffix =
+      clientSecret.length > 4 ? clientSecret.slice(-4) : "";
+  }
+}
+
 export async function PUT(request: NextRequest, ctx: RouteContext) {
   const result = await resolveSiteForRequest(request);
   if (!result.resolved) return result.response;
@@ -98,60 +142,19 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const {
-      url,
-      token,
-      authMethod,
-      clientId,
-      clientSecret,
-      tokenUrl,
-      scope,
-      description,
-      name,
-      type,
-      isActive,
-    } = parsed.data;
-
     const updateBody: Record<string, unknown> = {
       nodeRef: dataSourceId,
       site: siteId,
     };
 
-    if (name !== undefined) updateBody.name = name;
-    if (type !== undefined) updateBody.type = type;
-    if (description !== undefined) updateBody.description = description ?? "";
-    if (url !== undefined) updateBody.url = url;
-    if (isActive !== undefined) updateBody.isActive = isActive;
-    if (authMethod !== undefined) updateBody.authMethod = authMethod;
+    applyOptionalFields(updateBody, parsed.data as unknown as Record<string, unknown>);
 
-    // Handle token-based auth secret
-    if (token) {
-      const existing = await getDataSource(session, dataSourceId);
-      if (existing?.tokenSuffix && token === `****${existing.tokenSuffix}`) {
-        // Token unchanged
-      } else {
-        updateBody.encryptedToken = encrypt(token);
-        updateBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
-      }
+    if (parsed.data.token) {
+      await resolveTokenSecret(session, dataSourceId, parsed.data.token, updateBody);
     }
 
-    // Handle OAuth fields
-    if (clientId !== undefined) updateBody.clientId = clientId;
-    if (tokenUrl !== undefined) updateBody.tokenUrl = tokenUrl;
-    if (scope !== undefined) updateBody.scope = scope ?? "";
-
-    if (clientSecret) {
-      const existing = await getDataSource(session, dataSourceId);
-      if (
-        existing?.clientSecretSuffix &&
-        clientSecret === `****${existing.clientSecretSuffix}`
-      ) {
-        // Secret unchanged
-      } else {
-        updateBody.encryptedClientSecret = encrypt(clientSecret);
-        updateBody.clientSecretSuffix =
-          clientSecret.length > 4 ? clientSecret.slice(-4) : "";
-      }
+    if (parsed.data.clientSecret) {
+      await resolveClientSecret(session, dataSourceId, parsed.data.clientSecret, updateBody);
     }
 
     const updated = await updateDataSource(session, updateBody);

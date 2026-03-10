@@ -61,7 +61,7 @@ export function DataSourceModal({
     },
   });
 
-  const authMethod = watch("authMethod") as AuthMethod;
+  const authMethod = watch("authMethod");
 
   useEffect(() => {
     if (editingSource) {
@@ -93,11 +93,14 @@ export function DataSourceModal({
     }
   }, [editingSource, reset, show]);
 
-  const submitLabel = loading
-    ? tr("modal.saving", dict)
-    : editingSource
-      ? tr("modal.saveButton", dict)
-      : tr("modal.createButton", dict);
+  let submitLabel: string;
+  if (loading) {
+    submitLabel = tr("modal.saving", dict);
+  } else if (editingSource) {
+    submitLabel = tr("modal.saveButton", dict);
+  } else {
+    submitLabel = tr("modal.createButton", dict);
+  }
 
   return (
     <FormModal

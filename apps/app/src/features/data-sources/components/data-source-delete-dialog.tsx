@@ -31,9 +31,7 @@ export function DataSourceDeleteDialog({
       variant="danger"
       title={tr("deleteConfirm", dict)}
       description={
-        <>
-          <span className="font-semibold">{dataSource?.name}</span>
-        </>
+        <span className="font-semibold">{dataSource?.name}</span>
       }
       confirmLabel={
         loading ? tr("deleting", dict) : tr("deleteButton", dict)

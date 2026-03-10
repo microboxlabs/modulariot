@@ -130,16 +130,17 @@ export default function ReplaceImageModal({
                 id="replace-file-input"
                 className="hidden"
                 accept=".jpg,.jpeg,.png"
+                aria-label={tr("bento.multimedia.selectFile", dictionary)}
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {
                     setReplaceFile(e.target.files[0]);
                   }
                 }}
               />
-              <div className="flex flex-row items-center justify-center gap-2 text-white bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg">
+              <span className="flex flex-row items-center justify-center gap-2 text-white bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg">
                 <MdOutlineFileUpload className="w-4 h-4" />
                 {tr("bento.multimedia.selectFile", dictionary)}
-              </div>
+              </span>
             </div>
           </label>
 

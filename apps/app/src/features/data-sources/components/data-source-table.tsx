@@ -39,13 +39,15 @@ export function DataSourceTable({
   return (
     <Table hoverable>
       <TableHead>
-        <TableHeadCell>{tr("table.name", dict)}</TableHeadCell>
-        <TableHeadCell>{tr("table.type", dict)}</TableHeadCell>
-        <TableHeadCell>{tr("table.auth", dict)}</TableHeadCell>
-        <TableHeadCell>{tr("table.url", dict)}</TableHeadCell>
-        <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
-        <TableHeadCell>{tr("table.active", dict)}</TableHeadCell>
-        <TableHeadCell>{tr("table.actions", dict)}</TableHeadCell>
+        <TableRow>
+          <TableHeadCell>{tr("table.name", dict)}</TableHeadCell>
+          <TableHeadCell>{tr("table.type", dict)}</TableHeadCell>
+          <TableHeadCell>{tr("table.auth", dict)}</TableHeadCell>
+          <TableHeadCell>{tr("table.url", dict)}</TableHeadCell>
+          <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
+          <TableHeadCell>{tr("table.active", dict)}</TableHeadCell>
+          <TableHeadCell>{tr("table.actions", dict)}</TableHeadCell>
+        </TableRow>
       </TableHead>
       <TableBody className="divide-y">
         {dataSources.map((ds) => (

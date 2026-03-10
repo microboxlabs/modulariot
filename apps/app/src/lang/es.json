@@ -963,7 +963,7 @@
       },
       "dataSources": {
         "title": "Fuentes de Datos",
-        "description": "Administra tus conexiones PostgREST y otras fuentes de datos.",
+        "description": "Administra tus conexiones de fuentes de datos.",
         "addButton": "Agregar Fuente",
         "table": {
           "name": "Nombre",

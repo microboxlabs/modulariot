@@ -492,9 +492,9 @@ export default function FileImages({
           }}
           dictionary={dictionary}
           imageName={
-            editImageIndex !== null
-              ? images[editImageIndex]?.file?.entry?.name
-              : undefined
+            editImageIndex === null
+              ? undefined
+              : images[editImageIndex]?.file?.entry?.name
           }
         />
 

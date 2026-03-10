@@ -5,6 +5,7 @@ import Carousel from "../carousel";
 import { toast } from "sonner";
 import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { downloadImage } from "../../utils/download-image";
 import { useState } from "react";
 import ReplaceImageModal from "./replace-image-modal";
@@ -166,6 +167,7 @@ export default function ImageViewer({
                     onClick={() => setShowReplaceModal(true)}
                     pill
                     size="sm"
+                    aria-label={tr("bento.multimedia.replaceImage", dictionary)}
                   >
                     <MdOutlineFileUpload className="w-4 h-4" />
                   </Button>
@@ -184,6 +186,7 @@ export default function ImageViewer({
                   }}
                   pill
                   size="sm"
+                  aria-label={tr("download", dictionary)}
                 >
                   <MdOutlineFileDownload className="w-4 h-4" />
                 </Button>
@@ -192,6 +195,7 @@ export default function ImageViewer({
                   onClick={() => handleShare()}
                   pill
                   size="sm"
+                  aria-label={tr("share", dictionary) || "Compartir"}
                 >
                   <FaShare className="h-4 w-4 text-white text-center" />
                 </Button>
@@ -212,7 +216,7 @@ export default function ImageViewer({
           }
         }}
         dictionary={dictionary}
-        imageName={selected !== null ? data[selected]?.name : undefined}
+        imageName={selected === null ? undefined : data[selected]?.name}
       />
     </>
   );

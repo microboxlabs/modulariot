@@ -46,7 +46,7 @@ export default function ReplaceImageModal({
       show={show}
       onClose={handleClose}
       size="xl"
-      className="z-900"
+      className="z-[900]"
       theme={{
         header: {
           base: "flex items-center justify-between rounded-t border-b p-5 dark:border-gray-600",
@@ -65,9 +65,7 @@ export default function ReplaceImageModal({
             {tr("bento.multimedia.replaceImage", dictionary)}
           </span>
           <span className="text-sm text-gray-500 mt-1 font-normal">
-            {imageName
-              ? tr("bento.multimedia.replaceImageDescription", dictionary)
-              : tr("bento.multimedia.replaceImageDescription", dictionary)}
+            {tr("bento.multimedia.replaceImageDescription", dictionary)}
           </span>
         </div>
       </ModalHeader>
@@ -75,6 +73,7 @@ export default function ReplaceImageModal({
         <div className="flex flex-col gap-4">
           {/* Drag and Drop Zone */}
           <div
+            role="presentation"
             className={`flex w-full p-6 flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all duration-200 ${
               isDragOver
                 ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
@@ -100,14 +99,20 @@ export default function ReplaceImageModal({
               e.stopPropagation();
               setIsDragOver(false);
               const files = Array.from(e.dataTransfer.files);
-              const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+              const allowedTypes = new Set([
+                "image/jpeg",
+                "image/jpg",
+                "image/png",
+              ]);
               const validFile = files.find((file) =>
-                allowedTypes.includes(file.type)
+                allowedTypes.has(file.type)
               );
               if (validFile) {
                 setReplaceFile(validFile);
               } else {
-                toast.error("Solo se permiten archivos JPG, JPEG o PNG");
+                toast.error(
+                  tr("bento.multimedia.only_jpg_jpeg_png_allowed", dictionary)
+                );
               }
             }}
           >
@@ -171,7 +176,7 @@ export default function ReplaceImageModal({
           {/* Action buttons */}
           <div className="flex justify-end gap-2 pt-2">
             <Button color="blue" onClick={handleReplace}>
-              Reemplazar
+              {tr("bento.multimedia.replaceImage", dictionary)}
             </Button>
           </div>
         </div>

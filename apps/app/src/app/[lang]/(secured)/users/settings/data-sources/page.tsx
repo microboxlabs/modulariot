@@ -18,7 +18,12 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
   try {
     // Resolve siteId from the user's Alfresco site membership
     const sites = session ? await getUserSites(session) : [];
-    const siteId = sites[0]?.shortName ?? "";
+    const siteId = sites[0]?.shortName;
+
+    if (!siteId) {
+      redirectWithLang(`/${lang}/shipping`);
+      return null;
+    }
 
     return (
       <RouteGuard

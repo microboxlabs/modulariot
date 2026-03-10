@@ -42,7 +42,18 @@ export async function resolveSiteForRequest(
   }
 
   // Verify user is a member of the requested site
-  const sites = await getUserSites(session);
+  let sites;
+  try {
+    sites = await getUserSites(session);
+  } catch (err) {
+    return {
+      resolved: false,
+      response: NextResponse.json(
+        { error: "Provider error", details: err instanceof Error ? err.message : "Unknown error" },
+        { status: 500 }
+      ),
+    };
+  }
   const isMember = sites.some((s) => s.shortName === siteId);
 
   if (!isMember) {

@@ -96,7 +96,7 @@ export default function FormModal({
             )}
           </div>
         </ModalHeader>
-        <ModalBody>
+        <ModalBody className="max-h-[70vh] overflow-y-auto">
           <div className="flex flex-col my-4">{children}</div>
           {error && (
             <div className="mt-4 mb-4 space-y-2">

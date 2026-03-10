@@ -22,7 +22,15 @@ export function useDataSources(siteId: string | undefined) {
     fetcher
   );
 
+  function requireSiteId(): string {
+    if (!siteId) {
+      throw new Error("No site available — cannot perform data source operations");
+    }
+    return siteId;
+  }
+
   async function create(input: DataSourceFormData) {
+    requireSiteId();
     setActionLoading(true);
     try {
       const created = await fetcher<DataSourceListItem>(
@@ -41,6 +49,7 @@ export function useDataSources(siteId: string | undefined) {
   }
 
   async function update(id: string, input: UpdateDataSourceInput) {
+    requireSiteId();
     setActionLoading(true);
     try {
       const updated = await fetcher<DataSourceListItem>(
@@ -59,6 +68,7 @@ export function useDataSources(siteId: string | undefined) {
   }
 
   async function remove(id: string) {
+    requireSiteId();
     setActionLoading(true);
     try {
       await fetcher(`/app/api/data-sources/${encodeURIComponent(id)}?siteId=${siteId}`, {
@@ -71,6 +81,7 @@ export function useDataSources(siteId: string | undefined) {
   }
 
   async function testConnection(id: string) {
+    requireSiteId();
     setActionLoading(true);
     try {
       const result = await fetcher<{
@@ -88,6 +99,7 @@ export function useDataSources(siteId: string | undefined) {
   }
 
   async function toggleActive(id: string, isActive: boolean) {
+    requireSiteId();
     setActionLoading(true);
     try {
       await fetcher<DataSourceListItem>(

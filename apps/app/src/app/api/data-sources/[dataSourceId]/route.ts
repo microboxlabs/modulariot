@@ -132,6 +132,33 @@ async function resolveClientSecret(
   }
 }
 
+async function buildConfigFromParsedData(
+  data: { authMethod?: string; token?: string; clientId?: string; clientSecret?: string; tokenUrl?: string; scope?: string | null },
+  session: Parameters<typeof getDataSource>[0],
+  dataSourceId: string
+): Promise<Record<string, unknown> | null> {
+  const { authMethod, token, clientId, clientSecret, tokenUrl, scope } = data;
+  const hasAuthChanges = authMethod !== undefined || token || clientId !== undefined
+    || clientSecret || tokenUrl !== undefined || scope !== undefined;
+
+  if (!hasAuthChanges) return null;
+
+  const configObj: Record<string, unknown> = {};
+  if (authMethod !== undefined) configObj.authMethod = authMethod;
+  if (clientId !== undefined) configObj.clientId = clientId;
+  if (tokenUrl !== undefined) configObj.tokenUrl = tokenUrl;
+  if (scope !== undefined) configObj.scope = scope ?? "";
+
+  if (token) {
+    await resolveTokenSecret(session, dataSourceId, token, configObj);
+  }
+  if (clientSecret) {
+    await resolveClientSecret(session, dataSourceId, clientSecret, configObj);
+  }
+
+  return configObj;
+}
+
 export async function PUT(request: NextRequest, ctx: RouteContext) {
   const result = await resolveSiteForRequest(request);
   if (!result.resolved) return result.response;
@@ -157,26 +184,8 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     applyOptionalFields(updateBody, parsed.data as unknown as Record<string, unknown>);
 
-    // Build nested config if any auth-related fields are provided
-    const { authMethod, token, clientId, clientSecret, tokenUrl, scope } = parsed.data;
-    const hasAuthChanges = authMethod !== undefined || token || clientId !== undefined
-      || clientSecret || tokenUrl !== undefined || scope !== undefined;
-
-    if (hasAuthChanges) {
-      const configObj: Record<string, unknown> = {};
-      if (authMethod !== undefined) configObj.authMethod = authMethod;
-      if (clientId !== undefined) configObj.clientId = clientId;
-      if (tokenUrl !== undefined) configObj.tokenUrl = tokenUrl;
-      if (scope !== undefined) configObj.scope = scope ?? "";
-
-      if (token) {
-        await resolveTokenSecret(session, dataSourceId, token, configObj);
-      }
-
-      if (clientSecret) {
-        await resolveClientSecret(session, dataSourceId, clientSecret, configObj);
-      }
-
+    const configObj = await buildConfigFromParsedData(parsed.data, session, dataSourceId);
+    if (configObj) {
       updateBody.config = configObj;
     }
 

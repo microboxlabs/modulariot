@@ -5,6 +5,7 @@ import {
   getDataSource,
   updateDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import type { AlfrescoDataSourceConfig } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 
@@ -45,6 +46,35 @@ async function exchangeOAuthToken(
   return json.access_token as string;
 }
 
+type BearerResult =
+  | { ok: true; token: string }
+  | { ok: false; error: string };
+
+async function resolveBearerToken(config: AlfrescoDataSourceConfig | null): Promise<BearerResult> {
+  if (config?.authMethod === "OAUTH") {
+    if (!config.encryptedClientSecret || !config.tokenUrl || !config.clientId) {
+      return { ok: false, error: "OAuth configuration is incomplete" };
+    }
+    const clientSecret = decrypt(config.encryptedClientSecret);
+    const token = await exchangeOAuthToken(
+      config.tokenUrl,
+      config.clientId,
+      clientSecret,
+      config.scope
+    );
+    return { ok: true, token };
+  }
+
+  if (config?.authMethod === "TOKEN") {
+    if (!config.encryptedToken) {
+      return { ok: false, error: "Token is not configured" };
+    }
+    return { ok: true, token: decrypt(config.encryptedToken) };
+  }
+
+  return { ok: false, error: "No authentication configured" };
+}
+
 export async function POST(request: NextRequest, ctx: RouteContext) {
   const result = await resolveSiteForRequest(request);
   if (!result.resolved) return result.response;
@@ -61,42 +91,18 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     );
   }
 
+  const bearerResult = await resolveBearerToken(ds.config);
+  if (!bearerResult.ok) {
+    return NextResponse.json(
+      { success: false, error: bearerResult.error },
+      { status: 400 }
+    );
+  }
+
   let success = false;
   let errorMessage: string | undefined;
 
   try {
-    // Resolve the bearer token based on auth method
-    let bearerToken: string;
-
-    if (ds.config?.authMethod === "OAUTH") {
-      if (!ds.config.encryptedClientSecret || !ds.config.tokenUrl || !ds.config.clientId) {
-        return NextResponse.json(
-          { success: false, error: "OAuth configuration is incomplete" },
-          { status: 400 }
-        );
-      }
-      const clientSecret = decrypt(ds.config.encryptedClientSecret);
-      bearerToken = await exchangeOAuthToken(
-        ds.config.tokenUrl,
-        ds.config.clientId,
-        clientSecret,
-        ds.config.scope
-      );
-    } else if (ds.config?.authMethod === "TOKEN") {
-      if (!ds.config.encryptedToken) {
-        return NextResponse.json(
-          { success: false, error: "Token is not configured" },
-          { status: 400 }
-        );
-      }
-      bearerToken = decrypt(ds.config.encryptedToken);
-    } else {
-      return NextResponse.json(
-        { success: false, error: "No authentication configured" },
-        { status: 400 }
-      );
-    }
-
     const specUrl = `${ds.url}/api/v1/pgrest/`;
 
     const urlCheck = await validateTargetUrl(specUrl);
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     const res = await fetch(specUrl, {
       headers: {
         Accept: "application/openapi+json",
-        Authorization: `Bearer ${bearerToken}`,
+        Authorization: `Bearer ${bearerResult.token}`,
       },
       signal: AbortSignal.timeout(10000),
     });

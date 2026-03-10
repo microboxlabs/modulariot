@@ -19,6 +19,8 @@ import type {
   SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
+  UpdateNodeContentRequest,
+  UpdateNodeContentResponse,
   UploadNodeRequest,
   UploadNodeResponse,
   UserState,
@@ -307,6 +309,49 @@ export async function uploadNodeContent(
     alfrescoApiLogger.error(
       { error: error instanceof Error ? error.message : String(error) },
       "Upload failed with exception"
+    );
+    return null;
+  }
+}
+
+export async function updateNodeContent(
+  session: Session,
+  request: UpdateNodeContentRequest
+): Promise<UpdateNodeContentResponse> {
+  try {
+    const { nodeId, filedata, name } = request;
+
+    const queryParams = new URLSearchParams();
+    queryParams.set("name", name);
+    queryParams.set("comment", "Updated version");
+
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const result = await fetch(url, {
+      method: "PUT",
+      headers: {
+        ...headers,
+        "Content-Type": filedata.type || "application/octet-stream",
+      },
+      body: filedata,
+    });
+
+    if (!result.ok) {
+      logError(
+        new Error(
+          `Update node content failed with HTTP error: ${result.status} ${result.statusText}`
+        )
+      );
+      return null;
+    }
+
+    const responseData = await result.json();
+    return responseData as UpdateNodeContentResponse;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Update node content failed with exception"
     );
     return null;
   }

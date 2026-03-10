@@ -1,12 +1,15 @@
 "use client";
 
 import { Button, FileInput } from "flowbite-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
 import { MdOutlineFileUpload } from "react-icons/md";
+import { toast } from "sonner";
+import { useSWRConfig } from "swr";
 import {
   useGetNodeContents,
   useOptimisticFileUpload,
+  putBentoMultimedia,
 } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -135,19 +138,25 @@ export default function FileImages({
 
   const [images, setImages] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false);
+  const [imageRefreshKey, setImageRefreshKey] = useState(0);
+
+  const { mutate: globalMutate } = useSWRConfig();
 
   const packageId = task?.bpm_package
     ? task.bpm_package.split("/")[task.bpm_package.split("/").length - 1]
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const { data, isLoading, uploadFile } = useOptimisticFileUpload(packageId);
+  const { data, isLoading, uploadFile, mutate } =
+    useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
   const {
     data: documentsData,
     isLoading: documentsIsLoading,
+    mutate: mutateContents,
   } = useGetNodeContents(
     files?.map((file: AlfrescoFileEntry) => file.entry.id) || []
   );
@@ -180,12 +189,56 @@ export default function FileImages({
     }
   }, [documentsData, files]);
 
+  const handleReplaceImage = useCallback(
+    async (file: File, index: number) => {
+      const imageToReplace = images[index];
+      if (!imageToReplace?.file?.entry?.id) {
+        toast.error(tr("bento.multimedia.update_error", dictionary));
+        return;
+      }
+
+      const nodeId = imageToReplace.file.entry.id;
+      setIsUpdatingImage(true);
+
+      const updatePromise = putBentoMultimedia(nodeId, file).then((result) => {
+        if (!result.success) {
+          throw new Error("Update failed");
+        }
+        return result;
+      });
+
+      toast.promise(updatePromise, {
+        loading: tr("bento.multimedia.update_loading", dictionary),
+        success: tr("bento.multimedia.update_success", dictionary),
+        error: tr("bento.multimedia.update_error", dictionary),
+      });
+
+      try {
+        await updatePromise;
+        await mutate();
+        await mutateContents();
+        // Invalidate thumbnail cache for the updated image
+        await globalMutate(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+        // Increment refresh key to force image URL cache bust
+        setImageRefreshKey((prev) => prev + 1);
+      } finally {
+        setIsUpdatingImage(false);
+        setEditImageIndex(null);
+      }
+    },
+    [images, dictionary, mutate, mutateContents, globalMutate]
+  );
+
   if (!packageId) {
     return null;
   }
 
   // Only show loading skeleton while data is being fetched
-  if ((isLoading || documentsIsLoading) && images.length === 0 && documents.length === 0) {
+  if (
+    (isLoading || documentsIsLoading) &&
+    images.length === 0 &&
+    documents.length === 0
+  ) {
     return (
       <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );
@@ -423,34 +476,18 @@ export default function FileImages({
           setSelected={setSelectedImage}
           dictionary={dictionary}
           onReplaceImage={(file, index) => {
-            console.log(
-              "Replace image:",
-              file,
-              "at index:",
-              index,
-              "for image:",
-              images[index]
-            );
-            // TODO: Implement actual image replacement logic
+            handleReplaceImage(file, index);
           }}
+          refreshKey={imageRefreshKey}
         />
 
         {/* Standalone Replace Image Modal (from thumbnail edit button) */}
         <ReplaceImageModal
-          show={editImageIndex !== null}
+          show={editImageIndex !== null && !isUpdatingImage}
           onClose={() => setEditImageIndex(null)}
           onReplace={(file) => {
             if (editImageIndex !== null) {
-              console.log(
-                "Replace image:",
-                file,
-                "at index:",
-                editImageIndex,
-                "for image:",
-                images[editImageIndex]
-              );
-              // TODO: Implement actual image replacement logic
-              setEditImageIndex(null);
+              handleReplaceImage(file, editImageIndex);
             }
           }}
           dictionary={dictionary}

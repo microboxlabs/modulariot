@@ -1859,6 +1859,10 @@
       "replaceImageDescription": "Seleccione un nuevo documento para reemplazar el actual",
       "selectFile": "Seleccionar archivo",
       "noFileSelected": "Debe seleccionar una imagen para continuar",
+      "update_success": "Imagen actualizada exitosamente",
+      "update_error": "Error al actualizar la imagen",
+      "update_loading": "Actualizando imagen...",
+      "update_comment": "Versión actualizada",
       "validation": {
         "missingDocuments": "Se requieren documentos para continuar",
         "requiresPOD": "Prueba de Entrega (POD)",

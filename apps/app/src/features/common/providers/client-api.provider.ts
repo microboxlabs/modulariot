@@ -830,7 +830,7 @@ export function useOptimisticFileUpload(nodeId: string | undefined) {
 }
 
 export function useGetNodeContents(nodeIds: string[]) {
-  const { data, error, isLoading } = useSWR<any, FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
     nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
     fetcher
   );
@@ -839,6 +839,7 @@ export function useGetNodeContents(nodeIds: string[]) {
     data,
     error,
     isLoading,
+    mutate,
   };
 }
 
@@ -895,6 +896,22 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
 
   return fetcher(url, {
     method: "POST",
+    body: formData,
+  });
+}
+
+export async function putBentoMultimedia(
+  nodeId: string,
+  file: File
+): Promise<{ success: boolean; message: string; data?: unknown }> {
+  const url = "/app/api/bento/update";
+
+  const formData = new FormData();
+  formData.append("filedata", file);
+  formData.append("nodeId", nodeId);
+
+  return fetcher(url, {
+    method: "PUT",
     body: formData,
   });
 }

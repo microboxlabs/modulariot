@@ -1,4 +1,4 @@
-import { lookup } from "node:dns/promises";
+import { lookup as dnsLookup } from "node:dns/promises";
 
 const BLOCKED_IPV4_RANGES = [
   { prefix: "127.", mask: 8 },       // loopback
@@ -54,11 +54,13 @@ export async function validateTargetUrl(
     return { valid: false, reason: "URL resolves to a disallowed address" };
   }
 
-  // DNS lookup to catch names that resolve to private IPs
+  // DNS lookup to catch names that resolve to private IPs (check all resolved addresses)
   try {
-    const { address } = await lookup(hostname);
-    if (isPrivateIPv4(address) || isPrivateIPv6(address)) {
-      return { valid: false, reason: "URL resolves to a disallowed address" };
+    const addresses = await dnsLookup(hostname, { all: true });
+    for (const entry of addresses) {
+      if (isPrivateIPv4(entry.address) || isPrivateIPv6(entry.address)) {
+        return { valid: false, reason: "URL resolves to a disallowed address" };
+      }
     }
   } catch {
     return { valid: false, reason: "Could not resolve hostname" };

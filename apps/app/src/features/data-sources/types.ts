@@ -20,8 +20,8 @@ export interface DataSourceListItem {
   isActive: boolean;
   lastTestedAt?: string;
   lastTestResult?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface DataSourceFormData {

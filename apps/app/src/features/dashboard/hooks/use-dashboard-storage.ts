@@ -107,6 +107,7 @@ export function useDashboardStorage(
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<DashboardStorageSchema | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasLocalEditsRef = useRef(false);
   const siteIdRef = useRef(siteId);
   siteIdRef.current = siteId;
 
@@ -208,6 +209,7 @@ export function useDashboardStorage(
   useEffect(() => {
     setIsLoaded(false);
     setData(DEFAULT_STORAGE);
+    hasLocalEditsRef.current = false;
 
     let localData: DashboardStorageSchema = DEFAULT_STORAGE;
 
@@ -251,6 +253,8 @@ export function useDashboardStorage(
         .then((res) => res.json())
         .then((result: { data: DashboardStorageSchema | null }) => {
           if (abortController.signal.aborted) return;
+          // Skip applying Alfresco data if user has made local edits since mount
+          if (hasLocalEditsRef.current) return;
           if (result.data) {
             const alfrescoData = result.data;
             const migratedWidgets = alfrescoData.widgets.map(
@@ -290,6 +294,7 @@ export function useDashboardStorage(
   // Save data to localStorage + schedule Alfresco save
   const saveData = useCallback(
     (newData: DashboardStorageSchema) => {
+      hasLocalEditsRef.current = true;
       setData(newData);
       try {
         localStorage.setItem(storageKey, JSON.stringify(newData));

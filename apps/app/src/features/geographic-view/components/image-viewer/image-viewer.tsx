@@ -5,6 +5,7 @@ import Carousel from "../carousel";
 import { toast } from "sonner";
 import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { downloadImage } from "../../utils/download-image";
 
 const modalTheme = {
@@ -136,6 +137,8 @@ export default function ImageViewer({
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 color="blue"
+                aria-label={tr("view_image", dictionary) || "View image"}
+                title={tr("view_image", dictionary) || "View image"}
                 onClick={() => {
                   if (selected === null) return;
                   const imageData = images[selected];
@@ -144,7 +147,14 @@ export default function ImageViewer({
                     const [header, base64] = imageData.split(",");
                     const mimeMatch = /data:([^;]+)/.exec(header);
                     const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
-                    const binaryString = atob(base64);
+                    let binaryString: string;
+                    try {
+                      binaryString = atob(base64);
+                    } catch (error) {
+                      console.error("Base64 decode error:", error);
+                      toast.error("Error al decodificar imagen");
+                      return;
+                    }
                     const bytes = new Uint8Array(binaryString.length);
                     for (let i = 0; i < binaryString.length; i++) {
                       bytes[i] = binaryString.codePointAt(i) ?? 0;
@@ -152,6 +162,8 @@ export default function ImageViewer({
                     const blob = new Blob([bytes], { type: mimeType });
                     const blobUrl = URL.createObjectURL(blob);
                     window.open(blobUrl, "_blank");
+                    // Revoke after browser has had time to use the URL
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
                   } else {
                     window.open(imageData, "_blank");
                   }

@@ -123,6 +123,8 @@ interface DashboardProviderProps extends PropsWithChildren {
   storageKey: string;
   /** Optional server-loaded default config. Used only when localStorage has no data yet. */
   defaultConfig?: DashboardStorageSchema | null;
+  /** Optional Alfresco site short name. When provided, configs are also persisted to Alfresco. */
+  siteId?: string | null;
 }
 
 export function DashboardProvider({
@@ -130,6 +132,7 @@ export function DashboardProvider({
   dictionary,
   storageKey,
   defaultConfig,
+  siteId,
 }: Readonly<DashboardProviderProps>) {
   const {
     widgets,
@@ -147,7 +150,7 @@ export function DashboardProvider({
     exportDashboard,
     importDashboard,
     downloadDashboard,
-  } = useDashboardStorage(storageKey, defaultConfig);
+  } = useDashboardStorage(storageKey, defaultConfig, siteId);
 
   const createWidget = useCallback(
     (

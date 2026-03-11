@@ -659,10 +659,10 @@ export async function resolveNodeByPath(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   try {
-    const response = (await fetcher(url, {
+    const response = await fetcher<{ entry?: { id?: string } }>(url, {
       method: "GET",
       headers,
-    })) as { entry?: { id?: string } };
+    });
     return response?.entry?.id ?? null;
   } catch (error: unknown) {
     const fetcherErr = error as FetcherError;
@@ -687,14 +687,14 @@ export async function ensureFolder(
   const { url, headers } = prepareAlfrescoAuth(createUrl, session);
 
   try {
-    const created = (await fetcher(url, {
+    const created = await fetcher<{ entry?: { id?: string } }>(url, {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         name: folderName,
         nodeType: "cm:folder",
       }),
-    })) as { entry?: { id?: string } };
+    });
 
     const createdId = created?.entry?.id;
     if (!createdId) {
@@ -708,10 +708,10 @@ export async function ensureFolder(
       const nodeUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}?relativePath=${encodeURIComponent(folderName)}`;
       const { url: resolveUrl, headers: resolveHeaders } =
         prepareAlfrescoAuth(nodeUrl, session);
-      const resolved = (await fetcher(resolveUrl, {
+      const resolved = await fetcher<{ entry?: { id?: string } }>(resolveUrl, {
         method: "GET",
         headers: resolveHeaders,
-      })) as { entry?: { id?: string } };
+      });
 
       const existingId = resolved?.entry?.id;
       if (existingId) {

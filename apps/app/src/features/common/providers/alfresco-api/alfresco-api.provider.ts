@@ -703,19 +703,17 @@ export async function ensureFolder(
     return createdId;
   } catch (error: unknown) {
     const fetcherErr = error as FetcherError;
-    // 409 = folder already exists — resolve its nodeId
+    // 409 = folder already exists — resolve its nodeId by relativePath from parent
     if (fetcherErr?.status === 409) {
-      const childrenUrl = `${createUrl}?where=(isFolder=true AND name='${folderName}')`;
-      const { url: listUrl, headers: listHeaders } = prepareAlfrescoAuth(
-        childrenUrl,
-        session
-      );
-      const childrenResponse = (await fetcher(listUrl, {
+      const nodeUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}?relativePath=${encodeURIComponent(folderName)}`;
+      const { url: resolveUrl, headers: resolveHeaders } =
+        prepareAlfrescoAuth(nodeUrl, session);
+      const resolved = (await fetcher(resolveUrl, {
         method: "GET",
-        headers: listHeaders,
-      })) as { list?: { entries?: { entry: { id: string } }[] } };
+        headers: resolveHeaders,
+      })) as { entry?: { id?: string } };
 
-      const existingId = childrenResponse?.list?.entries?.[0]?.entry?.id;
+      const existingId = resolved?.entry?.id;
       if (existingId) {
         return existingId;
       }

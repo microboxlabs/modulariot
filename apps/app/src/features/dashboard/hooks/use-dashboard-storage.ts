@@ -250,7 +250,12 @@ export function useDashboardStorage(
         `/app/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`,
         { signal: abortController.signal }
       )
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Alfresco fetch failed: ${res.status} ${res.statusText}`);
+          }
+          return res.json();
+        })
         .then((result: { data: DashboardStorageSchema | null }) => {
           if (abortController.signal.aborted) return;
           // Skip applying Alfresco data if user has made local edits since mount

@@ -103,9 +103,10 @@ export function useDashboardStorage(
   const [data, setData] = useState<DashboardStorageSchema>(DEFAULT_STORAGE);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Refs for debounced Alfresco save
+  // Refs for debounced Alfresco save and background fetch
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<DashboardStorageSchema | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const siteIdRef = useRef(siteId);
   siteIdRef.current = siteId;
 
@@ -175,7 +176,7 @@ export function useDashboardStorage(
     [saveToAlfresco]
   );
 
-  // Flush pending Alfresco save on unmount
+  // Flush pending Alfresco save on unmount using keepalive fetch
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -183,12 +184,25 @@ export function useDashboardStorage(
         debounceTimerRef.current = null;
       }
       const pending = pendingSaveRef.current;
+      const currentSiteId = siteIdRef.current;
       pendingSaveRef.current = null;
-      if (pending && siteIdRef.current) {
-        void saveToAlfresco(pending);
+      if (pending && currentSiteId) {
+        // Use keepalive to ensure the request completes even during page teardown
+        fetch("/api/dashboard/config", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            site: currentSiteId,
+            slug,
+            config: stripEphemeralState(pending),
+          }),
+          keepalive: true,
+        }).catch(() => {
+          // Best-effort — data is already in localStorage
+        });
       }
     };
-  }, [saveToAlfresco]);
+  }, [slug]);
 
   // Load data from localStorage on mount, then background-fetch from Alfresco
   useEffect(() => {
@@ -227,12 +241,16 @@ export function useDashboardStorage(
 
     // Phase 2: Background fetch from Alfresco (source of truth)
     if (siteId) {
-      const fetchSlug = storageKey.replace(/-config$/, "");
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       fetch(
-        `/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(fetchSlug)}`
+        `/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`,
+        { signal: abortController.signal }
       )
         .then((res) => res.json())
         .then((result: { data: DashboardStorageSchema | null }) => {
+          if (abortController.signal.aborted) return;
           if (result.data) {
             const alfrescoData = result.data;
             const migratedWidgets = alfrescoData.widgets.map(
@@ -241,10 +259,9 @@ export function useDashboardStorage(
             const resolved: DashboardStorageSchema = {
               ...alfrescoData,
               widgets: migratedWidgets,
-              // Preserve local editMode (ephemeral)
               preferences: {
                 ...alfrescoData.preferences,
-                editMode: localData?.preferences?.editMode ?? false,
+                editMode: false,
               },
             };
 
@@ -257,13 +274,18 @@ export function useDashboardStorage(
           }
         })
         .catch((error: unknown) => {
+          if (abortController.signal.aborted) return;
           console.warn(
             "Failed to fetch dashboard config from Alfresco, using local data:",
             error
           );
         });
+
+      return () => {
+        abortController.abort();
+      };
     }
-  }, [storageKey, siteId]); // defaultConfig is intentionally omitted — it's stable per page load
+  }, [storageKey, siteId, slug]); // defaultConfig is intentionally omitted — it's stable per page load
 
   // Save data to localStorage + schedule Alfresco save
   const saveData = useCallback(
@@ -441,16 +463,21 @@ export function useDashboardStorage(
     [data, saveData]
   );
 
-  // Set edit mode
+  // Set edit mode (ephemeral — only localStorage, no Alfresco save)
   const setEditMode = useCallback(
     (editMode: boolean) => {
       const newData: DashboardStorageSchema = {
         ...data,
         preferences: { ...data.preferences, editMode },
       };
-      saveData(newData);
+      setData(newData);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newData));
+      } catch {
+        // non-critical
+      }
     },
-    [data, saveData]
+    [data, storageKey]
   );
 
   // Set dashboard name

@@ -120,7 +120,7 @@ export function useDashboardStorage(
       if (!currentSiteId) return;
 
       try {
-        const response = await fetch("/api/dashboard/config", {
+        const response = await fetch("/app/api/dashboard/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -188,7 +188,7 @@ export function useDashboardStorage(
       pendingSaveRef.current = null;
       if (pending && currentSiteId) {
         // Use keepalive to ensure the request completes even during page teardown
-        fetch("/api/dashboard/config", {
+        fetch("/app/api/dashboard/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -245,7 +245,7 @@ export function useDashboardStorage(
       abortControllerRef.current = abortController;
 
       fetch(
-        `/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`,
+        `/app/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`,
         { signal: abortController.signal }
       )
         .then((res) => res.json())

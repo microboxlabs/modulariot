@@ -647,6 +647,78 @@ export async function getGroupsForPerson(session: Session): Promise<string[]> {
   return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
 }
 
+/**
+ * Resolve a node by relativePath. Returns the nodeId or null if not found (404).
+ */
+export async function resolveNodeByPath(
+  session: Session,
+  relativePath: string
+): Promise<string | null> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=${encodeURIComponent(relativePath)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  try {
+    const response = (await fetcher(url, {
+      method: "GET",
+      headers,
+    })) as { entry?: { id?: string } };
+    return response?.entry?.id ?? null;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      "status" in error &&
+      (error as { status: number }).status === 404
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Ensure a folder exists under a parent node. Creates it if missing.
+ * Returns the folder's nodeId.
+ */
+export async function ensureFolder(
+  session: Session,
+  parentNodeId: string,
+  folderName: string
+): Promise<string> {
+  const childrenUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}/children?where=(isFolder=true AND name='${folderName}')`;
+  const { url, headers } = prepareAlfrescoAuth(childrenUrl, session);
+
+  const childrenResponse = (await fetcher(url, {
+    method: "GET",
+    headers,
+  })) as { list?: { entries?: { entry: { id: string } }[] } };
+
+  const existing = childrenResponse?.list?.entries?.[0]?.entry?.id;
+  if (existing) {
+    return existing;
+  }
+
+  const createUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}/children`;
+  const { url: createEndpoint, headers: createHeaders } = prepareAlfrescoAuth(
+    createUrl,
+    session
+  );
+
+  const created = (await fetcher(createEndpoint, {
+    method: "POST",
+    headers: { ...createHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: folderName,
+      nodeType: "cm:folder",
+    }),
+  })) as { entry?: { id?: string } };
+
+  const createdId = created?.entry?.id;
+  if (!createdId) {
+    throw new Error(`Failed to create folder '${folderName}'`);
+  }
+  return createdId;
+}
+
 export async function getUserFilters(
   session: Session,
   group: string

@@ -147,7 +147,7 @@ export default function ImageViewer({
                     const binaryString = atob(base64);
                     const bytes = new Uint8Array(binaryString.length);
                     for (let i = 0; i < binaryString.length; i++) {
-                      bytes[i] = binaryString.charCodeAt(i);
+                      bytes[i] = binaryString.codePointAt(i) ?? 0;
                     }
                     const blob = new Blob([bytes], { type: mimeType });
                     const blobUrl = URL.createObjectURL(blob);
@@ -178,12 +178,7 @@ export default function ImageViewer({
               >
                 <MdOutlineFileDownload className="w-4 h-4" />
               </Button>
-              <Button
-                color="blue"
-                onClick={() => handleShare()}
-                pill
-                size="sm"
-              >
+              <Button color="blue" onClick={() => handleShare()} pill size="sm">
                 <FaShare className="h-4 w-4 text-white text-center" />
               </Button>
             </div>

@@ -11,7 +11,13 @@ interface SlugPageParams extends ParamsWithLang {
 
 export default async function SlugDashboardPage({ params }: Readonly<SlugPageParams>) {
   const { lang, slug } = await params;
-  const [, dictionary] = await getDictionary(lang);
+
+  // Run independent async work in parallel
+  const [dictionaryResult, session] = await Promise.all([
+    getDictionary(lang),
+    auth(),
+  ]);
+  const [, dictionary] = dictionaryResult;
 
   // e.g. "dashboard" → "dashboard-config", "maintenanceStatus" → "maintenanceStatus-config"
   const storageKey = `${slug}-config`;
@@ -22,16 +28,15 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
 
   // Resolve user's primary site for Alfresco persistence
   let siteId: string | null = null;
-  try {
-    const session = await auth();
-    if (session) {
+  if (session) {
+    try {
       const sites = await getUserSites(session);
       if (sites.length > 0) {
         siteId = sites[0].shortName;
       }
+    } catch {
+      // If site resolution fails, fall back to localStorage-only mode
     }
-  } catch {
-    // If site resolution fails, fall back to localStorage-only mode
   }
 
   return (

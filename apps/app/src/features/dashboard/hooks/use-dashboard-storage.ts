@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   type Widget,
   type DashboardStorageSchema,
@@ -73,53 +73,199 @@ function updateChildrenLayouts(
   return widget;
 }
 
+/** Strip editMode from config before persisting to Alfresco */
+function stripEphemeralState(
+  data: DashboardStorageSchema
+): DashboardStorageSchema {
+  return {
+    ...data,
+    preferences: { ...data.preferences, editMode: false },
+  };
+}
+
+const ALFRESCO_DEBOUNCE_MS = 2000;
+const ALFRESCO_MAX_RETRIES = 3;
+const ALFRESCO_RETRY_BASE_MS = 1000;
+
 /**
- * Hook for persisting dashboard data to localStorage.
+ * Hook for persisting dashboard data to localStorage and optionally to Alfresco.
  * @param storageKey    - The localStorage key to use (e.g. "dashboard-config")
  * @param defaultConfig - Optional server-loaded default config. Used only when
  *                        localStorage has no saved data for this key yet.
+ * @param siteId        - Optional Alfresco site short name. When provided, configs
+ *                        are also persisted to Alfresco as source of truth.
  */
 export function useDashboardStorage(
   storageKey: string,
-  defaultConfig?: DashboardStorageSchema | null
+  defaultConfig?: DashboardStorageSchema | null,
+  siteId?: string | null
 ) {
   const [data, setData] = useState<DashboardStorageSchema>(DEFAULT_STORAGE);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load data from localStorage on mount (or when key changes)
+  // Refs for debounced Alfresco save
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<DashboardStorageSchema | null>(null);
+  const siteIdRef = useRef(siteId);
+  siteIdRef.current = siteId;
+
+  // Derive slug from storageKey: "dashboard-config" → "dashboard"
+  const slug = storageKey.replace(/-config$/, "");
+
+  /** Save config to Alfresco with retry */
+  const saveToAlfresco = useCallback(
+    async (configData: DashboardStorageSchema, retryCount = 0) => {
+      const currentSiteId = siteIdRef.current;
+      if (!currentSiteId) return;
+
+      try {
+        const response = await fetch("/api/dashboard/config", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            site: currentSiteId,
+            slug,
+            config: stripEphemeralState(configData),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Alfresco save failed: ${response.status}`);
+        }
+      } catch (error) {
+        if (retryCount < ALFRESCO_MAX_RETRIES - 1) {
+          const delay =
+            ALFRESCO_RETRY_BASE_MS * Math.pow(2, retryCount);
+          console.warn(
+            `Alfresco save failed, retrying in ${delay}ms (attempt ${retryCount + 2}/${ALFRESCO_MAX_RETRIES})`,
+            error
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return saveToAlfresco(configData, retryCount + 1);
+        }
+        console.error(
+          "Failed to save dashboard config to Alfresco after retries:",
+          error
+        );
+      }
+    },
+    [slug]
+  );
+
+  /** Schedule a debounced Alfresco save */
+  const scheduleSaveToAlfresco = useCallback(
+    (configData: DashboardStorageSchema) => {
+      if (!siteIdRef.current) return;
+
+      pendingSaveRef.current = configData;
+
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        const pending = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        debounceTimerRef.current = null;
+        if (pending) {
+          void saveToAlfresco(pending);
+        }
+      }, ALFRESCO_DEBOUNCE_MS);
+    },
+    [saveToAlfresco]
+  );
+
+  // Flush pending Alfresco save on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      const pending = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+      if (pending && siteIdRef.current) {
+        void saveToAlfresco(pending);
+      }
+    };
+  }, [saveToAlfresco]);
+
+  // Load data from localStorage on mount, then background-fetch from Alfresco
   useEffect(() => {
     setIsLoaded(false);
     setData(DEFAULT_STORAGE);
+
+    let localData: DashboardStorageSchema = DEFAULT_STORAGE;
+
+    // Phase 1: Instant load from localStorage
     try {
       const stored = localStorage.getItem(storageKey);
 
       if (stored) {
-        // User already has a saved config — always prefer it over the default
         const parsed = JSON.parse(stored);
         if (parsed.version === 2) {
           const migratedWidgets = parsed.widgets.map((w: Widget, i: number) =>
             ensureWidgetDefaults(w, i)
           );
           const name = parsed.name || DEFAULT_STORAGE.name;
-          setData({ ...parsed, name, widgets: migratedWidgets });
+          localData = { ...parsed, name, widgets: migratedWidgets };
         } else {
-          setData(defaultConfig ?? DEFAULT_STORAGE);
+          localData = defaultConfig ?? DEFAULT_STORAGE;
         }
       } else if (defaultConfig) {
-        // No saved config yet — seed with the server-provided default
         const migratedWidgets = defaultConfig.widgets.map(
           (w: Widget, i: number) => ensureWidgetDefaults(w, i)
         );
-        setData({ ...defaultConfig, widgets: migratedWidgets });
+        localData = { ...defaultConfig, widgets: migratedWidgets };
       }
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
-      setData(defaultConfig ?? DEFAULT_STORAGE);
+      localData = defaultConfig ?? DEFAULT_STORAGE;
     }
+    setData(localData);
     setIsLoaded(true);
-  }, [storageKey]); // defaultConfig is intentionally omitted — it's stable per page load
 
-  // Save data to localStorage
+    // Phase 2: Background fetch from Alfresco (source of truth)
+    if (siteId) {
+      const fetchSlug = storageKey.replace(/-config$/, "");
+      fetch(
+        `/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(fetchSlug)}`
+      )
+        .then((res) => res.json())
+        .then((result: { data: DashboardStorageSchema | null }) => {
+          if (result.data) {
+            const alfrescoData = result.data;
+            const migratedWidgets = alfrescoData.widgets.map(
+              (w: Widget, i: number) => ensureWidgetDefaults(w, i)
+            );
+            const resolved: DashboardStorageSchema = {
+              ...alfrescoData,
+              widgets: migratedWidgets,
+              // Preserve local editMode (ephemeral)
+              preferences: {
+                ...alfrescoData.preferences,
+                editMode: localData?.preferences?.editMode ?? false,
+              },
+            };
+
+            setData(resolved);
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(resolved));
+            } catch {
+              // localStorage write failure is non-critical
+            }
+          }
+        })
+        .catch((error: unknown) => {
+          console.warn(
+            "Failed to fetch dashboard config from Alfresco, using local data:",
+            error
+          );
+        });
+    }
+  }, [storageKey, siteId]); // defaultConfig is intentionally omitted — it's stable per page load
+
+  // Save data to localStorage + schedule Alfresco save
   const saveData = useCallback(
     (newData: DashboardStorageSchema) => {
       setData(newData);
@@ -128,8 +274,9 @@ export function useDashboardStorage(
       } catch (error) {
         console.error("Failed to save dashboard data:", error);
       }
+      scheduleSaveToAlfresco(newData);
     },
-    [storageKey]
+    [storageKey, scheduleSaveToAlfresco]
   );
 
   // Find widget by ID (recursive search)

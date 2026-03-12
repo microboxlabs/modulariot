@@ -2038,9 +2038,14 @@
     "estimated_delivery_date": "Fecha de entrega estimada",
     "actual_delivery_date": "Fecha de entrega",
     "expedition_info": "Información de la expedición",
+    "compromised_delivery_date": "Fecha de entrega comprometida",
+    "projected_delivery_date": "Fecha de entrega proyectada",
     "search_for_your_load": "¿Dónde está mi carga?",
     "use_searchbar": "Usa la barra de búsqueda para encontrar el estado de tu carga",
-    "wheres_my_load": "¿Dónde está mi carga?"
+    "wheres_my_load": "¿Dónde está mi carga?",
+    "compromised": "Comprometida",
+    "projected": "Proyectada",
+    "real": "Real"
   },
   "signal_historic": {
     "search": "Buscar",

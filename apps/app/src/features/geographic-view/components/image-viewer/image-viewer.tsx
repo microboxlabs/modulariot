@@ -151,12 +151,7 @@ export default function ImageViewer({
               >
                 <MdOutlineFileDownload className="w-4 h-4" />
               </Button>
-              <Button
-                color="blue"
-                onClick={() => handleShare()}
-                pill
-                size="sm"
-              >
+              <Button color="blue" onClick={() => handleShare()} pill size="sm">
                 <FaShare className="h-4 w-4 text-white text-center" />
               </Button>
             </div>

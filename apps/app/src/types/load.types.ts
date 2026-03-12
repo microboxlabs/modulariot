@@ -28,6 +28,8 @@ export interface LoadSearchResponse {
     Destino?: string;
     "Tiempo Estimado"?: string;
     ETA?: string;
+    fecha_comprometida: string | null;
+    delivered: boolean | null;
   };
   icon?: string | null;
   visible: boolean;

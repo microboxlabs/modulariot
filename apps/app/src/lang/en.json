@@ -2005,11 +2005,16 @@
     "delivery_delayed": "Delivery delayed by ",
     "estimated_delivery_delayed": "Estimated delivery delayed by ",
     "estimated_delivery_date": "Estimated delivery date",
-    "actual_delivery_date": "Delivery date",
+    "compromised_delivery_date": "Compromised delivery date",
+    "projected_delivery_date": "Projected delivery date",
+    "actual_delivery_date": "Actual delivery date",
     "expedition_info": "Expedition Information",
     "search_for_your_load": "Search for your load",
     "use_searchbar": "Use the searchbar to track the state of your load.",
-    "wheres_my_load": "Where's my load?"
+    "wheres_my_load": "Where's my load?",
+    "compromised": "Compromised",
+    "projected": "Projected",
+    "real": "Real"
   },
   "signal_historic": {
     "search": "Search",

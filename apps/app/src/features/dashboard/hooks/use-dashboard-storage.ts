@@ -129,7 +129,7 @@ export function useDashboardStorage(
   }, [response, fallback]);
 
   // Edit mode — ephemeral React state only
-  const [editMode, setEditModeState] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   // Refs for debounced Alfresco save
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -396,14 +396,6 @@ export function useDashboardStorage(
       saveData(newData);
     },
     [resolvedConfig, saveData]
-  );
-
-  // Set edit mode (ephemeral — React state only)
-  const setEditMode = useCallback(
-    (mode: boolean) => {
-      setEditModeState(mode);
-    },
-    []
   );
 
   // Set dashboard name

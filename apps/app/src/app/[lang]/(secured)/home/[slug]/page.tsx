@@ -29,7 +29,10 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
     try {
       const sites = await getUserSites(session);
       if (sites.length > 0) {
-        siteId = sites[0].shortName;
+        const sorted = [...sites].sort((a, b) =>
+          a.shortName.localeCompare(b.shortName)
+        );
+        siteId = sorted[0].shortName;
       }
     } catch {
       // If site resolution fails, fall back to default config only

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import useSWR from "swr";
+import fetcher from "@/features/common/providers/fetcher";
 import {
   type Widget,
   type DashboardStorageSchema,
@@ -88,31 +90,52 @@ const ALFRESCO_MAX_RETRIES = 3;
 const ALFRESCO_RETRY_BASE_MS = 1000;
 
 /**
- * Hook for persisting dashboard data to localStorage and optionally to Alfresco.
- * @param storageKey    - The localStorage key to use (e.g. "dashboard-config")
- * @param defaultConfig - Optional server-loaded default config. Used only when
- *                        localStorage has no saved data for this key yet.
+ * Hook for persisting dashboard data via SWR + Alfresco.
+ * @param slug          - Dashboard slug (e.g. "dashboard", "maintenanceStatus")
+ * @param defaultConfig - Optional server-loaded default config.
  * @param siteId        - Optional Alfresco site short name. When provided, configs
- *                        are also persisted to Alfresco as source of truth.
+ *                        are fetched from and persisted to Alfresco.
  */
 export function useDashboardStorage(
-  storageKey: string,
+  slug: string,
   defaultConfig?: DashboardStorageSchema | null,
   siteId?: string | null
 ) {
-  const [data, setData] = useState<DashboardStorageSchema>(DEFAULT_STORAGE);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const fallback = defaultConfig ?? DEFAULT_STORAGE;
 
-  // Refs for debounced Alfresco save and background fetch
+  // SWR key — null when no siteId (disables fetch)
+  const swrKey = siteId
+    ? `/app/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`
+    : null;
+
+  const { data: response, mutate, isLoading } = useSWR<{ data: DashboardStorageSchema | null }>(
+    swrKey,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60000,
+      fallbackData: { data: fallback },
+    }
+  );
+
+  // Resolved config with widget defaults applied
+  const resolvedConfig = useMemo(() => {
+    const raw = response?.data ?? fallback;
+    return {
+      ...raw,
+      widgets: raw.widgets.map((w, i) => ensureWidgetDefaults(w, i)),
+    };
+  }, [response, fallback]);
+
+  // Edit mode — ephemeral React state only
+  const [editMode, setEditModeState] = useState(false);
+
+  // Refs for debounced Alfresco save
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<DashboardStorageSchema | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const hasLocalEditsRef = useRef(false);
   const siteIdRef = useRef(siteId);
   siteIdRef.current = siteId;
-
-  // Derive slug from storageKey: "dashboard-config" → "dashboard"
-  const slug = storageKey.replace(/-config$/, "");
 
   /** Save config to Alfresco with retry */
   const saveToAlfresco = useCallback(
@@ -188,7 +211,6 @@ export function useDashboardStorage(
       const currentSiteId = siteIdRef.current;
       pendingSaveRef.current = null;
       if (pending && currentSiteId) {
-        // Use keepalive to ensure the request completes even during page teardown
         fetch("/app/api/dashboard/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -199,123 +221,29 @@ export function useDashboardStorage(
           }),
           keepalive: true,
         }).catch(() => {
-          // Best-effort — data is already in localStorage
+          // Best-effort flush
         });
       }
     };
   }, [slug]);
 
-  // Load data from localStorage on mount, then background-fetch from Alfresco
-  useEffect(() => {
-    setIsLoaded(false);
-    setData(DEFAULT_STORAGE);
-    hasLocalEditsRef.current = false;
-
-    let localData: DashboardStorageSchema = DEFAULT_STORAGE;
-
-    // Phase 1: Instant load from localStorage
-    try {
-      const stored = localStorage.getItem(storageKey);
-
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.version === 2) {
-          const migratedWidgets = parsed.widgets.map((w: Widget, i: number) =>
-            ensureWidgetDefaults(w, i)
-          );
-          const name = parsed.name || DEFAULT_STORAGE.name;
-          localData = { ...parsed, name, widgets: migratedWidgets };
-        } else {
-          localData = defaultConfig ?? DEFAULT_STORAGE;
-        }
-      } else if (defaultConfig) {
-        const migratedWidgets = defaultConfig.widgets.map(
-          (w: Widget, i: number) => ensureWidgetDefaults(w, i)
-        );
-        localData = { ...defaultConfig, widgets: migratedWidgets };
-      }
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
-      localData = defaultConfig ?? DEFAULT_STORAGE;
-    }
-    setData(localData);
-    setIsLoaded(true);
-
-    // Phase 2: Background fetch from Alfresco (source of truth)
-    if (siteId) {
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      fetch(
-        `/app/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`,
-        { signal: abortController.signal }
-      )
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Alfresco fetch failed: ${res.status} ${res.statusText}`);
-          }
-          return res.json();
-        })
-        .then((result: { data: DashboardStorageSchema | null }) => {
-          if (abortController.signal.aborted) return;
-          // Skip applying Alfresco data if user has made local edits since mount
-          if (hasLocalEditsRef.current) return;
-          if (result.data) {
-            const alfrescoData = result.data;
-            const migratedWidgets = alfrescoData.widgets.map(
-              (w: Widget, i: number) => ensureWidgetDefaults(w, i)
-            );
-            const resolved: DashboardStorageSchema = {
-              ...alfrescoData,
-              widgets: migratedWidgets,
-              preferences: {
-                ...alfrescoData.preferences,
-                editMode: false,
-              },
-            };
-
-            setData(resolved);
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(resolved));
-            } catch {
-              // localStorage write failure is non-critical
-            }
-          }
-        })
-        .catch((error: unknown) => {
-          if (abortController.signal.aborted) return;
-          console.warn(
-            "Failed to fetch dashboard config from Alfresco, using local data:",
-            error
-          );
-        });
-
-      return () => {
-        abortController.abort();
-      };
-    }
-  }, [storageKey, siteId, slug]); // defaultConfig is intentionally omitted — it's stable per page load
-
-  // Save data to localStorage + schedule Alfresco save
+  // Save data: optimistic SWR mutate + debounced Alfresco PUT
   const saveData = useCallback(
     (newData: DashboardStorageSchema) => {
-      hasLocalEditsRef.current = true;
-      setData(newData);
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(newData));
-      } catch (error) {
-        console.error("Failed to save dashboard data:", error);
-      }
+      void mutate({ data: newData }, { revalidate: false });
       scheduleSaveToAlfresco(newData);
     },
-    [storageKey, scheduleSaveToAlfresco]
+    [mutate, scheduleSaveToAlfresco]
   );
+
+  // isLoaded: null key means no fetch needed → immediately loaded
+  const isLoaded = swrKey ? !isLoading : true;
 
   // Find widget by ID (recursive search)
   const findWidget = useCallback(
     (
       widgetId: string,
-      widgets: Widget[] = data.widgets
+      widgets: Widget[] = resolvedConfig.widgets
     ): Widget | undefined => {
       for (const widget of widgets) {
         if (widget.id === widgetId) return widget;
@@ -326,15 +254,14 @@ export function useDashboardStorage(
       }
       return undefined;
     },
-    [data.widgets]
+    [resolvedConfig.widgets]
   );
 
   // Find parent widget (recursive)
-  // Returns undefined if widget not found, null if widget is at root level
   const findParent = useCallback(
     (
       widgetId: string,
-      widgets: Widget[] = data.widgets,
+      widgets: Widget[] = resolvedConfig.widgets,
       parent: Widget | null = null
     ): Widget | null | undefined => {
       for (const widget of widgets) {
@@ -346,20 +273,20 @@ export function useDashboardStorage(
       }
       return undefined;
     },
-    [data.widgets]
+    [resolvedConfig.widgets]
   );
 
   // Add a widget at root level
   const addWidget = useCallback(
     (widget: Widget) => {
       const newData: DashboardStorageSchema = {
-        ...data,
-        widgets: [...data.widgets, widget],
+        ...resolvedConfig,
+        widgets: [...resolvedConfig.widgets, widget],
       };
       saveData(newData);
       return widget;
     },
-    [data, saveData]
+    [resolvedConfig, saveData]
   );
 
   // Add a widget as child of another widget
@@ -381,13 +308,13 @@ export function useDashboardStorage(
         });
 
       const newData: DashboardStorageSchema = {
-        ...data,
-        widgets: updateChildren(data.widgets),
+        ...resolvedConfig,
+        widgets: updateChildren(resolvedConfig.widgets),
       };
       saveData(newData);
       return widget;
     },
-    [data, saveData]
+    [resolvedConfig, saveData]
   );
 
   // Update a widget's config
@@ -409,12 +336,12 @@ export function useDashboardStorage(
         });
 
       const newData: DashboardStorageSchema = {
-        ...data,
-        widgets: updateInTree(data.widgets),
+        ...resolvedConfig,
+        widgets: updateInTree(resolvedConfig.widgets),
       };
       saveData(newData);
     },
-    [data, saveData]
+    [resolvedConfig, saveData]
   );
 
   // Update widget layouts (for drag/drop/resize)
@@ -423,32 +350,30 @@ export function useDashboardStorage(
       parentId: string | null,
       layouts: { i: string; x: number; y: number; w: number; h: number }[]
     ) => {
-      // If parentId is null, update root-level widgets
       if (parentId === null) {
-        const updatedWidgets = data.widgets.map((widget) =>
+        const updatedWidgets = resolvedConfig.widgets.map((widget) =>
           applyLayoutToWidget(widget, layouts)
         );
 
         const newData: DashboardStorageSchema = {
-          ...data,
+          ...resolvedConfig,
           widgets: updatedWidgets,
         };
         saveData(newData);
         return;
       }
 
-      // Otherwise update children of a specific parent
-      const updatedWidgets = data.widgets.map((w) =>
+      const updatedWidgets = resolvedConfig.widgets.map((w) =>
         updateChildrenLayouts(w, parentId, layouts)
       );
 
       const newData: DashboardStorageSchema = {
-        ...data,
+        ...resolvedConfig,
         widgets: updatedWidgets,
       };
       saveData(newData);
     },
-    [data, saveData]
+    [resolvedConfig, saveData]
   );
 
   // Delete a widget (and its children)
@@ -465,61 +390,52 @@ export function useDashboardStorage(
           });
 
       const newData: DashboardStorageSchema = {
-        ...data,
-        widgets: removeFromTree(data.widgets),
+        ...resolvedConfig,
+        widgets: removeFromTree(resolvedConfig.widgets),
       };
       saveData(newData);
     },
-    [data, saveData]
+    [resolvedConfig, saveData]
   );
 
-  // Set edit mode (ephemeral — only localStorage, no Alfresco save)
+  // Set edit mode (ephemeral — React state only)
   const setEditMode = useCallback(
-    (editMode: boolean) => {
-      const newData: DashboardStorageSchema = {
-        ...data,
-        preferences: { ...data.preferences, editMode },
-      };
-      setData(newData);
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(newData));
-      } catch {
-        // non-critical
-      }
+    (mode: boolean) => {
+      setEditModeState(mode);
     },
-    [data, storageKey]
+    []
   );
 
   // Set dashboard name
   const setDashboardName = useCallback(
     (name: string) => {
       const newData: DashboardStorageSchema = {
-        ...data,
+        ...resolvedConfig,
         name,
       };
       saveData(newData);
     },
-    [data, saveData]
+    [resolvedConfig, saveData]
   );
 
   // Download dashboard as JSON file
   const downloadDashboard = useCallback(() => {
-    const json = JSON.stringify(data, null, 2);
+    const json = JSON.stringify(resolvedConfig, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${data.name.replaceAll(/\s+/g, "_").toLowerCase()}_dashboard.json`;
+    link.download = `${resolvedConfig.name.replaceAll(/\s+/g, "_").toLowerCase()}_dashboard.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }, [data]);
+  }, [resolvedConfig]);
 
   // Export dashboard as JSON string
   const exportDashboard = useCallback((): string => {
-    return JSON.stringify(data, null, 2);
-  }, [data]);
+    return JSON.stringify(resolvedConfig, null, 2);
+  }, [resolvedConfig]);
 
   // Import dashboard from JSON string
   const importDashboard = useCallback(
@@ -527,7 +443,6 @@ export function useDashboardStorage(
       try {
         const parsed = JSON.parse(jsonString) as unknown;
 
-        // Validate basic structure
         if (
           typeof parsed !== "object" ||
           parsed === null ||
@@ -539,7 +454,6 @@ export function useDashboardStorage(
 
         const imported = parsed as DashboardStorageSchema;
 
-        // Check version
         if (imported.version !== 2) {
           return {
             success: false,
@@ -547,7 +461,6 @@ export function useDashboardStorage(
           };
         }
 
-        // Ensure all widgets have proper defaults
         const normalizedWidgets = imported.widgets.map((widget, index) =>
           ensureWidgetDefaults(widget, index)
         );
@@ -572,9 +485,9 @@ export function useDashboardStorage(
   );
 
   return {
-    widgets: data.widgets,
-    preferences: data.preferences,
-    dashboardName: data.name,
+    widgets: resolvedConfig.widgets,
+    preferences: { editMode },
+    dashboardName: resolvedConfig.name,
     isLoaded,
     addWidget,
     addChildWidget,

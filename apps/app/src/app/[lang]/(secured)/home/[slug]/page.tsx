@@ -19,9 +19,6 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
   ]);
   const [, dictionary] = dictionaryResult;
 
-  // e.g. "dashboard" → "dashboard-config", "maintenanceStatus" → "maintenanceStatus-config"
-  const storageKey = `${slug}-config`;
-
   // Try to load a default config from src/features/dashboard/defaults/{slug}-config.json
   // Returns null if the file doesn't exist — dashboard starts empty as usual
   const defaultConfig = loadDefaultConfig(slug);
@@ -35,7 +32,7 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
         siteId = sites[0].shortName;
       }
     } catch {
-      // If site resolution fails, fall back to localStorage-only mode
+      // If site resolution fails, fall back to default config only
     }
   }
 
@@ -43,7 +40,7 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
     <div className="h-full overflow-auto p-4">
       <DashboardProvider
         dictionary={dictionary}
-        storageKey={storageKey}
+        slug={slug}
         defaultConfig={defaultConfig}
         siteId={siteId}
       >

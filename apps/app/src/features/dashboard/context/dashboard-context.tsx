@@ -119,18 +119,18 @@ function getNextPosition(
 
 interface DashboardProviderProps extends PropsWithChildren {
   dictionary: I18nRecord;
-  /** localStorage key used to persist this dashboard's config (e.g. "dashboard-config") */
-  storageKey: string;
-  /** Optional server-loaded default config. Used only when localStorage has no data yet. */
+  /** Dashboard slug (e.g. "dashboard", "maintenanceStatus") */
+  slug: string;
+  /** Optional server-loaded default config. */
   defaultConfig?: DashboardStorageSchema | null;
-  /** Optional Alfresco site short name. When provided, configs are also persisted to Alfresco. */
+  /** Optional Alfresco site short name. When provided, configs are fetched from and persisted to Alfresco. */
   siteId?: string | null;
 }
 
 export function DashboardProvider({
   children,
   dictionary,
-  storageKey,
+  slug,
   defaultConfig,
   siteId,
 }: Readonly<DashboardProviderProps>) {
@@ -150,7 +150,7 @@ export function DashboardProvider({
     exportDashboard,
     importDashboard,
     downloadDashboard,
-  } = useDashboardStorage(storageKey, defaultConfig, siteId);
+  } = useDashboardStorage(slug, defaultConfig, siteId);
 
   const createWidget = useCallback(
     (

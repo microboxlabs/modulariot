@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { Badge, Button, Label } from "flowbite-react";
+import { useState, useMemo, useEffect } from "react";
+import { Badge, Button, TabItem, Tabs } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -17,22 +17,19 @@ import {
   type SelectedSlot,
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
-import { HiCheck, HiChevronDown, HiExclamation } from "react-icons/hi";
+import { HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
+import {
+  TimeSlotAssignment,
+  type TimeSlotOption,
+  AssignmentForm,
+  type AssignmentFormData,
+} from "./sidebar-tabs";
 
-/** Time slot with availability information */
-interface TimeSlotOption {
-  time: string;
-  /** Total andenes configured for the terminal */
-  totalAndenes: number;
-  /** Andenes currently available (not occupied) */
-  availableAndenes: number;
-  /** Whether this time slot is fully occupied */
-  isFullyOccupied: boolean;
-}
+const ASIGNATION_FLAG = process.env.NEXT_PUBLIC_ASIGNATION_FLAG === "true";
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -64,12 +61,17 @@ export function PlanningSidebarForm({
   const [showAllIncidencias, setShowAllIncidencias] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedServiceCategory, setSelectedServiceCategory] =
     useState<string>(selectedService?.serviceCategory ?? "");
-  const [isTripTypeDropdownOpen, setIsTripTypeDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const tripTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const [assignmentData, setAssignmentData] = useState<AssignmentFormData>({
+    transportista: "",
+    conductor: "",
+    segundoConductor: "",
+    hasSegundoConductor: false,
+    camion: "",
+    remolque: "",
+    hasRemolque: false,
+  });
 
   const { serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes();
   const serviceCategoryOptions = serviceTypes.map((t) => ({
@@ -82,28 +84,14 @@ export function PlanningSidebarForm({
     selectedSlot,
     canAddToSlot,
     reassigningService,
+    assigningService,
     getOccupiedAndenes,
   } = usePlanningSelection();
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-      if (
-        tripTypeDropdownRef.current &&
-        !tripTypeDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsTripTypeDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  // Tab locking logic:
+  // - When assigningService is set, lock "Planificación" tab and show "Asignación"
+  // - Otherwise, both tabs are accessible
+  const isPlanificacionLocked = !!assigningService;
 
   // Build time options from backend slots, filtered to the visible cell range [slotStartTime, slotEndTime)
   const timeOptions = useMemo(() => {
@@ -129,18 +117,14 @@ export function PlanningSidebarForm({
         );
         const availableAndenes = Math.max(
           0,
-          Math.min(
-            andenesCount - localOccupied.length,
-            slot.availableCapacity
-          )
+          Math.min(andenesCount - localOccupied.length, slot.availableCapacity)
         );
         return {
           time,
           totalAndenes: andenesCount,
           availableAndenes,
           isFullyOccupied:
-            slot.availableCapacity <= 0 ||
-            localOccupied.length >= andenesCount,
+            slot.availableCapacity <= 0 || localOccupied.length >= andenesCount,
         };
       });
   }, [
@@ -158,11 +142,6 @@ export function PlanningSidebarForm({
     const [hour, mins] = selectedTime.split(":").map(Number);
     return getOccupiedAndenes(selectedSlot.date, hour, mins);
   }, [selectedSlot, selectedTime, getOccupiedAndenes]);
-
-  // Get the selected time slot option
-  const selectedTimeSlot = useMemo(() => {
-    return timeOptions.find((opt) => opt.time === selectedTime);
-  }, [timeOptions, selectedTime]);
 
   // Set default selected time when time options change or when no valid selection
   useEffect(() => {
@@ -197,11 +176,6 @@ export function PlanningSidebarForm({
       setSelectedAnden(1);
     }
   }, [selectedTime, andenesCount, occupiedAndenesForSelectedTime]);
-
-  const handleTimeSelect = (time: string) => {
-    setSelectedTime(time);
-    setIsDropdownOpen(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,7 +371,6 @@ export function PlanningSidebarForm({
           </div>
         </FormSection>
       )}
-
       {/* KPIs Section */}
       <FormSection title={tr("pages.planning.sidebar.form.kpis", dict)}>
         <LeadTimeDisplay leadTime={selectedService.leadTime} dict={dict} />
@@ -407,7 +380,6 @@ export function PlanningSidebarForm({
           value={occupancy}
         />
       </FormSection>
-
       {/* Load Utilization Section */}
       {selectedService.loadConstraint && (
         <FormSection
@@ -457,7 +429,6 @@ export function PlanningSidebarForm({
           )}
         </FormSection>
       )}
-
       {/* Information Section */}
       <FormSection title={tr("pages.planning.sidebar.form.information", dict)}>
         <InfoRow label={tr("ID", dict)} value={id} />
@@ -482,14 +453,12 @@ export function PlanningSidebarForm({
           value={permanence}
         />
       </FormSection>
-
       {/* Notes Section */}
       <FormSection title={tr("pages.planning.sidebar.form.notes", dict)}>
         <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
           {notes}
         </p>
       </FormSection>
-
       {/* Time & Andenes Selection */}
       {isSlotsLoading && (
         <FormSection title="Asignación de horario">
@@ -498,230 +467,81 @@ export function PlanningSidebarForm({
           </p>
         </FormSection>
       )}
-      {!isSlotsLoading && backendSlots && backendSlots.length > 0 && timeOptions.length === 0 && (
-        <FormSection title="Asignación de horario">
-          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-            No hay turnos disponibles en este horario
-          </p>
-        </FormSection>
-      )}
-      {!isSlotsLoading && timeOptions.length > 0 && (
-        <FormSection title="Asignación de horario">
-          <div className="space-y-3">
-            {/* Service Category Dropdown */}
-            <div ref={tripTypeDropdownRef} className="relative">
-              <Label
-                htmlFor="service-category-select"
-                className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
-              >
-                {tr("pages.planning.sidebar.form.serviceCategory", dict)}
-              </Label>
-
-              {/* Dropdown trigger button */}
-              <button
-                type="button"
-                disabled={isLoadingServiceTypes}
-                onClick={() =>
-                  setIsTripTypeDropdownOpen(!isTripTypeDropdownOpen)
-                }
-                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {isLoadingServiceTypes
-                    ? tr(
-                        "pages.planning.sidebar.form.serviceCategoryLoading",
-                        dict
-                      )
-                    : (serviceCategoryOptions.find(
-                        (opt) => opt.value === selectedServiceCategory
-                      )?.label ??
-                      tr(
-                        "pages.planning.sidebar.form.serviceCategoryPlaceholder",
-                        dict
-                      ))}
-                </span>
-                <HiChevronDown
-                  className={`w-4 h-4 text-gray-500 transition-transform ${isTripTypeDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {/* Dropdown menu */}
-              {isTripTypeDropdownOpen && (
-                <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {serviceCategoryOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setSelectedServiceCategory(option.value);
-                        setIsTripTypeDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                        option.value === selectedServiceCategory
-                          ? "bg-blue-50 dark:bg-blue-900/20"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      } cursor-pointer`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {option.value === selectedServiceCategory && (
-                          <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                        )}
-                        <span
-                          className={`text-sm ${
-                            option.value === selectedServiceCategory
-                              ? "text-blue-700 dark:text-blue-300"
-                              : "text-gray-900 dark:text-white"
-                          }`}
-                        >
-                          {option.label}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Custom Time Slot Dropdown */}
-            <div ref={dropdownRef} className="relative">
-              <Label
-                htmlFor="time-select"
-                className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
-              >
-                Hora de salida
-              </Label>
-
-              {/* Dropdown trigger button */}
-              <button
-                type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-              >
-                {selectedTimeSlot ? (
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {selectedTimeSlot.time}
-                    </span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
-                        selectedTimeSlot.availableAndenes > 0
-                          ? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                          : "bg-yellow-50 dark:bg-yellow-900/20  text-yellow-400 dark:text-yellow-400"
-                      }`}
-                    >
-                      {selectedTimeSlot.availableAndenes}/
-                      {selectedTimeSlot.totalAndenes} andenes
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      ({timeOptions.filter((o) => !o.isFullyOccupied).length}/
-                      {timeOptions.length} disponibles)
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-gray-500">Seleccionar horario</span>
-                )}
-                <HiChevronDown
-                  className={`w-4 h-4 text-gray-500 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {/* Dropdown menu - opens upward */}
-              {isDropdownOpen && (
-                <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {/* Header */}
-                  <div className="sticky top-0 px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>Horario</span>
-                      <span>Disponibilidad</span>
-                    </div>
-                  </div>
-
-                  {/* Time slot options */}
-                  {timeOptions.map((option) => (
-                    <button
-                      key={option.time}
-                      type="button"
-                      onClick={() => handleTimeSelect(option.time)}
-                      disabled={option.isFullyOccupied}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors ${
-                        option.time === selectedTime
-                          ? "bg-blue-50 dark:bg-blue-900/20"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      } ${
-                        option.isFullyOccupied
-                          ? "opacity-50 cursor-not-allowed"
-                          : "cursor-pointer"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {option.time === selectedTime && (
-                          <HiCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        )}
-                        <span
-                          className={`font-medium ${
-                            option.time === selectedTime
-                              ? "text-blue-700 dark:text-blue-300"
-                              : "text-gray-900 dark:text-white"
-                          }`}
-                        >
-                          {option.time}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Andenes indicators */}
-                        <div className="flex gap-0.5">
-                          {Array.from(
-                            { length: option.totalAndenes },
-                            (_, i) => (
-                              <div
-                                key={i}
-                                className={`w-2 h-4 rounded-sm ${
-                                  i < option.availableAndenes
-                                    ? "bg-gray-400 dark:bg-gray-500"
-                                    : "bg-yellow-400"
-                                }`}
-                                title={
-                                  i < option.availableAndenes
-                                    ? "Disponible"
-                                    : "Ocupado"
-                                }
-                              />
-                            )
-                          )}
-                        </div>
-                        <span
-                          className={`text-xs min-w-12 text-right ${
-                            option.availableAndenes > 0
-                              ? "text-gray-600 dark:text-gray-400"
-                              : "text-yellow-400"
-                          }`}
-                        >
-                          {option.availableAndenes}/{option.totalAndenes}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+      {!isSlotsLoading &&
+        backendSlots &&
+        backendSlots.length > 0 &&
+        timeOptions.length === 0 && (
+          <FormSection title="Asignación de horario">
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+              No hay turnos disponibles en este horario
+            </p>
+          </FormSection>
+        )}
+      <Tabs
+        key={isPlanificacionLocked ? "asignacion" : "planificacion"}
+        aria-label="Default tabs"
+        variant="default"
+        theme={{
+          tablist: {
+            tabitem: {
+              base: "flex items-center justify-center rounded-t-lg px-2 py-1.5 text-sm font-medium first:ml-0 focus:outline-none disabled:cursor-not-allowed disabled:text-gray-400 disabled:dark:text-gray-500",
+            },
+          },
+          tabpanel: "py-0",
+        }}
+      >
+        <TabItem
+          active={!isPlanificacionLocked}
+          disabled={isPlanificacionLocked}
+          title="Planificación"
+        >
+          {!isSlotsLoading && timeOptions.length > 0 && (
+            <TimeSlotAssignment
+              dict={dict}
+              timeOptions={timeOptions}
+              selectedTime={selectedTime}
+              onTimeChange={setSelectedTime}
+              serviceCategoryOptions={serviceCategoryOptions}
+              selectedServiceCategory={selectedServiceCategory}
+              onServiceCategoryChange={setSelectedServiceCategory}
+              isLoadingServiceTypes={isLoadingServiceTypes}
+            />
+          )}
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="submit"
+              color="blue"
+              className="flex-1"
+              disabled={!canConfirm}
+            >
+              {reassigningService
+                ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
+                : tr("pages.planning.sidebar.form.confirm", dict)}
+            </Button>
           </div>
-        </FormSection>
-      )}
+        </TabItem>
+        {ASIGNATION_FLAG && (
+          <TabItem
+            active={isPlanificacionLocked}
+            disabled={!isPlanificacionLocked}
+            title="Asignación"
+          >
+            <AssignmentForm
+              value={assignmentData}
+              onChange={setAssignmentData}
+            />
+            {isPlanificacionLocked && (
+              <div className="flex gap-2 pt-4">
+                <Button type="submit" color="blue" className="flex-1">
+                  Asignar
+                </Button>
+              </div>
+            )}
+          </TabItem>
+        )}
+      </Tabs>
 
       {/* Actions */}
-      <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <Button
-          type="submit"
-          color="blue"
-          className="flex-1"
-          disabled={!canConfirm}
-        >
-          {reassigningService
-            ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
-            : tr("pages.planning.sidebar.form.confirm", dict)}
-        </Button>
-      </div>
     </form>
   );
 }

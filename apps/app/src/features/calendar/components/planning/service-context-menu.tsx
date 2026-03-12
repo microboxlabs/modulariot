@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { HiSwitchHorizontal, HiTrash } from "react-icons/hi";
+import { HiSwitchHorizontal, HiTrash, HiUserAdd } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { PlannedService } from "./planning-selection-context";
 import { Button } from "flowbite-react";
+
+const ASIGNATION_FLAG = process.env.NEXT_PUBLIC_ASIGNATION_FLAG === "true";
 
 export interface ContextMenuPosition {
   x: number;
@@ -17,6 +19,7 @@ interface ServiceContextMenuProps {
   position: ContextMenuPosition;
   plannedService: PlannedService | null;
   onReassign: (plannedService: PlannedService) => void;
+  onAssign: (plannedService: PlannedService) => void;
   onDelete: (plannedService: PlannedService) => void;
   onClose: () => void;
 }
@@ -57,6 +60,7 @@ export function ServiceContextMenu({
   position,
   plannedService,
   onReassign,
+  onAssign,
   onDelete,
   onClose,
 }: Readonly<ServiceContextMenuProps>) {
@@ -113,6 +117,11 @@ export function ServiceContextMenu({
     onClose();
   };
 
+  const handleAssign = () => {
+    onAssign(plannedService);
+    onClose();
+  };
+
   const handleDelete = () => {
     onDelete(plannedService);
     onClose();
@@ -153,8 +162,19 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span>Reasignar</span>
+          <span>Volver a planificar</span>
         </Button>
+        {ASIGNATION_FLAG && (
+          <Button
+            color={"alternative"}
+            type="button"
+            onClick={handleAssign}
+            className="border-0 rounded-none w-full justify-start gap-2"
+          >
+            <HiUserAdd className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span>Asignar</span>
+          </Button>
+        )}
         <Button
           color={"alternative"}
           type="button"

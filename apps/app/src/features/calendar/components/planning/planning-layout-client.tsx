@@ -45,7 +45,7 @@ function PlanningLayoutInner({
             isSidebarOpen ? "w-80" : "w-0"
           )}
         >
-          <div className="w-80 h-full">
+          <div className="w-full h-full">
             <PlanningSidebarClient dict={dict} />
           </div>
         </div>

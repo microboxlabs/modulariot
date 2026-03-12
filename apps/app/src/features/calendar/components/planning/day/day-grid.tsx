@@ -175,6 +175,7 @@ export default function DayGrid({
     isSlotBlocked,
     removeService,
     startReassignment,
+    startAssignment,
     reassigningService,
   } = usePlanningSelection();
 
@@ -185,10 +186,11 @@ export default function DayGrid({
     handleContextMenu,
     handleCloseContextMenu,
     handleReassign,
+    handleAssign,
     handleDeleteRequest,
     handleConfirmDelete,
     handleCancelDelete,
-  } = useServiceActions({ removeService, startReassignment });
+  } = useServiceActions({ removeService, startReassignment, startAssignment });
 
   const timeSlots = useMemo(
     () => generateTimeSlots(startHour, endHour),
@@ -330,6 +332,7 @@ export default function DayGrid({
         position={contextMenu.position}
         plannedService={contextMenu.plannedService}
         onReassign={handleReassign}
+        onAssign={handleAssign}
         onDelete={handleDeleteRequest}
         onClose={handleCloseContextMenu}
       />

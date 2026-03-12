@@ -1,10 +1,7 @@
 "use client";
 
 import { FaTruck, FaTruckLoading } from "react-icons/fa";
-import TimelineStates, {
-  TemporalComponent,
-  DelayCalculations,
-} from "./components/state";
+import TimelineStates, { TemporalComponent } from "./components/state";
 import React, { useEffect, useMemo } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
@@ -39,12 +36,10 @@ export type State = {
   ended: boolean;
   extradata: { [key: string]: string | number | boolean };
   time: {
-    start: string | null;
-    projected_start: string | null;
-    end: string | null;
-    projected_end: string | null;
-    lead_time_start: string | null;
-    lead_time_end: string | null;
+    start: string;
+    end: string;
+    compromised_time: string | null;
+    delivered: boolean | null;
     duration: number | null;
   };
   visible: boolean;
@@ -99,10 +94,8 @@ export default function Timeline({
             time: {
               start: item.start_time__,
               end: item.end_time__,
-              projected_start: item.projected_start_time_,
-              projected_end: item.projected_end_time_,
-              lead_time_start: item.start_lead_time_,
-              lead_time_end: item.end_lead_time_,
+              compromised_time: item.extradata.fecha_comprometida,
+              delivered: item.extradata.delivered,
               duration: item.duration__,
             },
             icon: getLoadIcon(item.icon),
@@ -362,19 +355,11 @@ function SideInfo({
   className?: string;
   allStates: State[];
 }) {
-  const temporal_data = TemporalComponent({
-    time: state.time,
-    dict,
-    stateCode: state.code,
-  });
-
   // Find DELIVERY_EXPEDITION state for delivery dates
   const deliveryExpeditionState = allStates.find(
     (s) => s.code === "DELIVERY_EXPEDITION"
   );
-  const estimatedDeliveryDate =
-    deliveryExpeditionState?.time.projected_start ??
-    deliveryExpeditionState?.time.lead_time_start;
+
   const actualDeliveryDate = deliveryExpeditionState?.time.start;
 
   return (
@@ -416,12 +401,12 @@ function SideInfo({
               />
               <LoadableLabel label="Bultos" value="-" className="!text-base" />
             </div>
-            {estimatedDeliveryDate && (
+            {state.time.compromised_time && (
               <LoadableLabel
-                label={tr("wheres_my_load.estimated_delivery_date", dict)}
+                label={tr("wheres_my_load.compromised_delivery_date", dict)}
                 value={
                   <FormattedDate
-                    date={estimatedDeliveryDate}
+                    date={state.time.compromised_time}
                     format="datetime"
                     locale="es-CL"
                     timeZone="America/Santiago"
@@ -432,7 +417,12 @@ function SideInfo({
             )}
             {actualDeliveryDate && (
               <LoadableLabel
-                label={tr("wheres_my_load.actual_delivery_date", dict)}
+                label={tr(
+                  state.time.delivered
+                    ? "wheres_my_load.actual_delivery_date"
+                    : "wheres_my_load.projected_delivery_date",
+                  dict
+                )}
                 value={
                   <FormattedDate
                     date={actualDeliveryDate}
@@ -447,7 +437,6 @@ function SideInfo({
           </div>
         </CustomCard>
       </div>
-      <DelayCalculations temporalData={temporal_data} dict={dict} />
       <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit">
         <CustomCard
           title={state.name}

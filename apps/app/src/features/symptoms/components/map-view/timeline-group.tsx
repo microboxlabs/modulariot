@@ -125,8 +125,6 @@ export default function TimelineGroup({
           : length / 1440
         : length / 60
       : length;
-
-  console.log(item);
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm transition-colors duration-200 border hover:bg-gray-100 dark:hover:bg-gray-900 hover:border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700">
       <div

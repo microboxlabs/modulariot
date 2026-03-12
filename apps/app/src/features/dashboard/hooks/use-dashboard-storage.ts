@@ -101,7 +101,9 @@ export function useDashboardStorage(
   defaultConfig?: DashboardStorageSchema | null,
   siteId?: string | null
 ) {
-  const fallback = defaultConfig ?? DEFAULT_STORAGE;
+  // Stabilize fallback via ref — defaultConfig comes from server props and is
+  // referentially stable per page load, but we guard against inline objects.
+  const fallbackRef = useRef(defaultConfig ?? DEFAULT_STORAGE);
 
   // SWR key — null when no siteId (disables fetch)
   const swrKey = siteId
@@ -115,18 +117,22 @@ export function useDashboardStorage(
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60000,
-      fallbackData: { data: fallback },
+      fallbackData: { data: fallbackRef.current },
     }
   );
 
+  const rawConfig = response?.data ?? fallbackRef.current;
+
   // Resolved config with widget defaults applied
-  const resolvedConfig = useMemo(() => {
-    const raw = response?.data ?? fallback;
-    return {
-      ...raw,
-      widgets: raw.widgets.map((w, i) => ensureWidgetDefaults(w, i)),
-    };
-  }, [response, fallback]);
+  const resolvedConfig = useMemo(() => ({
+    ...rawConfig,
+    widgets: rawConfig.widgets.map((w, i) => ensureWidgetDefaults(w, i)),
+  }), [rawConfig]);
+
+  // Keep a ref so mutation callbacks don't depend on resolvedConfig directly,
+  // preventing cascading callback recreation on every widget change.
+  const configRef = useRef(resolvedConfig);
+  configRef.current = resolvedConfig;
 
   // Edit mode — ephemeral React state only
   const [editMode, setEditMode] = useState(false);
@@ -144,7 +150,7 @@ export function useDashboardStorage(
       if (!currentSiteId) return;
 
       try {
-        const response = await fetch("/app/api/dashboard/config", {
+        const res = await fetch("/app/api/dashboard/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -154,8 +160,8 @@ export function useDashboardStorage(
           }),
         });
 
-        if (!response.ok) {
-          throw new Error(`Alfresco save failed: ${response.status}`);
+        if (!res.ok) {
+          throw new Error(`Alfresco save failed: ${res.status}`);
         }
       } catch (error) {
         if (retryCount < ALFRESCO_MAX_RETRIES - 1) {
@@ -211,6 +217,7 @@ export function useDashboardStorage(
       const currentSiteId = siteIdRef.current;
       pendingSaveRef.current = null;
       if (pending && currentSiteId) {
+        // Raw fetch with keepalive for page teardown — shared fetcher doesn't support keepalive
         fetch("/app/api/dashboard/config", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -236,6 +243,18 @@ export function useDashboardStorage(
     [mutate, scheduleSaveToAlfresco]
   );
 
+  // Helper: update config via a transform on the current widgets.
+  // Reads from configRef so mutation callbacks remain stable.
+  const updateConfig = useCallback(
+    (patch: Partial<DashboardStorageSchema> | ((current: DashboardStorageSchema) => DashboardStorageSchema)) => {
+      const current = configRef.current;
+      const newData = typeof patch === "function" ? patch(current) : { ...current, ...patch };
+      saveData(newData);
+      return newData;
+    },
+    [saveData]
+  );
+
   // isLoaded: null key means no fetch needed → immediately loaded
   const isLoaded = swrKey ? !isLoading : true;
 
@@ -243,7 +262,7 @@ export function useDashboardStorage(
   const findWidget = useCallback(
     (
       widgetId: string,
-      widgets: Widget[] = resolvedConfig.widgets
+      widgets: Widget[] = configRef.current.widgets
     ): Widget | undefined => {
       for (const widget of widgets) {
         if (widget.id === widgetId) return widget;
@@ -254,14 +273,14 @@ export function useDashboardStorage(
       }
       return undefined;
     },
-    [resolvedConfig.widgets]
+    []
   );
 
   // Find parent widget (recursive)
   const findParent = useCallback(
     (
       widgetId: string,
-      widgets: Widget[] = resolvedConfig.widgets,
+      widgets: Widget[] = configRef.current.widgets,
       parent: Widget | null = null
     ): Widget | null | undefined => {
       for (const widget of widgets) {
@@ -273,26 +292,22 @@ export function useDashboardStorage(
       }
       return undefined;
     },
-    [resolvedConfig.widgets]
+    []
   );
 
   // Add a widget at root level
   const addWidget = useCallback(
     (widget: Widget) => {
-      const newData: DashboardStorageSchema = {
-        ...resolvedConfig,
-        widgets: [...resolvedConfig.widgets, widget],
-      };
-      saveData(newData);
+      updateConfig((c) => ({ ...c, widgets: [...c.widgets, widget] }));
       return widget;
     },
-    [resolvedConfig, saveData]
+    [updateConfig]
   );
 
   // Add a widget as child of another widget
   const addChildWidget = useCallback(
     (parentId: string, widget: Widget) => {
-      const updateChildren = (widgets: Widget[]): Widget[] =>
+      const addToParent = (widgets: Widget[]): Widget[] =>
         widgets.map((w) => {
           if (w.id === parentId) {
             return {
@@ -302,19 +317,15 @@ export function useDashboardStorage(
             };
           }
           if (w.children) {
-            return { ...w, children: updateChildren(w.children) };
+            return { ...w, children: addToParent(w.children) };
           }
           return w;
         });
 
-      const newData: DashboardStorageSchema = {
-        ...resolvedConfig,
-        widgets: updateChildren(resolvedConfig.widgets),
-      };
-      saveData(newData);
+      updateConfig((c) => ({ ...c, widgets: addToParent(c.widgets) }));
       return widget;
     },
-    [resolvedConfig, saveData]
+    [updateConfig]
   );
 
   // Update a widget's config
@@ -323,11 +334,7 @@ export function useDashboardStorage(
       const updateInTree = (widgets: Widget[]): Widget[] =>
         widgets.map((w) => {
           if (w.id === widgetId) {
-            return {
-              ...w,
-              config,
-              updatedAt: new Date().toISOString(),
-            };
+            return { ...w, config, updatedAt: new Date().toISOString() };
           }
           if (w.children) {
             return { ...w, children: updateInTree(w.children) };
@@ -335,13 +342,9 @@ export function useDashboardStorage(
           return w;
         });
 
-      const newData: DashboardStorageSchema = {
-        ...resolvedConfig,
-        widgets: updateInTree(resolvedConfig.widgets),
-      };
-      saveData(newData);
+      updateConfig((c) => ({ ...c, widgets: updateInTree(c.widgets) }));
     },
-    [resolvedConfig, saveData]
+    [updateConfig]
   );
 
   // Update widget layouts (for drag/drop/resize)
@@ -350,30 +353,14 @@ export function useDashboardStorage(
       parentId: string | null,
       layouts: { i: string; x: number; y: number; w: number; h: number }[]
     ) => {
-      if (parentId === null) {
-        const updatedWidgets = resolvedConfig.widgets.map((widget) =>
-          applyLayoutToWidget(widget, layouts)
-        );
-
-        const newData: DashboardStorageSchema = {
-          ...resolvedConfig,
-          widgets: updatedWidgets,
-        };
-        saveData(newData);
-        return;
-      }
-
-      const updatedWidgets = resolvedConfig.widgets.map((w) =>
-        updateChildrenLayouts(w, parentId, layouts)
-      );
-
-      const newData: DashboardStorageSchema = {
-        ...resolvedConfig,
-        widgets: updatedWidgets,
-      };
-      saveData(newData);
+      updateConfig((c) => {
+        if (parentId === null) {
+          return { ...c, widgets: c.widgets.map((w) => applyLayoutToWidget(w, layouts)) };
+        }
+        return { ...c, widgets: c.widgets.map((w) => updateChildrenLayouts(w, parentId, layouts)) };
+      });
     },
-    [resolvedConfig, saveData]
+    [updateConfig]
   );
 
   // Delete a widget (and its children)
@@ -389,45 +376,38 @@ export function useDashboardStorage(
             return w;
           });
 
-      const newData: DashboardStorageSchema = {
-        ...resolvedConfig,
-        widgets: removeFromTree(resolvedConfig.widgets),
-      };
-      saveData(newData);
+      updateConfig((c) => ({ ...c, widgets: removeFromTree(c.widgets) }));
     },
-    [resolvedConfig, saveData]
+    [updateConfig]
   );
 
   // Set dashboard name
   const setDashboardName = useCallback(
     (name: string) => {
-      const newData: DashboardStorageSchema = {
-        ...resolvedConfig,
-        name,
-      };
-      saveData(newData);
+      updateConfig({ name });
     },
-    [resolvedConfig, saveData]
+    [updateConfig]
   );
 
   // Download dashboard as JSON file
   const downloadDashboard = useCallback(() => {
-    const json = JSON.stringify(resolvedConfig, null, 2);
+    const current = configRef.current;
+    const json = JSON.stringify(current, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${resolvedConfig.name.replaceAll(/\s+/g, "_").toLowerCase()}_dashboard.json`;
+    link.download = `${current.name.replaceAll(/\s+/g, "_").toLowerCase()}_dashboard.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }, [resolvedConfig]);
+  }, []);
 
   // Export dashboard as JSON string
   const exportDashboard = useCallback((): string => {
-    return JSON.stringify(resolvedConfig, null, 2);
-  }, [resolvedConfig]);
+    return JSON.stringify(configRef.current, null, 2);
+  }, []);
 
   // Import dashboard from JSON string
   const importDashboard = useCallback(

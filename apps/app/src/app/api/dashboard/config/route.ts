@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
-  getPlainTextNode,
-  uploadNodeContent,
-  resolveNodeByPath,
-  ensureFolder,
+  getDashboardConfig,
+  saveDashboardConfig,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
   handleApiError,
@@ -15,10 +13,8 @@ import {
 /**
  * GET /api/dashboard/config?site={siteShortName}&slug={slug}
  *
- * Reads a dashboard config JSON from Alfresco:
- *   Sites/{site}/documentLibrary/dashboard/{slug}-config.json
- *
- * Returns { data: <parsed JSON> } or { data: null } if the file doesn't exist yet.
+ * Proxies to the Alfresco dashboard config webscript.
+ * Returns { data: <parsed JSON> } or { data: null } if no config exists yet.
  */
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -35,17 +31,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const relativePath = `Sites/${site}/documentLibrary/dashboard/${slug}-config.json`;
-    const nodeId = await resolveNodeByPath(session, relativePath);
-
-    if (!nodeId) {
-      return NextResponse.json({ data: null });
-    }
-
-    const content = await getPlainTextNode(session, nodeId);
-    const parsed = JSON.parse(content);
-
-    return NextResponse.json({ data: parsed });
+    const result = await getDashboardConfig(session, site, slug);
+    return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error, "reading dashboard config from Alfresco");
   }
@@ -54,9 +41,7 @@ export async function GET(request: NextRequest) {
 /**
  * PUT /api/dashboard/config
  *
- * Saves a dashboard config JSON to Alfresco:
- *   Sites/{site}/documentLibrary/dashboard/{slug}-config.json
- *
+ * Proxies to the Alfresco dashboard config webscript.
  * Body: { site: string, slug: string, config: DashboardStorageSchema }
  */
 export async function PUT(request: NextRequest) {
@@ -79,41 +64,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Ensure the "dashboard" folder exists under documentLibrary
-    const docLibPath = `Sites/${site}/documentLibrary`;
-    const docLibNodeId = await resolveNodeByPath(session, docLibPath);
-    if (!docLibNodeId) {
-      return NextResponse.json(
-        { error: `documentLibrary not found for site '${site}'` },
-        { status: 404 }
-      );
-    }
-    await ensureFolder(session, docLibNodeId, "dashboard");
-
-    // Upload the config file into the existing folder
-    const filename = `${slug}-config.json`;
-    const blob = new Blob([JSON.stringify(config)], {
-      type: "application/json",
-    });
-    const file = new File([blob], filename, { type: "application/json" });
-
-    const result = await uploadNodeContent(session, {
-      filedata: file,
-      siteId: site,
-      containerId: "documentLibrary",
-      uploadDirectory: "/dashboard",
-      filename,
-      overwrite: true,
-    });
-
-    if (!result || (result.status && result.status.code >= 400)) {
-      return NextResponse.json(
-        { error: result?.status?.message ?? "Upload failed" },
-        { status: result?.status?.code ?? 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
+    const result = await saveDashboardConfig(session, site, slug, config);
+    return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error, "saving dashboard config to Alfresco");
   }

@@ -30,13 +30,15 @@ export default function ClasificationForm({
   dictionary,
   setUploadableFiles,
   uploadFile,
+  onUploadComplete,
 }: {
   packageId: string;
   setIsOpen: (isOpen: boolean) => void;
   uploadableFiles: any[];
   dictionary: I18nRecord;
   setUploadableFiles: (files: any[]) => void;
-  uploadFile: (file: SendableFile) => Promise<any>;
+  uploadFile: (file: SendableFile, skipRevalidation?: boolean) => Promise<any>;
+  onUploadComplete: () => void;
 }) {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [loadableDocs, setLoadableDocs] = useState<FileType[]>(
@@ -92,44 +94,45 @@ export default function ClasificationForm({
     setIsUploading(true);
     setIsOpen(false);
 
-    try {
-      // Upload all files in parallel using the optimistic upload function
-      const uploadPromises = loadableDocs
-        .filter((doc) => doc.category !== null)
-        .map(async (doc) => {
-          return await uploadFile({
+    const docsToUpload = loadableDocs.filter((doc) => doc.category !== null);
+
+    // Wrap sequential uploads in a promise for the notification
+    const uploadPromise = (async () => {
+      for (let i = 0; i < docsToUpload.length; i++) {
+        const doc = docsToUpload[i];
+        const isLast = i === docsToUpload.length - 1;
+        // Skip revalidation for all but the last file
+        await uploadFile(
+          {
             filedata: doc.file as File,
             prop_mintral_contentType: doc.category!,
             prop_cm_name: doc.name,
             prop_mimetype: doc.type,
             alf_destination: `workspace://SpacesStore/${packageId}`,
-          });
-        });
+          },
+          !isLast
+        );
+      }
+    })();
 
-      // Create the promise and handle it manually
-      const uploadPromise = Promise.all(uploadPromises);
+    ShowNotification({
+      type: "promise",
+      promise: uploadPromise,
+      loading: "Subiendo archivos...",
+      ok: "Archivos subidos correctamente",
+      error: "Error al subir los archivos",
+    });
 
-      // Show notification with the promise
-      ShowNotification({
-        type: "promise",
-        promise: uploadPromise,
-        loading: "Subiendo archivos...",
-        ok: "Archivos subidos correctamente",
-        error: "Error al subir los archivos",
+    uploadPromise
+      .then(() => {
+        onUploadComplete();
+      })
+      .catch(() => {
+        // Error already shown via notification — don't reopen the form
+      })
+      .finally(() => {
+        setIsUploading(false);
       });
-
-      // Add custom error handling
-      uploadPromise.catch((_error) => {
-        setIsOpen(true);
-      });
-    } catch (error) {
-      ShowNotification({
-        type: "error",
-        message: "Error al subir los archivos",
-      });
-    } finally {
-      setIsUploading(false);
-    }
   };
 
   return (

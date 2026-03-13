@@ -1,0 +1,28 @@
+# 🔔 Release Notes v1.28.5 — ModularIoT
+
+### Fecha: 11/03/2026
+
+**Objetivo**: Esta versión corrige un error crítico en la reasignación de tareas de entrega, donde el cambio de grupo no se reflejaba correctamente debido a que la variable se almacenaba en el ámbito de la tarea en lugar del proceso.
+
+## 🐛 Correcciones
+
+- **🐛 Reasignación de tareas de entrega no persiste el grupo correctamente**
+  - **Problema**: Al reasignar una tarea de entrega, el nuevo grupo se escribía como variable local de la tarea (`task_id_` presente en `act_ru_variable`) en lugar de como variable del proceso. El endpoint de detalle de tareas lee únicamente variables a nivel de proceso (`task_id_ IS NULL`), por lo que la reasignación parecía no tener efecto desde la perspectiva del usuario.
+  - **Causa raíz**: `DeliveryTaskReassignmentService` utilizaba `TaskService.setVariable(taskId, ...)` que crea variables locales de tarea, cuando los grupos fueron originalmente escritos como variables de proceso por `V2GroupsAssignationHandler`.
+  - **Solución**: Se reemplazó `TaskService.setVariable` por `RuntimeService.setVariable` usando el `processInstanceId`, asegurando que la variable se actualice en el ámbito correcto del proceso.
+  - **Tareas afectadas**: `confirmDelivery`, `receiveDelivery`, `notifyTMSArrival`, `notifyTMSDelivery` — grupo destino: `GROUP_MINTRAL_EJECUTIVO_TRANSPORTE`.
+  - **Mejoras adicionales**: Se añadió método `executeByTaskId` para reasignación individual, documentación API en Bruno, y reorganización de scripts de JS Console.
+
+## 📊 Beneficios
+
+- 🔧 **Reasignación funcional**: Las tareas de entrega ahora reflejan correctamente el grupo asignado tras una reasignación, eliminando la necesidad de intervención manual.
+- 👤 **Experiencia de usuario restaurada**: Los operadores pueden confiar en que la reasignación de tareas surte efecto inmediato y visible en la interfaz.
+- 🧪 **Mejor capacidad de diagnóstico**: El nuevo endpoint de reasignación individual permite verificar y depurar reasignaciones tarea por tarea.
+- 📚 **Documentación API actualizada**: Los endpoints de reasignación cuentan ahora con documentación completa en Bruno para facilitar pruebas e integración.
+- 🗂️ **Organización de herramientas**: Los scripts de JS Console se reorganizaron en subdirectorios categorizados para mejor mantenibilidad.
+
+## 📌 Conclusión
+
+La versión 1.28.5 resuelve un defecto sutil pero de alto impacto en el flujo de reasignación de tareas de entrega. La discrepancia entre el ámbito de escritura (tarea) y lectura (proceso) de las variables de grupo causaba que las reasignaciones fueran silenciosamente ignoradas, generando confusión operativa.
+
+Esta corrección restaura la funcionalidad esperada del proceso de reasignación y añade herramientas de diagnóstico que facilitarán la verificación de escenarios similares en el futuro. La reorganización de scripts internos contribuye además a la mantenibilidad del proyecto a largo plazo.

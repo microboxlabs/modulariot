@@ -4,10 +4,7 @@ import { Button, FileInput } from "flowbite-react";
 import { useState, useEffect, useMemo } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
 import { FaUpload } from "react-icons/fa";
-import {
-  useGetNodeContents,
-  useOptimisticFileUpload,
-} from "@/features/common/providers/client-api.provider";
+import { useOptimisticFileUpload } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -139,51 +136,35 @@ export default function FileImages({
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const { data, uploadFile } = useOptimisticFileUpload(packageId);
+  const { data, isLoading, uploadFile } = useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
-  const {
-    data: documentsData,
-    error: _documentsError,
-    isLoading: documentsIsLoading,
-  } = useGetNodeContents(
-    files?.map((file: AlfrescoFileEntry) => file.entry.id) || []
-  );
-
-  // Process documents data when it changes
+  // Classify files by mimeType from the listing metadata (no content download needed)
   useEffect(() => {
-    if (files.length > 0 && documentsData) {
+    if (files.length > 0) {
       const newImages: any[] = [];
       const newDocuments: any[] = [];
 
-      documentsData.data.forEach((document: any, index: number) => {
-        if (!document.error && files[index]) {
-          if (files[index].entry.content.mimeType.includes("image")) {
-            newImages.push({
-              file: files[index],
-              data: document,
-            });
-          } else {
-            newDocuments.push({
-              file: files[index],
-              data: document,
-            });
-          }
+      files.forEach((file: AlfrescoFileEntry) => {
+        if (file.entry.content.mimeType.includes("image")) {
+          newImages.push({ file });
+        } else {
+          newDocuments.push({ file });
         }
       });
 
       setImages(newImages);
       setDocuments(newDocuments);
     }
-  }, [documentsData, files]);
+  }, [files]);
 
   if (!packageId) {
     return null;
   }
 
-  // Only show loading skeleton if we have no existing data and are loading
-  if (documentsIsLoading && images.length === 0 && documents.length === 0) {
+  // Only show loading skeleton while data is being fetched
+  if (isLoading && !data) {
     return (
       <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );
@@ -335,7 +316,7 @@ export default function FileImages({
         {/* Images */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            images.length == 0 && documents.length == 0 && !documentsIsLoading
+            images.length == 0 && documents.length == 0
               ? "hidden"
               : "block"
           }`}
@@ -377,7 +358,7 @@ export default function FileImages({
         {/* Documents */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            documents.length == 0 && images.length == 0 && !documentsIsLoading
+            documents.length == 0 && images.length == 0
               ? "hidden"
               : "block"
           }`}
@@ -439,6 +420,7 @@ export default function FileImages({
           dictionary={dictionary}
           setUploadableFiles={setUploadableFiles}
           uploadFile={uploadFile}
+          onUploadComplete={() => setUploadableFiles([])}
         />
       )}
       {isDocumentListOpen && (
@@ -451,11 +433,4 @@ export default function FileImages({
       )}
     </div>
   );
-}
-
-export function displayBase64Content(
-  base64Content: string,
-  mimeType: string
-): string {
-  return `data:${mimeType};base64,${base64Content}`;
 }

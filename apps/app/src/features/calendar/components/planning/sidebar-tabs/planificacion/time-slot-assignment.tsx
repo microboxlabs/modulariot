@@ -195,7 +195,9 @@ export function TimeSlotAssignment({
             {/* Header */}
             <div className="sticky top-0 px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>{tr("pages.planning.sidebar.form.timeColumn", dict)}</span>
+                <span>
+                  {tr("pages.planning.sidebar.form.timeColumn", dict)}
+                </span>
                 <span>
                   {tr("pages.planning.sidebar.form.availabilityColumn", dict)}
                 </span>
@@ -246,8 +248,14 @@ export function TimeSlotAssignment({
                         }`}
                         title={
                           i < option.availableAndenes
-                            ? tr("pages.planning.sidebar.form.andenAvailable", dict)
-                            : tr("pages.planning.sidebar.form.andenOccupied", dict)
+                            ? tr(
+                                "pages.planning.sidebar.form.andenAvailable",
+                                dict
+                              )
+                            : tr(
+                                "pages.planning.sidebar.form.andenOccupied",
+                                dict
+                              )
                         }
                       />
                     ))}

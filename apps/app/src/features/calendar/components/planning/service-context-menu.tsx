@@ -6,6 +6,8 @@ import { HiSwitchHorizontal, HiTrash, HiUserAdd } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { PlannedService } from "./planning-selection-context";
 import { Button } from "flowbite-react";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 const ASIGNATION_FLAG = process.env.NEXT_PUBLIC_ASIGNATION_FLAG === "true";
 
@@ -22,6 +24,7 @@ interface ServiceContextMenuProps {
   onAssign: (plannedService: PlannedService) => void;
   onDelete: (plannedService: PlannedService) => void;
   onClose: () => void;
+  dict: I18nRecord;
 }
 
 /**
@@ -63,6 +66,7 @@ export function ServiceContextMenu({
   onAssign,
   onDelete,
   onClose,
+  dict,
 }: Readonly<ServiceContextMenuProps>) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -152,7 +156,7 @@ export function ServiceContextMenu({
       {/* Service ID header */}
       <div className="px-3 py-1.5 border-b border-gray-200 dark:border-gray-700">
         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-          Servicio
+          {tr("pages.planning.sidebar.contextMenu.service", dict)}
         </span>
         <span className="ml-1 text-xs font-mono font-bold text-gray-900 dark:text-white">
           {plannedService.service.id}
@@ -168,7 +172,7 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span>Volver a planificar</span>
+          <span>{tr("pages.planning.sidebar.contextMenu.replan", dict)}</span>
         </Button>
         {ASIGNATION_FLAG && (
           <Button
@@ -178,7 +182,7 @@ export function ServiceContextMenu({
             className="border-0 rounded-none w-full justify-start gap-2"
           >
             <HiUserAdd className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span>Asignar</span>
+            <span>{tr("pages.planning.sidebar.contextMenu.assign", dict)}</span>
           </Button>
         )}
         <Button
@@ -188,7 +192,9 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiTrash className="w-4 h-4" />
-          <span>Eliminar planificación</span>
+          <span>
+            {tr("pages.planning.sidebar.contextMenu.deletePlanning", dict)}
+          </span>
         </Button>
       </div>
     </div>,

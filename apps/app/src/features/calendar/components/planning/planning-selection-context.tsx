@@ -34,6 +34,8 @@ import {
   localToApiTimeWindow,
   TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -706,6 +708,7 @@ const PlanningSelectionContext =
 interface PlanningSelectionProviderProps {
   readonly children: ReactNode;
   readonly calendarId?: string;
+  readonly dict: I18nDictionary;
 }
 
 /**
@@ -731,6 +734,7 @@ function getWeekOfMonth(date: dayjs.Dayjs): number {
 export function PlanningSelectionProvider({
   children,
   calendarId,
+  dict,
 }: PlanningSelectionProviderProps) {
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
@@ -875,8 +879,12 @@ export function PlanningSelectionProvider({
       .catch((err) => {
         if (controller.signal.aborted) return;
         if (err instanceof Error && err.name === "AbortError") return;
-        const message =
-          "No se pudieron cargar las reservas existentes del calendario.";
+        setPlannedServices([]);
+        setBookingIds(new Map());
+        const message = tr(
+          "pages.planning.sidebar.notifications.bookingsLoadError",
+          dict
+        );
         setBookingsLoadError(message);
         ShowNotification({ type: "error", message });
       });
@@ -1406,6 +1414,9 @@ export function PlanningSelectionProvider({
    * The service remains visible in its original position with a visual indicator
    */
   const startReassignment = useCallback((plannedService: PlannedService) => {
+    // Clear any active assignment mode first (mutually exclusive)
+    setAssigningService(null);
+
     // Store original slot for visual connection and cancellation
     setReassigningService({
       service: plannedService,
@@ -1436,6 +1447,9 @@ export function PlanningSelectionProvider({
    * Used when user clicks "Asignar" in context menu for already-planned services
    */
   const startAssignment = useCallback((plannedService: PlannedService) => {
+    // Clear any active reassignment mode first (mutually exclusive)
+    setReassigningService(null);
+
     setAssigningService({ service: plannedService });
     setSelectedService(plannedService.service);
     setSelectedSlot(plannedService.slot);

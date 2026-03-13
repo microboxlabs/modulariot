@@ -65,7 +65,7 @@ export function PlanningLayoutClient({
   calendarId,
 }: PlanningLayoutClientProps) {
   return (
-    <PlanningSelectionProvider calendarId={calendarId}>
+    <PlanningSelectionProvider calendarId={calendarId} dict={dict}>
       <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
     </PlanningSelectionProvider>
   );

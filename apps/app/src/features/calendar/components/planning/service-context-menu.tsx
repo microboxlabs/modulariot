@@ -67,8 +67,14 @@ export function ServiceContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Estimated menu dimensions for initial position calculation
+  // Height varies based on number of buttons (2 without ASIGNATION_FLAG, 3 with it)
   const MENU_WIDTH = 180;
-  const MENU_HEIGHT = 120;
+  const MENU_HEADER_HEIGHT = 32;
+  const MENU_BUTTON_HEIGHT = 38;
+  const MENU_PADDING = 8;
+  const buttonCount = ASIGNATION_FLAG ? 3 : 2;
+  const MENU_HEIGHT =
+    MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
   // Calculate position immediately (no animation delay)
   const adjustedPosition = getAdjustedPosition(

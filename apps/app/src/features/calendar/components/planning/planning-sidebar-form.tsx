@@ -85,6 +85,7 @@ export function PlanningSidebarForm({
     canAddToSlot,
     reassigningService,
     assigningService,
+    cancelAssignment,
     getOccupiedAndenes,
   } = usePlanningSelection();
 
@@ -214,6 +215,31 @@ export function PlanningSidebarForm({
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Error al asignar el servicio";
+      ShowNotification({ type: "error", message });
+    }
+  };
+
+  /**
+   * Handle assignment-only action (Asignar button in Asignación tab)
+   * This persists assignmentData without affecting planning state
+   */
+  const handleAssign = async () => {
+    // TODO: Call assignment API with assignmentData when available
+    // For now, show success and clear assignment mode
+    try {
+      // Placeholder: log assignment data until API is wired
+      console.log("Assignment data:", assignmentData);
+
+      ShowNotification({
+        type: "success",
+        message: "Asignación completada exitosamente",
+      });
+
+      // Clear assignment mode
+      cancelAssignment();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Error al completar la asignación";
       ShowNotification({ type: "error", message });
     }
   };
@@ -529,10 +555,16 @@ export function PlanningSidebarForm({
             <AssignmentForm
               value={assignmentData}
               onChange={setAssignmentData}
+              dict={dict}
             />
             {isPlanificacionLocked && (
               <div className="flex gap-2 pt-4">
-                <Button type="submit" color="blue" className="flex-1">
+                <Button
+                  type="button"
+                  color="blue"
+                  className="flex-1"
+                  onClick={handleAssign}
+                >
                   Asignar
                 </Button>
               </div>

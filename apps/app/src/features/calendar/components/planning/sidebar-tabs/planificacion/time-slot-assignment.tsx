@@ -150,7 +150,7 @@ export function TimeSlotAssignment({
           htmlFor="time-select"
           className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
         >
-          Hora de salida
+          {tr("pages.planning.sidebar.form.departureTime", dict)}
         </Label>
         {/* Dropdown trigger button */}
         <button
@@ -171,15 +171,19 @@ export function TimeSlotAssignment({
                 }`}
               >
                 {selectedTimeSlot.availableAndenes}/
-                {selectedTimeSlot.totalAndenes} andenes
+                {selectedTimeSlot.totalAndenes}{" "}
+                {tr("pages.planning.sidebar.form.andenes", dict)}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                 ({timeOptions.filter((o) => !o.isFullyOccupied).length}/
-                {timeOptions.length} disponibles)
+                {timeOptions.length}{" "}
+                {tr("pages.planning.sidebar.form.available", dict)})
               </span>
             </div>
           ) : (
-            <span className="text-gray-500">Seleccionar horario</span>
+            <span className="text-gray-500">
+              {tr("pages.planning.sidebar.form.selectTime", dict)}
+            </span>
           )}
           <HiChevronDown
             className={`w-4 h-4 text-gray-500 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
@@ -191,8 +195,10 @@ export function TimeSlotAssignment({
             {/* Header */}
             <div className="sticky top-0 px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Horario</span>
-                <span>Disponibilidad</span>
+                <span>{tr("pages.planning.sidebar.form.timeColumn", dict)}</span>
+                <span>
+                  {tr("pages.planning.sidebar.form.availabilityColumn", dict)}
+                </span>
               </div>
             </div>
             {/* Time slot options */}
@@ -239,7 +245,9 @@ export function TimeSlotAssignment({
                             : "bg-yellow-400"
                         }`}
                         title={
-                          i < option.availableAndenes ? "Disponible" : "Ocupado"
+                          i < option.availableAndenes
+                            ? tr("pages.planning.sidebar.form.andenAvailable", dict)
+                            : tr("pages.planning.sidebar.form.andenOccupied", dict)
                         }
                       />
                     ))}

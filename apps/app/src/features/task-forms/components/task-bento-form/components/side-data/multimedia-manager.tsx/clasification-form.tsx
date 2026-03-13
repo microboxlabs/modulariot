@@ -118,19 +118,17 @@ export default function ClasificationForm({
     ShowNotification({
       type: "promise",
       promise: uploadPromise,
-      loading: "Subiendo archivos...",
-      ok: "Archivos subidos correctamente",
-      error: "Error al subir los archivos",
+      loading: tr("bento.multimedia.upload_loading", dictionary),
+      ok: tr("bento.multimedia.upload_success", dictionary),
+      error: tr("bento.multimedia.upload_error", dictionary),
     });
 
     uploadPromise
-      .then(() => {
-        onUploadComplete();
-      })
       .catch(() => {
         // Error already shown via notification — don't reopen the form
       })
       .finally(() => {
+        onUploadComplete();
         setIsUploading(false);
       });
   };

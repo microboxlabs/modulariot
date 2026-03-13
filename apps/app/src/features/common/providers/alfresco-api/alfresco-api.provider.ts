@@ -1477,3 +1477,43 @@ export async function updateTaskServiceCategory(
     mintral_serviceCategory: serviceTypeCode,
   });
 }
+
+/**
+ * Reads a dashboard config from Alfresco via the dashboard config webscript.
+ * Returns the parsed config or null if no config exists yet.
+ */
+export async function getDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<{ data: unknown | null }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config?site=${encodeURIComponent(site)}&slug=${encodeURIComponent(slug)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return result as { data: unknown | null };
+}
+
+/**
+ * Saves a dashboard config to Alfresco via the dashboard config webscript.
+ */
+export async function saveDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string,
+  config: unknown
+): Promise<{ success: boolean }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ site, slug, config }),
+  });
+  return result as { success: boolean };
+}

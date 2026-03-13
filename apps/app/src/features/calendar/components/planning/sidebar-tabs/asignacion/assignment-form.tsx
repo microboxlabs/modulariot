@@ -435,11 +435,7 @@ function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
 
   // Center map on truck location
   useEffect(() => {
-    if (
-      mapRef.current &&
-      camion.latitude != null &&
-      camion.longitude != null
-    ) {
+    if (mapRef.current && camion.latitude != null && camion.longitude != null) {
       mapRef.current.flyTo({
         center: [camion.longitude, camion.latitude],
         zoom: 14,
@@ -473,11 +469,7 @@ interface AssignmentFormProps {
   readonly dict: I18nRecord;
 }
 
-export function AssignmentForm({
-  value,
-  onChange,
-  dict,
-}: AssignmentFormProps) {
+export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
   const transportistaOptions: DropdownOption[] = TRANSPORTISTA_OPTIONS.map(
     (t) => ({
       value: t.value,
@@ -600,7 +592,10 @@ export function AssignmentForm({
       {value.hasSegundoConductor && (
         <div>
           <CustomDropdown
-            label={tr("pages.planning.sidebar.assignment.secondConductor", dict)}
+            label={tr(
+              "pages.planning.sidebar.assignment.secondConductor",
+              dict
+            )}
             options={conductorOptions.filter(
               (c) => c.value !== value.conductor
             )}
@@ -612,7 +607,10 @@ export function AssignmentForm({
             )}
           />
           {selectedSegundoConductor && (
-            <DriverInfoDisplay conductor={selectedSegundoConductor} dict={dict} />
+            <DriverInfoDisplay
+              conductor={selectedSegundoConductor}
+              dict={dict}
+            />
           )}
         </div>
       )}
@@ -642,7 +640,9 @@ export function AssignmentForm({
             </label>
           }
         />
-        {selectedCamion && <TruckInfoDisplay camion={selectedCamion} dict={dict} />}
+        {selectedCamion && (
+          <TruckInfoDisplay camion={selectedCamion} dict={dict} />
+        )}
         {selectedCamion && <TruckMapDisplay camion={selectedCamion} />}
       </div>
 

@@ -387,6 +387,7 @@ export default function PlanningWeekView({
         onAssign={handleAssign}
         onDelete={handleDeleteRequest}
         onClose={handleCloseContextMenu}
+        dict={dict}
       />
 
       {/* Delete Confirmation Modal */}

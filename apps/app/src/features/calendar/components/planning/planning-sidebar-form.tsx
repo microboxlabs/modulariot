@@ -203,18 +203,20 @@ export function PlanningSidebarForm({
       if (wasReassigning || result) {
         ShowNotification({
           type: "success",
-          message: "Servicio reasignado exitosamente",
+          message: tr("pages.planning.sidebar.notifications.reassigned", dict),
         });
       } else {
         ShowNotification({
           type: "success",
-          message: "Servicio asignado exitosamente",
+          message: tr("pages.planning.sidebar.notifications.assigned", dict),
         });
       }
       onSubmit?.({});
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Error al asignar el servicio";
+        err instanceof Error
+          ? err.message
+          : tr("pages.planning.sidebar.notifications.assignError", dict);
       ShowNotification({ type: "error", message });
     }
   };
@@ -224,7 +226,6 @@ export function PlanningSidebarForm({
    * This persists assignmentData without affecting planning state
    */
   const handleAssign = async () => {
-    // TODO: Call assignment API with assignmentData when available
     // For now, show success and clear assignment mode
     try {
       // Placeholder: log assignment data until API is wired
@@ -232,14 +233,19 @@ export function PlanningSidebarForm({
 
       ShowNotification({
         type: "success",
-        message: "Asignación completada exitosamente",
+        message: tr(
+          "pages.planning.sidebar.notifications.assignmentCompleted",
+          dict
+        ),
       });
 
       // Clear assignment mode
       cancelAssignment();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Error al completar la asignación";
+        err instanceof Error
+          ? err.message
+          : tr("pages.planning.sidebar.notifications.assignmentError", dict);
       ShowNotification({ type: "error", message });
     }
   };
@@ -378,7 +384,9 @@ export function PlanningSidebarForm({
                   onClick={() => setShowAllIncidencias(true)}
                   className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-colors"
                 >
-                  +{secondary.length} más
+                  {tr("pages.planning.sidebar.form.showMore", dict, {
+                    count: String(secondary.length),
+                  })}
                 </button>
               )}
 
@@ -391,7 +399,7 @@ export function PlanningSidebarForm({
                   onClick={() => setShowAllIncidencias(false)}
                   className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 cursor-pointer transition-colors"
                 >
-                  ver menos
+                  {tr("pages.planning.sidebar.form.showLess", dict)}
                 </button>
               )}
           </div>
@@ -487,9 +495,11 @@ export function PlanningSidebarForm({
       </FormSection>
       {/* Time & Andenes Selection */}
       {isSlotsLoading && (
-        <FormSection title="Asignación de horario">
+        <FormSection
+          title={tr("pages.planning.sidebar.form.timeAssignment", dict)}
+        >
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-            Cargando turnos...
+            {tr("pages.planning.sidebar.form.loadingSlots", dict)}
           </p>
         </FormSection>
       )}
@@ -497,9 +507,11 @@ export function PlanningSidebarForm({
         backendSlots &&
         backendSlots.length > 0 &&
         timeOptions.length === 0 && (
-          <FormSection title="Asignación de horario">
+          <FormSection
+            title={tr("pages.planning.sidebar.form.timeAssignment", dict)}
+          >
             <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-              No hay turnos disponibles en este horario
+              {tr("pages.planning.sidebar.form.noSlotsAvailable", dict)}
             </p>
           </FormSection>
         )}
@@ -519,7 +531,7 @@ export function PlanningSidebarForm({
         <TabItem
           active={!isPlanificacionLocked}
           disabled={isPlanificacionLocked}
-          title="Planificación"
+          title={tr("pages.planning.sidebar.form.planningTab", dict)}
         >
           {!isSlotsLoading && timeOptions.length > 0 && (
             <TimeSlotAssignment
@@ -550,7 +562,7 @@ export function PlanningSidebarForm({
           <TabItem
             active={isPlanificacionLocked}
             disabled={!isPlanificacionLocked}
-            title="Asignación"
+            title={tr("pages.planning.sidebar.form.assignmentTab", dict)}
           >
             <AssignmentForm
               value={assignmentData}
@@ -565,7 +577,7 @@ export function PlanningSidebarForm({
                   className="flex-1"
                   onClick={handleAssign}
                 >
-                  Asignar
+                  {tr("pages.planning.sidebar.form.assign", dict)}
                 </Button>
               </div>
             )}

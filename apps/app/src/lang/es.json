@@ -305,9 +305,20 @@
           "timeColumn": "Horario",
           "availabilityColumn": "Disponibilidad",
           "andenAvailable": "Disponible",
-          "andenOccupied": "Ocupado"
+          "andenOccupied": "Ocupado",
+          "showMore": "+{count} más",
+          "showLess": "ver menos",
+          "timeAssignment": "Asignación de horario",
+          "loadingSlots": "Cargando turnos...",
+          "noSlotsAvailable": "No hay turnos disponibles en este horario",
+          "planningTab": "Planificación",
+          "assignmentTab": "Asignación"
         },
         "contextMenu": {
+          "service": "Servicio",
+          "replan": "Volver a planificar",
+          "assign": "Asignar",
+          "deletePlanning": "Eliminar planificación",
           "reassign": "Reasignar",
           "delete": "Eliminar",
           "deleteConfirmTitle": "Confirmar eliminación",
@@ -316,6 +327,10 @@
         },
         "notifications": {
           "reassigned": "Servicio reasignado exitosamente",
+          "assigned": "Servicio asignado exitosamente",
+          "assignError": "Error al asignar el servicio",
+          "assignmentCompleted": "Asignación completada exitosamente",
+          "assignmentError": "Error al completar la asignación",
           "deleted": "Asignación eliminada",
           "reassignmentCancelled": "Reasignación cancelada",
           "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio",

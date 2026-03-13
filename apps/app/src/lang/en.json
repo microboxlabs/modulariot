@@ -297,7 +297,15 @@
           "leadTimeLocLines": "{count} LOC lines",
           "serviceCategory": "Service Category",
           "serviceCategoryLoading": "Loading\u2026",
-          "serviceCategoryPlaceholder": "Select category"
+          "serviceCategoryPlaceholder": "Select category",
+          "departureTime": "Departure time",
+          "selectTime": "Select time",
+          "andenes": "platforms",
+          "available": "available",
+          "timeColumn": "Time",
+          "availabilityColumn": "Availability",
+          "andenAvailable": "Available",
+          "andenOccupied": "Occupied"
         },
         "contextMenu": {
           "reassign": "Reassign",
@@ -310,11 +318,47 @@
           "reassigned": "Service reassigned successfully",
           "deleted": "Assignment deleted",
           "reassignmentCancelled": "Reassignment cancelled",
-          "selectNewSlot": "Select a new date and time to reassign the service"
+          "selectNewSlot": "Select a new date and time to reassign the service",
+          "bookingsLoadError": "Could not load existing calendar bookings."
         },
         "reassignment": {
           "title": "Reassigning service",
           "hint": "Select a date and time in the calendar to reassign"
+        },
+        "assignment": {
+          "selectPlaceholder": "Select...",
+          "transportista": "Carrier",
+          "selectTransportista": "Select carrier...",
+          "conductor": "Driver",
+          "selectConductor": "Select driver...",
+          "secondConductorLabel": "2nd driver",
+          "secondConductor": "Second Driver",
+          "selectSecondConductor": "Select second driver...",
+          "camion": "Truck",
+          "selectCamion": "Select truck...",
+          "remolqueLabel": "Trailer",
+          "remolque": "Trailer",
+          "selectRemolque": "Select trailer...",
+          "status": "Status",
+          "enabled": "Enabled",
+          "notEnabled": "Not Enabled",
+          "previousTrips": "Previous trips",
+          "lastTrip": "Last trip",
+          "speedExcess": "Speed excess",
+          "incidents": "{count} incidents",
+          "restFaults": "Rest faults",
+          "faults": "{count} faults",
+          "gpsIntegrated": "GPS integrated",
+          "integrated": "Integrated",
+          "notIntegrated": "Not Integrated",
+          "gpsStatus": "GPS Status",
+          "online": "Online",
+          "offline": "Offline",
+          "trips": "{count} trips",
+          "signalLosses": "Signal losses",
+          "losses": "{count} losses",
+          "available": "Available",
+          "busy": "Busy"
         }
       }
     },

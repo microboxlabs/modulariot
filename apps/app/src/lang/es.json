@@ -297,7 +297,15 @@
           "leadTimeLocLines": "{count} líneas LOC",
           "serviceCategory": "Categoría de servicio",
           "serviceCategoryLoading": "Cargando\u2026",
-          "serviceCategoryPlaceholder": "Seleccionar categoría"
+          "serviceCategoryPlaceholder": "Seleccionar categoría",
+          "departureTime": "Hora de salida",
+          "selectTime": "Seleccionar horario",
+          "andenes": "andenes",
+          "available": "disponibles",
+          "timeColumn": "Horario",
+          "availabilityColumn": "Disponibilidad",
+          "andenAvailable": "Disponible",
+          "andenOccupied": "Ocupado"
         },
         "contextMenu": {
           "reassign": "Reasignar",
@@ -310,11 +318,47 @@
           "reassigned": "Servicio reasignado exitosamente",
           "deleted": "Asignación eliminada",
           "reassignmentCancelled": "Reasignación cancelada",
-          "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio"
+          "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio",
+          "bookingsLoadError": "No se pudieron cargar las reservas existentes del calendario."
         },
         "reassignment": {
           "title": "Reasignando servicio",
           "hint": "Seleccione una fecha y hora en el calendario para reasignar"
+        },
+        "assignment": {
+          "selectPlaceholder": "Seleccionar...",
+          "transportista": "Transportista",
+          "selectTransportista": "Seleccionar transportista...",
+          "conductor": "Conductor",
+          "selectConductor": "Seleccionar conductor...",
+          "secondConductorLabel": "2do conductor",
+          "secondConductor": "Segundo Conductor",
+          "selectSecondConductor": "Seleccionar segundo conductor...",
+          "camion": "Camión",
+          "selectCamion": "Seleccionar camión...",
+          "remolqueLabel": "Remolque",
+          "remolque": "Remolque",
+          "selectRemolque": "Seleccionar remolque...",
+          "status": "Estado",
+          "enabled": "Habilitado",
+          "notEnabled": "No Habilitado",
+          "previousTrips": "Viajes previos",
+          "lastTrip": "Último viaje",
+          "speedExcess": "Exceso velocidad",
+          "incidents": "{count} incidentes",
+          "restFaults": "Faltas descanso",
+          "faults": "{count} faltas",
+          "gpsIntegrated": "GPS integrado",
+          "integrated": "Integrado",
+          "notIntegrated": "No Integrado",
+          "gpsStatus": "Estado GPS",
+          "online": "Online",
+          "offline": "Offline",
+          "trips": "{count} viajes",
+          "signalLosses": "Pérdidas de señal",
+          "losses": "{count} pérdidas",
+          "available": "Disponible",
+          "busy": "Ocupado"
         }
       }
     },

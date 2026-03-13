@@ -6,6 +6,8 @@ import { HiCheck, HiChevronDown } from "react-icons/hi";
 import MapVisualization from "@/features/map-visualization/map-visualization";
 import type { MapRef } from "react-map-gl";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 // Mock data - replace with actual API data
 const TRANSPORTISTA_OPTIONS = [
@@ -174,7 +176,7 @@ function CustomDropdown({
   options,
   selectedValue,
   onChange,
-  placeholder = "Seleccionar...",
+  placeholder,
   disabled = false,
   labelRightElement,
 }: CustomDropdownProps) {
@@ -260,54 +262,65 @@ function CustomDropdown({
 
 interface DriverInfoDisplayProps {
   readonly conductor: (typeof CONDUCTOR_OPTIONS)[0];
+  readonly dict: I18nRecord;
 }
 
-function DriverInfoDisplay({ conductor }: DriverInfoDisplayProps) {
+function DriverInfoDisplay({ conductor, dict }: DriverInfoDisplayProps) {
   const isEnabled = conductor.estado === "habilitado";
 
   return (
     <div className="mt-1 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="flex flex-col gap-0.5 text-[11px]">
         <div className="flex items-center justify-between">
-          <span className="text-gray-500 dark:text-gray-400">Estado</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("pages.planning.sidebar.assignment.status", dict)}
+          </span>
           <span
             className={`font-medium ${isEnabled ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
           >
-            {isEnabled ? "Habilitado" : "No Habilitado"}
+            {isEnabled
+              ? tr("pages.planning.sidebar.assignment.enabled", dict)
+              : tr("pages.planning.sidebar.assignment.notEnabled", dict)}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-gray-500 dark:text-gray-400">
-            Viajes previos
+            {tr("pages.planning.sidebar.assignment.previousTrips", dict)}
           </span>
           <span className="font-medium text-gray-900 dark:text-white">
             {conductor.viajesPrevios}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500 dark:text-gray-400">Último viaje</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("pages.planning.sidebar.assignment.lastTrip", dict)}
+          </span>
           <span className="font-medium text-gray-900 dark:text-white">
             {conductor.ultimoViaje}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-gray-500 dark:text-gray-400">
-            Exceso velocidad
+            {tr("pages.planning.sidebar.assignment.speedExcess", dict)}
           </span>
           <span
             className={`font-medium ${conductor.excesoVelocidad > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-900 dark:text-white"}`}
           >
-            {conductor.excesoVelocidad} incidentes
+            {tr("pages.planning.sidebar.assignment.incidents", dict, {
+              count: String(conductor.excesoVelocidad),
+            })}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-gray-500 dark:text-gray-400">
-            Faltas descanso
+            {tr("pages.planning.sidebar.assignment.restFaults", dict)}
           </span>
           <span
             className={`font-medium ${conductor.faltasDescanso > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-900 dark:text-white"}`}
           >
-            {conductor.faltasDescanso} faltas
+            {tr("pages.planning.sidebar.assignment.faults", dict, {
+              count: String(conductor.faltasDescanso),
+            })}
           </span>
         </div>
       </div>
@@ -317,9 +330,10 @@ function DriverInfoDisplay({ conductor }: DriverInfoDisplayProps) {
 
 interface TruckInfoDisplayProps {
   readonly camion: (typeof CAMION_OPTIONS)[0];
+  readonly dict: I18nRecord;
 }
 
-function TruckInfoDisplay({ camion }: TruckInfoDisplayProps) {
+function TruckInfoDisplay({ camion, dict }: TruckInfoDisplayProps) {
   const isGpsIntegrado = camion.gpsIntegrado;
   const isOnline = camion.estadoGps === "online";
 
@@ -328,16 +342,20 @@ function TruckInfoDisplay({ camion }: TruckInfoDisplayProps) {
       <div className="flex flex-col gap-0.5 text-[11px]">
         <div className="flex items-center justify-between">
           <span className="text-gray-500 dark:text-gray-400">
-            GPS integrado
+            {tr("pages.planning.sidebar.assignment.gpsIntegrated", dict)}
           </span>
           <span
             className={`font-medium ${isGpsIntegrado ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
           >
-            {isGpsIntegrado ? "Integrado" : "No Integrado"}
+            {isGpsIntegrado
+              ? tr("pages.planning.sidebar.assignment.integrated", dict)
+              : tr("pages.planning.sidebar.assignment.notIntegrated", dict)}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500 dark:text-gray-400">Estado GPS</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("pages.planning.sidebar.assignment.gpsStatus", dict)}
+          </span>
           <span className="flex items-center gap-1">
             <span
               className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`}
@@ -345,32 +363,40 @@ function TruckInfoDisplay({ camion }: TruckInfoDisplayProps) {
             <span
               className={`font-medium ${isOnline ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
             >
-              {isOnline ? "Online" : "Offline"}
+              {isOnline
+                ? tr("pages.planning.sidebar.assignment.online", dict)
+                : tr("pages.planning.sidebar.assignment.offline", dict)}
             </span>
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-gray-500 dark:text-gray-400">
-            Viajes previos
+            {tr("pages.planning.sidebar.assignment.previousTrips", dict)}
           </span>
           <span className="font-medium text-gray-900 dark:text-white">
-            {camion.viajesPrevios} viajes
+            {tr("pages.planning.sidebar.assignment.trips", dict, {
+              count: String(camion.viajesPrevios),
+            })}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500 dark:text-gray-400">Último viaje</span>
+          <span className="text-gray-500 dark:text-gray-400">
+            {tr("pages.planning.sidebar.assignment.lastTrip", dict)}
+          </span>
           <span className="font-medium text-gray-900 dark:text-white">
             {camion.ultimoViaje}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-gray-500 dark:text-gray-400">
-            Pérdidas de señal
+            {tr("pages.planning.sidebar.assignment.signalLosses", dict)}
           </span>
           <span
             className={`font-medium ${camion.perdidasSenal > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-900 dark:text-white"}`}
           >
-            {camion.perdidasSenal} pérdidas
+            {tr("pages.planning.sidebar.assignment.losses", dict, {
+              count: String(camion.perdidasSenal),
+            })}
           </span>
         </div>
       </div>
@@ -387,7 +413,7 @@ function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
 
   // Create pin layer for truck location
   const layers = useMemo(() => {
-    if (!camion.latitude || !camion.longitude) return [];
+    if (camion.latitude == null || camion.longitude == null) return [];
 
     return [
       new PinLayer({
@@ -409,7 +435,11 @@ function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
 
   // Center map on truck location
   useEffect(() => {
-    if (mapRef.current && camion.latitude && camion.longitude) {
+    if (
+      mapRef.current &&
+      camion.latitude != null &&
+      camion.longitude != null
+    ) {
       mapRef.current.flyTo({
         center: [camion.longitude, camion.latitude],
         zoom: 14,
@@ -440,9 +470,14 @@ export interface AssignmentFormData {
 interface AssignmentFormProps {
   readonly value: AssignmentFormData;
   readonly onChange: (data: AssignmentFormData) => void;
+  readonly dict: I18nRecord;
 }
 
-export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
+export function AssignmentForm({
+  value,
+  onChange,
+  dict,
+}: AssignmentFormProps) {
   const transportistaOptions: DropdownOption[] = TRANSPORTISTA_OPTIONS.map(
     (t) => ({
       value: t.value,
@@ -456,15 +491,21 @@ export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
     disabled: c.estado === "no habilitado",
   }));
 
+  const availableLabel = tr(
+    "pages.planning.sidebar.assignment.available",
+    dict
+  );
+  const busyLabel = tr("pages.planning.sidebar.assignment.busy", dict);
+
   const camionOptions: DropdownOption[] = CAMION_OPTIONS.map((t) => ({
     value: t.id,
-    label: `${t.plate} - ${t.marca} - ${t.estado === "disponible" ? "Disponible" : "Ocupado"}`,
+    label: `${t.plate} - ${t.marca} - ${t.estado === "disponible" ? availableLabel : busyLabel}`,
     disabled: t.estado === "ocupado",
   }));
 
   const remolqueOptions: DropdownOption[] = REMOLQUE_OPTIONS.map((r) => ({
     value: r.id,
-    label: `${r.plate} - ${r.tipo} - ${r.estado === "disponible" ? "Disponible" : "Ocupado"}`,
+    label: `${r.plate} - ${r.tipo} - ${r.estado === "disponible" ? availableLabel : busyLabel}`,
     disabled: r.estado === "ocupado",
   }));
 
@@ -480,32 +521,64 @@ export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
     field: keyof AssignmentFormData,
     fieldValue: string | boolean
   ) => {
-    onChange({ ...value, [field]: fieldValue });
+    const updated = { ...value, [field]: fieldValue };
+
+    // When changing conductor, clear segundoConductor if it matches the new value
+    // or if the second driver section is disabled
+    if (field === "conductor" && typeof fieldValue === "string") {
+      if (
+        updated.segundoConductor === fieldValue ||
+        !updated.hasSegundoConductor
+      ) {
+        updated.segundoConductor = "";
+      }
+    }
+
+    // When disabling second conductor section, clear the selection
+    if (field === "hasSegundoConductor" && fieldValue === false) {
+      updated.segundoConductor = "";
+    }
+
+    // When disabling remolque section, clear the selection
+    if (field === "hasRemolque" && fieldValue === false) {
+      updated.remolque = "";
+    }
+
+    onChange(updated);
   };
 
   return (
     <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg flex flex-col gap-4">
       {/* Transportista Dropdown */}
       <CustomDropdown
-        label="Transportista"
+        label={tr("pages.planning.sidebar.assignment.transportista", dict)}
         options={transportistaOptions}
         selectedValue={value.transportista}
         onChange={(v) => handleChange("transportista", v)}
-        placeholder="Seleccionar transportista..."
+        placeholder={tr(
+          "pages.planning.sidebar.assignment.selectTransportista",
+          dict
+        )}
       />
 
       {/* Conductor Dropdown */}
       <div>
         <CustomDropdown
-          label="Conductor"
+          label={tr("pages.planning.sidebar.assignment.conductor", dict)}
           options={conductorOptions}
           selectedValue={value.conductor}
           onChange={(v) => handleChange("conductor", v)}
-          placeholder="Seleccionar conductor..."
+          placeholder={tr(
+            "pages.planning.sidebar.assignment.selectConductor",
+            dict
+          )}
           labelRightElement={
             <label className="flex items-center gap-1 cursor-pointer">
               <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                2do conductor
+                {tr(
+                  "pages.planning.sidebar.assignment.secondConductorLabel",
+                  dict
+                )}
               </span>
               <Checkbox
                 id="segundo-conductor-check"
@@ -519,7 +592,7 @@ export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
           }
         />
         {selectedConductor && (
-          <DriverInfoDisplay conductor={selectedConductor} />
+          <DriverInfoDisplay conductor={selectedConductor} dict={dict} />
         )}
       </div>
 
@@ -527,16 +600,19 @@ export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
       {value.hasSegundoConductor && (
         <div>
           <CustomDropdown
-            label="Segundo Conductor"
+            label={tr("pages.planning.sidebar.assignment.secondConductor", dict)}
             options={conductorOptions.filter(
               (c) => c.value !== value.conductor
             )}
             selectedValue={value.segundoConductor}
             onChange={(v) => handleChange("segundoConductor", v)}
-            placeholder="Seleccionar segundo conductor..."
+            placeholder={tr(
+              "pages.planning.sidebar.assignment.selectSecondConductor",
+              dict
+            )}
           />
           {selectedSegundoConductor && (
-            <DriverInfoDisplay conductor={selectedSegundoConductor} />
+            <DriverInfoDisplay conductor={selectedSegundoConductor} dict={dict} />
           )}
         </div>
       )}
@@ -544,15 +620,18 @@ export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
       {/* Camión Dropdown */}
       <div>
         <CustomDropdown
-          label="Camión"
+          label={tr("pages.planning.sidebar.assignment.camion", dict)}
           options={camionOptions}
           selectedValue={value.camion}
           onChange={(v) => handleChange("camion", v)}
-          placeholder="Seleccionar camión..."
+          placeholder={tr(
+            "pages.planning.sidebar.assignment.selectCamion",
+            dict
+          )}
           labelRightElement={
             <label className="flex items-center gap-1 cursor-pointer">
               <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                Remolque
+                {tr("pages.planning.sidebar.assignment.remolqueLabel", dict)}
               </span>
               <Checkbox
                 id="remolque-check"
@@ -563,18 +642,21 @@ export function AssignmentForm({ value, onChange }: AssignmentFormProps) {
             </label>
           }
         />
-        {selectedCamion && <TruckInfoDisplay camion={selectedCamion} />}
+        {selectedCamion && <TruckInfoDisplay camion={selectedCamion} dict={dict} />}
         {selectedCamion && <TruckMapDisplay camion={selectedCamion} />}
       </div>
 
       {/* Remolque Dropdown (conditional) */}
       {value.hasRemolque && (
         <CustomDropdown
-          label="Remolque"
+          label={tr("pages.planning.sidebar.assignment.remolque", dict)}
           options={remolqueOptions}
           selectedValue={value.remolque}
           onChange={(v) => handleChange("remolque", v)}
-          placeholder="Seleccionar remolque..."
+          placeholder={tr(
+            "pages.planning.sidebar.assignment.selectRemolque",
+            dict
+          )}
         />
       )}
     </div>

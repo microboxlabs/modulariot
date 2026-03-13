@@ -1854,6 +1854,7 @@
       "noImages": "No hay imágenes",
       "documents": "Documentos",
       "noDocuments": "No hay documentos",
+      "document_load_error": "No se pudo cargar el documento",
       "validation": {
         "missingDocuments": "Se requieren documentos para continuar",
         "requiresPOD": "Prueba de Entrega (POD)",

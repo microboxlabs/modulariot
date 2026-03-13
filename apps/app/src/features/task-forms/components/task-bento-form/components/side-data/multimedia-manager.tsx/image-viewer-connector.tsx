@@ -1,5 +1,4 @@
 import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
-import { displayBase64Content } from "./file-images";
 import { useMemo } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ImageItem } from "./image.types";
@@ -25,17 +24,9 @@ export default function ImageViewerConnector({
   }, [images]);
 
   const imagesUrls = useMemo(() => {
-    return images
-      .map((image) => {
-        if (image.data) {
-          return displayBase64Content(
-            image.data,
-            image.file.entry.content.mimeType
-          );
-        }
-        return null;
-      })
-      .filter(Boolean) as string[];
+    return images.map(
+      (image) => `/app/api/bento/content?nodeId=${image.file.entry.id}`
+    );
   }, [images]);
 
   return (

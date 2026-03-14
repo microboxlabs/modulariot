@@ -8,26 +8,36 @@ export default function ImageViewerConnector({
   selected,
   setSelected,
   dictionary,
+  onReplaceImage,
+  refreshKey = 0,
 }: Readonly<{
   images: ImageItem[];
   selected: number | null;
   setSelected: (index: number | null) => void;
   dictionary: I18nRecord;
+  onReplaceImage?: (file: File, index: number) => void;
+  refreshKey?: number;
 }>) {
   const data = useMemo(() => {
     return images.map((image) => {
       return {
         tag: image.file.entry.properties["mintral:contentType"],
         name: image.file.entry.name,
+        modifiedAt: image.file.entry.modifiedAt,
+        modifiedByUser: image.file.entry.modifiedByUser,
       };
     });
   }, [images]);
 
   const imagesUrls = useMemo(() => {
-    return images.map(
-      (image) => `/app/api/bento/content?nodeId=${image.file.entry.id}`
-    );
-  }, [images]);
+    return images.map((image) => {
+      // Add modifiedAt and refreshKey as cache-busting parameters
+      const cacheKey = image.file.entry.modifiedAt
+        ? `&t=${new Date(image.file.entry.modifiedAt).getTime()}`
+        : "";
+      return `/app/api/bento/content?nodeId=${image.file.entry.id}${cacheKey}&r=${refreshKey}`;
+    });
+  }, [images, refreshKey]);
 
   return (
     <ImageViewer
@@ -36,6 +46,7 @@ export default function ImageViewerConnector({
       setSelected={setSelected}
       data={data}
       dictionary={dictionary}
+      onReplaceImage={onReplaceImage}
     />
   );
 }

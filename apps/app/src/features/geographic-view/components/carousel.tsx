@@ -150,7 +150,8 @@ export default function Carousel({
             >
               <img
                 src={image}
-                alt="Carousel slide"
+                alt={`Carousel slide ${index + 1} of ${images.length}`}
+                loading="lazy"
                 className="max-h-full w-auto object-contain select-none pointer-events-none"
                 onLoad={handleImageLoad}
               />

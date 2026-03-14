@@ -1486,14 +1486,14 @@ export async function getDashboardConfig(
   session: Session,
   site: string,
   slug: string
-): Promise<{ data: unknown | null }> {
+): Promise<{ data: unknown }> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config?site=${encodeURIComponent(site)}&slug=${encodeURIComponent(slug)}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "GET",
     headers,
   });
-  return result as { data: unknown | null };
+  return result as { data: unknown };
 }
 
 /**

@@ -444,7 +444,11 @@ export default function MapVisualizationTrip({
     <div className="h-full w-full relative overflow-hidden">
       {(pictures_list.length > 0 || timelapse) && !minimized ? (
         <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
-          <ImageSelector images={pictures_list} dictionary={dict} timelapse={timelapse} />
+          <ImageSelector
+            images={pictures_list}
+            dictionary={dict}
+            timelapse={timelapse}
+          />
         </div>
       ) : null}
       <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">

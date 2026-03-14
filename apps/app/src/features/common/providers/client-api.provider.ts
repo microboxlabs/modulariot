@@ -1,6 +1,6 @@
 "use client";
 import { z } from "zod";
-import useSWR from "swr";
+import useSWR, { SWRConfiguration } from "swr";
 import { useEffect, useMemo, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import fetcher, { createFetcherError } from "./fetcher";
@@ -736,17 +736,14 @@ export function signDec5(taskId: string): Promise<any> {
   });
 }
 
-export function useGetNodeChildren(nodeId: string | undefined) {
+export function useGetNodeChildren(
+  nodeId: string | undefined,
+  swrConfig?: SWRConfiguration<any, FetcherError>
+) {
   const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
     nodeId ? `/app/api/bento/multimedia?nodeId=${nodeId}` : null,
     fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 5000,
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
-    }
+    swrConfig
   );
 
   return {
@@ -759,7 +756,13 @@ export function useGetNodeChildren(nodeId: string | undefined) {
 
 // Custom hook for optimistic file uploads
 export function useOptimisticFileUpload(nodeId: string | undefined) {
-  const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId);
+  const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 5000,
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
   const isUploading = useRef(false);
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -830,7 +833,7 @@ export function useOptimisticFileUpload(nodeId: string | undefined) {
 }
 
 export function useGetNodeContents(nodeIds: string[]) {
-  const { data, error, isLoading } = useSWR<any, FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
     nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
     fetcher
   );
@@ -839,6 +842,7 @@ export function useGetNodeContents(nodeIds: string[]) {
     data,
     error,
     isLoading,
+    mutate,
   };
 }
 
@@ -895,6 +899,22 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
 
   return fetcher(url, {
     method: "POST",
+    body: formData,
+  });
+}
+
+export async function putBentoMultimedia(
+  nodeId: string,
+  file: File
+): Promise<{ success: boolean; message: string; data?: unknown }> {
+  const url = "/app/api/bento/update";
+
+  const formData = new FormData();
+  formData.append("filedata", file);
+  formData.append("nodeId", nodeId);
+
+  return fetcher(url, {
+    method: "PUT",
     body: formData,
   });
 }

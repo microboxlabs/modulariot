@@ -1,10 +1,16 @@
 "use client";
 
 import { Button, FileInput } from "flowbite-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
-import { FaUpload } from "react-icons/fa";
-import { useOptimisticFileUpload } from "@/features/common/providers/client-api.provider";
+import { MdOutlineFileUpload } from "react-icons/md";
+import { toast } from "sonner";
+import { useSWRConfig } from "swr";
+import {
+  useGetNodeContents,
+  useOptimisticFileUpload,
+  putBentoMultimedia,
+} from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -15,6 +21,7 @@ import DocumentList from "./document-list";
 import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
+import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
 
 export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
@@ -127,44 +134,111 @@ export default function FileImages({
   const [isClasificationFormOpen, setIsClasificationFormOpen] = useState(false);
   const [isDocumentListOpen, setIsDocumentListOpen] = useState(false);
   const [uploadableFiles, setUploadableFiles] = useState<any[]>([]);
+  const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
 
   const [images, setImages] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false);
+  const [imageRefreshKey, setImageRefreshKey] = useState(0);
+
+  const { mutate: globalMutate } = useSWRConfig();
 
   const packageId = task?.bpm_package
     ? task.bpm_package.split("/")[task.bpm_package.split("/").length - 1]
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const { data, isLoading, uploadFile } = useOptimisticFileUpload(packageId);
+  const { data, isLoading, uploadFile, mutate } =
+    useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
+  const {
+    data: documentsData,
+    isLoading: documentsIsLoading,
+    mutate: mutateContents,
+  } = useGetNodeContents(
+    files?.map((file: AlfrescoFileEntry) => file.entry.id) || []
+  );
+
   // Classify files by mimeType from the listing metadata (no content download needed)
   useEffect(() => {
-    if (files.length > 0) {
+    if (files.length > 0 && documentsData) {
       const newImages: any[] = [];
       const newDocuments: any[] = [];
 
-      files.forEach((file: AlfrescoFileEntry) => {
-        if (file.entry.content.mimeType.includes("image")) {
-          newImages.push({ file });
-        } else {
-          newDocuments.push({ file });
+      documentsData.data.forEach((document: any, index: number) => {
+        if (!document.error && files[index]) {
+          if (files[index].entry.content.mimeType.includes("image")) {
+            console.log("Image data:", files[index]);
+            newImages.push({
+              file: files[index],
+              data: document,
+            });
+          } else {
+            newDocuments.push({
+              file: files[index],
+              data: document,
+            });
+          }
         }
       });
 
       setImages(newImages);
       setDocuments(newDocuments);
     }
-  }, [files]);
+  }, [documentsData, files]);
+
+  const handleReplaceImage = useCallback(
+    async (file: File, index: number) => {
+      const imageToReplace = images[index];
+      if (!imageToReplace?.file?.entry?.id) {
+        toast.error(tr("bento.multimedia.update_error", dictionary));
+        return;
+      }
+
+      const nodeId = imageToReplace.file.entry.id;
+      setIsUpdatingImage(true);
+
+      const updatePromise = putBentoMultimedia(nodeId, file).then((result) => {
+        if (!result.success) {
+          throw new Error("Update failed");
+        }
+        return result;
+      });
+
+      toast.promise(updatePromise, {
+        loading: tr("bento.multimedia.update_loading", dictionary),
+        success: tr("bento.multimedia.update_success", dictionary),
+        error: tr("bento.multimedia.update_error", dictionary),
+      });
+
+      try {
+        await updatePromise;
+        await mutate();
+        await mutateContents();
+        // Invalidate thumbnail cache for the updated image
+        await globalMutate(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+        // Increment refresh key to force image URL cache bust
+        setImageRefreshKey((prev) => prev + 1);
+      } finally {
+        setIsUpdatingImage(false);
+        setEditImageIndex(null);
+      }
+    },
+    [images, dictionary, mutate, mutateContents, globalMutate]
+  );
 
   if (!packageId) {
     return null;
   }
 
   // Only show loading skeleton while data is being fetched
-  if (isLoading && !data) {
+  if (
+    (isLoading || documentsIsLoading) &&
+    images.length === 0 &&
+    documents.length === 0
+  ) {
     return (
       <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );
@@ -304,7 +378,7 @@ export default function FileImages({
               }}
             >
               <div className="flex flex-row items-center justify-center gap-2">
-                <FaUpload className="w-3 h-3" />
+                <MdOutlineFileUpload className="w-3 h-3" />
                 {tr("bento.multimedia.upload", dictionary)}
               </div>
             </Button>
@@ -316,9 +390,7 @@ export default function FileImages({
         {/* Images */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            images.length == 0 && documents.length == 0
-              ? "hidden"
-              : "block"
+            images.length == 0 && documents.length == 0 ? "hidden" : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -327,6 +399,7 @@ export default function FileImages({
               {tr("bento.multimedia.elements", dictionary)})
             </p>
             <Button
+              color="link"
               onClick={() => setSelectedImage(0)}
               className={`${
                 images.length == 0 ? "hidden" : "block"
@@ -344,6 +417,9 @@ export default function FileImages({
                   index={index}
                   setSelectedImage={setSelectedImage}
                   dictionary={dictionary}
+                  onEdit={(idx) => {
+                    setEditImageIndex(idx);
+                  }}
                 />
               ))}
             </div>
@@ -358,9 +434,7 @@ export default function FileImages({
         {/* Documents */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            documents.length == 0 && images.length == 0
-              ? "hidden"
-              : "block"
+            documents.length == 0 && images.length == 0 ? "hidden" : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -402,6 +476,27 @@ export default function FileImages({
           selected={selectedImage}
           setSelected={setSelectedImage}
           dictionary={dictionary}
+          onReplaceImage={(file, index) => {
+            handleReplaceImage(file, index);
+          }}
+          refreshKey={imageRefreshKey}
+        />
+
+        {/* Standalone Replace Image Modal (from thumbnail edit button) */}
+        <ReplaceImageModal
+          show={editImageIndex !== null && !isUpdatingImage}
+          onClose={() => setEditImageIndex(null)}
+          onReplace={(file) => {
+            if (editImageIndex !== null) {
+              handleReplaceImage(file, editImageIndex);
+            }
+          }}
+          dictionary={dictionary}
+          imageName={
+            editImageIndex === null
+              ? undefined
+              : images[editImageIndex]?.file?.entry?.name
+          }
         />
 
         <FileViewer

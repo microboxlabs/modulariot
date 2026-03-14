@@ -399,6 +399,7 @@ export default function FileImages({
               {tr("bento.multimedia.elements", dictionary)})
             </p>
             <Button
+              color="link"
               onClick={() => setSelectedImage(0)}
               className={`${
                 images.length == 0 ? "hidden" : "block"

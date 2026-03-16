@@ -42,6 +42,22 @@ export {
   fromColumnItems,
 } from "./column-helpers";
 export { useDynamicRows } from "./use-dynamic-rows";
+export { usePgrestRows } from "./use-pgrest-rows";
+export {
+  type PgrestParam,
+  type PgrestHttpMethod,
+  type PgrestParamItem,
+  humanizeKey,
+  toPgrestParamItems,
+  fromPgrestParamItems,
+} from "./pgrest-types";
+export { parseRows, buildPgrestFetch } from "./pgrest-utils";
+export {
+  type PgrestSettingsStateConfig,
+  usePgrestSettingsState,
+} from "./use-pgrest-settings-state";
+export { PgrestSettingsSection } from "./pgrest-settings-section";
+export { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 export {
   type FilterItemConfig,
   type FilterConfig,

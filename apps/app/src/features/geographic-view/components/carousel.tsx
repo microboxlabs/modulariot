@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
@@ -12,14 +12,6 @@ export default function Carousel({
   setSelected: (index: number) => void;
 }>) {
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-  const loadedImagesCount = useRef(0);
-
-  useEffect(() => {
-    if (imagesLoaded) {
-      scrollToPosition();
-    }
-  }, [imagesLoaded]);
 
   const scrollToPosition = () => {
     if (!carouselRef.current) return;
@@ -31,19 +23,10 @@ export default function Carousel({
     });
   };
 
-  // Handle scroll
+  // Handle scroll when selected changes
   useEffect(() => {
-    if (imagesLoaded) {
-      scrollToPosition();
-    }
+    scrollToPosition();
   }, [selected]);
-
-  const handleImageLoad = () => {
-    loadedImagesCount.current += 1;
-    if (loadedImagesCount.current === images.length) {
-      setImagesLoaded(true);
-    }
-  };
 
   return (
     <section
@@ -98,7 +81,7 @@ export default function Carousel({
               height={1200}
               draggable={false}
               className="max-h-full w-auto object-contain select-none"
-              onLoad={handleImageLoad}
+              unoptimized
             />
           </div>
         ))}

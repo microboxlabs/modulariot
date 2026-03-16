@@ -4,6 +4,7 @@ import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { loadDefaultConfig } from "./load-default-config";
 import { auth } from "@/auth";
 import { getUserSites } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { RouteGuard } from "@/features/auth/components/route-guard";
 
 interface SlugPageParams extends ParamsWithLang {
   params: Promise<{ lang: string; slug: string }>;
@@ -40,15 +41,17 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
   }
 
   return (
-    <div className="h-full overflow-auto p-4">
-      <DashboardProvider
-        dictionary={dictionary}
-        slug={slug}
-        defaultConfig={defaultConfig}
-        siteId={siteId}
-      >
-        <DashboardView />
-      </DashboardProvider>
-    </div>
+    <RouteGuard path="/home" fallbackPath={`/${lang}/home`}>
+      <div className="h-full overflow-auto p-4">
+        <DashboardProvider
+          dictionary={dictionary}
+          slug={slug}
+          defaultConfig={defaultConfig}
+          siteId={siteId}
+        >
+          <DashboardView />
+        </DashboardProvider>
+      </div>
+    </RouteGuard>
   );
 }

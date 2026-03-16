@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown, HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
@@ -15,7 +15,7 @@ import { usePgrestRows } from "../common/use-pgrest-rows";
 import { normalizeFilterConfig } from "../common/filter-helpers";
 import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
-import { compileTemplates, resolveTemplate } from "../common/use-handlebars-templates";
+import { useCompiledColumns } from "../common/use-compiled-columns";
 
 export type { DataMode, ColumnType, TableColumn, SortConfig } from "../common/column-types";
 export type { FilterItemConfig, FilterConfig } from "../common/filter-types";
@@ -340,45 +340,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     );
 
   // ── Handlebars template compilation ────────────────────────────────────────
-  const compiledKeys = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.key }))),
-    [columns]
-  );
-
-  const compiledLabels = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.label }))),
-    [columns]
-  );
-
-  const compiledTypes = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.type }))),
-    [columns]
-  );
-
-  const resolveValue = useCallback(
-    (key: string, row: Record<string, string>, rowIdx: number, totalRows: number): string =>
-      resolveTemplate(compiledKeys, key, { row, ...row, _index: rowIdx, _count: totalRows }, key),
-    [compiledKeys]
-  );
-
-  const resolveLabel = useCallback(
-    (key: string): string =>
-      resolveTemplate(compiledLabels, key, { _count: displayRows.length }, columns.find((c) => c.key === key)?.label ?? key),
-    [compiledLabels, displayRows.length, columns]
-  );
-
-  const resolveType = useCallback(
-    (key: string, row: Record<string, string>, rowIdx: number, totalRows: number): string => {
-      const col = columns.find((c) => c.key === key);
-      const result = resolveTemplate(
-        compiledTypes, key,
-        { row, ...row, _index: rowIdx, _count: totalRows },
-        col?.type || "text"
-      );
-      return result.trim() || "text";
-    },
-    [compiledTypes, columns]
-  );
+  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(columns, displayRows.length);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);

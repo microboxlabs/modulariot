@@ -25,6 +25,7 @@ export {
   resolveDataProperty,
 } from "./handlebars-helpers";
 export {
+  type DataMode,
   type ColumnType,
   type TableColumn,
   type SortConfig,

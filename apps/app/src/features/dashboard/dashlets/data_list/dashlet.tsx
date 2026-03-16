@@ -5,7 +5,7 @@ import { HiArrowUp, HiArrowDown, HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import type { TableColumn, SortConfig } from "../common/column-types";
+import type { DataMode, TableColumn, SortConfig } from "../common/column-types";
 import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { renderCell } from "../common/cell-renderers";
@@ -17,7 +17,7 @@ import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
 import { compileTemplates, resolveTemplate } from "../common/use-handlebars-templates";
 
-export type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
+export type { DataMode, ColumnType, TableColumn, SortConfig } from "../common/column-types";
 export type { FilterItemConfig, FilterConfig } from "../common/filter-types";
 export type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 export { normalizeFilterConfig } from "../common/filter-helpers";
@@ -42,7 +42,7 @@ export interface CardLayoutConfig {
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic" | "pgrest";
+  dataMode: DataMode;
   columns: TableColumn[];
   rows: Record<string, string>[];
   apiUrl: string;
@@ -312,7 +312,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const loading = dynamicLoading || pgrestLoading;
   const fetchError = dynamicError || pgrestError;
-  const allRows = dataMode === "pgrest" ? pgrestRows : dataMode === "dynamic" ? dynamicRows : staticRows;
+  const resolveRows = (): Record<string, string>[] => {
+    if (dataMode === "pgrest") return pgrestRows;
+    if (dataMode === "dynamic") return dynamicRows;
+    return staticRows;
+  };
+  const allRows = resolveRows();
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import type { TableColumn, SortConfig } from "./column-types";
+import type { DataMode, TableColumn, SortConfig } from "./column-types";
 import type { FilterConfig, FilterItemConfig } from "./filter-types";
 import type { ColumnItem } from "./column-helpers";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
@@ -18,12 +18,12 @@ export interface SettingsStateConfig {
   defaultFilter: FilterConfig;
   sort: SortConfig | undefined;
   defaultSort: SortConfig;
-  dataMode: "static" | "dynamic" | "pgrest";
+  dataMode: DataMode;
   apiUrl: string;
 }
 
 export function useSettingsState(cfg: SettingsStateConfig) {
-  const [dataMode, setDataMode] = useState<"static" | "dynamic" | "pgrest">(
+  const [dataMode, setDataMode] = useState<DataMode>(
     cfg.dataMode ?? "static",
   );
   const [title, setTitle] = useState(cfg.title ?? cfg.defaultTitle);

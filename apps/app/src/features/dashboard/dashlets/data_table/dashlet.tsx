@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import { compileTemplates, resolveTemplate } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
@@ -8,7 +8,7 @@ import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers"
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
-import { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
+import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
@@ -179,90 +179,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     fetchError,
   } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams);
 
-  // ── Filter & sort state ─────────────────────────────────────────────────────
-  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-
   const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
 
-  // Distinct values per filter item (derived from full dataset)
-  const filterOptionsByColumn = useMemo(() => {
-    if (!filter.enabled) return {};
-    const result: Record<string, string[]> = {};
-    for (const item of filter.items) {
-      const prop = resolveDataProperty(item.column);
-      if (!prop) continue;
-      const seen = new Set<string>();
-      for (const row of allRows) {
-        const val = row[prop];
-        if (val) seen.add(val);
-      }
-      result[item.column] = Array.from(seen);
-    }
-    return result;
-  }, [allRows, filter.enabled, filter.items]);
-
-  // Column label lookup for sort toolbar
-  const getColumnLabel = (key: string) =>
-    columns.find((c) => c.key === key)?.label ?? key;
-
-  // Only show sort pills for columns that actually exist
-  const validSortColumns = useMemo(() => {
-    const colKeys = new Set(columns.map((c) => c.key));
-    return sort.columns.filter((k) => colKeys.has(k));
-  }, [sort.columns, columns]);
-
-  // Apply all active filters (AND) then sort
-  const displayRows = useMemo(() => {
-    let result = allRows;
-
-    if (filter.enabled) {
-      for (const item of filter.items) {
-        const selected = filterValues[item.column];
-        const prop = resolveDataProperty(item.column);
-        if (selected && prop) {
-          result = result.filter((row) => row[prop] === selected);
-        }
-      }
-    }
-
-    if (sort.enabled && sortKey) {
-      const sortProp = resolveDataProperty(sortKey);
-      if (sortProp) {
-        result = [...result].sort((a, b) => {
-          const cmp = (a[sortProp] ?? "").localeCompare(b[sortProp] ?? "");
-          return sortDir === "asc" ? cmp : -cmp;
-        });
-      }
-    }
-
-    return result;
-  }, [allRows, filter, filterValues, sort, sortKey, sortDir]);
+  // ── Filter & sort (shared hook) ───────────────────────────────────────────
+  const {
+    filterValues,
+    sortKey,
+    sortDir,
+    filterOptionsByColumn,
+    displayRows,
+    validSortColumns,
+    getColumnLabel,
+    handleFilterClear,
+    handleFilterSelect,
+    handleSortClick,
+  } = useFilterAndSort(filter, sort, allRows, columns);
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
-
-  const handleFilterClear = (column: string) => {
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next[column];
-      return next;
-    });
-  };
-
-  const handleFilterSelect = (column: string, value: string) => {
-    setFilterValues((prev) => ({ ...prev, [column]: value }));
-  };
-
-  const handleSortClick = (key: string) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
 
   // ── Handlebars template compilation ────────────────────────────────────────
   const compiledKeys = useMemo(

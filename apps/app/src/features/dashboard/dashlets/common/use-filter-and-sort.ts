@@ -9,6 +9,8 @@ export interface UseFilterAndSortResult {
   sortDir: "asc" | "desc";
   filterOptionsByColumn: Record<string, string[]>;
   displayRows: Record<string, string>[];
+  /** Sort columns filtered to only those present in the column definitions */
+  validSortColumns: string[];
   getColumnLabel: (key: string) => string;
   handleFilterClear: (column: string) => void;
   handleFilterSelect: (column: string, value: string) => void;
@@ -45,6 +47,12 @@ export function useFilterAndSort(
   // Column label lookup for sort toolbar
   const getColumnLabel = (key: string) =>
     columns.find((c) => c.key === key)?.label ?? key;
+
+  // Only show sort pills for columns that actually exist
+  const validSortColumns = useMemo(() => {
+    const colKeys = new Set(columns.map((c) => c.key));
+    return sort.columns.filter((k) => colKeys.has(k));
+  }, [sort.columns, columns]);
 
   // Apply all active filters (AND) then sort
   const displayRows = useMemo(() => {
@@ -100,6 +108,7 @@ export function useFilterAndSort(
     sortDir,
     filterOptionsByColumn,
     displayRows,
+    validSortColumns,
     getColumnLabel,
     handleFilterClear,
     handleFilterSelect,

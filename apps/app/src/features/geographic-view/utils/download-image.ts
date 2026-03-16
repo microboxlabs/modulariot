@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export async function downloadImage(
   imageUrl: string,
   dictionary?: I18nRecord
-): Promise<void> {
+): Promise<boolean> {
   const prefix = dictionary
     ? tr("geographic_view.image_prefix", dictionary)
     : "image";
@@ -23,7 +23,7 @@ export async function downloadImage(
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
-    return;
+    return true;
   }
 
   // For blob URLs, download directly
@@ -34,7 +34,7 @@ export async function downloadImage(
     document.body.appendChild(link);
     link.click();
     link.remove();
-    return;
+    return true;
   }
 
   // For internal API URLs (same-origin)
@@ -52,7 +52,7 @@ export async function downloadImage(
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
-    return;
+    return true;
   }
 
   // For HTTP URLs, try fetch with cors fallback
@@ -71,6 +71,7 @@ export async function downloadImage(
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
+    return true;
   } catch {
     toast.error(
       dictionary
@@ -79,5 +80,6 @@ export async function downloadImage(
     );
     // Fallback: open in new tab for user to save manually
     window.open(imageUrl, "_blank");
+    return false;
   }
 }

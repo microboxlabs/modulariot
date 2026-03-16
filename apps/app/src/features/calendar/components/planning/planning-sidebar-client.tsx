@@ -72,16 +72,19 @@ function calculatePermanencia(task: KanbanBoardTask): string {
 /**
  * Extract incidencias from task fields
  */
-function extractIncidencias(
-  task: KanbanBoardTask,
-  compliancePercentage: number
-): string[] {
+function extractIncidencias(task: KanbanBoardTask): string[] {
   const incidencias: string[] = [];
 
   if (task.mintral_priorityCode) {
     incidencias.push(task.mintral_priorityCode.toLowerCase());
   }
-  if (compliancePercentage === 0) {
+  // Only add "urgencia" if we have actual compliance data showing 0%
+  // Don't add it when data is missing (undefined/null)
+  if (
+    task.mintral_deliveryComplianceRate !== undefined &&
+    task.mintral_deliveryComplianceRate !== null &&
+    task.mintral_deliveryComplianceRate === 0
+  ) {
     incidencias.push("urgencia");
   }
 
@@ -128,10 +131,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
       lineasoc_pctn_cumplimiento: task.mintral_deliveryComplianceRate ?? 0,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias: extractIncidencias(
-      task,
-      task.mintral_deliveryComplianceRate ?? 0
-    ),
+    incidencias: extractIncidencias(task),
     mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
     prioridad: task.mintral_icuCondition ?? 0,

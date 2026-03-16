@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Checkbox, Label } from "flowbite-react";
 import { HiCheck, HiChevronDown } from "react-icons/hi";
 import MapVisualization from "@/features/map-visualization/map-visualization";
@@ -410,6 +410,7 @@ interface TruckMapDisplayProps {
 
 function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
   const mapRef = useRef<MapRef | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   // Create pin layer for truck location
   const layers = useMemo(() => {
@@ -433,21 +434,37 @@ function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
     ];
   }, [camion]);
 
-  // Center map on truck location
+  // Center map on truck location when map is loaded or truck changes
   useEffect(() => {
-    if (mapRef.current && camion.latitude != null && camion.longitude != null) {
+    if (
+      isMapLoaded &&
+      mapRef.current &&
+      camion.latitude != null &&
+      camion.longitude != null
+    ) {
       mapRef.current.flyTo({
         center: [camion.longitude, camion.latitude],
         zoom: 14,
         duration: 500,
       });
     }
-  }, [camion]);
+  }, [camion, isMapLoaded]);
+
+  // Handle map load to trigger initial centering
+  const handleZoomChange = useCallback((_zoom: number) => {
+    // First zoom change means map is loaded
+    setIsMapLoaded(true);
+  }, []);
 
   return (
     <div className="mt-2 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="h-48 w-full">
-        <MapVisualization mapStyle="streets" layers={layers} mapRef={mapRef} />
+        <MapVisualization
+          mapStyle="streets"
+          layers={layers}
+          mapRef={mapRef}
+          onZoomChange={handleZoomChange}
+        />
       </div>
     </div>
   );

@@ -1246,12 +1246,7 @@ export function PlanningSelectionProvider({
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
-      console.log("[confirmService] slotToUse:", slotToUse);
-      console.log("[confirmService] selectedService:", selectedService);
-      console.log("[confirmService] serviceOverrides:", serviceOverrides);
-
       if (!slotToUse || !selectedService) {
-        console.log("[confirmService] Early return - missing slot or service");
         return false;
       }
 
@@ -1259,12 +1254,6 @@ export function PlanningSelectionProvider({
       const effectiveService = serviceOverrides
         ? { ...selectedService, ...serviceOverrides }
         : selectedService;
-
-      console.log("[confirmService] effectiveService:", effectiveService);
-      console.log(
-        "[confirmService] effectiveService.assignedDriver:",
-        effectiveService.assignedDriver
-      );
 
       // Check if slot has room (unless re-planning same service)
       const existingInSlot = getServicesForSlot(slotToUse);
@@ -1290,22 +1279,12 @@ export function PlanningSelectionProvider({
         slot: slotToUse,
       };
 
-      console.log("[confirmService] newPlannedService:", newPlannedService);
-      console.log(
-        "[confirmService] newPlannedService.service.assignedDriver:",
-        newPlannedService.service.assignedDriver
-      );
-
       // Optimistic update: replace the existing entry with the new slot
       setPlannedServices((prev) => {
         const filtered = prev.filter(
           (p) => p.service.id !== effectiveService.id
         );
         const updated = [...filtered, newPlannedService];
-        console.log(
-          "[confirmService] setPlannedServices updated list:",
-          updated
-        );
         return updated;
       });
 
@@ -1505,10 +1484,6 @@ export function PlanningSelectionProvider({
    */
   const updateServiceDrivers = useCallback(
     (serviceId: string, assignedDriver?: string, assignedDriver2?: string) => {
-      console.log("[updateServiceDrivers] serviceId:", serviceId);
-      console.log("[updateServiceDrivers] assignedDriver:", assignedDriver);
-      console.log("[updateServiceDrivers] assignedDriver2:", assignedDriver2);
-
       setPlannedServices((prev) => {
         const updated = prev.map((ps) => {
           if (ps.service.id === serviceId) {
@@ -1523,7 +1498,6 @@ export function PlanningSelectionProvider({
           }
           return ps;
         });
-        console.log("[updateServiceDrivers] updated plannedServices:", updated);
         return updated;
       });
     },

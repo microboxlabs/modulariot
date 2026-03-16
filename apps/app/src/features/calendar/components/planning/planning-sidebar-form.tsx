@@ -90,7 +90,7 @@ export function PlanningSidebarForm({
   } = usePlanningSelection();
 
   const { hasPermission } = usePermissions();
-  const canAssign = hasPermission(["GROUP_TRANSPORTIST"]);
+  const canAssign = hasPermission(["GROUP_ASSIGNMENT"]);
 
   // Tab locking logic:
   // - When assigningService is set, lock "Planificación" tab and show "Asignación"

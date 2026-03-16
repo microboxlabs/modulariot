@@ -33,6 +33,8 @@ interface ColumnEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: "key" | "label" | "type", value: string) => void;
   labels: { columns: string; key: string; label: string; addColumn: string };
+  /** When true, apply Handlebars color coding to key and label inputs */
+  handlebarsColorKeys?: boolean;
 }
 
 export function ColumnEditor({
@@ -41,6 +43,7 @@ export function ColumnEditor({
   onRemove,
   onUpdate,
   labels,
+  handlebarsColorKeys = false,
 }: Readonly<ColumnEditorProps>) {
   return (
     <div>
@@ -56,6 +59,7 @@ export function ColumnEditor({
                 placeholder={labels.key}
                 value={col.key}
                 onChange={(e) => onUpdate(col._id, "key", e.target.value)}
+                color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -64,6 +68,7 @@ export function ColumnEditor({
                 placeholder={labels.label}
                 value={col.label}
                 onChange={(e) => onUpdate(col._id, "label", e.target.value)}
+                color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.label)) : undefined}
               />
             </div>
             <div className="w-28 shrink-0">
@@ -262,18 +267,21 @@ export function SortEditor({
 
 interface DataProviderTabProps {
   id: string;
-  dataMode: "static" | "dynamic";
-  onDataModeChange: (mode: "static" | "dynamic") => void;
+  dataMode: "static" | "dynamic" | "pgrest";
+  onDataModeChange: (mode: "static" | "dynamic" | "pgrest") => void;
   rowsJson: string;
   onRowsJsonChange: (json: string) => void;
   rowsJsonError: string | null;
   onRowsJsonErrorClear: () => void;
   apiUrl: string;
   onApiUrlChange: (url: string) => void;
+  /** Content rendered when dataMode === "pgrest" */
+  pgrestContent?: React.ReactNode;
   labels: {
     dataSource: string;
     staticJson: string;
     dynamicApi: string;
+    pgrest?: string;
     rowsJsonArray: string;
     apiUrl: string;
   };
@@ -289,19 +297,25 @@ export function DataProviderTab({
   onRowsJsonErrorClear,
   apiUrl,
   onApiUrlChange,
+  pgrestContent,
   labels,
 }: Readonly<DataProviderTabProps>) {
+  const options = [
+    { value: "static", label: labels.staticJson },
+    { value: "dynamic", label: labels.dynamicApi },
+  ];
+  if (pgrestContent !== undefined || dataMode === "pgrest") {
+    options.push({ value: "pgrest", label: labels.pgrest ?? "PGREST" });
+  }
+
   return (
     <>
       <SettingsSelectField
         id={`${id}-data-mode`}
         label={labels.dataSource}
         value={dataMode}
-        onChange={(v) => onDataModeChange(v as "static" | "dynamic")}
-        options={[
-          { value: "static", label: labels.staticJson },
-          { value: "dynamic", label: labels.dynamicApi },
-        ]}
+        onChange={(v) => onDataModeChange(v as "static" | "dynamic" | "pgrest")}
+        options={options}
       />
 
       {dataMode === "static" && (
@@ -340,6 +354,8 @@ export function DataProviderTab({
           onChange={onApiUrlChange}
         />
       )}
+
+      {dataMode === "pgrest" && pgrestContent}
     </>
   );
 }

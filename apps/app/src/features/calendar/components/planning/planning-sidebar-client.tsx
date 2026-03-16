@@ -379,8 +379,7 @@ export function PlanningSidebarClient({
     allServices,
   ]);
 
-  const handleSubmit = (values: Record<string, string | boolean>) => {
-    console.log("Form submitted:", { selectedService, values });
+  const handleSubmit = () => {
     closeSidebar();
   };
 

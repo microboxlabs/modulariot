@@ -28,8 +28,7 @@ import {
   AssignmentForm,
   type AssignmentFormData,
 } from "./sidebar-tabs";
-
-const ASIGNATION_FLAG = process.env.NEXT_PUBLIC_ASIGNATION_FLAG === "true";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -89,6 +88,9 @@ export function PlanningSidebarForm({
     getOccupiedAndenes,
     updateServiceDrivers,
   } = usePlanningSelection();
+
+  const { hasPermission } = usePermissions();
+  const canAssign = hasPermission(["GROUP_TRANSPORTIST"]);
 
   // Tab locking logic:
   // - When assigningService is set, lock "Planificación" tab and show "Asignación"
@@ -574,7 +576,7 @@ export function PlanningSidebarForm({
             </Button>
           </div>
         </TabItem>
-        {ASIGNATION_FLAG && (
+        {canAssign && (
           <TabItem
             active={isPlanificacionLocked}
             disabled={!isPlanificacionLocked}

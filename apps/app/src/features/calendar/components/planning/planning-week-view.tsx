@@ -97,23 +97,20 @@ function WeekSlotCell({
   };
 
   const cellContent = (
-    <div
-      role="button"
+    <button
+      type="button"
       tabIndex={isDisabled ? -1 : 0}
+      onClick={handleClick}
+      disabled={isDisabled}
       data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
       data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && !isDisabled) {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
-      aria-disabled={isDisabled}
-      className={getSlotCellClassName(slotState, dayIsPast, selected, {
-        isLastDay,
-        isLastSlot,
-      })}
+      className={twMerge(
+        "appearance-none border-0 p-0 m-0 text-left",
+        getSlotCellClassName(slotState, dayIsPast, selected, {
+          isLastDay,
+          isLastSlot,
+        })
+      )}
     >
       {!dayIsPast && slotBlocked && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -163,13 +160,14 @@ function WeekSlotCell({
           ))}
         </div>
       )}
-    </div>
+    </button>
   );
 
   if (slotBlocked && !dayIsPast) {
     return <div className="w-full h-full">{cellContent}</div>;
   }
-  return cellContent;
+
+  return <div className="w-full h-full">{cellContent}</div>;
 }
 
 export default function PlanningWeekView({

@@ -24,9 +24,13 @@ const BLOCKED_GROUPS = {
   GROUP_MINTRAL_REVISOR: ["/symptoms", "/geographic-view"], // Revisors cannot access symptoms and geographic view
 };
 
+// Dashboard access roles
+const DASHBOARD_ROLES = ["GROUP_DASHBOARD"];
+
 export const ROUTE_PERMISSIONS = {
   // Main routes
   "/": [], // Public route
+  "/home": DASHBOARD_ROLES,
   "/shipping": KANBAN_ACCESS_ROLES,
   "/finished": FULL_ACCESS_ROLES,
   "/reports": FULL_ACCESS_ROLES,

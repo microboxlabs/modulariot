@@ -7,15 +7,18 @@ import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { TableColumn, SortConfig } from "../common/column-types";
 import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
+import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { renderCell } from "../common/cell-renderers";
 import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
+import { usePgrestRows } from "../common/use-pgrest-rows";
 import { normalizeFilterConfig } from "../common/filter-helpers";
 import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
 
 export type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
 export type { FilterItemConfig, FilterConfig } from "../common/filter-types";
+export type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 export { normalizeFilterConfig } from "../common/filter-helpers";
 
 // ============================================================================
@@ -38,10 +41,13 @@ export interface CardLayoutConfig {
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic";
+  dataMode: "static" | "dynamic" | "pgrest";
   columns: TableColumn[];
   rows: Record<string, string>[];
   apiUrl: string;
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
   cardLayout: CardLayoutConfig;
@@ -145,6 +151,9 @@ export const defaultConfig: DashletConfig = {
   columns: defaultColumns,
   rows: defaultRows,
   apiUrl: "",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
   filter: defaultFilter,
   sort: defaultSort,
   cardLayout: defaultCardLayout,
@@ -273,6 +282,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     columns = defaultColumns,
     rows: staticRows = defaultRows,
     apiUrl = "",
+    pgrestFunctionName = "",
+    pgrestParams = [],
+    pgrestHttpMethod = "POST",
     sort = defaultSort,
     cardLayout = defaultCardLayout,
   } = config;
@@ -282,9 +294,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   );
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
+  const { rows: dynamicRows, loading: dynamicLoading, fetchError: dynamicError } = useDynamicRows(dataMode, apiUrl);
+  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams);
 
-  const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
+  const loading = dynamicLoading || pgrestLoading;
+  const fetchError = dynamicError || pgrestError;
+  const allRows = dataMode === "pgrest" ? pgrestRows : dataMode === "dynamic" ? dynamicRows : staticRows;
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {

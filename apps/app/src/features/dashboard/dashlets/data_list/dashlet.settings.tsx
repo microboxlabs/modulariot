@@ -12,8 +12,11 @@ import {
   defaultCardLayout,
 } from "./dashlet";
 import { useSettingsState } from "../common/use-settings-state";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
+import { fromPgrestParamItems, humanizeKey } from "../common/pgrest-types";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -35,8 +38,43 @@ export function DashletSettings({
     defaultFilter,
     sort: config.sort,
     defaultSort,
-    dataMode: config.dataMode,
+    dataMode: config.dataMode ?? "static",
     apiUrl: config.apiUrl,
+  });
+
+  const pg = usePgrestSettingsState({
+    pgrestFunctionName: config.pgrestFunctionName ?? "",
+    pgrestParams: config.pgrestParams ?? [],
+    pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    onColumnsDetected: (keys) =>
+      keys.map((key, i) => ({
+        _id: `col-${Date.now()}-${i}`,
+        key,
+        label: humanizeKey(key),
+        type: "text" as const,
+      })),
+    setColumns: s.setColumns,
+    syncFiltersToColumns: (detectedKeys, labelByKey) => {
+      s.setFilterItems((prev) =>
+        prev.map((fi) => {
+          const firstKey = [...detectedKeys][0] ?? "";
+          const column = detectedKeys.has(fi.column) ? fi.column : firstKey;
+          return { ...fi, column, label: labelByKey.get(column) ?? fi.label };
+        }),
+      );
+    },
+    syncSortToColumns: (detectedKeys) => {
+      s.setSortColumns((prev) => prev.filter((k) => detectedKeys.has(k)));
+    },
+    onDetectionComplete: (detected) => {
+      // Auto-populate card layout from detected columns
+      const keys = detected.map((c) => c.key);
+      setTitleColumn(keys[0] ?? "");
+      setSubtitleColumn(keys[1] ?? "");
+      setHeaderBadgeColumns(keys.length > 2 ? [keys[2]] : []);
+      setKpiColumns(keys.slice(3, 9));
+      setFooterColumns(keys.slice(9, 11));
+    },
   });
 
   // Card layout config (unique to data_list)
@@ -79,12 +117,29 @@ export function DashletSettings({
       columns: savedColumns,
       rows,
       apiUrl: s.apiUrl,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
       filter,
       sort,
       cardLayout,
     });
     onClose();
   };
+
+  const pgrestContent = (
+    <PgrestSettingsSection
+      pgrest={pg}
+      labels={{
+        functionName: tr("dashboard.settings.functionName", dictionary),
+        httpMethod: tr("dashboard.settings.httpMethod", dictionary),
+        parameters: tr("dashboard.settings.parameters", dictionary),
+        key: tr("dashboard.settings.key", dictionary),
+        value: tr("common.value", dictionary),
+        addParameter: tr("dashboard.settings.addParameter", dictionary),
+      }}
+    />
+  );
 
   // Card layout section (inserted between ColumnEditor and FilterEditor)
   const cardLayoutSection = (
@@ -149,6 +204,7 @@ export function DashletSettings({
       onSave={handleSave}
       state={s}
       dictionary={dictionary}
+      dataTabChildren={pgrestContent}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

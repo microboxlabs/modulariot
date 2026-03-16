@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import { compileTemplates, resolveTemplate } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
@@ -8,9 +8,9 @@ import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers"
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
+import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 
 // ============================================================================
 // Configuration Types
@@ -42,12 +42,8 @@ export interface SortConfig {
   columns: string[];
 }
 
-export interface PgrestParam {
-  key: string;
-  value: string;
-}
-
-export type PgrestHttpMethod = "POST" | "GET";
+export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
 
 export interface DashletConfig {
   title: string;
@@ -153,17 +149,6 @@ export function resolveDataProperty(key: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Build the fetch URL + init for PGREST data sources. */
-function buildDataFetchRequest(
-  dataMode: string,
-  pgrestFunctionName: string,
-  pgrestParams: PgrestParam[],
-  pgrestHttpMethod: PgrestHttpMethod
-): { url: string; init?: RequestInit } | null {
-  if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
-  return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams);
-}
-
 // ============================================================================
 // Layout Defaults
 // ============================================================================
@@ -198,44 +183,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
   // ── PGREST data fetching ────────────────────────────────────────────────────
-  const [pgrestRows, setPgrestRows] = useState<Record<string, string>[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const request = buildDataFetchRequest(
-      dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod
-    );
-    if (!request) {
-      setLoading(false);
-      setFetchError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
-
-    fetch(request.url, request.init)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: unknown) => {
-        if (!cancelled) setPgrestRows(parseRows(data));
-      })
-      .catch((err: unknown) => {
-        if (!cancelled)
-          setFetchError(err instanceof Error ? err.message : "Failed to fetch");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
+  const {
+    rows: pgrestRows,
+    loading,
+    fetchError,
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});

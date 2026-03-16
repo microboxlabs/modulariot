@@ -12,7 +12,8 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
-import { fromPgrestParamItems, humanizeKey } from "../common/pgrest-types";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -42,26 +43,7 @@ export function DashletSettings({
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestParams: config.pgrestParams ?? [],
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
-    onColumnsDetected: (keys) =>
-      keys.map((key, i) => ({
-        _id: `col-${Date.now()}-${i}`,
-        key: `{{row.${key}}}`,
-        label: humanizeKey(key),
-        type: "text" as const,
-      })),
-    setColumns: s.setColumns,
-    syncFiltersToColumns: (detectedKeys, labelByKey) => {
-      s.setFilterItems((prev) =>
-        prev.map((fi) => {
-          const firstKey = [...detectedKeys][0] ?? "";
-          const column = detectedKeys.has(fi.column) ? fi.column : firstKey;
-          return { ...fi, column, label: labelByKey.get(column) ?? fi.label };
-        }),
-      );
-    },
-    syncSortToColumns: (detectedKeys) => {
-      s.setSortColumns((prev) => prev.filter((k) => detectedKeys.has(k)));
-    },
+    ...buildPgrestSettingsConfig(s),
   });
 
   const handleSave = () => {
@@ -91,14 +73,7 @@ export function DashletSettings({
   const pgrestContent = (
     <PgrestSettingsSection
       pgrest={pg}
-      labels={{
-        functionName: tr("dashboard.settings.functionName", dictionary),
-        httpMethod: tr("dashboard.settings.httpMethod", dictionary),
-        parameters: tr("dashboard.settings.parameters", dictionary),
-        key: tr("dashboard.settings.key", dictionary),
-        value: tr("common.value", dictionary),
-        addParameter: tr("dashboard.settings.addParameter", dictionary),
-      }}
+      labels={buildPgrestContentLabels(dictionary)}
     />
   );
 

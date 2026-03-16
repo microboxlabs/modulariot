@@ -1,49 +1,30 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import { compileTemplates, resolveTemplate } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
+import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+import type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
+import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
-// Configuration Types
+// Re-exports
 // ============================================================================
 
-export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
-
-export interface TableColumn {
-  key: string;
-  label: string;
-  type: string;
-}
-
-export interface FilterItemConfig {
-  /** Column key whose distinct values are used as filter pills */
-  column: string;
-  /** Label shown before the filter pills, e.g. "Estado:" */
-  label: string;
-}
-
-export interface FilterConfig {
-  enabled: boolean;
-  items: FilterItemConfig[];
-}
-
-export interface SortConfig {
-  enabled: boolean;
-  /** Ordered list of column keys available in the sort toolbar */
-  columns: string[];
-}
-
+export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+export type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
 export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
+export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
+
 import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
 
 export interface DashletConfig {
@@ -117,8 +98,6 @@ export const defaultFilter: FilterConfig = {
   items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
 
-export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
-
 export const defaultSort: SortConfig = {
   enabled: true,
   columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
@@ -136,8 +115,6 @@ export const defaultConfig: DashletConfig = {
   filter: defaultFilter,
   sort: defaultSort,
 };
-
-export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
 // ============================================================================
 // Layout Defaults
@@ -199,54 +176,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
 
   // ── Handlebars template compilation ────────────────────────────────────────
-  const compiledKeys = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.key }))),
-    [columns]
-  );
-
-  const compiledLabels = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.label }))),
-    [columns]
-  );
-
-  const compiledTypes = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.type }))),
-    [columns]
-  );
-
-  const resolveCellValue = useCallback(
-    (
-      row: Record<string, string>,
-      col: TableColumn,
-      rowIdx: number,
-      totalRows: number
-    ): string =>
-      resolveTemplate(compiledKeys, col.key, { row, ...row, _index: rowIdx, _count: totalRows }, col.key),
-    [compiledKeys]
-  );
-
-  const resolveHeaderLabel = useCallback(
-    (col: TableColumn): string =>
-      resolveTemplate(compiledLabels, col.key, { _count: displayRows.length }, col.label),
-    [compiledLabels, displayRows.length]
-  );
-
-  const resolveCellType = useCallback(
-    (
-      row: Record<string, string>,
-      col: TableColumn,
-      rowIdx: number,
-      totalRows: number
-    ): string => {
-      const result = resolveTemplate(
-        compiledTypes, col.key,
-        { row, ...row, _index: rowIdx, _count: totalRows },
-        col.type || "text"
-      );
-      return result.trim() || "text";
-    },
-    [compiledTypes]
-  );
+  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(columns, displayRows.length);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -332,7 +262,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     key={col.key}
                     className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
                   >
-                    {resolveHeaderLabel(col)}
+                    {resolveLabel(col.key)}
                   </th>
                 ))}
               </tr>
@@ -359,8 +289,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         className="px-4 py-4 text-gray-700 dark:text-gray-300"
                       >
                         {renderCell(
-                          resolveCellValue(row, col, rowIdx, displayRows.length),
-                          resolveCellType(row, col, rowIdx, displayRows.length)
+                          resolveValue(col.key, row, rowIdx, displayRows.length),
+                          resolveType(col.key, row, rowIdx, displayRows.length)
                         )}
                       </td>
                     ))}

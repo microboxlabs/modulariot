@@ -95,3 +95,8 @@ export {
   buildDataProviderContext,
 } from "./use-handlebars-templates";
 export { SuggestionInput } from "./suggestion-input";
+export { useCompiledColumns } from "./use-compiled-columns";
+export {
+  buildPgrestSettingsConfig,
+  buildPgrestContentLabels,
+} from "./pgrest-settings-helpers";

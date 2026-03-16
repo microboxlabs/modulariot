@@ -8,6 +8,7 @@ import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers"
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
+import { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
@@ -136,18 +137,7 @@ export const defaultConfig: DashletConfig = {
   sort: defaultSort,
 };
 
-/**
- * Extract the data property name from a column key.
- * - `{{row.origin}}`  → `"origin"`
- * - `{{origin}}`      → `"origin"`
- * - `origin`          → `"origin"` (plain text — used for sort/filter lookup)
- * Returns `null` for complex templates like `{{a}} - {{b}}`.
- */
-export function resolveDataProperty(key: string): string | null {
-  if (!key.includes("{{")) return key;
-  const match = /^\{\{(?:row\.)?(\w+)\}\}$/.exec(key);
-  return match ? match[1] : null;
-}
+export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
 // ============================================================================
 // Layout Defaults

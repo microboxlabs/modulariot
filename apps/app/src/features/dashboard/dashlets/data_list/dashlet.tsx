@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { HiArrowUp, HiArrowDown, HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
@@ -15,6 +15,7 @@ import { usePgrestRows } from "../common/use-pgrest-rows";
 import { normalizeFilterConfig } from "../common/filter-helpers";
 import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
+import { compileTemplates, resolveTemplate } from "../common/use-handlebars-templates";
 
 export type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
 export type { FilterItemConfig, FilterConfig } from "../common/filter-types";
@@ -58,17 +59,17 @@ export interface DashletConfig {
 // ============================================================================
 
 export const defaultColumns: TableColumn[] = [
-  { key: "vehicleId", label: "ID Vehículo", type: "text" },
-  { key: "vehicleDesc", label: "Descripción", type: "text" },
-  { key: "exposure", label: "Exposición", type: "badge" },
-  { key: "km", label: "Km Totales", type: "highlight" },
-  { key: "events", label: "Total eventos", type: "text" },
-  { key: "speed", label: "Velocidad", type: "text" },
-  { key: "signal", label: "Señal", type: "text" },
-  { key: "schedule", label: "Horario", type: "text" },
-  { key: "stops", label: "Detenciones", type: "text" },
-  { key: "lastDetection", label: "Última detección", type: "text" },
-  { key: "severity", label: "Severidad predominante", type: "badge" },
+  { key: "{{row.vehicleId}}", label: "ID Vehículo", type: "text" },
+  { key: "{{row.vehicleDesc}}", label: "Descripción", type: "text" },
+  { key: "{{row.exposure}}", label: "Exposición", type: "badge" },
+  { key: "{{row.km}}", label: "Km Totales", type: "highlight" },
+  { key: "{{row.events}}", label: "Total eventos", type: "text" },
+  { key: "{{row.speed}}", label: "Velocidad", type: "text" },
+  { key: "{{row.signal}}", label: "Señal", type: "text" },
+  { key: "{{row.schedule}}", label: "Horario", type: "text" },
+  { key: "{{row.stops}}", label: "Detenciones", type: "text" },
+  { key: "{{row.lastDetection}}", label: "Última detección", type: "text" },
+  { key: "{{row.severity}}", label: "Severidad predominante", type: "badge" },
 ];
 
 export const defaultRows: Record<string, string>[] = [
@@ -128,20 +129,20 @@ export const defaultRows: Record<string, string>[] = [
 
 export const defaultFilter: FilterConfig = {
   enabled: true,
-  items: [{ column: "exposure", label: "Exposición:" }],
+  items: [{ column: "{{row.exposure}}", label: "Exposición:" }],
 };
 
 export const defaultSort: SortConfig = {
   enabled: true,
-  columns: ["exposure", "km", "events"],
+  columns: ["{{row.exposure}}", "{{row.km}}", "{{row.events}}"],
 };
 
 export const defaultCardLayout: CardLayoutConfig = {
-  titleColumn: "vehicleId",
-  subtitleColumn: "vehicleDesc",
-  headerBadgeColumns: ["exposure"],
-  kpiColumns: ["km", "events", "speed", "signal", "schedule", "stops"],
-  footerColumns: ["lastDetection", "severity"],
+  titleColumn: "{{row.vehicleId}}",
+  subtitleColumn: "{{row.vehicleDesc}}",
+  headerBadgeColumns: ["{{row.exposure}}"],
+  kpiColumns: ["{{row.km}}", "{{row.events}}", "{{row.speed}}", "{{row.signal}}", "{{row.schedule}}", "{{row.stops}}"],
+  footerColumns: ["{{row.lastDetection}}", "{{row.severity}}"],
 };
 
 export const defaultConfig: DashletConfig = {
@@ -178,15 +179,27 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 interface ListCardProps {
   row: Record<string, string>;
+  rowIdx: number;
+  totalRows: number;
   columns: TableColumn[];
   cardLayout: CardLayoutConfig;
+  resolveValue: (key: string, row: Record<string, string>, rowIdx: number, totalRows: number) => string;
+  resolveLabel: (key: string) => string;
+  resolveType: (key: string, row: Record<string, string>, rowIdx: number, totalRows: number) => string;
 }
 
-function ListCard({ row, columns, cardLayout }: Readonly<ListCardProps>) {
-  const colMap = new Map(columns.map((c) => [c.key, c]));
-
-  const titleValue = row[cardLayout.titleColumn] ?? "";
-  const subtitleValue = row[cardLayout.subtitleColumn] ?? "";
+function ListCard({
+  row,
+  rowIdx,
+  totalRows,
+  columns,
+  cardLayout,
+  resolveValue,
+  resolveLabel,
+  resolveType,
+}: Readonly<ListCardProps>) {
+  const titleValue = resolveValue(cardLayout.titleColumn, row, rowIdx, totalRows);
+  const subtitleValue = resolveValue(cardLayout.subtitleColumn, row, rowIdx, totalRows);
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -198,12 +211,12 @@ function ListCard({ row, columns, cardLayout }: Readonly<ListCardProps>) {
               {titleValue}
             </span>
             {cardLayout.headerBadgeColumns.map((key) => {
-              const val = row[key];
+              const val = resolveValue(key, row, rowIdx, totalRows);
               if (!val) return null;
-              const col = colMap.get(key);
+              const colType = resolveType(key, row, rowIdx, totalRows);
               return (
                 <span key={key}>
-                  {renderCell(val, col?.type ?? "badge")}
+                  {renderCell(val, colType || "badge")}
                 </span>
               );
             })}
@@ -228,15 +241,15 @@ function ListCard({ row, columns, cardLayout }: Readonly<ListCardProps>) {
       {cardLayout.kpiColumns.length > 0 && (
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 md:grid-cols-6">
           {cardLayout.kpiColumns.map((key) => {
-            const col = colMap.get(key);
-            const val = row[key] ?? "";
+            const val = resolveValue(key, row, rowIdx, totalRows);
+            const colType = resolveType(key, row, rowIdx, totalRows);
             return (
               <div key={key} className="min-w-0">
                 <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {col?.label ?? key}
+                  {resolveLabel(key)}
                 </p>
                 <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">
-                  {renderCell(val, col?.type ?? "text")}
+                  {renderCell(val, colType || "text")}
                 </p>
               </div>
             );
@@ -248,16 +261,16 @@ function ListCard({ row, columns, cardLayout }: Readonly<ListCardProps>) {
       {cardLayout.footerColumns.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-gray-100 pt-3 dark:border-gray-700">
           {cardLayout.footerColumns.map((key) => {
-            const col = colMap.get(key);
-            const val = row[key] ?? "";
+            const val = resolveValue(key, row, rowIdx, totalRows);
+            const colType = resolveType(key, row, rowIdx, totalRows);
             return (
               <span
                 key={key}
                 className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
               >
-                <span>{col?.label ?? key}:</span>
+                <span>{resolveLabel(key)}:</span>
                 <span className="font-medium text-gray-700 dark:text-gray-300">
-                  {renderCell(val, col?.type ?? "text")}
+                  {renderCell(val, colType || "text")}
                 </span>
               </span>
             );
@@ -320,6 +333,47 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ) : (
       <HiArrowDown className="h-3 w-3" />
     );
+
+  // ── Handlebars template compilation ────────────────────────────────────────
+  const compiledKeys = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.key }))),
+    [columns]
+  );
+
+  const compiledLabels = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.label }))),
+    [columns]
+  );
+
+  const compiledTypes = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.type }))),
+    [columns]
+  );
+
+  const resolveValue = useCallback(
+    (key: string, row: Record<string, string>, rowIdx: number, totalRows: number): string =>
+      resolveTemplate(compiledKeys, key, { row, ...row, _index: rowIdx, _count: totalRows }, key),
+    [compiledKeys]
+  );
+
+  const resolveLabel = useCallback(
+    (key: string): string =>
+      resolveTemplate(compiledLabels, key, { _count: displayRows.length }, columns.find((c) => c.key === key)?.label ?? key),
+    [compiledLabels, displayRows.length, columns]
+  );
+
+  const resolveType = useCallback(
+    (key: string, row: Record<string, string>, rowIdx: number, totalRows: number): string => {
+      const col = columns.find((c) => c.key === key);
+      const result = resolveTemplate(
+        compiledTypes, key,
+        { row, ...row, _index: rowIdx, _count: totalRows },
+        col?.type || "text"
+      );
+      return result.trim() || "text";
+    },
+    [compiledTypes, columns]
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -400,13 +454,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           displayRows.map((row, idx) => (
             <ListCard
               key={
-                row[cardLayout.titleColumn]
-                  ? `${row[cardLayout.titleColumn]}-${idx}`
+                resolveValue(cardLayout.titleColumn, row, idx, displayRows.length)
+                  ? `${resolveValue(cardLayout.titleColumn, row, idx, displayRows.length)}-${idx}`
                   : `row-${idx}`
               }
               row={row}
+              rowIdx={idx}
+              totalRows={displayRows.length}
               columns={columns}
               cardLayout={cardLayout}
+              resolveValue={resolveValue}
+              resolveLabel={resolveLabel}
+              resolveType={resolveType}
             />
           ))}
       </div>

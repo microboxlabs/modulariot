@@ -22,6 +22,7 @@ export {
   findHandlebarsExpressions,
   getHandlebarsStatus,
   getFlowbiteColor,
+  resolveDataProperty,
 } from "./handlebars-helpers";
 export {
   type ColumnType,

@@ -547,7 +547,6 @@ export function PlanningSidebarForm({
       >
         <TabItem
           active={!isPlanificacionLocked}
-          disabled={isPlanificacionLocked}
           title={tr("pages.planning.sidebar.form.planningTab", dict)}
         >
           {!isSlotsLoading && timeOptions.length > 0 && (

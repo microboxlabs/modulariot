@@ -36,7 +36,7 @@ export interface Widget {
   componentId: string;
   /** Grid layout position and size */
   layout: GridLayoutItem;
-  /** Dashlet-specific configuration (persisted to localStorage) */
+  /** Dashlet-specific configuration */
   config: Record<string, unknown>;
   /** Nested widgets (for container types) */
   children?: Widget[];
@@ -55,7 +55,7 @@ export interface DashboardPreferences {
   editMode: boolean;
 }
 
-/** Versioned storage schema for localStorage (supports migrations) */
+/** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
   /** Schema version for migrations */
   version: 2;
@@ -77,5 +77,3 @@ export const DEFAULT_STORAGE: DashboardStorageSchema = {
   },
 };
 
-/** localStorage key for dashboard data */
-export const STORAGE_KEY = "dashboard-config";

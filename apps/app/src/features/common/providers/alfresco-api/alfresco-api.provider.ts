@@ -38,6 +38,7 @@ import type {
   StatisticsTasksResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
+import type { FetcherError } from "../fetcher.types";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
@@ -690,6 +691,80 @@ export async function getGroupsForPerson(session: Session): Promise<string[]> {
     headers,
   })) as GroupPaging;
   return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
+}
+
+/**
+ * Resolve a node by relativePath. Returns the nodeId or null if not found (404).
+ */
+export async function resolveNodeByPath(
+  session: Session,
+  relativePath: string
+): Promise<string | null> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=${encodeURIComponent(relativePath)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  try {
+    const response = await fetcher<{ entry?: { id?: string } }>(url, {
+      method: "GET",
+      headers,
+    });
+    return response?.entry?.id ?? null;
+  } catch (error: unknown) {
+    const fetcherErr = error as FetcherError;
+    if (fetcherErr?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Ensure a folder exists under a parent node. Creates it if missing.
+ * Uses create-first strategy to avoid TOCTOU races — handles 409 (already exists).
+ * Returns the folder's nodeId.
+ */
+export async function ensureFolder(
+  session: Session,
+  parentNodeId: string,
+  folderName: string
+): Promise<string> {
+  const createUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}/children`;
+  const { url, headers } = prepareAlfrescoAuth(createUrl, session);
+
+  try {
+    const created = await fetcher<{ entry?: { id?: string } }>(url, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: folderName,
+        nodeType: "cm:folder",
+      }),
+    });
+
+    const createdId = created?.entry?.id;
+    if (!createdId) {
+      throw new Error(`Failed to create folder '${folderName}'`);
+    }
+    return createdId;
+  } catch (error: unknown) {
+    const fetcherErr = error as FetcherError;
+    // 409 = folder already exists — resolve its nodeId by relativePath from parent
+    if (fetcherErr?.status === 409) {
+      const nodeUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}?relativePath=${encodeURIComponent(folderName)}`;
+      const { url: resolveUrl, headers: resolveHeaders } =
+        prepareAlfrescoAuth(nodeUrl, session);
+      const resolved = await fetcher<{ entry?: { id?: string } }>(resolveUrl, {
+        method: "GET",
+        headers: resolveHeaders,
+      });
+
+      const existingId = resolved?.entry?.id;
+      if (existingId) {
+        return existingId;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function getUserFilters(
@@ -1448,4 +1523,44 @@ export async function updateTaskServiceCategory(
   await formProcessor(session, "task", taskId, {
     mintral_serviceCategory: serviceTypeCode,
   });
+}
+
+/**
+ * Reads a dashboard config from Alfresco via the dashboard config webscript.
+ * Returns the parsed config or null if no config exists yet.
+ */
+export async function getDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<{ data: unknown }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config?site=${encodeURIComponent(site)}&slug=${encodeURIComponent(slug)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return result as { data: unknown };
+}
+
+/**
+ * Saves a dashboard config to Alfresco via the dashboard config webscript.
+ */
+export async function saveDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string,
+  config: unknown
+): Promise<{ success: boolean }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ site, slug, config }),
+  });
+  return result as { success: boolean };
 }

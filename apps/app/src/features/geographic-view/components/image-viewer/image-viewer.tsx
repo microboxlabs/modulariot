@@ -78,18 +78,18 @@ export default function ImageViewer({
     if (isValidUrl(images[selected])) {
       try {
         await navigator.share({
-          title: tr("imageViewer.shareTitle", dictionary),
-          text: tr("imageViewer.shareText", dictionary),
+          title: tr("geographic_view.imageViewer.shareTitle", dictionary),
+          text: tr("geographic_view.imageViewer.shareText", dictionary),
           url: images[selected],
         });
-        toast.success(tr("imageViewer.shareSuccess", dictionary));
+        toast.success(tr("geographic_view.imageViewer.shareSuccess", dictionary));
       } catch (error) {
         // Don't show error for user cancellation
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
         console.error("Share error:", error);
-        toast.error(tr("imageViewer.shareError", dictionary));
+        toast.error(tr("geographic_view.imageViewer.shareError", dictionary));
       }
     } else {
       try {
@@ -100,19 +100,19 @@ export default function ImageViewer({
         });
 
         await navigator.share({
-          title: tr("imageViewer.shareTitle", dictionary),
-          text: tr("imageViewer.shareText", dictionary),
+          title: tr("geographic_view.imageViewer.shareTitle", dictionary),
+          text: tr("geographic_view.imageViewer.shareText", dictionary),
           files: [newFile],
         });
 
-        toast.success(tr("imageViewer.shareSuccess", dictionary));
+        toast.success(tr("geographic_view.imageViewer.shareSuccess", dictionary));
       } catch (error) {
         // Don't show error for user cancellation
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
         console.error("Share error:", error);
-        toast.error(tr("imageViewer.shareError", dictionary));
+        toast.error(tr("geographic_view.imageViewer.shareError", dictionary));
       }
     }
   };
@@ -148,7 +148,7 @@ export default function ImageViewer({
                   </div>
                   <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
                     {categories[data[selected]?.tag as keyof typeof categories]
-                      ?.label || tr("imageViewer.noCategory", dictionary)}
+                      ?.label || tr("geographic_view.imageViewer.noCategory", dictionary)}
                   </div>
                   {data[selected]?.modifiedAt && (
                     <>
@@ -180,7 +180,7 @@ export default function ImageViewer({
                         } catch (error) {
                           console.error("Base64 decode error:", error);
                           toast.error(
-                            tr("imageViewer.decodeError", dictionary)
+                            tr("geographic_view.imageViewer.decodeError", dictionary)
                           );
                           return;
                         }
@@ -227,12 +227,12 @@ export default function ImageViewer({
                         );
                         if (success) {
                           toast.success(
-                            tr("imageViewer.downloadSuccess", dictionary)
+                            tr("geographic_view.imageViewer.downloadSuccess", dictionary)
                           );
                         }
                       } catch {
                         toast.error(
-                          tr("imageViewer.downloadError", dictionary)
+                          tr("geographic_view.imageViewer.downloadError", dictionary)
                         );
                       }
                     }}

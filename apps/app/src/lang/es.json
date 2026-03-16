@@ -1545,16 +1545,6 @@
     "download": "Descargar",
     "view_image": "Ver imagen",
     "share": "Compartir",
-    "imageViewer": {
-      "noCategory": "Sin categoría",
-      "shareTitle": "Vista geográfica",
-      "shareText": "Compartir la vista geográfica",
-      "shareSuccess": "Imagen compartida",
-      "shareError": "Error al compartir imagen",
-      "decodeError": "Error al decodificar imagen",
-      "downloadSuccess": "Imagen descargada",
-      "downloadError": "Error al descargar imagen"
-    },
     "symptoms-list": "Lista de síntomas",
     "map-view": "Vista de mapa",
     "restablished_symptoms": "Síntomas restablecidos",
@@ -1722,7 +1712,17 @@
     "hide_stops": "Ocultar paradas",
     "image_prefix": "imagen",
     "processing": "Procesando...",
-    "download_failed": "Descarga fallida — abriendo en nueva pestaña"
+    "download_failed": "Descarga fallida — abriendo en nueva pestaña",
+    "imageViewer": {
+      "noCategory": "Sin categoría",
+      "shareTitle": "Vista geográfica",
+      "shareText": "Compartir la vista geográfica",
+      "shareSuccess": "Imagen compartida",
+      "shareError": "Error al compartir imagen",
+      "decodeError": "Error al decodificar imagen",
+      "downloadSuccess": "Imagen descargada",
+      "downloadError": "Error al descargar imagen"
+    }
   },
   "release": {
     "other_versions": "Otras versiones",

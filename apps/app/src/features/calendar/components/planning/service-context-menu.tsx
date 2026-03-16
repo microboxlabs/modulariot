@@ -70,8 +70,8 @@ export function ServiceContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const { hasPermission } = usePermissions();
 
-  // Check if user has transportist permission to show assignment button
-  const canAssign = hasPermission(["GROUP_TRANSPORTIST"]);
+  // Check if user has assignment permission to show assignment button
+  const canAssign = hasPermission(["GROUP_ASSIGNMENT"]);
 
   // Estimated menu dimensions for initial position calculation
   // Height varies based on number of buttons (2 without assignment, 3 with it)

@@ -12,6 +12,7 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { ColumnItem } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
+import type { DataMode } from "./column-types";
 import { SettingsTextField, SettingsSelectField } from "./settings-fields";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
@@ -267,8 +268,8 @@ export function SortEditor({
 
 interface DataProviderTabProps {
   id: string;
-  dataMode: "static" | "dynamic" | "pgrest";
-  onDataModeChange: (mode: "static" | "dynamic" | "pgrest") => void;
+  dataMode: DataMode;
+  onDataModeChange: (mode: DataMode) => void;
   rowsJson: string;
   onRowsJsonChange: (json: string) => void;
   rowsJsonError: string | null;
@@ -314,7 +315,7 @@ export function DataProviderTab({
         id={`${id}-data-mode`}
         label={labels.dataSource}
         value={dataMode}
-        onChange={(v) => onDataModeChange(v as "static" | "dynamic" | "pgrest")}
+        onChange={(v) => onDataModeChange(v as DataMode)}
         options={options}
       />
 

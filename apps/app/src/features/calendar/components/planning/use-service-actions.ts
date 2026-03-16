@@ -19,6 +19,7 @@ export interface DeleteModalState {
 interface UseServiceActionsProps {
   removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
+  startAssignment: (plannedService: PlannedService) => void;
 }
 
 interface UseServiceActionsResult {
@@ -30,6 +31,7 @@ interface UseServiceActionsResult {
   ) => void;
   handleCloseContextMenu: () => void;
   handleReassign: (plannedService: PlannedService) => void;
+  handleAssign: (plannedService: PlannedService) => void;
   handleDeleteRequest: (plannedService: PlannedService) => void;
   handleConfirmDelete: (plannedService: PlannedService) => Promise<void>;
   handleCancelDelete: () => void;
@@ -42,6 +44,7 @@ interface UseServiceActionsResult {
 export function useServiceActions({
   removeService,
   startReassignment,
+  startAssignment,
 }: UseServiceActionsProps): UseServiceActionsResult {
   // Context menu state
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
@@ -79,10 +82,17 @@ export function useServiceActions({
       startReassignment(plannedService);
       ShowNotification({
         type: "info",
-        message: "Seleccione una nueva fecha y hora para reasignar el servicio",
+        message: "Seleccione una nueva fecha y hora para volver a planificar",
       });
     },
     [startReassignment]
+  );
+
+  const handleAssign = useCallback(
+    (plannedService: PlannedService) => {
+      startAssignment(plannedService);
+    },
+    [startAssignment]
   );
 
   const handleDeleteRequest = useCallback((plannedService: PlannedService) => {
@@ -125,6 +135,7 @@ export function useServiceActions({
     handleContextMenu,
     handleCloseContextMenu,
     handleReassign,
+    handleAssign,
     handleDeleteRequest,
     handleConfirmDelete,
     handleCancelDelete,

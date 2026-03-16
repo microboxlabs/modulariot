@@ -183,6 +183,32 @@ export type UploadNodeResponse = {
   [key: string]: unknown;
 } | null;
 
+export type UpdateNodeContentRequest = {
+  nodeId: string;
+  filedata: File;
+  name: string;
+};
+
+export type UpdateNodeContentResponse = {
+  entry: {
+    id: string;
+    name: string;
+    nodeType: string;
+    isFolder: boolean;
+    isFile: boolean;
+    modifiedAt: string;
+    modifiedByUser: {
+      id: string;
+      displayName: string;
+    };
+    content: {
+      mimeType: string;
+      mimeTypeName: string;
+      sizeInBytes: number;
+    };
+  };
+} | null;
+
 export type FinishedWorkflowsResponse = {
   total: number;
   workflows: HistoricalWorkflow[];

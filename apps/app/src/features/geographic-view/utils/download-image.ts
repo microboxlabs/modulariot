@@ -1,12 +1,11 @@
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 
 export async function downloadImage(
   imageUrl: string,
-  dictionary?: I18nRecord,
-): Promise<void> {
+  dictionary?: I18nRecord
+): Promise<boolean> {
   const prefix = dictionary
     ? tr("geographic_view.image_prefix", dictionary)
     : "image";
@@ -24,7 +23,7 @@ export async function downloadImage(
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
-    return;
+    return true;
   }
 
   // For blob URLs, download directly
@@ -35,12 +34,33 @@ export async function downloadImage(
     document.body.appendChild(link);
     link.click();
     link.remove();
-    return;
+    return true;
+  }
+
+  // For internal API URLs (same-origin)
+  if (imageUrl.startsWith("/api") || imageUrl.startsWith("/app/api")) {
+    const response = await fetch(imageUrl, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = blobUrl;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+    return true;
   }
 
   // For HTTP URLs, try fetch with cors fallback
   try {
-    const response = await fetch(imageUrl, { mode: "cors" });
+    const response = await fetch(imageUrl, {
+      mode: "cors",
+      credentials: "include",
+    });
     if (!response.ok) throw new Error("Fetch failed");
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
@@ -51,10 +71,15 @@ export async function downloadImage(
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
-  } catch (error) {
-    logger.error({ err: error, imageUrl }, "Automatic image download failed");
-    toast.error("Download failed — opening in a new tab");
+    return true;
+  } catch {
+    toast.error(
+      dictionary
+        ? tr("download_failed", dictionary)
+        : "Download failed — opening in a new tab"
+    );
     // Fallback: open in new tab for user to save manually
     window.open(imageUrl, "_blank");
+    return false;
   }
 }

@@ -9,11 +9,13 @@ export default function ImageElement({
   index,
   setSelectedImage,
   dictionary,
+  onEdit,
 }: {
   file: any;
   index: number;
   setSelectedImage: (index: number) => void;
   dictionary: I18nRecord;
+  onEdit?: (index: number) => void;
 }) {
   const [thumbnail, setThumbnail] = useState<any>(null);
   const [_thumbnailError, setThumbnailError] = useState<boolean>(false);
@@ -49,8 +51,9 @@ export default function ImageElement({
           ] as keyof typeof categories
         ]?.label
       }
-      downloadUrl={`/api/document/download?documentId=${file.entry.id}`}
+      downloadUrl={`/app/api/document/download?documentId=${file.entry.id}`}
       dictionary={dictionary}
+      onEdit={onEdit}
     />
   );
 }

@@ -7,6 +7,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { buildNavBarMessages } from "../utils/utils";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
+import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export default async function SecuredTaskLayout({
   children,
@@ -16,6 +17,7 @@ export default async function SecuredTaskLayout({
   const [dict] = await getDictionary(lang);
   const cookie = await sidebarCookie.get();
   const navBarMessages = buildNavBarMessages({ messages: dict });
+  const initialOrgLogo = await getPublicOrgLogo();
   return (
     <SidebarProvider initialCollapsed={cookie?.isCollapsed ?? false}>
       <SecuredNavbar
@@ -23,6 +25,7 @@ export default async function SecuredTaskLayout({
         isSidebarToggleEnabled={false}
         isSeachEnabled={false}
         dict={dict as unknown as I18nRecord}
+        initialOrgLogo={initialOrgLogo}
       />
       <div data-testid="content" className="mt-16 mb-6 flex items-center">
         {children}

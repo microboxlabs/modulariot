@@ -1,5 +1,5 @@
 import { Button, Modal, ModalBody } from "flowbite-react";
-import { MdOutlineFileDownload } from "react-icons/md";
+import { MdOutlineFileDownload, MdOutlineFileUpload } from "react-icons/md";
 import { FaEye, FaShare } from "react-icons/fa";
 import Carousel from "../carousel";
 import { toast } from "sonner";
@@ -140,129 +140,125 @@ export default function ImageViewer({
             )}
           </div>
           {selected !== null && (
-            <div className="w-full flex-shrink-0 flex justify-between items-center text-white transition-all duration-300 gap-2 p-2 min-h-0">
-              <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1 overflow-hidden">
-                <div className="text-gray-500 dark:text-gray-300 text-sm font-light truncate">
-                  {data[selected]?.name}
+            <div>
+              <div className="w-full flex-shrink-0 flex justify-between items-center text-white transition-all duration-300 gap-2 p-2 min-h-0">
+                <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1 overflow-hidden">
+                  <div className="text-gray-500 dark:text-gray-300 text-sm font-light truncate">
+                    {data[selected]?.name}
+                  </div>
+                  <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
+                    {categories[data[selected]?.tag as keyof typeof categories]
+                      ?.label || "Sin categoría"}
+                  </div>
+                  {data[selected]?.modifiedAt && (
+                    <>
+                      <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
+                        {data[selected]?.modifiedByUser?.id}
+                      </div>
+                      <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
+                        {formatDateString(data[selected].modifiedAt)}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
-                  {categories[data[selected]?.tag as keyof typeof categories]
-                    ?.label || "Sin categoría"}
-                </div>
-                {data[selected]?.modifiedAt && (
-                  <>
-                    <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
-                      {data[selected]?.modifiedByUser?.id}
-                    </div>
-                    <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
-                      {formatDateString(data[selected].modifiedAt)}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                {onReplaceImage && (
+                <div className="flex gap-2 flex-shrink-0">
                   <Button
                     color="blue"
-                    onClick={() => setShowReplaceModal(true)}
+                    aria-label={tr("view_image", dictionary) || "View image"}
+                    title={tr("view_image", dictionary) || "View image"}
+                    onClick={() => {
+                      if (selected === null) return;
+                      const imageData = images[selected];
+                      // Handle base64 data URLs by converting to Blob
+                      if (imageData.startsWith("data:")) {
+                        const [header, base64] = imageData.split(",");
+                        const mimeMatch = /data:([^;]+)/.exec(header);
+                        const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+                        let binaryString: string;
+                        try {
+                          binaryString = atob(base64);
+                        } catch (error) {
+                          console.error("Base64 decode error:", error);
+                          toast.error("Error al decodificar imagen");
+                          return;
+                        }
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                          bytes[i] = binaryString.codePointAt(i) ?? 0;
+                        }
+                        const blob = new Blob([bytes], { type: mimeType });
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, "_blank");
+                        // Revoke after browser has had time to use the URL
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                      } else {
+                        window.open(imageData, "_blank");
+                      }
+                    }}
                     pill
                     size="sm"
-                    aria-label={tr("bento.multimedia.replaceImage", dictionary)}
                   >
-                    <MdOutlineFileUpload className="w-4 h-4" />
+                    <FaEye className="w-4 h-4" />
                   </Button>
-                )}
-                <Button
-                  color="blue"
-                  onClick={async () => {
-                    if (selected === null) return;
-                    try {
-                      await downloadImage(images[selected], dictionary);
-                      toast.success("Imagen descargada");
-                    } catch {
-                      toast.error("Error al descargar imagen");
-                    }
-                  }}
-                  pill
-                  size="sm"
-                  aria-label={tr("download", dictionary)}
-                >
-                  <MdOutlineFileDownload className="w-4 h-4" />
-                </Button>
-                <Button
-                  color="blue"
-                  onClick={() => handleShare()}
-                  pill
-                  size="sm"
-                  aria-label={tr("share", dictionary) || "Compartir"}
-                >
-                  <FaShare className="h-4 w-4 text-white text-center" />
-                </Button>
+                  {onReplaceImage && (
+                    <Button
+                      color="blue"
+                      onClick={() => setShowReplaceModal(true)}
+                      pill
+                      size="sm"
+                      aria-label={tr(
+                        "bento.multimedia.replaceImage",
+                        dictionary
+                      )}
+                    >
+                      <MdOutlineFileUpload className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <Button
+                    color="blue"
+                    onClick={async () => {
+                      if (selected === null) return;
+                      try {
+                        await downloadImage(images[selected], dictionary);
+                        toast.success("Imagen descargada");
+                      } catch {
+                        toast.error("Error al descargar imagen");
+                      }
+                    }}
+                    pill
+                    size="sm"
+                    aria-label={tr("download", dictionary)}
+                  >
+                    <MdOutlineFileDownload className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    color="blue"
+                    onClick={() => handleShare()}
+                    pill
+                    size="sm"
+                    aria-label={tr("share", dictionary) || "Compartir"}
+                  >
+                    <FaShare className="h-4 w-4 text-white text-center" />
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Button
-                color="blue"
-                aria-label={tr("view_image", dictionary) || "View image"}
-                title={tr("view_image", dictionary) || "View image"}
-                onClick={() => {
-                  if (selected === null) return;
-                  const imageData = images[selected];
-                  // Handle base64 data URLs by converting to Blob
-                  if (imageData.startsWith("data:")) {
-                    const [header, base64] = imageData.split(",");
-                    const mimeMatch = /data:([^;]+)/.exec(header);
-                    const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
-                    let binaryString: string;
-                    try {
-                      binaryString = atob(base64);
-                    } catch (error) {
-                      console.error("Base64 decode error:", error);
-                      toast.error("Error al decodificar imagen");
-                      return;
-                    }
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                      bytes[i] = binaryString.codePointAt(i) ?? 0;
-                    }
-                    const blob = new Blob([bytes], { type: mimeType });
-                    const blobUrl = URL.createObjectURL(blob);
-                    window.open(blobUrl, "_blank");
-                    // Revoke after browser has had time to use the URL
-                    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-                  } else {
-                    window.open(imageData, "_blank");
-                  }
-                }}
-                pill
-                size="sm"
-              >
-                <FaEye className="w-4 h-4" />
-              </Button>
-              <Button
-                color="blue"
-                onClick={async () => {
-                  if (selected === null) return;
-                  try {
-                    await downloadImage(images[selected], dictionary);
-                    toast.success("Imagen descargada");
-                  } catch (error) {
-                    console.error("Download error:", error);
-                    toast.error("Error al descargar imagen");
-                  }
-                }}
-                pill
-                size="sm"
-              >
-                <MdOutlineFileDownload className="w-4 h-4" />
-              </Button>
-              <Button color="blue" onClick={() => handleShare()} pill size="sm">
-                <FaShare className="h-4 w-4 text-white text-center" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </ModalBody>
-    </Modal>
+          )}
+        </ModalBody>
+      </Modal>
+      {/* Replace Image Modal */}
+      <ReplaceImageModal
+        show={showReplaceModal}
+        onClose={handleReplaceModalClose}
+        onReplace={(file) => {
+          if (selected !== null && onReplaceImage) {
+            onReplaceImage(file, selected);
+            handleReplaceModalClose();
+          }
+        }}
+        dictionary={dictionary}
+        imageName={selected === null ? undefined : data[selected]?.name}
+      />
+    </>
   );
 }

@@ -29,12 +29,27 @@ function NavbarLogo({
   isLoading,
   logoUrlLight,
   logoUrlDark,
+  initialOrgLogo,
 }: Readonly<{
   isLoading: boolean;
   logoUrlLight: string | null;
   logoUrlDark: string | null;
+  initialOrgLogo?: string | null;
 }>) {
   if (isLoading) {
+    // While loading, show the server-fetched org logo if available instead of a skeleton
+    if (initialOrgLogo) {
+      return (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          className="mr-3 h-8 object-contain"
+          alt="Company logo"
+          src={initialOrgLogo}
+          width={150}
+          height={32}
+        />
+      );
+    }
     return (
       <div className="mr-3 h-8 w-[150px] bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
     );
@@ -88,7 +103,20 @@ function NavbarLogo({
     );
   }
 
-  // No custom logos - show default
+  // No custom logos from SWR - use server-fetched org logo or default
+  if (initialOrgLogo) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        className="mr-3 h-8 object-contain"
+        alt="Company logo"
+        src={initialOrgLogo}
+        width={150}
+        height={32}
+      />
+    );
+  }
+
   return (
     <Image
       className="mr-3 h-8"
@@ -105,6 +133,7 @@ export function SecuredNavbar({
   isSidebarToggleEnabled = true,
   isUserMenuEnabled = true,
   dict,
+  initialOrgLogo,
 }: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -197,7 +226,7 @@ export function SecuredNavbar({
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
             <NavbarBrand as={Link} href="/">
-              <NavbarLogo isLoading={isLoadingLogo} logoUrlLight={logoUrlLight} logoUrlDark={logoUrlDark} />
+              <NavbarLogo isLoading={isLoadingLogo} logoUrlLight={logoUrlLight} logoUrlDark={logoUrlDark} initialOrgLogo={initialOrgLogo} />
             </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">

@@ -34,6 +34,8 @@ import {
   localToApiTimeWindow,
   TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -586,6 +588,14 @@ export interface ReassigningService {
   originalSlot: SelectedSlot;
 }
 
+/**
+ * Tracks when we're in assignment-only mode (opened from context menu "Asignar")
+ * In this mode, only the Asignación tab should be available
+ */
+export interface AssigningService {
+  service: PlannedService;
+}
+
 interface PlanningSelectionContextType {
   selectedSlot: SelectedSlot | null;
   selectedService: SelectedService | null;
@@ -599,11 +609,16 @@ interface PlanningSelectionContextType {
   /** Number of andenes (platforms) available for simultaneous service */
   andenesCount: number;
   reassigningService: ReassigningService | null;
+  /** When set, only the Asignación tab should be available (user clicked "Asignar" in context menu) */
+  assigningService: AssigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
   /** Confirm service assignment. Pass finalSlot to override the selected slot with specific time/andén.
    * Pass serviceOverrides to merge additional fields into the selected service before confirming. */
-  confirmService: (finalSlot?: SelectedSlot, serviceOverrides?: Partial<SelectedService>) => Promise<boolean>;
+  confirmService: (
+    finalSlot?: SelectedSlot,
+    serviceOverrides?: Partial<SelectedService>
+  ) => Promise<boolean>;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
@@ -635,6 +650,10 @@ interface PlanningSelectionContextType {
   removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
+  /** Start assignment-only mode - opens sidebar with only Asignación tab available */
+  startAssignment: (plannedService: PlannedService) => void;
+  /** Cancel assignment-only mode */
+  cancelAssignment: () => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
   /** Backend slot data for the selected date */
@@ -689,6 +708,7 @@ const PlanningSelectionContext =
 interface PlanningSelectionProviderProps {
   readonly children: ReactNode;
   readonly calendarId?: string;
+  readonly dict: I18nDictionary;
 }
 
 /**
@@ -714,6 +734,7 @@ function getWeekOfMonth(date: dayjs.Dayjs): number {
 export function PlanningSelectionProvider({
   children,
   calendarId,
+  dict,
 }: PlanningSelectionProviderProps) {
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
@@ -725,10 +746,12 @@ export function PlanningSelectionProvider({
   const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
-  const [bookingIds, setBookingIds] = useState<Map<string, string>>(
-    new Map()
-  ); // Map of service.id -> booking.id from calendar backend
-  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(null);
+  const [assigningService, setAssigningService] =
+    useState<AssigningService | null>(null);
+  const [bookingIds, setBookingIds] = useState<Map<string, string>>(new Map()); // Map of service.id -> booking.id from calendar backend
+  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(
+    null
+  );
 
   // Load calendar parallelism from the backend
   const { calendars } = useCalendars();
@@ -772,7 +795,11 @@ export function PlanningSelectionProvider({
         apiTimeWindows.flatMap((tw) => {
           const result = TimeWindowResponseSchema.safeParse(tw);
           if (!result.success) {
-            console.warn("Skipping invalid time window response", tw, result.error.message);
+            console.warn(
+              "Skipping invalid time window response",
+              tw,
+              result.error.message
+            );
             return [];
           }
           return [apiToLocalTimeWindow(result.data)];
@@ -791,67 +818,76 @@ export function PlanningSelectionProvider({
 
     const controller = new AbortController();
 
-    listBookings({ calendarId }, controller.signal).then((result) => {
-      // Discard the response if the effect was cleaned up before it resolved.
-      if (controller.signal.aborted) return;
+    listBookings({ calendarId }, controller.signal)
+      .then((result) => {
+        // Discard the response if the effect was cleaned up before it resolved.
+        if (controller.signal.aborted) return;
 
-      const loaded: PlannedService[] = [];
-      const ids = new Map<string, string>();
+        const loaded: PlannedService[] = [];
+        const ids = new Map<string, string>();
 
-      for (const booking of result.data) {
-        // Skip entries whose slot is missing — nothing to place on the grid.
-        if (!booking.slot) continue;
+        for (const booking of result.data) {
+          // Skip entries whose slot is missing — nothing to place on the grid.
+          if (!booking.slot) continue;
 
-        // Validate stored payload; malformed shapes are silently dropped.
-        const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
-        const stored = storedParse.success ? storedParse.data : undefined;
-        // Keep _anden separate so it is not spread into SelectedService.
-        const { _anden, ...storedService } = stored ?? {};
+          // Validate stored payload; malformed shapes are silently dropped.
+          const storedParse = StoredServiceSchema.safeParse(
+            booking.resource.data
+          );
+          const stored = storedParse.success ? storedParse.data : undefined;
+          // Keep _anden separate so it is not spread into SelectedService.
+          const { _anden, ...storedService } = stored ?? {};
 
-        const service: SelectedService = {
-          origen: "",
-          lugarCarguio: "",
-          destino: "",
-          tipoViaje: "Sider",
-          ocupacion: 0,
-          permanencia: "",
-          leadTime: {
-            total_lineasoc_cumplen: 0,
-            total_lineasoc_incumplen: 0,
-            lineasoc_pctn_cumplimiento: 0,
-          },
-          eta: "",
-          incidencias: [],
-          observaciones: "",
-          prioridad: 0,
-          ...storedService,
-          // Canonical booking fields always win over stored data
-          id: booking.resource.id,
-          cliente: booking.resource.label ?? booking.resource.id,
-        };
+          const service: SelectedService = {
+            origen: "",
+            lugarCarguio: "",
+            destino: "",
+            tipoViaje: "Sider",
+            ocupacion: 0,
+            permanencia: "",
+            leadTime: {
+              total_lineasoc_cumplen: 0,
+              total_lineasoc_incumplen: 0,
+              lineasoc_pctn_cumplimiento: 0,
+            },
+            eta: "",
+            incidencias: [],
+            observaciones: "",
+            prioridad: 0,
+            ...storedService,
+            // Canonical booking fields always win over stored data
+            id: booking.resource.id,
+            cliente: booking.resource.label ?? booking.resource.id,
+          };
 
-        loaded.push({
-          service,
-          slot: {
-            date: dayjs(booking.slot.date).toDate(),
-            hour: booking.slot.hour,
-            minutes: booking.slot.minutes,
-            ...(_anden === undefined ? {} : { anden: _anden }),
-          },
-        });
-        ids.set(booking.resource.id, booking.id);
-      }
+          loaded.push({
+            service,
+            slot: {
+              date: dayjs(booking.slot.date).toDate(),
+              hour: booking.slot.hour,
+              minutes: booking.slot.minutes,
+              ...(_anden === undefined ? {} : { anden: _anden }),
+            },
+          });
+          ids.set(booking.resource.id, booking.id);
+        }
 
-      setPlannedServices(loaded);
-      setBookingIds(ids);
-      setBookingsLoadError(null);
-    }).catch((err) => {
-      if (controller.signal.aborted) return;
-      if (err instanceof Error && err.name === "AbortError") return;
-      const message = "No se pudieron cargar las reservas existentes del calendario.";
-      setBookingsLoadError(message);
-      ShowNotification({ type: "error", message });
-    });
+        setPlannedServices(loaded);
+        setBookingIds(ids);
+        setBookingsLoadError(null);
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof Error && err.name === "AbortError") return;
+        setPlannedServices([]);
+        setBookingIds(new Map());
+        const message = tr(
+          "pages.planning.sidebar.notifications.bookingsLoadError",
+          dict
+        );
+        setBookingsLoadError(message);
+        ShowNotification({ type: "error", message });
+      });
 
     return () => {
       controller.abort();
@@ -868,10 +904,14 @@ export function PlanningSelectionProvider({
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
+    // Clear assignment mode when selecting a new slot
+    setAssigningService(null);
   }, []);
 
   const selectService = useCallback((service: SelectedService) => {
     setSelectedService(service);
+    // Clear assignment mode when selecting a new service from the list
+    setAssigningService(null);
   }, []);
 
   /** Deactivate API windows that were removed from local state; returns error strings. */
@@ -951,7 +991,13 @@ export function PlanningSelectionProvider({
         throw new Error(errors.join("; "));
       }
     },
-    [calendarId, apiTimeWindows, refreshTimeWindows, deactivateRemovedWindows, saveLocalWindows]
+    [
+      calendarId,
+      apiTimeWindows,
+      refreshTimeWindows,
+      deactivateRemovedWindows,
+      saveLocalWindows,
+    ]
   );
 
   // Convenience setter: updates only windows, preserves blocks (local state only, no API sync)
@@ -1181,7 +1227,10 @@ export function PlanningSelectionProvider({
   );
 
   const confirmService = useCallback(
-    async (finalSlot?: SelectedSlot, serviceOverrides?: Partial<SelectedService>): Promise<boolean> => {
+    async (
+      finalSlot?: SelectedSlot,
+      serviceOverrides?: Partial<SelectedService>
+    ): Promise<boolean> => {
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
@@ -1238,7 +1287,9 @@ export function PlanningSelectionProvider({
               label: effectiveService.cliente,
               data: {
                 ...effectiveService,
-                ...(slotToUse.anden === undefined ? {} : { _anden: slotToUse.anden }),
+                ...(slotToUse.anden === undefined
+                  ? {}
+                  : { _anden: slotToUse.anden }),
               },
             },
             slot: {
@@ -1315,18 +1366,21 @@ export function PlanningSelectionProvider({
   const clearService = useCallback(() => {
     setSelectedService(null);
     setReassigningService(null);
+    setAssigningService(null);
   }, []);
 
   const closeSidebar = useCallback(() => {
     setSelectedSlot(null);
     setSelectedService(null);
     setReassigningService(null);
+    setAssigningService(null);
   }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedSlot(null);
     setSelectedService(null);
     setReassigningService(null);
+    setAssigningService(null);
   }, []);
 
   /**
@@ -1360,6 +1414,9 @@ export function PlanningSelectionProvider({
    * The service remains visible in its original position with a visual indicator
    */
   const startReassignment = useCallback((plannedService: PlannedService) => {
+    // Clear any active assignment mode first (mutually exclusive)
+    setAssigningService(null);
+
     // Store original slot for visual connection and cancellation
     setReassigningService({
       service: plannedService,
@@ -1385,6 +1442,28 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
+  /**
+   * Start assignment-only mode - opens the sidebar with only Asignación tab available
+   * Used when user clicks "Asignar" in context menu for already-planned services
+   */
+  const startAssignment = useCallback((plannedService: PlannedService) => {
+    // Clear any active reassignment mode first (mutually exclusive)
+    setReassigningService(null);
+
+    setAssigningService({ service: plannedService });
+    setSelectedService(plannedService.service);
+    setSelectedSlot(plannedService.slot);
+  }, []);
+
+  /**
+   * Cancel assignment-only mode - clear assigning state without changes
+   */
+  const cancelAssignment = useCallback(() => {
+    setAssigningService(null);
+    setSelectedSlot(null);
+    setSelectedService(null);
+  }, []);
+
   // Sidebar is open when either a slot or service is selected
   const isSidebarOpen = selectedSlot !== null || selectedService !== null;
 
@@ -1398,6 +1477,7 @@ export function PlanningSelectionProvider({
       timeBlocks,
       andenesCount,
       reassigningService,
+      assigningService,
       selectSlot,
       selectService,
       confirmService,
@@ -1421,6 +1501,8 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      startAssignment,
+      cancelAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,
@@ -1435,6 +1517,7 @@ export function PlanningSelectionProvider({
       timeBlocks,
       andenesCount,
       reassigningService,
+      assigningService,
       selectSlot,
       selectService,
       confirmService,
@@ -1458,6 +1541,8 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      startAssignment,
+      cancelAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,

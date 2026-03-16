@@ -19,6 +19,8 @@ import type {
   SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
+  UpdateNodeContentRequest,
+  UpdateNodeContentResponse,
   UploadNodeRequest,
   UploadNodeResponse,
   UserState,
@@ -88,7 +90,7 @@ export function prepareAlfrescoAuth(
 }
 
 export function prepareAlfrescoAuthWithAccessToken(session: Session): void {
-  var idToken = session.user?.rawJWT;
+  const idToken = session.user?.rawJWT;
   if (idToken) {
     alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
   } else {
@@ -173,7 +175,7 @@ export async function getTaskById(
   });
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/details?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers,
@@ -312,6 +314,49 @@ export async function uploadNodeContent(
   }
 }
 
+export async function updateNodeContent(
+  session: Session,
+  request: UpdateNodeContentRequest
+): Promise<UpdateNodeContentResponse> {
+  try {
+    const { nodeId, filedata, name } = request;
+
+    const queryParams = new URLSearchParams();
+    queryParams.set("name", name);
+    queryParams.set("comment", "Updated version");
+
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const result = await fetch(url, {
+      method: "PUT",
+      headers: {
+        ...headers,
+        "Content-Type": filedata.type || "application/octet-stream",
+      },
+      body: filedata,
+    });
+
+    if (!result.ok) {
+      logError(
+        new Error(
+          `Update node content failed with HTTP error: ${result.status} ${result.statusText}`
+        )
+      );
+      return null;
+    }
+
+    const responseData = await result.json();
+    return responseData as UpdateNodeContentResponse;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Update node content failed with exception"
+    );
+    return null;
+  }
+}
+
 export async function getChildrenNodes(
   session: Session,
   nodeId: string,
@@ -381,7 +426,7 @@ export async function validateService(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   // Llamada a la API para validar el servicio
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers,
@@ -399,7 +444,7 @@ export async function getContentByTaskId(
 ): Promise<string> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/node/content`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = (await fetcher(url, {
     method: "GET",
     headers: {
@@ -427,7 +472,7 @@ export async function getCountTask(
 ): Promise<TaskCountResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/statistics/tasks`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "POST",
     headers,
@@ -463,7 +508,7 @@ export async function formProcessor(
 ): Promise<TaskResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${itemId}/formprocessor`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "POST",
     headers: {
@@ -489,7 +534,7 @@ export async function getServiceValidation(
 ): Promise<ServiceValidationResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/validation`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers: {
@@ -587,7 +632,7 @@ export async function getSympthomTemplate(
 export async function getUserStates(session: Session): Promise<UserState[]> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/operator-status`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers,
@@ -1259,7 +1304,6 @@ export async function listWebhookDefinitions(
   );
 }
 
-
 /**
  * Unclaim a task by removing the current owner assignment
  * @param session - User session with admin privileges
@@ -1367,10 +1411,13 @@ export const timelapseMetadataSchema = z.object({
   deviceId: z.string(),
   licensePlate: z.string(),
   nodeRef: z.string(),
-  location: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-  }).nullable().optional(),
+  location: z
+    .object({
+      latitude: z.number(),
+      longitude: z.number(),
+    })
+    .nullable()
+    .optional(),
   state: z.string(),
   startTimestamp: z.string(),
   endTimestamp: z.string(),

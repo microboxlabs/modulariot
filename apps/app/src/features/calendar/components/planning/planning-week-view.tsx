@@ -182,6 +182,7 @@ export default function PlanningWeekView({
     isSlotBlocked,
     removeService,
     startReassignment,
+    startAssignment,
     reassigningService,
   } = usePlanningSelection();
 
@@ -192,10 +193,11 @@ export default function PlanningWeekView({
     handleContextMenu,
     handleCloseContextMenu,
     handleReassign,
+    handleAssign,
     handleDeleteRequest,
     handleConfirmDelete,
     handleCancelDelete,
-  } = useServiceActions({ removeService, startReassignment });
+  } = useServiceActions({ removeService, startReassignment, startAssignment });
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -382,8 +384,10 @@ export default function PlanningWeekView({
         position={contextMenu.position}
         plannedService={contextMenu.plannedService}
         onReassign={handleReassign}
+        onAssign={handleAssign}
         onDelete={handleDeleteRequest}
         onClose={handleCloseContextMenu}
+        dict={dict}
       />
 
       {/* Delete Confirmation Modal */}

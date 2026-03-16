@@ -2,10 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { HiSwitchHorizontal, HiTrash } from "react-icons/hi";
+import { HiSwitchHorizontal, HiTrash, HiUserAdd } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { PlannedService } from "./planning-selection-context";
 import { Button } from "flowbite-react";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+
+const ASIGNATION_FLAG = process.env.NEXT_PUBLIC_ASIGNATION_FLAG === "true";
 
 export interface ContextMenuPosition {
   x: number;
@@ -17,8 +21,10 @@ interface ServiceContextMenuProps {
   position: ContextMenuPosition;
   plannedService: PlannedService | null;
   onReassign: (plannedService: PlannedService) => void;
+  onAssign: (plannedService: PlannedService) => void;
   onDelete: (plannedService: PlannedService) => void;
   onClose: () => void;
+  dict: I18nRecord;
 }
 
 /**
@@ -57,14 +63,22 @@ export function ServiceContextMenu({
   position,
   plannedService,
   onReassign,
+  onAssign,
   onDelete,
   onClose,
+  dict,
 }: Readonly<ServiceContextMenuProps>) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Estimated menu dimensions for initial position calculation
+  // Height varies based on number of buttons (2 without ASIGNATION_FLAG, 3 with it)
   const MENU_WIDTH = 180;
-  const MENU_HEIGHT = 120;
+  const MENU_HEADER_HEIGHT = 32;
+  const MENU_BUTTON_HEIGHT = 38;
+  const MENU_PADDING = 8;
+  const buttonCount = ASIGNATION_FLAG ? 3 : 2;
+  const MENU_HEIGHT =
+    MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
   // Calculate position immediately (no animation delay)
   const adjustedPosition = getAdjustedPosition(
@@ -113,6 +127,11 @@ export function ServiceContextMenu({
     onClose();
   };
 
+  const handleAssign = () => {
+    onAssign(plannedService);
+    onClose();
+  };
+
   const handleDelete = () => {
     onDelete(plannedService);
     onClose();
@@ -137,7 +156,7 @@ export function ServiceContextMenu({
       {/* Service ID header */}
       <div className="px-3 py-1.5 border-b border-gray-200 dark:border-gray-700">
         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-          Servicio
+          {tr("pages.planning.sidebar.contextMenu.service", dict)}
         </span>
         <span className="ml-1 text-xs font-mono font-bold text-gray-900 dark:text-white">
           {plannedService.service.id}
@@ -153,8 +172,19 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span>Reasignar</span>
+          <span>{tr("pages.planning.sidebar.contextMenu.replan", dict)}</span>
         </Button>
+        {ASIGNATION_FLAG && (
+          <Button
+            color={"alternative"}
+            type="button"
+            onClick={handleAssign}
+            className="border-0 rounded-none w-full justify-start gap-2"
+          >
+            <HiUserAdd className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span>{tr("pages.planning.sidebar.contextMenu.assign", dict)}</span>
+          </Button>
+        )}
         <Button
           color={"alternative"}
           type="button"
@@ -162,7 +192,9 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiTrash className="w-4 h-4" />
-          <span>Eliminar planificación</span>
+          <span>
+            {tr("pages.planning.sidebar.contextMenu.deletePlanning", dict)}
+          </span>
         </Button>
       </div>
     </div>,

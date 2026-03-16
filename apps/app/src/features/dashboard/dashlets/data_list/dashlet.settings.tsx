@@ -49,7 +49,7 @@ export function DashletSettings({
     onColumnsDetected: (keys) =>
       keys.map((key, i) => ({
         _id: `col-${Date.now()}-${i}`,
-        key,
+        key: `{{row.${key}}}`,
         label: humanizeKey(key),
         type: "text" as const,
       })),
@@ -205,6 +205,7 @@ export function DashletSettings({
       state={s}
       dictionary={dictionary}
       dataTabChildren={pgrestContent}
+      handlebarsColorKeys
     >
       {cardLayoutSection}
     </TableListSettingsShell>

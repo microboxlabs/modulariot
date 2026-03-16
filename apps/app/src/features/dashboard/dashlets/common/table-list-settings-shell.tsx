@@ -73,7 +73,7 @@ export function TableListSettingsShell({
       setSelected={(selected) => {
         if (!selected) onClose();
       }}
-      className="no-drag w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+      className="no-drag w-[28rem] rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="flex w-full max-h-[75vh] flex-col gap-3">
         {/* Tabs */}

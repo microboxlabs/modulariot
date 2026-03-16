@@ -1,6 +1,7 @@
 "use client";
 
 import { twMerge } from "tailwind-merge";
+import { IoPerson, IoPeople } from "react-icons/io5";
 import type { PlannedService } from "./planning-selection-context";
 
 /**
@@ -14,11 +15,36 @@ export function getPlannedServiceChipClassName(hasUrgencia: boolean): string {
 
 /**
  * Check if a planned service has urgencia incidencia
+ * Checks incidencias array and mintral_incidents for C309/DESPACHO URGENTE
  */
 export function hasUrgenciaIncidencia(
   service: PlannedService["service"]
 ): boolean {
-  return service.incidencias.includes("urgencia");
+  // Check incidencias array for direct "urgencia" match
+  if (service.incidencias.some((inc) => inc.toLowerCase() === "urgencia")) {
+    return true;
+  }
+
+  // Check mintral_incidents for urgencia codes (C309, DESPACHO URGENTE)
+  if (service.mintral_incidents) {
+    return service.mintral_incidents.some(([code, label]) => {
+      const cleanCode = code.replace(/^mintral_incident_/i, "").toUpperCase();
+      return cleanCode === "C309" || label.toUpperCase() === "DESPACHO URGENTE";
+    });
+  }
+
+  return false;
+}
+
+/**
+ * Get the number of assigned drivers for a service
+ */
+export function getDriverCount(service: PlannedService["service"]): 0 | 1 | 2 {
+  const hasDriver1 = Boolean(service.assignedDriver);
+  const hasDriver2 = Boolean(service.assignedDriver2);
+  if (hasDriver1 && hasDriver2) return 2;
+  if (hasDriver1 || hasDriver2) return 1;
+  return 0;
 }
 
 interface PlannedServiceChipProps {
@@ -40,6 +66,18 @@ export function PlannedServiceChip({
   className,
 }: PlannedServiceChipProps) {
   const hasUrgencia = hasUrgenciaIncidencia(plannedService.service);
+  const driverCount = getDriverCount(plannedService.service);
+
+  console.log("[PlannedServiceChip] service:", plannedService.service.id);
+  console.log(
+    "[PlannedServiceChip] assignedDriver:",
+    plannedService.service.assignedDriver
+  );
+  console.log(
+    "[PlannedServiceChip] assignedDriver2:",
+    plannedService.service.assignedDriver2
+  );
+  console.log("[PlannedServiceChip] driverCount:", driverCount);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ContextMenu" || e.key === "Enter" || e.key === " ") {
@@ -58,11 +96,15 @@ export function PlannedServiceChip({
   return (
     <button
       type="button"
-      onContextMenu={(e) => onContextMenu(e, plannedService)}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+        onContextMenu(e, plannedService);
+      }}
+      onClick={(e) => e.stopPropagation()}
       onKeyDown={handleKeyDown}
       className={twMerge(
         "m-0 border-0 bg-transparent p-0 text-left font-inherit min-w-0",
-        "rounded flex items-center justify-start cursor-context-menu",
+        "rounded flex items-center justify-between cursor-context-menu",
         "text-xs font-medium truncate px-1 border-l-4",
         getPlannedServiceChipClassName(hasUrgencia),
         isBeingReassigned &&
@@ -72,7 +114,13 @@ export function PlannedServiceChip({
       )}
       title={`${plannedService.service.id} - Clic derecho para opciones`}
     >
-      {plannedService.service.id}
+      <span className="truncate">{plannedService.service.id}</span>
+      {driverCount === 1 && (
+        <IoPerson className="ml-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+      )}
+      {driverCount === 2 && (
+        <IoPeople className="ml-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+      )}
     </button>
   );
 }

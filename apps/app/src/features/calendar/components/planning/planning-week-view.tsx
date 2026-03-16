@@ -97,12 +97,19 @@ function WeekSlotCell({
   };
 
   const cellContent = (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
       data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
       data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
       onClick={handleClick}
-      disabled={isDisabled}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !isDisabled) {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      aria-disabled={isDisabled}
       className={getSlotCellClassName(slotState, dayIsPast, selected, {
         isLastDay,
         isLastSlot,
@@ -156,7 +163,7 @@ function WeekSlotCell({
           ))}
         </div>
       )}
-    </button>
+    </div>
   );
 
   if (slotBlocked && !dayIsPast) {

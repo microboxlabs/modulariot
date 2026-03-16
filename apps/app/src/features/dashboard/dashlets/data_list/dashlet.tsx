@@ -451,13 +451,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
         {!loading &&
           !fetchError &&
-          displayRows.map((row, idx) => (
+          displayRows.map((row, idx) => {
+            const titleKey = resolveValue(cardLayout.titleColumn, row, idx, displayRows.length);
+            return (
             <ListCard
-              key={
-                resolveValue(cardLayout.titleColumn, row, idx, displayRows.length)
-                  ? `${resolveValue(cardLayout.titleColumn, row, idx, displayRows.length)}-${idx}`
-                  : `row-${idx}`
-              }
+              key={titleKey ? `${titleKey}-${idx}` : `row-${idx}`}
               row={row}
               rowIdx={idx}
               totalRows={displayRows.length}
@@ -467,7 +465,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               resolveLabel={resolveLabel}
               resolveType={resolveType}
             />
-          ))}
+            );
+          })}
       </div>
     </div>
   );

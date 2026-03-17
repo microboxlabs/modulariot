@@ -570,6 +570,10 @@ export interface SelectedService {
   loadPalletUtilization?: number; // Pallet position utilization %
   loadVolumeUtilization?: number; // Volumetric utilization %
   serviceCategory?: string; // Alfresco mintral_serviceCategory code
+  /** Primary driver assigned to this service (frontend-only for now) */
+  assignedDriver?: string;
+  /** Secondary driver assigned to this service (frontend-only for now) */
+  assignedDriver2?: string;
 }
 
 /**
@@ -654,6 +658,12 @@ interface PlanningSelectionContextType {
   startAssignment: (plannedService: PlannedService) => void;
   /** Cancel assignment-only mode */
   cancelAssignment: () => void;
+  /** Update driver assignments on a planned service (client-side only) */
+  updateServiceDrivers: (
+    serviceId: string,
+    assignedDriver?: string,
+    assignedDriver2?: string
+  ) => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
   /** Backend slot data for the selected date */
@@ -698,6 +708,8 @@ const StoredServiceSchema = z
     loadPalletUtilization: z.number().optional(),
     loadVolumeUtilization: z.number().optional(),
     serviceCategory: z.string().optional(),
+    assignedDriver: z.string().optional(),
+    assignedDriver2: z.string().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -1234,7 +1246,9 @@ export function PlanningSelectionProvider({
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
-      if (!slotToUse || !selectedService) return false;
+      if (!slotToUse || !selectedService) {
+        return false;
+      }
 
       // Merge any overrides (e.g. serviceCategory) into the service for this confirmation
       const effectiveService = serviceOverrides
@@ -1270,7 +1284,8 @@ export function PlanningSelectionProvider({
         const filtered = prev.filter(
           (p) => p.service.id !== effectiveService.id
         );
-        return [...filtered, newPlannedService];
+        const updated = [...filtered, newPlannedService];
+        return updated;
       });
 
       // Create / reassign booking in the calendar backend
@@ -1464,6 +1479,31 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
+  /**
+   * Update driver assignments on a planned service (client-side only, no backend calls)
+   */
+  const updateServiceDrivers = useCallback(
+    (serviceId: string, assignedDriver?: string, assignedDriver2?: string) => {
+      setPlannedServices((prev) => {
+        const updated = prev.map((ps) => {
+          if (ps.service.id === serviceId) {
+            return {
+              ...ps,
+              service: {
+                ...ps.service,
+                assignedDriver,
+                assignedDriver2,
+              },
+            };
+          }
+          return ps;
+        });
+        return updated;
+      });
+    },
+    []
+  );
+
   // Sidebar is open when either a slot or service is selected
   const isSidebarOpen = selectedSlot !== null || selectedService !== null;
 
@@ -1503,6 +1543,7 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
+      updateServiceDrivers,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,
@@ -1543,6 +1584,7 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
+      updateServiceDrivers,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,

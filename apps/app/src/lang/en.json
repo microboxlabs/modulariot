@@ -316,6 +316,7 @@
         },
         "contextMenu": {
           "service": "Service",
+          "chipTitle": "Right-click for options",
           "replan": "Replan",
           "assign": "Assign",
           "deletePlanning": "Delete planning",

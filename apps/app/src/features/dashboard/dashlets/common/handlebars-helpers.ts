@@ -73,11 +73,12 @@ export function getFlowbiteColor(
  * Extract the data property name from a column key.
  * - `{{row.origin}}`  → `"origin"`
  * - `{{origin}}`      → `"origin"`
+ * - `{{ origin }}`    → `"origin"`
  * - `origin`          → `"origin"` (plain text — used for sort/filter lookup)
  * Returns `null` for complex templates like `{{a}} - {{b}}`.
  */
 export function resolveDataProperty(key: string): string | null {
   if (!key.includes("{{")) return key;
-  const match = /^\{\{(?:row\.)?(\w+)\}\}$/.exec(key);
+  const match = /^\{\{\s*(?:row\.)?(\w+)\s*\}\}$/.exec(key);
   return match ? match[1] : null;
 }

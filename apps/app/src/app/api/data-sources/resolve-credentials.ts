@@ -46,25 +46,39 @@ export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null
     if (!config.encryptedClientSecret || !config.tokenUrl || !config.clientId) {
       return { ok: false, error: "OAuth configuration is incomplete" };
     }
-    const tokenUrlCheck = await validateTargetUrl(config.tokenUrl);
-    if (!tokenUrlCheck.valid) {
-      return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
+    try {
+      const tokenUrlCheck = await validateTargetUrl(config.tokenUrl);
+      if (!tokenUrlCheck.valid) {
+        return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
+      }
+      const clientSecret = decrypt(config.encryptedClientSecret);
+      const token = await exchangeOAuthToken(
+        config.tokenUrl,
+        config.clientId,
+        clientSecret,
+        config.scope
+      );
+      return { ok: true, token };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "OAuth token resolution failed",
+      };
     }
-    const clientSecret = decrypt(config.encryptedClientSecret);
-    const token = await exchangeOAuthToken(
-      config.tokenUrl,
-      config.clientId,
-      clientSecret,
-      config.scope
-    );
-    return { ok: true, token };
   }
 
   if (config?.authMethod === "TOKEN") {
     if (!config.encryptedToken) {
       return { ok: false, error: "Token is not configured" };
     }
-    return { ok: true, token: decrypt(config.encryptedToken) };
+    try {
+      return { ok: true, token: decrypt(config.encryptedToken) };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Token decryption failed",
+      };
+    }
   }
 
   return { ok: false, error: "No authentication configured" };

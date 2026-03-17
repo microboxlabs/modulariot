@@ -6,6 +6,7 @@ import {
   type AlfrescoDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { resolveBearerToken } from "@/app/api/data-sources/resolve-credentials";
+import { validateTargetUrl } from "@/app/api/utils/url-validator";
 
 interface OpenApiParameter {
   name: string;
@@ -69,6 +70,14 @@ export async function resolveDataSourceCredentials(
   if (ds.lastTestResult !== true) {
     return NextResponse.json(
       { error: "Data source has not passed connection test" },
+      { status: 400 }
+    );
+  }
+
+  const urlCheck = await validateTargetUrl(ds.url);
+  if (!urlCheck.valid) {
+    return NextResponse.json(
+      { error: `Invalid data source URL: ${urlCheck.reason}` },
       { status: 400 }
     );
   }

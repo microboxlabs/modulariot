@@ -68,10 +68,11 @@ export function ServiceContextMenu({
   dict,
 }: Readonly<ServiceContextMenuProps>) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
 
   // Check if user has assignment permission to show assignment button
-  const canAssign = hasPermission(["GROUP_ASSIGNMENT"]);
+  // Avoid hiding the button while permissions are loading (transient false negative)
+  const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
 
   // Estimated menu dimensions for initial position calculation
   // Height varies based on number of buttons (2 without assignment, 3 with it)

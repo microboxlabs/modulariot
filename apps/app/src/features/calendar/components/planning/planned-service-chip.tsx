@@ -3,6 +3,8 @@
 import { twMerge } from "tailwind-merge";
 import { IoPerson, IoPeople } from "react-icons/io5";
 import type { PlannedService } from "./planning-selection-context";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 /**
  * Get the CSS classes for a planned service chip based on urgencia status
@@ -53,6 +55,7 @@ interface PlannedServiceChipProps {
   readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
   /** Additional size/layout classes to apply */
   readonly className?: string;
+  readonly dict: I18nRecord;
 }
 
 /**
@@ -64,20 +67,10 @@ export function PlannedServiceChip({
   isBeingReassigned = false,
   onContextMenu,
   className,
+  dict,
 }: PlannedServiceChipProps) {
   const hasUrgencia = hasUrgenciaIncidencia(plannedService.service);
   const driverCount = getDriverCount(plannedService.service);
-
-  console.log("[PlannedServiceChip] service:", plannedService.service.id);
-  console.log(
-    "[PlannedServiceChip] assignedDriver:",
-    plannedService.service.assignedDriver
-  );
-  console.log(
-    "[PlannedServiceChip] assignedDriver2:",
-    plannedService.service.assignedDriver2
-  );
-  console.log("[PlannedServiceChip] driverCount:", driverCount);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ContextMenu" || e.key === "Enter" || e.key === " ") {
@@ -112,7 +105,7 @@ export function PlannedServiceChip({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
         className
       )}
-      title={`${plannedService.service.id} - Clic derecho para opciones`}
+      title={`${plannedService.service.id} - ${tr("pages.planning.sidebar.contextMenu.chipTitle", dict)}`}
     >
       <span className="truncate">{plannedService.service.id}</span>
       {driverCount === 1 && (

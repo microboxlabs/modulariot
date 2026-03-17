@@ -89,8 +89,9 @@ export function PlanningSidebarForm({
     updateServiceDrivers,
   } = usePlanningSelection();
 
-  const { hasPermission } = usePermissions();
-  const canAssign = hasPermission(["GROUP_ASSIGNMENT"]);
+  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
+  // Avoid hiding the tab while permissions are loading (transient false negative)
+  const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
 
   // Tab locking logic:
   // - When assigningService is set, lock "Planificación" tab and show "Asignación"
@@ -198,7 +199,7 @@ export function PlanningSidebarForm({
 
     const wasReassigning = reassigningService !== null;
     // Pass the final slot directly to confirmService, along with service category and driver overrides
-    const serviceOverrides: Record<string, string | undefined> = {};
+    const serviceOverrides: Partial<SelectedService> = {};
     if (selectedServiceCategory) {
       serviceOverrides.serviceCategory = selectedServiceCategory;
     }
@@ -208,7 +209,7 @@ export function PlanningSidebarForm({
     if (assignmentData.hasSegundoConductor && assignmentData.segundoConductor) {
       serviceOverrides.assignedDriver2 = assignmentData.segundoConductor;
     }
-    const finalOverrides =
+    const finalOverrides: Partial<SelectedService> | undefined =
       Object.keys(serviceOverrides).length > 0 ? serviceOverrides : undefined;
     try {
       const result = await confirmService(finalSlot, finalOverrides);
@@ -239,7 +240,6 @@ export function PlanningSidebarForm({
    */
   const handleAssign = () => {
     if (!assigningService) {
-      console.log("[handleAssign] No assigningService, returning");
       return;
     }
 
@@ -249,10 +249,6 @@ export function PlanningSidebarForm({
       assignmentData.hasSegundoConductor && assignmentData.segundoConductor
         ? assignmentData.segundoConductor
         : undefined;
-
-    console.log("[handleAssign] serviceId:", serviceId);
-    console.log("[handleAssign] driver1:", driver1);
-    console.log("[handleAssign] driver2:", driver2);
 
     // Client-side only update - no backend calls
     updateServiceDrivers(serviceId, driver1, driver2);

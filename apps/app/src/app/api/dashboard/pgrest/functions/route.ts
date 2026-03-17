@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
-import { fetchPgrestSpec } from "../shared";
+import { NextRequest, NextResponse } from "next/server";
+import { fetchPgrestSpec, parseDataSourceParam } from "../shared";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const result = await fetchPgrestSpec();
+    const result = await fetchPgrestSpec(parseDataSourceParam(req));
     if (result instanceof NextResponse) return result;
 
     const functions: string[] = [];

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchPgrestSpec, type OpenApiPathItem } from "../shared";
+import { fetchPgrestSpec, parseDataSourceParam, type OpenApiPathItem } from "../shared";
 
 export async function GET(req: NextRequest) {
-  const fn = new URL(req.url).searchParams.get("fn");
+  const url = new URL(req.url);
+  const fn = url.searchParams.get("fn");
   if (!fn || !/^[a-zA-Z_]\w*$/.test(fn)) {
     return NextResponse.json(
       { error: "Invalid or missing function name." },
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await fetchPgrestSpec();
+    const result = await fetchPgrestSpec(parseDataSourceParam(req));
     if (result instanceof NextResponse) return result;
 
     const pathKey = `/rpc/${fn}`;

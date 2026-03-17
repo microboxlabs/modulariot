@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { parseDataSourceParam, resolvePgrestCredentials } from "../shared";
 
 const FUNCTION_NAME_REGEX = /^[a-zA-Z_]\w*$/;
 
@@ -18,7 +19,10 @@ function buildFetchOptions(req: NextRequest, rpcUrl: string, token: string) {
     fetchInit.method = "POST";
   } else {
     fetchInit.method = "GET";
-    const qs = new URL(req.url).searchParams.toString();
+    const url = new URL(req.url);
+    // Strip internal param before forwarding to upstream
+    url.searchParams.delete("dataSourceId");
+    const qs = url.searchParams.toString();
     if (qs) fullUrl = `${rpcUrl}?${qs}`;
   }
 
@@ -72,18 +76,14 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
   }
 
   try {
-    const baseUrl = process.env.OPENAPI_URL;
-    const token = process.env.OPENAPI_TOKEN;
+    const creds = await resolvePgrestCredentials(
+      session,
+      parseDataSourceParam(req)
+    );
+    if (creds instanceof NextResponse) return creds;
 
-    if (!baseUrl || !token) {
-      return NextResponse.json(
-        { error: "PGREST is not configured on the server." },
-        { status: 500 }
-      );
-    }
-
-    const rpcUrl = `${baseUrl}/api/v1/pgrest/rpc/${functionName}`;
-    const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, token);
+    const rpcUrl = `${creds.baseUrl}/api/v1/pgrest/rpc/${functionName}`;
+    const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
 
     if (req.method === "POST") {
       const body = await req.text();

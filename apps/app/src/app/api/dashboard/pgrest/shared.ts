@@ -151,6 +151,7 @@ export async function fetchPgrestSpec(
       Accept: "application/openapi+json",
       Authorization: `Bearer ${creds.token}`,
     },
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) {

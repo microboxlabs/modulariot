@@ -60,6 +60,7 @@ export interface DashletConfig {
   pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
+  dataSourceId?: string;
 }
 
 // ============================================================================
@@ -158,10 +159,11 @@ function buildDataFetchRequest(
   dataMode: string,
   pgrestFunctionName: string,
   pgrestParams: PgrestParam[],
-  pgrestHttpMethod: PgrestHttpMethod
+  pgrestHttpMethod: PgrestHttpMethod,
+  dataSourceId?: string
 ): { url: string; init?: RequestInit } | null {
   if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
-  return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams);
+  return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
 }
 
 // ============================================================================
@@ -194,6 +196,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams = [],
     pgrestHttpMethod = "POST",
     sort = defaultSort,
+    dataSourceId,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
@@ -204,7 +207,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   useEffect(() => {
     const request = buildDataFetchRequest(
-      dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod
+      dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId
     );
     if (!request) {
       setLoading(false);
@@ -235,7 +238,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return () => {
       cancelled = true;
     };
-  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
+  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId]);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});

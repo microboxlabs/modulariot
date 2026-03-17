@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { TextInput } from "flowbite-react";
 import { useDropdown } from "../common/use-dropdown";
 import { DropdownList } from "../common/dropdown-list";
+import { buildDataSourceParams } from "./dashlet.utils";
 
 const MIN_CHARACTERS = 3;
 
@@ -14,6 +15,7 @@ interface PgrestFunctionAutocompleteProps {
   placeholder?: string;
   id?: string;
   loading?: boolean;
+  dataSourceId?: string;
 }
 
 export function PgrestFunctionAutocomplete({
@@ -23,6 +25,7 @@ export function PgrestFunctionAutocomplete({
   placeholder = "api_modular_my_function",
   id,
   loading = false,
+  dataSourceId,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -32,19 +35,27 @@ export function PgrestFunctionAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
 
+  // Reset cached functions when the data source changes
+  useEffect(() => {
+    setAllFunctions(null);
+    setFetchError(false);
+  }, [dataSourceId]);
+
   // Fetch function list once on first interaction
   const fetchFunctions = useCallback(async () => {
     if (allFunctions !== null || fetchError) return;
 
     try {
-      const res = await fetch("/app/api/dashboard/pgrest/functions");
+      const qs = buildDataSourceParams(dataSourceId).toString();
+      const url = `/app/api/dashboard/pgrest/functions${qs ? `?${qs}` : ""}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { functions: string[] };
       setAllFunctions(data.functions);
     } catch {
       setFetchError(true);
     }
-  }, [allFunctions, fetchError]);
+  }, [allFunctions, fetchError, dataSourceId]);
 
   // Client-side filtering
   const filtered = useMemo(() => {

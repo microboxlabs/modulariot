@@ -23,49 +23,49 @@ export const pages: SidebarItem[] = [
               totals: {
                 totals: 10,
               },
-              requiredGroups: [],
-              blockedGroups: [], // Allow access for MINTRAL_REVISOR
+              requiredGroups: ["GROUP_DASHBOARD"],
+              blockedGroups: [], 
             },
             {
               href: "/home/maintenanceStatus",
               label: "maintenanceStatus", // Estado de Mantención
               totals: {},
-              requiredGroups: [],
+              requiredGroups: ["GROUP_DASHBOARD"],
               blockedGroups: [],
             },
             {
               href: "/home/vehicleTechnicalHealth",
               label: "vehicleTechnicalHealth", // Salud Técnica del Vehículo
               totals: {},
-              requiredGroups: [],
+              requiredGroups: ["GROUP_DASHBOARD"],
               blockedGroups: [],
             },
             {
               href: "/home/devicesAndTelemetry",
               label: "devicesAndTelemetry", // Dispositivos y Telemetría
               totals: {},
-              requiredGroups: [],
+              requiredGroups: ["GROUP_DASHBOARD"],
               blockedGroups: [],
             },
             {
               href: "/home/operativeEvents",
               label: "operativeEvents", // Eventos Operativos
               totals: {},
-              requiredGroups: [],
+              requiredGroups: ["GROUP_DASHBOARD"],
               blockedGroups: [],
             },
             {
               href: "/home/fleetUsage",
               label: "fleetUsage", // Uso de Flota
               totals: {},
-              requiredGroups: [],
+              requiredGroups: ["GROUP_DASHBOARD"],
               blockedGroups: [],
             },
             {
               href: "/home/generalInfo",
               label: "generalInfo", // Información General
               totals: {},
-              requiredGroups: [],
+              requiredGroups: ["GROUP_DASHBOARD"],
               blockedGroups: [],
             },
           ]

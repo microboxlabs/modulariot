@@ -1444,7 +1444,10 @@
       "rowsJsonArray": "Filas (arreglo JSON)",
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",
-      "invalidJson": "JSON inválido"
+      "invalidJson": "JSON inválido",
+      "dataSourceProvider": "Proveedor de Datos",
+      "selectProvider": "Seleccionar proveedor…",
+      "noActiveProviders": "No hay proveedores activos disponibles"
     },
     "dashlets": {
       "data_list": {

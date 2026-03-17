@@ -1419,7 +1419,10 @@
       "rowsJsonArray": "Rows (JSON array)",
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",
-      "invalidJson": "Invalid JSON"
+      "invalidJson": "Invalid JSON",
+      "dataSourceProvider": "Data Source Provider",
+      "selectProvider": "Select a provider…",
+      "noActiveProviders": "No active providers available"
     },
     "dashlets": {
       "data_list": {

@@ -1010,7 +1010,8 @@
     "userSettings": {
       "breadcrumb": {
         "user": "Usuario",
-        "settings": "Ajustes"
+        "settings": "Ajustes",
+        "dataSources": "Fuentes de Datos"
       },
       "symptoms": {
         "config": {
@@ -1018,6 +1019,82 @@
           "description": "Configura las notificaciones para los síntomas.",
           "addButton": "Agregar"
         }
+      },
+      "dataSources": {
+        "title": "Fuentes de Datos",
+        "description": "Administra tus conexiones de fuentes de datos.",
+        "addButton": "Agregar Fuente",
+        "table": {
+          "name": "Nombre",
+          "type": "Tipo",
+          "auth": "Auth",
+          "url": "URL",
+          "status": "Estado",
+          "actions": "Acciones",
+          "empty": "No hay fuentes de datos configuradas. Haz clic en \"Agregar Fuente\" para comenzar.",
+          "test": "Probar conexión",
+          "edit": "Editar",
+          "delete": "Eliminar",
+          "active": "Activo",
+          "inactive": "Inactivo"
+        },
+        "modal": {
+          "addTitle": "Agregar Fuente de Datos",
+          "editTitle": "Editar Fuente de Datos",
+          "name": "Nombre",
+          "type": "Tipo",
+          "description": "Descripción",
+          "url": "URL",
+          "authMethod": "Método de Autenticación",
+          "authToken": "Token Bearer",
+          "authOAuth": "OAuth 2.0 (Credenciales de Cliente)",
+          "token": "Token",
+          "tokenPlaceholderEdit": "Dejar vacío para mantener el token actual",
+          "tokenHint": "Dejar vacío para mantener el token existente",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "secretPlaceholderEdit": "Dejar vacío para mantener el secreto actual",
+          "secretHint": "Dejar vacío para mantener el secreto existente",
+          "tokenUrl": "URL del Token",
+          "scope": "Alcance",
+          "scopePlaceholder": "ej. read write",
+          "scopeHint": "Lista de alcances separados por espacios (opcional)",
+          "testConnection": "Probar Conexión",
+          "saving": "Guardando...",
+          "saveButton": "Guardar",
+          "createButton": "Crear"
+        },
+        "deleteConfirm": "¿Estás seguro de que deseas eliminar",
+        "deleteButton": "Eliminar",
+        "deleting": "Eliminando...",
+        "cancel": "Cancelar",
+        "badge": {
+          "notTested": "Sin probar",
+          "connected": "Conectado",
+          "failed": "Fallido"
+        },
+        "validation": {
+          "nameRequired": "El nombre es obligatorio",
+          "urlInvalid": "Debe ser una URL válida",
+          "tokenRequired": "El token es obligatorio",
+          "clientIdRequired": "El Client ID es obligatorio",
+          "clientSecretRequired": "El Client Secret es obligatorio",
+          "tokenUrlInvalid": "Debe ser una URL de token válida"
+        },
+        "toast": {
+          "created": "Fuente de datos creada exitosamente",
+          "updated": "Fuente de datos actualizada exitosamente",
+          "deleted": "Fuente de datos eliminada exitosamente",
+          "testSuccess": "Prueba de conexión exitosa",
+          "testFailed": "Prueba de conexión fallida",
+          "error": "Ocurrió un error",
+          "retry": "Reintentar"
+        }
+      },
+      "settingsNav": {
+        "title": "Ajustes",
+        "general": "General",
+        "dataSources": "Fuentes de Datos"
       }
     },
     "admin": {

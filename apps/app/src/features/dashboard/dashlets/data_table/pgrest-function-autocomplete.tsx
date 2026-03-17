@@ -47,7 +47,8 @@ export function PgrestFunctionAutocomplete({
 
     try {
       const qs = buildDataSourceParams(dataSourceId).toString();
-      const url = `/app/api/dashboard/pgrest/functions${qs ? `?${qs}` : ""}`;
+      const suffix = qs ? `?${qs}` : "";
+      const url = `/app/api/dashboard/pgrest/functions${suffix}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { functions: string[] };

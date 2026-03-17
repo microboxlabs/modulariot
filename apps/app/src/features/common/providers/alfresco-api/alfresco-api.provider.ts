@@ -1379,6 +1379,122 @@ export async function listWebhookDefinitions(
   );
 }
 
+// Data Source Config API
+
+interface AlfrescoDataSourceTokenConfig {
+  authMethod: "TOKEN";
+  encryptedToken?: string;
+  tokenSuffix?: string;
+}
+
+interface AlfrescoDataSourceOAuthConfig {
+  authMethod: "OAUTH";
+  clientId?: string;
+  encryptedClientSecret?: string;
+  clientSecretSuffix?: string;
+  tokenUrl?: string;
+  scope?: string;
+}
+
+export type AlfrescoDataSourceConfig =
+  | AlfrescoDataSourceTokenConfig
+  | AlfrescoDataSourceOAuthConfig;
+
+export interface AlfrescoDataSource {
+  nodeRef: string;
+  name: string;
+  type: string;
+  description?: string;
+  url: string;
+  config: AlfrescoDataSourceConfig | null;
+  isActive: boolean;
+  lastTestedAt?: string;
+  lastTestResult?: boolean;
+  site: string;
+}
+
+export interface AlfrescoDataSourceListResponse {
+  dataSources: AlfrescoDataSource[];
+}
+
+async function callDataSourceAction<TResponse = unknown>(
+  session: Session,
+  action: string,
+  options?: {
+    query?: Record<string, string | undefined>;
+    body?: Record<string, unknown>;
+  }
+): Promise<TResponse> {
+  const queryParams = new URLSearchParams();
+  if (options?.query) {
+    Object.entries(options.query).forEach(([k, v]) => {
+      if (v) queryParams.set(k, v);
+    });
+  }
+
+  const queryString = queryParams.toString();
+  const suffix = queryString ? `?${queryString}` : "";
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/datasource/${action}${suffix}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+  return result as TResponse;
+}
+
+export async function listDataSources(
+  session: Session,
+  site: string
+): Promise<AlfrescoDataSourceListResponse> {
+  return callDataSourceAction<AlfrescoDataSourceListResponse>(
+    session,
+    "list",
+    { query: { site } }
+  );
+}
+
+export async function createDataSource(
+  session: Session,
+  data: Record<string, unknown>
+): Promise<AlfrescoDataSource> {
+  return callDataSourceAction<AlfrescoDataSource>(session, "create", {
+    body: data,
+  });
+}
+
+export async function updateDataSource(
+  session: Session,
+  data: Record<string, unknown>
+): Promise<AlfrescoDataSource> {
+  return callDataSourceAction<AlfrescoDataSource>(session, "update", {
+    body: data,
+  });
+}
+
+export async function deleteDataSource(
+  session: Session,
+  nodeRef: string
+): Promise<{ success: boolean }> {
+  return callDataSourceAction<{ success: boolean }>(session, "delete", {
+    body: { nodeRef },
+  });
+}
+
+export async function getDataSource(
+  session: Session,
+  nodeRef: string
+): Promise<AlfrescoDataSource> {
+  return callDataSourceAction<AlfrescoDataSource>(session, "get", {
+    query: { nodeRef },
+  });
+}
+
 /**
  * Unclaim a task by removing the current owner assignment
  * @param session - User session with admin privileges

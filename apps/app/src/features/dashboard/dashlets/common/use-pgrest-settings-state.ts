@@ -141,7 +141,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
       }
       setParamHints(hints);
 
-      return { method, params: newParams as PgrestParam[] };
+      return { method, params: fromPgrestParamItems(newParams) };
     } catch (err: unknown) {
       setIntrospectError(
         err instanceof Error ? err.message : "Introspection failed",

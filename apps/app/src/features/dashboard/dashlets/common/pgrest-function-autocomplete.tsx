@@ -26,7 +26,7 @@ export function PgrestFunctionAutocomplete({
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [fetchError, setFetchError] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,17 +34,20 @@ export function PgrestFunctionAutocomplete({
 
   // Fetch function list once on first interaction
   const fetchFunctions = useCallback(async () => {
-    if (allFunctions !== null || fetchError) return;
+    if (allFunctions !== null) return;
 
+    setFetchError(null);
     try {
       const res = await fetch("/app/api/dashboard/pgrest/functions");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { functions: string[] };
       setAllFunctions(data.functions);
-    } catch {
-      setFetchError(true);
+    } catch (err) {
+      setFetchError(
+        err instanceof Error ? err.message : "Failed to load functions"
+      );
     }
-  }, [allFunctions, fetchError]);
+  }, [allFunctions]);
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -61,6 +64,21 @@ export function PgrestFunctionAutocomplete({
       setIsOpen(false);
     }
   }, [filtered, value, fetchError]);
+
+  const retryFetch = useCallback(async () => {
+    setFetchError(null);
+    setAllFunctions(null);
+    try {
+      const res = await fetch("/app/api/dashboard/pgrest/functions");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { functions: string[] };
+      setAllFunctions(data.functions);
+    } catch (err) {
+      setFetchError(
+        err instanceof Error ? err.message : "Failed to load functions"
+      );
+    }
+  }, []);
 
   const handleSelect = useCallback(
     (functionName: string) => {
@@ -101,6 +119,18 @@ export function PgrestFunctionAutocomplete({
         <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
           <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
         </div>
+      )}
+      {fetchError && (
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+          {fetchError}{" "}
+          <button
+            type="button"
+            className="underline hover:no-underline"
+            onClick={retryFetch}
+          >
+            Retry
+          </button>
+        </p>
       )}
       {isOpen && (
         <DropdownList

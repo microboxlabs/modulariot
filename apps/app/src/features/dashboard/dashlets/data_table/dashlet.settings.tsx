@@ -37,10 +37,12 @@ import {
   SuggestionInput,
 } from "../common";
 import { COLUMN_TYPES } from "../common/column-types";
-import { parseRows, buildPgrestFetch } from "./dashlet.utils";
+import { parseRows, buildPgrestFetch, buildDataSourceParams } from "./dashlet.utils";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 // ============================================================================
 // Types
@@ -108,9 +110,19 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const { siteId } = useDashboard();
+  const { dataSources } = useDataSources(siteId ?? undefined);
+
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true
+  );
+
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
   const [dataMode, setDataMode] = useState<"static" | "pgrest">(
     config.dataMode === "pgrest" ? "pgrest" : "static"
+  );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
   );
 
   // Visualization fields
@@ -174,6 +186,7 @@ export function DashletSettings({
         fnOverride ?? pgrestFunctionName,
         methodOverride ?? pgrestHttpMethod,
         paramsOverride ?? pgrestParams,
+        dataSourceId || undefined,
       );
 
       const res = await fetch(url, init);
@@ -218,8 +231,10 @@ export function DashletSettings({
     setIntrospectError(null);
 
     try {
+      const introspectParams = buildDataSourceParams(dataSourceId || undefined);
+      introspectParams.set("fn", fn);
       const res = await fetch(
-        `/app/api/dashboard/pgrest/openapi?fn=${encodeURIComponent(fn)}`
+        `/app/api/dashboard/pgrest/openapi?${introspectParams.toString()}`
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -412,6 +427,7 @@ export function DashletSettings({
       pgrestHttpMethod,
       filter,
       sort,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -700,9 +716,39 @@ export function DashletSettings({
                 </div>
               )}
 
-              {/* PGREST: Function name + params */}
+              {/* PGREST: Provider + Function name + params */}
               {dataMode === "pgrest" && (
                 <>
+                  {/* Data source provider selector */}
+                  <div>
+                    <Label
+                      htmlFor="dt-data-source-provider"
+                      className="mb-1 block text-sm font-medium"
+                    >
+                      {tr("dashboard.settings.dataSourceProvider", dictionary)}
+                    </Label>
+                    <Select
+                      id="dt-data-source-provider"
+                      sizing="sm"
+                      value={dataSourceId}
+                      onChange={(e) => {
+                        setDataSourceId(e.target.value);
+                        setPgrestFunctionName("");
+                      }}
+                    >
+                      <option value="">
+                        {activeProviders.length === 0
+                          ? tr("dashboard.settings.noActiveProviders", dictionary)
+                          : tr("dashboard.settings.selectProvider", dictionary)}
+                      </option>
+                      {activeProviders.map((ds) => (
+                        <option key={ds.id} value={ds.id}>
+                          {ds.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
                   <div>
                     <Label
                       htmlFor="dt-pgrest-fn"
@@ -716,6 +762,7 @@ export function DashletSettings({
                       onChange={setPgrestFunctionName}
                       onSelect={handleFunctionSelect}
                       loading={introspecting || detecting}
+                      dataSourceId={dataSourceId || undefined}
                     />
                     {(introspectError || detectError) && (
                       <p className="mt-1 text-xs text-red-500 dark:text-red-400">

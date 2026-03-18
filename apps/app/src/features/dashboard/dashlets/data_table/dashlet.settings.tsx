@@ -73,6 +73,7 @@ export function DashletSettings({
   const pgrestContent = (
     <PgrestSettingsSection
       pgrest={pg}
+      dictionary={dictionary}
       labels={buildPgrestContentLabels(dictionary)}
     />
   );

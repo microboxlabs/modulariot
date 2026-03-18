@@ -2,6 +2,7 @@
 
 import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
@@ -10,6 +11,7 @@ const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
 interface PgrestSettingsSectionProps {
   pgrest: ReturnType<typeof usePgrestSettingsState>;
+  dictionary: I18nRecord;
   labels: {
     functionName: string;
     httpMethod: string;
@@ -22,6 +24,7 @@ interface PgrestSettingsSectionProps {
 
 export function PgrestSettingsSection({
   pgrest: pg,
+  dictionary,
   labels,
 }: Readonly<PgrestSettingsSectionProps>) {
   return (
@@ -38,6 +41,7 @@ export function PgrestSettingsSection({
           value={pg.pgrestFunctionName}
           onChange={pg.setPgrestFunctionName}
           onSelect={pg.handleFunctionSelect}
+          dictionary={dictionary}
           loading={pg.introspecting || pg.detecting}
         />
         {(pg.introspectError || pg.detectError) && (

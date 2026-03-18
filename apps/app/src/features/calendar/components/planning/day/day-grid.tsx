@@ -4,7 +4,6 @@ import { Fragment, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
-import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import type { DayInfo } from "../planning-day-view.types";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
@@ -20,13 +19,13 @@ import {
 } from "../delete-confirmation-modal";
 import { ReassignmentConnector } from "../reassignment-connector";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
-import { PlannedServiceChip } from "../planned-service-chip";
 import {
   computeSlotState,
   getSlotCellClassName,
   type SlotState,
 } from "../planning-slot-utils";
 import { useServiceActions } from "../use-service-actions";
+import { SlotCellContent } from "../slot-cell-shared";
 
 interface DayGridProps {
   lang: string;
@@ -81,15 +80,7 @@ function DayGridSlotCell({
   onContextMenu,
   dict,
 }: Readonly<DayGridSlotCellProps>) {
-  const {
-    slotBlocked,
-    timeWindow,
-    isWindowStart,
-    remainingQuota,
-    isQuotaFull,
-    isDisabled,
-    windowColor,
-  } = state;
+  const { slotBlocked, isDisabled } = state;
 
   const handleClick = () => {
     if (!isDisabled) onCellClick(slot);
@@ -106,55 +97,15 @@ function DayGridSlotCell({
         isLastSlot,
       })}
     >
-      {!isPastDay && slotBlocked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-red-500/60 text-lg">⊘</span>
-        </div>
-      )}
-      {!isPastDay && !slotBlocked && isWindowStart && timeWindow?.name && (
-        <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
-          <span
-            className={twMerge(
-              "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
-              isQuotaFull
-                ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
-                : windowColor.badge
-            )}
-          >
-            {timeWindow.name}
-          </span>
-        </div>
-      )}
-      {!isPastDay && !slotBlocked && isWindowStart && timeWindow && (
-        <div className="absolute top-0.5 right-0.5">
-          <span
-            className={twMerge(
-              "text-[9px] font-bold px-1 rounded",
-              isQuotaFull
-                ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
-                : windowColor.badge
-            )}
-          >
-            {remainingQuota}/{timeWindow.quota}
-          </span>
-        </div>
-      )}
-      {slotServices.length > 0 && (
-        <div className="absolute inset-1 flex flex-row gap-0.5">
-          {slotServices.map((ps) => (
-            <PlannedServiceChip
-              key={ps.service.id}
-              plannedService={ps}
-              isBeingReassigned={
-                reassigningService?.service.service.id === ps.service.id
-              }
-              onContextMenu={onContextMenu}
-              className="flex-1"
-              dict={dict}
-            />
-          ))}
-        </div>
-      )}
+      <SlotCellContent
+        state={state}
+        isPastDay={isPastDay}
+        services={slotServices}
+        reassigningServiceId={reassigningService?.service.service.id}
+        onContextMenu={onContextMenu}
+        dict={dict}
+        servicesLayout="row"
+      />
     </button>
   );
 

@@ -34,9 +34,9 @@ import {
   getDeleteAssignmentMessages,
 } from "./delete-confirmation-modal";
 import { ReassignmentConnector } from "./reassignment-connector";
-import { PlannedServiceChip } from "./planned-service-chip";
 import { useServiceActions } from "./use-service-actions";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { SlotCellContent } from "./slot-cell-shared";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -86,15 +86,7 @@ function WeekSlotCell({
   onContextMenu,
   dict,
 }: Readonly<WeekSlotCellProps>) {
-  const {
-    slotBlocked,
-    timeWindow,
-    isWindowStart,
-    remainingQuota,
-    isQuotaFull,
-    isDisabled,
-    windowColor,
-  } = slotState;
+  const { slotBlocked, isDisabled } = slotState;
   const dayIsPast = dayjs(day.date).isBefore(dayjs().startOf("day"), "day");
 
   const handleClick = () => {
@@ -117,55 +109,15 @@ function WeekSlotCell({
         })
       )}
     >
-      {!dayIsPast && slotBlocked && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-red-500/60 text-lg">⊘</span>
-        </div>
-      )}
-      {!dayIsPast && !slotBlocked && isWindowStart && timeWindow?.name && (
-        <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
-          <span
-            className={twMerge(
-              "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
-              isQuotaFull
-                ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
-                : windowColor.badge
-            )}
-          >
-            {timeWindow.name}
-          </span>
-        </div>
-      )}
-      {!dayIsPast && !slotBlocked && isWindowStart && timeWindow && (
-        <div className="absolute top-0.5 right-0.5">
-          <span
-            className={twMerge(
-              "text-[9px] font-bold px-1 rounded",
-              isQuotaFull
-                ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
-                : windowColor.badge
-            )}
-          >
-            {remainingQuota}/{timeWindow.quota}
-          </span>
-        </div>
-      )}
-      {slotServices.length > 0 && (
-        <div className="flex flex-col gap-0.5">
-          {slotServices.map((ps) => (
-            <PlannedServiceChip
-              key={ps.service.id}
-              plannedService={ps}
-              isBeingReassigned={
-                reassigningService?.service.service.id === ps.service.id
-              }
-              onContextMenu={onContextMenu}
-              className="w-full"
-              dict={dict}
-            />
-          ))}
-        </div>
-      )}
+      <SlotCellContent
+        state={slotState}
+        isPastDay={dayIsPast}
+        services={slotServices}
+        reassigningServiceId={reassigningService?.service.service.id}
+        onContextMenu={onContextMenu}
+        dict={dict}
+        servicesLayout="column"
+      />
     </button>
   );
 

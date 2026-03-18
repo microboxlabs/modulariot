@@ -41,29 +41,39 @@ export type BearerResult =
   | { ok: true; token: string }
   | { ok: false; error: string };
 
+function errorResult(err: unknown, fallback: string): BearerResult {
+  return {
+    ok: false,
+    error: err instanceof Error ? err.message : fallback,
+  };
+}
+
+async function resolveOAuthToken(
+  tokenUrl: string,
+  clientId: string,
+  encryptedClientSecret: string,
+  scope?: string
+): Promise<BearerResult> {
+  const tokenUrlCheck = await validateTargetUrl(tokenUrl);
+  if (!tokenUrlCheck.valid) {
+    return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
+  }
+  const clientSecret = decrypt(encryptedClientSecret);
+  const token = await exchangeOAuthToken(tokenUrl, clientId, clientSecret, scope);
+  return { ok: true, token };
+}
+
 export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null): Promise<BearerResult> {
   if (config?.authMethod === "OAUTH") {
     if (!config.encryptedClientSecret || !config.tokenUrl || !config.clientId) {
       return { ok: false, error: "OAuth configuration is incomplete" };
     }
     try {
-      const tokenUrlCheck = await validateTargetUrl(config.tokenUrl);
-      if (!tokenUrlCheck.valid) {
-        return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
-      }
-      const clientSecret = decrypt(config.encryptedClientSecret);
-      const token = await exchangeOAuthToken(
-        config.tokenUrl,
-        config.clientId,
-        clientSecret,
-        config.scope
+      return await resolveOAuthToken(
+        config.tokenUrl, config.clientId, config.encryptedClientSecret, config.scope
       );
-      return { ok: true, token };
     } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : "OAuth token resolution failed",
-      };
+      return errorResult(err, "OAuth token resolution failed");
     }
   }
 
@@ -74,10 +84,7 @@ export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null
     try {
       return { ok: true, token: decrypt(config.encryptedToken) };
     } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : "Token decryption failed",
-      };
+      return errorResult(err, "Token decryption failed");
     }
   }
 

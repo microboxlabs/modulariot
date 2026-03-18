@@ -1445,7 +1445,9 @@
       "rowsJsonArray": "Filas (arreglo JSON)",
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",
-      "invalidJson": "JSON inválido"
+      "invalidJson": "JSON inválido",
+      "failedToLoadFunctions": "Error al cargar funciones",
+      "invalidResponseFormat": "Formato de respuesta inválido"
     },
     "dashlets": {
       "data_list": {

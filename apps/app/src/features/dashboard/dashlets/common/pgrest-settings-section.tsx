@@ -17,6 +17,7 @@ interface PgrestSettingsSectionProps {
     key: string;
     value: string;
     addParameter: string;
+    removeParameter: string;
     loadError: string;
     retry: string;
   };
@@ -70,6 +71,7 @@ export function PgrestSettingsSection({
                 <TextInput
                   sizing="sm"
                   placeholder={labels.key}
+                  aria-label={labels.key}
                   value={p.key}
                   onChange={(e) =>
                     pg.updatePgrestParam(p._id, "key", e.target.value)
@@ -80,6 +82,7 @@ export function PgrestSettingsSection({
                 <TextInput
                   sizing="sm"
                   placeholder={pg.paramHints[p.key] ?? labels.value}
+                  aria-label={labels.value}
                   value={p.value}
                   onChange={(e) =>
                     pg.updatePgrestParam(p._id, "value", e.target.value)
@@ -88,6 +91,7 @@ export function PgrestSettingsSection({
               </div>
               <button
                 type="button"
+                aria-label={labels.removeParameter}
                 onClick={() => pg.removePgrestParam(p._id)}
                 onMouseDown={stopPropagation}
                 className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"

@@ -295,7 +295,7 @@ function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
   }, [camion, isMapLoaded]);
 
   // Handle map load to trigger initial centering
-  const handleZoomChange = useCallback((_zoom: number) => {
+  const handleZoomChange = useCallback(() => {
     // First zoom change means map is loaded
     setIsMapLoaded(true);
   }, []);
@@ -370,7 +370,7 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
         label={tr("pages.planning.sidebar.assignment.transportista", dict)}
         transportistas={TRANSPORTISTA_OPTIONS}
         selectedTransportistaId={value.transportista}
-        onSelect={(v) => handleChange("transportista", v)}
+        onSelect={(v: string) => handleChange("transportista", v)}
         placeholder={tr(
           "pages.planning.sidebar.assignment.selectTransportista",
           dict

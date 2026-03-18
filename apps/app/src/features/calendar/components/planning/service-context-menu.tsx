@@ -75,14 +75,16 @@ export function ServiceContextMenu({
   // Check if user has assignment permission to show assignment buttons
   // Avoid hiding the button while permissions are loading (transient false negative)
   const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
+  // Check if user has planning permission to show replan/delete buttons
+  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
 
   // Estimated menu dimensions for initial position calculation
-  // Height varies based on number of buttons (2 base + 2 with assignment)
+  // Height varies based on number of visible buttons
   const MENU_WIDTH = 180;
   const MENU_HEADER_HEIGHT = 32;
   const MENU_BUTTON_HEIGHT = 38;
   const MENU_PADDING = 8;
-  const buttonCount = canAssign ? 4 : 2;
+  const buttonCount = (canAssign ? 2 : 0) + (canPlan ? 2 : 0);
   const MENU_HEIGHT =
     MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
@@ -202,27 +204,31 @@ export function ServiceContextMenu({
           </Button>
         )}
 
-        <Button
-          color={"alternative"}
-          type="button"
-          onClick={handleReassign}
-          className="border-0 rounded-none w-full justify-start gap-2"
-        >
-          <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span>{tr("pages.planning.sidebar.contextMenu.replan", dict)}</span>
-        </Button>
+        {canPlan && (
+          <Button
+            color={"alternative"}
+            type="button"
+            onClick={handleReassign}
+            className="border-0 rounded-none w-full justify-start gap-2"
+          >
+            <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span>{tr("pages.planning.sidebar.contextMenu.replan", dict)}</span>
+          </Button>
+        )}
 
-        <Button
-          color={"alternative"}
-          type="button"
-          onClick={handleDelete}
-          className="border-0 rounded-none w-full justify-start gap-2"
-        >
-          <HiTrash className="w-4 h-4" />
-          <span>
-            {tr("pages.planning.sidebar.contextMenu.deletePlanning", dict)}
-          </span>
-        </Button>
+        {canPlan && (
+          <Button
+            color={"alternative"}
+            type="button"
+            onClick={handleDelete}
+            className="border-0 rounded-none w-full justify-start gap-2"
+          >
+            <HiTrash className="w-4 h-4" />
+            <span>
+              {tr("pages.planning.sidebar.contextMenu.deletePlanning", dict)}
+            </span>
+          </Button>
+        )}
       </div>
     </div>,
     document.body

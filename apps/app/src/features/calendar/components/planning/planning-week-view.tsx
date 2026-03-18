@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import isoWeek from "dayjs/plugin/isoWeek";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 dayjs.extend(isoWeek);
 import { twMerge } from "tailwind-merge";
@@ -159,7 +160,7 @@ function WeekSlotCell({
                 reassigningService?.service.service.id === ps.service.id
               }
               onContextMenu={onContextMenu}
-              className="w-full h-5"
+              className="w-full"
               dict={dict}
             />
           ))}
@@ -183,6 +184,10 @@ export default function PlanningWeekView({
   endHour = 22,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
+  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
+  // Check if user has planning permission to select slots
+  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
+
   const {
     selectedSlot,
     selectSlot,
@@ -257,6 +262,7 @@ export default function PlanningWeekView({
 
   const handleCellClick = useCallback(
     (day: WeekDay, slot: { hour: number; minutes: number }) => {
+      if (!canPlan) return;
       selectSlot({
         date: day.date,
         hour: slot.hour,
@@ -264,7 +270,7 @@ export default function PlanningWeekView({
         dayIndex: weekDays.findIndex((d) => d.date === day.date),
       });
     },
-    [selectSlot, weekDays]
+    [selectSlot, weekDays, canPlan]
   );
 
   const isSlotSelected = useCallback(

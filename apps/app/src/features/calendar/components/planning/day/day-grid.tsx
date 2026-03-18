@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import { twMerge } from "tailwind-merge";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import type { DayInfo } from "../planning-day-view.types";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
 import {
@@ -170,6 +171,10 @@ export default function DayGrid({
   startHour = 8,
   endHour = 22,
 }: Readonly<DayGridProps>) {
+  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
+  // Check if user has planning permission to select slots
+  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
+
   const {
     selectedSlot,
     selectSlot,
@@ -233,13 +238,14 @@ export default function DayGrid({
 
   const handleCellClick = useCallback(
     (slot: { hour: number; minutes: number }) => {
+      if (!canPlan) return;
       selectSlot({
         date: currentDate,
         hour: slot.hour,
         minutes: slot.minutes,
       });
     },
-    [selectSlot, currentDate]
+    [selectSlot, currentDate, canPlan]
   );
 
   const isSlotSelected = useCallback(

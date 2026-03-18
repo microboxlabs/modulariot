@@ -558,19 +558,15 @@ export function PlanningSidebarForm({
                 label: tr("pages.planning.sidebar.form.planningTab", dict),
                 icon: <HiCalendar />,
               },
-              ...(canAssign
-                ? [
-                    {
-                      id: "asignacion",
-                      label: tr(
-                        "pages.planning.sidebar.form.assignmentTab",
-                        dict
-                      ),
-                      icon: <HiUserAdd />,
-                      disabled: !isPlanificacionLocked,
-                    },
-                  ]
-                : []),
+              {
+                id: "asignacion",
+                label: tr(
+                  "pages.planning.sidebar.form.assignmentTab",
+                  dict
+                ),
+                icon: <HiUserAdd />,
+                disabled: !canAssign || !isPlanificacionLocked,
+              },
             ] as TabItem<TabType>[]
           }
           activeTab={activeTab}

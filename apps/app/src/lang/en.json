@@ -355,6 +355,8 @@
           "searchNoResultsFor": "No results for",
           "searchMinChars": "Type at least 2 characters to search",
           "clearFilter": "Clear filter",
+          "selectFieldToFilter": "Select a field to filter",
+          "filteringBy": "Filtering by",
           "searchFields": {
             "name": "Name",
             "rut": "RUT",
@@ -387,6 +389,11 @@
             "status": "Status",
             "gps": "GPS",
             "trips": "Previous trips"
+          },
+          "transportistaSearchFields": {
+            "name": "Name",
+            "rut": "RUT",
+            "status": "Status"
           },
           "remolqueLabel": "Trailer",
           "remolque": "Trailer",

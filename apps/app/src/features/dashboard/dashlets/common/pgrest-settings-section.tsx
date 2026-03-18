@@ -59,7 +59,7 @@ export function PgrestSettingsSection({
             }}
           >
             <option value="">
-              {activeProviders && activeProviders.length === 0
+              {activeProviders?.length === 0
                 ? tr("dashboard.settings.noActiveProviders", dictionary)
                 : tr("dashboard.settings.selectProvider", dictionary)}
             </option>

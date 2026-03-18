@@ -1,6 +1,7 @@
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
 import type { AlfrescoDataSourceConfig } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { decrypt } from "@/lib/crypto";
+import { logger } from "@/lib/logger";
 
 /**
  * Exchange OAuth2 client credentials for an access token.
@@ -27,7 +28,8 @@ export async function exchangeOAuthToken(
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new Error(`OAuth token exchange failed: HTTP ${res.status} — ${text}`);
+    logger.error({ status: res.status, body: text, tokenUrl }, "OAuth token exchange failed");
+    throw new Error("OAuth token exchange failed");
   }
 
   const json = await res.json();

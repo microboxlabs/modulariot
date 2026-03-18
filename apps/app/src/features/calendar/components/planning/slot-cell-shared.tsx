@@ -5,7 +5,40 @@ import type { ReactNode } from "react";
 import type { SlotState } from "./planning-slot-utils";
 import type { PlannedService } from "./planning-selection-context";
 import { PlannedServiceChip } from "./planned-service-chip";
-import type { I18nRecord, I18nDictionary } from "@/features/i18n/i18n.service.types";
+import type {
+  I18nRecord,
+  I18nDictionary,
+} from "@/features/i18n/i18n.service.types";
+
+// ============================================================================
+// Time Label Cell
+// ============================================================================
+
+interface TimeLabelCellProps {
+  readonly label: string;
+  readonly minHeight: number;
+  readonly isLastSlot: boolean;
+}
+
+export function TimeLabelCell({
+  label,
+  minHeight,
+  isLastSlot,
+}: TimeLabelCellProps) {
+  return (
+    <div
+      style={{ minHeight: `${minHeight}px` }}
+      className={twMerge(
+        "flex items-start justify-end pr-2 pt-0.5",
+        "border-l border-t border-gray-200 dark:border-gray-700",
+        "text-xs text-gray-500 dark:text-gray-400",
+        isLastSlot && "border-b rounded-bl-lg"
+      )}
+    >
+      {label}
+    </div>
+  );
+}
 
 // ============================================================================
 // Blocked Slot Indicator

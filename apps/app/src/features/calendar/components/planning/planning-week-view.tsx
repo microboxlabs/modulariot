@@ -6,7 +6,6 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 dayjs.extend(isoWeek);
 import { twMerge } from "tailwind-merge";
@@ -14,29 +13,17 @@ import type {
   PlanningWeekViewProps,
   WeekDay,
 } from "./planning-week-view.types";
-import {
-  generateTimeSlots,
-  parseUrlDate,
-} from "@/features/calendar/services/calendar.service";
-import {
-  usePlanningSelection,
-  type PlannedService,
-} from "./planning-selection-context";
+import { parseUrlDate } from "@/features/calendar/services/calendar.service";
+import type { PlannedService } from "./planning-selection-context";
 import {
   computeSlotState,
   getSlotCellClassName,
   type SlotState,
 } from "./planning-slot-utils";
-import { ServiceContextMenu } from "./service-context-menu";
-import {
-  DeleteConfirmationModal,
-  getDeleteModalMessages,
-  getDeleteAssignmentMessages,
-} from "./delete-confirmation-modal";
-import { ReassignmentConnector } from "./reassignment-connector";
-import { useServiceActions } from "./use-service-actions";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { SlotCellContent } from "./slot-cell-shared";
+import { SlotCellContent, TimeLabelCell } from "./slot-cell-shared";
+import { usePlanningGrid } from "./use-planning-grid";
+import { PlanningGridOverlays } from "./planning-grid-overlays";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -136,34 +123,18 @@ export default function PlanningWeekView({
   endHour = 22,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
-  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
-  // Check if user has planning permission to select slots
-  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
 
   const {
     selectedSlot,
-    selectSlot,
-    plannedServices,
+    handleSelectSlot,
+    isSlotSelected: checkSlotSelected,
+    timeSlots,
+    isLastSlot,
+    getPlannedServicesForSlot: getServicesForSlot,
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
-    removeService,
-    startReassignment,
-    startAssignment,
     reassigningService,
-    updateServiceDrivers,
-  } = usePlanningSelection();
-
-  // Create removeAssignment wrapper that clears driver assignments
-  const removeAssignment = useCallback(
-    async (serviceId: string) => {
-      updateServiceDrivers(serviceId, undefined, undefined);
-    },
-    [updateServiceDrivers]
-  );
-
-  // Use shared hook for context menu and delete modal
-  const {
     contextMenu,
     deleteModal,
     deleteAssignmentModal,
@@ -177,12 +148,7 @@ export default function PlanningWeekView({
     handleDeleteAssignmentRequest,
     handleConfirmDeleteAssignment,
     handleCancelDeleteAssignment,
-  } = useServiceActions({
-    removeService,
-    removeAssignment,
-    startReassignment,
-    startAssignment,
-  });
+  } = usePlanningGrid({ startHour, endHour });
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -191,11 +157,6 @@ export default function PlanningWeekView({
     if (propDate) return propDate;
     return new Date();
   }, [searchParams, propDate]);
-
-  const timeSlots = useMemo(
-    () => generateTimeSlots(startHour, endHour),
-    [startHour, endHour]
-  );
 
   const weekDays = useMemo(
     () => generateWeekDays(currentDate, lang),
@@ -206,7 +167,6 @@ export default function PlanningWeekView({
   const today = useMemo(() => dayjs().startOf("day"), []);
 
   const isLastDay = (idx: number) => idx === weekDays.length - 1;
-  const isLastSlot = (idx: number) => idx === timeSlots.length - 1;
   const isPastDay = useCallback(
     (day: WeekDay) => dayjs(day.date).isBefore(today, "day"),
     [today]
@@ -214,46 +174,34 @@ export default function PlanningWeekView({
 
   const handleCellClick = useCallback(
     (day: WeekDay, slot: { hour: number; minutes: number }) => {
-      if (!canPlan) return;
-      selectSlot({
+      handleSelectSlot({
         date: day.date,
         hour: slot.hour,
         minutes: slot.minutes,
         dayIndex: weekDays.findIndex((d) => d.date === day.date),
       });
     },
-    [selectSlot, weekDays, canPlan]
+    [handleSelectSlot, weekDays]
   );
 
   const isSlotSelected = useCallback(
     (day: WeekDay, slot: { hour: number; minutes: number }) => {
-      if (!selectedSlot) return false;
-      return (
-        dayjs(selectedSlot.date).isSame(day.date, "day") &&
-        selectedSlot.hour === slot.hour &&
-        selectedSlot.minutes === slot.minutes
-      );
+      return checkSlotSelected(day.date, slot.hour, slot.minutes);
     },
-    [selectedSlot]
+    [checkSlotSelected]
   );
 
   const getPlannedServicesForSlot = useCallback(
     (day: WeekDay, slot: { hour: number; minutes: number }) => {
-      const cellStartMin = slot.hour * 60 + slot.minutes;
-      const cellEndMin = cellStartMin + 30;
-      return plannedServices.filter((ps) => {
-        if (!dayjs(ps.slot.date).isSame(day.date, "day")) return false;
-        const serviceMin = ps.slot.hour * 60 + ps.slot.minutes;
-        return serviceMin >= cellStartMin && serviceMin < cellEndMin;
-      });
+      return getServicesForSlot(day.date, slot.hour, slot.minutes);
     },
-    [plannedServices]
+    [getServicesForSlot]
   );
 
   return (
     <div className="w-full h-full overflow-auto">
       <div
-        className="grid min-w-[600px]"
+        className="grid min-w-150"
         style={{
           gridTemplateColumns: `64px repeat(${weekDays.length}, 1fr)`,
         }}
@@ -316,17 +264,11 @@ export default function PlanningWeekView({
           return (
             <Fragment key={slot.label}>
               {/* Time label column */}
-              <div
-                style={{ minHeight: `${rowMinHeight}px` }}
-                className={twMerge(
-                  "flex items-start justify-end pr-2 pt-0.5",
-                  "border-l border-t border-gray-200 dark:border-gray-700",
-                  "text-xs text-gray-500 dark:text-gray-400",
-                  isLastSlot(slotIdx) && "border-b rounded-bl-lg"
-                )}
-              >
-                {slot.label}
-              </div>
+              <TimeLabelCell
+                label={slot.label}
+                minHeight={rowMinHeight}
+                isLastSlot={isLastSlot(slotIdx)}
+              />
 
               {/* Day cells */}
               {weekDays.map((day, dayIdx) => {
@@ -365,55 +307,24 @@ export default function PlanningWeekView({
         })}
       </div>
 
-      {/* Context Menu */}
-      <ServiceContextMenu
-        isOpen={contextMenu.isOpen}
-        position={contextMenu.position}
-        plannedService={contextMenu.plannedService}
+      {/* Overlays */}
+      <PlanningGridOverlays
+        dict={dict}
+        contextMenu={contextMenu}
         onReassign={handleReassign}
         onAssign={handleAssign}
-        onDelete={handleDeleteRequest}
-        onDeleteAssignment={handleDeleteAssignmentRequest}
-        onClose={handleCloseContextMenu}
-        dict={dict}
+        onDeleteRequest={handleDeleteRequest}
+        onDeleteAssignmentRequest={handleDeleteAssignmentRequest}
+        onCloseContextMenu={handleCloseContextMenu}
+        deleteModal={deleteModal}
+        onConfirmDelete={handleConfirmDelete}
+        onCancelDelete={handleCancelDelete}
+        deleteAssignmentModal={deleteAssignmentModal}
+        onConfirmDeleteAssignment={handleConfirmDeleteAssignment}
+        onCancelDeleteAssignment={handleCancelDeleteAssignment}
+        reassigningService={reassigningService}
+        selectedSlot={selectedSlot}
       />
-
-      {/* Delete Confirmation Modal */}
-      {deleteModal.plannedService && (
-        <DeleteConfirmationModal
-          isOpen={deleteModal.isOpen}
-          plannedService={deleteModal.plannedService}
-          messages={getDeleteModalMessages(
-            dict,
-            deleteModal.plannedService.service.id
-          )}
-          onConfirm={handleConfirmDelete}
-          onCancel={handleCancelDelete}
-        />
-      )}
-
-      {/* Delete Assignment Confirmation Modal */}
-      {deleteAssignmentModal.plannedService && (
-        <DeleteConfirmationModal
-          isOpen={deleteAssignmentModal.isOpen}
-          plannedService={deleteAssignmentModal.plannedService}
-          messages={getDeleteAssignmentMessages(
-            dict,
-            deleteAssignmentModal.plannedService.service.id
-          )}
-          onConfirm={handleConfirmDeleteAssignment}
-          onCancel={handleCancelDeleteAssignment}
-        />
-      )}
-
-      {/* Reassignment Connector - shows line between original and target slot */}
-      {reassigningService && (
-        <ReassignmentConnector
-          originSlot={reassigningService.originalSlot}
-          targetSlot={selectedSlot}
-          serviceId={reassigningService.service.service.id}
-        />
-      )}
     </div>
   );
 }

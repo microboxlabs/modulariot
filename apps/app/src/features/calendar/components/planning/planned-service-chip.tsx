@@ -75,11 +75,25 @@ export function PlannedServiceChip({
 
   return (
     <div
-      role="presentation"
+      role="button"
+      tabIndex={0}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onContextMenu(e, plannedService);
+      }}
+      onKeyDown={(e) => {
+        // Shift+F10 or ContextMenu key opens context menu
+        if (e.shiftKey && e.key === "F10") {
+          e.preventDefault();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const syntheticEvent = {
+            ...e,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          } as unknown as React.MouseEvent<HTMLDivElement>;
+          onContextMenu(syntheticEvent, plannedService);
+        }
       }}
       className={twMerge(
         "min-w-0 w-full",

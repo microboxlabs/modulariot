@@ -210,7 +210,7 @@ export function DashletSettings({
                 ]}
               />
               {isPgrest && (
-                <PgrestSettingsSection pgrest={pg} labels={pgrestLabels} />
+                <PgrestSettingsSection pgrest={pg} dictionary={dictionary} labels={pgrestLabels} />
               )}
             </>
           )}

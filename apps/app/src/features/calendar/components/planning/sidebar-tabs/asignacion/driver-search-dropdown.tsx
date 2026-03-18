@@ -46,46 +46,47 @@ interface DriverSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const DRIVER_FIELDS: readonly FieldConfig<ConductorOption, DriverMatchType>[] = [
-  {
-    field: "name",
-    getValue: (driver) => driver.name,
-    getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.searchFields.name", dict),
-    getIcon: () => <HiUser className={ICON_CLASS} />,
-  },
-  {
-    field: "rut",
-    getValue: (driver) => driver.rut,
-    getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.searchFields.rut", dict),
-    getIcon: () => <HiIdentification className={ICON_CLASS} />,
-  },
-  {
-    field: "estado",
-    getValue: (driver, dict) =>
-      driver.estado === "habilitado"
-        ? tr("pages.planning.sidebar.assignment.enabled", dict)
-        : tr("pages.planning.sidebar.assignment.notEnabled", dict),
-    getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.searchFields.status", dict),
-    getIcon: () => <HiCheck className={ICON_CLASS} />,
-  },
-  {
-    field: "viajesPrevios",
-    getValue: (driver) => String(driver.viajesPrevios),
-    getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.searchFields.trips", dict),
-    getIcon: () => <HiClock className={ICON_CLASS} />,
-  },
-  {
-    field: "ultimoViaje",
-    getValue: (driver) => driver.ultimoViaje,
-    getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.searchFields.lastTrip", dict),
-    getIcon: () => <HiClock className={ICON_CLASS} />,
-  },
-];
+const DRIVER_FIELDS: readonly FieldConfig<ConductorOption, DriverMatchType>[] =
+  [
+    {
+      field: "name",
+      getValue: (driver) => driver.name,
+      getLabel: (dict) =>
+        tr("pages.planning.sidebar.assignment.searchFields.name", dict),
+      getIcon: () => <HiUser className={ICON_CLASS} />,
+    },
+    {
+      field: "rut",
+      getValue: (driver) => driver.rut,
+      getLabel: (dict) =>
+        tr("pages.planning.sidebar.assignment.searchFields.rut", dict),
+      getIcon: () => <HiIdentification className={ICON_CLASS} />,
+    },
+    {
+      field: "estado",
+      getValue: (driver, dict) =>
+        driver.estado === "habilitado"
+          ? tr("pages.planning.sidebar.assignment.enabled", dict)
+          : tr("pages.planning.sidebar.assignment.notEnabled", dict),
+      getLabel: (dict) =>
+        tr("pages.planning.sidebar.assignment.searchFields.status", dict),
+      getIcon: () => <HiCheck className={ICON_CLASS} />,
+    },
+    {
+      field: "viajesPrevios",
+      getValue: (driver) => String(driver.viajesPrevios),
+      getLabel: (dict) =>
+        tr("pages.planning.sidebar.assignment.searchFields.trips", dict),
+      getIcon: () => <HiClock className={ICON_CLASS} />,
+    },
+    {
+      field: "ultimoViaje",
+      getValue: (driver) => driver.ultimoViaje,
+      getLabel: (dict) =>
+        tr("pages.planning.sidebar.assignment.searchFields.lastTrip", dict),
+      getIcon: () => <HiClock className={ICON_CLASS} />,
+    },
+  ];
 
 // ============================================================================
 // Driver Card Component

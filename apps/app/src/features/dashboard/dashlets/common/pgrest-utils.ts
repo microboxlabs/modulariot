@@ -7,6 +7,11 @@ export function parseRows(data: unknown): Record<string, string>[] {
     const obj = data as Record<string, unknown>;
     const candidate = obj.rows ?? obj.data ?? obj.results;
     if (Array.isArray(candidate)) return candidate as Record<string, string>[];
+    if (candidate && typeof candidate === "object") {
+      return [candidate as Record<string, string>];
+    }
+    // No known wrapper key — treat the object itself as a single row
+    return [obj as Record<string, string>];
   }
   return [];
 }

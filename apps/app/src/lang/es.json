@@ -316,6 +316,7 @@
         },
         "contextMenu": {
           "service": "Servicio",
+          "chipTitle": "Clic derecho para opciones",
           "replan": "Volver a planificar",
           "assign": "Asignar",
           "deletePlanning": "Eliminar planificación",
@@ -1447,7 +1448,9 @@
       "invalidJson": "JSON inválido",
       "dataSourceProvider": "Proveedor de Datos",
       "selectProvider": "Seleccionar proveedor…",
-      "noActiveProviders": "No hay proveedores activos disponibles"
+      "noActiveProviders": "No hay proveedores activos disponibles",
+      "failedToLoadFunctions": "Error al cargar funciones",
+      "invalidResponseFormat": "Formato de respuesta inválido"
     },
     "dashlets": {
       "data_list": {

@@ -32,6 +32,10 @@ interface TableListSettingsShellProps {
   dictionary: I18nRecord;
   /** Extra sections inserted between ColumnEditor and FilterEditor */
   children?: ReactNode;
+  /** Content rendered inside the data provider tab when dataMode === "pgrest" */
+  dataTabChildren?: ReactNode;
+  /** Enable Handlebars color coding on column key/label inputs */
+  handlebarsColorKeys?: boolean;
 }
 
 // ============================================================================
@@ -46,6 +50,8 @@ export function TableListSettingsShell({
   state: s,
   dictionary,
   children,
+  dataTabChildren,
+  handlebarsColorKeys = false,
 }: Readonly<TableListSettingsShellProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
@@ -67,7 +73,7 @@ export function TableListSettingsShell({
       setSelected={(selected) => {
         if (!selected) onClose();
       }}
-      className="no-drag w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+      className="no-drag w-[28rem] rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="flex w-full max-h-[75vh] flex-col gap-3">
         {/* Tabs */}
@@ -116,6 +122,7 @@ export function TableListSettingsShell({
                 onAdd={s.addColumn}
                 onRemove={s.removeColumn}
                 onUpdate={s.updateColumn}
+                handlebarsColorKeys={handlebarsColorKeys}
                 labels={{
                   columns: tr("dashboard.settings.columns", dictionary),
                   key: tr("dashboard.settings.key", dictionary),
@@ -165,10 +172,12 @@ export function TableListSettingsShell({
               onRowsJsonErrorClear={() => s.setRowsJsonError(null)}
               apiUrl={s.apiUrl}
               onApiUrlChange={s.setApiUrl}
+              pgrestContent={dataTabChildren}
               labels={{
                 dataSource: tr("dashboard.settings.dataSource", dictionary),
                 staticJson: tr("dashboard.settings.staticJson", dictionary),
                 dynamicApi: tr("dashboard.settings.dynamicApi", dictionary),
+                pgrest: "PGREST",
                 rowsJsonArray: tr("dashboard.settings.rowsJsonArray", dictionary),
                 apiUrl: tr("dashboard.settings.apiUrl", dictionary),
               }}

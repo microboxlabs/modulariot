@@ -1,53 +1,31 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import { compileTemplates, resolveTemplate } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
+import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+import type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
+import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
+import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
+import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 
 // ============================================================================
-// Configuration Types
+// Re-exports
 // ============================================================================
 
-export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
+export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+export type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
+export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
+export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
-export interface TableColumn {
-  key: string;
-  label: string;
-  type: string;
-}
-
-export interface FilterItemConfig {
-  /** Column key whose distinct values are used as filter pills */
-  column: string;
-  /** Label shown before the filter pills, e.g. "Estado:" */
-  label: string;
-}
-
-export interface FilterConfig {
-  enabled: boolean;
-  items: FilterItemConfig[];
-}
-
-export interface SortConfig {
-  enabled: boolean;
-  /** Ordered list of column keys available in the sort toolbar */
-  columns: string[];
-}
-
-export interface PgrestParam {
-  key: string;
-  value: string;
-}
-
-export type PgrestHttpMethod = "POST" | "GET";
+import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
 
 export interface DashletConfig {
   title: string;
@@ -121,8 +99,6 @@ export const defaultFilter: FilterConfig = {
   items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
 
-export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
-
 export const defaultSort: SortConfig = {
   enabled: true,
   columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
@@ -140,31 +116,6 @@ export const defaultConfig: DashletConfig = {
   filter: defaultFilter,
   sort: defaultSort,
 };
-
-/**
- * Extract the data property name from a column key.
- * - `{{row.origin}}`  → `"origin"`
- * - `{{origin}}`      → `"origin"`
- * - `origin`          → `"origin"` (plain text — used for sort/filter lookup)
- * Returns `null` for complex templates like `{{a}} - {{b}}`.
- */
-export function resolveDataProperty(key: string): string | null {
-  if (!key.includes("{{")) return key;
-  const match = /^\{\{(?:row\.)?(\w+)\}\}$/.exec(key);
-  return match ? match[1] : null;
-}
-
-/** Build the fetch URL + init for PGREST data sources. */
-function buildDataFetchRequest(
-  dataMode: string,
-  pgrestFunctionName: string,
-  pgrestParams: PgrestParam[],
-  pgrestHttpMethod: PgrestHttpMethod,
-  dataSourceId?: string
-): { url: string; init?: RequestInit } | null {
-  if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
-  return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
-}
 
 // ============================================================================
 // Layout Defaults
@@ -201,179 +152,33 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
   // ── PGREST data fetching ────────────────────────────────────────────────────
-  const [pgrestRows, setPgrestRows] = useState<Record<string, string>[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const request = buildDataFetchRequest(
-      dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId
-    );
-    if (!request) {
-      setLoading(false);
-      setFetchError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
-
-    fetch(request.url, request.init)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: unknown) => {
-        if (!cancelled) setPgrestRows(parseRows(data));
-      })
-      .catch((err: unknown) => {
-        if (!cancelled)
-          setFetchError(err instanceof Error ? err.message : "Failed to fetch");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId]);
-
-  // ── Filter & sort state ─────────────────────────────────────────────────────
-  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const {
+    rows: pgrestRows,
+    loading,
+    fetchError,
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
 
   const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
 
-  // Distinct values per filter item (derived from full dataset)
-  const filterOptionsByColumn = useMemo(() => {
-    if (!filter.enabled) return {};
-    const result: Record<string, string[]> = {};
-    for (const item of filter.items) {
-      const prop = resolveDataProperty(item.column);
-      if (!prop) continue;
-      const seen = new Set<string>();
-      for (const row of allRows) {
-        const val = row[prop];
-        if (val) seen.add(val);
-      }
-      result[item.column] = Array.from(seen);
-    }
-    return result;
-  }, [allRows, filter.enabled, filter.items]);
-
-  // Column label lookup for sort toolbar
-  const getColumnLabel = (key: string) =>
-    columns.find((c) => c.key === key)?.label ?? key;
-
-  // Only show sort pills for columns that actually exist
-  const validSortColumns = useMemo(() => {
-    const colKeys = new Set(columns.map((c) => c.key));
-    return sort.columns.filter((k) => colKeys.has(k));
-  }, [sort.columns, columns]);
-
-  // Apply all active filters (AND) then sort
-  const displayRows = useMemo(() => {
-    let result = allRows;
-
-    if (filter.enabled) {
-      for (const item of filter.items) {
-        const selected = filterValues[item.column];
-        const prop = resolveDataProperty(item.column);
-        if (selected && prop) {
-          result = result.filter((row) => row[prop] === selected);
-        }
-      }
-    }
-
-    if (sort.enabled && sortKey) {
-      const sortProp = resolveDataProperty(sortKey);
-      if (sortProp) {
-        result = [...result].sort((a, b) => {
-          const cmp = (a[sortProp] ?? "").localeCompare(b[sortProp] ?? "");
-          return sortDir === "asc" ? cmp : -cmp;
-        });
-      }
-    }
-
-    return result;
-  }, [allRows, filter, filterValues, sort, sortKey, sortDir]);
+  // ── Filter & sort (shared hook) ───────────────────────────────────────────
+  const {
+    filterValues,
+    sortKey,
+    sortDir,
+    filterOptionsByColumn,
+    displayRows,
+    validSortColumns,
+    getColumnLabel,
+    handleFilterClear,
+    handleFilterSelect,
+    handleSortClick,
+  } = useFilterAndSort(filter, sort, allRows, columns);
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
 
-  const handleFilterClear = (column: string) => {
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next[column];
-      return next;
-    });
-  };
-
-  const handleFilterSelect = (column: string, value: string) => {
-    setFilterValues((prev) => ({ ...prev, [column]: value }));
-  };
-
-  const handleSortClick = (key: string) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
-
   // ── Handlebars template compilation ────────────────────────────────────────
-  const compiledKeys = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.key }))),
-    [columns]
-  );
-
-  const compiledLabels = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.label }))),
-    [columns]
-  );
-
-  const compiledTypes = useMemo(
-    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.type }))),
-    [columns]
-  );
-
-  const resolveCellValue = useCallback(
-    (
-      row: Record<string, string>,
-      col: TableColumn,
-      rowIdx: number,
-      totalRows: number
-    ): string =>
-      resolveTemplate(compiledKeys, col.key, { row, ...row, _index: rowIdx, _count: totalRows }, col.key),
-    [compiledKeys]
-  );
-
-  const resolveHeaderLabel = useCallback(
-    (col: TableColumn): string =>
-      resolveTemplate(compiledLabels, col.key, { _count: displayRows.length }, col.label),
-    [compiledLabels, displayRows.length]
-  );
-
-  const resolveCellType = useCallback(
-    (
-      row: Record<string, string>,
-      col: TableColumn,
-      rowIdx: number,
-      totalRows: number
-    ): string => {
-      const result = resolveTemplate(
-        compiledTypes, col.key,
-        { row, ...row, _index: rowIdx, _count: totalRows },
-        col.type || "text"
-      );
-      return result.trim() || "text";
-    },
-    [compiledTypes]
-  );
+  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(columns, displayRows.length);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -459,7 +264,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     key={col.key}
                     className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
                   >
-                    {resolveHeaderLabel(col)}
+                    {resolveLabel(col.key)}
                   </th>
                 ))}
               </tr>
@@ -486,8 +291,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         className="px-4 py-4 text-gray-700 dark:text-gray-300"
                       >
                         {renderCell(
-                          resolveCellValue(row, col, rowIdx, displayRows.length),
-                          resolveCellType(row, col, rowIdx, displayRows.length)
+                          resolveValue(col.key, row, rowIdx, displayRows.length),
+                          resolveType(col.key, row, rowIdx, displayRows.length)
                         )}
                       </td>
                     ))}

@@ -34,6 +34,7 @@ import {
 import { ReassignmentConnector } from "./reassignment-connector";
 import { PlannedServiceChip } from "./planned-service-chip";
 import { useServiceActions } from "./use-service-actions";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -67,6 +68,7 @@ interface WeekSlotCellProps {
   } | null;
   onCellClick: (day: WeekDay, slot: { hour: number; minutes: number }) => void;
   onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  dict: I18nRecord;
 }
 
 function WeekSlotCell({
@@ -80,6 +82,7 @@ function WeekSlotCell({
   reassigningService,
   onCellClick,
   onContextMenu,
+  dict,
 }: Readonly<WeekSlotCellProps>) {
   const {
     slotBlocked,
@@ -99,14 +102,18 @@ function WeekSlotCell({
   const cellContent = (
     <button
       type="button"
-      data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
-      data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
+      tabIndex={isDisabled ? -1 : 0}
       onClick={handleClick}
       disabled={isDisabled}
-      className={getSlotCellClassName(slotState, dayIsPast, selected, {
-        isLastDay,
-        isLastSlot,
-      })}
+      data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
+      data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
+      className={twMerge(
+        "appearance-none border-0 p-0 m-0 text-left",
+        getSlotCellClassName(slotState, dayIsPast, selected, {
+          isLastDay,
+          isLastSlot,
+        })
+      )}
     >
       {!dayIsPast && slotBlocked && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -152,6 +159,7 @@ function WeekSlotCell({
               }
               onContextMenu={onContextMenu}
               className="w-full h-5"
+              dict={dict}
             />
           ))}
         </div>
@@ -162,7 +170,8 @@ function WeekSlotCell({
   if (slotBlocked && !dayIsPast) {
     return <div className="w-full h-full">{cellContent}</div>;
   }
-  return cellContent;
+
+  return <div className="w-full h-full">{cellContent}</div>;
 }
 
 export default function PlanningWeekView({
@@ -370,6 +379,7 @@ export default function PlanningWeekView({
                     reassigningService={reassigningService}
                     onCellClick={handleCellClick}
                     onContextMenu={handleContextMenu}
+                    dict={dict}
                   />
                 );
               })}

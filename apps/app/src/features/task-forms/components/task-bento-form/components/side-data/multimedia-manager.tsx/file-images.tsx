@@ -170,7 +170,6 @@ export default function FileImages({
       documentsData.data.forEach((document: any, index: number) => {
         if (!document.error && files[index]) {
           if (files[index].entry.content.mimeType.includes("image")) {
-            console.log("Image data:", files[index]);
             newImages.push({
               file: files[index],
               data: document,

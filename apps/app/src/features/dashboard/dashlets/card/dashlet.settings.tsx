@@ -1,12 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "flowbite-react";
-import { createPortal } from "react-dom";
-import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, CardBackgroundColor, CardIcon } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -25,8 +21,8 @@ import {
   buildPgrestContentLabels,
 } from "../common";
 import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
+import { SettingsModalShell } from "../common/settings-modal-shell";
 
-type SettingsTab = "visualization" | "data";
 type CardDataMode = "static" | "pgrest";
 
 /** Background color options for ColorPickerDropdown */
@@ -63,7 +59,6 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
   const [descriptor, setDescriptor] = useState(config.descriptor || "");
@@ -116,16 +111,6 @@ export function DashletSettings({
     onClose();
   };
 
-  if (globalThis.window === undefined) return null;
-
-  const tabClass = (tab: SettingsTab) =>
-    twMerge(
-      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-      activeTab === tab
-        ? "border-blue-500 text-blue-600 dark:text-blue-400"
-        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400",
-    );
-
   const isPgrest = dataMode === "pgrest";
 
   const fieldValues: Record<string, string> = { name, value, descriptor };
@@ -135,94 +120,69 @@ export function DashletSettings({
     descriptor: setDescriptor,
   };
 
-  const pgrestLabels = buildPgrestContentLabels(dictionary);
-
-  const modalContent = (
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(selected) => {
-        if (!selected) onClose();
-      }}
-      className="no-drag w-96 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-    >
-      <div className="flex w-full max-h-[75vh] flex-col gap-3">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <button
-            type="button"
-            onClick={() => setActiveTab("visualization")}
-            className={tabClass("visualization")}
-          >
-            {tr("dashboard.settings.visualization", dictionary)}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("data")}
-            className={tabClass("data")}
-          >
-            {tr("dashboard.settings.dataProvider", dictionary)}
-          </button>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="flex-1 space-y-3 overflow-y-auto">
-          {activeTab === "visualization" ? (
-            <>
-              {CARD_FIELDS.map((f) => (
-                <HbTextField
-                  key={f.id}
-                  id={f.id}
-                  label={tr(f.labelKey, dictionary)}
-                  value={fieldValues[f.state]}
-                  onChange={fieldSetters[f.state]}
-                  placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
-                />
-              ))}
-              <SettingsPickerRow>
-                <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
-                  <IconPickerDropdown
-                    options={ICON_OPTIONS}
-                    value={icon}
-                    onChange={setIcon}
-                    title={tr("dashboard.settings.icon", dictionary)}
-                  />
-                </SettingsPickerItem>
-                <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>
-                  <ColorPickerDropdown
-                    options={BG_COLOR_OPTIONS}
-                    value={backgroundColor}
-                    onChange={setBackgroundColor}
-                    title={tr("dashboard.settings.color", dictionary)}
-                  />
-                </SettingsPickerItem>
-              </SettingsPickerRow>
-            </>
-          ) : (
-            <>
-              <SettingsSelectField
-                id="card-data-mode"
-                label={tr("dashboard.settings.dataSource", dictionary)}
-                value={dataMode}
-                onChange={(v) => setDataMode(v as CardDataMode)}
-                options={[
-                  { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
-                  { value: "pgrest", label: "PGREST" },
-                ]}
-              />
-              {isPgrest && (
-                <PgrestSettingsSection pgrest={pg} dictionary={dictionary} labels={pgrestLabels} />
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Save Button */}
-        <Button onClick={handleSave} size="sm" className="w-full">
-          {tr("common.save", dictionary)}
-        </Button>
-      </div>
-    </AbsoluteModal>
+  const visualizationTab = (
+    <>
+      {CARD_FIELDS.map((f) => (
+        <HbTextField
+          key={f.id}
+          id={f.id}
+          label={tr(f.labelKey, dictionary)}
+          value={fieldValues[f.state]}
+          onChange={fieldSetters[f.state]}
+          placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
+        />
+      ))}
+      <SettingsPickerRow>
+        <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
+          <IconPickerDropdown
+            options={ICON_OPTIONS}
+            value={icon}
+            onChange={setIcon}
+            title={tr("dashboard.settings.icon", dictionary)}
+          />
+        </SettingsPickerItem>
+        <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>
+          <ColorPickerDropdown
+            options={BG_COLOR_OPTIONS}
+            value={backgroundColor}
+            onChange={setBackgroundColor}
+            title={tr("dashboard.settings.color", dictionary)}
+          />
+        </SettingsPickerItem>
+      </SettingsPickerRow>
+    </>
   );
 
-  return createPortal(modalContent, document.body);
+  const dataTab = (
+    <>
+      <SettingsSelectField
+        id="card-data-mode"
+        label={tr("dashboard.settings.dataSource", dictionary)}
+        value={dataMode}
+        onChange={(v) => setDataMode(v as CardDataMode)}
+        options={[
+          { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
+          { value: "pgrest", label: "PGREST" },
+        ]}
+      />
+      {isPgrest && (
+        <PgrestSettingsSection
+          pgrest={pg}
+          dictionary={dictionary}
+          labels={buildPgrestContentLabels(dictionary)}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
+  );
 }

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import type { FilterConfig } from "./filter-types";
 import type { SortConfig, TableColumn } from "./column-types";
+import { resolveDataProperty } from "./handlebars-helpers";
 
 export interface UseFilterAndSortResult {
   filterValues: Record<string, string>;
@@ -8,6 +9,8 @@ export interface UseFilterAndSortResult {
   sortDir: "asc" | "desc";
   filterOptionsByColumn: Record<string, string[]>;
   displayRows: Record<string, string>[];
+  /** Sort columns filtered to only those present in the column definitions */
+  validSortColumns: string[];
   getColumnLabel: (key: string) => string;
   handleFilterClear: (column: string) => void;
   handleFilterSelect: (column: string, value: string) => void;
@@ -29,9 +32,11 @@ export function useFilterAndSort(
     if (!filter.enabled) return {};
     const result: Record<string, string[]> = {};
     for (const item of filter.items) {
+      const prop = resolveDataProperty(item.column);
+      if (!prop) continue;
       const seen = new Set<string>();
       for (const row of allRows) {
-        const val = row[item.column];
+        const val = row[prop];
         if (val) seen.add(val);
       }
       result[item.column] = Array.from(seen);
@@ -43,6 +48,12 @@ export function useFilterAndSort(
   const getColumnLabel = (key: string) =>
     columns.find((c) => c.key === key)?.label ?? key;
 
+  // Only show sort pills for columns that actually exist
+  const validSortColumns = useMemo(() => {
+    const colKeys = new Set(columns.map((c) => c.key));
+    return sort.columns.filter((k) => colKeys.has(k));
+  }, [sort.columns, columns]);
+
   // Apply all active filters (AND) then sort
   const displayRows = useMemo(() => {
     let result = allRows;
@@ -50,17 +61,21 @@ export function useFilterAndSort(
     if (filter.enabled) {
       for (const item of filter.items) {
         const selected = filterValues[item.column];
-        if (selected) {
-          result = result.filter((row) => row[item.column] === selected);
+        const prop = resolveDataProperty(item.column);
+        if (selected && prop) {
+          result = result.filter((row) => row[prop] === selected);
         }
       }
     }
 
     if (sort.enabled && sortKey) {
-      result = [...result].sort((a, b) => {
-        const cmp = (a[sortKey] ?? "").localeCompare(b[sortKey] ?? "");
-        return sortDir === "asc" ? cmp : -cmp;
-      });
+      const sortProp = resolveDataProperty(sortKey);
+      if (sortProp) {
+        result = [...result].sort((a, b) => {
+          const cmp = (a[sortProp] ?? "").localeCompare(b[sortProp] ?? "");
+          return sortDir === "asc" ? cmp : -cmp;
+        });
+      }
     }
 
     return result;
@@ -93,6 +108,7 @@ export function useFilterAndSort(
     sortDir,
     filterOptionsByColumn,
     displayRows,
+    validSortColumns,
     getColumnLabel,
     handleFilterClear,
     handleFilterSelect,

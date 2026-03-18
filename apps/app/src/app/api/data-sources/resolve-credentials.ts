@@ -31,10 +31,10 @@ export async function exchangeOAuthToken(
   }
 
   const json = await res.json();
-  if (!json.access_token) {
-    throw new Error("OAuth response missing access_token");
+  if (typeof json.access_token !== "string" || !json.access_token) {
+    throw new Error("OAuth response missing or invalid access_token");
   }
-  return json.access_token as string;
+  return json.access_token;
 }
 
 export type BearerResult =

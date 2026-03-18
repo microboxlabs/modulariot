@@ -57,7 +57,7 @@ export function buildPgrestFetch(
   method: PgrestHttpMethod,
   params: PgrestParam[],
 ): { url: string; init?: RequestInit } {
-  const validParams = params.filter((p) => p.key && p.value);
+  const validParams = params.filter((p) => p.key && p.value != null);
   const baseUrl = `/app/api/dashboard/pgrest/${encodeURIComponent(functionName.trim())}`;
 
   if (method === "POST") {

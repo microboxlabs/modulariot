@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -124,29 +125,23 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const iconType = config.icon || "chart";
   const dataMode = config.dataMode || "static";
 
+  // Stabilize params reference to avoid retriggering the fetch effect
+  const pgrestParams = config.pgrestParams;
+  const stableParams = useMemo(() => pgrestParams || [], [pgrestParams]);
+
   const { rows, loading, fetchError } = usePgrestRows(
     dataMode,
     config.pgrestFunctionName || "",
     config.pgrestHttpMethod || "POST",
-    config.pgrestParams || [],
+    stableParams,
   );
 
-  // Build Handlebars context from first pgrest row
-  const context = dataMode === "pgrest" && rows.length > 0
-    ? { row: rows[0], ...rows[0] }
-    : {};
-
-  const name = dataMode === "pgrest" && rows.length > 0
-    ? resolveHandlebarsField(config.name || "Metric", context)
-    : (config.name || "Metric");
-
-  const value = dataMode === "pgrest" && rows.length > 0
-    ? resolveHandlebarsField(config.value || "0", context)
-    : (config.value || "0");
-
-  const descriptor = dataMode === "pgrest" && rows.length > 0
-    ? resolveHandlebarsField(config.descriptor || "", context)
-    : (config.descriptor || "");
+  // Build Handlebars context from first pgrest row; resolveHandlebarsField
+  // is a no-op passthrough when the template contains no {{}} expressions
+  const context = rows.length > 0 ? { row: rows[0], ...rows[0] } : {};
+  const name = resolveHandlebarsField(config.name || "Metric", context);
+  const value = resolveHandlebarsField(config.value || "0", context);
+  const descriptor = resolveHandlebarsField(config.descriptor || "", context);
 
   const Icon = ICONS[iconType];
   const bgClass = BG_COLORS[bgColor];

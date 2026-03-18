@@ -50,8 +50,16 @@ export function PgrestFunctionAutocomplete({
     try {
       const res = await fetch("/app/api/dashboard/pgrest/functions");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { functions: string[] };
-      setAllFunctions(data.functions);
+      const data: unknown = await res.json();
+      const fns =
+        data != null &&
+        typeof data === "object" &&
+        "functions" in data &&
+        Array.isArray((data as Record<string, unknown>).functions)
+          ? ((data as Record<string, unknown>).functions as string[])
+          : null;
+      if (!fns) throw new Error("Invalid response");
+      setAllFunctions(fns);
     } catch {
       setFetchError(labelsRef.current.loadError);
     } finally {

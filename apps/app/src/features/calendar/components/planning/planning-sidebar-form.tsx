@@ -96,24 +96,18 @@ export function PlanningSidebarForm({
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
   // Avoid hiding the tab while permissions are loading (transient false negative)
   const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
-
-  // Tab locking logic:
-  // - When assigningService is set, lock "Planificación" tab and show "Asignación"
-  // - Otherwise, both tabs are accessible
-  const isPlanificacionLocked = !!assigningService;
+  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
 
   // Tab state management
   type TabType = "planificacion" | "asignacion";
-  const [activeTab, setActiveTab] = useState<TabType>(
-    isPlanificacionLocked ? "asignacion" : "planificacion"
-  );
+  const [activeTab, setActiveTab] = useState<TabType>("planificacion");
 
-  // Auto-switch to asignacion tab when locked
+  // Auto-switch to asignacion tab when assignment mode is triggered from context menu
   useEffect(() => {
-    if (isPlanificacionLocked) {
+    if (assigningService && canAssign) {
       setActiveTab("asignacion");
     }
-  }, [isPlanificacionLocked]);
+  }, [assigningService, canAssign]);
 
   // Build time options from backend slots, filtered to the visible cell range [slotStartTime, slotEndTime)
   const timeOptions = useMemo(() => {
@@ -557,12 +551,13 @@ export function PlanningSidebarForm({
                 id: "planificacion",
                 label: tr("pages.planning.sidebar.form.planningTab", dict),
                 icon: <HiCalendar />,
+                disabled: !canPlan,
               },
               {
                 id: "asignacion",
                 label: tr("pages.planning.sidebar.form.assignmentTab", dict),
                 icon: <HiUserAdd />,
-                disabled: !canAssign || !isPlanificacionLocked,
+                disabled: !canAssign,
               },
             ] as TabItem<TabType>[]
           }
@@ -606,18 +601,17 @@ export function PlanningSidebarForm({
               onChange={setAssignmentData}
               dict={dict}
             />
-            {isPlanificacionLocked && (
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="button"
-                  color="blue"
-                  className="flex-1"
-                  onClick={handleAssign}
-                >
-                  {tr("pages.planning.sidebar.form.assign", dict)}
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                color="blue"
+                className="flex-1"
+                onClick={handleAssign}
+                disabled={!assigningService}
+              >
+                {tr("pages.planning.sidebar.form.assign", dict)}
+              </Button>
+            </div>
           </>
         )}
       </div>

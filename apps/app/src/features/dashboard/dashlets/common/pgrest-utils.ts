@@ -1,19 +1,38 @@
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 
+/** Coerce every value in a row to a string so downstream .localeCompare() is safe. */
+function normalizeRow(row: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(row)) {
+    out[k] = v == null ? "" : String(v);
+  }
+  return out;
+}
+
 /** Parse a dynamic API / PGREST response into a row array. */
 export function parseRows(data: unknown): Record<string, string>[] {
-  if (Array.isArray(data)) return data as Record<string, string>[];
-  if (data && typeof data === "object") {
+  let raw: unknown[];
+
+  if (Array.isArray(data)) {
+    raw = data;
+  } else if (data && typeof data === "object") {
     const obj = data as Record<string, unknown>;
     const candidate = obj.rows ?? obj.data ?? obj.results;
-    if (Array.isArray(candidate)) return candidate as Record<string, string>[];
-    if (candidate && typeof candidate === "object") {
-      return [candidate as Record<string, string>];
+    if (Array.isArray(candidate)) {
+      raw = candidate;
+    } else if (candidate && typeof candidate === "object") {
+      raw = [candidate];
+    } else {
+      // No known wrapper key — treat the object itself as a single row
+      raw = [obj];
     }
-    // No known wrapper key — treat the object itself as a single row
-    return [obj as Record<string, string>];
+  } else {
+    return [];
   }
-  return [];
+
+  return raw.map((r) =>
+    r && typeof r === "object" ? normalizeRow(r as Record<string, unknown>) : {},
+  );
 }
 
 /** Build the fetch URL and RequestInit for a PGREST RPC call. */

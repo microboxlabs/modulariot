@@ -31,7 +31,7 @@ export interface FieldConfig<
   TMatchType extends string,
 > {
   readonly field: TMatchType;
-  readonly getValue: (option: TOption) => string;
+  readonly getValue: (option: TOption, dict: I18nRecord) => string;
   readonly getLabel: (dict: I18nRecord) => string;
   readonly getIcon: () => ReactNode;
 }
@@ -102,6 +102,7 @@ function calculateGroupedResults<
   items: TOption[],
   query: string,
   fields: readonly FieldConfig<TOption, TMatchType>[],
+  dict: I18nRecord,
   excludeId?: string
 ): GroupedSearchResult<TMatchType>[] {
   if (query.length < MIN_CHARACTERS) {
@@ -117,7 +118,7 @@ function calculateGroupedResults<
 
   for (const item of filteredItems) {
     for (const fieldConfig of fields) {
-      const fieldValue = fieldConfig.getValue(item);
+      const fieldValue = fieldConfig.getValue(item, dict);
       if (fieldValue.toLowerCase().includes(lowerQuery)) {
         if (!matchCounts.has(fieldConfig.field)) {
           matchCounts.set(fieldConfig.field, new Set());
@@ -144,6 +145,7 @@ function filterItemsByField<
   query: string,
   matchType: TMatchType,
   fields: readonly FieldConfig<TOption, TMatchType>[],
+  dict: I18nRecord,
   excludeId?: string
 ): TOption[] {
   const filteredItems = excludeId
@@ -161,7 +163,7 @@ function filterItemsByField<
 
   const lowerQuery = query.toLowerCase();
   return filteredItems.filter((item) =>
-    fieldConfig.getValue(item).toLowerCase().includes(lowerQuery)
+    fieldConfig.getValue(item, dict).toLowerCase().includes(lowerQuery)
   );
 }
 
@@ -244,13 +246,13 @@ function trySelectHighlightedItem<TOption extends BaseOption>(
   }
 }
 
-function handleEscapeKey(
-  activeFilter: unknown,
+function handleEscapeKey<TMatchType extends string>(
+  activeFilter: ActiveFilter<TMatchType> | null,
   handleClearFilter: () => void,
   setIsOpen: (open: boolean) => void,
   setQuery: (query: string) => void
 ): void {
-  if (activeFilter) {
+  if (activeFilter !== null) {
     handleClearFilter();
   } else {
     setIsOpen(false);
@@ -258,11 +260,14 @@ function handleEscapeKey(
   }
 }
 
-function handleListModeKeyDown<TOption extends BaseOption>(
+function handleListModeKeyDown<
+  TOption extends BaseOption,
+  TMatchType extends string,
+>(
   e: KeyboardEvent<HTMLInputElement>,
   filteredItems: TOption[],
   highlightedIndex: number,
-  activeFilter: unknown,
+  activeFilter: ActiveFilter<TMatchType> | null,
   context: KeyboardHandlerContext<TOption>
 ): void {
   const {
@@ -345,7 +350,7 @@ function FilteredItemsList<TOption extends BaseOption>({
   renderCard,
   onSelect,
   onHighlight,
-}: FilteredItemsListProps<TOption>) {
+}: Readonly<FilteredItemsListProps<TOption>>) {
   if (filteredItems.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -400,7 +405,7 @@ function GroupedResultsContent<TMatchType extends string>({
   fields,
   onMatchTypeSelect,
   onMouseEnter,
-}: GroupedResultsContentProps<TMatchType>) {
+}: Readonly<GroupedResultsContentProps<TMatchType>>) {
   if (searchResults.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -418,7 +423,7 @@ function GroupedResultsContent<TMatchType extends string>({
       {searchResults.map((result, index) => {
         const fieldConfig = fields.find((f) => f.field === result.matchType);
         return (
-          <li key={result.matchType}>
+          <li key={result.matchType} data-index={index}>
             <button
               type="button"
               tabIndex={index === selectedIndex ? 0 : -1}
@@ -473,7 +478,7 @@ export function BaseSearchDropdown<
   renderSelectedButton,
   canSelect,
   excludeId,
-}: BaseSearchDropdownProps<TOption, TMatchType>) {
+}: Readonly<BaseSearchDropdownProps<TOption, TMatchType>>) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -499,8 +504,9 @@ export function BaseSearchDropdown<
 
   // Calculate grouped results when no filter is active
   const groupedResults = useMemo(
-    () => calculateGroupedResults(items, debouncedQuery, fields, excludeId),
-    [items, debouncedQuery, fields, excludeId]
+    () =>
+      calculateGroupedResults(items, debouncedQuery, fields, dict, excludeId),
+    [items, debouncedQuery, fields, dict, excludeId]
   );
 
   // Filter items when a field filter is active
@@ -513,9 +519,10 @@ export function BaseSearchDropdown<
       activeFilter.query,
       activeFilter.matchType,
       fields,
+      dict,
       excludeId
     );
-  }, [items, activeFilter, fields, excludeId]);
+  }, [items, activeFilter, fields, dict, excludeId]);
 
   // Determine if we're in "grouped mode" (showing field types) or "list mode"
   const isGroupedMode =
@@ -798,7 +805,9 @@ export function BaseSearchDropdown<
                 selectedItem ? "text-gray-900 dark:text-white" : "text-gray-500"
               )}
             >
-              {selectedItem ? fields[0]?.getValue(selectedItem) : placeholder}
+              {selectedItem
+                ? fields[0]?.getValue(selectedItem, dict)
+                : placeholder}
             </span>
             <HiChevronDown
               className={twMerge(

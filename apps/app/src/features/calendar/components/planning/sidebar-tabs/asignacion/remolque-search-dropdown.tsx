@@ -98,10 +98,10 @@ interface RemolqueSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const createRemolqueFields = (): readonly FieldConfig<
+const REMOLQUE_FIELDS: readonly FieldConfig<
   RemolqueOption,
   RemolqueMatchType
->[] => [
+>[] = [
   {
     field: "plate",
     getValue: (remolque) => remolque.plate,
@@ -111,22 +111,31 @@ const createRemolqueFields = (): readonly FieldConfig<
   },
   {
     field: "tipo",
-    getValue: (remolque) => remolque.tipo,
+    getValue: (remolque, dict) =>
+      tr(
+        `pages.planning.sidebar.assignment.remolqueType.${remolque.tipo}`,
+        dict
+      ),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.remolqueSearchFields.type", dict),
     getIcon: () => <HiTruck className={ICON_CLASS} />,
   },
   {
     field: "estado",
-    getValue: (remolque) => remolque.estado,
+    getValue: (remolque, dict) =>
+      remolque.estado === "disponible"
+        ? tr("pages.planning.sidebar.assignment.available", dict)
+        : tr("pages.planning.sidebar.assignment.busy", dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.remolqueSearchFields.status", dict),
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
   },
   {
     field: "gpsIntegrado",
-    getValue: (remolque) =>
-      remolque.gpsIntegrado ? "gps integrado" : "no integrado",
+    getValue: (remolque, dict) =>
+      remolque.gpsIntegrado
+        ? tr("pages.planning.sidebar.assignment.integrated", dict)
+        : tr("pages.planning.sidebar.assignment.notIntegrated", dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.remolqueSearchFields.gps", dict),
     getIcon: () => <HiLocationMarker className={ICON_CLASS} />,
@@ -152,8 +161,6 @@ const createRemolqueFields = (): readonly FieldConfig<
     getIcon: () => <HiClock className={ICON_CLASS} />,
   },
 ];
-
-const REMOLQUE_FIELDS = createRemolqueFields();
 
 // ============================================================================
 // Remolque Card Component

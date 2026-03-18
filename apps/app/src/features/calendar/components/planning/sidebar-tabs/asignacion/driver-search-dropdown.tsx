@@ -46,10 +46,7 @@ interface DriverSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const createDriverFields = (): readonly FieldConfig<
-  ConductorOption,
-  DriverMatchType
->[] => [
+const DRIVER_FIELDS: readonly FieldConfig<ConductorOption, DriverMatchType>[] = [
   {
     field: "name",
     getValue: (driver) => driver.name,
@@ -66,7 +63,10 @@ const createDriverFields = (): readonly FieldConfig<
   },
   {
     field: "estado",
-    getValue: (driver) => driver.estado,
+    getValue: (driver, dict) =>
+      driver.estado === "habilitado"
+        ? tr("pages.planning.sidebar.assignment.enabled", dict)
+        : tr("pages.planning.sidebar.assignment.notEnabled", dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.searchFields.status", dict),
     getIcon: () => <HiCheck className={ICON_CLASS} />,
@@ -86,8 +86,6 @@ const createDriverFields = (): readonly FieldConfig<
     getIcon: () => <HiClock className={ICON_CLASS} />,
   },
 ];
-
-const DRIVER_FIELDS = createDriverFields();
 
 // ============================================================================
 // Driver Card Component

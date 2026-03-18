@@ -94,9 +94,10 @@ export function PlanningSidebarForm({
   } = usePlanningSelection();
 
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
-  // Avoid hiding the tab while permissions are loading (transient false negative)
-  const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
-  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
+  // Fail-closed: only enable tabs when permissions are confirmed loaded
+  const canAssign =
+    !isLoadingPermissions && hasPermission(["GROUP_ASSIGNMENT"]);
+  const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
 
   // Tab state management
   type TabType = "planificacion" | "asignacion";

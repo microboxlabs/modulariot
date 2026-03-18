@@ -45,10 +45,10 @@ interface TransportistaSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const createTransportistaFields = (): readonly FieldConfig<
+const TRANSPORTISTA_FIELDS: readonly FieldConfig<
   TransportistaOption,
   TransportistaMatchType
->[] => [
+>[] = [
   {
     field: "name",
     getValue: (transportista) => transportista.name,
@@ -71,7 +71,10 @@ const createTransportistaFields = (): readonly FieldConfig<
   },
   {
     field: "estado",
-    getValue: (transportista) => transportista.estado,
+    getValue: (transportista, dict) =>
+      transportista.estado === "habilitado"
+        ? tr("pages.planning.sidebar.assignment.enabled", dict)
+        : tr("pages.planning.sidebar.assignment.notEnabled", dict),
     getLabel: (dict) =>
       tr(
         "pages.planning.sidebar.assignment.transportistaSearchFields.status",
@@ -80,8 +83,6 @@ const createTransportistaFields = (): readonly FieldConfig<
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
   },
 ];
-
-const TRANSPORTISTA_FIELDS = createTransportistaFields();
 
 // ============================================================================
 // Transportista Card Component

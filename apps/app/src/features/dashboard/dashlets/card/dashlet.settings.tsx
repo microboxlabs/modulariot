@@ -2,14 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "flowbite-react";
-import {
-  HiChartBar,
-  HiCurrencyDollar,
-  HiUsers,
-  HiShoppingCart,
-  HiClock,
-  HiCheckCircle,
-} from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
@@ -19,10 +11,7 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-import {
-  IconPickerDropdown,
-  type IconOption,
-} from "@/features/common/components/icon-picker-dropdown";
+import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
 import { tr } from "@/features/i18n/tr.service";
 import {
   SettingsPickerRow,
@@ -35,6 +24,7 @@ import {
   humanizeKey,
   buildPgrestContentLabels,
 } from "../common";
+import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 
 type SettingsTab = "visualization" | "data";
 type CardDataMode = "static" | "pgrest";
@@ -54,15 +44,7 @@ const BG_COLOR_OPTIONS: ColorOption<CardBackgroundColor>[] = [
   { value: "purple", label: "Purple", dotClass: "bg-purple-500" },
 ];
 
-/** Icon options for IconPickerDropdown */
-const ICON_OPTIONS: IconOption<CardIcon>[] = [
-  { value: "chart", label: "Chart", icon: HiChartBar },
-  { value: "currency", label: "Currency", icon: HiCurrencyDollar },
-  { value: "users", label: "Users", icon: HiUsers },
-  { value: "cart", label: "Cart", icon: HiShoppingCart },
-  { value: "clock", label: "Clock", icon: HiClock },
-  { value: "check", label: "Check", icon: HiCheckCircle },
-];
+const ICON_OPTIONS = DASHLET_ICON_OPTIONS;
 
 /** Field config for the three card text fields */
 const CARD_FIELDS = [

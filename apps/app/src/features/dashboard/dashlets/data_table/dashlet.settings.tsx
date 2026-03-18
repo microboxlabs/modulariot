@@ -19,8 +19,6 @@ import type {
   FilterItemConfig,
   FilterConfig,
   SortConfig,
-  PgrestParam,
-  PgrestHttpMethod,
 } from "./dashlet";
 import {
   defaultColumns,
@@ -35,11 +33,13 @@ import {
   getHandlebarsStatus,
   getFlowbiteColor,
   SuggestionInput,
-  parseRows,
-  buildPgrestFetch,
+  usePgrestSettingsState,
+  PgrestSettingsSection,
+  fromPgrestParamItems,
+  buildPgrestSettingsConfig,
+  buildPgrestContentLabels,
 } from "../common";
 import { COLUMN_TYPES } from "../common/column-types";
-import { PgrestFunctionAutocomplete } from "../common";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 

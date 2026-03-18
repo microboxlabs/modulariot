@@ -138,7 +138,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // Build Handlebars context from first pgrest row; resolveHandlebarsField
   // is a no-op passthrough when the template contains no {{}} expressions
-  const context = rows.length > 0 ? { row: rows[0], ...rows[0] } : {};
+  const context = rows.length > 0 ? { ...rows[0], row: rows[0] } : {};
   const name = resolveHandlebarsField(config.name || "Metric", context);
   const value = resolveHandlebarsField(config.value || "0", context);
   const descriptor = resolveHandlebarsField(config.descriptor || "", context);
@@ -158,13 +158,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </p>
       </div>
       <div className="flex flex-1 flex-col items-start justify-center overflow-hidden [container-type:size]">
-        {loading ? (
+        {loading && (
           <div className="flex h-full w-full items-center justify-center">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
           </div>
-        ) : fetchError ? (
+        )}
+        {!loading && fetchError && (
           <p className="text-sm text-red-500 dark:text-red-400">{fetchError}</p>
-        ) : (
+        )}
+        {!loading && !fetchError && (
           <>
             <p className="w-full truncate text-[min(70cqh,18cqw)] font-bold leading-none text-gray-900 dark:text-white">
               {value}

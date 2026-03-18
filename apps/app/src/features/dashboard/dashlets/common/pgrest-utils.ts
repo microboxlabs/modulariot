@@ -4,7 +4,7 @@ import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 function normalizeRow(row: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(row)) {
-    out[k] = v == null ? "" : String(v);
+    out[k] = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
   }
   return out;
 }

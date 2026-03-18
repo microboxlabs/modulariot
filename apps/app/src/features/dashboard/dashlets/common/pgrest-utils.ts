@@ -1,10 +1,16 @@
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 
 /** Coerce every value in a row to a string so downstream .localeCompare() is safe. */
+function stringifyValue(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
 function normalizeRow(row: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(row)) {
-    out[k] = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+    out[k] = stringifyValue(v);
   }
   return out;
 }

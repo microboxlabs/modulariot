@@ -109,10 +109,24 @@ export function PlannedServiceChip({
     >
       <span className="truncate">{plannedService.service.id}</span>
       {driverCount === 1 && (
-        <IoPerson className="ml-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+        <IoPerson
+          className={twMerge(
+            "ml-0.5 shrink-0",
+            hasUrgencia
+              ? "text-purple-700 dark:text-purple-300"
+              : "text-blue-700 dark:text-blue-300"
+          )}
+        />
       )}
       {driverCount === 2 && (
-        <IoPeople className="ml-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+        <IoPeople
+          className={twMerge(
+            "ml-0.5 shrink-0",
+            hasUrgencia
+              ? "text-purple-700 dark:text-purple-300"
+              : "text-blue-700 dark:text-blue-300"
+          )}
+        />
       )}
     </button>
   );

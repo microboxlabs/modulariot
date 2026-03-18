@@ -38,7 +38,7 @@ export interface CardLayoutConfig {
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic";
+  dataMode: "static" | "dynamic" | "pgrest";
   columns: TableColumn[];
   rows: Record<string, string>[];
   apiUrl: string;

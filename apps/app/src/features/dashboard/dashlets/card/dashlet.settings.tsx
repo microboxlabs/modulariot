@@ -23,8 +23,8 @@ import {
   IconPickerDropdown,
   type IconOption,
 } from "@/features/common/components/icon-picker-dropdown";
+import { tr } from "@/features/i18n/tr.service";
 import {
-  SettingsTextField,
   SettingsPickerRow,
   SettingsPickerItem,
   SettingsSelectField,
@@ -33,6 +33,7 @@ import {
   PgrestSettingsSection,
   fromPgrestParamItems,
   humanizeKey,
+  buildPgrestContentLabels,
 } from "../common";
 
 type SettingsTab = "visualization" | "data";
@@ -63,14 +64,12 @@ const ICON_OPTIONS: IconOption<CardIcon>[] = [
   { value: "check", label: "Check", icon: HiCheckCircle },
 ];
 
-const PGREST_LABELS = {
-  functionName: "Function Name",
-  httpMethod: "HTTP Method",
-  parameters: "Parameters",
-  key: "Key",
-  value: "Value",
-  addParameter: "Add Parameter",
-};
+/** Field config for the three card text fields */
+const CARD_FIELDS = [
+  { id: "card-name", labelKey: "common.label", state: "name", hbPlaceholder: "{{row.metric_name}}", staticPlaceholder: "Enter label..." },
+  { id: "card-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.total}}", staticPlaceholder: "Enter value..." },
+  { id: "card-descriptor", labelKey: "dashboard.settings.descriptor", state: "descriptor", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "Enter descriptor..." },
+] as const;
 
 /**
  * Settings Modal
@@ -80,6 +79,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
   const [name, setName] = useState(config.name || "Metric");
@@ -146,6 +146,15 @@ export function DashletSettings({
 
   const isPgrest = dataMode === "pgrest";
 
+  const fieldValues: Record<string, string> = { name, value, descriptor };
+  const fieldSetters: Record<string, (v: string) => void> = {
+    name: setName,
+    value: setValue,
+    descriptor: setDescriptor,
+  };
+
+  const pgrestLabels = buildPgrestContentLabels(dictionary);
+
   const modalContent = (
     <AbsoluteModal
       selected={isOpen}
@@ -162,14 +171,14 @@ export function DashletSettings({
             onClick={() => setActiveTab("visualization")}
             className={tabClass("visualization")}
           >
-            Visualization
+            {tr("dashboard.settings.visualization", dictionary)}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("data")}
             className={tabClass("data")}
           >
-            Data Provider
+            {tr("dashboard.settings.dataProvider", dictionary)}
           </button>
         </div>
 
@@ -177,70 +186,31 @@ export function DashletSettings({
         <div className="flex-1 space-y-3 overflow-y-auto">
           {activeTab === "visualization" ? (
             <>
-              {isPgrest ? (
-                <>
-                  <HbTextField
-                    id="card-name"
-                    label="Label"
-                    value={name}
-                    onChange={setName}
-                    placeholder="{{row.metric_name}}"
-                  />
-                  <HbTextField
-                    id="card-value"
-                    label="Value"
-                    value={value}
-                    onChange={setValue}
-                    placeholder="{{row.total}}"
-                  />
-                  <HbTextField
-                    id="card-descriptor"
-                    label="Descriptor"
-                    value={descriptor}
-                    onChange={setDescriptor}
-                    placeholder="{{row.unit}}"
-                  />
-                </>
-              ) : (
-                <>
-                  <SettingsTextField
-                    id="card-name"
-                    label="Label"
-                    value={name}
-                    onChange={setName}
-                    placeholder="Enter label..."
-                  />
-                  <SettingsTextField
-                    id="card-value"
-                    label="Value"
-                    value={value}
-                    onChange={setValue}
-                    placeholder="Enter value..."
-                  />
-                  <SettingsTextField
-                    id="card-descriptor"
-                    label="Descriptor"
-                    value={descriptor}
-                    onChange={setDescriptor}
-                    placeholder="Enter descriptor..."
-                  />
-                </>
-              )}
+              {CARD_FIELDS.map((f) => (
+                <HbTextField
+                  key={f.id}
+                  id={f.id}
+                  label={tr(f.labelKey, dictionary)}
+                  value={fieldValues[f.state]}
+                  onChange={fieldSetters[f.state]}
+                  placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
+                />
+              ))}
               <SettingsPickerRow>
-                <SettingsPickerItem label="Icon">
+                <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
                   <IconPickerDropdown
                     options={ICON_OPTIONS}
                     value={icon}
                     onChange={setIcon}
-                    title="Select icon"
+                    title={tr("dashboard.settings.icon", dictionary)}
                   />
                 </SettingsPickerItem>
-                <SettingsPickerItem label="Color">
+                <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>
                   <ColorPickerDropdown
                     options={BG_COLOR_OPTIONS}
                     value={backgroundColor}
                     onChange={setBackgroundColor}
-                    title="Select color"
+                    title={tr("dashboard.settings.color", dictionary)}
                   />
                 </SettingsPickerItem>
               </SettingsPickerRow>
@@ -249,16 +219,16 @@ export function DashletSettings({
             <>
               <SettingsSelectField
                 id="card-data-mode"
-                label="Data Source"
+                label={tr("dashboard.settings.dataSource", dictionary)}
                 value={dataMode}
                 onChange={(v) => setDataMode(v as CardDataMode)}
                 options={[
-                  { value: "static", label: "Static" },
+                  { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
                   { value: "pgrest", label: "PGREST" },
                 ]}
               />
               {isPgrest && (
-                <PgrestSettingsSection pgrest={pg} labels={PGREST_LABELS} />
+                <PgrestSettingsSection pgrest={pg} labels={pgrestLabels} />
               )}
             </>
           )}
@@ -266,7 +236,7 @@ export function DashletSettings({
 
         {/* Save Button */}
         <Button onClick={handleSave} size="sm" className="w-full">
-          Save
+          {tr("common.save", dictionary)}
         </Button>
       </div>
     </AbsoluteModal>

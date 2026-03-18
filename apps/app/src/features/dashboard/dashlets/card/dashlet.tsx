@@ -9,6 +9,8 @@ import {
   HiCheckCircle,
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestRows, resolveHandlebarsField } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -37,16 +39,26 @@ export type CardIcon =
 export interface DashletConfig {
   name: string;
   value: string;
+  descriptor: string;
   backgroundColor: CardBackgroundColor;
   icon: CardIcon;
+  dataMode: "static" | "pgrest";
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
 }
 
 /** Default configuration */
 export const defaultConfig: DashletConfig = {
   name: "Metric",
   value: "0",
+  descriptor: "",
   backgroundColor: "white",
   icon: "chart",
+  dataMode: "static",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
 };
 
 // ============================================================================
@@ -108,10 +120,33 @@ const ICONS: Record<CardIcon, React.ComponentType<{ className?: string }>> = {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const name = config.name || "Metric";
-  const value = config.value || "0";
   const bgColor = config.backgroundColor || "white";
   const iconType = config.icon || "chart";
+  const dataMode = config.dataMode || "static";
+
+  const { rows, loading, fetchError } = usePgrestRows(
+    dataMode,
+    config.pgrestFunctionName || "",
+    config.pgrestHttpMethod || "POST",
+    config.pgrestParams || [],
+  );
+
+  // Build Handlebars context from first pgrest row
+  const context = dataMode === "pgrest" && rows.length > 0
+    ? { row: rows[0], ...rows[0] }
+    : {};
+
+  const name = dataMode === "pgrest" && rows.length > 0
+    ? resolveHandlebarsField(config.name || "Metric", context)
+    : (config.name || "Metric");
+
+  const value = dataMode === "pgrest" && rows.length > 0
+    ? resolveHandlebarsField(config.value || "0", context)
+    : (config.value || "0");
+
+  const descriptor = dataMode === "pgrest" && rows.length > 0
+    ? resolveHandlebarsField(config.descriptor || "", context)
+    : (config.descriptor || "");
 
   const Icon = ICONS[iconType];
   const bgClass = BG_COLORS[bgColor];
@@ -121,17 +156,31 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     <div
       className={`flex h-full flex-col rounded-lg border border-gray-200 p-2 [container-type:size] dark:border-gray-700 ${bgClass}`}
     >
-      <div className="flex w-full flex-row gap-2">
-        <Icon className={`h-5 w-5 ${iconClass}`} />
-        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
+      <div className="flex w-full flex-row items-center gap-2 overflow-hidden">
+        <Icon className={`h-5 w-5 shrink-0 ${iconClass}`} />
+        <p className="truncate text-[min(1.125rem,5cqw)] font-medium leading-tight text-gray-700 dark:text-gray-200">
           {name}
         </p>
       </div>
-      <div className="flex flex-col flex-1 items-start overflow-hidden [container-type:size]">
-        <p className="text-[70cqh] font-bold leading-none text-gray-900 dark:text-white h-full">
-          {value}
-        </p>
-        <p className="text-gray-300 text-sm">12.7Km recorridos</p>
+      <div className="flex flex-1 flex-col items-start justify-center overflow-hidden [container-type:size]">
+        {loading ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
+          </div>
+        ) : fetchError ? (
+          <p className="text-sm text-red-500 dark:text-red-400">{fetchError}</p>
+        ) : (
+          <>
+            <p className="w-full truncate text-[min(70cqh,18cqw)] font-bold leading-none text-gray-900 dark:text-white">
+              {value}
+            </p>
+            {descriptor && (
+              <p className="w-full truncate text-[min(0.875rem,4cqw)] text-gray-400 dark:text-gray-300">
+                {descriptor}
+              </p>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

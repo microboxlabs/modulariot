@@ -655,13 +655,13 @@ export function BaseSearchDropdown<
   const selectedItem = items.find((item) => item.id === selectedId);
 
   const toggleDropdown = useCallback(() => {
-    if (!disabled) {
-      setIsOpen((prev) => !prev);
-      if (!isOpen) {
-        setQuery("");
-        setHighlightedIndex(0);
-      }
-    }
+    if (disabled) return;
+
+    setIsOpen((prev) => !prev);
+    if (isOpen) return;
+
+    setQuery("");
+    setHighlightedIndex(0);
   }, [disabled, isOpen]);
 
   const showMinCharsHint = query.length === 1 && !activeFilter;

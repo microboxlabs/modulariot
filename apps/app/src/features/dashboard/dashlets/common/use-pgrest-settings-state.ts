@@ -67,7 +67,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
       const { url, init } = buildPgrestFetch(
         fnOverride ?? pgrestFunctionName,
         methodOverride ?? pgrestHttpMethod,
-        paramsOverride ?? pgrestParams,
+        paramsOverride ?? fromPgrestParamItems(pgrestParams),
       );
 
       const res = await fetch(url, init);

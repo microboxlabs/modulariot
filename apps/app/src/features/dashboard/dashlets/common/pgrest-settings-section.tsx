@@ -2,6 +2,7 @@
 
 import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
@@ -10,6 +11,7 @@ const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
 interface PgrestSettingsSectionProps {
   pgrest: ReturnType<typeof usePgrestSettingsState>;
+  dictionary: I18nRecord;
   labels: {
     functionName: string;
     httpMethod: string;
@@ -17,14 +19,12 @@ interface PgrestSettingsSectionProps {
     key: string;
     value: string;
     addParameter: string;
-    removeParameter: string;
-    loadError: string;
-    retry: string;
   };
 }
 
 export function PgrestSettingsSection({
   pgrest: pg,
+  dictionary,
   labels,
 }: Readonly<PgrestSettingsSectionProps>) {
   return (
@@ -41,8 +41,8 @@ export function PgrestSettingsSection({
           value={pg.pgrestFunctionName}
           onChange={pg.setPgrestFunctionName}
           onSelect={pg.handleFunctionSelect}
+          dictionary={dictionary}
           loading={pg.introspecting || pg.detecting}
-          labels={{ loadError: labels.loadError, retry: labels.retry }}
         />
         {(pg.introspectError || pg.detectError) && (
           <p className="mt-1 text-xs text-red-500 dark:text-red-400">
@@ -91,7 +91,6 @@ export function PgrestSettingsSection({
               </div>
               <button
                 type="button"
-                aria-label={labels.removeParameter}
                 onClick={() => pg.removePgrestParam(p._id)}
                 onMouseDown={stopPropagation}
                 className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"

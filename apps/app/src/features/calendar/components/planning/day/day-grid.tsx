@@ -63,6 +63,7 @@ interface DayGridSlotCellProps {
   } | null;
   onCellClick: (slot: { hour: number; minutes: number }) => void;
   onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  dict: I18nDictionary;
 }
 
 function DayGridSlotCell({
@@ -76,6 +77,7 @@ function DayGridSlotCell({
   reassigningService,
   onCellClick,
   onContextMenu,
+  dict,
 }: Readonly<DayGridSlotCellProps>) {
   const {
     slotBlocked,
@@ -146,6 +148,7 @@ function DayGridSlotCell({
               }
               onContextMenu={onContextMenu}
               className="flex-1"
+              dict={dict}
             />
           ))}
         </div>
@@ -320,6 +323,7 @@ export default function DayGrid({
                 reassigningService={reassigningService}
                 onCellClick={handleCellClick}
                 onContextMenu={handleContextMenu}
+                dict={dict}
               />
             </Fragment>
           );

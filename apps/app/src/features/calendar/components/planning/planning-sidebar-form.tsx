@@ -28,8 +28,7 @@ import {
   AssignmentForm,
   type AssignmentFormData,
 } from "./sidebar-tabs";
-
-const ASIGNATION_FLAG = process.env.NEXT_PUBLIC_ASIGNATION_FLAG === "true";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -87,7 +86,12 @@ export function PlanningSidebarForm({
     assigningService,
     cancelAssignment,
     getOccupiedAndenes,
+    updateServiceDrivers,
   } = usePlanningSelection();
+
+  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
+  // Avoid hiding the tab while permissions are loading (transient false negative)
+  const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
 
   // Tab locking logic:
   // - When assigningService is set, lock "Planificación" tab and show "Asignación"
@@ -194,12 +198,21 @@ export function PlanningSidebarForm({
     }
 
     const wasReassigning = reassigningService !== null;
-    // Pass the final slot directly to confirmService, along with service category override
-    const serviceOverrides = selectedServiceCategory
-      ? { serviceCategory: selectedServiceCategory }
-      : undefined;
+    // Pass the final slot directly to confirmService, along with service category and driver overrides
+    const serviceOverrides: Partial<SelectedService> = {};
+    if (selectedServiceCategory) {
+      serviceOverrides.serviceCategory = selectedServiceCategory;
+    }
+    if (assignmentData.conductor) {
+      serviceOverrides.assignedDriver = assignmentData.conductor;
+    }
+    if (assignmentData.hasSegundoConductor && assignmentData.segundoConductor) {
+      serviceOverrides.assignedDriver2 = assignmentData.segundoConductor;
+    }
+    const finalOverrides: Partial<SelectedService> | undefined =
+      Object.keys(serviceOverrides).length > 0 ? serviceOverrides : undefined;
     try {
-      const result = await confirmService(finalSlot, serviceOverrides);
+      const result = await confirmService(finalSlot, finalOverrides);
       if (wasReassigning || result) {
         ShowNotification({
           type: "success",
@@ -225,29 +238,31 @@ export function PlanningSidebarForm({
    * Handle assignment-only action (Asignar button in Asignación tab)
    * This persists assignmentData without affecting planning state
    */
-  const handleAssign = async () => {
-    // For now, show success and clear assignment mode
-    try {
-      // Placeholder: log assignment data until API is wired
-      console.log("Assignment data:", assignmentData);
-
-      ShowNotification({
-        type: "success",
-        message: tr(
-          "pages.planning.sidebar.notifications.assignmentCompleted",
-          dict
-        ),
-      });
-
-      // Clear assignment mode
-      cancelAssignment();
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : tr("pages.planning.sidebar.notifications.assignmentError", dict);
-      ShowNotification({ type: "error", message });
+  const handleAssign = () => {
+    if (!assigningService) {
+      return;
     }
+
+    const serviceId = assigningService.service.service.id;
+    const driver1 = assignmentData.conductor || undefined;
+    const driver2 =
+      assignmentData.hasSegundoConductor && assignmentData.segundoConductor
+        ? assignmentData.segundoConductor
+        : undefined;
+
+    // Client-side only update - no backend calls
+    updateServiceDrivers(serviceId, driver1, driver2);
+
+    ShowNotification({
+      type: "success",
+      message: tr(
+        "pages.planning.sidebar.notifications.assignmentCompleted",
+        dict
+      ),
+    });
+
+    // Clear assignment mode
+    cancelAssignment();
   };
 
   // Check if the selected time has available andenes
@@ -530,7 +545,6 @@ export function PlanningSidebarForm({
       >
         <TabItem
           active={!isPlanificacionLocked}
-          disabled={isPlanificacionLocked}
           title={tr("pages.planning.sidebar.form.planningTab", dict)}
         >
           {!isSlotsLoading && timeOptions.length > 0 && (
@@ -558,7 +572,7 @@ export function PlanningSidebarForm({
             </Button>
           </div>
         </TabItem>
-        {ASIGNATION_FLAG && (
+        {canAssign && (
           <TabItem
             active={isPlanificacionLocked}
             disabled={!isPlanificacionLocked}

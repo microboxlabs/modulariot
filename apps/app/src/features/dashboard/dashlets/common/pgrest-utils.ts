@@ -1,4 +1,4 @@
-import type { PgrestParam, PgrestHttpMethod } from "./dashlet";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 
 /** Parse a dynamic API / PGREST response into a row array. */
 export function parseRows(data: unknown): Record<string, string>[] {

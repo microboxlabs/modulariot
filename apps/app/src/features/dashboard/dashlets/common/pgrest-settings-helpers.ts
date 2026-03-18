@@ -47,5 +47,7 @@ export function buildPgrestContentLabels(dictionary: I18nRecord) {
     key: tr("dashboard.settings.key", dictionary),
     value: tr("common.value", dictionary),
     addParameter: tr("dashboard.settings.addParameter", dictionary),
+    loadError: tr("dashboard.settings.loadError", dictionary),
+    retry: tr("common.retry", dictionary),
   };
 }

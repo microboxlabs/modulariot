@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { parseRows } from "./pgrest-utils";
 
 export function useDynamicRows(
   dataMode: string,
@@ -31,20 +32,7 @@ export function useDynamicRows(
         return res.json();
       })
       .then((data: unknown) => {
-        if (cancelled) return;
-        let parsed: Record<string, string>[];
-        if (Array.isArray(data)) {
-          parsed = data as Record<string, string>[];
-        } else if (data && typeof data === "object") {
-          const obj = data as Record<string, unknown>;
-          const candidate = obj.rows ?? obj.data ?? obj.results;
-          parsed = Array.isArray(candidate)
-            ? (candidate as Record<string, string>[])
-            : [];
-        } else {
-          parsed = [];
-        }
-        setRows(parsed);
+        if (!cancelled) setRows(parseRows(data));
       })
       .catch((err: unknown) => {
         if (cancelled) return;

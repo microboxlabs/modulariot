@@ -284,7 +284,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
 
-  // TODO: wire usePgrestRows for "pgrest" mode (see data_table for reference)
   const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────

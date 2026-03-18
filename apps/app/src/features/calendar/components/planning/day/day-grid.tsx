@@ -15,6 +15,7 @@ import { ServiceContextMenu } from "../service-context-menu";
 import {
   DeleteConfirmationModal,
   getDeleteModalMessages,
+  getDeleteAssignmentMessages,
 } from "../delete-confirmation-modal";
 import { ReassignmentConnector } from "../reassignment-connector";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
@@ -180,12 +181,22 @@ export default function DayGrid({
     startReassignment,
     startAssignment,
     reassigningService,
+    updateServiceDrivers,
   } = usePlanningSelection();
+
+  // Create removeAssignment wrapper that clears driver assignments
+  const removeAssignment = useCallback(
+    async (serviceId: string) => {
+      updateServiceDrivers(serviceId, undefined, undefined);
+    },
+    [updateServiceDrivers]
+  );
 
   // Use shared hook for context menu and delete modal
   const {
     contextMenu,
     deleteModal,
+    deleteAssignmentModal,
     handleContextMenu,
     handleCloseContextMenu,
     handleReassign,
@@ -193,7 +204,15 @@ export default function DayGrid({
     handleDeleteRequest,
     handleConfirmDelete,
     handleCancelDelete,
-  } = useServiceActions({ removeService, startReassignment, startAssignment });
+    handleDeleteAssignmentRequest,
+    handleConfirmDeleteAssignment,
+    handleCancelDeleteAssignment,
+  } = useServiceActions({
+    removeService,
+    removeAssignment,
+    startReassignment,
+    startAssignment,
+  });
 
   const timeSlots = useMemo(
     () => generateTimeSlots(startHour, endHour),
@@ -338,6 +357,7 @@ export default function DayGrid({
         onReassign={handleReassign}
         onAssign={handleAssign}
         onDelete={handleDeleteRequest}
+        onDeleteAssignment={handleDeleteAssignmentRequest}
         onClose={handleCloseContextMenu}
         dict={dict}
       />
@@ -353,6 +373,20 @@ export default function DayGrid({
           )}
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
+        />
+      )}
+
+      {/* Delete Assignment Confirmation Modal */}
+      {deleteAssignmentModal.plannedService && (
+        <DeleteConfirmationModal
+          isOpen={deleteAssignmentModal.isOpen}
+          plannedService={deleteAssignmentModal.plannedService}
+          messages={getDeleteAssignmentMessages(
+            dict,
+            deleteAssignmentModal.plannedService.service.id
+          )}
+          onConfirm={handleConfirmDeleteAssignment}
+          onCancel={handleCancelDeleteAssignment}
         />
       )}
 

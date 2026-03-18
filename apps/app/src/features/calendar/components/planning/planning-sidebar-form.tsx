@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Badge, Button, TabItem, Tabs } from "flowbite-react";
+import { Badge, Button } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -17,7 +17,7 @@ import {
   type SelectedSlot,
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
-import { HiExclamation } from "react-icons/hi";
+import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
@@ -29,6 +29,10 @@ import {
   type AssignmentFormData,
 } from "./sidebar-tabs";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import {
+  TabButtons,
+  type TabItem,
+} from "@/features/common/components/tab-buttons";
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -97,6 +101,19 @@ export function PlanningSidebarForm({
   // - When assigningService is set, lock "Planificación" tab and show "Asignación"
   // - Otherwise, both tabs are accessible
   const isPlanificacionLocked = !!assigningService;
+
+  // Tab state management
+  type TabType = "planificacion" | "asignacion";
+  const [activeTab, setActiveTab] = useState<TabType>(
+    isPlanificacionLocked ? "asignacion" : "planificacion"
+  );
+
+  // Auto-switch to asignacion tab when locked
+  useEffect(() => {
+    if (isPlanificacionLocked) {
+      setActiveTab("asignacion");
+    }
+  }, [isPlanificacionLocked]);
 
   // Build time options from backend slots, filtered to the visible cell range [slotStartTime, slotEndTime)
   const timeOptions = useMemo(() => {
@@ -530,61 +547,74 @@ export function PlanningSidebarForm({
             </p>
           </FormSection>
         )}
-      <Tabs
-        key={isPlanificacionLocked ? "asignacion" : "planificacion"}
-        aria-label="Default tabs"
-        variant="default"
-        theme={{
-          tablist: {
-            tabitem: {
-              base: "flex items-center justify-center rounded-t-lg px-2 py-1.5 text-sm font-medium first:ml-0 focus:outline-none disabled:cursor-not-allowed disabled:text-gray-400 disabled:dark:text-gray-500",
-            },
-          },
-          tabpanel: "py-0",
-        }}
-      >
-        <TabItem
-          active={!isPlanificacionLocked}
-          title={tr("pages.planning.sidebar.form.planningTab", dict)}
-        >
-          {!isSlotsLoading && timeOptions.length > 0 && (
-            <TimeSlotAssignment
-              dict={dict}
-              timeOptions={timeOptions}
-              selectedTime={selectedTime}
-              onTimeChange={setSelectedTime}
-              serviceCategoryOptions={serviceCategoryOptions}
-              selectedServiceCategory={selectedServiceCategory}
-              onServiceCategoryChange={setSelectedServiceCategory}
-              isLoadingServiceTypes={isLoadingServiceTypes}
-            />
-          )}
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="submit"
-              color="blue"
-              className="flex-1"
-              disabled={!canConfirm}
-            >
-              {reassigningService
-                ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
-                : tr("pages.planning.sidebar.form.confirm", dict)}
-            </Button>
-          </div>
-        </TabItem>
-        {canAssign && (
-          <TabItem
-            active={isPlanificacionLocked}
-            disabled={!isPlanificacionLocked}
-            title={tr("pages.planning.sidebar.form.assignmentTab", dict)}
-          >
+      {/* Custom Tabs */}
+      <div className="flex flex-col gap-3">
+        <TabButtons
+          pill
+          tabs={
+            [
+              {
+                id: "planificacion",
+                label: tr("pages.planning.sidebar.form.planningTab", dict),
+                icon: <HiCalendar />,
+              },
+              ...(canAssign
+                ? [
+                    {
+                      id: "asignacion",
+                      label: tr(
+                        "pages.planning.sidebar.form.assignmentTab",
+                        dict
+                      ),
+                      icon: <HiUserAdd />,
+                      disabled: !isPlanificacionLocked,
+                    },
+                  ]
+                : []),
+            ] as TabItem<TabType>[]
+          }
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+
+        {/* Tab Content */}
+        {activeTab === "planificacion" && (
+          <>
+            {!isSlotsLoading && timeOptions.length > 0 && (
+              <TimeSlotAssignment
+                dict={dict}
+                timeOptions={timeOptions}
+                selectedTime={selectedTime}
+                onTimeChange={setSelectedTime}
+                serviceCategoryOptions={serviceCategoryOptions}
+                selectedServiceCategory={selectedServiceCategory}
+                onServiceCategoryChange={setSelectedServiceCategory}
+                isLoadingServiceTypes={isLoadingServiceTypes}
+              />
+            )}
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="submit"
+                color="blue"
+                className="flex-1"
+                disabled={!canConfirm}
+              >
+                {reassigningService
+                  ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
+                  : tr("pages.planning.sidebar.form.confirm", dict)}
+              </Button>
+            </div>
+          </>
+        )}
+        {activeTab === "asignacion" && canAssign && (
+          <>
             <AssignmentForm
               value={assignmentData}
               onChange={setAssignmentData}
               dict={dict}
             />
             {isPlanificacionLocked && (
-              <div className="flex gap-2 pt-4">
+              <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
                   color="blue"
@@ -595,9 +625,9 @@ export function PlanningSidebarForm({
                 </Button>
               </div>
             )}
-          </TabItem>
+          </>
         )}
-      </Tabs>
+      </div>
 
       {/* Actions */}
     </form>

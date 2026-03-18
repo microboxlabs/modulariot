@@ -76,7 +76,7 @@ export function TimeSlotAssignment({
   };
 
   return (
-    <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg flex flex-col gap-4">
+    <div className="rounded-lg flex flex-col gap-4">
       {/* Service Category Dropdown */}
       <div ref={tripTypeDropdownRef} className="relative">
         <Label

@@ -22,6 +22,7 @@ interface ServiceContextMenuProps {
   onReassign: (plannedService: PlannedService) => void;
   onAssign: (plannedService: PlannedService) => void;
   onDelete: (plannedService: PlannedService) => void;
+  onDeleteAssignment: (plannedService: PlannedService) => void;
   onClose: () => void;
   dict: I18nRecord;
 }
@@ -64,23 +65,24 @@ export function ServiceContextMenu({
   onReassign,
   onAssign,
   onDelete,
+  onDeleteAssignment,
   onClose,
   dict,
 }: Readonly<ServiceContextMenuProps>) {
   const menuRef = useRef<HTMLDivElement>(null);
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
 
-  // Check if user has assignment permission to show assignment button
+  // Check if user has assignment permission to show assignment buttons
   // Avoid hiding the button while permissions are loading (transient false negative)
   const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
 
   // Estimated menu dimensions for initial position calculation
-  // Height varies based on number of buttons (2 without assignment, 3 with it)
+  // Height varies based on number of buttons (2 base + 2 with assignment)
   const MENU_WIDTH = 180;
   const MENU_HEADER_HEIGHT = 32;
   const MENU_BUTTON_HEIGHT = 38;
   const MENU_PADDING = 8;
-  const buttonCount = canAssign ? 3 : 2;
+  const buttonCount = canAssign ? 4 : 2;
   const MENU_HEIGHT =
     MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
@@ -136,6 +138,11 @@ export function ServiceContextMenu({
     onClose();
   };
 
+  const handleDeleteAssignment = () => {
+    onDeleteAssignment(plannedService);
+    onClose();
+  };
+
   const handleDelete = () => {
     onDelete(plannedService);
     onClose();
@@ -169,15 +176,6 @@ export function ServiceContextMenu({
 
       {/* Menu items */}
       <div className="py-1">
-        <Button
-          color={"alternative"}
-          type="button"
-          onClick={handleReassign}
-          className="border-0 rounded-none w-full justify-start gap-2"
-        >
-          <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span>{tr("pages.planning.sidebar.contextMenu.replan", dict)}</span>
-        </Button>
         {canAssign && (
           <Button
             color={"alternative"}
@@ -189,6 +187,31 @@ export function ServiceContextMenu({
             <span>{tr("pages.planning.sidebar.contextMenu.assign", dict)}</span>
           </Button>
         )}
+
+        {canAssign && (
+          <Button
+            color={"alternative"}
+            type="button"
+            onClick={handleDeleteAssignment}
+            className="border-0 rounded-none w-full justify-start gap-2"
+          >
+            <HiTrash className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span>
+              {tr("pages.planning.sidebar.contextMenu.deleteAssignment", dict)}
+            </span>
+          </Button>
+        )}
+
+        <Button
+          color={"alternative"}
+          type="button"
+          onClick={handleReassign}
+          className="border-0 rounded-none w-full justify-start gap-2"
+        >
+          <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <span>{tr("pages.planning.sidebar.contextMenu.replan", dict)}</span>
+        </Button>
+
         <Button
           color={"alternative"}
           type="button"

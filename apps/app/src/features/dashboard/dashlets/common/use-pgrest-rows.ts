@@ -43,8 +43,10 @@ export function usePgrestRows(
         if (!cancelled) setRows(parseRows(data));
       })
       .catch((err: unknown) => {
-        if (!cancelled)
+        if (!cancelled) {
+          setRows([]);
           setFetchError(err instanceof Error ? err.message : "Failed to fetch");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

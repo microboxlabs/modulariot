@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useMemo, type ComponentType } from "react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -10,6 +10,8 @@ import {
   HiCheckCircle,
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestRows, resolveHandlebarsField } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -41,6 +43,10 @@ export interface DashletConfig {
   value: string;
   color: ColorTheme;
   icon: IconType;
+  dataMode: "static" | "pgrest";
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
 }
 
 /** Default configuration */
@@ -49,6 +55,10 @@ export const defaultConfig: DashletConfig = {
   value: "0",
   color: "gray",
   icon: "chart",
+  dataMode: "static",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
 };
 
 // ============================================================================
@@ -157,10 +167,26 @@ const ICONS: Record<IconType, ComponentType<{ className?: string }>> = {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const name = config.name || "Metric";
-  const value = config.value || "0";
   const colorTheme = config.color || "gray";
   const iconType = config.icon || "chart";
+  const dataMode = config.dataMode || "static";
+
+  // Stabilize params reference to avoid retriggering the fetch effect
+  const pgrestParams = config.pgrestParams;
+  const stableParams = useMemo(() => pgrestParams || [], [pgrestParams]);
+
+  const { rows, loading, fetchError } = usePgrestRows(
+    dataMode,
+    config.pgrestFunctionName || "",
+    config.pgrestHttpMethod || "POST",
+    stableParams,
+  );
+
+  // Build Handlebars context from first pgrest row; resolveHandlebarsField
+  // is a no-op passthrough when the template contains no {{}} expressions
+  const context = rows.length > 0 ? { ...rows[0], row: rows[0] } : {};
+  const name = resolveHandlebarsField(config.name || "Metric", context);
+  const value = resolveHandlebarsField(config.value || "0", context);
 
   const Icon = ICONS[iconType];
   const theme = COLOR_THEMES[colorTheme];
@@ -177,7 +203,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </div>
         <p className={`text-md font-medium ${theme.text}`}>{name}</p>
       </div>
-      <div className={`text-lg font-semibold ${theme.text}`}>{value}</div>
+      {loading && (
+        <div className="flex items-center justify-center">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
+        </div>
+      )}
+      {!loading && fetchError && (
+        <p className="text-sm text-red-500 dark:text-red-400">{fetchError}</p>
+      )}
+      {!loading && !fetchError && (
+        <div className={`text-lg font-semibold ${theme.text}`}>{value}</div>
+      )}
     </div>
   );
 }

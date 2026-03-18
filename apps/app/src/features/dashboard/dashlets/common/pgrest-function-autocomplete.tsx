@@ -14,13 +14,11 @@ interface PgrestFunctionAutocompleteProps {
   placeholder?: string;
   id?: string;
   loading?: boolean;
-  labels?: {
+  labels: {
     loadError: string;
     retry: string;
   };
 }
-
-const DEFAULT_LABELS = { loadError: "Failed to load functions", retry: "Retry" };
 
 export function PgrestFunctionAutocomplete({
   value,
@@ -29,7 +27,7 @@ export function PgrestFunctionAutocomplete({
   placeholder = "api_modular_my_function",
   id,
   loading = false,
-  labels = DEFAULT_LABELS,
+  labels,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);

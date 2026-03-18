@@ -16,13 +16,11 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   SettingsPickerRow,
   SettingsPickerItem,
-  SettingsSelectField,
   HbTextField,
   usePgrestSettingsState,
-  PgrestSettingsSection,
+  PgrestDataTab,
   fromPgrestParamItems,
   humanizeKey,
-  buildPgrestContentLabels,
 } from "../common";
 import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 
@@ -135,8 +133,6 @@ export function DashletSettings({
     descriptor: setDescriptor,
   };
 
-  const pgrestLabels = buildPgrestContentLabels(dictionary);
-
   const modalContent = (
     <AbsoluteModal
       selected={isOpen}
@@ -198,21 +194,13 @@ export function DashletSettings({
               </SettingsPickerRow>
             </>
           ) : (
-            <>
-              <SettingsSelectField
-                id="card-data-mode"
-                label={tr("dashboard.settings.dataSource", dictionary)}
-                value={dataMode}
-                onChange={(v) => setDataMode(v as CardDataMode)}
-                options={[
-                  { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
-                  { value: "pgrest", label: "PGREST" },
-                ]}
-              />
-              {isPgrest && (
-                <PgrestSettingsSection pgrest={pg} labels={pgrestLabels} />
-              )}
-            </>
+            <PgrestDataTab
+              id="card-data-mode"
+              dataMode={dataMode}
+              onDataModeChange={(v) => setDataMode(v as CardDataMode)}
+              pgrest={pg}
+              dictionary={dictionary}
+            />
           )}
         </div>
 

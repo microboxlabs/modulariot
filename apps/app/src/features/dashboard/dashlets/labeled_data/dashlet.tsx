@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ComponentType } from "react";
+import type { ComponentType } from "react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -11,7 +11,7 @@ import {
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestRows, resolveHandlebarsField } from "../common";
+import { usePgrestResolvedFields } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -169,24 +169,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const colorTheme = config.color || "gray";
   const iconType = config.icon || "chart";
-  const dataMode = config.dataMode || "static";
 
-  // Stabilize params reference to avoid retriggering the fetch effect
-  const pgrestParams = config.pgrestParams;
-  const stableParams = useMemo(() => pgrestParams || [], [pgrestParams]);
-
-  const { rows, loading, fetchError } = usePgrestRows(
-    dataMode,
-    config.pgrestFunctionName || "",
-    config.pgrestHttpMethod || "POST",
-    stableParams,
-  );
-
-  // Build Handlebars context from first pgrest row; resolveHandlebarsField
-  // is a no-op passthrough when the template contains no {{}} expressions
-  const context = rows.length > 0 ? { ...rows[0], row: rows[0] } : {};
-  const name = resolveHandlebarsField(config.name || "Metric", context);
-  const value = resolveHandlebarsField(config.value || "0", context);
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: config.dataMode || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || [],
+    fields: {
+      name: config.name || "Metric",
+      value: config.value || "0",
+    },
+  });
 
   const Icon = ICONS[iconType];
   const theme = COLOR_THEMES[colorTheme];
@@ -201,7 +194,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         >
           <Icon className={`h-6 w-6 ${theme.icon}`} />
         </div>
-        <p className={`text-md font-medium ${theme.text}`}>{name}</p>
+        <p className={`text-md font-medium ${theme.text}`}>{resolved.name}</p>
       </div>
       {loading && (
         <div className="flex items-center justify-center">
@@ -212,7 +205,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <p className="text-sm text-red-500 dark:text-red-400">{fetchError}</p>
       )}
       {!loading && !fetchError && (
-        <div className={`text-lg font-semibold ${theme.text}`}>{value}</div>
+        <div className={`text-lg font-semibold ${theme.text}`}>
+          {resolved.value}
+        </div>
       )}
     </div>
   );

@@ -166,6 +166,144 @@ function filterItemsByField<
 }
 
 // ============================================================================
+// Keyboard Handler Helpers
+// ============================================================================
+
+interface KeyboardHandlerContext<TOption extends BaseOption> {
+  setIsOpen: (open: boolean) => void;
+  setQuery: (query: string) => void;
+  setActiveFilter: (filter: null) => void;
+  setHighlightedIndex: (fn: (prev: number) => number) => void;
+  isKeyboardNavigation: React.MutableRefObject<boolean>;
+  handleClearFilter: () => void;
+  handleSelect: (id: string) => void;
+  canSelect?: (option: TOption) => boolean;
+}
+
+function handleGroupedModeKeyDown<TMatchType extends string>(
+  e: KeyboardEvent<HTMLInputElement>,
+  groupedResults: GroupedSearchResult<TMatchType>[],
+  highlightedIndex: number,
+  handleMatchTypeSelect: (result: GroupedSearchResult<TMatchType>) => void,
+  context: Pick<
+    KeyboardHandlerContext<BaseOption>,
+    "setIsOpen" | "setQuery" | "setActiveFilter" | "setHighlightedIndex"
+  >
+): void {
+  const { setIsOpen, setQuery, setActiveFilter, setHighlightedIndex } = context;
+
+  if (groupedResults.length === 0) {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+      setQuery("");
+      setActiveFilter(null);
+    }
+    return;
+  }
+
+  switch (e.key) {
+    case "ArrowDown":
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev < groupedResults.length - 1 ? prev + 1 : prev
+      );
+      break;
+    case "ArrowUp":
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      break;
+    case "Enter":
+      e.preventDefault();
+      if (groupedResults[highlightedIndex]) {
+        handleMatchTypeSelect(groupedResults[highlightedIndex]);
+      }
+      break;
+    case "Escape":
+      e.preventDefault();
+      setIsOpen(false);
+      setQuery("");
+      setActiveFilter(null);
+      break;
+    case "Tab":
+      if (groupedResults[highlightedIndex]) {
+        handleMatchTypeSelect(groupedResults[highlightedIndex]);
+      }
+      break;
+  }
+}
+
+function handleListModeKeyDown<TOption extends BaseOption>(
+  e: KeyboardEvent<HTMLInputElement>,
+  filteredItems: TOption[],
+  highlightedIndex: number,
+  activeFilter: unknown,
+  context: KeyboardHandlerContext<TOption>
+): void {
+  const {
+    setIsOpen,
+    setQuery,
+    setHighlightedIndex,
+    isKeyboardNavigation,
+    handleClearFilter,
+    handleSelect,
+    canSelect,
+  } = context;
+
+  if (filteredItems.length === 0) {
+    if (e.key === "Escape") {
+      if (activeFilter) {
+        handleClearFilter();
+      } else {
+        setIsOpen(false);
+        setQuery("");
+      }
+    }
+    return;
+  }
+
+  switch (e.key) {
+    case "ArrowDown":
+      e.preventDefault();
+      isKeyboardNavigation.current = true;
+      setHighlightedIndex((prev) =>
+        prev < filteredItems.length - 1 ? prev + 1 : prev
+      );
+      break;
+    case "ArrowUp":
+      e.preventDefault();
+      isKeyboardNavigation.current = true;
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      break;
+    case "Enter":
+      e.preventDefault();
+      if (filteredItems[highlightedIndex]) {
+        const item = filteredItems[highlightedIndex];
+        if (!canSelect || canSelect(item)) {
+          handleSelect(item.id);
+        }
+      }
+      break;
+    case "Escape":
+      e.preventDefault();
+      if (activeFilter) {
+        handleClearFilter();
+      } else {
+        setIsOpen(false);
+        setQuery("");
+      }
+      break;
+    case "Tab":
+      if (filteredItems[highlightedIndex]) {
+        const item = filteredItems[highlightedIndex];
+        if (!canSelect || canSelect(item)) {
+          handleSelect(item.id);
+        }
+      }
+      break;
+  }
+}
+
+// ============================================================================
 // Grouped Results Content Component
 // ============================================================================
 
@@ -203,7 +341,7 @@ function GroupedResultsContent<TMatchType extends string>({
   }
 
   return (
-    <ul className="py-1" role="listbox">
+    <ul className="py-1">
       {searchResults.map((result, index) => {
         const fieldConfig = fields.find((f) => f.field === result.matchType);
         return (
@@ -392,100 +530,33 @@ export function BaseSearchDropdown<
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
+      const context = {
+        setIsOpen,
+        setQuery,
+        setActiveFilter,
+        setHighlightedIndex,
+        isKeyboardNavigation,
+        handleClearFilter,
+        handleSelect,
+        canSelect,
+      };
+
       if (isGroupedMode) {
-        // Keyboard navigation in grouped mode
-        if (groupedResults.length === 0) {
-          if (e.key === "Escape") {
-            setIsOpen(false);
-            setQuery("");
-            setActiveFilter(null);
-          }
-          return;
-        }
-
-        switch (e.key) {
-          case "ArrowDown":
-            e.preventDefault();
-            setHighlightedIndex((prev) =>
-              prev < groupedResults.length - 1 ? prev + 1 : prev
-            );
-            break;
-          case "ArrowUp":
-            e.preventDefault();
-            setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-            break;
-          case "Enter":
-            e.preventDefault();
-            if (groupedResults[highlightedIndex]) {
-              handleMatchTypeSelect(groupedResults[highlightedIndex]);
-            }
-            break;
-          case "Escape":
-            e.preventDefault();
-            setIsOpen(false);
-            setQuery("");
-            setActiveFilter(null);
-            break;
-          case "Tab":
-            if (groupedResults[highlightedIndex]) {
-              handleMatchTypeSelect(groupedResults[highlightedIndex]);
-            }
-            break;
-        }
+        handleGroupedModeKeyDown(
+          e,
+          groupedResults,
+          highlightedIndex,
+          handleMatchTypeSelect,
+          context
+        );
       } else {
-        // Keyboard navigation in list mode
-        if (filteredItems.length === 0) {
-          if (e.key === "Escape") {
-            if (activeFilter) {
-              handleClearFilter();
-            } else {
-              setIsOpen(false);
-              setQuery("");
-            }
-          }
-          return;
-        }
-
-        switch (e.key) {
-          case "ArrowDown":
-            e.preventDefault();
-            isKeyboardNavigation.current = true;
-            setHighlightedIndex((prev) =>
-              prev < filteredItems.length - 1 ? prev + 1 : prev
-            );
-            break;
-          case "ArrowUp":
-            e.preventDefault();
-            isKeyboardNavigation.current = true;
-            setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-            break;
-          case "Enter":
-            e.preventDefault();
-            if (filteredItems[highlightedIndex]) {
-              const item = filteredItems[highlightedIndex];
-              if (!canSelect || canSelect(item)) {
-                handleSelect(item.id);
-              }
-            }
-            break;
-          case "Escape":
-            e.preventDefault();
-            if (activeFilter) {
-              handleClearFilter();
-            } else {
-              setIsOpen(false);
-              setQuery("");
-            }
-            break;
-          case "Tab":
-            if (filteredItems[highlightedIndex]) {
-              const item = filteredItems[highlightedIndex];
-              if (!canSelect || canSelect(item)) {
-                handleSelect(item.id);
-              }
-            }
-            break;
-        }
+        handleListModeKeyDown(
+          e,
+          filteredItems,
+          highlightedIndex,
+          activeFilter,
+          context
+        );
       }
     },
     [

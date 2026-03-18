@@ -560,10 +560,7 @@ export function PlanningSidebarForm({
               },
               {
                 id: "asignacion",
-                label: tr(
-                  "pages.planning.sidebar.form.assignmentTab",
-                  dict
-                ),
+                label: tr("pages.planning.sidebar.form.assignmentTab", dict),
                 icon: <HiUserAdd />,
                 disabled: !canAssign || !isPlanificacionLocked,
               },

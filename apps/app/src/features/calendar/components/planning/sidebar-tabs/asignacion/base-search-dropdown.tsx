@@ -174,7 +174,7 @@ interface KeyboardHandlerContext<TOption extends BaseOption> {
   setQuery: (query: string) => void;
   setActiveFilter: (filter: null) => void;
   setHighlightedIndex: (fn: (prev: number) => number) => void;
-  isKeyboardNavigation: React.MutableRefObject<boolean>;
+  isKeyboardNavigation: React.RefObject<boolean>;
   handleClearFilter: () => void;
   handleSelect: (id: string) => void;
   canSelect?: (option: TOption) => boolean;
@@ -232,6 +232,32 @@ function handleGroupedModeKeyDown<TMatchType extends string>(
   }
 }
 
+function trySelectHighlightedItem<TOption extends BaseOption>(
+  filteredItems: TOption[],
+  highlightedIndex: number,
+  canSelect: ((option: TOption) => boolean) | undefined,
+  handleSelect: (id: string) => void
+): void {
+  const item = filteredItems[highlightedIndex];
+  if (item && (!canSelect || canSelect(item))) {
+    handleSelect(item.id);
+  }
+}
+
+function handleEscapeKey(
+  activeFilter: unknown,
+  handleClearFilter: () => void,
+  setIsOpen: (open: boolean) => void,
+  setQuery: (query: string) => void
+): void {
+  if (activeFilter) {
+    handleClearFilter();
+  } else {
+    setIsOpen(false);
+    setQuery("");
+  }
+}
+
 function handleListModeKeyDown<TOption extends BaseOption>(
   e: KeyboardEvent<HTMLInputElement>,
   filteredItems: TOption[],
@@ -251,12 +277,7 @@ function handleListModeKeyDown<TOption extends BaseOption>(
 
   if (filteredItems.length === 0) {
     if (e.key === "Escape") {
-      if (activeFilter) {
-        handleClearFilter();
-      } else {
-        setIsOpen(false);
-        setQuery("");
-      }
+      handleEscapeKey(activeFilter, handleClearFilter, setIsOpen, setQuery);
     }
     return;
   }
@@ -276,31 +297,83 @@ function handleListModeKeyDown<TOption extends BaseOption>(
       break;
     case "Enter":
       e.preventDefault();
-      if (filteredItems[highlightedIndex]) {
-        const item = filteredItems[highlightedIndex];
-        if (!canSelect || canSelect(item)) {
-          handleSelect(item.id);
-        }
-      }
+      trySelectHighlightedItem(
+        filteredItems,
+        highlightedIndex,
+        canSelect,
+        handleSelect
+      );
       break;
     case "Escape":
       e.preventDefault();
-      if (activeFilter) {
-        handleClearFilter();
-      } else {
-        setIsOpen(false);
-        setQuery("");
-      }
+      handleEscapeKey(activeFilter, handleClearFilter, setIsOpen, setQuery);
       break;
     case "Tab":
-      if (filteredItems[highlightedIndex]) {
-        const item = filteredItems[highlightedIndex];
-        if (!canSelect || canSelect(item)) {
-          handleSelect(item.id);
-        }
-      }
+      trySelectHighlightedItem(
+        filteredItems,
+        highlightedIndex,
+        canSelect,
+        handleSelect
+      );
       break;
   }
+}
+
+// ============================================================================
+// Filtered Items List Component
+// ============================================================================
+
+interface FilteredItemsListProps<TOption extends BaseOption> {
+  readonly filteredItems: TOption[];
+  readonly selectedId: string;
+  readonly highlightedIndex: number;
+  readonly dict: I18nRecord;
+  readonly noResultsText: string;
+  readonly canSelect?: (option: TOption) => boolean;
+  readonly renderCard: (props: CardRenderProps<TOption>) => ReactNode;
+  readonly onSelect: (id: string) => void;
+  readonly onHighlight: (index: number) => void;
+}
+
+function FilteredItemsList<TOption extends BaseOption>({
+  filteredItems,
+  selectedId,
+  highlightedIndex,
+  dict,
+  noResultsText,
+  canSelect,
+  renderCard,
+  onSelect,
+  onHighlight,
+}: FilteredItemsListProps<TOption>) {
+  if (filteredItems.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        {noResultsText}
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-gray-200 dark:divide-gray-600">
+      {filteredItems.map((item, index) => (
+        <div key={item.id} data-index={index}>
+          {renderCard({
+            item,
+            isSelected: item.id === selectedId,
+            isHighlighted: index === highlightedIndex,
+            dict,
+            onClick: () => {
+              if (!canSelect || canSelect(item)) {
+                onSelect(item.id);
+              }
+            },
+            onMouseEnter: () => onHighlight(index),
+          })}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ============================================================================
@@ -662,6 +735,7 @@ export function BaseSearchDropdown<
       {/* Content: Grouped Results or Item List */}
       <div
         ref={listRef}
+        role="presentation"
         className="max-h-75 overflow-y-auto"
         onMouseLeave={() => setHighlightedIndex(-1)}
       >
@@ -677,32 +751,17 @@ export function BaseSearchDropdown<
             onMouseEnter={setHighlightedIndex}
           />
         ) : (
-          <>
-            {filteredItems.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                {tr(translations.noResults, dict)}
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200 dark:divide-gray-600">
-                {filteredItems.map((item, index) => (
-                  <div key={item.id} data-index={index}>
-                    {renderCard({
-                      item,
-                      isSelected: item.id === selectedId,
-                      isHighlighted: index === highlightedIndex,
-                      dict,
-                      onClick: () => {
-                        if (!canSelect || canSelect(item)) {
-                          handleSelect(item.id);
-                        }
-                      },
-                      onMouseEnter: () => setHighlightedIndex(index),
-                    })}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          <FilteredItemsList
+            filteredItems={filteredItems}
+            selectedId={selectedId}
+            highlightedIndex={highlightedIndex}
+            dict={dict}
+            noResultsText={tr(translations.noResults, dict)}
+            canSelect={canSelect}
+            renderCard={renderCard}
+            onSelect={handleSelect}
+            onHighlight={setHighlightedIndex}
+          />
         )}
       </div>
     </div>

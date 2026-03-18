@@ -8,8 +8,11 @@ import {
 } from "react-icons/hi2";
 import type { IconOption } from "@/features/common/components/icon-picker-dropdown";
 
+/** Union of shared icon keys used by card-style dashlets. */
+export type DashletIconKey = "chart" | "currency" | "users" | "cart" | "clock" | "check";
+
 /** Shared icon picker options used by card-style dashlets (card, labeled_data). */
-export const DASHLET_ICON_OPTIONS: IconOption<string>[] = [
+export const DASHLET_ICON_OPTIONS: IconOption<DashletIconKey>[] = [
   { value: "chart", label: "Chart", icon: HiChartBar },
   { value: "currency", label: "Currency", icon: HiCurrencyDollar },
   { value: "users", label: "Users", icon: HiUsers },

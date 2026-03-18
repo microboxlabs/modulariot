@@ -43,60 +43,15 @@ import { COLUMN_TYPES } from "../common/column-types";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 
+import type { ColumnItem } from "../common/column-helpers";
+import { toColumnItems, fromColumnItems } from "../common/column-helpers";
+import { toFilterItems, fromFilterItems, type FilterItem } from "../common/filter-helpers";
+
 // ============================================================================
 // Types
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
-
-interface ColumnItem extends TableColumn {
-  _id: string;
-}
-
-interface FilterItem extends FilterItemConfig {
-  _id: string;
-}
-
-interface PgrestParamItem extends PgrestParam {
-  _id: string;
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/** Convert a snake_case PGREST key to a human-readable label. */
-function humanizeKey(key: string): string {
-  return key
-    .replace(/^[pv]_/, "")
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-function toColumnItems(columns: TableColumn[]): ColumnItem[] {
-  return columns.map((col, i) => ({ ...col, _id: `col-${i}-${col.key}` }));
-}
-
-function fromColumnItems(items: ColumnItem[]): TableColumn[] {
-  return items.map(({ key, label, type }) => ({ key, label, type }));
-}
-
-function toFilterItems(items: FilterItemConfig[]): FilterItem[] {
-  return items.map((item, i) => ({ ...item, _id: `fi-${i}-${item.column}` }));
-}
-
-function fromFilterItems(items: FilterItem[]): FilterItemConfig[] {
-  return items.map(({ column, label }) => ({ column, label }));
-}
-
-function toPgrestParamItems(params: PgrestParam[]): PgrestParamItem[] {
-  return params.map((p, i) => ({ ...p, _id: `pp-${i}-${p.key}` }));
-}
-
-function fromPgrestParamItems(items: PgrestParamItem[]): PgrestParam[] {
-  return items.map(({ key, value }) => ({ key, value }));
-}
 
 // ============================================================================
 // Component
@@ -143,136 +98,18 @@ export function DashletSettings({
     JSON.stringify(config.rows ?? defaultRows, null, 2)
   );
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
-  const [pgrestFunctionName, setPgrestFunctionName] = useState(
-    config.pgrestFunctionName ?? ""
-  );
-  const [pgrestParams, setPgrestParams] = useState<PgrestParamItem[]>(
-    toPgrestParamItems(config.pgrestParams ?? [])
-  );
-  const [pgrestHttpMethod, setPgrestHttpMethod] = useState<PgrestHttpMethod>(
-    config.pgrestHttpMethod ?? "POST"
-  );
 
-  // Detect-columns state
-  const [detecting, setDetecting] = useState(false);
-  const [detectError, setDetectError] = useState<string | null>(null);
-
-  // Introspect state
-  const [introspecting, setIntrospecting] = useState(false);
-  const [introspectError, setIntrospectError] = useState<string | null>(null);
-  const [paramHints, setParamHints] = useState<Record<string, string>>({});
-
-  const detectColumns = async (
-    fnOverride?: string,
-    methodOverride?: PgrestHttpMethod,
-    paramsOverride?: PgrestParam[],
-  ) => {
-    setDetecting(true);
-    setDetectError(null);
-
-    try {
-      const { url, init } = buildPgrestFetch(
-        fnOverride ?? pgrestFunctionName,
-        methodOverride ?? pgrestHttpMethod,
-        paramsOverride ?? pgrestParams,
-      );
-
-      const res = await fetch(url, init);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const rows = parseRows(await res.json());
-      if (rows.length === 0) {
-        setDetectError("Response returned no rows");
-        return;
-      }
-
-      const detected: ColumnItem[] = Object.keys(rows[0]).map((key, i) => ({
-        _id: `col-${Date.now()}-${i}`,
-        key: `{{row.${key}}}`,
-        label: humanizeKey(key),
-        type: "text" as const,
-      }));
-      setColumns(detected);
-
-      // Sync filter & sort to detected columns
-      const detectedKeys = new Set(detected.map((c) => c.key));
-      const labelByKey = new Map(detected.map((c) => [c.key, c.label]));
-      const firstKey = detected.find((c) => c.key)?.key ?? "";
-      setFilterItems((prev) =>
-        prev.map((fi) => {
-          const column = detectedKeys.has(fi.column) ? fi.column : firstKey;
-          return { ...fi, column, label: labelByKey.get(column) ?? fi.label };
-        })
-      );
-      setSortColumns((prev) => prev.filter((k) => detectedKeys.has(k)));
-    } catch (err: unknown) {
-      setDetectError(err instanceof Error ? err.message : "Detection failed");
-    } finally {
-      setDetecting(false);
-    }
-  };
-
-  const introspectFunction = async (fnOverride?: string) => {
-    const fn = (fnOverride ?? pgrestFunctionName).trim();
-    if (!fn) return null;
-
-    setIntrospecting(true);
-    setIntrospectError(null);
-
-    try {
-      const res = await fetch(
-        `/app/api/dashboard/pgrest/openapi?fn=${encodeURIComponent(fn)}`
-      );
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error ?? `HTTP ${res.status}`
-        );
-      }
-
-      const data = (await res.json()) as {
-        methods: string[];
-        parameters: { name: string; type: string; format: string }[];
-      };
-
-      // Auto-set HTTP method to first available
-      const method = (data.methods[0] as PgrestHttpMethod) ?? pgrestHttpMethod;
-      if (data.methods.length > 0) {
-        setPgrestHttpMethod(method);
-      }
-
-      // Replace parameters with introspected ones
-      const now = Date.now();
-      const newParams: PgrestParamItem[] = data.parameters.map((p, i) => ({
-        _id: `pp-${now}-${i}`,
-        key: p.name,
-        value: "",
-      }));
-      setPgrestParams(newParams);
-
-      // Store format hints for placeholders
-      const hints: Record<string, string> = {};
-      for (const p of data.parameters) {
-        hints[p.name] = p.format;
-      }
-      setParamHints(hints);
-
-      return { method, params: newParams as PgrestParam[] };
-    } catch (err: unknown) {
-      setIntrospectError(
-        err instanceof Error ? err.message : "Introspection failed"
-      );
-      return null;
-    } finally {
-      setIntrospecting(false);
-    }
-  };
-
-  const handleFunctionSelect = async (fn: string) => {
-    const result = await introspectFunction(fn);
-    if (result) {
-      await detectColumns(fn, result.method, result.params);
-    }
-  };
+  const pgrestCallbacks = buildPgrestSettingsConfig({
+    setColumns,
+    setFilterItems,
+    setSortColumns,
+  });
+  const pg = usePgrestSettingsState({
+    pgrestFunctionName: config.pgrestFunctionName ?? "",
+    pgrestParams: config.pgrestParams ?? [],
+    pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    ...pgrestCallbacks,
+  });
 
   const handleSortColumnToggle = (checked: boolean, key: string) => {
     setSortColumns((prev) =>
@@ -283,7 +120,7 @@ export function DashletSettings({
   // ── Column helpers ──────────────────────────────────────────────────────────
 
   const addColumn = () => {
-    setDetectError(null);
+
     setColumns((prev) => [
       ...prev,
       { _id: `col-${Date.now()}`, key: "", label: "", type: "text" },
@@ -291,7 +128,7 @@ export function DashletSettings({
   };
 
   const removeColumn = (id: string) => {
-    setDetectError(null);
+
     setColumns((prev) => prev.filter((c) => c._id !== id));
   };
 
@@ -300,7 +137,7 @@ export function DashletSettings({
     field: keyof TableColumn,
     value: string
   ) => {
-    setDetectError(null);
+
     setColumns((prev) =>
       prev.map((c) => (c._id === id ? { ...c, [field]: value } : c))
     );
@@ -327,43 +164,6 @@ export function DashletSettings({
   ) => {
     setFilterItems((prev) =>
       prev.map((f) => (f._id === id ? { ...f, [field]: value } : f))
-    );
-  };
-
-  // ── PGREST param helpers ──────────────────────────────────────────────────
-
-  const addPgrestParam = () => {
-    setIntrospectError(null);
-    setPgrestParams((prev) => [
-      ...prev,
-      { _id: `pp-${Date.now()}`, key: "", value: "" },
-    ]);
-  };
-
-  const removePgrestParam = (id: string) => {
-    setIntrospectError(null);
-    setPgrestParams((prev) => prev.filter((p) => p._id !== id));
-  };
-
-  const updatePgrestParam = (
-    id: string,
-    field: keyof PgrestParam,
-    value: string
-  ) => {
-    setIntrospectError(null);
-    // Clear hint for this param when its key is manually edited
-    if (field === "key") {
-      const param = pgrestParams.find((p) => p._id === id);
-      if (param && param.key !== value) {
-        setParamHints((prev) => {
-          const next = { ...prev };
-          delete next[param.key];
-          return next;
-        });
-      }
-    }
-    setPgrestParams((prev) =>
-      prev.map((p) => (p._id === id ? { ...p, [field]: value } : p))
     );
   };
 
@@ -408,9 +208,9 @@ export function DashletSettings({
       dataMode,
       columns: savedColumns,
       rows: parsedRows ?? config.rows ?? defaultRows,
-      pgrestFunctionName,
-      pgrestParams: fromPgrestParamItems(pgrestParams),
-      pgrestHttpMethod,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
       filter,
       sort,
     });
@@ -703,93 +503,7 @@ export function DashletSettings({
 
               {/* PGREST: Function name + params */}
               {dataMode === "pgrest" && (
-                <>
-                  <div>
-                    <Label
-                      htmlFor="dt-pgrest-fn"
-                      className="mb-1 block text-sm font-medium"
-                    >
-                      {tr("dashboard.settings.functionName", dictionary)}
-                    </Label>
-                    <PgrestFunctionAutocomplete
-                      id="dt-pgrest-fn"
-                      value={pgrestFunctionName}
-                      onChange={setPgrestFunctionName}
-                      onSelect={handleFunctionSelect}
-                      loading={introspecting || detecting}
-                    />
-                    {(introspectError || detectError) && (
-                      <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                        {introspectError || detectError}
-                      </p>
-                    )}
-                  </div>
-                  <SettingsSelectField
-                    id="dt-pgrest-method"
-                    label={tr("dashboard.settings.httpMethod", dictionary)}
-                    value={pgrestHttpMethod}
-                    onChange={(v) =>
-                      setPgrestHttpMethod(v as PgrestHttpMethod)
-                    }
-                    options={[
-                      { value: "POST", label: "POST" },
-                      { value: "GET", label: "GET" },
-                    ]}
-                  />
-                  <div>
-                    <Label className="mb-1.5 block text-sm font-medium">
-                      {tr("dashboard.settings.parameters", dictionary)}
-                    </Label>
-                    <div className="space-y-1.5">
-                      {pgrestParams.map((p) => (
-                        <div key={p._id} className="flex items-center gap-1">
-                          <div className="flex-1 min-w-0">
-                            <TextInput
-                              sizing="sm"
-                              placeholder={tr("dashboard.settings.key", dictionary)}
-                              value={p.key}
-                              onChange={(e) =>
-                                updatePgrestParam(p._id, "key", e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <TextInput
-                              sizing="sm"
-                              placeholder={paramHints[p.key] ?? tr("common.value", dictionary)}
-                              value={p.value}
-                              onChange={(e) =>
-                                updatePgrestParam(
-                                  p._id,
-                                  "value",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removePgrestParam(p._id)}
-                            onMouseDown={handleMouseDown}
-                            className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                          >
-                            <HiTrash className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      color="light"
-                      size="xs"
-                      onClick={addPgrestParam}
-                      onMouseDown={handleMouseDown}
-                      className="no-drag mt-2"
-                    >
-                      <HiPlus className="mr-1 h-3 w-3" />
-                      {tr("dashboard.settings.addParameter", dictionary)}
-                    </Button>
-                  </div>
-                </>
+                <PgrestSettingsSection pgrest={pg} labels={buildPgrestContentLabels(dictionary)} />
               )}
             </>
           )}

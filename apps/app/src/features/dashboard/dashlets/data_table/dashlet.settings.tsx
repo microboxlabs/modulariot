@@ -37,7 +37,7 @@ import {
   SuggestionInput,
 } from "../common";
 import { COLUMN_TYPES } from "../common/column-types";
-import { parseRows, buildPgrestFetch } from "./dashlet.utils";
+import { parseRows, buildPgrestFetch } from "../common";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";

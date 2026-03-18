@@ -73,10 +73,11 @@ export function ServiceContextMenu({
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
 
   // Check if user has assignment permission to show assignment buttons
-  // Avoid hiding the button while permissions are loading (transient false negative)
-  const canAssign = isLoadingPermissions || hasPermission(["GROUP_ASSIGNMENT"]);
+  // Fail-closed: only show buttons when permissions are confirmed loaded
+  const canAssign =
+    !isLoadingPermissions && hasPermission(["GROUP_ASSIGNMENT"]);
   // Check if user has planning permission to show replan/delete buttons
-  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
+  const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
 
   // Estimated menu dimensions for initial position calculation
   // Height varies based on number of visible buttons

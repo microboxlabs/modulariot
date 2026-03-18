@@ -69,10 +69,7 @@ interface TruckSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const createTruckFields = (): readonly FieldConfig<
-  CamionOption,
-  TruckMatchType
->[] => [
+const TRUCK_FIELDS: readonly FieldConfig<CamionOption, TruckMatchType>[] = [
   {
     field: "plate",
     getValue: (truck) => truck.plate,
@@ -89,22 +86,28 @@ const createTruckFields = (): readonly FieldConfig<
   },
   {
     field: "tipo",
-    getValue: (truck) => truck.tipo,
+    getValue: (truck, dict) =>
+      tr(`pages.planning.sidebar.assignment.truckType.${truck.tipo}`, dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.truckSearchFields.type", dict),
     getIcon: () => <HiTruck className={ICON_CLASS} />,
   },
   {
     field: "estado",
-    getValue: (truck) => truck.estado,
+    getValue: (truck, dict) =>
+      truck.estado === "disponible"
+        ? tr("pages.planning.sidebar.assignment.available", dict)
+        : tr("pages.planning.sidebar.assignment.busy", dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.truckSearchFields.status", dict),
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
   },
   {
     field: "gpsIntegrado",
-    getValue: (truck) =>
-      truck.gpsIntegrado ? "gps integrado" : "no integrado",
+    getValue: (truck, dict) =>
+      truck.gpsIntegrado
+        ? tr("pages.planning.sidebar.assignment.integrated", dict)
+        : tr("pages.planning.sidebar.assignment.notIntegrated", dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.truckSearchFields.gps", dict),
     getIcon: () => <HiLocationMarker className={ICON_CLASS} />,
@@ -117,8 +120,6 @@ const createTruckFields = (): readonly FieldConfig<
     getIcon: () => <HiClock className={ICON_CLASS} />,
   },
 ];
-
-const TRUCK_FIELDS = createTruckFields();
 
 // ============================================================================
 // Truck Card Component

@@ -34,7 +34,8 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   const { startHour = 8, endHour = 22 } = options;
 
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
-  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
+  // Fail-closed: block interactions until permission check completes
+  const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
 
   const {
     selectedSlot,

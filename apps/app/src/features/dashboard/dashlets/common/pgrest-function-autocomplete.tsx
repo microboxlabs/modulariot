@@ -44,8 +44,12 @@ export function PgrestFunctionAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
 
+  // Guard against out-of-order responses when dataSourceId changes
+  const requestIdRef = useRef(0);
+
   // Reset cached functions when the data source changes
   useEffect(() => {
+    requestIdRef.current += 1;
     setAllFunctions(null);
     setFetchError(null);
   }, [dataSourceId]);
@@ -54,20 +58,24 @@ export function PgrestFunctionAutocomplete({
   const fetchFunctions = useCallback(async () => {
     if (allFunctions !== null) return;
 
+    const reqId = requestIdRef.current;
     setFetchError(null);
     try {
       const qs = buildDataSourceParams(dataSourceId).toString();
       const suffix = qs ? `?${qs}` : "";
       const url = `/app/api/dashboard/pgrest/functions${suffix}`;
       const res = await fetch(url);
+      if (reqId !== requestIdRef.current) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const parsed = functionsResponseSchema.safeParse(await res.json());
+      if (reqId !== requestIdRef.current) return;
       if (!parsed.success)
         throw new Error(
           tr("dashboard.settings.invalidResponseFormat", dictionary)
         );
       setAllFunctions(parsed.data.functions);
     } catch (err) {
+      if (reqId !== requestIdRef.current) return;
       setFetchError(
         err instanceof Error
           ? err.message
@@ -93,6 +101,8 @@ export function PgrestFunctionAutocomplete({
   }, [filtered, value, fetchError]);
 
   const retryFetch = useCallback(async () => {
+    requestIdRef.current += 1;
+    const reqId = requestIdRef.current;
     setFetchError(null);
     setAllFunctions(null);
     try {
@@ -100,14 +110,17 @@ export function PgrestFunctionAutocomplete({
       const suffix = qs ? `?${qs}` : "";
       const url = `/app/api/dashboard/pgrest/functions${suffix}`;
       const res = await fetch(url);
+      if (reqId !== requestIdRef.current) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const parsed = functionsResponseSchema.safeParse(await res.json());
+      if (reqId !== requestIdRef.current) return;
       if (!parsed.success)
         throw new Error(
           tr("dashboard.settings.invalidResponseFormat", dictionary)
         );
       setAllFunctions(parsed.data.functions);
     } catch (err) {
+      if (reqId !== requestIdRef.current) return;
       setFetchError(
         err instanceof Error
           ? err.message

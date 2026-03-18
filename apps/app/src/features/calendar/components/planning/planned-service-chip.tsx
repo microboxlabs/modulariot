@@ -74,9 +74,8 @@ export function PlannedServiceChip({
   const { origen, destino } = plannedService.service;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -91,7 +90,7 @@ export function PlannedServiceChip({
             ...e,
             clientX: rect.left + rect.width / 2,
             clientY: rect.top + rect.height / 2,
-          } as unknown as React.MouseEvent<HTMLDivElement>;
+          } as unknown as React.MouseEvent<HTMLButtonElement>;
           onContextMenu(syntheticEvent, plannedService);
         }
       }}
@@ -108,7 +107,9 @@ export function PlannedServiceChip({
     >
       {/* Left: Service ID + Route stacked */}
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="font-bold truncate">{plannedService.service.id}</span>
+        <span className="font-bold truncate text-left">
+          {plannedService.service.id}
+        </span>
         <div className="flex items-center gap-0.5 text-[10px] font-normal opacity-80 truncate">
           <span className="truncate">{origen}</span>
           <span className="shrink-0">→</span>
@@ -136,6 +137,6 @@ export function PlannedServiceChip({
           )}
         />
       )}
-    </div>
+    </button>
   );
 }

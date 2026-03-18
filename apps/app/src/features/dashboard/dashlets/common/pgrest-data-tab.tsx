@@ -41,7 +41,10 @@ export function PgrestDataTab({
             value: "static",
             label: tr("dashboard.settings.staticJson", dictionary),
           },
-          { value: "pgrest", label: "PGREST" },
+          {
+            value: "pgrest",
+            label: tr("dashboard.settings.pgrest", dictionary),
+          },
         ]}
       />
       {dataMode === "pgrest" && (

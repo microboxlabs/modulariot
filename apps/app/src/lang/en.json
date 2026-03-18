@@ -1416,6 +1416,7 @@
       "totalItems": "{count} items",
       "totalItemsSingular": "{count} item",
       "staticJson": "Static (JSON)",
+      "pgrest": "PGREST",
       "dynamicApi": "Dynamic (API)",
       "rowsJsonArray": "Rows (JSON array)",
       "apiUrl": "API URL",

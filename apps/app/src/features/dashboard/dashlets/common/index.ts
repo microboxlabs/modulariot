@@ -100,3 +100,5 @@ export {
   buildPgrestSettingsConfig,
   buildPgrestContentLabels,
 } from "./pgrest-settings-helpers";
+export { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
+export { PgrestDataTab } from "./pgrest-data-tab";

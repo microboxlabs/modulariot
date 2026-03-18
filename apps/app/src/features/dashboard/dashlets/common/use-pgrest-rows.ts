@@ -18,6 +18,7 @@ export function usePgrestRows(
 
   useEffect(() => {
     if (dataMode !== "pgrest" || !pgrestFunctionName) {
+      setRows([]);
       setLoading(false);
       setFetchError(null);
       return;

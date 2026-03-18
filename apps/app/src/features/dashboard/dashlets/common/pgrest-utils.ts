@@ -15,8 +15,18 @@ function normalizeRow(row: Record<string, unknown>): Record<string, string> {
   return out;
 }
 
-/** Parse a dynamic API / PGREST response into a row array. */
-export function parseRows(data: unknown): Record<string, string>[] {
+/**
+ * Parse a dynamic API / PGREST response into a row array.
+ *
+ * When `singleObjectFallback` is true (default: false), an object that does not
+ * match any known wrapper key (rows / data / results) is treated as a single
+ * row.  This is appropriate for PGREST RPC responses but NOT for generic
+ * dynamic-API dashlets, which should stay empty on unknown shapes.
+ */
+export function parseRows(
+  data: unknown,
+  { singleObjectFallback = false }: { singleObjectFallback?: boolean } = {},
+): Record<string, string>[] {
   let raw: unknown[];
 
   if (Array.isArray(data)) {
@@ -26,11 +36,11 @@ export function parseRows(data: unknown): Record<string, string>[] {
     const candidate = obj.rows ?? obj.data ?? obj.results;
     if (Array.isArray(candidate)) {
       raw = candidate;
-    } else if (candidate && typeof candidate === "object") {
-      raw = [candidate];
+    } else if (singleObjectFallback) {
+      // Treat the object itself (or a non-array candidate) as a single row
+      raw = [candidate && typeof candidate === "object" ? candidate : obj];
     } else {
-      // No known wrapper key — treat the object itself as a single row
-      raw = [obj];
+      return [];
     }
   } else {
     return [];

@@ -32,10 +32,7 @@ export function PgrestFunctionAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
 
-  // Fetch function list once on first interaction
-  const fetchFunctions = useCallback(async () => {
-    if (allFunctions !== null) return;
-
+  const doFetch = useCallback(async () => {
     setFetchError(null);
     try {
       const res = await fetch("/app/api/dashboard/pgrest/functions");
@@ -47,7 +44,13 @@ export function PgrestFunctionAutocomplete({
         err instanceof Error ? err.message : "Failed to load functions"
       );
     }
-  }, [allFunctions]);
+  }, []);
+
+  // Fetch function list once on first interaction
+  const fetchFunctions = useCallback(async () => {
+    if (allFunctions !== null) return;
+    await doFetch();
+  }, [allFunctions, doFetch]);
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -65,20 +68,10 @@ export function PgrestFunctionAutocomplete({
     }
   }, [filtered, value, fetchError]);
 
-  const retryFetch = useCallback(async () => {
-    setFetchError(null);
+  const retryFetch = useCallback(() => {
     setAllFunctions(null);
-    try {
-      const res = await fetch("/app/api/dashboard/pgrest/functions");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { functions: string[] };
-      setAllFunctions(data.functions);
-    } catch (err) {
-      setFetchError(
-        err instanceof Error ? err.message : "Failed to load functions"
-      );
-    }
-  }, []);
+    return doFetch();
+  }, [doFetch]);
 
   const handleSelect = useCallback(
     (functionName: string) => {

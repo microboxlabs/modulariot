@@ -17,6 +17,8 @@ interface PgrestSettingsSectionProps {
     key: string;
     value: string;
     addParameter: string;
+    loadError: string;
+    retry: string;
   };
 }
 
@@ -39,6 +41,7 @@ export function PgrestSettingsSection({
           onChange={pg.setPgrestFunctionName}
           onSelect={pg.handleFunctionSelect}
           loading={pg.introspecting || pg.detecting}
+          labels={{ loadError: labels.loadError, retry: labels.retry }}
         />
         {(pg.introspectError || pg.detectError) && (
           <p className="mt-1 text-xs text-red-500 dark:text-red-400">

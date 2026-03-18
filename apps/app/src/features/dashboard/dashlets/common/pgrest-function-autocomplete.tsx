@@ -14,7 +14,13 @@ interface PgrestFunctionAutocompleteProps {
   placeholder?: string;
   id?: string;
   loading?: boolean;
+  labels?: {
+    loadError: string;
+    retry: string;
+  };
 }
+
+const DEFAULT_LABELS = { loadError: "Failed to load functions", retry: "Retry" };
 
 export function PgrestFunctionAutocomplete({
   value,
@@ -23,6 +29,7 @@ export function PgrestFunctionAutocomplete({
   placeholder = "api_modular_my_function",
   id,
   loading = false,
+  labels = DEFAULT_LABELS,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -32,6 +39,9 @@ export function PgrestFunctionAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
 
+  const labelsRef = useRef(labels);
+  labelsRef.current = labels;
+
   const doFetch = useCallback(async () => {
     setFetchError(null);
     try {
@@ -39,10 +49,8 @@ export function PgrestFunctionAutocomplete({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { functions: string[] };
       setAllFunctions(data.functions);
-    } catch (err) {
-      setFetchError(
-        err instanceof Error ? err.message : "Failed to load functions"
-      );
+    } catch {
+      setFetchError(labelsRef.current.loadError);
     }
   }, []);
 
@@ -121,7 +129,7 @@ export function PgrestFunctionAutocomplete({
             className="underline hover:no-underline"
             onClick={retryFetch}
           >
-            Retry
+            {labels.retry}
           </button>
         </p>
       )}

@@ -1342,7 +1342,9 @@
       "rowsJsonArray": "Rows (JSON array)",
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",
-      "invalidJson": "Invalid JSON"
+      "invalidJson": "Invalid JSON",
+      "failedToLoadFunctions": "Failed to load functions",
+      "invalidResponseFormat": "Invalid response format"
     },
     "dashlets": {
       "data_list": {

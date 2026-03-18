@@ -1,3 +1,5 @@
+export type DataMode = "static" | "dynamic" | "pgrest";
+
 export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 
 export const COLUMN_TYPES: ColumnType[] = ["text", "badge", "highlight", "signed", "progress"];

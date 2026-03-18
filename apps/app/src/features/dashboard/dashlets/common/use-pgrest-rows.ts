@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
-import { parseRows } from "./pgrest-utils";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
+import { buildPgrestFetch, parseRows } from "./pgrest-utils";
 
-export function useDynamicRows(
+export function usePgrestRows(
   dataMode: string,
-  apiUrl: string
+  pgrestFunctionName: string,
+  pgrestHttpMethod: PgrestHttpMethod,
+  pgrestParams: PgrestParam[],
 ): {
   rows: Record<string, string>[];
   loading: boolean;
@@ -14,19 +17,23 @@ export function useDynamicRows(
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (dataMode !== "dynamic" || !apiUrl) {
-      setRows([]);
+    if (dataMode !== "pgrest" || !pgrestFunctionName) {
       setLoading(false);
       setFetchError(null);
-      return () => { cancelled = true; };
+      return;
     }
 
+    let cancelled = false;
     setLoading(true);
     setFetchError(null);
 
-    fetch(apiUrl)
+    const { url, init } = buildPgrestFetch(
+      pgrestFunctionName,
+      pgrestHttpMethod,
+      pgrestParams,
+    );
+
+    fetch(url, init)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -35,8 +42,8 @@ export function useDynamicRows(
         if (!cancelled) setRows(parseRows(data));
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        setFetchError(err instanceof Error ? err.message : "Failed to fetch");
+        if (!cancelled)
+          setFetchError(err instanceof Error ? err.message : "Failed to fetch");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -45,7 +52,7 @@ export function useDynamicRows(
     return () => {
       cancelled = true;
     };
-  }, [dataMode, apiUrl]);
+  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
 
   return { rows, loading, fetchError };
 }

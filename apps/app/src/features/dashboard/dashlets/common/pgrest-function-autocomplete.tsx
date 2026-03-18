@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { TextInput } from "flowbite-react";
 import { z } from "zod";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDropdown } from "./use-dropdown";
 import { DropdownList } from "./dropdown-list";
 
@@ -16,6 +18,7 @@ interface PgrestFunctionAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onSelect: (functionName: string) => void;
+  dictionary: I18nRecord;
   placeholder?: string;
   id?: string;
   loading?: boolean;
@@ -25,6 +28,7 @@ export function PgrestFunctionAutocomplete({
   value,
   onChange,
   onSelect,
+  dictionary,
   placeholder = "api_modular_my_function",
   id,
   loading = false,
@@ -46,14 +50,19 @@ export function PgrestFunctionAutocomplete({
       const res = await fetch("/app/api/dashboard/pgrest/functions");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const parsed = functionsResponseSchema.safeParse(await res.json());
-      if (!parsed.success) throw new Error("Invalid response format");
+      if (!parsed.success)
+        throw new Error(
+          tr("dashboard.settings.invalidResponseFormat", dictionary)
+        );
       setAllFunctions(parsed.data.functions);
     } catch (err) {
       setFetchError(
-        err instanceof Error ? err.message : "Failed to load functions"
+        err instanceof Error
+          ? err.message
+          : tr("dashboard.settings.failedToLoadFunctions", dictionary)
       );
     }
-  }, [allFunctions]);
+  }, [allFunctions, dictionary]);
 
   // Client-side filtering
   const filtered = useMemo(() => {
@@ -78,14 +87,19 @@ export function PgrestFunctionAutocomplete({
       const res = await fetch("/app/api/dashboard/pgrest/functions");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const parsed = functionsResponseSchema.safeParse(await res.json());
-      if (!parsed.success) throw new Error("Invalid response format");
+      if (!parsed.success)
+        throw new Error(
+          tr("dashboard.settings.invalidResponseFormat", dictionary)
+        );
       setAllFunctions(parsed.data.functions);
     } catch (err) {
       setFetchError(
-        err instanceof Error ? err.message : "Failed to load functions"
+        err instanceof Error
+          ? err.message
+          : tr("dashboard.settings.failedToLoadFunctions", dictionary)
       );
     }
-  }, []);
+  }, [dictionary]);
 
   const handleSelect = useCallback(
     (functionName: string) => {
@@ -135,7 +149,7 @@ export function PgrestFunctionAutocomplete({
             className="underline hover:no-underline"
             onClick={retryFetch}
           >
-            Retry
+            {tr("common.retry", dictionary)}
           </button>
         </p>
       )}

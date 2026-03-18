@@ -1,6 +1,12 @@
 "use client";
 
-import { HiTruck, HiLocationMarker, HiStatusOnline, HiClock } from "react-icons/hi";
+import {
+  HiTruck,
+  HiLocationMarker,
+  HiStatusOnline,
+  HiClock,
+  HiChevronDown,
+} from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -17,7 +23,6 @@ import {
   GpsBadge,
   OnlineStatus,
 } from "./vehicle-card-shared";
-import { HiChevronDown } from "react-icons/hi";
 
 // ============================================================================
 // Types
@@ -130,7 +135,11 @@ function TruckCard({
   const isAvailable = truck.estado === "disponible";
   const isGpsIntegrado = truck.gpsIntegrado;
   const isOnline = truck.estadoGps === "online";
-  const subtitle = `${truck.marca} · ${tr(`pages.planning.sidebar.assignment.truckType.${truck.tipo}`, dict)}`;
+  const truckTypeLabel = tr(
+    `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
+    dict
+  );
+  const subtitle = `${truck.marca} · ${truckTypeLabel}`;
 
   return (
     <VehicleCardButton
@@ -183,7 +192,11 @@ function TruckCard({
 function renderSelectedTruckButton(truck: CamionOption, dict: I18nRecord) {
   const isGpsIntegrado = truck.gpsIntegrado;
   const isOnline = truck.estadoGps === "online";
-  const subtitle = `${truck.marca} · ${tr(`pages.planning.sidebar.assignment.truckType.${truck.tipo}`, dict)}`;
+  const truckTypeLabel = tr(
+    `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
+    dict
+  );
+  const subtitle = `${truck.marca} · ${truckTypeLabel}`;
 
   return (
     <div className="flex flex-col">

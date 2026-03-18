@@ -4,28 +4,18 @@ import { Fragment, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { twMerge } from "tailwind-merge";
 import type { DayInfo } from "../planning-day-view.types";
-import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
-import {
-  usePlanningSelection,
-  type PlannedService,
-} from "../planning-selection-context";
-import { ServiceContextMenu } from "../service-context-menu";
-import {
-  DeleteConfirmationModal,
-  getDeleteModalMessages,
-  getDeleteAssignmentMessages,
-} from "../delete-confirmation-modal";
-import { ReassignmentConnector } from "../reassignment-connector";
+import type { PlannedService } from "../planning-selection-context";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import {
   computeSlotState,
   getSlotCellClassName,
   type SlotState,
 } from "../planning-slot-utils";
-import { useServiceActions } from "../use-service-actions";
-import { SlotCellContent } from "../slot-cell-shared";
+import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
+import { usePlanningGrid } from "../use-planning-grid";
+import { PlanningGridOverlays } from "../planning-grid-overlays";
 
 interface DayGridProps {
   lang: string;
@@ -122,34 +112,17 @@ export default function DayGrid({
   startHour = 8,
   endHour = 22,
 }: Readonly<DayGridProps>) {
-  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
-  // Check if user has planning permission to select slots
-  const canPlan = isLoadingPermissions || hasPermission(["GROUP_PLANNING"]);
-
   const {
     selectedSlot,
-    selectSlot,
-    plannedServices,
+    handleSelectSlot,
+    isSlotSelected: checkSlotSelected,
+    timeSlots,
+    isLastSlot,
+    getPlannedServicesForSlot: getServicesForSlot,
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
-    removeService,
-    startReassignment,
-    startAssignment,
     reassigningService,
-    updateServiceDrivers,
-  } = usePlanningSelection();
-
-  // Create removeAssignment wrapper that clears driver assignments
-  const removeAssignment = useCallback(
-    async (serviceId: string) => {
-      updateServiceDrivers(serviceId, undefined, undefined);
-    },
-    [updateServiceDrivers]
-  );
-
-  // Use shared hook for context menu and delete modal
-  const {
     contextMenu,
     deleteModal,
     deleteAssignmentModal,
@@ -163,17 +136,7 @@ export default function DayGrid({
     handleDeleteAssignmentRequest,
     handleConfirmDeleteAssignment,
     handleCancelDeleteAssignment,
-  } = useServiceActions({
-    removeService,
-    removeAssignment,
-    startReassignment,
-    startAssignment,
-  });
-
-  const timeSlots = useMemo(
-    () => generateTimeSlots(startHour, endHour),
-    [startHour, endHour]
-  );
+  } = usePlanningGrid({ startHour, endHour });
 
   const dayInfo = useMemo(
     () => getDayInfo(currentDate, lang),
@@ -185,43 +148,29 @@ export default function DayGrid({
     return dayjs(currentDate).isBefore(dayjs().startOf("day"), "day");
   }, [currentDate]);
 
-  const isLastSlot = (idx: number) => idx === timeSlots.length - 1;
-
   const handleCellClick = useCallback(
     (slot: { hour: number; minutes: number }) => {
-      if (!canPlan) return;
-      selectSlot({
+      handleSelectSlot({
         date: currentDate,
         hour: slot.hour,
         minutes: slot.minutes,
       });
     },
-    [selectSlot, currentDate, canPlan]
+    [handleSelectSlot, currentDate]
   );
 
   const isSlotSelected = useCallback(
     (slot: { hour: number; minutes: number }) => {
-      if (!selectedSlot) return false;
-      return (
-        dayjs(selectedSlot.date).isSame(currentDate, "day") &&
-        selectedSlot.hour === slot.hour &&
-        selectedSlot.minutes === slot.minutes
-      );
+      return checkSlotSelected(currentDate, slot.hour, slot.minutes);
     },
-    [selectedSlot, currentDate]
+    [checkSlotSelected, currentDate]
   );
 
   const getPlannedServicesForSlot = useCallback(
     (slot: { hour: number; minutes: number }) => {
-      const cellStartMin = slot.hour * 60 + slot.minutes;
-      const cellEndMin = cellStartMin + 30;
-      return plannedServices.filter((ps) => {
-        if (!dayjs(ps.slot.date).isSame(currentDate, "day")) return false;
-        const serviceMin = ps.slot.hour * 60 + ps.slot.minutes;
-        return serviceMin >= cellStartMin && serviceMin < cellEndMin;
-      });
+      return getServicesForSlot(currentDate, slot.hour, slot.minutes);
     },
-    [plannedServices, currentDate]
+    [getServicesForSlot, currentDate]
   );
 
   return (
@@ -277,17 +226,11 @@ export default function DayGrid({
 
           return (
             <Fragment key={slot.label}>
-              <div
-                style={{ minHeight: `${rowMinHeight}px` }}
-                className={twMerge(
-                  "flex items-start justify-end pr-2 pt-0.5",
-                  "border-l border-t border-gray-200 dark:border-gray-700",
-                  "text-xs text-gray-500 dark:text-gray-400",
-                  isLastSlot(slotIdx) && "border-b rounded-bl-lg"
-                )}
-              >
-                {slot.label}
-              </div>
+              <TimeLabelCell
+                label={slot.label}
+                minHeight={rowMinHeight}
+                isLastSlot={isLastSlot(slotIdx)}
+              />
               <DayGridSlotCell
                 slot={slot}
                 currentDate={currentDate}
@@ -307,54 +250,23 @@ export default function DayGrid({
       </div>
 
       {/* Context Menu */}
-      <ServiceContextMenu
-        isOpen={contextMenu.isOpen}
-        position={contextMenu.position}
-        plannedService={contextMenu.plannedService}
+      <PlanningGridOverlays
+        dict={dict}
+        contextMenu={contextMenu}
         onReassign={handleReassign}
         onAssign={handleAssign}
-        onDelete={handleDeleteRequest}
-        onDeleteAssignment={handleDeleteAssignmentRequest}
-        onClose={handleCloseContextMenu}
-        dict={dict}
+        onDeleteRequest={handleDeleteRequest}
+        onDeleteAssignmentRequest={handleDeleteAssignmentRequest}
+        onCloseContextMenu={handleCloseContextMenu}
+        deleteModal={deleteModal}
+        onConfirmDelete={handleConfirmDelete}
+        onCancelDelete={handleCancelDelete}
+        deleteAssignmentModal={deleteAssignmentModal}
+        onConfirmDeleteAssignment={handleConfirmDeleteAssignment}
+        onCancelDeleteAssignment={handleCancelDeleteAssignment}
+        reassigningService={reassigningService}
+        selectedSlot={selectedSlot}
       />
-
-      {/* Delete Confirmation Modal */}
-      {deleteModal.plannedService && (
-        <DeleteConfirmationModal
-          isOpen={deleteModal.isOpen}
-          plannedService={deleteModal.plannedService}
-          messages={getDeleteModalMessages(
-            dict,
-            deleteModal.plannedService.service.id
-          )}
-          onConfirm={handleConfirmDelete}
-          onCancel={handleCancelDelete}
-        />
-      )}
-
-      {/* Delete Assignment Confirmation Modal */}
-      {deleteAssignmentModal.plannedService && (
-        <DeleteConfirmationModal
-          isOpen={deleteAssignmentModal.isOpen}
-          plannedService={deleteAssignmentModal.plannedService}
-          messages={getDeleteAssignmentMessages(
-            dict,
-            deleteAssignmentModal.plannedService.service.id
-          )}
-          onConfirm={handleConfirmDeleteAssignment}
-          onCancel={handleCancelDeleteAssignment}
-        />
-      )}
-
-      {/* Reassignment Connector - shows line between original and target slot */}
-      {reassigningService && (
-        <ReassignmentConnector
-          originSlot={reassigningService.originalSlot}
-          targetSlot={selectedSlot}
-          serviceId={reassigningService.service.service.id}
-        />
-      )}
     </div>
   );
 }

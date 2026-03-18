@@ -2,8 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { TextInput } from "flowbite-react";
+import { z } from "zod";
 import { useDropdown } from "./use-dropdown";
 import { DropdownList } from "./dropdown-list";
+
+const functionsResponseSchema = z.object({
+  functions: z.array(z.string()),
+});
 
 const MIN_CHARACTERS = 3;
 
@@ -40,8 +45,9 @@ export function PgrestFunctionAutocomplete({
     try {
       const res = await fetch("/app/api/dashboard/pgrest/functions");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { functions: string[] };
-      setAllFunctions(data.functions);
+      const parsed = functionsResponseSchema.safeParse(await res.json());
+      if (!parsed.success) throw new Error("Invalid response format");
+      setAllFunctions(parsed.data.functions);
     } catch (err) {
       setFetchError(
         err instanceof Error ? err.message : "Failed to load functions"
@@ -71,8 +77,9 @@ export function PgrestFunctionAutocomplete({
     try {
       const res = await fetch("/app/api/dashboard/pgrest/functions");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { functions: string[] };
-      setAllFunctions(data.functions);
+      const parsed = functionsResponseSchema.safeParse(await res.json());
+      if (!parsed.success) throw new Error("Invalid response format");
+      setAllFunctions(parsed.data.functions);
     } catch (err) {
       setFetchError(
         err instanceof Error ? err.message : "Failed to load functions"

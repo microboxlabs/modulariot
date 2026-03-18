@@ -12,8 +12,12 @@ import {
   defaultCardLayout,
 } from "./dashlet";
 import { useSettingsState } from "../common/use-settings-state";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -35,7 +39,7 @@ export function DashletSettings({
     defaultFilter,
     sort: config.sort,
     defaultSort,
-    dataMode: config.dataMode,
+    dataMode: config.dataMode ?? "static",
     apiUrl: config.apiUrl,
   });
 
@@ -46,6 +50,21 @@ export function DashletSettings({
   const [headerBadgeColumns, setHeaderBadgeColumns] = useState<string[]>(cl.headerBadgeColumns);
   const [kpiColumns, setKpiColumns] = useState<string[]>(cl.kpiColumns);
   const [footerColumns, setFooterColumns] = useState<string[]>(cl.footerColumns);
+
+  const pg = usePgrestSettingsState({
+    pgrestFunctionName: config.pgrestFunctionName ?? "",
+    pgrestParams: config.pgrestParams ?? [],
+    pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    ...buildPgrestSettingsConfig(s),
+    onDetectionComplete: (detected) => {
+      const keys = detected.map((c) => c.key);
+      setTitleColumn(keys[0] ?? "");
+      setSubtitleColumn(keys[1] ?? "");
+      setHeaderBadgeColumns(keys.length > 2 ? [keys[2]] : []);
+      setKpiColumns(keys.slice(3, 9));
+      setFooterColumns(keys.slice(9, 11));
+    },
+  });
 
   const toggleList = (
     setter: React.Dispatch<React.SetStateAction<string[]>>,
@@ -79,12 +98,23 @@ export function DashletSettings({
       columns: savedColumns,
       rows,
       apiUrl: s.apiUrl,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
       filter,
       sort,
       cardLayout,
     });
     onClose();
   };
+
+  const pgrestContent = (
+    <PgrestSettingsSection
+      pgrest={pg}
+      dictionary={dictionary}
+      labels={buildPgrestContentLabels(dictionary)}
+    />
+  );
 
   // Card layout section (inserted between ColumnEditor and FilterEditor)
   const cardLayoutSection = (
@@ -149,6 +179,8 @@ export function DashletSettings({
       onSave={handleSave}
       state={s}
       dictionary={dictionary}
+      dataTabChildren={pgrestContent}
+      handlebarsColorKeys
     >
       {cardLayoutSection}
     </TableListSettingsShell>

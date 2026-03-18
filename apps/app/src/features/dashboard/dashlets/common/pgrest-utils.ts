@@ -1,4 +1,4 @@
-import type { PgrestParam, PgrestHttpMethod } from "./dashlet";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 
 /** Parse a dynamic API / PGREST response into a row array. */
 export function parseRows(data: unknown): Record<string, string>[] {
@@ -15,7 +15,7 @@ export function parseRows(data: unknown): Record<string, string>[] {
 export function buildPgrestFetch(
   functionName: string,
   method: PgrestHttpMethod,
-  params: PgrestParam[]
+  params: PgrestParam[],
 ): { url: string; init?: RequestInit } {
   const validParams = params.filter((p) => p.key && p.value);
   const baseUrl = `/app/api/dashboard/pgrest/${functionName.trim()}`;

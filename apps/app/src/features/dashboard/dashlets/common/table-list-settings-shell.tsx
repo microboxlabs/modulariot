@@ -177,7 +177,7 @@ export function TableListSettingsShell({
                 dataSource: tr("dashboard.settings.dataSource", dictionary),
                 staticJson: tr("dashboard.settings.staticJson", dictionary),
                 dynamicApi: tr("dashboard.settings.dynamicApi", dictionary),
-                pgrest: "PGREST",
+                pgrest: tr("dashboard.settings.pgrest", dictionary),
                 rowsJsonArray: tr("dashboard.settings.rowsJsonArray", dictionary),
                 apiUrl: tr("dashboard.settings.apiUrl", dictionary),
               }}

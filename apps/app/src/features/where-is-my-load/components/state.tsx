@@ -13,7 +13,7 @@ export default function TimelineStates({
   statesCount,
   setSelectedTask,
   dict,
-}: {
+}: Readonly<{
   index: number;
   count: number;
   actualState: number;
@@ -24,7 +24,7 @@ export default function TimelineStates({
   oferta_producto?: string | null;
   origin?: string | null;
   destination?: string | null;
-}) {
+}>) {
   const [hovered, setHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const is_urgent = state.urgency;
@@ -103,15 +103,15 @@ export function DataBox({
   state,
   minimal = true,
   className = "",
-}: {
+}: Readonly<{
   temporalData: React.ReactNode;
   state: State;
   minimal: boolean;
   className?: string;
-}) {
+}>) {
   return (
     <div className={className}>
-      {minimal == false ? (
+      {!minimal && (
         <div className="relative z-10">
           {(() => {
             return temporalData;
@@ -120,7 +120,7 @@ export function DataBox({
             {state.name}
           </h1>
         </div>
-      ) : null}
+      )}
       <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 relative z-10">
         <div>{state.description}</div>
       </div>
@@ -132,7 +132,7 @@ export function TemporalComponent({
   time,
   dict,
   stateCode,
-}: {
+}: Readonly<{
   time: {
     start: string;
     end: string;
@@ -142,17 +142,21 @@ export function TemporalComponent({
   };
   dict: I18nRecord;
   stateCode?: string;
-}) {
+}>) {
   const start_label =
     stateCode === "DELIVERY_EXPEDITION"
       ? tr("wheres_my_load.compromised", dict)
       : tr("wheres_my_load.start", dict);
-  const end_label =
-    time.delivered != null
-      ? time.delivered == true
-        ? tr("wheres_my_load.real", dict)
-        : tr("wheres_my_load.projected", dict)
-      : tr("wheres_my_load.end", dict);
+
+  const getEndLabel = () => {
+    if (time.delivered === null) {
+      return tr("wheres_my_load.end", dict);
+    }
+    return time.delivered
+      ? tr("wheres_my_load.real", dict)
+      : tr("wheres_my_load.projected", dict);
+  };
+  const end_label = getEndLabel();
 
   const isLate = (() => {
     if (stateCode !== "DELIVERY_EXPEDITION" || !time.end || !time.start) {

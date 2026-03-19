@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {
@@ -37,6 +37,22 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
     (config.dataMode as SimpleDataMode) || "static",
   );
+
+  // Snapshot of static field values, saved when entering pgrest mode
+  const staticSnapshot = useRef({ title: title, value: value, max: max });
+
+  const handleDataModeChange = (mode: SimpleDataMode) => {
+    if (mode === "pgrest" && dataMode === "static") {
+      // Entering pgrest: save current static values
+      staticSnapshot.current = { title, value, max };
+    } else if (mode === "static" && dataMode === "pgrest") {
+      // Leaving pgrest: restore static values
+      setTitle(staticSnapshot.current.title);
+      setValue(staticSnapshot.current.value);
+      setMax(staticSnapshot.current.max);
+    }
+    setDataMode(mode);
+  };
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig(config, (detected) => {
@@ -88,7 +104,7 @@ export function DashletSettings({
     <PgrestDataTab
       id="pv-data-mode"
       dataMode={dataMode}
-      onDataModeChange={setDataMode}
+      onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
     />

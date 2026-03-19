@@ -46,6 +46,19 @@ export function DashletSettings({
     apiUrl: config.apiUrl,
   });
 
+  // ── PGREST settings ──────────────────────────────────────────────────────
+  const pgrestCallbacks = buildPgrestSettingsConfig({
+    setColumns: s.setColumns,
+    setFilterItems: s.setFilterItems,
+    setSortColumns: s.setSortColumns,
+  });
+  const pg = usePgrestSettingsState({
+    pgrestFunctionName: config.pgrestFunctionName ?? "",
+    pgrestParams: config.pgrestParams ?? [],
+    pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    ...pgrestCallbacks,
+  });
+
   // Card layout config (unique to data_list)
   const cl = config.cardLayout ?? defaultCardLayout;
   const [titleColumn, setTitleColumn] = useState(cl.titleColumn);
@@ -86,6 +99,9 @@ export function DashletSettings({
       columns: savedColumns,
       rows,
       apiUrl: s.apiUrl,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
       filter,
       sort,
       cardLayout,
@@ -156,6 +172,11 @@ export function DashletSettings({
       onSave={handleSave}
       state={s}
       dictionary={dictionary}
+      dataTabChildren={
+        s.dataMode === "pgrest" ? (
+          <PgrestSettingsSection pgrest={pg} labels={buildPgrestContentLabels(dictionary)} />
+        ) : undefined
+      }
     >
       {cardLayoutSection}
     </TableListSettingsShell>

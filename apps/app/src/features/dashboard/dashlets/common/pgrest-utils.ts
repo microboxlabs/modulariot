@@ -1,14 +1,44 @@
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 
+/** Coerce every value in a row to a string so downstream .localeCompare() is safe. */
+function stringifyValue(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v as string | number | boolean);
+}
+
+function normalizeRow(row: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(row)) {
+    out[k] = stringifyValue(v);
+  }
+  return out;
+}
+
 /** Parse a dynamic API / PGREST response into a row array. */
 export function parseRows(data: unknown): Record<string, string>[] {
-  if (Array.isArray(data)) return data as Record<string, string>[];
-  if (data && typeof data === "object") {
+  let raw: unknown[];
+
+  if (Array.isArray(data)) {
+    raw = data;
+  } else if (data && typeof data === "object") {
     const obj = data as Record<string, unknown>;
     const candidate = obj.rows ?? obj.data ?? obj.results;
-    if (Array.isArray(candidate)) return candidate as Record<string, string>[];
+    if (Array.isArray(candidate)) {
+      raw = candidate;
+    } else if (candidate && typeof candidate === "object") {
+      raw = [candidate];
+    } else {
+      // No known wrapper key — treat the object itself as a single row
+      raw = [obj];
+    }
+  } else {
+    return [];
   }
-  return [];
+
+  return raw.map((r) =>
+    r && typeof r === "object" ? normalizeRow(r as Record<string, unknown>) : {},
+  );
 }
 
 /**
@@ -31,7 +61,7 @@ export function buildPgrestFetch(
   dataSourceId?: string
 ): { url: string; init?: RequestInit } {
   const validParams = params.filter((p) => p.key && p.value);
-  const baseUrl = `/app/api/dashboard/pgrest/${functionName.trim()}`;
+  const baseUrl = `/app/api/dashboard/pgrest/${encodeURIComponent(functionName.trim())}`;
 
   const dsParams = buildDataSourceParams(dataSourceId);
 

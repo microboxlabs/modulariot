@@ -1450,7 +1450,9 @@
     "title": "Title",
     "value": "Value",
     "unit": "Unit",
-    "all": "All"
+    "all": "All",
+    "yes": "Yes",
+    "no": "No"
   },
   "dashboard": {
     "settings": {
@@ -2295,7 +2297,15 @@
     "wheres_my_load": "Where's my load?",
     "compromised": "Compromised",
     "projected": "Projected",
-    "real": "Real"
+    "real": "Real",
+    "code": "Code",
+    "expedition_number": "Expedition Number",
+    "origin": "Origin",
+    "volume": "Volume",
+    "destination": "Destination",
+    "weight": "Weight",
+    "product_offer": "Product Offer",
+    "packages": "Packages"
   },
   "signal_historic": {
     "search": "Search",

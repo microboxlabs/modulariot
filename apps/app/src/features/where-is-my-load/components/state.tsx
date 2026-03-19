@@ -145,10 +145,11 @@ export function TemporalComponent({
   dict: I18nRecord;
   stateCode?: string | null;
 }>) {
-  const start_label =
-    stateCode === "DELIVERY_EXPEDITION"
-      ? tr("wheres_my_load.compromised", dict)
-      : tr("wheres_my_load.start", dict);
+  const isDeliveryExpedition = stateCode === "DELIVERY_EXPEDITION";
+
+  const start_label = isDeliveryExpedition
+    ? tr("wheres_my_load.compromised", dict)
+    : tr("wheres_my_load.start", dict);
 
   const getEndLabel = () => {
     if (time.delivered === null) {
@@ -161,44 +162,53 @@ export function TemporalComponent({
   const end_label = getEndLabel();
 
   const isLate = (() => {
-    if (stateCode !== "DELIVERY_EXPEDITION" || !time.end || !time.start) {
+    if (!isDeliveryExpedition || !time.start || !time.compromised_time) {
       return false;
     }
-    const endDate = new Date(time.end);
-    const startDate = new Date(time.start);
-    const oneDayMs = 24 * 60 * 60 * 1000;
-    return endDate.getTime() - startDate.getTime() > oneDayMs;
+    const deliveryDate = new Date(time.start);
+    const compromisedDate = new Date(time.compromised_time);
+    return deliveryDate.getTime() > compromisedDate.getTime();
   })();
 
-  const displayStart = time.start ?? time.projected_start;
-  const displayEnd = time.end ?? time.projected_end;
+  // For DELIVERY_EXPEDITION: show compromised_time as first date, start as delivery date
+  // For other states: show start/projected_start and end/projected_end
+  const displayStart = isDeliveryExpedition
+    ? time.compromised_time
+    : (time.start ?? time.projected_start);
+  const displayEnd = isDeliveryExpedition
+    ? (time.start ?? time.projected_start)
+    : (time.end ?? time.projected_end);
 
   return (
     <div
       className={`text-sm font-light flex flex-col md:flex-row gap-2 text-gray-500 dark:text-gray-400`}
     >
-      <span>
-        {start_label}:{" "}
-        <span className={`whitespace-nowrap`}>
-          <FormattedDate
-            date={displayStart}
-            format="datetime"
-            locale="es-CL"
-            timeZone="America/Santiago"
-          />
+      {displayStart && (
+        <span>
+          {start_label}:{" "}
+          <span className={`whitespace-nowrap`}>
+            <FormattedDate
+              date={displayStart}
+              format="datetime"
+              locale="es-CL"
+              timeZone="America/Santiago"
+            />
+          </span>
         </span>
-      </span>
-      <span className={isLate ? "text-red-500 dark:text-red-400" : ""}>
-        {end_label}:{" "}
-        <span className={`whitespace-nowrap`}>
-          <FormattedDate
-            date={displayEnd}
-            format="datetime"
-            locale="es-CL"
-            timeZone="America/Santiago"
-          />
+      )}
+      {displayEnd && (
+        <span className={isLate ? "text-red-500 dark:text-red-400" : ""}>
+          {end_label}:{" "}
+          <span className={`whitespace-nowrap`}>
+            <FormattedDate
+              date={displayEnd}
+              format="datetime"
+              locale="es-CL"
+              timeZone="America/Santiago"
+            />
+          </span>
         </span>
-      </span>
+      )}
     </div>
   );
 }

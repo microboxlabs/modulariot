@@ -48,7 +48,7 @@ export function PgrestDataTab({
         ]}
       />
       {dataMode === "pgrest" && (
-        <PgrestSettingsSection pgrest={pgrest} labels={labels} />
+        <PgrestSettingsSection pgrest={pgrest} dictionary={dictionary} labels={labels} />
       )}
     </>
   );

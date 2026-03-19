@@ -35,7 +35,9 @@ export function DashletSettings({
   const [value, setValue] = useState(String(config.value ?? "6"));
   const [max, setMax] = useState(String(config.max ?? "10"));
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    (config.dataMode as SimpleDataMode) || "static",
+    config.dataMode === "static" || config.dataMode === "pgrest"
+      ? config.dataMode
+      : "static",
   );
 
   // Snapshot of static field values, saved when entering pgrest mode

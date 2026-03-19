@@ -32,8 +32,8 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [title, setTitle] = useState(config.title || "Progress");
-  const [value, setValue] = useState(config.value ?? "6");
-  const [max, setMax] = useState(config.max ?? "10");
+  const [value, setValue] = useState(String(config.value ?? "6"));
+  const [max, setMax] = useState(String(config.max ?? "10"));
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
     (config.dataMode as SimpleDataMode) || "static",
   );

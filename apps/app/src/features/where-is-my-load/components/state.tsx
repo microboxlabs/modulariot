@@ -168,22 +168,19 @@ export function TemporalComponent({
   const end_label = getEndLabel();
 
   const isLate = (() => {
-    if (!isDeliveryExpedition || !time.start || !time.compromised_time) {
+    if (!isDeliveryExpedition || !time.end || !time.start) {
       return false;
     }
-    const deliveryDate = new Date(time.start);
-    const compromisedDate = new Date(time.compromised_time);
-    return deliveryDate.getTime() > compromisedDate.getTime();
+    const actualDeliveryDate = new Date(time.end);
+    const committedDate = new Date(time.start);
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return actualDeliveryDate.getTime() - committedDate.getTime() > oneDayMs;
   })();
 
-  // For DELIVERY_EXPEDITION: show compromised_time as first date, start as delivery date
+  // For DELIVERY_EXPEDITION: show start as committed date, end as actual delivery date
   // For other states: show start/projected_start and end/projected_end
-  const displayStart = isDeliveryExpedition
-    ? time.compromised_time
-    : (time.start ?? time.projected_start);
-  const displayEnd = isDeliveryExpedition
-    ? (time.start ?? time.projected_start)
-    : (time.end ?? time.projected_end);
+  const displayStart = time.start ?? time.projected_start;
+  const displayEnd = time.end ?? time.projected_end;
 
   return (
     <div

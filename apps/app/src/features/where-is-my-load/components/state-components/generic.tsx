@@ -5,7 +5,7 @@ import CustomCard, {
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 
 // Fields that are used internally and should not be displayed
-const HIDDEN_EXTRADATA_KEYS = new Set(["fecha_comprometida", "delivered"]);
+const HIDDEN_EXTRADATA_KEYS = new Set(["delivered"]);
 
 // Format value for display (converts booleans, etc.)
 function formatValue(value: unknown): string {

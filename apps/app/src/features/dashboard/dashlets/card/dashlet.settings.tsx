@@ -6,12 +6,12 @@ import type { DashletConfig, CardBackgroundColor, CardIcon } from "./dashlet";
 import type { ColorOption } from "@/features/common/components/color-picker-dropdown";
 import { tr } from "@/features/i18n/tr.service";
 import {
-  HbTextField,
+  HbTextFieldList,
   SettingsSelectField,
   usePgrestSettingsState,
   PgrestSettingsSection,
   fromPgrestParamItems,
-  defaultOnColumnsDetected,
+  buildSimplePgrestConfig,
   buildPgrestContentLabels,
   IconColorPickerRow,
 } from "../common";
@@ -63,13 +63,7 @@ export function DashletSettings({
   );
 
   const pg = usePgrestSettingsState({
-    pgrestFunctionName: config.pgrestFunctionName || "",
-    pgrestParams: config.pgrestParams || [],
-    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    onColumnsDetected: defaultOnColumnsDetected,
-    setColumns: () => {},
-    onDetectionComplete: (detected) => {
-      // Auto-fill name/value/descriptor with first detected keys
+    ...buildSimplePgrestConfig(config, (detected) => {
       if (detected.length >= 1) {
         setName(`{{row.${detected[0].key}}}`);
       }
@@ -79,7 +73,7 @@ export function DashletSettings({
       if (detected.length >= 3) {
         setDescriptor(`{{row.${detected[2].key}}}`);
       }
-    },
+    }),
   });
 
   const handleSave = () => {
@@ -108,16 +102,13 @@ export function DashletSettings({
 
   const visualizationTab = (
     <>
-      {CARD_FIELDS.map((f) => (
-        <HbTextField
-          key={f.id}
-          id={f.id}
-          label={tr(f.labelKey, dictionary)}
-          value={fieldValues[f.state]}
-          onChange={fieldSetters[f.state]}
-          placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
-        />
-      ))}
+      <HbTextFieldList
+        fields={CARD_FIELDS}
+        fieldValues={fieldValues}
+        fieldSetters={fieldSetters}
+        isPgrest={isPgrest}
+        dictionary={dictionary}
+      />
       <IconColorPickerRow
         icon={icon}
         onIconChange={setIcon}

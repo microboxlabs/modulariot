@@ -4,13 +4,12 @@ import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ColorTheme, IconType } from "./dashlet";
 import type { ColorOption } from "@/features/common/components/color-picker-dropdown";
-import { tr } from "@/features/i18n/tr.service";
 import {
-  HbTextField,
+  HbTextFieldList,
   usePgrestSettingsState,
   PgrestDataTab,
   fromPgrestParamItems,
-  defaultOnColumnsDetected,
+  buildSimplePgrestConfig,
   IconColorPickerRow,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
@@ -54,19 +53,14 @@ export function DashletSettings({
   );
 
   const pg = usePgrestSettingsState({
-    pgrestFunctionName: config.pgrestFunctionName || "",
-    pgrestParams: config.pgrestParams || [],
-    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    onColumnsDetected: defaultOnColumnsDetected,
-    setColumns: () => {},
-    onDetectionComplete: (detected) => {
+    ...buildSimplePgrestConfig(config, (detected) => {
       if (detected.length >= 1) {
         setName(`{{row.${detected[0].key}}}`);
       }
       if (detected.length >= 2) {
         setValue(`{{row.${detected[1].key}}}`);
       }
-    },
+    }),
   });
 
   const handleSave = () => {
@@ -93,16 +87,13 @@ export function DashletSettings({
 
   const visualizationTab = (
     <>
-      {LABELED_DATA_FIELDS.map((f) => (
-        <HbTextField
-          key={f.id}
-          id={f.id}
-          label={tr(f.labelKey, dictionary)}
-          value={fieldValues[f.state]}
-          onChange={fieldSetters[f.state]}
-          placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
-        />
-      ))}
+      <HbTextFieldList
+        fields={LABELED_DATA_FIELDS}
+        fieldValues={fieldValues}
+        fieldSetters={fieldSetters}
+        isPgrest={isPgrest}
+        dictionary={dictionary}
+      />
       <IconColorPickerRow
         icon={icon}
         onIconChange={setIcon}

@@ -15,6 +15,7 @@ export {
   SettingsPickerItem,
   SettingsTitleValueUnit,
   HbTextField,
+  HbTextFieldList,
   HbTextareaField,
 } from "./settings-fields";
 export {
@@ -100,6 +101,7 @@ export {
   buildPgrestSettingsConfig,
   buildPgrestContentLabels,
   defaultOnColumnsDetected,
+  buildSimplePgrestConfig,
 } from "./pgrest-settings-helpers";
 export { IconColorPickerRow } from "./icon-color-picker-row";
 export { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";

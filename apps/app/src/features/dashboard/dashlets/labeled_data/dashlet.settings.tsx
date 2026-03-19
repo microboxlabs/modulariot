@@ -1,22 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "flowbite-react";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ColorTheme, IconType } from "./dashlet";
+import type { ColorOption } from "@/features/common/components/color-picker-dropdown";
 import {
-  ColorPickerDropdown,
-  type ColorOption,
-} from "@/features/common/components/color-picker-dropdown";
-import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
-import {
-  SettingsTextField,
-  SettingsPickerRow,
-  SettingsPickerItem,
+  HbTextFieldList,
+  usePgrestSettingsState,
+  PgrestDataTab,
+  fromPgrestParamItems,
+  buildSimplePgrestConfig,
+  IconColorPickerRow,
 } from "../common";
-import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
+import { SettingsModalShell } from "../common/settings-modal-shell";
+
+type LabeledDataMode = "static" | "pgrest";
 
 /** Color options for ColorPickerDropdown */
 const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
@@ -30,7 +28,11 @@ const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
   { value: "orange", label: "Orange", dotClass: "bg-orange-500" },
 ];
 
-const ICON_OPTIONS = DASHLET_ICON_OPTIONS;
+/** Field config for the two labeled data text fields */
+const LABELED_DATA_FIELDS = [
+  { id: "dashlet-name", labelKey: "common.label", state: "name", hbPlaceholder: "{{row.metric_name}}", staticPlaceholder: "Enter label..." },
+  { id: "dashlet-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.total}}", staticPlaceholder: "Enter value..." },
+] as const;
 
 /**
  * Settings Modal
@@ -40,11 +42,26 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
   const [color, setColor] = useState<ColorTheme>(config.color || "gray");
   const [icon, setIcon] = useState<IconType>(config.icon || "chart");
+  const [dataMode, setDataMode] = useState<LabeledDataMode>(
+    config.dataMode || "static"
+  );
+
+  const pg = usePgrestSettingsState({
+    ...buildSimplePgrestConfig(config, (detected) => {
+      if (detected.length >= 1) {
+        setName(`{{row.${detected[0].key}}}`);
+      }
+      if (detected.length >= 2) {
+        setValue(`{{row.${detected[1].key}}}`);
+      }
+    }),
+  });
 
   const handleSave = () => {
     onSave({
@@ -52,61 +69,60 @@ export function DashletSettings({
       value: value.trim() || "0",
       color,
       icon,
+      dataMode,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
     });
     onClose();
   };
 
-  if (globalThis.window === undefined) return null;
+  const isPgrest = dataMode === "pgrest";
 
-  const modalContent = (
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(selected) => {
-        if (!selected) onClose();
-      }}
-      className="no-drag w-72 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-    >
-      <div className="flex w-full flex-col gap-3">
-        <SettingsTextField
-          id="dashlet-name"
-          label="Label"
-          value={name}
-          onChange={setName}
-          placeholder="Enter label..."
-        />
-        <SettingsTextField
-          id="dashlet-value"
-          label="Value"
-          value={value}
-          onChange={setValue}
-          placeholder="Enter value..."
-        />
-        <SettingsPickerRow>
-          <SettingsPickerItem label="Icon">
-            <IconPickerDropdown
-              options={ICON_OPTIONS}
-              value={icon}
-              onChange={setIcon}
-              title="Select icon"
-            />
-          </SettingsPickerItem>
-          <SettingsPickerItem label="Color">
-            <ColorPickerDropdown
-              options={COLOR_OPTIONS}
-              value={color}
-              onChange={setColor}
-              title="Select color"
-            />
-          </SettingsPickerItem>
-        </SettingsPickerRow>
+  const fieldValues: Record<string, string> = { name, value };
+  const fieldSetters: Record<string, (v: string) => void> = {
+    name: setName,
+    value: setValue,
+  };
 
-        {/* Save Button */}
-        <Button onClick={handleSave} size="sm" className="w-full">
-          Save
-        </Button>
-      </div>
-    </AbsoluteModal>
+  const visualizationTab = (
+    <>
+      <HbTextFieldList
+        fields={LABELED_DATA_FIELDS}
+        fieldValues={fieldValues}
+        fieldSetters={fieldSetters}
+        isPgrest={isPgrest}
+        dictionary={dictionary}
+      />
+      <IconColorPickerRow
+        icon={icon}
+        onIconChange={setIcon}
+        colorOptions={COLOR_OPTIONS}
+        color={color}
+        onColorChange={setColor}
+        dictionary={dictionary}
+      />
+    </>
   );
 
-  return createPortal(modalContent, document.body);
+  const dataTab = (
+    <PgrestDataTab
+      id="labeled-data-mode"
+      dataMode={dataMode}
+      onDataModeChange={(v) => setDataMode(v as LabeledDataMode)}
+      pgrest={pg}
+      dictionary={dictionary}
+    />
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
+  );
 }

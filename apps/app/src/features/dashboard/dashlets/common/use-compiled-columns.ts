@@ -24,7 +24,7 @@ export function useCompiledColumns(columns: TableColumn[], rowCount: number) {
 
   const resolveValue = useCallback(
     (key: string, row: Record<string, string>, rowIdx: number, totalRows: number): string =>
-      resolveTemplate(compiledKeys, key, { row, ...row, _index: rowIdx, _count: totalRows }, row[key] ?? key),
+      resolveTemplate(compiledKeys, key, { ...row, row, _index: rowIdx, _count: totalRows }, row[key] ?? key),
     [compiledKeys]
   );
 
@@ -39,7 +39,7 @@ export function useCompiledColumns(columns: TableColumn[], rowCount: number) {
       const col = columns.find((c) => c.key === key);
       const result = resolveTemplate(
         compiledTypes, key,
-        { row, ...row, _index: rowIdx, _count: totalRows },
+        { ...row, row, _index: rowIdx, _count: totalRows },
         col?.type || "text"
       );
       return result.trim() || "text";

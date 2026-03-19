@@ -134,14 +134,16 @@ export function TemporalComponent({
   stateCode,
 }: Readonly<{
   time: {
-    start: string;
-    end: string;
+    start: string | null;
+    projected_start: string | null;
+    end: string | null;
+    projected_end: string | null;
     compromised_time: string | null;
     delivered: boolean | null;
     duration: number | null;
   };
   dict: I18nRecord;
-  stateCode?: string;
+  stateCode?: string | null;
 }>) {
   const start_label =
     stateCode === "DELIVERY_EXPEDITION"
@@ -168,6 +170,9 @@ export function TemporalComponent({
     return endDate.getTime() - startDate.getTime() > oneDayMs;
   })();
 
+  const displayStart = time.start ?? time.projected_start;
+  const displayEnd = time.end ?? time.projected_end;
+
   return (
     <div
       className={`text-sm font-light flex flex-col md:flex-row gap-2 text-gray-500 dark:text-gray-400`}
@@ -176,7 +181,7 @@ export function TemporalComponent({
         {start_label}:{" "}
         <span className={`whitespace-nowrap`}>
           <FormattedDate
-            date={time.start}
+            date={displayStart}
             format="datetime"
             locale="es-CL"
             timeZone="America/Santiago"
@@ -187,7 +192,7 @@ export function TemporalComponent({
         {end_label}:{" "}
         <span className={`whitespace-nowrap`}>
           <FormattedDate
-            date={time.end}
+            date={displayEnd}
             format="datetime"
             locale="es-CL"
             timeZone="America/Santiago"

@@ -7,6 +7,7 @@ export function usePgrestRows(
   pgrestFunctionName: string,
   pgrestHttpMethod: PgrestHttpMethod,
   pgrestParams: PgrestParam[],
+  dataSourceId?: string,
 ): {
   rows: Record<string, string>[];
   loading: boolean;
@@ -32,6 +33,7 @@ export function usePgrestRows(
       pgrestFunctionName,
       pgrestHttpMethod,
       pgrestParams,
+      dataSourceId,
     );
 
     fetch(url, init)
@@ -55,7 +57,7 @@ export function usePgrestRows(
     return () => {
       cancelled = true;
     };
-  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
+  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId]);
 
   return { rows, loading, fetchError };
 }

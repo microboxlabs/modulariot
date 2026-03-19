@@ -38,6 +38,7 @@ export interface DashletConfig {
   pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
+  dataSourceId?: string;
 }
 
 // ============================================================================
@@ -146,6 +147,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams = [],
     pgrestHttpMethod = "POST",
     sort = defaultSort,
+    dataSourceId,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
@@ -154,7 +156,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     rows: pgrestRows,
     loading,
     fetchError,
-  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams);
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
 
   const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
 

@@ -1449,6 +1449,7 @@
     },
     "title": "Title",
     "value": "Value",
+    "max": "Max",
     "unit": "Unit",
     "all": "All"
   },

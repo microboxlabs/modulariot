@@ -1,15 +1,23 @@
 "use client";
 
-import { Button, TextInput, Label } from "flowbite-react";
+import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
+interface DataSourceOption {
+  id: string;
+  name: string;
+}
+
 interface PgrestSettingsSectionProps {
   pgrest: ReturnType<typeof usePgrestSettingsState>;
+  dictionary: I18nRecord;
   labels: {
     functionName: string;
     httpMethod: string;
@@ -17,18 +25,52 @@ interface PgrestSettingsSectionProps {
     key: string;
     value: string;
     addParameter: string;
-    removeParameter: string;
-    loadError: string;
-    retry: string;
   };
+  dataSourceId?: string;
+  onDataSourceIdChange?: (id: string) => void;
+  activeProviders?: DataSourceOption[];
 }
 
 export function PgrestSettingsSection({
   pgrest: pg,
+  dictionary,
   labels,
+  dataSourceId,
+  onDataSourceIdChange,
+  activeProviders,
 }: Readonly<PgrestSettingsSectionProps>) {
   return (
     <>
+      {onDataSourceIdChange && (
+        <div>
+          <Label
+            htmlFor="pgrest-data-source-provider"
+            className="mb-1 block text-sm font-medium"
+          >
+            {tr("dashboard.settings.dataSourceProvider", dictionary)}
+          </Label>
+          <Select
+            id="pgrest-data-source-provider"
+            sizing="sm"
+            value={dataSourceId ?? ""}
+            onChange={(e) => {
+              onDataSourceIdChange(e.target.value);
+              pg.setPgrestFunctionName("");
+            }}
+          >
+            <option value="">
+              {activeProviders?.length === 0
+                ? tr("dashboard.settings.noActiveProviders", dictionary)
+                : tr("dashboard.settings.selectProvider", dictionary)}
+            </option>
+            {activeProviders?.map((ds) => (
+              <option key={ds.id} value={ds.id}>
+                {ds.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       <div>
         <Label
           htmlFor="pgrest-fn"
@@ -41,8 +83,9 @@ export function PgrestSettingsSection({
           value={pg.pgrestFunctionName}
           onChange={pg.setPgrestFunctionName}
           onSelect={pg.handleFunctionSelect}
+          dictionary={dictionary}
           loading={pg.introspecting || pg.detecting}
-          labels={{ loadError: labels.loadError, retry: labels.retry }}
+          dataSourceId={dataSourceId}
         />
         {(pg.introspectError || pg.detectError) && (
           <p className="mt-1 text-xs text-red-500 dark:text-red-400">
@@ -91,7 +134,6 @@ export function PgrestSettingsSection({
               </div>
               <button
                 type="button"
-                aria-label={labels.removeParameter}
                 onClick={() => pg.removePgrestParam(p._id)}
                 onMouseDown={stopPropagation}
                 className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"

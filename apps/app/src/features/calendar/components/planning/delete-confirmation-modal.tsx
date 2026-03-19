@@ -23,6 +23,8 @@ interface DeleteConfirmationModalProps {
 }
 
 const DELETE_MODAL_BASE = "layout.planning.deleteModal" as const;
+const DELETE_ASSIGNMENT_MODAL_BASE =
+  "layout.planning.deleteAssignmentModal" as const;
 
 export function getDeleteModalMessages(
   dict: I18nDictionary,
@@ -35,6 +37,20 @@ export function getDeleteModalMessages(
     close: tr(`${DELETE_MODAL_BASE}.close`, dict),
     cancel: tr(`${DELETE_MODAL_BASE}.cancel`, dict),
     delete: tr(`${DELETE_MODAL_BASE}.delete`, dict),
+  };
+}
+
+export function getDeleteAssignmentMessages(
+  dict: I18nDictionary,
+  _serviceId: string
+): DeleteConfirmationModalMessages {
+  return {
+    title: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.title`, dict),
+    messagePrefix: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.messagePrefix`, dict),
+    messageSuffix: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.messageSuffix`, dict),
+    close: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.close`, dict),
+    cancel: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.cancel`, dict),
+    delete: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.delete`, dict),
   };
 }
 

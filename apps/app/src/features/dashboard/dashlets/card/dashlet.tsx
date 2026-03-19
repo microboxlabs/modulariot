@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -11,7 +10,7 @@ import {
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestRows, resolveHandlebarsField } from "../common";
+import { usePgrestResolvedFields } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -123,25 +122,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const bgColor = config.backgroundColor || "white";
   const iconType = config.icon || "chart";
-  const dataMode = config.dataMode || "static";
 
-  // Stabilize params reference to avoid retriggering the fetch effect
-  const pgrestParams = config.pgrestParams;
-  const stableParams = useMemo(() => pgrestParams || [], [pgrestParams]);
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: config.dataMode || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || [],
+    fields: {
+      name: config.name || "Metric",
+      value: config.value || "0",
+      descriptor: config.descriptor || "",
+    },
+  });
 
-  const { rows, loading, fetchError } = usePgrestRows(
-    dataMode,
-    config.pgrestFunctionName || "",
-    config.pgrestHttpMethod || "POST",
-    stableParams,
-  );
-
-  // Build Handlebars context from first pgrest row; resolveHandlebarsField
-  // is a no-op passthrough when the template contains no {{}} expressions
-  const context = rows.length > 0 ? { ...rows[0], row: rows[0] } : {};
-  const name = resolveHandlebarsField(config.name || "Metric", context);
-  const value = resolveHandlebarsField(config.value || "0", context);
-  const descriptor = resolveHandlebarsField(config.descriptor || "", context);
+  const { name, value, descriptor } = resolved;
 
   const Icon = ICONS[iconType];
   const bgClass = BG_COLORS[bgColor];

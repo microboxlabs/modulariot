@@ -381,6 +381,49 @@ export function HbTextField({
 }
 
 // ============================================================================
+// HbTextFieldList — renders a list of HbTextField from a field config array
+// ============================================================================
+
+interface HbTextFieldListField {
+  id: string;
+  labelKey: string;
+  state: string;
+  hbPlaceholder: string;
+  staticPlaceholder: string;
+}
+
+interface HbTextFieldListProps {
+  fields: readonly HbTextFieldListField[];
+  fieldValues: Record<string, string>;
+  fieldSetters: Record<string, (v: string) => void>;
+  isPgrest: boolean;
+  dictionary: I18nRecord;
+}
+
+export function HbTextFieldList({
+  fields,
+  fieldValues,
+  fieldSetters,
+  isPgrest,
+  dictionary,
+}: Readonly<HbTextFieldListProps>) {
+  return (
+    <>
+      {fields.map((f) => (
+        <HbTextField
+          key={f.id}
+          id={f.id}
+          label={tr(f.labelKey, dictionary)}
+          value={fieldValues[f.state]}
+          onChange={fieldSetters[f.state]}
+          placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
+        />
+      ))}
+    </>
+  );
+}
+
+// ============================================================================
 // HbTextareaField — Handlebars-aware Textarea
 // ============================================================================
 

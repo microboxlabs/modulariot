@@ -1,0 +1,44 @@
+# 🔔 Release Notes v1.28.6 — ModularIoT
+
+### Fecha: 17/03/2026
+
+**Objetivo**: Esta versión corrige un error crítico en las validaciones de control de misión y estandariza las claves de métricas OBD-II (core y DTC) a lo largo de toda la cadena de datos — desde el modelo GPS hasta la publicación y persistencia en base de datos.
+
+## 🐛 Correcciones
+
+- **🐛 NPE en validación cuando el servicio externo de alcohol/drogas retorna null**
+  - **Problema**: `ValidationServiceImpl.handleScopedValidations` lanzaba un `NullPointerException` al intentar desempaquetar valores `Integer` nulos cuando el proveedor externo (vía workflow n8n) retornaba errores (e.g., 401 Unauthorized) o valores nulos.
+  - **Causa raíz**: El auto-unboxing de `Integer` a `int` en los métodos `getAlcoholTest()`, `getDrugTest()` y `getSleepinessTest()` fallaba cuando el proveedor externo no respondía correctamente.
+  - **Solución**: Se envolvieron las llamadas a los servicios externos en bloques try-catch, se establecieron valores por defecto de `-1` (no encontrado), y se añadieron verificaciones de nulidad antes del unboxing. Las fallas se registran como advertencia en lugar de interrumpir el flujo.
+
+- **🐛 Estandarización de claves de métricas OBD-II en el modelo GPS**
+  - **Cambio**: Las claves de métricas `odometer` y `lambda` se renombraron a `vehicle.odometer` y `emissions.lambda` respectivamente, siguiendo la convención `<categoría>.<métrica>` de la plataforma.
+  - **Impacto**: La inconsistencia en las claves podía causar fallos de búsqueda o desajustes silenciosos cuando los servicios downstream esperaban claves con namespace.
+  - **Versión**: `quarkus-gps-model` actualizado a 1.3.3.
+
+- **🐛 Actualización de dependencia en el publisher HTTP-Pulsar**
+  - **Cambio**: Se actualizó la dependencia `gps-model` a la versión 1.3.3 para que el publisher produzca métricas con las claves corregidas.
+  - **Alcance**: Asegura que los mensajes publicados a Pulsar contengan las claves de métricas estandarizadas.
+
+- **🐛 Corrección de métricas core y DTC en el DB writer**
+  - **Soporte DTC**: Se añadió manejo para métricas de engine freeze-frame y códigos DTC que anteriormente no se procesaban.
+  - **Nombres canónicos**: El campo odometer se renombró a `km` para consistencia.
+  - **Migración de esquema**: Nuevos campos nullable y columnas renombradas en las tablas de métricas core y DTC.
+  - **Validación mejorada**: Validación de métricas robustecida con logging mejorado y cobertura de tests unitarios extensiva.
+
+## 📊 Beneficios
+
+- 🛡️ **Resiliencia ante fallos externos**: El sistema de validaciones tolera la indisponibilidad de proveedores externos sin bloquear la operación.
+- 🔄 **Consistencia en la cadena de datos**: Las claves de métricas OBD-II son ahora uniformes desde el modelo GPS, pasando por el publisher, hasta la persistencia en base de datos.
+- 📐 **Convención de nombres estandarizada**: Adopción del patrón `<categoría>.<métrica>` elimina ambigüedades y previene desajustes entre servicios.
+- 🔧 **Soporte DTC completo**: El DB writer ahora persiste correctamente métricas de diagnóstico (freeze-frame y códigos DTC) que antes se perdían.
+- 📋 **Mejor trazabilidad**: Las fallas en servicios externos y la validación de métricas generan logs de advertencia que facilitan el diagnóstico.
+- 🧪 **Cobertura de tests mejorada**: Tests unitarios extensivos para mapping, validación y persistencia de métricas aseguran la estabilidad a largo plazo.
+
+## 📌 Conclusión
+
+La versión 1.28.6 aborda dos líneas de trabajo críticas. Por un lado, resuelve una vulnerabilidad en el flujo de validaciones de control de misión donde la caída del proveedor externo de tests de alcohol, drogas y somnolencia bloqueaba completamente la operación, implementando un patrón de degradación elegante.
+
+Por otro lado, estandariza las claves de métricas OBD-II a lo largo de toda la cadena de procesamiento de datos GPS. La corrección abarca el modelo de datos (`quarkus-gps-model`), la publicación de mensajes (`quarkus-http-pulsar-publisher`) y la escritura en base de datos (`quarkus-subscriber-db-writer`), asegurando consistencia end-to-end en el naming de métricas vehiculares.
+
+Estas correcciones fortalecen tanto la resiliencia operativa como la integridad de los datos de la plataforma, sentando bases más sólidas para futuras integraciones de métricas OBD-II y diagnóstico vehicular.

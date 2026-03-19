@@ -308,16 +308,23 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const { rows: dynamicRows, loading: dynamicLoading, fetchError: dynamicError } = useDynamicRows(dataMode, apiUrl);
-  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams);
+
+  // ── PGREST data fetching ──────────────────────────────────────────────────
+  const pgrestParamsStable = useMemo(() => pgrestParams, [pgrestParams]);
+  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
+    dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParamsStable,
+  );
 
   const loading = dynamicLoading || pgrestLoading;
   const fetchError = dynamicError || pgrestError;
-  const resolveRows = (): Record<string, string>[] => {
-    if (dataMode === "pgrest") return pgrestRows;
-    if (dataMode === "dynamic") return dynamicRows;
-    return staticRows;
-  };
-  const allRows = resolveRows();
+  let allRows: typeof staticRows;
+  if (dataMode === "pgrest") {
+    allRows = pgrestRows;
+  } else if (dataMode === "dynamic") {
+    allRows = dynamicRows;
+  } else {
+    allRows = staticRows;
+  }
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {

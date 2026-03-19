@@ -1421,6 +1421,9 @@
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",
       "invalidJson": "Invalid JSON",
+      "dataSourceProvider": "Data Source Provider",
+      "selectProvider": "Select a provider…",
+      "noActiveProviders": "No active providers available",
       "failedToLoadFunctions": "Failed to load functions",
       "invalidResponseFormat": "Invalid response format"
     },

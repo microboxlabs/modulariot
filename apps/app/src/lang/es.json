@@ -1446,6 +1446,9 @@
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",
       "invalidJson": "JSON inválido",
+      "dataSourceProvider": "Proveedor de Datos",
+      "selectProvider": "Seleccionar proveedor…",
+      "noActiveProviders": "No hay proveedores activos disponibles",
       "failedToLoadFunctions": "Error al cargar funciones",
       "invalidResponseFormat": "Formato de respuesta inválido"
     },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {
@@ -15,6 +16,8 @@ import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
 import { tr } from "@/features/i18n/tr.service";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 export function DashletSettings({
   isOpen,
@@ -23,6 +26,17 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const { siteId } = useDashboard();
+  const { dataSources } = useDataSources(siteId ?? undefined);
+
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true
+  );
+
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
+
   const s = useSettingsState({
     title: config.title,
     defaultTitle: "Data Table",
@@ -43,6 +57,7 @@ export function DashletSettings({
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestParams: config.pgrestParams ?? [],
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
   });
 
@@ -66,6 +81,7 @@ export function DashletSettings({
       pgrestHttpMethod: pg.pgrestHttpMethod,
       filter,
       sort,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -75,6 +91,9 @@ export function DashletSettings({
       pgrest={pg}
       dictionary={dictionary}
       labels={buildPgrestContentLabels(dictionary)}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
     />
   );
 

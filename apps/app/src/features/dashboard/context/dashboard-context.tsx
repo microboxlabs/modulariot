@@ -27,6 +27,8 @@ interface DashboardContextValue {
   isLoaded: boolean;
   /** Dictionary for internationalization */
   dictionary: I18nRecord;
+  /** Alfresco site short name (when available) */
+  siteId?: string | null;
 
   // Widget actions
   createWidget: (
@@ -335,6 +337,7 @@ export function DashboardProvider({
       editMode: preferences.editMode,
       isLoaded,
       dictionary,
+      siteId,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -354,6 +357,7 @@ export function DashboardProvider({
       preferences.editMode,
       isLoaded,
       dictionary,
+      siteId,
       dashboardName,
       createWidget,
       updateWidgetConfig,

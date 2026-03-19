@@ -114,6 +114,7 @@ export function PgrestSettingsSection({
                 <TextInput
                   sizing="sm"
                   placeholder={labels.key}
+                  aria-label={labels.key}
                   value={p.key}
                   onChange={(e) =>
                     pg.updatePgrestParam(p._id, "key", e.target.value)
@@ -124,6 +125,7 @@ export function PgrestSettingsSection({
                 <TextInput
                   sizing="sm"
                   placeholder={pg.paramHints[p.key] ?? labels.value}
+                  aria-label={labels.value}
                   value={p.value}
                   onChange={(e) =>
                     pg.updatePgrestParam(p._id, "value", e.target.value)

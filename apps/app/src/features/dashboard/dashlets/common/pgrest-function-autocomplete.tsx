@@ -39,10 +39,12 @@ export function PgrestFunctionAutocomplete({
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
+  const isFetchingRef = useRef(false);
 
   // Guard against out-of-order responses when dataSourceId changes
   const requestIdRef = useRef(0);
@@ -55,6 +57,9 @@ export function PgrestFunctionAutocomplete({
   }, [dataSourceId]);
 
   const doFetch = useCallback(async (reqId: number) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setIsFetching(true);
     setFetchError(null);
     try {
       const qs = buildDataSourceParams(dataSourceId).toString();
@@ -77,12 +82,15 @@ export function PgrestFunctionAutocomplete({
           ? err.message
           : tr("dashboard.settings.failedToLoadFunctions", dictionary)
       );
+    } finally {
+      isFetchingRef.current = false;
+      setIsFetching(false);
     }
   }, [dictionary, dataSourceId]);
 
   // Fetch function list once on first interaction
   const fetchFunctions = useCallback(async () => {
-    if (allFunctions !== null) return;
+    if (allFunctions !== null || isFetchingRef.current) return;
     await doFetch(requestIdRef.current);
   }, [allFunctions, doFetch]);
 
@@ -141,9 +149,9 @@ export function PgrestFunctionAutocomplete({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoComplete="off"
-        disabled={loading}
+        disabled={loading || isFetching}
       />
-      {loading && (
+      {(loading || isFetching) && (
         <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
           <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
         </div>

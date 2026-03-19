@@ -1,11 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label } from "flowbite-react";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  HbTextFieldList,
+  usePgrestSettingsState,
+  fromPgrestParamItems,
+  buildSimplePgrestConfig,
+  PgrestDataTab,
+} from "../common";
+import { SettingsModalShell } from "../common/settings-modal-shell";
+
+type PercentageDataMode = "static" | "pgrest";
+
+/** Field config for the three percentage_value text fields */
+const PERCENTAGE_FIELDS = [
+  { id: "pv-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Progress" },
+  { id: "pv-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.current}}", staticPlaceholder: "6" },
+  { id: "pv-max", labelKey: "common.max", state: "max", hbPlaceholder: "{{row.total}}", staticPlaceholder: "10" },
+] as const;
 
 /**
  * Settings Modal for Percentage Value Dashlet
@@ -15,82 +29,79 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [title, setTitle] = useState(config.title || "Progress");
-  const [value, setValue] = useState(config.value ?? 6);
-  const [max, setMax] = useState(config.max ?? 10);
+  const [value, setValue] = useState(config.value ?? "6");
+  const [max, setMax] = useState(config.max ?? "10");
+  const [dataMode, setDataMode] = useState<PercentageDataMode>(
+    (config.dataMode as PercentageDataMode) || "static",
+  );
+
+  const pg = usePgrestSettingsState({
+    ...buildSimplePgrestConfig(config, (detected) => {
+      if (detected.length >= 1) {
+        setTitle(`{{row.${detected[0].key}}}`);
+      }
+      if (detected.length >= 2) {
+        setValue(`{{row.${detected[1].key}}}`);
+      }
+      if (detected.length >= 3) {
+        setMax(`{{row.${detected[2].key}}}`);
+      }
+    }),
+  });
 
   const handleSave = () => {
     onSave({
       title: title.trim() || "Progress",
-      value: Number(value) || 0,
-      max: Number(max) || 10,
+      value: value.trim() || "6",
+      max: max.trim() || "10",
+      dataMode,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
     });
     onClose();
   };
 
-  if (globalThis.window === undefined) return null;
+  const isPgrest = dataMode === "pgrest";
 
-  const modalContent = (
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(selected) => {
-        if (!selected) onClose();
-      }}
-      className="no-drag w-72 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-    >
-      <div className="flex w-full flex-col gap-3">
-        {/* Title */}
-        <div>
-          <Label htmlFor="dashlet-title" className="mb-1 block text-sm">
-            Title
-          </Label>
-          <TextInput
-            id="dashlet-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Progress"
-            sizing="sm"
-          />
-        </div>
+  const fieldValues: Record<string, string> = { title, value, max };
+  const fieldSetters: Record<string, (v: string) => void> = {
+    title: setTitle,
+    value: setValue,
+    max: setMax,
+  };
 
-        {/* Value and Max in a row */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <Label htmlFor="dashlet-value" className="mb-1 block text-sm">
-              Value
-            </Label>
-            <TextInput
-              id="dashlet-value"
-              type="number"
-              value={value}
-              onChange={(e) => setValue(Number(e.target.value))}
-              placeholder="6"
-              sizing="sm"
-            />
-          </div>
-          <div className="flex-1">
-            <Label htmlFor="dashlet-max" className="mb-1 block text-sm">
-              Max
-            </Label>
-            <TextInput
-              id="dashlet-max"
-              type="number"
-              value={max}
-              onChange={(e) => setMax(Number(e.target.value))}
-              placeholder="10"
-              sizing="sm"
-            />
-          </div>
-        </div>
-
-        {/* Save Button */}
-        <Button onClick={handleSave} size="sm" className="w-full">
-          Save
-        </Button>
-      </div>
-    </AbsoluteModal>
+  const visualizationTab = (
+    <HbTextFieldList
+      fields={PERCENTAGE_FIELDS}
+      fieldValues={fieldValues}
+      fieldSetters={fieldSetters}
+      isPgrest={isPgrest}
+      dictionary={dictionary}
+    />
   );
 
-  return createPortal(modalContent, document.body);
+  const dataTab = (
+    <PgrestDataTab
+      id="pv-data-mode"
+      dataMode={dataMode}
+      onDataModeChange={(v) => setDataMode(v as PercentageDataMode)}
+      pgrest={pg}
+      dictionary={dictionary}
+    />
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
+  );
 }

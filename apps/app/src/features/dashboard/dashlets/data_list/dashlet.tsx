@@ -44,6 +44,9 @@ export interface DashletConfig {
   columns: TableColumn[];
   rows: Record<string, string>[];
   apiUrl: string;
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
   cardLayout: CardLayoutConfig;
@@ -275,6 +278,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     columns = defaultColumns,
     rows: staticRows = defaultRows,
     apiUrl = "",
+    pgrestFunctionName = "",
+    pgrestParams = [],
+    pgrestHttpMethod = "POST",
     sort = defaultSort,
     cardLayout = defaultCardLayout,
   } = config;
@@ -284,9 +290,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   );
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
+  const { rows: dynamicRows, loading: dynamicLoading, fetchError: dynamicError } = useDynamicRows(dataMode, apiUrl);
 
-  const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
+  // ── PGREST data fetching ──────────────────────────────────────────────────
+  const pgrestParamsStable = useMemo(() => pgrestParams, [pgrestParams]);
+  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
+    dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParamsStable,
+  );
+
+  const allRows = dataMode === "pgrest" ? pgrestRows : dataMode === "dynamic" ? dynamicRows : staticRows;
+  const loading = dynamicLoading || pgrestLoading;
+  const fetchError = dynamicError || pgrestError;
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {

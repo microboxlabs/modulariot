@@ -1474,6 +1474,7 @@
     },
     "title": "Título",
     "value": "Valor",
+    "max": "Máx",
     "unit": "Unidad",
     "all": "Todos"
   },

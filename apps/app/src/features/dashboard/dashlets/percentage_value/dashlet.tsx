@@ -1,6 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
+import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestResolvedFields } from "../common";
+
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Configuration Types
@@ -9,15 +15,19 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 /** Configuration for this dashlet */
 export interface DashletConfig {
   title: string;
-  value: number;
-  max: number;
+  value: string;
+  max: string;
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
 }
 
 /** Default configuration */
 export const defaultConfig: DashletConfig = {
   title: "Progress",
-  value: 6,
-  max: 10,
+  value: "6",
+  max: "10",
 };
 
 // ============================================================================
@@ -43,9 +53,45 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const title = config.title || "Progress";
-  const value = config.value ?? 6;
-  const max = config.max ?? 10;
+
+  const fields = useMemo(
+    () => ({
+      title: config.title || "Progress",
+      value: String(config.value ?? "6"),
+      max: String(config.max ?? "10"),
+    }),
+    [config.title, config.value, config.max],
+  );
+
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    fields,
+  });
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const title = resolved.title || "Progress";
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const parsedMax = resolved.max === "" || resolved.max == null ? Number.NaN : Number(resolved.max);
+  const value = Number.isFinite(parsedValue) ? parsedValue : 0;
+  const max = Number.isFinite(parsedMax) ? parsedMax : 10;
 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   const clampedPercentage = Math.min(100, Math.max(0, percentage));

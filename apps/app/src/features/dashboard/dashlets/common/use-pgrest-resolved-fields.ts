@@ -3,8 +3,10 @@ import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { resolveHandlebarsField } from "./use-handlebars-templates";
 
+const EMPTY_PARAMS: PgrestParam[] = [];
+
 interface PgrestResolvedFieldsConfig {
-  dataMode: string;
+  dataMode: "static" | "pgrest";
   pgrestFunctionName: string;
   pgrestHttpMethod: PgrestHttpMethod;
   pgrestParams: PgrestParam[];
@@ -28,7 +30,7 @@ export function usePgrestResolvedFields({
   pgrestParams,
   fields,
 }: PgrestResolvedFieldsConfig): PgrestResolvedFieldsResult {
-  const stableParams = useMemo(() => pgrestParams || [], [pgrestParams]);
+  const stableParams = pgrestParams.length > 0 ? pgrestParams : EMPTY_PARAMS;
 
   const { rows, loading, fetchError } = usePgrestRows(
     dataMode,
@@ -37,12 +39,16 @@ export function usePgrestResolvedFields({
     stableParams,
   );
 
-  const context = rows.length > 0 ? { ...rows[0], row: rows[0] } : {};
+  const firstRow = rows[0];
 
-  const resolved: Record<string, string> = {};
-  for (const [key, template] of Object.entries(fields)) {
-    resolved[key] = resolveHandlebarsField(template, context);
-  }
+  const resolved = useMemo(() => {
+    const context = firstRow ? { ...firstRow, row: firstRow } : {};
+    const out: Record<string, string> = {};
+    for (const [key, template] of Object.entries(fields)) {
+      out[key] = resolveHandlebarsField(template, context);
+    }
+    return out;
+  }, [firstRow, fields]);
 
   return { resolved, loading, fetchError };
 }

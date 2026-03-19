@@ -60,7 +60,7 @@ interface PlannedServiceChipProps {
 
 /**
  * Shared PlannedServiceChip component for calendar views
- * Displays a service ID with urgencia-aware styling
+ * Displays a service ID with urgencia-aware styling and route information
  */
 export function PlannedServiceChip({
   plannedService,
@@ -71,48 +71,71 @@ export function PlannedServiceChip({
 }: PlannedServiceChipProps) {
   const hasUrgencia = hasUrgenciaIncidencia(plannedService.service);
   const driverCount = getDriverCount(plannedService.service);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ContextMenu" || e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      const rect = e.currentTarget.getBoundingClientRect();
-      const syntheticEvent = {
-        preventDefault: () => {},
-        stopPropagation: () => {},
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2,
-      } as React.MouseEvent;
-      onContextMenu(syntheticEvent, plannedService);
-    }
-  };
+  const { origen, destino } = plannedService.service;
 
   return (
     <button
       type="button"
       onContextMenu={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         onContextMenu(e, plannedService);
       }}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={handleKeyDown}
+      onKeyDown={(e) => {
+        // Shift+F10 or ContextMenu key opens context menu
+        if (e.shiftKey && e.key === "F10") {
+          e.preventDefault();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const syntheticEvent = {
+            ...e,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          } as unknown as React.MouseEvent<HTMLButtonElement>;
+          onContextMenu(syntheticEvent, plannedService);
+        }
+      }}
       className={twMerge(
-        "m-0 border-0 bg-transparent p-0 text-left font-inherit min-w-0",
-        "rounded flex items-center justify-between cursor-context-menu",
-        "text-xs font-medium truncate px-1 border-l-4",
+        "min-w-0 w-full",
+        "rounded flex items-center cursor-context-menu",
+        "text-xs font-medium px-1.5 py-1 border-l-4",
         getPlannedServiceChipClassName(hasUrgencia),
         isBeingReassigned &&
           "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
         className
       )}
       title={`${plannedService.service.id} - ${tr("pages.planning.sidebar.contextMenu.chipTitle", dict)}`}
     >
-      <span className="truncate">{plannedService.service.id}</span>
+      {/* Left: Service ID + Route stacked */}
+      <div className="flex flex-col flex-1 min-w-0">
+        <span className="font-bold truncate text-left">
+          {plannedService.service.id}
+        </span>
+        <div className="flex items-center gap-0.5 text-[10px] font-normal opacity-80 truncate">
+          <span className="truncate">{origen}</span>
+          <span className="shrink-0">→</span>
+          <span className="truncate">{destino}</span>
+        </div>
+      </div>
+      {/* Right: Driver icon centered vertically */}
       {driverCount === 1 && (
-        <IoPerson className="ml-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+        <IoPerson
+          className={twMerge(
+            "ml-1 shrink-0 w-4 h-4",
+            hasUrgencia
+              ? "text-purple-700 dark:text-purple-300"
+              : "text-blue-700 dark:text-blue-300"
+          )}
+        />
       )}
       {driverCount === 2 && (
-        <IoPeople className="ml-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+        <IoPeople
+          className={twMerge(
+            "ml-1 shrink-0 w-4 h-4",
+            hasUrgencia
+              ? "text-purple-700 dark:text-purple-300"
+              : "text-blue-700 dark:text-blue-300"
+          )}
+        />
       )}
     </button>
   );

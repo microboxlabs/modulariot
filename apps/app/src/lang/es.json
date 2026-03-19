@@ -320,6 +320,7 @@
           "replan": "Volver a planificar",
           "assign": "Asignar",
           "deletePlanning": "Eliminar planificación",
+          "deleteAssignment": "Eliminar asignación",
           "reassign": "Reasignar",
           "delete": "Eliminar",
           "deleteConfirmTitle": "Confirmar eliminación",
@@ -345,19 +346,61 @@
           "selectPlaceholder": "Seleccionar...",
           "transportista": "Transportista",
           "selectTransportista": "Seleccionar transportista...",
+          "searchTransportista": "Buscar transportista...",
+          "noTransportistasFound": "No se encontraron transportistas",
           "conductor": "Conductor",
           "selectConductor": "Seleccionar conductor...",
+          "searchDriver": "Buscar conductor...",
+          "noDriversFound": "No se encontraron conductores",
+          "searchNoResultsFor": "Sin resultados para",
+          "searchMinChars": "Escribe al menos 2 caracteres para buscar",
+          "clearFilter": "Limpiar filtro",
+          "selectFieldToFilter": "Selecciona un campo para filtrar",
+          "filteringBy": "Filtrando por",
+          "searchFields": {
+            "name": "Nombre",
+            "rut": "RUT",
+            "status": "Estado",
+            "trips": "Viajes previos",
+            "lastTrip": "Último viaje"
+          },
+          "driverSearch": {
+            "matchType": {
+              "name": "Nombre",
+              "rut": "RUT",
+              "estado": "Estado",
+              "viajesPrevios": "Viajes previos",
+              "ultimoViaje": "Último viaje",
+              "excesoVelocidad": "Exceso velocidad",
+              "faltasDescanso": "Faltas descanso"
+            }
+          },
           "secondConductorLabel": "2do conductor",
           "secondConductor": "Segundo Conductor",
           "selectSecondConductor": "Seleccionar segundo conductor...",
           "camion": "Camión",
           "selectCamion": "Seleccionar camión...",
+          "searchTruck": "Buscar camión...",
+          "noTrucksFound": "No se encontraron camiones",
+          "truckSearchFields": {
+            "plate": "Patente",
+            "brand": "Marca",
+            "type": "Tipo",
+            "status": "Estado",
+            "gps": "GPS",
+            "trips": "Viajes previos"
+          },
+          "transportistaSearchFields": {
+            "name": "Nombre",
+            "rut": "RUT",
+            "status": "Estado"
+          },
           "remolqueLabel": "Remolque",
           "remolque": "Remolque",
           "selectRemolque": "Seleccionar remolque...",
           "status": "Estado",
-          "enabled": "Habilitado",
-          "notEnabled": "No Habilitado",
+          "enabled": "Acreditado",
+          "notEnabled": "No Acreditado",
           "previousTrips": "Viajes previos",
           "lastTrip": "Último viaje",
           "speedExcess": "Exceso velocidad",
@@ -374,7 +417,58 @@
           "signalLosses": "Pérdidas de señal",
           "losses": "{count} pérdidas",
           "available": "Disponible",
-          "busy": "Ocupado"
+          "busy": "Ocupado",
+          "truckType": {
+            "camion": "Camión",
+            "furgon": "Furgón",
+            "camioneta": "Camioneta"
+          },
+          "remolqueType": {
+            "ARFJ": "Articulado Fijo",
+            "BAT": "Batea",
+            "C100": "Contenedor 100",
+            "CB20": "Cama Baja 20",
+            "CB40": "Cama Baja 40",
+            "CB60": "Cama Baja 60",
+            "CB70": "Cama Baja 70",
+            "CB80": "Cama Baja 80",
+            "CBJ": "Cama Baja",
+            "CBJE": "Cama Baja Extensible",
+            "CFX": "Chasis Fijo",
+            "EST": "Estanque",
+            "FURG": "Furgón",
+            "PNE6": "Neumático 6",
+            "R10T": "Remolque 10T",
+            "R15T": "Remolque 15T",
+            "R28T": "Remolque 28T",
+            "RBAJ": "Remolque Bajo",
+            "RDRO": "Remolque Dolly Retráctil",
+            "REM": "Remolque",
+            "REXT": "Remolque Extensible",
+            "RGEN": "Remolque General",
+            "RMOD": "Remolque Modular",
+            "RPAL": "Remolque Paletizado",
+            "RPNE": "Remolque Neumático",
+            "S32": "Semi 32",
+            "SI20": "Sider 20",
+            "SI40": "Sider 40",
+            "SIDE": "Sideloader",
+            "SIL": "Silo"
+          },
+          "capacity": "Capacidad",
+          "lastMaintenance": "Último mantenimiento",
+          "mileage": "Kilometraje",
+          "reportedProblems": "Problemas reportados",
+          "searchRemolque": "Buscar remolque...",
+          "noRemolquesFound": "No se encontraron remolques",
+          "remolqueSearchFields": {
+            "plate": "Patente",
+            "type": "Tipo",
+            "status": "Estado",
+            "gps": "GPS",
+            "capacity": "Capacidad",
+            "mileage": "Kilometraje"
+          }
         }
       }
     },
@@ -1272,6 +1366,14 @@
         "cancel": "Cancelar",
         "delete": "Eliminar"
       },
+      "deleteAssignmentModal": {
+        "title": "Eliminar asignación",
+        "messagePrefix": "¿Está seguro de eliminar la asignación del servicio ",
+        "messageSuffix": "? El servicio quedará sin asignar.",
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar asignación"
+      },
       "calendarRules": {
         "configureTimeWindows": "Configurar ventanas de tiempo",
         "quotaManagement": {
@@ -1446,7 +1548,12 @@
       "rowsJsonArray": "Filas (arreglo JSON)",
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",
-      "invalidJson": "JSON inválido"
+      "invalidJson": "JSON inválido",
+      "dataSourceProvider": "Proveedor de Datos",
+      "selectProvider": "Seleccionar proveedor…",
+      "noActiveProviders": "No hay proveedores activos disponibles",
+      "failedToLoadFunctions": "Error al cargar funciones",
+      "invalidResponseFormat": "Formato de respuesta inválido"
     },
     "dashlets": {
       "data_list": {

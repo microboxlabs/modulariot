@@ -3,52 +3,29 @@
 import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
+import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+import type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
-import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
+import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
-// Configuration Types
+// Re-exports
 // ============================================================================
 
-export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
+export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+export type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
+export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
+export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
-export interface TableColumn {
-  key: string;
-  label: string;
-  type: string;
-}
-
-export interface FilterItemConfig {
-  /** Column key whose distinct values are used as filter pills */
-  column: string;
-  /** Label shown before the filter pills, e.g. "Estado:" */
-  label: string;
-}
-
-export interface FilterConfig {
-  enabled: boolean;
-  items: FilterItemConfig[];
-}
-
-export interface SortConfig {
-  enabled: boolean;
-  /** Ordered list of column keys available in the sort toolbar */
-  columns: string[];
-}
-
-export interface PgrestParam {
-  key: string;
-  value: string;
-}
-
-export type PgrestHttpMethod = "POST" | "GET";
+import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
 
 export interface DashletConfig {
   title: string;
@@ -61,6 +38,7 @@ export interface DashletConfig {
   pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
+  dataSourceId?: string;
 }
 
 // ============================================================================
@@ -121,8 +99,6 @@ export const defaultFilter: FilterConfig = {
   items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
 
-export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
-
 export const defaultSort: SortConfig = {
   enabled: true,
   columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
@@ -171,18 +147,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams = [],
     pgrestHttpMethod = "POST",
     sort = defaultSort,
+    dataSourceId,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
   // ── PGREST data fetching ────────────────────────────────────────────────────
-  const pgrestParamsStable = useMemo(() => pgrestParams, [pgrestParams]);
-  const { rows: pgrestRows, loading, fetchError } = usePgrestRows(
-    dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParamsStable,
-  );
+  const {
+    rows: pgrestRows,
+    loading,
+    fetchError,
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
 
   const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
 
-  // ── Filter & sort ─────────────────────────────────────────────────────────
+  // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {
     filterValues,
     sortKey,

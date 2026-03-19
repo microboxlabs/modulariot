@@ -8,13 +8,14 @@ import {
   toPgrestParamItems,
   fromPgrestParamItems,
 } from "./pgrest-types";
-import { buildPgrestFetch, parseRows } from "./pgrest-utils";
+import { buildPgrestFetch, buildDataSourceParams, parseRows } from "./pgrest-utils";
 import type { ColumnItem } from "./column-helpers";
 
 export interface PgrestSettingsStateConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  dataSourceId?: string;
   /**
    * Called when columns are detected from a PGREST function call.
    * Return the ColumnItem[] to set. This lets consumers format keys
@@ -67,7 +68,8 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
       const { url, init } = buildPgrestFetch(
         fnOverride ?? pgrestFunctionName,
         methodOverride ?? pgrestHttpMethod,
-        paramsOverride ?? pgrestParams,
+        paramsOverride ?? fromPgrestParamItems(pgrestParams),
+        cfg.dataSourceId,
       );
 
       const res = await fetch(url, init);
@@ -103,8 +105,10 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
     setIntrospectError(null);
 
     try {
+      const introspectParams = buildDataSourceParams(cfg.dataSourceId);
+      introspectParams.set("fn", fn);
       const res = await fetch(
-        `/app/api/dashboard/pgrest/openapi?fn=${encodeURIComponent(fn)}`,
+        `/app/api/dashboard/pgrest/openapi?${introspectParams.toString()}`,
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

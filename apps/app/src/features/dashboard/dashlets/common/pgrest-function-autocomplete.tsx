@@ -2,8 +2,16 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { TextInput } from "flowbite-react";
+import { z } from "zod";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDropdown } from "./use-dropdown";
 import { DropdownList } from "./dropdown-list";
+import { buildDataSourceParams } from "./pgrest-utils";
+
+const functionsResponseSchema = z.object({
+  functions: z.array(z.string()),
+});
 
 const MIN_CHARACTERS = 3;
 
@@ -11,23 +19,22 @@ interface PgrestFunctionAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onSelect: (functionName: string) => void;
+  dictionary: I18nRecord;
   placeholder?: string;
   id?: string;
   loading?: boolean;
-  labels: {
-    loadError: string;
-    retry: string;
-  };
+  dataSourceId?: string;
 }
 
 export function PgrestFunctionAutocomplete({
   value,
   onChange,
   onSelect,
+  dictionary,
   placeholder = "api_modular_my_function",
   id,
   loading = false,
-  labels,
+  dataSourceId,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -39,39 +46,52 @@ export function PgrestFunctionAutocomplete({
   const dropdownRef = useRef<HTMLUListElement>(null);
   const isFetchingRef = useRef(false);
 
-  const labelsRef = useRef(labels);
-  labelsRef.current = labels;
+  // Guard against out-of-order responses when dataSourceId changes
+  const requestIdRef = useRef(0);
 
-  const doFetch = useCallback(async () => {
+  // Reset cached functions when the data source changes
+  useEffect(() => {
+    requestIdRef.current += 1;
+    setAllFunctions(null);
+    setFetchError(null);
+  }, [dataSourceId]);
+
+  const doFetch = useCallback(async (reqId: number) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setIsFetching(true);
     setFetchError(null);
     try {
-      const res = await fetch("/app/api/dashboard/pgrest/functions");
+      const qs = buildDataSourceParams(dataSourceId).toString();
+      const suffix = qs ? `?${qs}` : "";
+      const url = `/app/api/dashboard/pgrest/functions${suffix}`;
+      const res = await fetch(url);
+      if (reqId !== requestIdRef.current) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: unknown = await res.json();
-      const fns =
-        data != null &&
-        typeof data === "object" &&
-        "functions" in data &&
-        Array.isArray((data as Record<string, unknown>).functions)
-          ? ((data as Record<string, unknown>).functions as string[])
-          : null;
-      if (!fns) throw new Error("Invalid response");
-      setAllFunctions(fns);
-    } catch {
-      setFetchError(labelsRef.current.loadError);
+      const parsed = functionsResponseSchema.safeParse(await res.json());
+      if (reqId !== requestIdRef.current) return;
+      if (!parsed.success)
+        throw new Error(
+          tr("dashboard.settings.invalidResponseFormat", dictionary)
+        );
+      setAllFunctions(parsed.data.functions);
+    } catch (err) {
+      if (reqId !== requestIdRef.current) return;
+      setFetchError(
+        err instanceof Error
+          ? err.message
+          : tr("dashboard.settings.failedToLoadFunctions", dictionary)
+      );
     } finally {
       isFetchingRef.current = false;
       setIsFetching(false);
     }
-  }, []);
+  }, [dictionary, dataSourceId]);
 
   // Fetch function list once on first interaction
   const fetchFunctions = useCallback(async () => {
     if (allFunctions !== null || isFetchingRef.current) return;
-    await doFetch();
+    await doFetch(requestIdRef.current);
   }, [allFunctions, doFetch]);
 
   // Client-side filtering
@@ -90,9 +110,10 @@ export function PgrestFunctionAutocomplete({
     }
   }, [filtered, value, fetchError]);
 
-  const retryFetch = useCallback(() => {
+  const retryFetch = useCallback(async () => {
+    requestIdRef.current += 1;
     setAllFunctions(null);
-    return doFetch();
+    await doFetch(requestIdRef.current);
   }, [doFetch]);
 
   const handleSelect = useCallback(
@@ -143,7 +164,7 @@ export function PgrestFunctionAutocomplete({
             className="underline hover:no-underline"
             onClick={retryFetch}
           >
-            {labels.retry}
+            {tr("common.retry", dictionary)}
           </button>
         </p>
       )}

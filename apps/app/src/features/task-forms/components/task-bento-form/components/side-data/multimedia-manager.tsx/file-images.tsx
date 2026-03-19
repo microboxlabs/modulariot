@@ -1,12 +1,15 @@
 "use client";
 
 import { Button, FileInput } from "flowbite-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
-import { FaUpload } from "react-icons/fa";
+import { MdOutlineFileUpload } from "react-icons/md";
+import { toast } from "sonner";
+import { useSWRConfig } from "swr";
 import {
   useGetNodeContents,
   useOptimisticFileUpload,
+  putBentoMultimedia,
 } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -18,13 +21,16 @@ import DocumentList from "./document-list";
 import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
+import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
 
-const ALLOWED_FILE_TYPES = new Set([
+export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
   "application/pdf",
 ]);
+
+export const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 
 function filterValidFiles(
   files: File[],
@@ -38,6 +44,82 @@ function filterValidFiles(
   return validFiles;
 }
 
+export function extractImageUrlFromDrop(
+  dataTransfer: DataTransfer
+): string | null {
+  // Try to get URL from text/uri-list (most common for dragged images)
+  const uriList = dataTransfer.getData("text/uri-list");
+  if (uriList) {
+    const urls = uriList
+      .split("\n")
+      .filter((url) => url.trim() && !url.startsWith("#"));
+    if (urls.length > 0) return urls[0];
+  }
+
+  // Try to get URL from text/plain
+  const plainText = dataTransfer.getData("text/plain");
+  if (
+    plainText &&
+    (plainText.startsWith("http://") || plainText.startsWith("https://"))
+  ) {
+    return plainText;
+  }
+
+  // Try to extract image URL from HTML (for some browsers)
+  const html = dataTransfer.getData("text/html");
+  if (html) {
+    const srcMatch = /src=["']([^"']+)["']/.exec(html);
+    if (srcMatch?.[1]) {
+      return srcMatch[1];
+    }
+  }
+
+  return null;
+}
+
+export function isValidImageUrl(url: string): boolean {
+  if (!url || typeof url !== "string") return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const FETCH_TIMEOUT_MS = 10000;
+
+export async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(imageUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+
+    // Validate mime type
+    if (!blob.type.startsWith("image/")) return null;
+    if (!ALLOWED_FILE_TYPES.has(blob.type)) return null;
+
+    // Extract filename from URL or generate one
+    const urlPath = new URL(imageUrl).pathname;
+    const urlFilename = urlPath.split("/").pop() || "";
+    const extension = blob.type.split("/")[1] || "jpg";
+    const filename = urlFilename.includes(".")
+      ? urlFilename
+      : `downloaded-image-${Date.now()}.${extension}`;
+
+    return new File([blob], filename, { type: blob.type });
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
+}
+
 export default function FileImages({
   task,
   dictionary,
@@ -48,31 +130,38 @@ export default function FileImages({
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFetchingFromUrl, setIsFetchingFromUrl] = useState(false);
   const [isClasificationFormOpen, setIsClasificationFormOpen] = useState(false);
   const [isDocumentListOpen, setIsDocumentListOpen] = useState(false);
   const [uploadableFiles, setUploadableFiles] = useState<any[]>([]);
+  const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
 
   const [images, setImages] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false);
+  const [imageRefreshKey, setImageRefreshKey] = useState(0);
+
+  const { mutate: globalMutate } = useSWRConfig();
 
   const packageId = task?.bpm_package
     ? task.bpm_package.split("/")[task.bpm_package.split("/").length - 1]
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const { data, uploadFile } = useOptimisticFileUpload(packageId);
+  const { data, isLoading, uploadFile, mutate } =
+    useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
   const {
     data: documentsData,
-    error: _documentsError,
     isLoading: documentsIsLoading,
+    mutate: mutateContents,
   } = useGetNodeContents(
     files?.map((file: AlfrescoFileEntry) => file.entry.id) || []
   );
 
-  // Process documents data when it changes
+  // Classify files by mimeType from the listing metadata (no content download needed)
   useEffect(() => {
     if (files.length > 0 && documentsData) {
       const newImages: any[] = [];
@@ -99,12 +188,56 @@ export default function FileImages({
     }
   }, [documentsData, files]);
 
+  const handleReplaceImage = useCallback(
+    async (file: File, index: number) => {
+      const imageToReplace = images[index];
+      if (!imageToReplace?.file?.entry?.id) {
+        toast.error(tr("bento.multimedia.update_error", dictionary));
+        return;
+      }
+
+      const nodeId = imageToReplace.file.entry.id;
+      setIsUpdatingImage(true);
+
+      const updatePromise = putBentoMultimedia(nodeId, file).then((result) => {
+        if (!result.success) {
+          throw new Error("Update failed");
+        }
+        return result;
+      });
+
+      toast.promise(updatePromise, {
+        loading: tr("bento.multimedia.update_loading", dictionary),
+        success: tr("bento.multimedia.update_success", dictionary),
+        error: tr("bento.multimedia.update_error", dictionary),
+      });
+
+      try {
+        await updatePromise;
+        await mutate();
+        await mutateContents();
+        // Invalidate thumbnail cache for the updated image
+        await globalMutate(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+        // Increment refresh key to force image URL cache bust
+        setImageRefreshKey((prev) => prev + 1);
+      } finally {
+        setIsUpdatingImage(false);
+        setEditImageIndex(null);
+      }
+    },
+    [images, dictionary, mutate, mutateContents, globalMutate]
+  );
+
   if (!packageId) {
     return null;
   }
 
-  // Only show loading skeleton if we have no existing data and are loading
-  if (documentsIsLoading && images.length === 0 && documents.length === 0) {
+  // Only show loading skeleton while data is being fetched
+  if (
+    (isLoading || documentsIsLoading) &&
+    images.length === 0 &&
+    documents.length === 0
+  ) {
     return (
       <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );
@@ -134,21 +267,54 @@ export default function FileImages({
         }
         setIsDragOver(false);
       }}
-      onDrop={(e) => {
+      onDrop={async (e) => {
         e.preventDefault();
-        if (isDocumentListOpen || isClasificationFormOpen) {
+        if (
+          isDocumentListOpen ||
+          isClasificationFormOpen ||
+          isFetchingFromUrl
+        ) {
           return;
         }
 
         setIsDragOver(false);
-        const validFiles = filterValidFiles(
-          Array.from(e.dataTransfer.files),
-          dictionary
-        );
-        if (!validFiles) return;
 
-        setUploadableFiles(validFiles);
-        setIsClasificationFormOpen(true);
+        // First try to handle as regular files (from filesystem)
+        if (e.dataTransfer.files.length > 0) {
+          const validFiles = filterValidFiles(
+            Array.from(e.dataTransfer.files),
+            dictionary
+          );
+          if (!validFiles) return;
+
+          setUploadableFiles(validFiles);
+          setIsClasificationFormOpen(true);
+          return;
+        }
+
+        // If no files, try to extract image URL (dragged from web)
+        const imageUrl = extractImageUrlFromDrop(e.dataTransfer);
+        if (!imageUrl) return;
+
+        if (!isValidImageUrl(imageUrl)) {
+          alert(
+            tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary)
+          );
+          return;
+        }
+
+        setIsFetchingFromUrl(true);
+        try {
+          const file = await fetchImageAsFile(imageUrl);
+          if (file) {
+            setUploadableFiles([file]);
+            setIsClasificationFormOpen(true);
+          } else {
+            alert(tr("bento.multimedia.fetch_image_error", dictionary));
+          }
+        } finally {
+          setIsFetchingFromUrl(false);
+        }
       }}
     >
       {/* Drag and drop overlay */}
@@ -157,6 +323,12 @@ export default function FileImages({
           isDragOver ? "animate-fade-in-fast" : "animate-fade-out-fast"
         }`}
       />
+      {/* Small loading indicator for URL fetch */}
+      {isFetchingFromUrl && (
+        <div className="absolute top-2 right-2 z-30">
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       <div
         className={`flex w-full p-2 flex-col items-center justify-center rounded-lg border-2 border-dashed ${
           isDragOver
@@ -205,7 +377,7 @@ export default function FileImages({
               }}
             >
               <div className="flex flex-row items-center justify-center gap-2">
-                <FaUpload className="w-3 h-3" />
+                <MdOutlineFileUpload className="w-3 h-3" />
                 {tr("bento.multimedia.upload", dictionary)}
               </div>
             </Button>
@@ -217,9 +389,7 @@ export default function FileImages({
         {/* Images */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            images.length == 0 && documents.length == 0 && !documentsIsLoading
-              ? "hidden"
-              : "block"
+            images.length == 0 && documents.length == 0 ? "hidden" : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -228,6 +398,7 @@ export default function FileImages({
               {tr("bento.multimedia.elements", dictionary)})
             </p>
             <Button
+              color="link"
               onClick={() => setSelectedImage(0)}
               className={`${
                 images.length == 0 ? "hidden" : "block"
@@ -245,6 +416,9 @@ export default function FileImages({
                   index={index}
                   setSelectedImage={setSelectedImage}
                   dictionary={dictionary}
+                  onEdit={(idx) => {
+                    setEditImageIndex(idx);
+                  }}
                 />
               ))}
             </div>
@@ -259,9 +433,7 @@ export default function FileImages({
         {/* Documents */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            documents.length == 0 && images.length == 0 && !documentsIsLoading
-              ? "hidden"
-              : "block"
+            documents.length == 0 && images.length == 0 ? "hidden" : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -303,6 +475,27 @@ export default function FileImages({
           selected={selectedImage}
           setSelected={setSelectedImage}
           dictionary={dictionary}
+          onReplaceImage={(file, index) => {
+            handleReplaceImage(file, index);
+          }}
+          refreshKey={imageRefreshKey}
+        />
+
+        {/* Standalone Replace Image Modal (from thumbnail edit button) */}
+        <ReplaceImageModal
+          show={editImageIndex !== null && !isUpdatingImage}
+          onClose={() => setEditImageIndex(null)}
+          onReplace={(file) => {
+            if (editImageIndex !== null) {
+              handleReplaceImage(file, editImageIndex);
+            }
+          }}
+          dictionary={dictionary}
+          imageName={
+            editImageIndex === null
+              ? undefined
+              : images[editImageIndex]?.file?.entry?.name
+          }
         />
 
         <FileViewer
@@ -321,6 +514,7 @@ export default function FileImages({
           dictionary={dictionary}
           setUploadableFiles={setUploadableFiles}
           uploadFile={uploadFile}
+          onUploadComplete={() => setUploadableFiles([])}
         />
       )}
       {isDocumentListOpen && (
@@ -333,11 +527,4 @@ export default function FileImages({
       )}
     </div>
   );
-}
-
-export function displayBase64Content(
-  base64Content: string,
-  mimeType: string
-): string {
-  return `data:${mimeType};base64,${base64Content}`;
 }

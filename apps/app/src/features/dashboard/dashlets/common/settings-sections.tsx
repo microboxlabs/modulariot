@@ -2,18 +2,21 @@
 
 import {
   Button,
-  TextInput,
   Textarea,
   Label,
   ToggleSwitch,
+  TextInput,
   Select,
 } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
-import type { ColumnType } from "./column-types";
 import type { ColumnItem } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
+import type { DataMode } from "./column-types";
 import { SettingsTextField, SettingsSelectField } from "./settings-fields";
+import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
+import { SuggestionInput } from "./suggestion-input";
+import { COLUMN_TYPES } from "./column-types";
 
 // ============================================================================
 // Shared mouse-down handler (prevents drag on settings modals)
@@ -31,6 +34,8 @@ interface ColumnEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: "key" | "label" | "type", value: string) => void;
   labels: { columns: string; key: string; label: string; addColumn: string };
+  /** When true, apply Handlebars color coding to key and label inputs */
+  handlebarsColorKeys?: boolean;
 }
 
 export function ColumnEditor({
@@ -39,6 +44,7 @@ export function ColumnEditor({
   onRemove,
   onUpdate,
   labels,
+  handlebarsColorKeys = false,
 }: Readonly<ColumnEditorProps>) {
   return (
     <div>
@@ -54,6 +60,7 @@ export function ColumnEditor({
                 placeholder={labels.key}
                 value={col.key}
                 onChange={(e) => onUpdate(col._id, "key", e.target.value)}
+                color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
               />
             </div>
             <div className="min-w-0 flex-1">
@@ -62,22 +69,18 @@ export function ColumnEditor({
                 placeholder={labels.label}
                 value={col.label}
                 onChange={(e) => onUpdate(col._id, "label", e.target.value)}
+                color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.label)) : undefined}
               />
             </div>
-            <div className="w-24 shrink-0">
-              <Select
+            <div className="w-28 shrink-0">
+              <SuggestionInput
                 sizing="sm"
+                placeholder="text"
                 value={col.type}
-                onChange={(e) =>
-                  onUpdate(col._id, "type", e.target.value as ColumnType)
-                }
-              >
-                <option value="text">text</option>
-                <option value="badge">badge</option>
-                <option value="highlight">highlight</option>
-                <option value="signed">signed</option>
-                <option value="progress">progress</option>
-              </Select>
+                onChange={(v) => onUpdate(col._id, "type", v)}
+                suggestions={COLUMN_TYPES}
+                color={getFlowbiteColor(getHandlebarsStatus(col.type))}
+              />
             </div>
             <button
               type="button"
@@ -265,18 +268,21 @@ export function SortEditor({
 
 interface DataProviderTabProps {
   id: string;
-  dataMode: "static" | "dynamic";
-  onDataModeChange: (mode: "static" | "dynamic") => void;
+  dataMode: DataMode;
+  onDataModeChange: (mode: DataMode) => void;
   rowsJson: string;
   onRowsJsonChange: (json: string) => void;
   rowsJsonError: string | null;
   onRowsJsonErrorClear: () => void;
   apiUrl: string;
   onApiUrlChange: (url: string) => void;
+  /** Content rendered when dataMode === "pgrest" */
+  pgrestContent?: React.ReactNode;
   labels: {
     dataSource: string;
     staticJson: string;
     dynamicApi: string;
+    pgrest?: string;
     rowsJsonArray: string;
     apiUrl: string;
   };
@@ -292,19 +298,25 @@ export function DataProviderTab({
   onRowsJsonErrorClear,
   apiUrl,
   onApiUrlChange,
+  pgrestContent,
   labels,
 }: Readonly<DataProviderTabProps>) {
+  const options = [
+    { value: "static", label: labels.staticJson },
+    { value: "dynamic", label: labels.dynamicApi },
+  ];
+  if (pgrestContent !== undefined || dataMode === "pgrest") {
+    options.push({ value: "pgrest", label: labels.pgrest ?? "PGREST" });
+  }
+
   return (
     <>
       <SettingsSelectField
         id={`${id}-data-mode`}
         label={labels.dataSource}
         value={dataMode}
-        onChange={(v) => onDataModeChange(v as "static" | "dynamic")}
-        options={[
-          { value: "static", label: labels.staticJson },
-          { value: "dynamic", label: labels.dynamicApi },
-        ]}
+        onChange={(v) => onDataModeChange(v as DataMode)}
+        options={options}
       />
 
       {dataMode === "static" && (
@@ -343,6 +355,8 @@ export function DataProviderTab({
           onChange={onApiUrlChange}
         />
       )}
+
+      {dataMode === "pgrest" && pgrestContent}
     </>
   );
 }

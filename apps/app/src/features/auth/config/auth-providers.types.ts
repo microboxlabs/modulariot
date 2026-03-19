@@ -113,26 +113,3 @@ export const DEFAULT_AUTH_CONFIG: AuthConfig = {
   teamSlugPlaceholder: "pages.login.teamSlug.placeholder",
 };
 
-/**
- * Legacy Mintral configuration (Microsoft Entra ID + credentials)
- * Use by setting: AUTH_PROVIDERS=microsoft-entra-id*,credentials
- */
-export const LEGACY_MINTRAL_CONFIG: AuthConfig = {
-  providers: [
-    {
-      id: "microsoft-entra-id",
-      name: "pages.login.buttons.continueWithMicrosoft",
-      type: "oauth",
-      provider: "microsoft-entra-id",
-      icon: "microsoft",
-      primary: true,
-    },
-    {
-      id: "credentials",
-      name: "pages.login.buttons.continueWithEmail",
-      type: "credentials",
-      icon: "user",
-    },
-  ],
-  dividerText: "pages.login.divider",
-};

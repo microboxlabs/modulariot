@@ -2,6 +2,9 @@ import { DashboardProvider, DashboardView } from "@/features/dashboard";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { loadDefaultConfig } from "./load-default-config";
+import { auth } from "@/auth";
+import { getUserSites } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { RouteGuard } from "@/features/auth/components/route-guard";
 
 interface SlugPageParams extends ParamsWithLang {
   params: Promise<{ lang: string; slug: string }>;
@@ -9,24 +12,46 @@ interface SlugPageParams extends ParamsWithLang {
 
 export default async function SlugDashboardPage({ params }: Readonly<SlugPageParams>) {
   const { lang, slug } = await params;
-  const [, dictionary] = await getDictionary(lang);
 
-  // e.g. "dashboard" → "dashboard-config", "maintenanceStatus" → "maintenanceStatus-config"
-  const storageKey = `${slug}-config`;
+  // Run independent async work in parallel
+  const [dictionaryResult, session] = await Promise.all([
+    getDictionary(lang),
+    auth(),
+  ]);
+  const [, dictionary] = dictionaryResult;
 
   // Try to load a default config from src/features/dashboard/defaults/{slug}-config.json
   // Returns null if the file doesn't exist — dashboard starts empty as usual
   const defaultConfig = loadDefaultConfig(slug);
 
+  // Resolve user's primary site for Alfresco persistence
+  let siteId: string | null = null;
+  if (session) {
+    try {
+      const sites = await getUserSites(session);
+      if (sites.length > 0) {
+        const sorted = [...sites].sort((a, b) =>
+          a.shortName.localeCompare(b.shortName)
+        );
+        siteId = sorted[0].shortName;
+      }
+    } catch {
+      // If site resolution fails, fall back to default config only
+    }
+  }
+
   return (
-    <div className="h-full overflow-auto p-4">
-      <DashboardProvider
-        dictionary={dictionary}
-        storageKey={storageKey}
-        defaultConfig={defaultConfig}
-      >
-        <DashboardView />
-      </DashboardProvider>
-    </div>
+    <RouteGuard path="/home" fallbackPath={`/${lang}/home`}>
+      <div className="h-full overflow-auto p-4">
+        <DashboardProvider
+          dictionary={dictionary}
+          slug={slug}
+          defaultConfig={defaultConfig}
+          siteId={siteId}
+        >
+          <DashboardView />
+        </DashboardProvider>
+      </div>
+    </RouteGuard>
   );
 }

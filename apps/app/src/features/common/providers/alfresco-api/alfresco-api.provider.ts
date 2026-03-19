@@ -19,6 +19,8 @@ import type {
   SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
+  UpdateNodeContentRequest,
+  UpdateNodeContentResponse,
   UploadNodeRequest,
   UploadNodeResponse,
   UserState,
@@ -36,6 +38,7 @@ import type {
   StatisticsTasksResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
+import type { FetcherError } from "../fetcher.types";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
@@ -88,7 +91,7 @@ export function prepareAlfrescoAuth(
 }
 
 export function prepareAlfrescoAuthWithAccessToken(session: Session): void {
-  var idToken = session.user?.rawJWT;
+  const idToken = session.user?.rawJWT;
   if (idToken) {
     alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
   } else {
@@ -164,6 +167,37 @@ export async function getUserTasks(
   return result as FastTasksResponse;
 }
 
+export async function getUnbookedTasks(
+  session: Session,
+  definitionKey: string,
+  options: {
+    from?: number;
+    size?: number;
+    filter?: Record<string, unknown>;
+  } = {},
+  calendarId: string
+): Promise<FastTasksResponse> {
+  const { from = 0, size = 100, filter = undefined } = options;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/unbooked`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      size,
+      definitionKey: definitionKey.length == 0 ? undefined : definitionKey,
+      filter,
+      calendarId,
+    }),
+  });
+
+  return result as FastTasksResponse;
+}
+
 export async function getTaskById(
   session: Session,
   taskId: string
@@ -173,7 +207,7 @@ export async function getTaskById(
   });
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/details?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers,
@@ -312,6 +346,49 @@ export async function uploadNodeContent(
   }
 }
 
+export async function updateNodeContent(
+  session: Session,
+  request: UpdateNodeContentRequest
+): Promise<UpdateNodeContentResponse> {
+  try {
+    const { nodeId, filedata, name } = request;
+
+    const queryParams = new URLSearchParams();
+    queryParams.set("name", name);
+    queryParams.set("comment", "Updated version");
+
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const result = await fetch(url, {
+      method: "PUT",
+      headers: {
+        ...headers,
+        "Content-Type": filedata.type || "application/octet-stream",
+      },
+      body: filedata,
+    });
+
+    if (!result.ok) {
+      logError(
+        new Error(
+          `Update node content failed with HTTP error: ${result.status} ${result.statusText}`
+        )
+      );
+      return null;
+    }
+
+    const responseData = await result.json();
+    return responseData as UpdateNodeContentResponse;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Update node content failed with exception"
+    );
+    return null;
+  }
+}
+
 export async function getChildrenNodes(
   session: Session,
   nodeId: string,
@@ -381,7 +458,7 @@ export async function validateService(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   // Llamada a la API para validar el servicio
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers,
@@ -399,7 +476,7 @@ export async function getContentByTaskId(
 ): Promise<string> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/node/content`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = (await fetcher(url, {
     method: "GET",
     headers: {
@@ -427,7 +504,7 @@ export async function getCountTask(
 ): Promise<TaskCountResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/statistics/tasks`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "POST",
     headers,
@@ -463,7 +540,7 @@ export async function formProcessor(
 ): Promise<TaskResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${itemId}/formprocessor`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "POST",
     headers: {
@@ -489,7 +566,7 @@ export async function getServiceValidation(
 ): Promise<ServiceValidationResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/validation`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers: {
@@ -587,7 +664,7 @@ export async function getSympthomTemplate(
 export async function getUserStates(session: Session): Promise<UserState[]> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/operator-status`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await fetcher(url, {
     method: "GET",
     headers,
@@ -645,6 +722,80 @@ export async function getGroupsForPerson(session: Session): Promise<string[]> {
     headers,
   })) as GroupPaging;
   return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
+}
+
+/**
+ * Resolve a node by relativePath. Returns the nodeId or null if not found (404).
+ */
+export async function resolveNodeByPath(
+  session: Session,
+  relativePath: string
+): Promise<string | null> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=${encodeURIComponent(relativePath)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  try {
+    const response = await fetcher<{ entry?: { id?: string } }>(url, {
+      method: "GET",
+      headers,
+    });
+    return response?.entry?.id ?? null;
+  } catch (error: unknown) {
+    const fetcherErr = error as FetcherError;
+    if (fetcherErr?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Ensure a folder exists under a parent node. Creates it if missing.
+ * Uses create-first strategy to avoid TOCTOU races — handles 409 (already exists).
+ * Returns the folder's nodeId.
+ */
+export async function ensureFolder(
+  session: Session,
+  parentNodeId: string,
+  folderName: string
+): Promise<string> {
+  const createUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}/children`;
+  const { url, headers } = prepareAlfrescoAuth(createUrl, session);
+
+  try {
+    const created = await fetcher<{ entry?: { id?: string } }>(url, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: folderName,
+        nodeType: "cm:folder",
+      }),
+    });
+
+    const createdId = created?.entry?.id;
+    if (!createdId) {
+      throw new Error(`Failed to create folder '${folderName}'`);
+    }
+    return createdId;
+  } catch (error: unknown) {
+    const fetcherErr = error as FetcherError;
+    // 409 = folder already exists — resolve its nodeId by relativePath from parent
+    if (fetcherErr?.status === 409) {
+      const nodeUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${parentNodeId}?relativePath=${encodeURIComponent(folderName)}`;
+      const { url: resolveUrl, headers: resolveHeaders } =
+        prepareAlfrescoAuth(nodeUrl, session);
+      const resolved = await fetcher<{ entry?: { id?: string } }>(resolveUrl, {
+        method: "GET",
+        headers: resolveHeaders,
+      });
+
+      const existingId = resolved?.entry?.id;
+      if (existingId) {
+        return existingId;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function getUserFilters(
@@ -1259,88 +1410,120 @@ export async function listWebhookDefinitions(
   );
 }
 
-// Refresh Token API integrations
+// Data Source Config API
 
-export interface RefreshTokenResponse {
-  provider?: string;
-  tokens?: string[];
-  tokensByProvider?: Record<string, string[]>;
+interface AlfrescoDataSourceTokenConfig {
+  authMethod: "TOKEN";
+  encryptedToken?: string;
+  tokenSuffix?: string;
 }
 
-export interface RefreshTokenRequest {
-  provider: string;
-  mode: "append" | "replace";
-  token?: string;
-  tokens?: string[];
+interface AlfrescoDataSourceOAuthConfig {
+  authMethod: "OAUTH";
+  clientId?: string;
+  encryptedClientSecret?: string;
+  clientSecretSuffix?: string;
+  tokenUrl?: string;
+  scope?: string;
 }
 
-/**
- * Get refresh tokens for the authenticated user
- * @param session - User session
- * @param provider - Optional provider id (e.g., 'entraId'). If omitted, returns all providers
- * @returns Refresh tokens for the specified provider or all providers
- */
-export async function getRefreshTokens(
+export type AlfrescoDataSourceConfig =
+  | AlfrescoDataSourceTokenConfig
+  | AlfrescoDataSourceOAuthConfig;
+
+export interface AlfrescoDataSource {
+  nodeRef: string;
+  name: string;
+  type: string;
+  description?: string;
+  url: string;
+  config: AlfrescoDataSourceConfig | null;
+  isActive: boolean;
+  lastTestedAt?: string;
+  lastTestResult?: boolean;
+  site: string;
+}
+
+export interface AlfrescoDataSourceListResponse {
+  dataSources: AlfrescoDataSource[];
+}
+
+async function callDataSourceAction<TResponse = unknown>(
   session: Session,
-  provider?: string
-): Promise<RefreshTokenResponse> {
+  action: string,
+  options?: {
+    query?: Record<string, string | undefined>;
+    body?: Record<string, unknown>;
+  }
+): Promise<TResponse> {
   const queryParams = new URLSearchParams();
-  if (provider) {
-    queryParams.set("provider", provider);
+  if (options?.query) {
+    Object.entries(options.query).forEach(([k, v]) => {
+      if (v) queryParams.set(k, v);
+    });
   }
 
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/common/refresh-token?${queryParams.toString()}`;
+  const queryString = queryParams.toString();
+  const suffix = queryString ? `?${queryString}` : "";
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/datasource/${action}${suffix}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
-  alfrescoApiLogger.debug(
-    {
-      provider,
-      url: baseUrl,
-    },
-    "Getting refresh tokens"
-  );
-
   const result = await fetcher(url, {
-    method: "GET",
-    headers,
-  });
-
-  return result as RefreshTokenResponse;
-}
-
-/**
- * Store or update refresh tokens for the authenticated user
- * @param session - User session
- * @param request - Refresh token request data
- * @returns Updated refresh tokens for the provider
- */
-export async function putRefreshToken(
-  session: Session,
-  request: RefreshTokenRequest
-): Promise<RefreshTokenResponse> {
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/common/refresh-token`;
-  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-
-  alfrescoApiLogger.debug(
-    {
-      provider: request.provider,
-      mode: request.mode,
-      hasToken: !!request.token,
-      tokensCount: request.tokens?.length,
-    },
-    "Storing refresh token"
-  );
-
-  const result = await fetcher(url, {
-    method: "PUT",
+    method: "POST",
     headers: {
       ...headers,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(request),
+    body: options?.body ? JSON.stringify(options.body) : undefined,
   });
+  return result as TResponse;
+}
 
-  return result as RefreshTokenResponse;
+export async function listDataSources(
+  session: Session,
+  site: string
+): Promise<AlfrescoDataSourceListResponse> {
+  return callDataSourceAction<AlfrescoDataSourceListResponse>(
+    session,
+    "list",
+    { query: { site } }
+  );
+}
+
+export async function createDataSource(
+  session: Session,
+  data: Record<string, unknown>
+): Promise<AlfrescoDataSource> {
+  return callDataSourceAction<AlfrescoDataSource>(session, "create", {
+    body: data,
+  });
+}
+
+export async function updateDataSource(
+  session: Session,
+  data: Record<string, unknown>
+): Promise<AlfrescoDataSource> {
+  return callDataSourceAction<AlfrescoDataSource>(session, "update", {
+    body: data,
+  });
+}
+
+export async function deleteDataSource(
+  session: Session,
+  nodeRef: string
+): Promise<{ success: boolean }> {
+  return callDataSourceAction<{ success: boolean }>(session, "delete", {
+    body: { nodeRef },
+  });
+}
+
+export async function getDataSource(
+  session: Session,
+  nodeRef: string
+): Promise<AlfrescoDataSource> {
+  return callDataSourceAction<AlfrescoDataSource>(session, "get", {
+    query: { nodeRef },
+  });
 }
 
 /**
@@ -1450,10 +1633,13 @@ export const timelapseMetadataSchema = z.object({
   deviceId: z.string(),
   licensePlate: z.string(),
   nodeRef: z.string(),
-  location: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-  }).nullable().optional(),
+  location: z
+    .object({
+      latitude: z.number(),
+      longitude: z.number(),
+    })
+    .nullable()
+    .optional(),
   state: z.string(),
   startTimestamp: z.string(),
   endTimestamp: z.string(),
@@ -1484,4 +1670,44 @@ export async function updateTaskServiceCategory(
   await formProcessor(session, "task", taskId, {
     mintral_serviceCategory: serviceTypeCode,
   });
+}
+
+/**
+ * Reads a dashboard config from Alfresco via the dashboard config webscript.
+ * Returns the parsed config or null if no config exists yet.
+ */
+export async function getDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<{ data: unknown }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config?site=${encodeURIComponent(site)}&slug=${encodeURIComponent(slug)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return result as { data: unknown };
+}
+
+/**
+ * Saves a dashboard config to Alfresco via the dashboard config webscript.
+ */
+export async function saveDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string,
+  config: unknown
+): Promise<{ success: boolean }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ site, slug, config }),
+  });
+  return result as { success: boolean };
 }

@@ -1,7 +1,7 @@
 "use client";
 import { z } from "zod";
-import useSWR from "swr";
-import { useEffect, useMemo } from "react";
+import useSWR, { SWRConfiguration } from "swr";
+import { useEffect, useMemo, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import fetcher, { createFetcherError } from "./fetcher";
 import { safeJsonParse } from "./safe-json";
@@ -75,7 +75,7 @@ export function useMyTasks(
   const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
   const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}&${params}`;
 
-  const { data, error, isLoading } = useSWR<
+  const { data, error, isLoading, mutate } = useSWR<
     KanbanBoardTaskResponse,
     FetcherError
   >(`/app/api/task/mytasks?${queryString}`, fetcher);
@@ -84,6 +84,7 @@ export function useMyTasks(
     data,
     error,
     isLoading,
+    refresh: mutate,
   };
 }
 
@@ -736,14 +737,14 @@ export function signDec5(taskId: string): Promise<any> {
   });
 }
 
-export function useGetNodeChildren(nodeId: string | undefined) {
+export function useGetNodeChildren(
+  nodeId: string | undefined,
+  swrConfig?: SWRConfiguration<any, FetcherError>
+) {
   const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
     nodeId ? `/app/api/bento/multimedia?nodeId=${nodeId}` : null,
     fetcher,
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    }
+    swrConfig
   );
 
   return {
@@ -756,52 +757,72 @@ export function useGetNodeChildren(nodeId: string | undefined) {
 
 // Custom hook for optimistic file uploads
 export function useOptimisticFileUpload(nodeId: string | undefined) {
-  const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId);
+  const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 5000,
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
+  const isUploading = useRef(false);
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
-  const uploadFile = async (file: SendableFile) => {
-    // Optimistic update - add the file to the current data
-    const optimisticData = {
-      ...data,
-      data: {
-        ...data?.data,
-        list: {
-          ...data?.data?.list,
-          entries: [
-            ...(data?.data?.list?.entries || []),
-            {
-              entry: {
-                id: `temp-${Date.now()}`,
-                name: file.prop_cm_name,
-                content: {
-                  mimeType: file.prop_mimetype,
-                },
-                properties: {
-                  "mintral:contentType": file.prop_mintral_contentType,
+  const uploadFile = useCallback(
+    async (file: SendableFile, skipRevalidation = false) => {
+      if (isUploading.current) return;
+      isUploading.current = true;
+
+      // Optimistic update - add the file to the current data
+      const currentData = dataRef.current;
+      const optimisticData = {
+        ...currentData,
+        data: {
+          ...currentData?.data,
+          list: {
+            ...currentData?.data?.list,
+            entries: [
+              ...(currentData?.data?.list?.entries || []),
+              {
+                entry: {
+                  id: `temp-${Date.now()}`,
+                  name: file.prop_cm_name,
+                  content: {
+                    mimeType: file.prop_mimetype,
+                  },
+                  properties: {
+                    "mintral:contentType": file.prop_mintral_contentType,
+                  },
                 },
               },
-            },
-          ],
+            ],
+          },
         },
-      },
-    };
+      };
 
-    // Update the cache optimistically
-    await mutate(optimisticData, false);
+      // Update the cache optimistically
+      await mutate(optimisticData, false);
 
-    try {
-      // Perform the actual upload
-      const result = await postBentoMultimedia(file);
+      try {
+        // Perform the actual upload
+        const result = await postBentoMultimedia(file);
 
-      // Revalidate to get the real data from server
-      await mutate();
+        // Only revalidate if not part of a batch
+        if (!skipRevalidation) {
+          await mutate();
+        }
 
-      return result;
-    } catch (error) {
-      // If upload fails, revert the optimistic update
-      await mutate();
-      throw error;
-    }
-  };
+        return result;
+      } catch (error) {
+        // If upload fails, revert the optimistic update
+        await mutate();
+        throw error;
+      } finally {
+        isUploading.current = false;
+      }
+    },
+    [mutate]
+  );
 
   return {
     data,
@@ -813,7 +834,7 @@ export function useOptimisticFileUpload(nodeId: string | undefined) {
 }
 
 export function useGetNodeContents(nodeIds: string[]) {
-  const { data, error, isLoading } = useSWR<any, FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
     nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
     fetcher
   );
@@ -822,6 +843,7 @@ export function useGetNodeContents(nodeIds: string[]) {
     data,
     error,
     isLoading,
+    mutate,
   };
 }
 
@@ -878,6 +900,22 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
 
   return fetcher(url, {
     method: "POST",
+    body: formData,
+  });
+}
+
+export async function putBentoMultimedia(
+  nodeId: string,
+  file: File
+): Promise<{ success: boolean; message: string; data?: unknown }> {
+  const url = "/app/api/bento/update";
+
+  const formData = new FormData();
+  formData.append("filedata", file);
+  formData.append("nodeId", nodeId);
+
+  return fetcher(url, {
+    method: "PUT",
     body: formData,
   });
 }

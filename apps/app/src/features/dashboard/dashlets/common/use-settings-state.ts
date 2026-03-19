@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import type { TableColumn, SortConfig } from "./column-types";
+import type { DataMode, TableColumn, SortConfig } from "./column-types";
 import type { FilterConfig, FilterItemConfig } from "./filter-types";
 import type { ColumnItem } from "./column-helpers";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
@@ -18,12 +18,12 @@ export interface SettingsStateConfig {
   defaultFilter: FilterConfig;
   sort: SortConfig | undefined;
   defaultSort: SortConfig;
-  dataMode: "static" | "dynamic";
+  dataMode: DataMode;
   apiUrl: string;
 }
 
 export function useSettingsState(cfg: SettingsStateConfig) {
-  const [dataMode, setDataMode] = useState<"static" | "dynamic">(
+  const [dataMode, setDataMode] = useState<DataMode>(
     cfg.dataMode ?? "static",
   );
   const [title, setTitle] = useState(cfg.title ?? cfg.defaultTitle);
@@ -121,7 +121,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     errorMustBeArray: string,
     errorInvalidJson: string,
   ): Record<string, string>[] | null => {
-    if (dataMode !== "static") return cfg.rows ?? cfg.defaultRows;
+    if (dataMode === "dynamic" || dataMode === "pgrest") return cfg.rows ?? cfg.defaultRows;
     try {
       const parsed = JSON.parse(rowsJson);
       if (!Array.isArray(parsed)) {
@@ -165,13 +165,16 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     showRowCount,
     setShowRowCount,
     columns,
+    setColumns,
     columnsWithKeys,
     filterEnabled,
     setFilterEnabled,
     filterItems,
+    setFilterItems,
     sortEnabled,
     setSortEnabled,
     sortColumns,
+    setSortColumns,
     rowsJson,
     setRowsJson,
     rowsJsonError,

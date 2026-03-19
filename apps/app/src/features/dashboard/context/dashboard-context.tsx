@@ -27,6 +27,8 @@ interface DashboardContextValue {
   isLoaded: boolean;
   /** Dictionary for internationalization */
   dictionary: I18nRecord;
+  /** Alfresco site short name (when available) */
+  siteId?: string | null;
 
   // Widget actions
   createWidget: (
@@ -119,17 +121,20 @@ function getNextPosition(
 
 interface DashboardProviderProps extends PropsWithChildren {
   dictionary: I18nRecord;
-  /** localStorage key used to persist this dashboard's config (e.g. "dashboard-config") */
-  storageKey: string;
-  /** Optional server-loaded default config. Used only when localStorage has no data yet. */
+  /** Dashboard slug (e.g. "dashboard", "maintenanceStatus") */
+  slug: string;
+  /** Optional server-loaded default config. */
   defaultConfig?: DashboardStorageSchema | null;
+  /** Optional Alfresco site short name. When provided, configs are fetched from and persisted to Alfresco. */
+  siteId?: string | null;
 }
 
 export function DashboardProvider({
   children,
   dictionary,
-  storageKey,
+  slug,
   defaultConfig,
+  siteId,
 }: Readonly<DashboardProviderProps>) {
   const {
     widgets,
@@ -147,7 +152,7 @@ export function DashboardProvider({
     exportDashboard,
     importDashboard,
     downloadDashboard,
-  } = useDashboardStorage(storageKey, defaultConfig);
+  } = useDashboardStorage(slug, defaultConfig, siteId);
 
   const createWidget = useCallback(
     (
@@ -332,6 +337,7 @@ export function DashboardProvider({
       editMode: preferences.editMode,
       isLoaded,
       dictionary,
+      siteId,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -351,6 +357,7 @@ export function DashboardProvider({
       preferences.editMode,
       isLoaded,
       dictionary,
+      siteId,
       dashboardName,
       createWidget,
       updateWidgetConfig,

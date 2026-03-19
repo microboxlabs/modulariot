@@ -87,33 +87,39 @@ export default function Bento({
           />
         </div>
 
-        {/* Geographic - spans 4 columns on landscape */}
-        <div className="col-span-1 lg:col-span-4 bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit hidden lg:flex">
-          <div className="h-full w-full">
-            <Geographic
-              task={task}
-              dictionary={dict as unknown as Record<string, string>}
-            />
+        {/* Geographic + File Images container - full width with custom grid */}
+        <div className="col-span-1 lg:col-span-5 grid grid-cols-1 lg:grid-cols-6 gap-2">
+          {/* Geographic - spans 4/6 columns */}
+          <div className="col-span-1 lg:col-span-4 bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit hidden lg:flex">
+            <div className="h-full w-full">
+              <Geographic
+                task={task}
+                dictionary={dict as unknown as Record<string, string>}
+              />
+            </div>
+          </div>
+
+          {/* File Images - spans 2/6 columns */}
+          <div className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+            <FileImages task={task} dictionary={dict as I18nRecord} />
           </div>
         </div>
 
-        {/* File Images */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700 col-span-1">
-          <FileImages task={task} dictionary={dict as I18nRecord} />
-        </div>
+        {/* Historic Loads + Symptoms container - full width with custom grid */}
+        <div className="col-span-1 lg:col-span-5 grid grid-cols-1 lg:grid-cols-6 gap-2">
+          {/* Historic Loads - spans 4/6 columns */}
+          <div className="col-span-1 lg:col-span-4 bg-white dark:bg-gray-800 rounded-lg min-h-[300px] max-h-[520px] overflow-auto">
+            <HistoricLoads
+              task={task}
+              dictionary={dict as unknown as Record<string, string>}
+              active={active}
+            />
+          </div>
 
-        {/* Historic Loads - spans 4 columns */}
-        <div className="col-span-1 lg:col-span-4 bg-white dark:bg-gray-800 rounded-lg min-h-[300px] max-h-[360px] lg:max-h-full">
-          <HistoricLoads
-            task={task}
-            dictionary={dict as unknown as Record<string, string>}
-            active={active}
-          />
-        </div>
-
-        {/* Conditions */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-1">
-          <SymptomsCard task={task} dict={dict as I18nRecord} />
+          {/* Conditions - spans 2/6 columns */}
+          <div className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <SymptomsCard task={task} dict={dict as I18nRecord} />
+          </div>
         </div>
 
         {/* Forum - full width */}

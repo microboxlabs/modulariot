@@ -1,32 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "flowbite-react";
-import {
-  HiChartBar,
-  HiCurrencyDollar,
-  HiUsers,
-  HiShoppingCart,
-  HiClock,
-  HiCheckCircle,
-} from "react-icons/hi2";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, CardBackgroundColor, CardIcon } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
+import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
+import { tr } from "@/features/i18n/tr.service";
 import {
-  IconPickerDropdown,
-  type IconOption,
-} from "@/features/common/components/icon-picker-dropdown";
-import {
-  SettingsTextField,
   SettingsPickerRow,
   SettingsPickerItem,
+  SettingsSelectField,
+  HbTextField,
+  usePgrestSettingsState,
+  PgrestSettingsSection,
+  fromPgrestParamItems,
+  humanizeKey,
+  buildPgrestContentLabels,
 } from "../common";
+import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
+import { SettingsModalShell } from "../common/settings-modal-shell";
+
+type CardDataMode = "static" | "pgrest";
 
 /** Background color options for ColorPickerDropdown */
 const BG_COLOR_OPTIONS: ColorOption<CardBackgroundColor>[] = [
@@ -43,15 +40,14 @@ const BG_COLOR_OPTIONS: ColorOption<CardBackgroundColor>[] = [
   { value: "purple", label: "Purple", dotClass: "bg-purple-500" },
 ];
 
-/** Icon options for IconPickerDropdown */
-const ICON_OPTIONS: IconOption<CardIcon>[] = [
-  { value: "chart", label: "Chart", icon: HiChartBar },
-  { value: "currency", label: "Currency", icon: HiCurrencyDollar },
-  { value: "users", label: "Users", icon: HiUsers },
-  { value: "cart", label: "Cart", icon: HiShoppingCart },
-  { value: "clock", label: "Clock", icon: HiClock },
-  { value: "check", label: "Check", icon: HiCheckCircle },
-];
+const ICON_OPTIONS = DASHLET_ICON_OPTIONS;
+
+/** Field config for the three card text fields */
+const CARD_FIELDS = [
+  { id: "card-name", labelKey: "common.label", state: "name", hbPlaceholder: "{{row.metric_name}}", staticPlaceholder: "Enter label..." },
+  { id: "card-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.total}}", staticPlaceholder: "Enter value..." },
+  { id: "card-descriptor", labelKey: "dashboard.settings.descriptor", state: "descriptor", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "Enter descriptor..." },
+] as const;
 
 /**
  * Settings Modal
@@ -61,75 +57,132 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
+  const [descriptor, setDescriptor] = useState(config.descriptor || "");
   const [backgroundColor, setBackgroundColor] = useState<CardBackgroundColor>(
     config.backgroundColor || "white"
   );
   const [icon, setIcon] = useState<CardIcon>(config.icon || "chart");
+  const [dataMode, setDataMode] = useState<CardDataMode>(
+    config.dataMode || "static"
+  );
+
+  const pg = usePgrestSettingsState({
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestParams: config.pgrestParams || [],
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    onColumnsDetected: (keys) =>
+      keys.map((key, i) => ({
+        _id: `col-${Date.now()}-${i}`,
+        key,
+        label: humanizeKey(key),
+        type: "text" as const,
+      })),
+    setColumns: () => {},
+    onDetectionComplete: (detected) => {
+      // Auto-fill name/value/descriptor with first detected keys
+      if (detected.length >= 1) {
+        setName(`{{row.${detected[0].key}}}`);
+      }
+      if (detected.length >= 2) {
+        setValue(`{{row.${detected[1].key}}}`);
+      }
+      if (detected.length >= 3) {
+        setDescriptor(`{{row.${detected[2].key}}}`);
+      }
+    },
+  });
 
   const handleSave = () => {
     onSave({
       name: name.trim() || "Metric",
       value: value.trim() || "0",
+      descriptor: descriptor.trim(),
       backgroundColor,
       icon,
+      dataMode,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
     });
     onClose();
   };
 
-  if (globalThis.window === undefined) return null;
+  const isPgrest = dataMode === "pgrest";
 
-  const modalContent = (
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(selected) => {
-        if (!selected) onClose();
-      }}
-      className="no-drag w-72 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-    >
-      <div className="flex w-full flex-col gap-3">
-        <SettingsTextField
-          id="card-name"
-          label="Label"
-          value={name}
-          onChange={setName}
-          placeholder="Enter label..."
-        />
-        <SettingsTextField
-          id="card-value"
-          label="Value"
-          value={value}
-          onChange={setValue}
-          placeholder="Enter value..."
-        />
-        <SettingsPickerRow>
-          <SettingsPickerItem label="Icon">
-            <IconPickerDropdown
-              options={ICON_OPTIONS}
-              value={icon}
-              onChange={setIcon}
-              title="Select icon"
-            />
-          </SettingsPickerItem>
-          <SettingsPickerItem label="Color">
-            <ColorPickerDropdown
-              options={BG_COLOR_OPTIONS}
-              value={backgroundColor}
-              onChange={setBackgroundColor}
-              title="Select color"
-            />
-          </SettingsPickerItem>
-        </SettingsPickerRow>
+  const fieldValues: Record<string, string> = { name, value, descriptor };
+  const fieldSetters: Record<string, (v: string) => void> = {
+    name: setName,
+    value: setValue,
+    descriptor: setDescriptor,
+  };
 
-        {/* Save Button */}
-        <Button onClick={handleSave} size="sm" className="w-full">
-          Save
-        </Button>
-      </div>
-    </AbsoluteModal>
+  const visualizationTab = (
+    <>
+      {CARD_FIELDS.map((f) => (
+        <HbTextField
+          key={f.id}
+          id={f.id}
+          label={tr(f.labelKey, dictionary)}
+          value={fieldValues[f.state]}
+          onChange={fieldSetters[f.state]}
+          placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
+        />
+      ))}
+      <SettingsPickerRow>
+        <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
+          <IconPickerDropdown
+            options={ICON_OPTIONS}
+            value={icon}
+            onChange={setIcon}
+            title={tr("dashboard.settings.icon", dictionary)}
+          />
+        </SettingsPickerItem>
+        <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>
+          <ColorPickerDropdown
+            options={BG_COLOR_OPTIONS}
+            value={backgroundColor}
+            onChange={setBackgroundColor}
+            title={tr("dashboard.settings.color", dictionary)}
+          />
+        </SettingsPickerItem>
+      </SettingsPickerRow>
+    </>
   );
 
-  return createPortal(modalContent, document.body);
+  const dataTab = (
+    <>
+      <SettingsSelectField
+        id="card-data-mode"
+        label={tr("dashboard.settings.dataSource", dictionary)}
+        value={dataMode}
+        onChange={(v) => setDataMode(v as CardDataMode)}
+        options={[
+          { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
+          { value: "pgrest", label: "PGREST" },
+        ]}
+      />
+      {isPgrest && (
+        <PgrestSettingsSection
+          pgrest={pg}
+          dictionary={dictionary}
+          labels={buildPgrestContentLabels(dictionary)}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
+  );
 }

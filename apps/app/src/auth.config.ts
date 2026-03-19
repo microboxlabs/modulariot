@@ -2,16 +2,10 @@ import { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { signInWithCredentials } from "@/features/auth/services/auth.service";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import Auth0 from "next-auth/providers/auth0"
 
 import { NextResponse } from "next/server";
 import { createManagedLogger } from "./lib/logger";
-import {
-  processMicrosoftEntraAccount,
-  processTokenRefresh,
-  cleanupRefreshTokens,
-} from "@/features/auth/providers/entra-token/entra-token-ecm.service";
 
 /**
  * Builds the list of authentication providers based on available environment variables.
@@ -41,27 +35,6 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
     );
   }
 
-  // Microsoft Entra ID - only add if configured
-  if (
-    process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
-    process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
-    process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
-  ) {
-    providers.push(
-      MicrosoftEntraID({
-        clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-        clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-        issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-        authorization: {
-          params: {
-            scope: "openid profile email User.Read offline_access",
-          },
-        },
-      })
-    );
-  }
-
-  
 
   // Credentials provider - always available
   providers.push(
@@ -85,13 +58,12 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
 const authLogger = createManagedLogger("auth", "Authentication System");
 const authJwtLogger = createManagedLogger("auth.jwt", "JWT Processing", undefined, "auth");
 const authSessionLogger = createManagedLogger("auth.session", "Session Management", undefined, "auth");
-const authMicrosoftLogger = createManagedLogger("auth.providers.microsoft", "Microsoft Entra ID", undefined, "auth.providers");
 const authCredentialsLogger = createManagedLogger("auth.providers.credentials", "Credentials Auth", undefined, "auth.providers");
 const authAuth0Logger = createManagedLogger("auth.providers.auth0", "Auth0 OIDC", undefined, "auth.providers");
 const authAuthzLogger = createManagedLogger("auth.authorization", "Route Authorization", undefined, "auth");
 
 export const authConfig: NextAuthConfig = {
-  // basePath: "/app/api/auth",
+  basePath: "/app/api/auth",
   pages: {
     signIn: "/app/sign-in",
   },
@@ -149,24 +121,7 @@ export const authConfig: NextAuthConfig = {
           rawJWT: token?.rawJWT,
         }, "JWT callback triggered");
 
-        // When user signs in with OAuth providers (like Microsoft Entra ID)
-        if (account && account.provider === "microsoft-entra-id") {
-          token = await processMicrosoftEntraAccount(token, account, user, authJwtLogger);
-        }
-
-        // Attempt rotation for OAuth tokens on subsequent invocations (Microsoft Entra ID only)
-        const isMicrosoftConfigured = !!(
-          process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
-          process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
-          process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
-        );
-        if (isMicrosoftConfigured && token.refreshToken && !account) {
-          const rotatedToken = await processTokenRefresh(token, authJwtLogger);
-          token.rawJWT = rotatedToken.rawJWT;
-          token.accessTokenExpiresAt = rotatedToken.accessTokenExpiresAt;
-        }
-
-        // When user signs in with Auth0 (Google, GitHub, or Auth0 credentials)
+        // When user signs in with Auth0 (Google, GitHub, Microsoft, or Auth0 credentials)
         if (account?.provider === "auth0") {
           authAuth0Logger.debug({
             hasAccessToken: !!account.access_token,
@@ -195,8 +150,36 @@ export const authConfig: NextAuthConfig = {
           }, "Auth0 tokens stored in JWT");
         }
 
-        // Attempt rotation for OAuth tokens on subsequent invocations
-        
+        // Auth0 token refresh on subsequent invocations
+        if (token.refreshToken && !account && !token.ticket) {
+          const expiresAt = Number(token.accessTokenExpiresAt ?? 0) * 1000;
+          const shouldRefresh = expiresAt - Date.now() < 5 * 60 * 1000; // 5 min before expiry
+
+          if (shouldRefresh) {
+            const response = await fetch(`${process.env.AUTH_AUTH0_ISSUER}/oauth/token`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                grant_type: "refresh_token",
+                client_id: process.env.AUTH_AUTH0_ID,
+                client_secret: process.env.AUTH_AUTH0_SECRET,
+                refresh_token: token.refreshToken,
+              }),
+            });
+
+            if (response.ok) {
+              const tokens = await response.json();
+              token.rawJWT = tokens.id_token;
+              token.accessTokenExpiresAt = Math.floor(Date.now() / 1000) + tokens.expires_in;
+              if (tokens.refresh_token) token.refreshToken = tokens.refresh_token;
+              authAuth0Logger.debug({ expiresAt: token.accessTokenExpiresAt }, "Auth0 token refreshed");
+            } else {
+              authAuth0Logger.warn({ status: response.status }, "Auth0 token refresh failed");
+              token.error = "RefreshTokenError";
+            }
+          }
+        }
+
         // Handle credentials provider
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
@@ -238,7 +221,7 @@ export const authConfig: NextAuthConfig = {
         // }, "Session callback triggered");
 
         if (token && !token.ticket) {
-          const expiresAt = token.accessTokenExpiresAt ?? 0;
+          const expiresAt = Number(token.accessTokenExpiresAt ?? 0);
           const expiresAtMs = expiresAt * 1000;
           const now = Date.now();
           authSessionLogger.debug( {
@@ -324,13 +307,7 @@ export const authConfig: NextAuthConfig = {
   
   events: {
     async signIn({ user, account, profile, isNewUser }) {
-      if (account?.provider === "microsoft-entra-id") {
-        authMicrosoftLogger.info( {
-          userId: user.id,
-          email: user.email,
-          isNewUser,
-        }, "User signed in via Microsoft Entra ID");
-      } else if (account?.provider === "auth0") {
+      if (account?.provider === "auth0") {
         // Auth0 profile contains connection info to identify the identity provider
         const connection = profile?.sub?.split("|")[0] ?? "auth0";
         authAuth0Logger.info({  
@@ -349,22 +326,11 @@ export const authConfig: NextAuthConfig = {
     },
     async signOut(message) {
       const userId = 'session' in message ? (message.session as any)?.user?.id : message.token?.sub;
-      const session = 'session' in message ? message.session : null;
-      
+
       authLogger.info( {
         userId,
         timestamp: new Date().toISOString(),
       }, "User signed out");
-
-      // Clean up refresh tokens from ECM on sign-out
-      if (session && (session as any)?.user) {
-        try {
-          await cleanupRefreshTokens(session as any);
-          authLogger.debug({ userId }, "Cleaned up refresh tokens from ECM on sign-out");
-        } catch (error) {
-          authLogger.warn({ error, userId }, "Failed to cleanup refresh tokens from ECM on sign-out");
-        }
-      }
     },
     async session({ session, token }) {
       // authSessionLogger.debug( {

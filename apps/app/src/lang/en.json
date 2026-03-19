@@ -20,7 +20,7 @@
       },
       "buttons": {
         "submit": "Sign in to your account",
-        "continueWithMicrosoft": "Continue with Mintral user",
+        "continueWithMicrosoft": "Continue with another provider",
         "continueWithEmail": "Continue with external user",
         "continueWithGoogle": "Continue with Google",
         "continueWithGitHub": "Continue with GitHub",
@@ -297,9 +297,32 @@
           "leadTimeLocLines": "{count} LOC lines",
           "serviceCategory": "Service Category",
           "serviceCategoryLoading": "Loading\u2026",
-          "serviceCategoryPlaceholder": "Select category"
+          "serviceCategoryPlaceholder": "Select category",
+          "presentationDate": "Presentation Date",
+          "departureDate": "Departure Date",
+          "departureTime": "Departure time",
+          "selectTime": "Select time",
+          "andenes": "platforms",
+          "available": "available",
+          "timeColumn": "Time",
+          "availabilityColumn": "Availability",
+          "andenAvailable": "Available",
+          "andenOccupied": "Occupied",
+          "showMore": "+{count} more",
+          "showLess": "show less",
+          "timeAssignment": "Time assignment",
+          "loadingSlots": "Loading slots...",
+          "noSlotsAvailable": "No slots available at this time",
+          "planningTab": "Planning",
+          "assignmentTab": "Assignment"
         },
         "contextMenu": {
+          "service": "Service",
+          "chipTitle": "Right-click for options",
+          "replan": "Replan",
+          "assign": "Assign",
+          "deletePlanning": "Delete planning",
+          "deleteAssignment": "Delete assignment",
           "reassign": "Reassign",
           "delete": "Delete",
           "deleteConfirmTitle": "Confirm deletion",
@@ -308,13 +331,146 @@
         },
         "notifications": {
           "reassigned": "Service reassigned successfully",
+          "assigned": "Service assigned successfully",
+          "assignError": "Error assigning service",
+          "assignmentCompleted": "Assignment completed successfully",
+          "assignmentError": "Error completing assignment",
           "deleted": "Assignment deleted",
           "reassignmentCancelled": "Reassignment cancelled",
-          "selectNewSlot": "Select a new date and time to reassign the service"
+          "selectNewSlot": "Select a new date and time to reassign the service",
+          "bookingsLoadError": "Could not load existing calendar bookings."
         },
         "reassignment": {
           "title": "Reassigning service",
           "hint": "Select a date and time in the calendar to reassign"
+        },
+        "assignment": {
+          "selectPlaceholder": "Select...",
+          "transportista": "Carrier",
+          "selectTransportista": "Select carrier...",
+          "searchTransportista": "Search carrier...",
+          "noTransportistasFound": "No carriers found",
+          "conductor": "Driver",
+          "selectConductor": "Select driver...",
+          "searchDriver": "Search driver...",
+          "noDriversFound": "No drivers found",
+          "searchNoResultsFor": "No results for",
+          "searchMinChars": "Type at least 2 characters to search",
+          "clearFilter": "Clear filter",
+          "selectFieldToFilter": "Select a field to filter",
+          "filteringBy": "Filtering by",
+          "searchFields": {
+            "name": "Name",
+            "rut": "RUT",
+            "status": "Status",
+            "trips": "Previous trips",
+            "lastTrip": "Last trip"
+          },
+          "driverSearch": {
+            "matchType": {
+              "name": "Name",
+              "rut": "RUT",
+              "estado": "Status",
+              "viajesPrevios": "Previous trips",
+              "ultimoViaje": "Last trip",
+              "excesoVelocidad": "Speed excess",
+              "faltasDescanso": "Rest faults"
+            }
+          },
+          "secondConductorLabel": "2nd driver",
+          "secondConductor": "Second Driver",
+          "selectSecondConductor": "Select second driver...",
+          "camion": "Truck",
+          "selectCamion": "Select truck...",
+          "searchTruck": "Search truck...",
+          "noTrucksFound": "No trucks found",
+          "truckSearchFields": {
+            "plate": "Plate",
+            "brand": "Brand",
+            "type": "Type",
+            "status": "Status",
+            "gps": "GPS",
+            "trips": "Previous trips"
+          },
+          "transportistaSearchFields": {
+            "name": "Name",
+            "rut": "RUT",
+            "status": "Status"
+          },
+          "remolqueLabel": "Trailer",
+          "remolque": "Trailer",
+          "selectRemolque": "Select trailer...",
+          "status": "Status",
+          "enabled": "Accredited",
+          "notEnabled": "Not Accredited",
+          "previousTrips": "Previous trips",
+          "lastTrip": "Last trip",
+          "speedExcess": "Speed excess",
+          "incidents": "{count} incidents",
+          "restFaults": "Rest faults",
+          "faults": "{count} faults",
+          "gpsIntegrated": "GPS integrated",
+          "integrated": "Integrated",
+          "notIntegrated": "Not Integrated",
+          "gpsStatus": "GPS Status",
+          "online": "Online",
+          "offline": "Offline",
+          "trips": "{count} trips",
+          "signalLosses": "Signal losses",
+          "losses": "{count} losses",
+          "available": "Available",
+          "busy": "Busy",
+          "truckType": {
+            "camion": "Truck",
+            "furgon": "Van",
+            "camioneta": "Pickup"
+          },
+          "remolqueType": {
+            "ARFJ": "Fixed Articulated",
+            "BAT": "Flatbed",
+            "C100": "Container 100",
+            "CB20": "Lowbed 20",
+            "CB40": "Lowbed 40",
+            "CB60": "Lowbed 60",
+            "CB70": "Lowbed 70",
+            "CB80": "Lowbed 80",
+            "CBJ": "Lowbed",
+            "CBJE": "Extendable Lowbed",
+            "CFX": "Fixed Chassis",
+            "EST": "Tank",
+            "FURG": "Van",
+            "PNE6": "Pneumatic 6",
+            "R10T": "Trailer 10T",
+            "R15T": "Trailer 15T",
+            "R28T": "Trailer 28T",
+            "RBAJ": "Low Trailer",
+            "RDRO": "Retractable Dolly",
+            "REM": "Trailer",
+            "REXT": "Extendable Trailer",
+            "RGEN": "General Trailer",
+            "RMOD": "Modular Trailer",
+            "RPAL": "Palletized Trailer",
+            "RPNE": "Pneumatic Trailer",
+            "S32": "Semi 32",
+            "SI20": "Sider 20",
+            "SI40": "Sider 40",
+            "SIDE": "Sideloader",
+            "SIL": "Silo"
+          },
+          "capacity": "Capacity",
+          "lastMaintenance": "Last maintenance",
+          "mileage": "Mileage",
+          "reportedProblems": "Reported problems",
+          "searchRemolque": "Search trailer...",
+          "noRemolquesFound": "No trailers found",
+          "remolqueSearchFields": {
+            "plate": "Plate",
+            "type": "Type",
+            "status": "Status",
+            "gps": "GPS",
+            "capacity": "Capacity",
+            "mileage": "Mileage"
+          }
         }
       }
     },
@@ -930,7 +1086,8 @@
     "userSettings": {
       "breadcrumb": {
         "user": "User",
-        "settings": "Settings"
+        "settings": "Settings",
+        "dataSources": "Data Sources"
       },
       "symptoms": {
         "config": {
@@ -938,6 +1095,82 @@
           "description": "Configure notifications for symptoms.",
           "addButton": "Add symptom"
         }
+      },
+      "dataSources": {
+        "title": "Data Sources",
+        "description": "Manage your data sources connections.",
+        "addButton": "Add Data Source",
+        "table": {
+          "name": "Name",
+          "type": "Type",
+          "auth": "Auth",
+          "url": "URL",
+          "status": "Status",
+          "actions": "Actions",
+          "empty": "No data sources configured yet. Click \"Add Data Source\" to get started.",
+          "test": "Test connection",
+          "edit": "Edit",
+          "delete": "Delete",
+          "active": "Active",
+          "inactive": "Inactive"
+        },
+        "modal": {
+          "addTitle": "Add Data Source",
+          "editTitle": "Edit Data Source",
+          "name": "Name",
+          "type": "Type",
+          "description": "Description",
+          "url": "URL",
+          "authMethod": "Authentication Method",
+          "authToken": "Bearer Token",
+          "authOAuth": "OAuth 2.0 (Client Credentials)",
+          "token": "Token",
+          "tokenPlaceholderEdit": "Leave empty to keep current token",
+          "tokenHint": "Leave empty to keep the existing token",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "secretPlaceholderEdit": "Leave empty to keep current secret",
+          "secretHint": "Leave empty to keep the existing secret",
+          "tokenUrl": "Token URL",
+          "scope": "Scope",
+          "scopePlaceholder": "e.g. read write",
+          "scopeHint": "Space-separated list of scopes (optional)",
+          "testConnection": "Test Connection",
+          "saving": "Saving...",
+          "saveButton": "Save",
+          "createButton": "Create"
+        },
+        "deleteConfirm": "Are you sure you want to delete",
+        "deleteButton": "Delete",
+        "deleting": "Deleting...",
+        "cancel": "Cancel",
+        "badge": {
+          "notTested": "Not tested",
+          "connected": "Connected",
+          "failed": "Failed"
+        },
+        "validation": {
+          "nameRequired": "Name is required",
+          "urlInvalid": "Must be a valid URL",
+          "tokenRequired": "Token is required",
+          "clientIdRequired": "Client ID is required",
+          "clientSecretRequired": "Client Secret is required",
+          "tokenUrlInvalid": "Must be a valid Token URL"
+        },
+        "toast": {
+          "created": "Data source created successfully",
+          "updated": "Data source updated successfully",
+          "deleted": "Data source deleted successfully",
+          "testSuccess": "Connection test successful",
+          "testFailed": "Connection test failed",
+          "error": "An error occurred",
+          "retry": "Retry"
+        }
+      },
+      "settingsNav": {
+        "title": "Settings",
+        "general": "General",
+        "dataSources": "Data Sources"
       }
     },
     "admin": {
@@ -1110,6 +1343,14 @@
         "cancel": "Cancel",
         "delete": "Delete"
       },
+      "deleteAssignmentModal": {
+        "title": "Delete assignment",
+        "messagePrefix": "Are you sure you want to delete the assignment for service ",
+        "messageSuffix": "? The service will be left unassigned.",
+        "close": "Close",
+        "cancel": "Cancel",
+        "delete": "Delete assignment"
+      },
       "calendarRules": {
         "configureTimeWindows": "Configure time windows",
         "quotaManagement": {
@@ -1256,6 +1497,7 @@
       "aiPlaceholderPlaceholder": "Placeholder text for AI summary",
       "showRowCount": "Show row count",
       "columns": "Columns",
+      "detectColumns": "Detect columns",
       "addColumn": "Add column",
       "cardLayout": "Card Layout",
       "titleColumn": "Title column",
@@ -1270,12 +1512,24 @@
       "sort": "Sort",
       "sortableColumns": "Sortable columns",
       "dataSource": "Data Source",
+      "functionName": "Function name",
+      "introspect": "Introspect",
+      "httpMethod": "HTTP Method",
+      "parameters": "Parameters",
+      "addParameter": "Add parameter",
+      "totalItems": "{count} items",
+      "totalItemsSingular": "{count} item",
       "staticJson": "Static (JSON)",
       "dynamicApi": "Dynamic (API)",
       "rowsJsonArray": "Rows (JSON array)",
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",
-      "invalidJson": "Invalid JSON"
+      "invalidJson": "Invalid JSON",
+      "dataSourceProvider": "Data Source Provider",
+      "selectProvider": "Select a provider…",
+      "noActiveProviders": "No active providers available",
+      "failedToLoadFunctions": "Failed to load functions",
+      "invalidResponseFormat": "Invalid response format"
     },
     "dashlets": {
       "data_list": {
@@ -1451,6 +1705,8 @@
     "monitoring": "Monitoring",
     "symptoms-list": "Symptoms list",
     "download": "Download",
+    "view_image": "View image",
+    "share": "Share",
     "map-view": "Map view",
     "restablished_symptoms": "Restablished symptoms",
     "under_treatment": "Symptoms being treated",
@@ -1617,7 +1873,17 @@
     "hide_stops": "Hide stops",
     "image_prefix": "image",
     "processing": "Processing...",
-    "download_failed": "Download failed — opening in a new tab"
+    "download_failed": "Download failed — opening in a new tab",
+    "imageViewer": {
+      "noCategory": "No category",
+      "shareTitle": "Geographic view",
+      "shareText": "Share the geographic view",
+      "shareSuccess": "Image shared",
+      "shareError": "Error sharing image",
+      "decodeError": "Error decoding image",
+      "downloadSuccess": "Image downloaded",
+      "downloadError": "Error downloading image"
+    }
   },
   "release": {
     "other_versions": "Other Versions",
@@ -1790,6 +2056,9 @@
     },
     "multimedia": {
       "only_jpg_jpeg_png_pdf_allowed": "Only JPG, JPEG, PNG and PDF files are allowed.",
+      "only_jpg_jpeg_png_allowed": "Only JPG, JPEG or PNG files are allowed.",
+      "fetch_image_error": "Could not fetch the image from the URL. Please try downloading it first.",
+      "fetching_image": "Fetching image...",
       "select_document_type": "Select a document type",
       "select_document_type_error": "You must select a document type",
       "categories": {
@@ -1814,6 +2083,18 @@
       "noImages": "No images",
       "documents": "Documents",
       "noDocuments": "No documents",
+      "document_load_error": "Could not load the document",
+      "replaceImage": "Replace document",
+      "replaceImageDescription": "Select a new document to replace the current one",
+      "selectFile": "Select file",
+      "noFileSelected": "You must select a document to continue",
+      "update_success": "Image updated successfully",
+      "update_error": "Error updating image",
+      "update_loading": "Updating image...",
+      "update_comment": "Updated version",
+      "upload_loading": "Uploading files...",
+      "upload_success": "Files uploaded successfully",
+      "upload_error": "Error uploading files",
       "validation": {
         "missingDocuments": "Required documents are missing to continue",
         "requiresPOD": "Proof of Delivery (POD)",
@@ -2028,6 +2309,7 @@
     "duration": "Duration",
     "selected_range": "Selected Range",
     "asset_id": "Asset ID",
+    "assetid": "Asset ID",
     "tripid": "Trip ID",
     "timestamp": "Timestamp",
     "speed": "Speed",
@@ -2036,7 +2318,14 @@
     "download_csv": "Download CSV",
     "no_trip": "No Trip",
     "distance_between_signals": "Distance between signals (Km)",
-    "selected_signals": "Selected Signals"
+    "selected_signals": "Selected Signals",
+    "pulse_detail": "Pulse Detail",
+    "heading": "Heading",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "back_to_summary": "Back to summary",
+    "view_on_maps": "View on Google Maps",
+    "distance": "Distance"
   },
   "new_functionality": {
     "new": "New",

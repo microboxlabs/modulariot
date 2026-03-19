@@ -96,7 +96,7 @@ export default function FormModal({
             )}
           </div>
         </ModalHeader>
-        <ModalBody>
+        <ModalBody className="max-h-[70vh] overflow-y-auto">
           <div className="flex flex-col my-4">{children}</div>
           {error && (
             <div className="mt-4 mb-4 space-y-2">
@@ -109,19 +109,20 @@ export default function FormModal({
           )}
         </ModalBody>
         <ModalFooter className="border-none">
-          {showCancelButton && (
-            <Button color="gray" onClick={onClose} disabled={isProcessing}>
-              {cancelLabel}
+          <div className="flex w-full justify-end gap-2">
+            {showCancelButton && (
+              <Button color="gray" onClick={onClose} disabled={isProcessing}>
+                {cancelLabel}
+              </Button>
+            )}
+            <Button
+              color="blue"
+              type="submit"
+              disabled={isProcessing}
+            >
+              {submitLabel}
             </Button>
-          )}
-          <Button
-            className="ml-auto mt-[-41px]"
-            color="blue"
-            type="submit"
-            disabled={isProcessing}
-          >
-            {submitLabel}
-          </Button>
+          </div>
         </ModalFooter>
       </form>
     </Modal>

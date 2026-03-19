@@ -24,7 +24,7 @@ export const pages: SidebarItem[] = [
                 totals: 10,
               },
               requiredGroups: ["GROUP_DASHBOARD"],
-              blockedGroups: [], 
+              blockedGroups: [],
             },
             {
               href: "/home/maintenanceStatus",
@@ -72,14 +72,17 @@ export const pages: SidebarItem[] = [
         : undefined,
     requiredGroups: [], // Public route
   },
-  ...(process.env.NEXT_PUBLIC_ENABLE_FLEET_MANAGEMENT === "true" ? [
-  {
-    href: "/fleet-management",
-    icon: TruckIcon,
-    label: "fleetManagement",
-    totals: {},
-    requiredGroups: [],
-  }] : []),
+  ...(process.env.NEXT_PUBLIC_ENABLE_FLEET_MANAGEMENT === "true"
+    ? [
+        {
+          href: "/fleet-management",
+          icon: TruckIcon,
+          label: "fleetManagement",
+          totals: {},
+          requiredGroups: [],
+        },
+      ]
+    : []),
   {
     icon: CalendarIcon,
     label: "calendar",
@@ -91,7 +94,7 @@ export const pages: SidebarItem[] = [
       },
     ],
     totals: {},
-    requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
+    requiredGroups: ["GROUP_ASSIGNMENT", "GROUP_PLANNING"],
   },
   {
     icon: ClipboardIcon,
@@ -118,7 +121,7 @@ export const pages: SidebarItem[] = [
         totals: {},
         requiredGroups: [
           "GROUP_MINTRAL_KANBAN_ACCESS",
-          "GROUP_GAMA_KANBAN_ACCESS"
+          "GROUP_GAMA_KANBAN_ACCESS",
         ],
       },
       /* {

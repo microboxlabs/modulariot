@@ -93,6 +93,8 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     mintral_loadWeightUtilization: task.mintral_loadWeightUtilization as number,
     mintral_loadPalletUtilization: task.mintral_loadPalletUtilization as number,
     mintral_loadMaxUtilization: task.mintral_loadMaxUtilization as number,
+    mintral_serviceCategory: task.mintral_serviceCategory as string,
+    mintral_creationDate: task.mintral_creationDate as string,
   };
 }
 

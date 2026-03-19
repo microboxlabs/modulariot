@@ -1,9 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
+
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Configuration Types
@@ -51,16 +54,21 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
-  const { resolved, loading, fetchError } = usePgrestResolvedFields({
-    dataMode: config.dataMode || "static",
-    pgrestFunctionName: config.pgrestFunctionName || "",
-    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    pgrestParams: config.pgrestParams || [],
-    fields: {
+  const fields = useMemo(
+    () => ({
       title: config.title || "Progress",
       value: config.value ?? "6",
       max: config.max ?? "10",
-    },
+    }),
+    [config.title, config.value, config.max],
+  );
+
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    fields,
   });
 
   if (loading) {

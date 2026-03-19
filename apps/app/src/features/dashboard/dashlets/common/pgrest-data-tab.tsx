@@ -7,10 +7,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { buildPgrestContentLabels } from "./pgrest-settings-helpers";
 
+type SimpleDataMode = "static" | "pgrest";
+
 interface PgrestDataTabProps {
   id: string;
-  dataMode: string;
-  onDataModeChange: (mode: string) => void;
+  dataMode: SimpleDataMode;
+  onDataModeChange: (mode: SimpleDataMode) => void;
   pgrest: ReturnType<typeof usePgrestSettingsState>;
   dictionary: I18nRecord;
 }
@@ -35,7 +37,7 @@ export function PgrestDataTab({
         id={id}
         label={tr("dashboard.settings.dataSource", dictionary)}
         value={dataMode}
-        onChange={onDataModeChange}
+        onChange={(v) => onDataModeChange(v as SimpleDataMode)}
         options={[
           {
             value: "static",

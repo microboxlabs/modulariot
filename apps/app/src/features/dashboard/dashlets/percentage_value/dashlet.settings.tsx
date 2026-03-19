@@ -12,7 +12,7 @@ import {
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 
-type PercentageDataMode = "static" | "pgrest";
+type SimpleDataMode = "static" | "pgrest";
 
 /** Field config for the three percentage_value text fields */
 const PERCENTAGE_FIELDS = [
@@ -34,8 +34,8 @@ export function DashletSettings({
   const [title, setTitle] = useState(config.title || "Progress");
   const [value, setValue] = useState(config.value ?? "6");
   const [max, setMax] = useState(config.max ?? "10");
-  const [dataMode, setDataMode] = useState<PercentageDataMode>(
-    (config.dataMode as PercentageDataMode) || "static",
+  const [dataMode, setDataMode] = useState<SimpleDataMode>(
+    (config.dataMode as SimpleDataMode) || "static",
   );
 
   const pg = usePgrestSettingsState({
@@ -88,7 +88,7 @@ export function DashletSettings({
     <PgrestDataTab
       id="pv-data-mode"
       dataMode={dataMode}
-      onDataModeChange={(v) => setDataMode(v as PercentageDataMode)}
+      onDataModeChange={setDataMode}
       pgrest={pg}
       dictionary={dictionary}
     />

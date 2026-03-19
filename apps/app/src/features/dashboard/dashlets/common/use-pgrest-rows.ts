@@ -42,7 +42,7 @@ export function usePgrestRows(
         return res.json();
       })
       .then((data: unknown) => {
-        if (!cancelled) setRows(parseRows(data));
+        if (!cancelled) setRows(parseRows(data, { singleObjectFallback: true }));
       })
       .catch((err: unknown) => {
         if (!cancelled) {

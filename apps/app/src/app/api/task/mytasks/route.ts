@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getFinishedWorkflows,
+  getUnbookedTasks,
   getUserTasks,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { toShippingKanban } from "@/features/shipping/services/data.service";
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
   const order = url.searchParams.get("order");
   const date_range_from = url.searchParams.get("date_range_from");
   const date_range_to = url.searchParams.get("date_range_to");
+  const calendarId = url.searchParams.get("calendarId");
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -97,6 +99,12 @@ export async function GET(req: NextRequest) {
           });
         }),
       ])) as FinishedWorkflowsResponse[];
+    } else if (calendarId) {
+      taskResponses = (await Promise.all([
+        ...columns.map((column) => {
+          return getUnbookedTasks(session, column, options, calendarId);
+        }),
+      ])) as FastTasksResponse[];
     } else {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {

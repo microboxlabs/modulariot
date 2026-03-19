@@ -601,6 +601,7 @@ export interface AssigningService {
 }
 
 interface PlanningSelectionContextType {
+  calendarId?: string;
   selectedSlot: SelectedSlot | null;
   selectedService: SelectedService | null;
   plannedServices: PlannedService[];
@@ -672,6 +673,8 @@ interface PlanningSelectionContextType {
   isSlotsLoading: boolean;
   /** Refresh backend slots (e.g. after booking) */
   refreshSlots: () => void;
+  /** Counter that increments after each booking change — use to trigger service list refresh */
+  bookingVersion: number;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
@@ -764,6 +767,7 @@ export function PlanningSelectionProvider({
   const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(
     null
   );
+  const [bookingVersion, setBookingVersion] = useState(0);
 
   // Load calendar parallelism from the backend
   const { calendars } = useCalendars();
@@ -1333,6 +1337,9 @@ export function PlanningSelectionProvider({
           // Refresh backend slots so availability is up-to-date
           refreshSlots();
 
+          // Bump version so the service list re-fetches (excluding newly booked)
+          setBookingVersion((v) => v + 1);
+
           // Fire-and-forget: update Alfresco task service category
           if (effectiveService.serviceCategory) {
             updateServiceCategory(
@@ -1420,6 +1427,9 @@ export function PlanningSelectionProvider({
       setPlannedServices((prev) =>
         prev.filter((p) => p.service.id !== serviceId)
       );
+
+      // Bump version so the service list re-fetches (including newly unbooked)
+      setBookingVersion((v) => v + 1);
     },
     [bookingIds]
   );
@@ -1509,6 +1519,7 @@ export function PlanningSelectionProvider({
 
   const contextValue = useMemo(
     () => ({
+      calendarId,
       selectedSlot,
       selectedService,
       plannedServices,
@@ -1548,8 +1559,10 @@ export function PlanningSelectionProvider({
       backendSlots,
       isSlotsLoading,
       refreshSlots,
+      bookingVersion,
     }),
     [
+      calendarId,
       selectedSlot,
       selectedService,
       plannedServices,
@@ -1589,6 +1602,7 @@ export function PlanningSelectionProvider({
       backendSlots,
       isSlotsLoading,
       refreshSlots,
+      bookingVersion,
     ]
   );
 

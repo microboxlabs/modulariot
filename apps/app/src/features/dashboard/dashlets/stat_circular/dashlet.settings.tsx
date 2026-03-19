@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
@@ -11,6 +11,7 @@ import {
   SettingsFieldGrid,
   useDataProvider,
 } from "../common";
+import type { ColumnItem } from "../common/column-helpers";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
@@ -19,16 +20,6 @@ import { buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
-
-const NOOP_COLUMNS_DETECTED = (keys: string[]) =>
-  keys.map((key, i) => ({
-    _id: `col-${Date.now()}-${i}`,
-    key,
-    label: key,
-    type: "text" as const,
-  }));
-
-const NOOP_SET_COLUMNS = () => {};
 
 export function DashletSettings({
   isOpen,
@@ -44,22 +35,56 @@ export function DashletSettings({
     (ds) => ds.isActive === true && ds.lastTestResult === true
   );
 
-  const [title, setTitle] = useState(config.title ?? defaultConfig.title);
-  const [value, setValue] = useState(config.value ?? defaultConfig.value);
-  const [maxValue, setMaxValue] = useState(config.maxValue ?? defaultConfig.maxValue);
-  const [unit, setUnit] = useState(config.unit ?? defaultConfig.unit);
+  const [title, setTitle] = useState(String(config.title ?? defaultConfig.title));
+  const [value, setValue] = useState(String(config.value ?? defaultConfig.value));
+  const [maxValue, setMaxValue] = useState(String(config.maxValue ?? defaultConfig.maxValue));
+  const [unit, setUnit] = useState(String(config.unit ?? defaultConfig.unit));
   const [dataMode, setDataMode] = useState<"static" | "pgrest">(config.dataMode ?? "static");
   const [dataSourceId, setDataSourceId] = useState<string>(config.dataSourceId ?? "");
 
   const dp = useDataProvider(config.dataProvider ?? []);
+
+  // Keep refs to setters so the pgrest callbacks always use the latest
+  const setValueRef = useRef(setValue);
+  setValueRef.current = setValue;
+  const setMaxValueRef = useRef(setMaxValue);
+  setMaxValueRef.current = setMaxValue;
+  const setTitleRef = useRef(setTitle);
+  setTitleRef.current = setTitle;
+  const setUnitRef = useRef(setUnit);
+  setUnitRef.current = setUnit;
+
+  const onColumnsDetected = useCallback(
+    (keys: string[]) =>
+      keys.map((key, i) => ({
+        _id: `col-${Date.now()}-${i}`,
+        key: `{{row.${key}}}`,
+        label: key,
+        type: "text" as const,
+      })),
+    [],
+  );
+
+  const noop = useCallback(() => {}, []);
+
+  const onDetectionComplete = useCallback((detected: ColumnItem[]) => {
+    // Auto-fill visualization fields with first detected row keys
+    if (detected.length >= 1) {
+      setValueRef.current(detected[0].key);
+    }
+    if (detected.length >= 2) {
+      setMaxValueRef.current(detected[1].key);
+    }
+  }, []);
 
   const pg = usePgrestSettingsState({
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestParams: config.pgrestParams ?? [],
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     dataSourceId: dataSourceId || undefined,
-    onColumnsDetected: NOOP_COLUMNS_DETECTED,
-    setColumns: NOOP_SET_COLUMNS,
+    onColumnsDetected,
+    setColumns: noop,
+    onDetectionComplete,
   });
 
   const handleSave = () => {

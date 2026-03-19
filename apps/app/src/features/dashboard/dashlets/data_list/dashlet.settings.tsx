@@ -12,6 +12,13 @@ import {
   defaultCardLayout,
 } from "./dashlet";
 import { useSettingsState } from "../common/use-settings-state";
+import {
+  usePgrestSettingsState,
+  PgrestSettingsSection,
+  fromPgrestParamItems,
+  buildPgrestSettingsConfig,
+  buildPgrestContentLabels,
+} from "../common/index";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { tr } from "@/features/i18n/tr.service";

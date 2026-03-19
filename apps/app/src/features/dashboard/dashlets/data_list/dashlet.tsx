@@ -317,7 +317,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const loading = dynamicLoading || pgrestLoading;
   const fetchError = dynamicError || pgrestError;
-  const allRows = dataMode === "pgrest" ? pgrestRows : dataMode === "dynamic" ? dynamicRows : staticRows;
+  let allRows: typeof staticRows;
+  if (dataMode === "pgrest") {
+    allRows = pgrestRows;
+  } else if (dataMode === "dynamic") {
+    allRows = dynamicRows;
+  } else {
+    allRows = staticRows;
+  }
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {

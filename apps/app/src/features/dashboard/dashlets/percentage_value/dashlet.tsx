@@ -57,8 +57,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const fields = useMemo(
     () => ({
       title: config.title || "Progress",
-      value: config.value ?? "6",
-      max: config.max ?? "10",
+      value: String(config.value ?? "6"),
+      max: String(config.max ?? "10"),
     }),
     [config.title, config.value, config.max],
   );

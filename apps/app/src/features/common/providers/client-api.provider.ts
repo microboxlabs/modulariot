@@ -75,7 +75,7 @@ export function useMyTasks(
   const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
   const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}&${params}`;
 
-  const { data, error, isLoading } = useSWR<
+  const { data, error, isLoading, mutate } = useSWR<
     KanbanBoardTaskResponse,
     FetcherError
   >(`/app/api/task/mytasks?${queryString}`, fetcher);
@@ -84,6 +84,7 @@ export function useMyTasks(
     data,
     error,
     isLoading,
+    refresh: mutate,
   };
 }
 

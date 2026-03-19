@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -154,6 +154,7 @@ export function PlanningSidebarClient({
   dict,
 }: Readonly<PlanningSidebarClientProps>) {
   const {
+    calendarId,
     selectedSlot,
     selectedService,
     clearService,
@@ -164,6 +165,7 @@ export function PlanningSidebarClient({
     andenesCount,
     backendSlots,
     isSlotsLoading,
+    bookingVersion,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -214,17 +216,28 @@ export function PlanningSidebarClient({
       }
     }
 
+    if (calendarId) {
+      params.push(`calendarId=${calendarId}`);
+    }
+
     return params.join("&");
-  }, [searchTags]);
+  }, [searchTags, calendarId]);
 
   // Fetch tasks from API
-  const { data: myTasksData, isLoading: isLoadingTasks } = useMyTasks(
+  const { data: myTasksData, isLoading: isLoadingTasks, refresh: refreshTasks } = useMyTasks(
     ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit
     apiParams || undefined
   );
+
+  // Re-fetch task list when a booking is created or removed
+  useEffect(() => {
+    if (bookingVersion > 0) {
+      refreshTasks();
+    }
+  }, [bookingVersion, refreshTasks]);
 
   // Transform API data to SelectedService array
   const apiServices = useMemo(() => {

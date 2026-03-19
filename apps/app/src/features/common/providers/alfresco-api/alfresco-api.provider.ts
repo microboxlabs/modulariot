@@ -167,6 +167,37 @@ export async function getUserTasks(
   return result as FastTasksResponse;
 }
 
+export async function getUnbookedTasks(
+  session: Session,
+  definitionKey: string,
+  options: {
+    from?: number;
+    size?: number;
+    filter?: Record<string, unknown>;
+  } = {},
+  calendarId: string
+): Promise<FastTasksResponse> {
+  const { from = 0, size = 100, filter = undefined } = options;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/unbooked`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      size,
+      definitionKey: definitionKey.length == 0 ? undefined : definitionKey,
+      filter,
+      calendarId,
+    }),
+  });
+
+  return result as FastTasksResponse;
+}
+
 export async function getTaskById(
   session: Session,
   taskId: string

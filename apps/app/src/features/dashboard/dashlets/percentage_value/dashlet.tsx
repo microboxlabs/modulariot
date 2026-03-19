@@ -88,8 +88,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   }
 
   const title = resolved.title || "Progress";
-  const value = Number(resolved.value) || 0;
-  const max = Number(resolved.max) || 10;
+  const parsedValue = resolved.value === "" || resolved.value == null ? NaN : Number(resolved.value);
+  const parsedMax = resolved.max === "" || resolved.max == null ? NaN : Number(resolved.max);
+  const value = Number.isFinite(parsedValue) ? parsedValue : 0;
+  const max = Number.isFinite(parsedMax) ? parsedMax : 10;
 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   const clampedPercentage = Math.min(100, Math.max(0, percentage));

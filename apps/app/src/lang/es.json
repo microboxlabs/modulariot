@@ -1474,6 +1474,7 @@
     },
     "title": "Título",
     "value": "Valor",
+    "max": "Máx",
     "unit": "Unidad",
     "all": "Todos"
   },
@@ -1545,6 +1546,7 @@
       "totalItems": "{count} elementos",
       "totalItemsSingular": "{count} elemento",
       "staticJson": "Estático (JSON)",
+      "pgrest": "PGREST",
       "dynamicApi": "Dinámico (API)",
       "rowsJsonArray": "Filas (arreglo JSON)",
       "apiUrl": "URL de API",

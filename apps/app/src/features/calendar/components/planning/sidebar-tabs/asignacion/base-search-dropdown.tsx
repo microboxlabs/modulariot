@@ -252,12 +252,12 @@ function handleEscapeKey<TMatchType extends string>(
   setIsOpen: (open: boolean) => void,
   setQuery: (query: string) => void
 ): void {
-  if (activeFilter !== null) {
-    handleClearFilter();
-  } else {
+  if (activeFilter === null) {
     setIsOpen(false);
     setQuery("");
+    return;
   }
+  handleClearFilter();
 }
 
 function handleListModeKeyDown<

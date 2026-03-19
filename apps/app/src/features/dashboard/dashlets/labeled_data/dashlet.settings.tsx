@@ -2,14 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "flowbite-react";
-import {
-  HiChartBar,
-  HiCurrencyDollar,
-  HiUsers,
-  HiShoppingCart,
-  HiClock,
-  HiCheckCircle,
-} from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ColorTheme, IconType } from "./dashlet";
@@ -17,16 +9,14 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-import {
-  IconPickerDropdown,
-  type IconOption,
-} from "@/features/common/components/icon-picker-dropdown";
+import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import {
   SettingsTextField,
   SettingsPickerRow,
   SettingsPickerItem,
 } from "../common";
+import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 
 /** Color options for ColorPickerDropdown */
 const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
@@ -40,15 +30,7 @@ const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
   { value: "orange", label: "Orange", dotClass: "bg-orange-500" },
 ];
 
-/** Icon options for IconPickerDropdown */
-const ICON_OPTIONS: IconOption<IconType>[] = [
-  { value: "chart", label: "Chart", icon: HiChartBar },
-  { value: "currency", label: "Currency", icon: HiCurrencyDollar },
-  { value: "users", label: "Users", icon: HiUsers },
-  { value: "cart", label: "Cart", icon: HiShoppingCart },
-  { value: "clock", label: "Clock", icon: HiClock },
-  { value: "check", label: "Check", icon: HiCheckCircle },
-];
+const ICON_OPTIONS = DASHLET_ICON_OPTIONS;
 
 /**
  * Settings Modal

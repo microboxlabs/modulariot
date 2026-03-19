@@ -1,10 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { defaultColumns, defaultRows, defaultSort, defaultFilter } from "./dashlet";
+import {
+  defaultColumns,
+  defaultRows,
+  defaultSort,
+  defaultFilter,
+} from "./dashlet";
 import { useSettingsState } from "../common/use-settings-state";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
+import { tr } from "@/features/i18n/tr.service";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 export function DashletSettings({
   isOpen,
@@ -13,6 +26,17 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const { siteId } = useDashboard();
+  const { dataSources } = useDataSources(siteId ?? undefined);
+
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true
+  );
+
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
+
   const s = useSettingsState({
     title: config.title,
     defaultTitle: "Data Table",
@@ -25,12 +49,23 @@ export function DashletSettings({
     defaultFilter,
     sort: config.sort,
     defaultSort,
-    dataMode: config.dataMode,
-    apiUrl: config.apiUrl,
+    dataMode: config.dataMode === "pgrest" ? "pgrest" : (config.dataMode ?? "static"),
+    apiUrl: "",
+  });
+
+  const pg = usePgrestSettingsState({
+    pgrestFunctionName: config.pgrestFunctionName ?? "",
+    pgrestParams: config.pgrestParams ?? [],
+    pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    dataSourceId: dataSourceId || undefined,
+    ...buildPgrestSettingsConfig(s),
   });
 
   const handleSave = () => {
-    const rows = s.parseRows("Must be a JSON array", "Invalid JSON");
+    const rows = s.parseRows(
+      tr("dashboard.settings.mustBeJsonArray", dictionary),
+      tr("dashboard.settings.invalidJson", dictionary),
+    );
     if (!rows) return;
 
     const { filter, sort, savedColumns } = s.buildFilterSort();
@@ -38,15 +73,29 @@ export function DashletSettings({
     onSave({
       title: s.title,
       showRowCount: s.showRowCount,
-      dataMode: s.dataMode,
+      dataMode: s.dataMode as "static" | "pgrest",
       columns: savedColumns,
       rows,
-      apiUrl: s.apiUrl,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
       filter,
       sort,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
+
+  const pgrestContent = (
+    <PgrestSettingsSection
+      pgrest={pg}
+      dictionary={dictionary}
+      labels={buildPgrestContentLabels(dictionary)}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
+    />
+  );
 
   return (
     <TableListSettingsShell
@@ -56,6 +105,8 @@ export function DashletSettings({
       onSave={handleSave}
       state={s}
       dictionary={dictionary}
+      dataTabChildren={pgrestContent}
+      handlebarsColorKeys
     />
   );
 }

@@ -4,32 +4,41 @@ import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
 import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
-import type { FilterConfig, FilterItemConfig } from "@/features/dashboard/dashlets/common/filter-types";
+import type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
-import { useDynamicRows } from "@/features/dashboard/dashlets/common/use-dynamic-rows";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
+import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
+import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 
+// ============================================================================
+// Re-exports
+// ============================================================================
+
 export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
 export type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
+export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
+export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
-// ============================================================================
-// Configuration Types
-// ============================================================================
+import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
 
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic";
+  dataMode: "static" | "pgrest";
   columns: TableColumn[];
   rows: Record<string, string>[];
-  apiUrl: string;
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
+  dataSourceId?: string;
 }
 
 // ============================================================================
@@ -37,13 +46,13 @@ export interface DashletConfig {
 // ============================================================================
 
 export const defaultColumns: TableColumn[] = [
-  { key: "vehicle", label: "Vehículo", type: "text" },
-  { key: "client", label: "Cliente", type: "text" },
-  { key: "km", label: "KM Totales", type: "highlight" },
-  { key: "system", label: "Sistema", type: "text" },
-  { key: "status", label: "Estado", type: "badge" },
-  { key: "alert", label: "Tipo de Alerta", type: "text" },
-  { key: "duration", label: "Duración", type: "text" },
+  { key: "{{row.vehicle}}", label: "Vehículo", type: "text" },
+  { key: "{{row.client}}", label: "Cliente", type: "text" },
+  { key: "{{row.km}}", label: "KM Totales", type: "highlight" },
+  { key: "{{row.system}}", label: "Sistema", type: "text" },
+  { key: "{{row.status}}", label: "Estado", type: "badge" },
+  { key: "{{row.alert}}", label: "Tipo de Alerta", type: "text" },
+  { key: "{{row.duration}}", label: "Duración", type: "text" },
 ];
 
 export const defaultRows: Record<string, string>[] = [
@@ -87,14 +96,12 @@ export const defaultRows: Record<string, string>[] = [
 
 export const defaultFilter: FilterConfig = {
   enabled: true,
-  items: [{ column: "status", label: "Estado:" }],
+  items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
-
-export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 
 export const defaultSort: SortConfig = {
   enabled: true,
-  columns: ["status", "system", "duration"],
+  columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
 };
 
 export const defaultConfig: DashletConfig = {
@@ -103,7 +110,9 @@ export const defaultConfig: DashletConfig = {
   dataMode: "static",
   columns: defaultColumns,
   rows: defaultRows,
-  apiUrl: "",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
   filter: defaultFilter,
   sort: defaultSort,
 };
@@ -134,15 +143,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
     rows: staticRows = defaultRows,
-    apiUrl = "",
+    pgrestFunctionName = "",
+    pgrestParams = [],
+    pgrestHttpMethod = "POST",
     sort = defaultSort,
+    dataSourceId,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
-  // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
+  // ── PGREST data fetching ────────────────────────────────────────────────────
+  const {
+    rows: pgrestRows,
+    loading,
+    fetchError,
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
 
-  const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
+  const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {
@@ -151,6 +167,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sortDir,
     filterOptionsByColumn,
     displayRows,
+    validSortColumns,
     getColumnLabel,
     handleFilterClear,
     handleFilterSelect,
@@ -159,6 +176,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
+
+  // ── Handlebars template compilation ────────────────────────────────────────
+  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(columns, displayRows.length);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -172,8 +192,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </h3>
         {showRowCount && (
           <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-            {displayRows.length}{" "}
-            {displayRows.length === 1 ? "item" : "items"} en total
+            {tr(
+              displayRows.length === 1
+                ? "dashboard.settings.totalItemsSingular"
+                : "dashboard.settings.totalItems",
+              dictionary,
+              { count: String(displayRows.length) }
+            )}
           </span>
         )}
       </div>
@@ -197,12 +222,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         })}
 
       {/* Sort card */}
-      {sort.enabled && sort.columns.length > 0 && (
+      {sort.enabled && validSortColumns.length > 0 && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Ordenar por:
           </span>
-          {sort.columns.map((key) => (
+          {validSortColumns.map((key) => (
             <Pill
               key={key}
               label={getColumnLabel(key)}
@@ -239,7 +264,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     key={col.key}
                     className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
                   >
-                    {col.label}
+                    {resolveLabel(col.key)}
                   </th>
                 ))}
               </tr>
@@ -255,9 +280,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row) => (
+                displayRows.map((row, rowIdx) => (
                   <tr
-                    key={columns.map((col) => row[col.key] ?? "").join("|")}
+                    key={row.id ?? row._id ?? rowIdx}
                     className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
                   >
                     {columns.map((col) => (
@@ -265,7 +290,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         key={col.key}
                         className="px-4 py-4 text-gray-700 dark:text-gray-300"
                       >
-                        {renderCell(row[col.key] ?? "", col.type)}
+                        {renderCell(
+                          resolveValue(col.key, row, rowIdx, displayRows.length),
+                          resolveType(col.key, row, rowIdx, displayRows.length)
+                        )}
                       </td>
                     ))}
                   </tr>

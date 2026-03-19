@@ -28,35 +28,21 @@ export default function FilterComponent({
   onChange?: (updatedOptions: Option[]) => void;
 }) {
   const [expanded, set_expanded] = useState(false);
-  const [filter_options, set_filter_options] = useState<Option[]>(options);
 
-  // Calculate the number of activated options
-  const activatedCount = filter_options.filter(
-    (option) => option.activated
-  ).length;
+  const activatedCount = options.filter((option) => option.activated).length;
 
-  // Handle option toggle with direct onChange call
   const handleOptionToggle = (index: number) => {
-    const new_options = [...filter_options];
-    new_options[index].activated = !new_options[index].activated;
-    set_filter_options(new_options);
-
-    // Call onChange directly after state update
+    const new_options = options.map((opt, i) =>
+      i === index ? { ...opt, activated: !opt.activated } : opt
+    );
     if (onChange) {
       onChange(new_options);
     }
   };
 
-  // Handle clear all options
   const handleClearOptions = () => {
-    const new_options = [...filter_options];
-    new_options.forEach((option) => {
-      option.activated = false;
-    });
-    set_filter_options(new_options);
+    const new_options = options.map((opt) => ({ ...opt, activated: false }));
     set_expanded(false);
-
-    // Call onChange directly after state update
     if (onChange) {
       onChange(new_options);
     }
@@ -93,7 +79,7 @@ export default function FilterComponent({
       <div
         className={`h-10 transition-all duration-300 ease-in-out !flex justify-center items-center flex-row gap-2 w-fit ${expanded ? "animate-show" : "animate-hide-width"}  `}
       >
-        {filter_options.map((option, index) => (
+        {options.map((option, index) => (
           <div
             onClick={() => handleOptionToggle(index)}
             key={index}

@@ -1,0 +1,67 @@
+# 🔔 Release Notes v1.28.7 — ModularIoT
+
+### Fecha: 19/03/2026
+
+**Objetivo**: Esta versión introduce el preview al módulo de asignación de recursos en planificación, consolida el proveedor de datos PGREST para dashboards con selección dinámica de fuentes, y añade persistencia server-side de configuraciones de widgets, mejoras de control de acceso y optimización de carga visual.
+
+## 🚀 Evolutivos
+
+- **📍 preview del módulo de asignación de recursos en planificación**
+  - **Nueva pestaña "Asignación"**: El sidebar de planificación ahora utiliza un layout con pestañas (Planificación / Asignación), permitiendo asignar recursos logísticos a servicios ya planificados.
+  - **Selectores de recursos**: Formulario con 5 selectores — transportista, conductor principal, segundo conductor (opcional), camión con visualización de ubicación en mapa, y remolque (opcional).
+  - **Menú contextual**: Acción "Asignar" disponible al hacer clic derecho sobre servicios planificados en vistas día y semana.
+  - **Indicadores de estado**: Tarjetas contextuales con KPIs de conductores (viajes previos, excesos de velocidad, incidentes de descanso) y camiones (estado GPS, pérdidas de señal).
+  - **Feature flag**: Funcionalidad controlada por `NEXT_PUBLIC_ASIGNATION_FLAG`. *(Integración OSS — MIOT-0.4.4)*
+
+- **📍 Proveedor de datos PGREST para dashboards**
+  - **Nuevo modo de datos**: Los dashlets data_table y data_list soportan un tercer modo "PGREST" junto a estático y dinámico, permitiendo consultar funciones PostgREST directamente.
+  - **Autodetección**: Seleccionar una función PGREST detecta automáticamente columnas, método HTTP, y parámetros requeridos con editor clave-valor.
+  - **Selección dinámica de fuente**: Dropdown de proveedores configurados (solo activos y con test de conexión exitoso) para cada widget, con resolución dinámica de credenciales en el backend.
+  - **Hook unificado**: `useFilterAndSort` compartido elimina ~200 líneas de lógica duplicada de filtrado y ordenamiento entre dashlets.
+  - **Compatibilidad**: Dashlets existentes sin `dataSourceId` siguen funcionando con las variables de entorno globales. *(Integración OSS — MIOT-0.4.4)*
+
+- **📍 Persistencia de configuraciones de widgets en Alfresco**
+  - **Sincronización server-side**: Las configuraciones de dashboard se persisten como nodos de contenido en Alfresco (`Sites/{site}/documentLibrary/dashboard/`), eliminando la dependencia exclusiva de localStorage.
+  - **Carga en dos fases**: Hidratación instantánea desde localStorage seguida de fetch en background desde Alfresco como fuente de verdad.
+  - **Guardado debounced**: Escritura síncrona en localStorage + guardado debounced (2s) a Alfresco con retry exponencial (hasta 3 intentos).
+  - **Degradación elegante**: Sin sitio → solo localStorage; Alfresco no disponible → localStorage como fallback con warning. *(Integración OSS — MIOT-0.4.4)*
+
+- **📍 Control de acceso para dashboards**
+  - **Restricción por grupo**: Los 7 sub-ítems de dashboard bajo Home ahora requieren membresía en `GROUP_DASHBOARD` para ser visibles en el sidebar.
+  - **Alcance**: Dashboard principal, estado de mantenimiento, salud técnica vehicular, dispositivos y telemetría, eventos operativos, uso de flota e información general.
+  - **Sin impacto en Home**: El ítem padre `/home` permanece accesible para todos los usuarios autenticados. *(Integración OSS — MIOT-0.4.4)*
+
+- **📍 Logo de organización sin skeleton en carga**
+  - **Fetch server-side**: Los layouts seguros obtienen el logo de la organización en el servidor y lo pasan como `initialOrgLogo` al navbar.
+  - **Cadena de fallback**: Logo server-side → logos SWR (variantes claro/oscuro) → logo built-in por defecto.
+  - **Impacto visual**: Elimina el flash de skeleton gris durante la carga inicial de la aplicación. *(Integración OSS — MIOT-0.4.4)*
+
+- **📍 Acción "Ver en nueva pestaña" para imágenes**
+  - **Nueva acción**: Los usuarios pueden abrir imágenes directamente en una nueva pestaña del navegador desde el carrusel/modal de imágenes.
+  - **Soporte dual**: Compatible con data URLs y URLs de imágenes regulares.
+  - **Experiencia simplificada**: Se eliminó el zoom/lupa del carrusel para una experiencia más limpia, y se mejoró el manejo de errores con mensajes al usuario cuando falla la decodificación de imágenes. *(Integración OSS — MIOT-0.4.4)*
+
+## 🔧 Integraciones
+
+- **🔌 Webscript de servicios no reservados con cross-reference de calendario**
+  - **Nuevo endpoint**: `POST /alfresco/s/mintral/tasks/unbooked` que cruza las reservas del calendario miot-calendar con las tareas de Alfresco para retornar solo servicios no planificados.
+  - **Mapeo de IDs**: Conversión automática entre formatos de identificador (`{code}-v` en miot-calendar → `v{code}` en Alfresco mintralKey).
+  - **Manejo de errores**: Validación de `calendarId` (400), fallback cuando no hay reservas, y manejo de indisponibilidad del servicio de calendario (502).
+
+## 📊 Beneficios
+
+- 🚀 **Flujo de planificación completo**: Los operadores pueden ahora planificar servicios y asignar (preview) recursos logísticos (transportista, conductor, camión, remolque) desde una única interfaz.
+- 📊 **Dashboards conectados a datos en tiempo real**: El proveedor PGREST permite que los widgets consulten múltiples fuentes de datos PostgREST sin configuración manual de URLs.
+- 💾 **Configuraciones persistentes y portables**: Las personalizaciones de dashboard se sincronizan con Alfresco, sobreviviendo cambios de navegador, dispositivo y limpieza de caché.
+- 🔒 **Control de acceso granular**: Solo usuarios autorizados del grupo `GROUP_DASHBOARD` pueden acceder a los dashboards analíticos, protegiendo datos sensibles de flota.
+- ⚡ **Mejor experiencia de carga**: El logo de la organización aparece instantáneamente al cargar la aplicación, eliminando el placeholder visual.
+- 🔧 **Integración calendario-tareas**: El nuevo webscript de servicios no reservados evita la duplicación de servicios ya planificados en los resultados de búsqueda.
+- 🏗️ **Arquitectura más limpia**: Hooks compartidos (`useFilterAndSort`, `useCompiledColumns`) y componentes reutilizables reducen la duplicación de código en el módulo de dashboards.
+
+## 📌 Conclusión
+
+La versión 1.28.7 representa un avance significativo en dos frentes clave de la plataforma. En planificación, el nuevo módulo de asignación de recursos completa el flujo operativo permitiendo que los servicios planificados reciban la asignación de transportista, conductor y vehículo directamente desde el sidebar del calendario, mientras el webscript de servicios no reservados asegura que solo se muestren servicios aún no planificados.
+
+En el módulo de dashboards, esta versión consolida una arquitectura robusta con tres capacidades fundamentales: conexión directa a múltiples fuentes PostgREST, persistencia server-side de configuraciones, y control de acceso basado en grupos. El proveedor PGREST con selección dinámica de fuente permite que cada widget se conecte a su propia base de datos, mientras la sincronización con Alfresco garantiza que las personalizaciones de dashboard sean portables entre sesiones y dispositivos.
+
+Estas mejoras posicionan a ModularIoT como una plataforma más completa para la gestión operativa de flotas, con un flujo end-to-end desde la planificación de servicios hasta la asignación de recursos, respaldado por dashboards analíticos configurables y persistentes.

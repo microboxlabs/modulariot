@@ -14,7 +14,9 @@
     "STREAMHUB_AUDIENCE",
     "STREAMHUB_URL",
     "STREAMHUB_IOT_URL",
-    "MIOT_CALENDAR_URL"
+    "MIOT_CALENDAR_URL",
+    "OPENAPI_URL",
+    "OPENAPI_TOKEN"
   ],
   "tasks": {
     "build": {

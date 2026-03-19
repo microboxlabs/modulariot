@@ -1,11 +1,15 @@
 import { Button, Modal, ModalBody } from "flowbite-react";
-import { MdOutlineFileDownload } from "react-icons/md";
-import { FaShare } from "react-icons/fa";
+import { MdOutlineFileDownload, MdOutlineFileUpload } from "react-icons/md";
+import { FaEye, FaShare } from "react-icons/fa";
 import Carousel from "../carousel";
 import { toast } from "sonner";
 import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { downloadImage } from "../../utils/download-image";
+import { useState } from "react";
+import ReplaceImageModal from "./replace-image-modal";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
 const modalTheme = {
   root: {
@@ -31,13 +35,25 @@ export default function ImageViewer({
   setSelected,
   data = [],
   dictionary,
+  onReplaceImage,
 }: Readonly<{
   images: string[];
   selected: number | null;
   setSelected: (index: number | null) => void;
-  data?: { tag?: string; name: string }[];
+  data?: {
+    tag?: string;
+    name: string;
+    modifiedAt?: string;
+    modifiedByUser?: { id: string; displayName: string };
+  }[];
   dictionary: I18nRecord;
+  onReplaceImage?: (file: File, index: number) => void;
 }>) {
+  const [showReplaceModal, setShowReplaceModal] = useState(false);
+
+  const handleReplaceModalClose = () => {
+    setShowReplaceModal(false);
+  };
   const handleShare = async () => {
     if (!navigator.share || selected === null) {
       console.error("Sharing is not supported on this device/browser");
@@ -62,18 +78,18 @@ export default function ImageViewer({
     if (isValidUrl(images[selected])) {
       try {
         await navigator.share({
-          title: "Vista geográfica",
-          text: "Compartir la vista geográfica",
+          title: tr("geographic_view.imageViewer.shareTitle", dictionary),
+          text: tr("geographic_view.imageViewer.shareText", dictionary),
           url: images[selected],
         });
-        toast.success("Imagen compartida");
+        toast.success(tr("geographic_view.imageViewer.shareSuccess", dictionary));
       } catch (error) {
         // Don't show error for user cancellation
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
         console.error("Share error:", error);
-        toast.error("Error al compartir imagen");
+        toast.error(tr("geographic_view.imageViewer.shareError", dictionary));
       }
     } else {
       try {
@@ -84,19 +100,19 @@ export default function ImageViewer({
         });
 
         await navigator.share({
-          title: "Vista geográfica",
-          text: "Compartir la vista geográfica",
+          title: tr("geographic_view.imageViewer.shareTitle", dictionary),
+          text: tr("geographic_view.imageViewer.shareText", dictionary),
           files: [newFile],
         });
 
-        toast.success("Imagen compartida");
+        toast.success(tr("geographic_view.imageViewer.shareSuccess", dictionary));
       } catch (error) {
         // Don't show error for user cancellation
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
         console.error("Share error:", error);
-        toast.error("Error al compartir imagen");
+        toast.error(tr("geographic_view.imageViewer.shareError", dictionary));
       }
     }
   };
@@ -104,60 +120,156 @@ export default function ImageViewer({
   const categories = getCategories(dictionary);
 
   return (
-    <Modal
-      dismissible
-      show={selected !== null}
-      onClose={() => setSelected(null)}
-      size="7xl"
-      theme={modalTheme}
-      className="z-[800] backdrop-blur-[10px]"
-    >
-      <ModalBody>
-        <div className="relative flex flex-col items-center justify-center gap-2 bg-gray-300 dark:bg-gray-600 rounded-t-lg shadow-lg w-full h-full flex-1 min-h-0 overflow-hidden">
-          {selected !== null && (
-            <Carousel
-              images={images}
-              selected={selected}
-              setSelected={setSelected}
-            />
-          )}
-        </div>
-        {selected !== null && (
-          <div className="w-full flex-shrink-0 flex justify-between items-center text-white transition-all duration-300 gap-2 p-2 min-h-0">
-            <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1 overflow-hidden">
-              <div className="text-gray-500 dark:text-gray-300 text-sm font-light truncate">
-                {data[selected]?.name}
-              </div>
-              <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
-                {categories[data[selected]?.tag as keyof typeof categories]
-                  ?.label || "Sin categoría"}
-              </div>
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Button
-                color="blue"
-                onClick={async () => {
-                  if (selected === null) return;
-                  try {
-                    await downloadImage(images[selected], dictionary);
-                    toast.success("Imagen descargada");
-                  } catch (error) {
-                    console.error("Download error:", error);
-                    toast.error("Error al descargar imagen");
-                  }
-                }}
-                pill
-                size="sm"
-              >
-                <MdOutlineFileDownload className="w-4 h-4" />
-              </Button>
-              <Button color="blue" onClick={() => handleShare()} pill size="sm">
-                <FaShare className="h-4 w-4 text-white text-center" />
-              </Button>
-            </div>
+    <>
+      <Modal
+        dismissible
+        show={selected !== null}
+        onClose={() => setSelected(null)}
+        size="7xl"
+        theme={modalTheme}
+        className="z-[800] backdrop-blur-[10px]"
+      >
+        <ModalBody>
+          <div className="relative flex flex-col items-center justify-center gap-2 bg-gray-300 dark:bg-gray-600 rounded-t-lg shadow-lg w-full h-full flex-1 min-h-0 overflow-hidden">
+            {selected !== null && (
+              <Carousel
+                images={images}
+                selected={selected}
+                setSelected={setSelected}
+              />
+            )}
           </div>
-        )}
-      </ModalBody>
-    </Modal>
+          {selected !== null && (
+            <div>
+              <div className="w-full flex-shrink-0 flex justify-between items-center text-white transition-all duration-300 gap-2 p-2 min-h-0">
+                <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1 overflow-hidden">
+                  <div className="text-gray-500 dark:text-gray-300 text-sm font-light truncate">
+                    {data[selected]?.name}
+                  </div>
+                  <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
+                    {categories[data[selected]?.tag as keyof typeof categories]
+                      ?.label || tr("geographic_view.imageViewer.noCategory", dictionary)}
+                  </div>
+                  {data[selected]?.modifiedAt && (
+                    <>
+                      <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
+                        {data[selected]?.modifiedByUser?.id}
+                      </div>
+                      <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
+                        {formatDateString(data[selected].modifiedAt)}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    color="blue"
+                    aria-label={tr("view_image", dictionary) || "View image"}
+                    title={tr("view_image", dictionary) || "View image"}
+                    onClick={() => {
+                      if (selected === null) return;
+                      const imageData = images[selected];
+                      // Handle base64 data URLs by converting to Blob
+                      if (imageData.startsWith("data:")) {
+                        const [header, base64] = imageData.split(",");
+                        const mimeMatch = /data:([^;]+)/.exec(header);
+                        const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+                        let binaryString: string;
+                        try {
+                          binaryString = atob(base64);
+                        } catch (error) {
+                          console.error("Base64 decode error:", error);
+                          toast.error(
+                            tr("geographic_view.imageViewer.decodeError", dictionary)
+                          );
+                          return;
+                        }
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                          bytes[i] = binaryString.codePointAt(i) ?? 0;
+                        }
+                        const blob = new Blob([bytes], { type: mimeType });
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, "_blank");
+                        // Revoke after browser has had time to use the URL
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                      } else {
+                        window.open(imageData, "_blank");
+                      }
+                    }}
+                    pill
+                    size="sm"
+                  >
+                    <FaEye className="w-4 h-4" />
+                  </Button>
+                  {onReplaceImage && (
+                    <Button
+                      color="blue"
+                      onClick={() => setShowReplaceModal(true)}
+                      pill
+                      size="sm"
+                      aria-label={tr(
+                        "bento.multimedia.replaceImage",
+                        dictionary
+                      )}
+                    >
+                      <MdOutlineFileUpload className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <Button
+                    color="blue"
+                    onClick={async () => {
+                      if (selected === null) return;
+                      try {
+                        const success = await downloadImage(
+                          images[selected],
+                          dictionary
+                        );
+                        if (success) {
+                          toast.success(
+                            tr("geographic_view.imageViewer.downloadSuccess", dictionary)
+                          );
+                        }
+                      } catch {
+                        toast.error(
+                          tr("geographic_view.imageViewer.downloadError", dictionary)
+                        );
+                      }
+                    }}
+                    pill
+                    size="sm"
+                    aria-label={tr("download", dictionary)}
+                  >
+                    <MdOutlineFileDownload className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    color="blue"
+                    onClick={() => handleShare()}
+                    pill
+                    size="sm"
+                    aria-label={tr("share", dictionary)}
+                  >
+                    <FaShare className="h-4 w-4 text-white text-center" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </ModalBody>
+      </Modal>
+      {/* Replace Image Modal */}
+      <ReplaceImageModal
+        show={showReplaceModal}
+        onClose={handleReplaceModalClose}
+        onReplace={(file) => {
+          if (selected !== null && onReplaceImage) {
+            onReplaceImage(file, selected);
+            handleReplaceModalClose();
+          }
+        }}
+        dictionary={dictionary}
+        imageName={selected === null ? undefined : data[selected]?.name}
+      />
+    </>
   );
 }

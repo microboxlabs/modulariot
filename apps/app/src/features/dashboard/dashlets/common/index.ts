@@ -22,8 +22,10 @@ export {
   findHandlebarsExpressions,
   getHandlebarsStatus,
   getFlowbiteColor,
+  resolveDataProperty,
 } from "./handlebars-helpers";
 export {
+  type DataMode,
   type ColumnType,
   type TableColumn,
   type SortConfig,
@@ -42,6 +44,22 @@ export {
   fromColumnItems,
 } from "./column-helpers";
 export { useDynamicRows } from "./use-dynamic-rows";
+export { usePgrestRows } from "./use-pgrest-rows";
+export {
+  type PgrestParam,
+  type PgrestHttpMethod,
+  type PgrestParamItem,
+  humanizeKey,
+  toPgrestParamItems,
+  fromPgrestParamItems,
+} from "./pgrest-types";
+export { parseRows, buildPgrestFetch } from "./pgrest-utils";
+export {
+  type PgrestSettingsStateConfig,
+  usePgrestSettingsState,
+} from "./use-pgrest-settings-state";
+export { PgrestSettingsSection } from "./pgrest-settings-section";
+export { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 export {
   type FilterItemConfig,
   type FilterConfig,
@@ -69,3 +87,16 @@ export {
   useSettingsState,
 } from "./use-settings-state";
 export { TableListSettingsShell } from "./table-list-settings-shell";
+export {
+  type TemplateField,
+  compileTemplates,
+  resolveTemplate,
+  resolveHandlebarsField,
+  buildDataProviderContext,
+} from "./use-handlebars-templates";
+export { SuggestionInput } from "./suggestion-input";
+export { useCompiledColumns } from "./use-compiled-columns";
+export {
+  buildPgrestSettingsConfig,
+  buildPgrestContentLabels,
+} from "./pgrest-settings-helpers";

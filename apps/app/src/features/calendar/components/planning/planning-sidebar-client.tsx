@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -72,16 +72,19 @@ function calculatePermanencia(task: KanbanBoardTask): string {
 /**
  * Extract incidencias from task fields
  */
-function extractIncidencias(
-  task: KanbanBoardTask,
-  compliancePercentage: number
-): string[] {
+function extractIncidencias(task: KanbanBoardTask): string[] {
   const incidencias: string[] = [];
 
   if (task.mintral_priorityCode) {
     incidencias.push(task.mintral_priorityCode.toLowerCase());
   }
-  if (compliancePercentage === 0) {
+  // Only add "urgencia" if we have actual compliance data showing 0%
+  // Don't add it when data is missing (undefined/null)
+  if (
+    task.mintral_deliveryComplianceRate !== undefined &&
+    task.mintral_deliveryComplianceRate !== null &&
+    task.mintral_deliveryComplianceRate === 0
+  ) {
     incidencias.push("urgencia");
   }
 
@@ -128,10 +131,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
       lineasoc_pctn_cumplimiento: task.mintral_deliveryComplianceRate ?? 0,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias: extractIncidencias(
-      task,
-      task.mintral_deliveryComplianceRate ?? 0
-    ),
+    incidencias: extractIncidencias(task),
     mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
     prioridad: task.mintral_icuCondition ?? 0,
@@ -142,6 +142,8 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     loadPalletUtilization: task.mintral_loadPalletUtilization,
     loadVolumeUtilization: task.mintral_loadVolumeUtilization,
     serviceCategory: task.mintral_serviceCategory ?? undefined,
+    expectedDepartureDate: task.expectedDepartureDate || "",
+    presentationDate: task.mintral_creationDate || task.cm_created || "",
   };
 }
 
@@ -154,6 +156,7 @@ export function PlanningSidebarClient({
   dict,
 }: Readonly<PlanningSidebarClientProps>) {
   const {
+    calendarId,
     selectedSlot,
     selectedService,
     clearService,
@@ -164,6 +167,7 @@ export function PlanningSidebarClient({
     andenesCount,
     backendSlots,
     isSlotsLoading,
+    bookingVersion,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -214,17 +218,28 @@ export function PlanningSidebarClient({
       }
     }
 
+    if (calendarId) {
+      params.push(`calendarId=${calendarId}`);
+    }
+
     return params.join("&");
-  }, [searchTags]);
+  }, [searchTags, calendarId]);
 
   // Fetch tasks from API
-  const { data: myTasksData, isLoading: isLoadingTasks } = useMyTasks(
-    ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
+  const { data: myTasksData, isLoading: isLoadingTasks, refresh: refreshTasks } = useMyTasks(
+    ["planService", "assignDriver", "presentDriver", "prepareService", "missionControl"],
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit
     apiParams || undefined
   );
+
+  // Re-fetch task list when a booking is created or removed
+  useEffect(() => {
+    if (bookingVersion > 0) {
+      refreshTasks();
+    }
+  }, [bookingVersion, refreshTasks]);
 
   // Transform API data to SelectedService array
   const apiServices = useMemo(() => {
@@ -379,8 +394,7 @@ export function PlanningSidebarClient({
     allServices,
   ]);
 
-  const handleSubmit = (values: Record<string, string | boolean>) => {
-    console.log("Form submitted:", { selectedService, values });
+  const handleSubmit = () => {
     closeSidebar();
   };
 
@@ -477,7 +491,6 @@ export function PlanningSidebarClient({
           </div>
         </div>
       )}
-
       {/* Header */}
       <div className="px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 h-10">
@@ -520,7 +533,6 @@ export function PlanningSidebarClient({
           )}
         </div>
       </div>
-
       {/* Content */}
       <div className="flex-1 p-3 overflow-y-auto">
         {isFormActive ? (

@@ -11,6 +11,7 @@ import { buildNavBarMessages } from "../utils/utils";
 import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
+import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export default async function SecuredLayout({
   children,
@@ -20,12 +21,14 @@ export default async function SecuredLayout({
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();
+  const initialOrgLogo = await getPublicOrgLogo();
   return (
     <SidebarProvider initialCollapsed={(await sidebarCookie.get()).isCollapsed}>
       <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
       <SecuredNavbar
         messages={navBarMessages}
         dict={dictionary as I18nRecord}
+        initialOrgLogo={initialOrgLogo}
       />
       <div
         data-testid="content-with-sidebar"

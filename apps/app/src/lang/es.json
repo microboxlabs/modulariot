@@ -20,7 +20,7 @@
       },
       "buttons": {
         "submit": "Ingresar a tu cuenta",
-        "continueWithMicrosoft": "Continuar con usuario Mintral",
+        "continueWithMicrosoft": "Continuar con otro proveedor",
         "continueWithEmail": "Continuar con usuario externo",
         "continueWithGoogle": "Continuar con Google",
         "continueWithGitHub": "Continuar con GitHub",
@@ -297,9 +297,32 @@
           "leadTimeLocLines": "{count} líneas LOC",
           "serviceCategory": "Categoría de servicio",
           "serviceCategoryLoading": "Cargando\u2026",
-          "serviceCategoryPlaceholder": "Seleccionar categoría"
+          "serviceCategoryPlaceholder": "Seleccionar categoría",
+          "presentationDate": "Fecha de presentación",
+          "departureDate": "Fecha de salida",
+          "departureTime": "Hora de salida",
+          "selectTime": "Seleccionar horario",
+          "andenes": "andenes",
+          "available": "disponibles",
+          "timeColumn": "Horario",
+          "availabilityColumn": "Disponibilidad",
+          "andenAvailable": "Disponible",
+          "andenOccupied": "Ocupado",
+          "showMore": "+{count} más",
+          "showLess": "ver menos",
+          "timeAssignment": "Asignación de horario",
+          "loadingSlots": "Cargando turnos...",
+          "noSlotsAvailable": "No hay turnos disponibles en este horario",
+          "planningTab": "Planificación",
+          "assignmentTab": "Asignación"
         },
         "contextMenu": {
+          "service": "Servicio",
+          "chipTitle": "Clic derecho para opciones",
+          "replan": "Volver a planificar",
+          "assign": "Asignar",
+          "deletePlanning": "Eliminar planificación",
+          "deleteAssignment": "Eliminar asignación",
           "reassign": "Reasignar",
           "delete": "Eliminar",
           "deleteConfirmTitle": "Confirmar eliminación",
@@ -308,13 +331,146 @@
         },
         "notifications": {
           "reassigned": "Servicio reasignado exitosamente",
+          "assigned": "Servicio asignado exitosamente",
+          "assignError": "Error al asignar el servicio",
+          "assignmentCompleted": "Asignación completada exitosamente",
+          "assignmentError": "Error al completar la asignación",
           "deleted": "Asignación eliminada",
           "reassignmentCancelled": "Reasignación cancelada",
-          "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio"
+          "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio",
+          "bookingsLoadError": "No se pudieron cargar las reservas existentes del calendario."
         },
         "reassignment": {
           "title": "Reasignando servicio",
           "hint": "Seleccione una fecha y hora en el calendario para reasignar"
+        },
+        "assignment": {
+          "selectPlaceholder": "Seleccionar...",
+          "transportista": "Transportista",
+          "selectTransportista": "Seleccionar transportista...",
+          "searchTransportista": "Buscar transportista...",
+          "noTransportistasFound": "No se encontraron transportistas",
+          "conductor": "Conductor",
+          "selectConductor": "Seleccionar conductor...",
+          "searchDriver": "Buscar conductor...",
+          "noDriversFound": "No se encontraron conductores",
+          "searchNoResultsFor": "Sin resultados para",
+          "searchMinChars": "Escribe al menos 2 caracteres para buscar",
+          "clearFilter": "Limpiar filtro",
+          "selectFieldToFilter": "Selecciona un campo para filtrar",
+          "filteringBy": "Filtrando por",
+          "searchFields": {
+            "name": "Nombre",
+            "rut": "RUT",
+            "status": "Estado",
+            "trips": "Viajes previos",
+            "lastTrip": "Último viaje"
+          },
+          "driverSearch": {
+            "matchType": {
+              "name": "Nombre",
+              "rut": "RUT",
+              "estado": "Estado",
+              "viajesPrevios": "Viajes previos",
+              "ultimoViaje": "Último viaje",
+              "excesoVelocidad": "Exceso velocidad",
+              "faltasDescanso": "Faltas descanso"
+            }
+          },
+          "secondConductorLabel": "2do conductor",
+          "secondConductor": "Segundo Conductor",
+          "selectSecondConductor": "Seleccionar segundo conductor...",
+          "camion": "Camión",
+          "selectCamion": "Seleccionar camión...",
+          "searchTruck": "Buscar camión...",
+          "noTrucksFound": "No se encontraron camiones",
+          "truckSearchFields": {
+            "plate": "Patente",
+            "brand": "Marca",
+            "type": "Tipo",
+            "status": "Estado",
+            "gps": "GPS",
+            "trips": "Viajes previos"
+          },
+          "transportistaSearchFields": {
+            "name": "Nombre",
+            "rut": "RUT",
+            "status": "Estado"
+          },
+          "remolqueLabel": "Remolque",
+          "remolque": "Remolque",
+          "selectRemolque": "Seleccionar remolque...",
+          "status": "Estado",
+          "enabled": "Acreditado",
+          "notEnabled": "No Acreditado",
+          "previousTrips": "Viajes previos",
+          "lastTrip": "Último viaje",
+          "speedExcess": "Exceso velocidad",
+          "incidents": "{count} incidentes",
+          "restFaults": "Faltas descanso",
+          "faults": "{count} faltas",
+          "gpsIntegrated": "GPS integrado",
+          "integrated": "Integrado",
+          "notIntegrated": "No Integrado",
+          "gpsStatus": "Estado GPS",
+          "online": "Online",
+          "offline": "Offline",
+          "trips": "{count} viajes",
+          "signalLosses": "Pérdidas de señal",
+          "losses": "{count} pérdidas",
+          "available": "Disponible",
+          "busy": "Ocupado",
+          "truckType": {
+            "camion": "Camión",
+            "furgon": "Furgón",
+            "camioneta": "Camioneta"
+          },
+          "remolqueType": {
+            "ARFJ": "Articulado Fijo",
+            "BAT": "Batea",
+            "C100": "Contenedor 100",
+            "CB20": "Cama Baja 20",
+            "CB40": "Cama Baja 40",
+            "CB60": "Cama Baja 60",
+            "CB70": "Cama Baja 70",
+            "CB80": "Cama Baja 80",
+            "CBJ": "Cama Baja",
+            "CBJE": "Cama Baja Extensible",
+            "CFX": "Chasis Fijo",
+            "EST": "Estanque",
+            "FURG": "Furgón",
+            "PNE6": "Neumático 6",
+            "R10T": "Remolque 10T",
+            "R15T": "Remolque 15T",
+            "R28T": "Remolque 28T",
+            "RBAJ": "Remolque Bajo",
+            "RDRO": "Remolque Dolly Retráctil",
+            "REM": "Remolque",
+            "REXT": "Remolque Extensible",
+            "RGEN": "Remolque General",
+            "RMOD": "Remolque Modular",
+            "RPAL": "Remolque Paletizado",
+            "RPNE": "Remolque Neumático",
+            "S32": "Semi 32",
+            "SI20": "Sider 20",
+            "SI40": "Sider 40",
+            "SIDE": "Sideloader",
+            "SIL": "Silo"
+          },
+          "capacity": "Capacidad",
+          "lastMaintenance": "Último mantenimiento",
+          "mileage": "Kilometraje",
+          "reportedProblems": "Problemas reportados",
+          "searchRemolque": "Buscar remolque...",
+          "noRemolquesFound": "No se encontraron remolques",
+          "remolqueSearchFields": {
+            "plate": "Patente",
+            "type": "Tipo",
+            "status": "Estado",
+            "gps": "GPS",
+            "capacity": "Capacidad",
+            "mileage": "Kilometraje"
+          }
         }
       }
     },
@@ -951,7 +1107,8 @@
     "userSettings": {
       "breadcrumb": {
         "user": "Usuario",
-        "settings": "Ajustes"
+        "settings": "Ajustes",
+        "dataSources": "Fuentes de Datos"
       },
       "symptoms": {
         "config": {
@@ -959,6 +1116,82 @@
           "description": "Configura las notificaciones para los síntomas.",
           "addButton": "Agregar"
         }
+      },
+      "dataSources": {
+        "title": "Fuentes de Datos",
+        "description": "Administra tus conexiones de fuentes de datos.",
+        "addButton": "Agregar Fuente",
+        "table": {
+          "name": "Nombre",
+          "type": "Tipo",
+          "auth": "Auth",
+          "url": "URL",
+          "status": "Estado",
+          "actions": "Acciones",
+          "empty": "No hay fuentes de datos configuradas. Haz clic en \"Agregar Fuente\" para comenzar.",
+          "test": "Probar conexión",
+          "edit": "Editar",
+          "delete": "Eliminar",
+          "active": "Activo",
+          "inactive": "Inactivo"
+        },
+        "modal": {
+          "addTitle": "Agregar Fuente de Datos",
+          "editTitle": "Editar Fuente de Datos",
+          "name": "Nombre",
+          "type": "Tipo",
+          "description": "Descripción",
+          "url": "URL",
+          "authMethod": "Método de Autenticación",
+          "authToken": "Token Bearer",
+          "authOAuth": "OAuth 2.0 (Credenciales de Cliente)",
+          "token": "Token",
+          "tokenPlaceholderEdit": "Dejar vacío para mantener el token actual",
+          "tokenHint": "Dejar vacío para mantener el token existente",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "secretPlaceholderEdit": "Dejar vacío para mantener el secreto actual",
+          "secretHint": "Dejar vacío para mantener el secreto existente",
+          "tokenUrl": "URL del Token",
+          "scope": "Alcance",
+          "scopePlaceholder": "ej. read write",
+          "scopeHint": "Lista de alcances separados por espacios (opcional)",
+          "testConnection": "Probar Conexión",
+          "saving": "Guardando...",
+          "saveButton": "Guardar",
+          "createButton": "Crear"
+        },
+        "deleteConfirm": "¿Estás seguro de que deseas eliminar",
+        "deleteButton": "Eliminar",
+        "deleting": "Eliminando...",
+        "cancel": "Cancelar",
+        "badge": {
+          "notTested": "Sin probar",
+          "connected": "Conectado",
+          "failed": "Fallido"
+        },
+        "validation": {
+          "nameRequired": "El nombre es obligatorio",
+          "urlInvalid": "Debe ser una URL válida",
+          "tokenRequired": "El token es obligatorio",
+          "clientIdRequired": "El Client ID es obligatorio",
+          "clientSecretRequired": "El Client Secret es obligatorio",
+          "tokenUrlInvalid": "Debe ser una URL de token válida"
+        },
+        "toast": {
+          "created": "Fuente de datos creada exitosamente",
+          "updated": "Fuente de datos actualizada exitosamente",
+          "deleted": "Fuente de datos eliminada exitosamente",
+          "testSuccess": "Prueba de conexión exitosa",
+          "testFailed": "Prueba de conexión fallida",
+          "error": "Ocurrió un error",
+          "retry": "Reintentar"
+        }
+      },
+      "settingsNav": {
+        "title": "Ajustes",
+        "general": "General",
+        "dataSources": "Fuentes de Datos"
       }
     },
     "admin": {
@@ -1135,6 +1368,14 @@
         "cancel": "Cancelar",
         "delete": "Eliminar"
       },
+      "deleteAssignmentModal": {
+        "title": "Eliminar asignación",
+        "messagePrefix": "¿Está seguro de eliminar la asignación del servicio ",
+        "messageSuffix": "? El servicio quedará sin asignar.",
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar asignación"
+      },
       "calendarRules": {
         "configureTimeWindows": "Configurar ventanas de tiempo",
         "quotaManagement": {
@@ -1279,8 +1520,9 @@
       "valuePlaceholder": "ej., {{data_provider.value}}%",
       "descriptorPlaceholder": "Descripción o {{data_provider.descriptor}}",
       "aiPlaceholderPlaceholder": "Texto provisional para resumen IA",
-      "showRowCount": "Mostrar conteo de filas",
+      "showRowCount": "Mostrar cantidad de filas",
       "columns": "Columnas",
+      "detectColumns": "Detectar columnas",
       "addColumn": "Agregar columna",
       "cardLayout": "Diseño de Tarjeta",
       "titleColumn": "Columna de título",
@@ -1290,17 +1532,29 @@
       "kpiGridColumns": "Columnas de grilla KPI",
       "footerColumns": "Columnas de pie",
       "filter": "Filtro",
-      "filterRows": "Filtrar filas",
+      "filterRows": "Filas de filtro",
       "addFilter": "Agregar filtro",
       "sort": "Ordenar",
       "sortableColumns": "Columnas ordenables",
       "dataSource": "Fuente de Datos",
+      "functionName": "Nombre de función",
+      "introspect": "Inspeccionar",
+      "httpMethod": "Método HTTP",
+      "parameters": "Parámetros",
+      "addParameter": "Agregar parámetro",
+      "totalItems": "{count} elementos",
+      "totalItemsSingular": "{count} elemento",
       "staticJson": "Estático (JSON)",
       "dynamicApi": "Dinámico (API)",
       "rowsJsonArray": "Filas (arreglo JSON)",
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",
-      "invalidJson": "JSON inválido"
+      "invalidJson": "JSON inválido",
+      "dataSourceProvider": "Proveedor de Datos",
+      "selectProvider": "Seleccionar proveedor…",
+      "noActiveProviders": "No hay proveedores activos disponibles",
+      "failedToLoadFunctions": "Error al cargar funciones",
+      "invalidResponseFormat": "Formato de respuesta inválido"
     },
     "dashlets": {
       "data_list": {
@@ -1476,6 +1730,8 @@
     "times": "Tiempos",
     "monitoring": "Monitoreo",
     "download": "Descargar",
+    "view_image": "Ver imagen",
+    "share": "Compartir",
     "symptoms-list": "Lista de síntomas",
     "map-view": "Vista de mapa",
     "restablished_symptoms": "Síntomas restablecidos",
@@ -1643,7 +1899,17 @@
     "hide_stops": "Ocultar paradas",
     "image_prefix": "imagen",
     "processing": "Procesando...",
-    "download_failed": "Descarga fallida — abriendo en nueva pestaña"
+    "download_failed": "Descarga fallida — abriendo en nueva pestaña",
+    "imageViewer": {
+      "noCategory": "Sin categoría",
+      "shareTitle": "Vista geográfica",
+      "shareText": "Compartir la vista geográfica",
+      "shareSuccess": "Imagen compartida",
+      "shareError": "Error al compartir imagen",
+      "decodeError": "Error al decodificar imagen",
+      "downloadSuccess": "Imagen descargada",
+      "downloadError": "Error al descargar imagen"
+    }
   },
   "release": {
     "other_versions": "Otras versiones",
@@ -1820,6 +2086,9 @@
     },
     "multimedia": {
       "only_jpg_jpeg_png_pdf_allowed": "Solo se permiten archivos JPG, JPEG, PNG y PDF.",
+      "only_jpg_jpeg_png_allowed": "Solo se permiten archivos JPG, JPEG o PNG.",
+      "fetch_image_error": "No se pudo obtener la imagen desde la URL. Por favor, intente descargarla primero.",
+      "fetching_image": "Obteniendo imagen...",
       "select_document_type": "Selecciona un Tipo de Documento",
       "select_document_type_error": "Debe seleccionar un tipo de documento",
       "categories": {
@@ -1844,6 +2113,18 @@
       "noImages": "No hay imágenes",
       "documents": "Documentos",
       "noDocuments": "No hay documentos",
+      "document_load_error": "No se pudo cargar el documento",
+      "replaceImage": "Reemplazar documento",
+      "replaceImageDescription": "Seleccione un nuevo documento para reemplazar el actual",
+      "selectFile": "Seleccionar archivo",
+      "noFileSelected": "Debe seleccionar un documento para continuar",
+      "update_success": "Imagen actualizada exitosamente",
+      "update_error": "Error al actualizar la imagen",
+      "update_loading": "Actualizando imagen...",
+      "update_comment": "Versión actualizada",
+      "upload_loading": "Subiendo archivos...",
+      "upload_success": "Archivos subidos correctamente",
+      "upload_error": "Error al subir los archivos",
       "validation": {
         "missingDocuments": "Se requieren documentos para continuar",
         "requiresPOD": "Prueba de Entrega (POD)",
@@ -2068,7 +2349,14 @@
     "download_csv": "Descargar CSV",
     "no_trip": "Sin viaje",
     "distance_between_signals": "Distancia entre señales (Km)",
-    "selected_signals": "Señales Seleccionadas"
+    "selected_signals": "Señales Seleccionadas",
+    "pulse_detail": "Detalle de Pulso",
+    "heading": "Rumbo",
+    "latitude": "Latitud",
+    "longitude": "Longitud",
+    "back_to_summary": "Volver al resumen",
+    "view_on_maps": "Ver en Google Maps",
+    "distance": "Distancia"
   },
   "new_functionality": {
     "new": "NUEVO",

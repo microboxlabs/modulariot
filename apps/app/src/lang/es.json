@@ -1475,7 +1475,9 @@
     "title": "Título",
     "value": "Valor",
     "unit": "Unidad",
-    "all": "Todos"
+    "all": "Todos",
+    "yes": "Sí",
+    "no": "No"
   },
   "dashboard": {
     "settings": {
@@ -2326,7 +2328,15 @@
     "wheres_my_load": "¿Dónde está mi carga?",
     "compromised": "Comprometida",
     "projected": "Proyectada",
-    "real": "Real"
+    "real": "Real",
+    "code": "Código",
+    "expedition_number": "N° de expedición",
+    "origin": "Origen",
+    "volume": "Volumen",
+    "destination": "Destino",
+    "weight": "Peso",
+    "product_offer": "Oferta producto",
+    "packages": "Bultos"
   },
   "signal_historic": {
     "search": "Buscar",

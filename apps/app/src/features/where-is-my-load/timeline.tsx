@@ -311,6 +311,7 @@ export default function Timeline({
           dict={dict}
           className="w-full"
           allStates={states}
+          lang={lang}
         />
       </div>
 
@@ -341,6 +342,7 @@ export default function Timeline({
           state={states[actualState]}
           dict={dict}
           allStates={states}
+          lang={lang}
         />
       </div>
     </div>
@@ -354,20 +356,24 @@ function SideInfo({
   dict,
   className = "",
   allStates,
-}: {
+  lang,
+}: Readonly<{
   badges: InformationBadge[];
   item: LoadSearchResponse | undefined;
   state: State;
   dict: I18nRecord;
   className?: string;
   allStates: State[];
-}) {
+  lang: string;
+}>) {
   // Find DELIVERY_EXPEDITION state for delivery dates
   const deliveryExpeditionState = allStates.find(
     (s) => s.code === "DELIVERY_EXPEDITION"
   );
 
   const actualDeliveryDate = deliveryExpeditionState?.time.start;
+
+  const locale = lang === "es" ? "es-CL" : "en-US";
 
   return (
     <div className={`w-fit h-fit flex flex-col gap-2 ${className}`}>
@@ -380,33 +386,45 @@ function SideInfo({
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-[max-content_max-content] gap-2">
               <LoadableLabel
-                label="Código"
+                label={tr("wheres_my_load.code", dict)}
                 value={state.expedition.code ?? "-"}
                 className="text-base!"
               />
               <LoadableLabel
-                label="N° de expedición"
+                label={tr("wheres_my_load.expedition_number", dict)}
                 value={state.expedition.number ?? "-"}
                 className="text-base!"
               />
               <LoadableLabel
-                label="Origen"
+                label={tr("wheres_my_load.origin", dict)}
                 value={state.origin ?? "-"}
                 className="text-base!"
               />
-              <LoadableLabel label="Volumen" value="-" className="text-base!" />
               <LoadableLabel
-                label="Destino"
+                label={tr("wheres_my_load.volume", dict)}
+                value="-"
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.destination", dict)}
                 value={state.destination ?? "-"}
                 className="text-base!"
               />
-              <LoadableLabel label="Peso" value="-" className="text-base!" />
               <LoadableLabel
-                label="Oferta producto"
+                label={tr("wheres_my_load.weight", dict)}
+                value="-"
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.product_offer", dict)}
                 value={state.oferta_producto ?? "-"}
                 className="text-base!"
               />
-              <LoadableLabel label="Bultos" value="-" className="text-base!" />
+              <LoadableLabel
+                label={tr("wheres_my_load.packages", dict)}
+                value="-"
+                className="text-base!"
+              />
             </div>
             {state.time.compromised_time && (
               <LoadableLabel
@@ -415,8 +433,7 @@ function SideInfo({
                   <FormattedDate
                     date={state.time.compromised_time}
                     format="datetime"
-                    locale="es-CL"
-                    timeZone="America/Santiago"
+                    locale={locale}
                   />
                 }
                 className="text-base! w-full"
@@ -434,8 +451,7 @@ function SideInfo({
                   <FormattedDate
                     date={actualDeliveryDate}
                     format="datetime"
-                    locale="es-CL"
-                    timeZone="America/Santiago"
+                    locale={locale}
                   />
                 }
                 className="text-base! w-full"

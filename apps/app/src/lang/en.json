@@ -320,6 +320,7 @@
           "replan": "Replan",
           "assign": "Assign",
           "deletePlanning": "Delete planning",
+          "deleteAssignment": "Delete assignment",
           "reassign": "Reassign",
           "delete": "Delete",
           "deleteConfirmTitle": "Confirm deletion",
@@ -345,19 +346,61 @@
           "selectPlaceholder": "Select...",
           "transportista": "Carrier",
           "selectTransportista": "Select carrier...",
+          "searchTransportista": "Search carrier...",
+          "noTransportistasFound": "No carriers found",
           "conductor": "Driver",
           "selectConductor": "Select driver...",
+          "searchDriver": "Search driver...",
+          "noDriversFound": "No drivers found",
+          "searchNoResultsFor": "No results for",
+          "searchMinChars": "Type at least 2 characters to search",
+          "clearFilter": "Clear filter",
+          "selectFieldToFilter": "Select a field to filter",
+          "filteringBy": "Filtering by",
+          "searchFields": {
+            "name": "Name",
+            "rut": "RUT",
+            "status": "Status",
+            "trips": "Previous trips",
+            "lastTrip": "Last trip"
+          },
+          "driverSearch": {
+            "matchType": {
+              "name": "Name",
+              "rut": "RUT",
+              "estado": "Status",
+              "viajesPrevios": "Previous trips",
+              "ultimoViaje": "Last trip",
+              "excesoVelocidad": "Speed excess",
+              "faltasDescanso": "Rest faults"
+            }
+          },
           "secondConductorLabel": "2nd driver",
           "secondConductor": "Second Driver",
           "selectSecondConductor": "Select second driver...",
           "camion": "Truck",
           "selectCamion": "Select truck...",
+          "searchTruck": "Search truck...",
+          "noTrucksFound": "No trucks found",
+          "truckSearchFields": {
+            "plate": "Plate",
+            "brand": "Brand",
+            "type": "Type",
+            "status": "Status",
+            "gps": "GPS",
+            "trips": "Previous trips"
+          },
+          "transportistaSearchFields": {
+            "name": "Name",
+            "rut": "RUT",
+            "status": "Status"
+          },
           "remolqueLabel": "Trailer",
           "remolque": "Trailer",
           "selectRemolque": "Select trailer...",
           "status": "Status",
-          "enabled": "Enabled",
-          "notEnabled": "Not Enabled",
+          "enabled": "Accredited",
+          "notEnabled": "Not Accredited",
           "previousTrips": "Previous trips",
           "lastTrip": "Last trip",
           "speedExcess": "Speed excess",
@@ -374,7 +417,58 @@
           "signalLosses": "Signal losses",
           "losses": "{count} losses",
           "available": "Available",
-          "busy": "Busy"
+          "busy": "Busy",
+          "truckType": {
+            "camion": "Truck",
+            "furgon": "Van",
+            "camioneta": "Pickup"
+          },
+          "remolqueType": {
+            "ARFJ": "Fixed Articulated",
+            "BAT": "Flatbed",
+            "C100": "Container 100",
+            "CB20": "Lowbed 20",
+            "CB40": "Lowbed 40",
+            "CB60": "Lowbed 60",
+            "CB70": "Lowbed 70",
+            "CB80": "Lowbed 80",
+            "CBJ": "Lowbed",
+            "CBJE": "Extendable Lowbed",
+            "CFX": "Fixed Chassis",
+            "EST": "Tank",
+            "FURG": "Van",
+            "PNE6": "Pneumatic 6",
+            "R10T": "Trailer 10T",
+            "R15T": "Trailer 15T",
+            "R28T": "Trailer 28T",
+            "RBAJ": "Low Trailer",
+            "RDRO": "Retractable Dolly",
+            "REM": "Trailer",
+            "REXT": "Extendable Trailer",
+            "RGEN": "General Trailer",
+            "RMOD": "Modular Trailer",
+            "RPAL": "Palletized Trailer",
+            "RPNE": "Pneumatic Trailer",
+            "S32": "Semi 32",
+            "SI20": "Sider 20",
+            "SI40": "Sider 40",
+            "SIDE": "Sideloader",
+            "SIL": "Silo"
+          },
+          "capacity": "Capacity",
+          "lastMaintenance": "Last maintenance",
+          "mileage": "Mileage",
+          "reportedProblems": "Reported problems",
+          "searchRemolque": "Search trailer...",
+          "noRemolquesFound": "No trailers found",
+          "remolqueSearchFields": {
+            "plate": "Plate",
+            "type": "Type",
+            "status": "Status",
+            "gps": "GPS",
+            "capacity": "Capacity",
+            "mileage": "Mileage"
+          }
         }
       }
     },
@@ -1247,6 +1341,14 @@
         "cancel": "Cancel",
         "delete": "Delete"
       },
+      "deleteAssignmentModal": {
+        "title": "Delete assignment",
+        "messagePrefix": "Are you sure you want to delete the assignment for service ",
+        "messageSuffix": "? The service will be left unassigned.",
+        "close": "Close",
+        "cancel": "Cancel",
+        "delete": "Delete assignment"
+      },
       "calendarRules": {
         "configureTimeWindows": "Configure time windows",
         "quotaManagement": {
@@ -1421,6 +1523,9 @@
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",
       "invalidJson": "Invalid JSON",
+      "dataSourceProvider": "Data Source Provider",
+      "selectProvider": "Select a provider…",
+      "noActiveProviders": "No active providers available",
       "failedToLoadFunctions": "Failed to load functions",
       "invalidResponseFormat": "Invalid response format"
     },

@@ -7,6 +7,7 @@ import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDropdown } from "./use-dropdown";
 import { DropdownList } from "./dropdown-list";
+import { buildDataSourceParams } from "./pgrest-utils";
 
 const functionsResponseSchema = z.object({
   functions: z.array(z.string()),
@@ -22,6 +23,7 @@ interface PgrestFunctionAutocompleteProps {
   placeholder?: string;
   id?: string;
   loading?: boolean;
+  dataSourceId?: string;
 }
 
 export function PgrestFunctionAutocomplete({
@@ -32,6 +34,7 @@ export function PgrestFunctionAutocomplete({
   placeholder = "api_modular_my_function",
   id,
   loading = false,
+  dataSourceId,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -43,21 +46,37 @@ export function PgrestFunctionAutocomplete({
   const dropdownRef = useRef<HTMLUListElement>(null);
   const isFetchingRef = useRef(false);
 
-  const doFetch = useCallback(async () => {
+  // Guard against out-of-order responses when dataSourceId changes
+  const requestIdRef = useRef(0);
+
+  // Reset cached functions when the data source changes
+  useEffect(() => {
+    requestIdRef.current += 1;
+    setAllFunctions(null);
+    setFetchError(null);
+  }, [dataSourceId]);
+
+  const doFetch = useCallback(async (reqId: number) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setIsFetching(true);
     setFetchError(null);
     try {
-      const res = await fetch("/app/api/dashboard/pgrest/functions");
+      const qs = buildDataSourceParams(dataSourceId).toString();
+      const suffix = qs ? `?${qs}` : "";
+      const url = `/app/api/dashboard/pgrest/functions${suffix}`;
+      const res = await fetch(url);
+      if (reqId !== requestIdRef.current) return;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const parsed = functionsResponseSchema.safeParse(await res.json());
+      if (reqId !== requestIdRef.current) return;
       if (!parsed.success)
         throw new Error(
           tr("dashboard.settings.invalidResponseFormat", dictionary)
         );
       setAllFunctions(parsed.data.functions);
     } catch (err) {
+      if (reqId !== requestIdRef.current) return;
       setFetchError(
         err instanceof Error
           ? err.message
@@ -67,12 +86,12 @@ export function PgrestFunctionAutocomplete({
       isFetchingRef.current = false;
       setIsFetching(false);
     }
-  }, [dictionary]);
+  }, [dictionary, dataSourceId]);
 
   // Fetch function list once on first interaction
   const fetchFunctions = useCallback(async () => {
     if (allFunctions !== null || isFetchingRef.current) return;
-    await doFetch();
+    await doFetch(requestIdRef.current);
   }, [allFunctions, doFetch]);
 
   // Client-side filtering
@@ -91,9 +110,10 @@ export function PgrestFunctionAutocomplete({
     }
   }, [filtered, value, fetchError]);
 
-  const retryFetch = useCallback(() => {
+  const retryFetch = useCallback(async () => {
+    requestIdRef.current += 1;
     setAllFunctions(null);
-    return doFetch();
+    await doFetch(requestIdRef.current);
   }, [doFetch]);
 
   const handleSelect = useCallback(

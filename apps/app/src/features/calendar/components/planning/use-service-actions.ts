@@ -18,6 +18,7 @@ export interface DeleteModalState {
 
 interface UseServiceActionsProps {
   removeService: (serviceId: string) => Promise<void>;
+  removeAssignment: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   startAssignment: (plannedService: PlannedService) => void;
 }
@@ -25,6 +26,7 @@ interface UseServiceActionsProps {
 interface UseServiceActionsResult {
   contextMenu: ContextMenuState;
   deleteModal: DeleteModalState;
+  deleteAssignmentModal: DeleteModalState;
   handleContextMenu: (
     e: React.MouseEvent,
     plannedService: PlannedService
@@ -35,6 +37,11 @@ interface UseServiceActionsResult {
   handleDeleteRequest: (plannedService: PlannedService) => void;
   handleConfirmDelete: (plannedService: PlannedService) => Promise<void>;
   handleCancelDelete: () => void;
+  handleDeleteAssignmentRequest: (plannedService: PlannedService) => void;
+  handleConfirmDeleteAssignment: (
+    plannedService: PlannedService
+  ) => Promise<void>;
+  handleCancelDeleteAssignment: () => void;
 }
 
 /**
@@ -43,6 +50,7 @@ interface UseServiceActionsResult {
  */
 export function useServiceActions({
   removeService,
+  removeAssignment,
   startReassignment,
   startAssignment,
 }: UseServiceActionsProps): UseServiceActionsResult {
@@ -58,6 +66,13 @@ export function useServiceActions({
     isOpen: false,
     plannedService: null,
   });
+
+  // Delete assignment confirmation modal state
+  const [deleteAssignmentModal, setDeleteAssignmentModal] =
+    useState<DeleteModalState>({
+      isOpen: false,
+      plannedService: null,
+    });
 
   // Context menu handlers
   const handleContextMenu = useCallback(
@@ -129,9 +144,48 @@ export function useServiceActions({
     setDeleteModal({ isOpen: false, plannedService: null });
   }, []);
 
+  // Delete assignment handlers
+  const handleDeleteAssignmentRequest = useCallback(
+    (plannedService: PlannedService) => {
+      setDeleteAssignmentModal({
+        isOpen: true,
+        plannedService,
+      });
+    },
+    []
+  );
+
+  const handleConfirmDeleteAssignment = useCallback(
+    async (plannedService: PlannedService) => {
+      if (plannedService) {
+        try {
+          await removeAssignment(plannedService.service.id);
+          ShowNotification({
+            type: "success",
+            message: "Asignación eliminada",
+          });
+        } catch (error) {
+          console.error("Error deleting assignment:", error);
+          ShowNotification({
+            type: "error",
+            message:
+              "Error al eliminar la asignación. Por favor, intente nuevamente.",
+          });
+        }
+      }
+      setDeleteAssignmentModal({ isOpen: false, plannedService: null });
+    },
+    [removeAssignment]
+  );
+
+  const handleCancelDeleteAssignment = useCallback(() => {
+    setDeleteAssignmentModal({ isOpen: false, plannedService: null });
+  }, []);
+
   return {
     contextMenu,
     deleteModal,
+    deleteAssignmentModal,
     handleContextMenu,
     handleCloseContextMenu,
     handleReassign,
@@ -139,5 +193,8 @@ export function useServiceActions({
     handleDeleteRequest,
     handleConfirmDelete,
     handleCancelDelete,
+    handleDeleteAssignmentRequest,
+    handleConfirmDeleteAssignment,
+    handleCancelDeleteAssignment,
   };
 }

@@ -522,6 +522,22 @@ export function PlanningSidebarForm({
           label={tr("pages.planning.sidebar.form.permanence", dict)}
           value={permanence}
         />
+        {selectedService.expectedDepartureDate && (
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.departureDate", dict)}
+            value={formatDateString(selectedService.expectedDepartureDate, "datetime")}
+          />
+        )}
+        {selectedService.serviceCategory && (
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.serviceCategory", dict)}
+            value={
+              serviceCategoryOptions.find(
+                (o) => o.value === selectedService.serviceCategory
+              )?.label ?? selectedService.serviceCategory
+            }
+          />
+        )}
       </FormSection>
       {/* Notes Section */}
       <FormSection title={tr("pages.planning.sidebar.form.notes", dict)}>

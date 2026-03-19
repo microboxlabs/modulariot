@@ -298,6 +298,7 @@
           "serviceCategory": "Service Category",
           "serviceCategoryLoading": "Loading\u2026",
           "serviceCategoryPlaceholder": "Select category",
+          "departureDate": "Departure Date",
           "departureTime": "Departure time",
           "selectTime": "Select time",
           "andenes": "platforms",

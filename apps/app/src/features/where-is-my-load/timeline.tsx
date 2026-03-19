@@ -331,6 +331,7 @@ export default function Timeline({
               statesCount={states.length}
               setSelectedTask={setSelectedTask}
               dict={dict}
+              lang={lang}
             />
           );
         })}
@@ -371,7 +372,12 @@ function SideInfo({
     (s) => s.code === "DELIVERY_EXPEDITION"
   );
 
-  const actualDeliveryDate = deliveryExpeditionState?.time.start;
+  // Use delivery expedition state for all delivery-related fields
+  const committedDeliveryDate = deliveryExpeditionState?.time.compromised_time;
+  const actualDeliveryDate =
+    deliveryExpeditionState?.time.start ??
+    deliveryExpeditionState?.time.projected_start;
+  const isDelivered = deliveryExpeditionState?.time.delivered;
 
   const locale = lang === "es" ? "es-CL" : "en-US";
 
@@ -426,12 +432,12 @@ function SideInfo({
                 className="text-base!"
               />
             </div>
-            {state.time.compromised_time && (
+            {committedDeliveryDate && (
               <LoadableLabel
                 label={tr("wheres_my_load.compromised_delivery_date", dict)}
                 value={
                   <FormattedDate
-                    date={state.time.compromised_time}
+                    date={committedDeliveryDate}
                     format="datetime"
                     locale={locale}
                   />
@@ -442,7 +448,7 @@ function SideInfo({
             {actualDeliveryDate && (
               <LoadableLabel
                 label={tr(
-                  state.time.delivered
+                  isDelivered
                     ? "wheres_my_load.actual_delivery_date"
                     : "wheres_my_load.projected_delivery_date",
                   dict

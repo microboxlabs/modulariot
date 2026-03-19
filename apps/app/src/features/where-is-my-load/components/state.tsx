@@ -13,6 +13,7 @@ export default function TimelineStates({
   statesCount,
   setSelectedTask,
   dict,
+  lang,
 }: Readonly<{
   index: number;
   count: number;
@@ -21,6 +22,7 @@ export default function TimelineStates({
   statesCount: number;
   setSelectedTask: (taskId: string | null) => void;
   dict: I18nRecord;
+  lang: string;
   oferta_producto?: string | null;
   origin?: string | null;
   destination?: string | null;
@@ -33,6 +35,7 @@ export default function TimelineStates({
     time: state.time,
     dict,
     stateCode: state.code,
+    lang,
   });
   const task_id = state.task_id;
 
@@ -132,6 +135,7 @@ export function TemporalComponent({
   time,
   dict,
   stateCode,
+  lang,
 }: Readonly<{
   time: {
     start: string | null;
@@ -144,8 +148,10 @@ export function TemporalComponent({
   };
   dict: I18nRecord;
   stateCode?: string | null;
+  lang: string;
 }>) {
   const isDeliveryExpedition = stateCode === "DELIVERY_EXPEDITION";
+  const locale = lang === "es" ? "es-CL" : "en-US";
 
   const start_label = isDeliveryExpedition
     ? tr("wheres_my_load.compromised", dict)
@@ -190,8 +196,7 @@ export function TemporalComponent({
             <FormattedDate
               date={displayStart}
               format="datetime"
-              locale="es-CL"
-              timeZone="America/Santiago"
+              locale={locale}
             />
           </span>
         </span>
@@ -203,8 +208,7 @@ export function TemporalComponent({
             <FormattedDate
               date={displayEnd}
               format="datetime"
-              locale="es-CL"
-              timeZone="America/Santiago"
+              locale={locale}
             />
           </span>
         </span>

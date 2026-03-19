@@ -1465,7 +1465,7 @@ async function callDataSourceAction<TResponse = unknown>(
 
   const queryString = queryParams.toString();
   const suffix = queryString ? `?${queryString}` : "";
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/datasource/${action}${suffix}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/microboxlabs/dashboards/datasource/${action}${suffix}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   const result = await fetcher(url, {

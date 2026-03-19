@@ -373,10 +373,11 @@ function SideInfo({
   );
 
   // Use delivery expedition state for all delivery-related fields
-  const committedDeliveryDate = deliveryExpeditionState?.time.compromised_time;
+  // For DELIVERY_EXPEDITION: committed date is start_time, actual delivery is end_time
+  const committedDeliveryDate = deliveryExpeditionState?.time.start;
   const actualDeliveryDate =
-    deliveryExpeditionState?.time.start ??
-    deliveryExpeditionState?.time.projected_start;
+    deliveryExpeditionState?.time.end ??
+    deliveryExpeditionState?.time.projected_end;
   const isDelivered = deliveryExpeditionState?.time.delivered;
 
   const locale = lang === "es" ? "es-CL" : "en-US";

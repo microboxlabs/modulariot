@@ -65,10 +65,6 @@ const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const {
-    title = defaultConfig.title,
-    value = defaultConfig.value,
-    maxValue = defaultConfig.maxValue,
-    unit = defaultConfig.unit,
     dataMode = defaultConfig.dataMode,
     pgrestFunctionName = "",
     pgrestParams = [],
@@ -76,6 +72,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataSourceId,
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
+
+  // Coerce to string for backwards compatibility with old numeric configs
+  const title = String(config.title ?? defaultConfig.title);
+  const value = String(config.value ?? defaultConfig.value);
+  const maxValue = String(config.maxValue ?? defaultConfig.maxValue);
+  const unit = String(config.unit ?? defaultConfig.unit);
 
   // ── PGREST data fetching ──────────────────────────────────────────────────
   const {

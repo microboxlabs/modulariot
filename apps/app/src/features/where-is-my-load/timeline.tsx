@@ -1,7 +1,7 @@
 "use client";
 
 import { FaTruck, FaTruckLoading } from "react-icons/fa";
-import TimelineStates, { TemporalComponent } from "./components/state";
+import TimelineStates from "./components/state";
 import React, { useEffect, useMemo } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
@@ -30,14 +30,16 @@ const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
 
 export type State = {
   name: string;
-  code: string;
+  code: string | null;
   icon: React.ReactElement | null;
   description?: string | React.ReactElement;
   ended: boolean;
-  extradata: { [key: string]: string | number | boolean };
+  extradata: { [key: string]: string | number | boolean | null };
   time: {
-    start: string;
-    end: string;
+    start: string | null;
+    projected_start: string | null;
+    end: string | null;
+    projected_end: string | null;
     compromised_time: string | null;
     delivered: boolean | null;
     duration: number | null;
@@ -93,7 +95,9 @@ export default function Timeline({
             code: item.codigo_etapa,
             time: {
               start: item.start_time__,
+              projected_start: item.projected_start_time_,
               end: item.end_time__,
+              projected_end: item.projected_end_time_,
               compromised_time: item.extradata.fecha_comprometida,
               delivered: item.extradata.delivered,
               duration: item.duration__,
@@ -129,6 +133,20 @@ export default function Timeline({
     }
   }, [data]);
 
+  // Helper to update debug position tracking the active timeline state
+  const updateDebugPosition = React.useCallback(() => {
+    if (!timelineRef.current) return;
+    const container = timelineRef.current.querySelector(
+      ".timeline-states-container"
+    ) as HTMLDivElement | null;
+    if (!container) return;
+    const activeEl = container.children[actualState] as HTMLElement | undefined;
+    if (!activeEl) return;
+    const rect = activeEl.getBoundingClientRect();
+    // Use viewport coordinates with position: fixed
+    setDebugPos({ top: rect.top, left: rect.right + 16 });
+  }, [actualState]);
+
   useEffect(() => {
     if (timelineRef.current) {
       const timelineContainer = timelineRef.current.querySelector(
@@ -145,7 +163,7 @@ export default function Timeline({
     if (debug) {
       updateDebugPosition();
     }
-  }, [actualState]);
+  }, [actualState, debug, updateDebugPosition]);
 
   // Center on actualState when states are loaded (component initialization)
   useEffect(() => {
@@ -163,21 +181,7 @@ export default function Timeline({
     if (debug) {
       updateDebugPosition();
     }
-  }, [states]);
-
-  // Helper to update debug position tracking the active timeline state
-  const updateDebugPosition = React.useCallback(() => {
-    if (!timelineRef.current) return;
-    const container = timelineRef.current.querySelector(
-      ".timeline-states-container"
-    ) as HTMLDivElement | null;
-    if (!container) return;
-    const activeEl = container.children[actualState] as HTMLElement | undefined;
-    if (!activeEl) return;
-    const rect = activeEl.getBoundingClientRect();
-    // Use viewport coordinates with position: fixed
-    setDebugPos({ top: rect.top, left: rect.right + 16 });
-  }, [actualState]);
+  }, [states, actualState, debug, updateDebugPosition]);
 
   // Attach scroll / resize listeners to keep debug panel aligned while scrolling
   useEffect(() => {
@@ -219,7 +223,10 @@ export default function Timeline({
     );
   }
 
-  if ((data && data.length === 0) || (error && (error as any).status === 404)) {
+  if (
+    (data && data.length === 0) ||
+    (error && (error as { status?: number }).status === 404)
+  ) {
     return (
       <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
         <EmptyAnimation />
@@ -375,31 +382,31 @@ function SideInfo({
               <LoadableLabel
                 label="Código"
                 value={state.expedition.code ?? "-"}
-                className="!text-base"
+                className="text-base!"
               />
               <LoadableLabel
                 label="N° de expedición"
                 value={state.expedition.number ?? "-"}
-                className="!text-base"
+                className="text-base!"
               />
               <LoadableLabel
                 label="Origen"
                 value={state.origin ?? "-"}
-                className="!text-base"
+                className="text-base!"
               />
-              <LoadableLabel label="Volumen" value="-" className="!text-base" />
+              <LoadableLabel label="Volumen" value="-" className="text-base!" />
               <LoadableLabel
                 label="Destino"
                 value={state.destination ?? "-"}
-                className="!text-base"
+                className="text-base!"
               />
-              <LoadableLabel label="Peso" value="-" className="!text-base" />
+              <LoadableLabel label="Peso" value="-" className="text-base!" />
               <LoadableLabel
                 label="Oferta producto"
                 value={state.oferta_producto ?? "-"}
-                className="!text-base"
+                className="text-base!"
               />
-              <LoadableLabel label="Bultos" value="-" className="!text-base" />
+              <LoadableLabel label="Bultos" value="-" className="text-base!" />
             </div>
             {state.time.compromised_time && (
               <LoadableLabel
@@ -412,7 +419,7 @@ function SideInfo({
                     timeZone="America/Santiago"
                   />
                 }
-                className="!text-base w-full"
+                className="text-base! w-full"
               />
             )}
             {actualDeliveryDate && (
@@ -431,7 +438,7 @@ function SideInfo({
                     timeZone="America/Santiago"
                   />
                 }
-                className="!text-base w-full"
+                className="text-base! w-full"
               />
             )}
           </div>
@@ -444,7 +451,7 @@ function SideInfo({
           style={{ title: "text-xl", subtitle: "text-sm" }}
           badges={badges.length > 0 ? badges : undefined}
         >
-          {item && getComponent(item, "!text-base")}
+          {item && getComponent(item, "text-base!")}
           <DateBox time={state.time} dict={dict} />
         </CustomCard>
       </div>
@@ -483,7 +490,7 @@ function DateBox({
               : tr("wheres_my_load.projected_start", dict)
           }
           value={<FormattedDate date={start} format="datetime" />}
-          className="!text-base"
+          className="text-base!"
         />
         <LoadableLabel
           label={
@@ -492,7 +499,7 @@ function DateBox({
               : tr("wheres_my_load.projected_end", dict)
           }
           value={<FormattedDate date={end} format="datetime" />}
-          className="!text-base"
+          className="text-base!"
         />
       </CustomCard>
     </div>

@@ -103,12 +103,21 @@ export function PlanningSidebarForm({
   type TabType = "planificacion" | "asignacion";
   const [activeTab, setActiveTab] = useState<TabType>("planificacion");
 
-  // Auto-switch to asignacion tab when assignment mode is triggered from context menu
+  // Set initial tab based on permissions once loaded (fail-closed)
   useEffect(() => {
+    if (isLoadingPermissions) return;
+
+    // Auto-switch to asignacion when assignment mode is triggered
     if (assigningService && canAssign) {
       setActiveTab("asignacion");
+      return;
     }
-  }, [assigningService, canAssign]);
+
+    // Default to first available tab based on permissions
+    if (!canPlan && canAssign) {
+      setActiveTab("asignacion");
+    }
+  }, [isLoadingPermissions, assigningService, canAssign, canPlan]);
 
   // Build time options from backend slots, filtered to the visible cell range [slotStartTime, slotEndTime)
   const timeOptions = useMemo(() => {
@@ -567,7 +576,7 @@ export function PlanningSidebarForm({
         />
 
         {/* Tab Content */}
-        {activeTab === "planificacion" && (
+        {activeTab === "planificacion" && canPlan && (
           <>
             {!isSlotsLoading && timeOptions.length > 0 && (
               <TimeSlotAssignment

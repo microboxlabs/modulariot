@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import dayjs from "dayjs";
 import { Badge, Button } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -17,7 +18,7 @@ import {
   type SelectedSlot,
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
-import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
+import { HiCalendar, HiCheck, HiChevronDown, HiExclamation, HiUserAdd } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
@@ -33,6 +34,117 @@ import {
   TabButtons,
   type TabItem,
 } from "@/features/common/components/tab-buttons";
+
+/**
+ * Planning tab content — always shows presentation date + service category dropdown.
+ * Time/andén picker only appears when a slot is selected (timeOptions available).
+ */
+function PlanningTabContent({
+  dict,
+  selectedService,
+  serviceCategoryOptions,
+  selectedServiceCategory,
+  onServiceCategoryChange,
+  isLoadingServiceTypes,
+  timeOptions,
+  selectedTime,
+  onTimeChange,
+  isSlotsLoading,
+  canConfirm,
+  reassigningService,
+}: {
+  dict: I18nRecord;
+  selectedService: SelectedService & { slot?: string };
+  serviceCategoryOptions: { value: string; label: string }[];
+  selectedServiceCategory: string;
+  onServiceCategoryChange: (v: string) => void;
+  isLoadingServiceTypes: boolean;
+  timeOptions: { time: string; totalAndenes: number; availableAndenes: number; isFullyOccupied: boolean }[];
+  selectedTime: string;
+  onTimeChange: (v: string) => void;
+  isSlotsLoading: boolean;
+  canConfirm: boolean;
+  reassigningService: unknown;
+}) {
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const categoryRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
+        setIsCategoryOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <>
+      {/* Service Category — always visible */}
+      <div ref={categoryRef} className="relative">
+        <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+          {tr("pages.planning.sidebar.form.serviceCategory", dict)}
+        </label>
+        <button
+          type="button"
+          disabled={isLoadingServiceTypes}
+          onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <span className="font-medium text-gray-900 dark:text-white">
+            {isLoadingServiceTypes
+              ? tr("pages.planning.sidebar.form.serviceCategoryLoading", dict)
+              : (serviceCategoryOptions.find((o) => o.value === selectedServiceCategory)?.label ??
+                tr("pages.planning.sidebar.form.serviceCategoryPlaceholder", dict))}
+          </span>
+          <HiChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`} />
+        </button>
+        {isCategoryOpen && (
+          <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            {serviceCategoryOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => { onServiceCategoryChange(option.value); setIsCategoryOpen(false); }}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                  option.value === selectedServiceCategory ? "bg-blue-50 dark:bg-blue-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                } cursor-pointer`}
+              >
+                <div className="flex items-center gap-2">
+                  {option.value === selectedServiceCategory && <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                  <span className={`text-sm ${option.value === selectedServiceCategory ? "text-blue-700 dark:text-blue-300" : "text-gray-900 dark:text-white"}`}>
+                    {option.label}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Time/Andén picker — only when slot is selected */}
+      {!isSlotsLoading && timeOptions.length > 0 && (
+        <TimeSlotAssignment
+          dict={dict}
+          timeOptions={timeOptions}
+          selectedTime={selectedTime}
+          onTimeChange={onTimeChange}
+          serviceCategoryOptions={serviceCategoryOptions}
+          selectedServiceCategory={selectedServiceCategory}
+          onServiceCategoryChange={onServiceCategoryChange}
+          isLoadingServiceTypes={isLoadingServiceTypes}
+        />
+      )}
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" color="blue" className="flex-1" disabled={!canConfirm}>
+          {reassigningService
+            ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
+            : tr("pages.planning.sidebar.form.confirm", dict)}
+        </Button>
+      </div>
+    </>
+  );
+}
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -145,12 +257,20 @@ export function PlanningSidebarForm({
           0,
           Math.min(andenesCount - localOccupied.length, slot.availableCapacity)
         );
+        const isFullyOccupied = slot.availableCapacity <= 0 || localOccupied.length >= andenesCount;
+        // When reassigning, the original slot is full in the backend but
+        // should still be selectable (the old booking will be replaced).
+        const isReassigningSlot =
+          reassigningService &&
+          dayjs(reassigningService.originalSlot.date).isSame(selectedSlot.date, "day") &&
+          reassigningService.originalSlot.hour === slot.slotHour &&
+          reassigningService.originalSlot.minutes === slot.slotMinutes;
         return {
           time,
           totalAndenes: andenesCount,
           availableAndenes,
-          isFullyOccupied:
-            slot.availableCapacity <= 0 || localOccupied.length >= andenesCount,
+          isFullyOccupied,
+          isDisabled: isReassigningSlot ? false : isFullyOccupied,
         };
       });
   }, [
@@ -160,6 +280,7 @@ export function PlanningSidebarForm({
     andenesCount,
     selectedSlot,
     getOccupiedAndenes,
+    reassigningService,
   ]);
 
   // Get occupied andenes for the currently selected time
@@ -177,6 +298,15 @@ export function PlanningSidebarForm({
     const currentIsValid = timeOptions.some((opt) => opt.time === selectedTime);
 
     if (!selectedTime || !currentIsValid) {
+      // When reassigning, prefer the original booking time
+      if (reassigningService) {
+        const origTime = `${reassigningService.originalSlot.hour.toString().padStart(2, "0")}:${reassigningService.originalSlot.minutes.toString().padStart(2, "0")}`;
+        const origOption = timeOptions.find((opt) => opt.time === origTime);
+        if (origOption) {
+          setSelectedTime(origTime);
+          return;
+        }
+      }
       // Select first available (non-fully-occupied) time slot
       const firstAvailable = timeOptions.find((opt) => !opt.isFullyOccupied);
       if (firstAvailable) {
@@ -186,7 +316,7 @@ export function PlanningSidebarForm({
         setSelectedTime(timeOptions[timeOptions.length - 1].time);
       }
     }
-  }, [timeOptions, selectedTime]);
+  }, [timeOptions, selectedTime, reassigningService]);
 
   // Update selected andén when time changes (pick first available)
   useMemo(() => {
@@ -297,9 +427,12 @@ export function PlanningSidebarForm({
     andenesCount,
   ]);
 
-  // Need both a selected service, a slot with room, and an available andén to confirm
+  // Need a selected service, a slot with room, an available andén, and a service category to confirm
   const canConfirm =
-    selectedSlot !== null && canAddToSlot(selectedSlot) && hasAvailableAnden;
+    selectedSlot !== null &&
+    canAddToSlot(selectedSlot) &&
+    hasAvailableAnden &&
+    selectedServiceCategory !== "";
 
   if (!isActive || !selectedService) {
     return null;
@@ -528,16 +661,6 @@ export function PlanningSidebarForm({
             value={formatDateString(selectedService.expectedDepartureDate, "datetime")}
           />
         )}
-        {selectedService.serviceCategory && (
-          <InfoRow
-            label={tr("pages.planning.sidebar.form.serviceCategory", dict)}
-            value={
-              serviceCategoryOptions.find(
-                (o) => o.value === selectedService.serviceCategory
-              )?.label ?? selectedService.serviceCategory
-            }
-          />
-        )}
       </FormSection>
       {/* Notes Section */}
       <FormSection title={tr("pages.planning.sidebar.form.notes", dict)}>
@@ -593,32 +716,20 @@ export function PlanningSidebarForm({
 
         {/* Tab Content */}
         {activeTab === "planificacion" && canPlan && (
-          <>
-            {!isSlotsLoading && timeOptions.length > 0 && (
-              <TimeSlotAssignment
-                dict={dict}
-                timeOptions={timeOptions}
-                selectedTime={selectedTime}
-                onTimeChange={setSelectedTime}
-                serviceCategoryOptions={serviceCategoryOptions}
-                selectedServiceCategory={selectedServiceCategory}
-                onServiceCategoryChange={setSelectedServiceCategory}
-                isLoadingServiceTypes={isLoadingServiceTypes}
-              />
-            )}
-            <div className="flex gap-2 pt-2">
-              <Button
-                type="submit"
-                color="blue"
-                className="flex-1"
-                disabled={!canConfirm}
-              >
-                {reassigningService
-                  ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
-                  : tr("pages.planning.sidebar.form.confirm", dict)}
-              </Button>
-            </div>
-          </>
+          <PlanningTabContent
+            dict={dict}
+            selectedService={selectedService}
+            serviceCategoryOptions={serviceCategoryOptions}
+            selectedServiceCategory={selectedServiceCategory}
+            onServiceCategoryChange={setSelectedServiceCategory}
+            isLoadingServiceTypes={isLoadingServiceTypes}
+            timeOptions={timeOptions}
+            selectedTime={selectedTime}
+            onTimeChange={setSelectedTime}
+            isSlotsLoading={isSlotsLoading}
+            canConfirm={canConfirm}
+            reassigningService={reassigningService}
+          />
         )}
         {activeTab === "asignacion" && canAssign && (
           <>

@@ -15,6 +15,8 @@ export interface TimeSlotOption {
   availableAndenes: number;
   /** Whether this time slot is fully occupied */
   isFullyOccupied: boolean;
+  /** Whether this slot is disabled for selection (defaults to isFullyOccupied) */
+  isDisabled?: boolean;
 }
 
 interface ServiceCategoryOption {
@@ -77,73 +79,6 @@ export function TimeSlotAssignment({
 
   return (
     <div className="rounded-lg flex flex-col gap-4">
-      {/* Service Category Dropdown */}
-      <div ref={tripTypeDropdownRef} className="relative">
-        <Label
-          htmlFor="service-category-select"
-          className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
-        >
-          {tr("pages.planning.sidebar.form.serviceCategory", dict)}
-        </Label>
-        {/* Dropdown trigger button */}
-        <button
-          type="button"
-          disabled={isLoadingServiceTypes}
-          onClick={() => setIsTripTypeDropdownOpen(!isTripTypeDropdownOpen)}
-          className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          <span className="font-medium text-gray-900 dark:text-white">
-            {isLoadingServiceTypes
-              ? tr("pages.planning.sidebar.form.serviceCategoryLoading", dict)
-              : (serviceCategoryOptions.find(
-                  (opt) => opt.value === selectedServiceCategory
-                )?.label ??
-                tr(
-                  "pages.planning.sidebar.form.serviceCategoryPlaceholder",
-                  dict
-                ))}
-          </span>
-          <HiChevronDown
-            className={`w-4 h-4 text-gray-500 transition-transform ${isTripTypeDropdownOpen ? "rotate-180" : ""}`}
-          />
-        </button>
-        {/* Dropdown menu */}
-        {isTripTypeDropdownOpen && (
-          <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-            {serviceCategoryOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  onServiceCategoryChange(option.value);
-                  setIsTripTypeDropdownOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                  option.value === selectedServiceCategory
-                    ? "bg-blue-50 dark:bg-blue-900/20"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                } cursor-pointer`}
-              >
-                <div className="flex items-center gap-2">
-                  {option.value === selectedServiceCategory && (
-                    <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  )}
-                  <span
-                    className={`text-sm ${
-                      option.value === selectedServiceCategory
-                        ? "text-blue-700 dark:text-blue-300"
-                        : "text-gray-900 dark:text-white"
-                    }`}
-                  >
-                    {option.label}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Custom Time Slot Dropdown */}
       <div ref={dropdownRef} className="relative">
         <Label
@@ -209,13 +144,13 @@ export function TimeSlotAssignment({
                 key={option.time}
                 type="button"
                 onClick={() => handleTimeSelect(option.time)}
-                disabled={option.isFullyOccupied}
+                disabled={option.isDisabled ?? option.isFullyOccupied}
                 className={`w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors ${
                   option.time === selectedTime
                     ? "bg-blue-50 dark:bg-blue-900/20"
                     : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 } ${
-                  option.isFullyOccupied
+                  (option.isDisabled ?? option.isFullyOccupied)
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
                 }`}

@@ -571,6 +571,7 @@ export interface SelectedService {
   loadVolumeUtilization?: number; // Volumetric utilization %
   serviceCategory?: string; // Alfresco mintral_serviceCategory code
   expectedDepartureDate?: string; // ISO datetime - expected departure date
+  presentationDate?: string; // ISO datetime - service creation/presentation date
   /** Primary driver assigned to this service (frontend-only for now) */
   assignedDriver?: string;
   /** Secondary driver assigned to this service (frontend-only for now) */
@@ -713,6 +714,7 @@ const StoredServiceSchema = z
     loadVolumeUtilization: z.number().optional(),
     serviceCategory: z.string().optional(),
     expectedDepartureDate: z.string().optional(),
+    presentationDate: z.string().optional(),
     assignedDriver: z.string().optional(),
     assignedDriver2: z.string().optional(),
     _anden: z.number().optional(),
@@ -1453,8 +1455,13 @@ export function PlanningSelectionProvider({
     // Pre-select the service for reassignment (but don't remove from planned services yet)
     setSelectedService(plannedService.service);
 
-    // Clear any previously selected slot so user can pick a new one
-    setSelectedSlot(null);
+    // Keep the original slot selected so the form shows time/category fields.
+    // Snap to the 30-minute cell boundary so the time range filter works correctly.
+    const snappedMinutes = Math.floor(plannedService.slot.minutes / 30) * 30;
+    setSelectedSlot({
+      ...plannedService.slot,
+      minutes: snappedMinutes,
+    });
   }, []);
 
   /**

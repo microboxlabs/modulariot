@@ -298,6 +298,7 @@
           "serviceCategory": "Categoría de servicio",
           "serviceCategoryLoading": "Cargando\u2026",
           "serviceCategoryPlaceholder": "Seleccionar categoría",
+          "presentationDate": "Fecha de presentación",
           "departureDate": "Fecha de salida",
           "departureTime": "Hora de salida",
           "selectTime": "Seleccionar horario",

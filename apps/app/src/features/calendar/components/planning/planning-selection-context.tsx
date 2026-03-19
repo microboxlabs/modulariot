@@ -570,6 +570,7 @@ export interface SelectedService {
   loadPalletUtilization?: number; // Pallet position utilization %
   loadVolumeUtilization?: number; // Volumetric utilization %
   serviceCategory?: string; // Alfresco mintral_serviceCategory code
+  expectedDepartureDate?: string; // ISO datetime - expected departure date
   /** Primary driver assigned to this service (frontend-only for now) */
   assignedDriver?: string;
   /** Secondary driver assigned to this service (frontend-only for now) */
@@ -711,6 +712,7 @@ const StoredServiceSchema = z
     loadPalletUtilization: z.number().optional(),
     loadVolumeUtilization: z.number().optional(),
     serviceCategory: z.string().optional(),
+    expectedDepartureDate: z.string().optional(),
     assignedDriver: z.string().optional(),
     assignedDriver2: z.string().optional(),
     _anden: z.number().optional(),

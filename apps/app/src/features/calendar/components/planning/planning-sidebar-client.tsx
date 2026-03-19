@@ -142,6 +142,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     loadPalletUtilization: task.mintral_loadPalletUtilization,
     loadVolumeUtilization: task.mintral_loadVolumeUtilization,
     serviceCategory: task.mintral_serviceCategory ?? undefined,
+    expectedDepartureDate: task.departureDate || task.expectedDepartureDate || "",
   };
 }
 

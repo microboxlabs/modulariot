@@ -88,8 +88,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   }
 
   const title = resolved.title || "Progress";
-  const parsedValue = resolved.value === "" || resolved.value == null ? NaN : Number(resolved.value);
-  const parsedMax = resolved.max === "" || resolved.max == null ? NaN : Number(resolved.max);
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const parsedMax = resolved.max === "" || resolved.max == null ? Number.NaN : Number(resolved.max);
   const value = Number.isFinite(parsedValue) ? parsedValue : 0;
   const max = Number.isFinite(parsedMax) ? parsedMax : 10;
 

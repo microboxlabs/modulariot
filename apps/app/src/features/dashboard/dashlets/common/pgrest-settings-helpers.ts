@@ -4,6 +4,19 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
 /**
+ * Default onColumnsDetected callback for simple dashlets (labeled_data, card)
+ * that use raw keys without handlebars wrapping.
+ */
+export function defaultOnColumnsDetected(keys: string[]): ColumnItem[] {
+  return keys.map((key, i) => ({
+    _id: `col-${Date.now()}-${i}`,
+    key,
+    label: humanizeKey(key),
+    type: "text" as const,
+  }));
+}
+
+/**
  * Returns the common callback portion of PgrestSettingsStateConfig
  * that is identical across data_list and data_table settings.
  */

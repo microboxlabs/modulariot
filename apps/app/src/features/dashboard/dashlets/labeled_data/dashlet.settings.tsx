@@ -3,22 +3,16 @@
 import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ColorTheme, IconType } from "./dashlet";
-import {
-  ColorPickerDropdown,
-  type ColorOption,
-} from "@/features/common/components/color-picker-dropdown";
-import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
+import type { ColorOption } from "@/features/common/components/color-picker-dropdown";
 import { tr } from "@/features/i18n/tr.service";
 import {
-  SettingsPickerRow,
-  SettingsPickerItem,
   HbTextField,
   usePgrestSettingsState,
   PgrestDataTab,
   fromPgrestParamItems,
-  humanizeKey,
+  defaultOnColumnsDetected,
+  IconColorPickerRow,
 } from "../common";
-import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 
 type LabeledDataMode = "static" | "pgrest";
@@ -34,8 +28,6 @@ const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
   { value: "teal", label: "Teal", dotClass: "bg-teal-500" },
   { value: "orange", label: "Orange", dotClass: "bg-orange-500" },
 ];
-
-const ICON_OPTIONS = DASHLET_ICON_OPTIONS;
 
 /** Field config for the two labeled data text fields */
 const LABELED_DATA_FIELDS = [
@@ -65,13 +57,7 @@ export function DashletSettings({
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestParams: config.pgrestParams || [],
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    onColumnsDetected: (keys) =>
-      keys.map((key, i) => ({
-        _id: `col-${Date.now()}-${i}`,
-        key,
-        label: humanizeKey(key),
-        type: "text" as const,
-      })),
+    onColumnsDetected: defaultOnColumnsDetected,
     setColumns: () => {},
     onDetectionComplete: (detected) => {
       if (detected.length >= 1) {
@@ -117,24 +103,14 @@ export function DashletSettings({
           placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
         />
       ))}
-      <SettingsPickerRow>
-        <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
-          <IconPickerDropdown
-            options={ICON_OPTIONS}
-            value={icon}
-            onChange={setIcon}
-            title={tr("dashboard.settings.icon", dictionary)}
-          />
-        </SettingsPickerItem>
-        <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>
-          <ColorPickerDropdown
-            options={COLOR_OPTIONS}
-            value={color}
-            onChange={setColor}
-            title={tr("dashboard.settings.color", dictionary)}
-          />
-        </SettingsPickerItem>
-      </SettingsPickerRow>
+      <IconColorPickerRow
+        icon={icon}
+        onIconChange={setIcon}
+        colorOptions={COLOR_OPTIONS}
+        color={color}
+        onColorChange={setColor}
+        dictionary={dictionary}
+      />
     </>
   );
 

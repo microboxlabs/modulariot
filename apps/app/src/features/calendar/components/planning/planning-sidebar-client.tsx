@@ -225,7 +225,7 @@ export function PlanningSidebarClient({
 
   // Fetch tasks from API
   const { data: myTasksData, isLoading: isLoadingTasks, refresh: refreshTasks } = useMyTasks(
-    ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
+    ["planService", "assignDriver", "presentDriver", "prepareService", "missionControl"],
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit

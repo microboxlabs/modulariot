@@ -173,3 +173,33 @@ export function SimpleDashletSettings<C extends object>({
     />
   );
 }
+
+// ============================================================================
+// Factory: create a zero-boilerplate settings component from field defs
+// ============================================================================
+
+/**
+ * Returns a `DashletSettings` component that renders `SimpleDashletSettings`
+ * with the given field definitions and ID prefix.
+ *
+ * Usage:
+ * ```ts
+ * export const DashletSettings = createSimpleDashletSettings(FIELDS, "si");
+ * ```
+ */
+export function createSimpleDashletSettings(
+  fields: readonly SettingsFieldDef[],
+  idPrefix: string,
+) {
+  return function DashletSettings(
+    props: Readonly<DashletSettingsProps<Record<string, unknown>>>,
+  ) {
+    return (
+      <SimpleDashletSettings
+        fields={fields}
+        idPrefix={idPrefix}
+        settingsProps={props}
+      />
+    );
+  };
+}

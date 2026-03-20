@@ -116,5 +116,6 @@ export {
   type SettingsFieldDef,
   type SimpleDashletSettingsProps,
   SimpleDashletSettings,
+  createSimpleDashletSettings,
   useFieldState,
 } from "./simple-dashlet-settings";

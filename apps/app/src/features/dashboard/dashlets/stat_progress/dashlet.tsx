@@ -115,9 +115,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         {/* Labels */}
         <div className="mt-1 flex justify-between text-xs text-gray-400">
           <span>0</span>
-          <span>25</span>
-          <span>50</span>
-          <span>75</span>
+          <span>{Math.round(target * 0.25)}</span>
+          <span>{Math.round(target * 0.5)}</span>
+          <span>{Math.round(target * 0.75)}</span>
           <span>{target}</span>
         </div>
       </div>

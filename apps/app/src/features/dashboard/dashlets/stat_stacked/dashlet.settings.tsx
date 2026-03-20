@@ -1,19 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button, TextInput, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
 import {
-  DashletSettingsWrapper,
-  SettingsTextField,
-  SettingsFieldGrid,
+  HbTextFieldList,
+  usePgrestSettingsState,
+  fromPgrestParamItems,
+  buildSimplePgrestConfig,
+  PgrestDataTab,
 } from "../common";
+import { SettingsModalShell } from "../common/settings-modal-shell";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
+
+type SimpleDataMode = "static" | "pgrest";
 
 const COLOR_OPTIONS: ColorOption<BarColor>[] = [
   {
@@ -51,6 +58,11 @@ interface StackItem {
   color: BarColor;
 }
 
+const FIELDS = [
+  { id: "st-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Traffic Sources" },
+  { id: "st-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
+] as const;
+
 export function DashletSettings({
   isOpen,
   onClose,
@@ -58,9 +70,23 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const { siteId } = useDashboard();
+  const { dataSources } = useDataSources(siteId ?? undefined);
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true
+  );
+
   const [title, setTitle] = useState(config.title || "Traffic Sources");
-  const [unit, setUnit] = useState(config.unit || "%");
+  const [unit, setUnit] = useState(config.unit ?? "%");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
+  const [dataMode, setDataMode] = useState<SimpleDataMode>(
+    config.dataMode === "static" || config.dataMode === "pgrest"
+      ? config.dataMode
+      : "static",
+  );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
 
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
@@ -76,13 +102,42 @@ export function DashletSettings({
 
   const [items, setItems] = useState(initializeItems);
 
+  const staticSnapshot = useRef({ title, unit });
+
+  const handleDataModeChange = (mode: SimpleDataMode) => {
+    if (mode === "pgrest" && dataMode === "static") {
+      staticSnapshot.current = { title, unit };
+    } else if (mode === "static" && dataMode === "pgrest") {
+      setTitle(staticSnapshot.current.title);
+      setUnit(staticSnapshot.current.unit);
+    }
+    setDataMode(mode);
+  };
+
+  const pg = usePgrestSettingsState({
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
+      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
+      if (detected.length >= 2) setUnit(`{{row.${detected[1].key}}}`);
+    }),
+  });
+
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
       label,
       value,
       color,
     }));
-    onSave({ title, items: itemsToSave, unit, showHeader });
+    onSave({
+      title: title.trim() || "Traffic Sources",
+      items: itemsToSave,
+      unit: unit.trim() || "%",
+      showHeader,
+      dataMode,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
+      dataSourceId: dataSourceId || undefined,
+    });
     onClose();
   };
 
@@ -112,15 +167,16 @@ export function DashletSettings({
     );
   };
 
-  return (
-    <DashletSettingsWrapper
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={handleSave}
-      width="w-80"
-      scrollable
-      dictionary={dictionary}
-    >
+  const isPgrest = dataMode === "pgrest";
+
+  const fieldValues: Record<string, string> = { title, unit };
+  const fieldSetters: Record<string, (v: string) => void> = {
+    title: setTitle,
+    unit: setUnit,
+  };
+
+  const visualizationTab = (
+    <>
       <div className="flex items-center justify-between py-1">
         <Label className="text-sm font-medium">Show Header</Label>
         <div className="shrink-0">
@@ -132,22 +188,13 @@ export function DashletSettings({
         </div>
       </div>
 
-      {showHeader && (
-        <SettingsFieldGrid cols={2}>
-          <SettingsTextField
-            id="title"
-            label="Title"
-            value={title}
-            onChange={setTitle}
-          />
-          <SettingsTextField
-            id="unit"
-            label="Unit"
-            value={unit}
-            onChange={setUnit}
-          />
-        </SettingsFieldGrid>
-      )}
+      <HbTextFieldList
+        fields={FIELDS}
+        fieldValues={fieldValues}
+        fieldSetters={fieldSetters}
+        isPgrest={isPgrest}
+        dictionary={dictionary}
+      />
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -202,6 +249,30 @@ export function DashletSettings({
           </div>
         ))}
       </div>
-    </DashletSettingsWrapper>
+    </>
+  );
+
+  const dataTab = (
+    <PgrestDataTab
+      id="st-data-mode"
+      dataMode={dataMode}
+      onDataModeChange={handleDataModeChange}
+      pgrest={pg}
+      dictionary={dictionary}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
+    />
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
   );
 }

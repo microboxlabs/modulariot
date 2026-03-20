@@ -11,7 +11,7 @@ import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { renderCell } from "../common/cell-renderers";
 import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
-import { usePgrestRows } from "../common/use-pgrest-rows";
+import { useDashletData } from "../common/use-dashlet-data";
 import { normalizeFilterConfig } from "../common/filter-helpers";
 import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
@@ -52,6 +52,7 @@ export interface DashletConfig {
   filter: FilterConfig;
   sort: SortConfig;
   cardLayout: CardLayoutConfig;
+  plannerVariableName?: string;
 }
 
 // ============================================================================
@@ -300,6 +301,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestHttpMethod = "POST",
     sort = defaultSort,
     cardLayout = defaultCardLayout,
+    plannerVariableName,
   } = config;
   const filter = useMemo(
     () => normalizeFilterConfig(config.filter, defaultFilter),
@@ -309,17 +311,21 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const { rows: dynamicRows, loading: dynamicLoading, fetchError: dynamicError } = useDynamicRows(dataMode, apiUrl);
 
-  // ── PGREST data fetching ──────────────────────────────────────────────────
+  // ── PGREST / Planner data fetching ──────────────────────────────────────────
   const pgrestParamsStable = useMemo(() => pgrestParams, [pgrestParams]);
-  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
-    dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParamsStable,
-  );
+  const { rows: fetchedRows, loading: fetchedLoading, fetchError: fetchedError } = useDashletData({
+    dataMode,
+    pgrestFunctionName,
+    pgrestHttpMethod,
+    pgrestParams: pgrestParamsStable,
+    plannerVariableName,
+  });
 
-  const loading = dynamicLoading || pgrestLoading;
-  const fetchError = dynamicError || pgrestError;
+  const loading = dynamicLoading || fetchedLoading;
+  const fetchError = dynamicError || fetchedError;
   let allRows: typeof staticRows;
-  if (dataMode === "pgrest") {
-    allRows = pgrestRows;
+  if (dataMode === "pgrest" || dataMode === "planner") {
+    allRows = fetchedRows;
   } else if (dataMode === "dynamic") {
     allRows = dynamicRows;
   } else {

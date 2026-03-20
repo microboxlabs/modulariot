@@ -15,6 +15,7 @@ import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
+import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
@@ -35,6 +36,9 @@ export function DashletSettings({
 
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
   );
 
   const s = useSettingsState({
@@ -73,7 +77,7 @@ export function DashletSettings({
     onSave({
       title: s.title,
       showRowCount: s.showRowCount,
-      dataMode: s.dataMode as "static" | "pgrest",
+      dataMode: s.dataMode as "static" | "pgrest" | "planner",
       columns: savedColumns,
       rows,
       pgrestFunctionName: pg.pgrestFunctionName,
@@ -82,6 +86,7 @@ export function DashletSettings({
       filter,
       sort,
       dataSourceId: dataSourceId || undefined,
+      plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
     });
     onClose();
   };
@@ -97,6 +102,14 @@ export function DashletSettings({
     />
   );
 
+  const plannerContent = (
+    <PlannerVariableSelector
+      label="Variable"
+      value={plannerVariableName}
+      onChange={setPlannerVariableName}
+    />
+  );
+
   return (
     <TableListSettingsShell
       id="dt"
@@ -106,6 +119,7 @@ export function DashletSettings({
       state={s}
       dictionary={dictionary}
       dataTabChildren={pgrestContent}
+      plannerContent={plannerContent}
       handlebarsColorKeys
     />
   );

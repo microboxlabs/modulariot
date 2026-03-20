@@ -15,9 +15,10 @@ import {
   buildPgrestContentLabels,
   IconColorPickerRow,
 } from "../common";
+import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 
-type CardDataMode = "static" | "pgrest";
+type CardDataMode = "static" | "pgrest" | "planner";
 
 /** Background color options for ColorPickerDropdown */
 const BG_COLOR_OPTIONS: ColorOption<CardBackgroundColor>[] = [
@@ -61,6 +62,9 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<CardDataMode>(
     config.dataMode || "static"
   );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig(config, (detected) => {
@@ -87,6 +91,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
     });
     onClose();
   };
@@ -131,6 +136,7 @@ export function DashletSettings({
         options={[
           { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
           { value: "pgrest", label: "PGREST" },
+          { value: "planner", label: "Planner" },
         ]}
       />
       {isPgrest && (
@@ -138,6 +144,13 @@ export function DashletSettings({
           pgrest={pg}
           dictionary={dictionary}
           labels={buildPgrestContentLabels(dictionary)}
+        />
+      )}
+      {dataMode === "planner" && (
+        <PlannerVariableSelector
+          label="Variable"
+          value={plannerVariableName}
+          onChange={setPlannerVariableName}
         />
       )}
     </>

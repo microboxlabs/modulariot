@@ -18,6 +18,7 @@ import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
+import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -42,6 +43,10 @@ export function DashletSettings({
     dataMode: config.dataMode ?? "static",
     apiUrl: config.apiUrl,
   });
+
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
 
   // Card layout config (unique to data_list)
   const cl = config.cardLayout ?? defaultCardLayout;
@@ -104,6 +109,7 @@ export function DashletSettings({
       filter,
       sort,
       cardLayout,
+      plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
     });
     onClose();
   };
@@ -113,6 +119,14 @@ export function DashletSettings({
       pgrest={pg}
       dictionary={dictionary}
       labels={buildPgrestContentLabels(dictionary)}
+    />
+  );
+
+  const plannerContent = (
+    <PlannerVariableSelector
+      label="Variable"
+      value={plannerVariableName}
+      onChange={setPlannerVariableName}
     />
   );
 
@@ -180,6 +194,7 @@ export function DashletSettings({
       state={s}
       dictionary={dictionary}
       dataTabChildren={pgrestContent}
+      plannerContent={plannerContent}
       handlebarsColorKeys
     >
       {cardLayoutSection}

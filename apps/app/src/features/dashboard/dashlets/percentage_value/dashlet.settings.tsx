@@ -12,7 +12,7 @@ import {
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 
-type SimpleDataMode = "static" | "pgrest";
+type SimpleDataMode = "static" | "pgrest" | "planner";
 
 /** Field config for the three percentage_value text fields */
 const PERCENTAGE_FIELDS = [
@@ -35,9 +35,12 @@ export function DashletSettings({
   const [value, setValue] = useState(String(config.value ?? "6"));
   const [max, setMax] = useState(String(config.max ?? "10"));
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
+    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
       ? config.dataMode
       : "static",
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
   );
 
   // Snapshot of static field values, saved when entering pgrest mode
@@ -79,6 +82,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
     });
     onClose();
   };
@@ -109,6 +113,8 @@ export function DashletSettings({
       onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
     />
   );
 

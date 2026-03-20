@@ -14,7 +14,7 @@ import {
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 
-type LabeledDataMode = "static" | "pgrest";
+type LabeledDataMode = "static" | "pgrest" | "planner";
 
 /** Color options for ColorPickerDropdown */
 const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
@@ -51,6 +51,9 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<LabeledDataMode>(
     config.dataMode || "static"
   );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig(config, (detected) => {
@@ -73,6 +76,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
     });
     onClose();
   };
@@ -112,6 +116,8 @@ export function DashletSettings({
       onDataModeChange={(v) => setDataMode(v as LabeledDataMode)}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
     />
   );
 

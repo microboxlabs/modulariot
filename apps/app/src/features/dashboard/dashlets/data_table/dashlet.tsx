@@ -10,7 +10,7 @@ import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
-import { usePgrestRows } from "@/features/dashboard/dashlets/common/use-pgrest-rows";
+import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
@@ -30,7 +30,7 @@ import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlet
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "pgrest";
+  dataMode: "static" | "pgrest" | "planner";
   columns: TableColumn[];
   rows: Record<string, string>[];
   pgrestFunctionName: string;
@@ -39,6 +39,7 @@ export interface DashletConfig {
   filter: FilterConfig;
   sort: SortConfig;
   dataSourceId?: string;
+  plannerVariableName?: string;
 }
 
 // ============================================================================
@@ -148,17 +149,25 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestHttpMethod = "POST",
     sort = defaultSort,
     dataSourceId,
+    plannerVariableName,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
-  // ── PGREST data fetching ────────────────────────────────────────────────────
+  // ── Data fetching (pgrest or planner) ───────────────────────────────────────
   const {
-    rows: pgrestRows,
+    rows: fetchedRows,
     loading,
     fetchError,
-  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
+  } = useDashletData({
+    dataMode,
+    pgrestFunctionName,
+    pgrestHttpMethod,
+    pgrestParams,
+    dataSourceId,
+    plannerVariableName,
+  });
 
-  const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
+  const allRows = dataMode === "pgrest" || dataMode === "planner" ? fetchedRows : staticRows;
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {

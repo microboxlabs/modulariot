@@ -7,13 +7,14 @@ import { ChevronLeft } from "flowbite-react-icons/outline";
 import { HiArrowDownTray } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
+import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ShowNotification } from "@/features/notifications/notification";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "export" | "import" | null;
+type SettingOption = "rename" | "export" | "import" | "planner" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -540,6 +541,16 @@ export default function DashboardSettingsDropdown() {
             description="Restore from JSON file or text"
           >
             <ImportForm onImport={importDashboard} onClose={closePanel} />
+          </SettingsSection>
+
+          <SettingsSection
+            option="planner"
+            selected={selected}
+            setSelected={setSelected}
+            title="Request Planner"
+            description="Define shared data queries"
+          >
+            <PlannerManagerForm />
           </SettingsSection>
         </div>
       )}

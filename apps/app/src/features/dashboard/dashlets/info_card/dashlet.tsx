@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Button } from "flowbite-react";
+import { Button, Spinner } from "flowbite-react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -16,6 +16,8 @@ import {
   HiBolt,
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestRows } from "../common";
 import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 
 // ============================================================================
@@ -82,6 +84,11 @@ export interface DashletConfig {
   viewMoreUrl: string;
   /** Data provider entries for dynamic values */
   dataProvider?: DataProviderEntry[];
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 /** Default configuration */
@@ -112,15 +119,10 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Component
 // ============================================================================
 
+const EMPTY_PARAMS: PgrestParam[] = [];
+
 /**
  * Info Card Dashlet
- *
- * A comprehensive card displaying:
- * - Header: Title (left) + Icon (right)
- * - Body: Large value + Descriptor text
- * - Children Section: Optional nested dashlets for additional info
- * - AI Section: Placeholder for AI-generated summary
- * - Footer: Optional "View more" button (right-aligned)
  */
 export function Dashlet({
   widget,
@@ -139,13 +141,46 @@ export function Dashlet({
     dataProvider = [],
   } = config;
 
-  const templateContext = useMemo(() => buildDataProviderContext(dataProvider), [dataProvider]);
+  const dataMode = (config.dataMode as "static" | "pgrest") || "static";
 
-  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
-  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
-  const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
-  const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
-  const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
+  const { rows, loading, fetchError } = usePgrestRows(
+    dataMode,
+    config.pgrestFunctionName || "",
+    config.pgrestHttpMethod || "POST",
+    config.pgrestParams || EMPTY_PARAMS,
+    config.dataSourceId,
+  );
+
+  const templateContext = useMemo(() => {
+    const dpContext = buildDataProviderContext(dataProvider);
+    if (dataMode === "pgrest" && rows.length > 0) {
+      const firstRow = rows[0];
+      return { ...dpContext, row: firstRow, ...firstRow };
+    }
+    return dpContext;
+  }, [dataProvider, dataMode, rows]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const compiledTitle = resolveHandlebarsField(title, templateContext);
+  const compiledValue = resolveHandlebarsField(value, templateContext);
+  const compiledDescriptor = resolveHandlebarsField(descriptor, templateContext);
+  const compiledAiPlaceholder = resolveHandlebarsField(aiPlaceholder, templateContext);
+  const compiledViewMoreUrl = resolveHandlebarsField(viewMoreUrl, templateContext);
 
   const IconComponent = ICONS[icon] || ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;

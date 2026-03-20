@@ -111,3 +111,4 @@ export { useActiveProviders } from "./use-active-providers";
 export { DashletLoading, DashletError, parseResolvedNumber } from "./dashlet-states";
 export { DataProviderEntries } from "./data-provider-entries";
 export { type SimpleDataMode, useSimplePgrestSettings } from "./use-simple-pgrest-settings";
+export { type PgrestDashletFields, useDashletPgrest, useHybridPgrestContext } from "./use-dashlet-pgrest";

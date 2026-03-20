@@ -14,7 +14,7 @@ interface PgrestResolvedFieldsConfig {
   dataSourceId?: string;
 }
 
-interface PgrestResolvedFieldsResult {
+export interface PgrestResolvedFieldsResult {
   resolved: Record<string, string>;
   loading: boolean;
   fetchError: string | null;

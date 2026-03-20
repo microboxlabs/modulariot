@@ -47,6 +47,7 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 /** Default configuration */
@@ -179,6 +180,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       name: config.name || "Metric",
       value: config.value || "0",
     },
+    dataSourceId: config.dataSourceId,
   });
 
   const Icon = ICONS[iconType];

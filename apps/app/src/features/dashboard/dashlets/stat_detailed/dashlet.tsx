@@ -79,7 +79,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const change = value - previousValue;
   const changePercent = previousValue === 0 ? 0 : Number(((change / previousValue) * 100).toFixed(1));
-  const progressPercent = target > 0 ? Math.min(100, (value / target) * 100) : 0;
+  const progressPercent = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
   const isPositive = change >= 0;
 
   return (

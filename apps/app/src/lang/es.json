@@ -230,6 +230,7 @@
       },
       "sidebar": {
         "title": "Planificar viaje",
+        "assignmentTitle": "Asignar viaje",
         "servicesList": "Servicios del día",
         "noServiceSelected": "Seleccione un servicio del calendario para asignar conductor y vehículo",
         "selectServiceHint": "Seleccione un servicio para asignar conductor y vehículo",

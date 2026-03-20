@@ -576,7 +576,9 @@ export function PlanningSidebarClient({
           )}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {displayState.isFormActive
-              ? tr("pages.planning.sidebar.title", dict)
+              ? displayState.assigningService
+                ? tr("pages.planning.sidebar.assignmentTitle", dict)
+                : tr("pages.planning.sidebar.title", dict)
               : tr("pages.planning.sidebar.servicesList", dict)}
           </h2>
           {displayState.selectedService?.id && (

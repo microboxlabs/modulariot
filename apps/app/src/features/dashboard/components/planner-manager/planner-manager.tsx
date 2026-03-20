@@ -1,15 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash, HiChevronDown, HiChevronRight } from "react-icons/hi2";
-import type { PlannerRequestDefinition } from "../../types/dashboard.types";
+import type { PlannerRequestDefinition, PlannerParam } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
 import { PgrestFunctionAutocomplete } from "../../dashlets/common/pgrest-function-autocomplete";
 import { SettingsSelectField } from "../../dashlets/common/settings-fields";
+import { buildDataSourceParams } from "../../dashlets/common/pgrest-utils";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
+import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
+
+// ============================================================================
+// Introspection helper (mirrors use-pgrest-settings-state logic)
+// ============================================================================
+
+interface IntrospectionResult {
+  method: "POST" | "GET";
+  params: PlannerParam[];
+  paramHints: Record<string, string>;
+}
+
+async function introspectFunction(
+  functionName: string,
+  dataSourceId?: string,
+): Promise<IntrospectionResult | null> {
+  const fn = functionName.trim();
+  if (!fn) return null;
+
+  try {
+    const qs = buildDataSourceParams(dataSourceId);
+    qs.set("fn", fn);
+    const res = await fetch(`/app/api/dashboard/pgrest/openapi?${qs.toString()}`);
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      methods: string[];
+      parameters: { name: string; type: string; format: string }[];
+    };
+
+    const method = (data.methods[0] as "POST" | "GET") ?? "POST";
+    const params: PlannerParam[] = data.parameters.map((p) => ({
+      key: p.name,
+      value: "",
+    }));
+    const paramHints: Record<string, string> = {};
+    for (const p of data.parameters) {
+      paramHints[p.name] = p.format;
+    }
+
+    return { method, params, paramHints };
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
+// Data Source Option type
+// ============================================================================
+
+interface DataSourceOption {
+  id: string;
+  name: string;
+}
 
 // ============================================================================
 // Single Request Editor
@@ -19,12 +75,22 @@ interface RequestEditorProps {
   def: PlannerRequestDefinition;
   existingNames: string[];
   dictionary: I18nRecord;
+  activeProviders: DataSourceOption[];
   onUpdate: (id: string, partial: Partial<PlannerRequestDefinition>) => void;
   onRemove: (id: string) => void;
 }
 
-function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: Readonly<RequestEditorProps>) {
+function RequestEditor({
+  def,
+  existingNames,
+  dictionary,
+  activeProviders,
+  onUpdate,
+  onRemove,
+}: Readonly<RequestEditorProps>) {
   const [expanded, setExpanded] = useState(false);
+  const [introspecting, setIntrospecting] = useState(false);
+  const [paramHints, setParamHints] = useState<Record<string, string>>({});
 
   const nameError = (() => {
     if (!def.variableName) return "Required";
@@ -33,12 +99,42 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
     return null;
   })();
 
+  const handleFunctionSelect = useCallback(
+    async (fn: string) => {
+      setIntrospecting(true);
+      const result = await introspectFunction(fn, def.dataSourceId);
+      setIntrospecting(false);
+      if (result) {
+        onUpdate(def.id, {
+          pgrestFunctionName: fn,
+          pgrestHttpMethod: result.method,
+          pgrestParams: result.params,
+        });
+        setParamHints(result.paramHints);
+      }
+    },
+    [def.id, def.dataSourceId, onUpdate],
+  );
+
+  const handleDataSourceChange = useCallback(
+    (dsId: string) => {
+      onUpdate(def.id, {
+        dataSourceId: dsId || undefined,
+        pgrestFunctionName: "",
+        pgrestHttpMethod: "POST",
+        pgrestParams: [],
+      });
+      setParamHints({});
+    },
+    [def.id, onUpdate],
+  );
+
   return (
-    <div className="rounded border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-center justify-between p-2 text-left text-sm"
+        className="flex w-full items-center justify-between p-3 text-left text-sm"
       >
         <div className="flex items-center gap-2 min-w-0">
           {expanded ? (
@@ -53,6 +149,9 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
             <span className="truncate text-xs text-gray-500 dark:text-gray-400">
               → {def.pgrestFunctionName}
             </span>
+          )}
+          {introspecting && (
+            <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
           )}
         </div>
         <button
@@ -69,7 +168,8 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
       </button>
 
       {expanded && (
-        <div className="space-y-2 border-t border-gray-200 p-2 dark:border-gray-600">
+        <div className="space-y-3 border-t border-gray-200 p-3 dark:border-gray-600">
+          {/* Variable Name */}
           <div>
             <Label htmlFor={`planner-var-${def.id}`} className="mb-1 block text-xs font-medium">
               Variable Name
@@ -87,6 +187,34 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
             )}
           </div>
 
+          {/* Data Source Provider */}
+          <div>
+            <Label
+              htmlFor={`planner-ds-${def.id}`}
+              className="mb-1 block text-xs font-medium"
+            >
+              {tr("dashboard.settings.dataSourceProvider", dictionary)}
+            </Label>
+            <Select
+              id={`planner-ds-${def.id}`}
+              sizing="sm"
+              value={def.dataSourceId ?? ""}
+              onChange={(e) => handleDataSourceChange(e.target.value)}
+            >
+              <option value="">
+                {activeProviders.length === 0
+                  ? tr("dashboard.settings.noActiveProviders", dictionary)
+                  : tr("dashboard.settings.selectProvider", dictionary)}
+              </option>
+              {activeProviders.map((ds) => (
+                <option key={ds.id} value={ds.id}>
+                  {ds.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Function Name (autocomplete) */}
           <div>
             <Label htmlFor={`planner-fn-${def.id}`} className="mb-1 block text-xs font-medium">
               Function Name
@@ -95,12 +223,14 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
               id={`planner-fn-${def.id}`}
               value={def.pgrestFunctionName}
               onChange={(v) => onUpdate(def.id, { pgrestFunctionName: v })}
-              onSelect={(fn) => onUpdate(def.id, { pgrestFunctionName: fn })}
+              onSelect={handleFunctionSelect}
               dictionary={dictionary}
               dataSourceId={def.dataSourceId}
+              loading={introspecting}
             />
           </div>
 
+          {/* HTTP Method (auto-detected, still editable) */}
           <SettingsSelectField
             id={`planner-method-${def.id}`}
             label="HTTP Method"
@@ -112,6 +242,7 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
             ]}
           />
 
+          {/* Parameters (auto-populated with hints) */}
           <div>
             <Label className="mb-1 block text-xs font-medium">Parameters</Label>
             <div className="space-y-1">
@@ -130,7 +261,7 @@ function RequestEditor({ def, existingNames, dictionary, onUpdate, onRemove }: R
                   />
                   <TextInput
                     sizing="sm"
-                    placeholder="Value"
+                    placeholder={paramHints[p.key] ?? "Value"}
                     value={p.value}
                     onChange={(e) => {
                       const params = [...def.pgrestParams];
@@ -185,7 +316,14 @@ export function PlannerManagerForm() {
     updatePlannerRequest,
     removePlannerRequest,
     dictionary,
+    siteId,
   } = useDashboard();
+
+  const { dataSources } = useDataSources(siteId ?? undefined);
+
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true,
+  );
 
   const existingNames = plannerDefinitions.map((d) => d.variableName);
 
@@ -217,6 +355,7 @@ export function PlannerManagerForm() {
             def={def}
             existingNames={existingNames}
             dictionary={dictionary}
+            activeProviders={activeProviders}
             onUpdate={updatePlannerRequest}
             onRemove={removePlannerRequest}
           />

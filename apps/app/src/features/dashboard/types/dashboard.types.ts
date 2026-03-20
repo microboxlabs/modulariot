@@ -78,6 +78,8 @@ export interface PlannerRequestDefinition {
   pgrestParams: PlannerParam[];
   /** Optional data source ID */
   dataSourceId?: string;
+  /** Persisted response column keys (populated on successful fetch) */
+  schema?: string[];
 }
 
 /** Versioned storage schema for dashboard config (supports migrations) */

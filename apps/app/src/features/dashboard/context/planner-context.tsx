@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useState,
   useEffect,
   useMemo,
@@ -42,15 +43,32 @@ const PlannerContext = createContext<PlannerContextValue | null>(null);
 // ============================================================================
 
 export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
-  const { plannerDefinitions } = useDashboard();
+  const { plannerDefinitions, updatePlannerRequest } = useDashboard();
   const [results, setResults] = useState<Map<string, PlannerQueryResult>>(
     () => new Map()
   );
 
-  // Serialize definitions to detect config changes
+  // Persist schema into the definition when it changes after a successful fetch
+  const persistSchema = useCallback(
+    (defId: string, newSchema: string[], currentSchema?: string[]) => {
+      const same =
+        currentSchema &&
+        currentSchema.length === newSchema.length &&
+        currentSchema.every((k, i) => k === newSchema[i]);
+      if (!same) {
+        updatePlannerRequest(defId, { schema: newSchema });
+      }
+    },
+    [updatePlannerRequest],
+  );
+
+  // Serialize definitions to detect config changes (exclude schema to avoid loops)
   const definitionsKey = useMemo(
-    () => JSON.stringify(plannerDefinitions),
-    [plannerDefinitions]
+    () =>
+      JSON.stringify(
+        plannerDefinitions.map(({ schema: _s, ...rest }) => rest),
+      ),
+    [plannerDefinitions],
   );
 
   useEffect(() => {
@@ -92,6 +110,12 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data: unknown = await res.json();
             const rows = parseRows(data, { singleObjectFallback: true });
+
+            // Persist discovered schema into the definition
+            if (rows.length > 0) {
+              persistSchema(def.id, Object.keys(rows[0]), def.schema);
+            }
+
             return [def.variableName, { rows, loading: false, error: null }];
           } catch (err) {
             return [
@@ -119,16 +143,20 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definitionsKey]);
 
-  // Derive column schemas from the first row of each result
+  // Derive column schemas from the first row of each result,
+  // falling back to the persisted schema stored in the definition.
   const schemas = useMemo(() => {
     const map = new Map<string, string[]>();
-    for (const [varName, result] of results) {
-      if (result.rows.length > 0) {
-        map.set(varName, Object.keys(result.rows[0]));
+    for (const def of plannerDefinitions) {
+      const result = results.get(def.variableName);
+      if (result && result.rows.length > 0) {
+        map.set(def.variableName, Object.keys(result.rows[0]));
+      } else if (def.schema?.length) {
+        map.set(def.variableName, def.schema);
       }
     }
     return map;
-  }, [results]);
+  }, [results, plannerDefinitions]);
 
   const value = useMemo<PlannerContextValue>(
     () => ({ results, definitions: plannerDefinitions, schemas }),

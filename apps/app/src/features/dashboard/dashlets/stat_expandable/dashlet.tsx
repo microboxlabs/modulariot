@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useState, useMemo } from "react";
+import { Spinner } from "flowbite-react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestResolvedFields } from "../common";
+
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Configuration Types
@@ -10,14 +15,19 @@ import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 
 export interface DashletConfig {
   title: string;
-  value: number;
+  value: string;
   unit: string;
   details: { label: string; value: string }[];
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Conversion Rate",
-  value: 3.24,
+  value: "3.24",
   unit: "%",
   details: [
     { label: "Visitors", value: "12,847" },
@@ -45,8 +55,47 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, unit, details } = config;
+  const details = config.details || defaultConfig.details;
   const [expanded, setExpanded] = useState(false);
+
+  const fields = useMemo(
+    () => ({
+      title: config.title || "Conversion Rate",
+      value: String(config.value ?? "3.24"),
+      unit: config.unit ?? "%",
+    }),
+    [config.title, config.value, config.unit],
+  );
+
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    fields,
+    dataSourceId: config.dataSourceId,
+  });
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const title = resolved.title || "Conversion Rate";
+  const unit = resolved.unit ?? "%";
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const displayValue = Number.isFinite(parsedValue) ? parsedValue : resolved.value;
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
@@ -56,7 +105,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           {title}
         </p>
         <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
-          {value}
+          {displayValue}
           <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>
         </p>
       </div>

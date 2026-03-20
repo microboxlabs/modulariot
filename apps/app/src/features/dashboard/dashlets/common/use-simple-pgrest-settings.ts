@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { fromPgrestParamItems } from "./pgrest-types";
 import { usePgrestSettingsState } from "./use-pgrest-settings-state";

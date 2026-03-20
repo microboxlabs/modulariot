@@ -11,6 +11,8 @@ import {
   PgrestDataTab,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 type SimpleDataMode = "static" | "pgrest";
 
@@ -31,6 +33,12 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const { siteId } = useDashboard();
+  const { dataSources } = useDataSources(siteId ?? undefined);
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true
+  );
+
   const [title, setTitle] = useState(config.title || "Progress");
   const [value, setValue] = useState(String(config.value ?? "6"));
   const [max, setMax] = useState(String(config.max ?? "10"));
@@ -38,6 +46,9 @@ export function DashletSettings({
     config.dataMode === "static" || config.dataMode === "pgrest"
       ? config.dataMode
       : "static",
+  );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
   );
 
   // Snapshot of static field values, saved when entering pgrest mode
@@ -57,7 +68,7 @@ export function DashletSettings({
   };
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig(config, (detected) => {
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
       if (detected.length >= 1) {
         setTitle(`{{row.${detected[0].key}}}`);
       }
@@ -79,6 +90,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -109,6 +121,9 @@ export function DashletSettings({
       onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
     />
   );
 

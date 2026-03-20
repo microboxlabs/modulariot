@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
@@ -11,16 +11,11 @@ import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } f
 
 export type GradientColor = "blue" | "green" | "red" | "yellow" | "purple";
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
   value: string;
   unit: string;
   color: GradientColor;
-  dataMode?: string;
-  pgrestFunctionName?: string;
-  pgrestParams?: PgrestParam[];
-  pgrestHttpMethod?: PgrestHttpMethod;
-  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {

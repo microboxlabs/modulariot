@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestDashletFields } from "../common";
 import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import {
@@ -82,18 +82,13 @@ export const COLOR_OPTIONS: ColorOption[] = [
   { id: "gray", label: "Gray" },
 ];
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
   value: string;
   subtitle?: string;
   color: StatusColor;
   icon: StatusIcon;
   dataProvider?: DataProviderEntry[];
-  dataMode?: string;
-  pgrestFunctionName?: string;
-  pgrestParams?: PgrestParam[];
-  pgrestHttpMethod?: PgrestHttpMethod;
-  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {

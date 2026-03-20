@@ -4,7 +4,7 @@ import { EMPTY_PGREST_PARAMS } from "./pgrest-types";
 import type { DataProviderEntry } from "../types";
 import { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 import { usePgrestRows } from "./use-pgrest-rows";
-import { resolveHandlebarsField, buildDataProviderContext } from "./use-handlebars-templates";
+import { buildDataProviderContext } from "./use-handlebars-templates";
 
 // ============================================================================
 // Shared pgrest config interface

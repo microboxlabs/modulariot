@@ -13,6 +13,7 @@ import {
   IconColorPickerRow,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
 type LabeledDataMode = "static" | "pgrest" | "planner";
 
@@ -55,6 +56,12 @@ export function DashletSettings({
     config.plannerVariableName ?? ""
   );
 
+  const { schemas } = usePlannerContext();
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig(config, (detected) => {
       if (detected.length >= 1) {
@@ -81,7 +88,7 @@ export function DashletSettings({
     onClose();
   };
 
-  const isPgrest = dataMode === "pgrest";
+  const isPgrest = dataMode !== "static";
 
   const fieldValues: Record<string, string> = { name, value };
   const fieldSetters: Record<string, (v: string) => void> = {
@@ -97,6 +104,7 @@ export function DashletSettings({
         fieldSetters={fieldSetters}
         isPgrest={isPgrest}
         dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
       />
       <IconColorPickerRow
         icon={icon}

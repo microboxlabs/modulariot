@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
@@ -47,7 +46,11 @@ export function useFieldState(
     for (const f of fields) {
       const v = config[f.state];
       result[f.state] =
-        v == null || typeof v === "object" ? f.staticPlaceholder : String(v);
+        typeof v === "string"
+          ? v
+          : typeof v === "number" || typeof v === "boolean"
+            ? String(v)
+            : f.staticPlaceholder;
     }
     return result;
   });

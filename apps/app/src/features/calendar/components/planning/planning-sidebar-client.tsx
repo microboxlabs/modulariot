@@ -516,6 +516,44 @@ export function PlanningSidebarClient({
       }
     : stateSnapshotRef.current;
 
+  // Determine which header button to show based on current mode
+  const isInSpecialMode =
+    displayState.reassigningService !== null ||
+    displayState.assigningService !== null;
+  const showCloseButton = !displayState.isFormActive || isInSpecialMode;
+
+  const headerButton = showCloseButton ? (
+    <button
+      type="button"
+      onClick={handleCancel}
+      className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+      aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
+    >
+      <HiX className="w-5 h-5" />
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={handleBack}
+      className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+      aria-label={tr("pages.planning.sidebar.form.back", dict)}
+    >
+      <HiArrowLeft className="w-5 h-5" />
+    </button>
+  );
+
+  // Determine the header title based on current mode
+  const getHeaderTitle = (): string => {
+    if (!displayState.isFormActive) {
+      return tr("pages.planning.sidebar.servicesList", dict);
+    }
+    if (displayState.assigningService) {
+      return tr("pages.planning.sidebar.assignmentTitle", dict);
+    }
+    return tr("pages.planning.sidebar.title", dict);
+  };
+  const headerTitle = getHeaderTitle();
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
       {/* Selected slot display */}
@@ -541,45 +579,9 @@ export function PlanningSidebarClient({
       {/* Header */}
       <div className="px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 h-10">
-          {displayState.isFormActive ? (
-            displayState.reassigningService !== null ||
-            displayState.assigningService !== null ? (
-              // During reassignment/assignment: show X to close sidebar directly
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-                aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
-              >
-                <HiX className="w-5 h-5" />
-              </button>
-            ) : (
-              // Normal mode: show back arrow to return to services list
-              <button
-                type="button"
-                onClick={handleBack}
-                className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-                aria-label={tr("pages.planning.sidebar.form.back", dict)}
-              >
-                <HiArrowLeft className="w-5 h-5" />
-              </button>
-            )
-          ) : (
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="p-1 -ml-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
-              aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
-            >
-              <HiX className="w-5 h-5" />
-            </button>
-          )}
+          {headerButton}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {displayState.isFormActive
-              ? displayState.assigningService
-                ? tr("pages.planning.sidebar.assignmentTitle", dict)
-                : tr("pages.planning.sidebar.title", dict)
-              : tr("pages.planning.sidebar.servicesList", dict)}
+            {headerTitle}
           </h2>
           {displayState.selectedService?.id && (
             <span className="text-sm font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">

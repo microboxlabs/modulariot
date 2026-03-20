@@ -67,7 +67,7 @@ export function useHybridPgrestContext(
     const dpContext = buildDataProviderContext(dataProvider);
     if (dataMode === "pgrest" && rows.length > 0) {
       const firstRow = rows[0];
-      return { ...dpContext, row: firstRow, ...firstRow };
+      return { ...dpContext, ...firstRow, row: firstRow };
     }
     return dpContext;
   }, [dataProvider, dataMode, rows]);

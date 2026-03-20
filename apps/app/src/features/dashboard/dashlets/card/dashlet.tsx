@@ -46,6 +46,7 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 /** Default configuration */
@@ -133,6 +134,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       value: config.value || "0",
       descriptor: config.descriptor || "",
     },
+    dataSourceId: config.dataSourceId,
   });
 
   const { name, value, descriptor } = resolved;

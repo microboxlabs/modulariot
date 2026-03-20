@@ -16,6 +16,8 @@ import {
   IconColorPickerRow,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 type CardDataMode = "static" | "pgrest";
 
@@ -51,6 +53,12 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const { siteId } = useDashboard();
+  const { dataSources } = useDataSources(siteId ?? undefined);
+  const activeProviders = dataSources.filter(
+    (ds) => ds.isActive === true && ds.lastTestResult === true
+  );
+
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
   const [descriptor, setDescriptor] = useState(config.descriptor || "");
@@ -61,9 +69,12 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<CardDataMode>(
     config.dataMode || "static"
   );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig(config, (detected) => {
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
       if (detected.length >= 1) {
         setName(`{{row.${detected[0].key}}}`);
       }
@@ -87,6 +98,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -138,6 +150,9 @@ export function DashletSettings({
           pgrest={pg}
           dictionary={dictionary}
           labels={buildPgrestContentLabels(dictionary)}
+          dataSourceId={dataSourceId}
+          onDataSourceIdChange={setDataSourceId}
+          activeProviders={activeProviders}
         />
       )}
     </>

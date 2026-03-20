@@ -18,9 +18,8 @@ import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
+import { useActiveProviders } from "../common";
 import { tr } from "@/features/i18n/tr.service";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 export function DashletSettings({
   isOpen,
@@ -29,11 +28,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const { siteId } = useDashboard();
-  const { dataSources } = useDataSources(siteId ?? undefined);
-  const activeProviders = dataSources.filter(
-    (ds) => ds.isActive === true && ds.lastTestResult === true
-  );
+  const activeProviders = useActiveProviders();
 
   const s = useSettingsState({
     title: config.title,

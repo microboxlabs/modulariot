@@ -1,13 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Spinner } from "flowbite-react";
 import { HiArrowTrendingUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestResolvedFields } from "../common";
-
-const EMPTY_PARAMS: PgrestParam[] = [];
+import { usePgrestResolvedFields, EMPTY_PGREST_PARAMS, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -71,38 +68,21 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataMode: (config.dataMode as "static" | "pgrest") || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    pgrestParams: config.pgrestParams || EMPTY_PGREST_PARAMS,
     fields,
     dataSourceId: config.dataSourceId,
   });
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        <Spinner size="sm" />
-      </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
-      </div>
-    );
-  }
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
 
   const title = resolved.title || "Monthly Revenue";
   const unit = resolved.unit ?? "$";
   const description = resolved.description || "";
 
-  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
-  const parsedPrev = resolved.previousValue === "" || resolved.previousValue == null ? Number.NaN : Number(resolved.previousValue);
-  const parsedTarget = resolved.target === "" || resolved.target == null ? Number.NaN : Number(resolved.target);
-
-  const value = Number.isFinite(parsedValue) ? parsedValue : 0;
-  const previousValue = Number.isFinite(parsedPrev) ? parsedPrev : 0;
-  const target = Number.isFinite(parsedTarget) ? parsedTarget : 1;
+  const value = parseResolvedNumber(resolved.value);
+  const previousValue = parseResolvedNumber(resolved.previousValue);
+  const target = parseResolvedNumber(resolved.target, 1);
 
   const change = value - previousValue;
   const changePercent = previousValue === 0 ? 0 : Number(((change / previousValue) * 100).toFixed(1));

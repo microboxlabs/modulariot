@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Button, Spinner } from "flowbite-react";
+import { Button } from "flowbite-react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -17,7 +17,7 @@ import {
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestRows } from "../common";
+import { usePgrestRows, EMPTY_PGREST_PARAMS, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 
 // ============================================================================
@@ -119,8 +119,6 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Component
 // ============================================================================
 
-const EMPTY_PARAMS: PgrestParam[] = [];
-
 /**
  * Info Card Dashlet
  */
@@ -147,7 +145,7 @@ export function Dashlet({
     dataMode,
     config.pgrestFunctionName || "",
     config.pgrestHttpMethod || "POST",
-    config.pgrestParams || EMPTY_PARAMS,
+    config.pgrestParams || EMPTY_PGREST_PARAMS,
     config.dataSourceId,
   );
 
@@ -160,27 +158,14 @@ export function Dashlet({
     return dpContext;
   }, [dataProvider, dataMode, rows]);
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        <Spinner size="sm" />
-      </div>
-    );
-  }
+  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
+  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
+  const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
+  const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
+  const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
 
-  if (fetchError) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
-      </div>
-    );
-  }
-
-  const compiledTitle = resolveHandlebarsField(title, templateContext);
-  const compiledValue = resolveHandlebarsField(value, templateContext);
-  const compiledDescriptor = resolveHandlebarsField(descriptor, templateContext);
-  const compiledAiPlaceholder = resolveHandlebarsField(aiPlaceholder, templateContext);
-  const compiledViewMoreUrl = resolveHandlebarsField(viewMoreUrl, templateContext);
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
 
   const IconComponent = ICONS[icon] || ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;

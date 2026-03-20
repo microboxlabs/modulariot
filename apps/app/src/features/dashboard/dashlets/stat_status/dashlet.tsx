@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestRows } from "../common";
+import { usePgrestRows, EMPTY_PGREST_PARAMS, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 import {
   HiWrench,
@@ -160,7 +159,6 @@ const COLOR_MAP: Record<
 };
 
 const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
-const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Component
@@ -183,7 +181,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataMode,
     config.pgrestFunctionName || "",
     config.pgrestHttpMethod || "POST",
-    config.pgrestParams || EMPTY_PARAMS,
+    config.pgrestParams || EMPTY_PGREST_PARAMS,
     config.dataSourceId,
   );
 
@@ -196,25 +194,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return dpContext;
   }, [dataProvider, dataMode, rows]);
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        <Spinner size="sm" />
-      </div>
-    );
-  }
+  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
+  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
+  const compiledSubtitle = useMemo(() => {
+    if (!subtitle) return "";
+    return resolveHandlebarsField(subtitle, templateContext);
+  }, [subtitle, templateContext]);
 
-  if (fetchError) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
-      </div>
-    );
-  }
-
-  const compiledTitle = resolveHandlebarsField(title, templateContext);
-  const compiledValue = resolveHandlebarsField(value, templateContext);
-  const compiledSubtitle = subtitle ? resolveHandlebarsField(subtitle, templateContext) : "";
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
 
   const colors = COLOR_MAP[color] ?? COLOR_MAP.gray;
   const IconComponent = ICONS[icon] ?? ICONS.check;

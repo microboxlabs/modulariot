@@ -11,10 +11,9 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   IconColorPickerRow,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 type LabeledDataMode = "static" | "pgrest";
 
@@ -46,11 +45,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const { siteId } = useDashboard();
-  const { dataSources } = useDataSources(siteId ?? undefined);
-  const activeProviders = dataSources.filter(
-    (ds) => ds.isActive === true && ds.lastTestResult === true
-  );
+  const activeProviders = useActiveProviders();
 
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");

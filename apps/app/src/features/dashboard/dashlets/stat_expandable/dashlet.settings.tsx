@@ -5,12 +5,7 @@ import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import {
-  HbTextFieldList,
-  PgrestDataTab,
-  useSimplePgrestSettings,
-} from "../common";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SimpleDashletSettings } from "../common";
 
 interface DetailWithId {
   id: string;
@@ -24,20 +19,11 @@ const FIELDS = [
   { id: "se-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
 ] as const;
 
-const FIELD_NAMES = ["title", "value", "unit"] as const;
+export function DashletSettings(
+  props: Readonly<DashletSettingsProps<DashletConfig>>,
+) {
+  const { config } = props;
 
-export function DashletSettings({
-  isOpen,
-  onClose,
-  config,
-  onSave,
-  dictionary,
-}: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const [title, setTitle] = useState(config.title || "Conversion Rate");
-  const [value, setValue] = useState(String(config.value ?? "3.24"));
-  const [unit, setUnit] = useState(config.unit ?? "%");
-
-  // Initialize details with unique IDs
   const initializeDetails = (): DetailWithId[] => {
     const defaultDetails = [
       { label: "Visitors", value: "12,847" },
@@ -51,37 +37,6 @@ export function DashletSettings({
 
   const [details, setDetails] = useState(initializeDetails);
 
-  const fieldValues = { title, value, unit };
-  const fieldSetters = { title: setTitle, value: setValue, unit: setUnit };
-
-  const {
-    isPgrest,
-    activeProviders,
-    dataMode,
-    dataSourceId,
-    setDataSourceId,
-    pg,
-    handleDataModeChange,
-    pgrestSaveFields,
-  } = useSimplePgrestSettings({
-    config,
-    fieldNames: FIELD_NAMES,
-    fieldValues,
-    fieldSetters,
-  });
-
-  const handleSave = () => {
-    const detailsToSave = details.map(({ label, value }) => ({ label, value }));
-    onSave({
-      title: title.trim() || "Conversion Rate",
-      value: value.trim() || "3.24",
-      unit: unit.trim() || "%",
-      details: detailsToSave,
-      ...pgrestSaveFields,
-    });
-    onClose();
-  };
-
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
   const addDetail = () =>
@@ -94,82 +49,58 @@ export function DashletSettings({
     setDetails(details.map((d) => (d.id === id ? { ...d, [field]: val } : d)));
   };
 
-  const visualizationTab = (
-    <>
-      <HbTextFieldList
-        fields={FIELDS}
-        fieldValues={fieldValues}
-        fieldSetters={fieldSetters}
-        isPgrest={isPgrest}
-        dictionary={dictionary}
-      />
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Expandable Details</Label>
-          <Button
-            size="xs"
-            color="light"
-            onClick={addDetail}
-            onMouseDown={handleMouseDown}
-            className="no-drag"
-          >
-            <HiPlus className="mr-1 h-3 w-3" />
-            Add
-          </Button>
-        </div>
-        {details.map((d) => (
-          <div key={d.id} className="flex items-center gap-2">
-            <TextInput
-              value={d.label}
-              onChange={(e) => updateDetail(d.id, "label", e.target.value)}
-              placeholder="Label"
-              sizing="sm"
-              className="flex-1"
-            />
-            <TextInput
-              value={d.value}
-              onChange={(e) => updateDetail(d.id, "value", e.target.value)}
-              placeholder="Value"
-              sizing="sm"
-              className="flex-1"
-            />
+  return (
+    <SimpleDashletSettings
+      fields={FIELDS}
+      idPrefix="se"
+      settingsProps={props}
+      extraSaveFields={{
+        details: details.map(({ label, value }) => ({ label, value })),
+      }}
+      extraVisualization={
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Expandable Details</Label>
             <Button
               size="xs"
-              color="failure"
-              onClick={() => removeDetail(d.id)}
+              color="light"
+              onClick={addDetail}
               onMouseDown={handleMouseDown}
               className="no-drag"
             >
-              <HiTrash className="h-3 w-3" />
+              <HiPlus className="mr-1 h-3 w-3" />
+              Add
             </Button>
           </div>
-        ))}
-      </div>
-    </>
-  );
-
-  const dataTab = (
-    <PgrestDataTab
-      id="se-data-mode"
-      dataMode={dataMode}
-      onDataModeChange={handleDataModeChange}
-      pgrest={pg}
-      dictionary={dictionary}
-      dataSourceId={dataSourceId}
-      onDataSourceIdChange={setDataSourceId}
-      activeProviders={activeProviders}
-    />
-  );
-
-  return (
-    <SettingsModalShell
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={handleSave}
-      dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
+          {details.map((d) => (
+            <div key={d.id} className="flex items-center gap-2">
+              <TextInput
+                value={d.label}
+                onChange={(e) => updateDetail(d.id, "label", e.target.value)}
+                placeholder="Label"
+                sizing="sm"
+                className="flex-1"
+              />
+              <TextInput
+                value={d.value}
+                onChange={(e) => updateDetail(d.id, "value", e.target.value)}
+                placeholder="Value"
+                sizing="sm"
+                className="flex-1"
+              />
+              <Button
+                size="xs"
+                color="failure"
+                onClick={() => removeDetail(d.id)}
+                onMouseDown={handleMouseDown}
+                className="no-drag"
+              >
+                <HiTrash className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      }
     />
   );
 }

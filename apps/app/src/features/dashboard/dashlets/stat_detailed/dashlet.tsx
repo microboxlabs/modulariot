@@ -82,7 +82,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const value = parseResolvedNumber(resolved.value);
   const previousValue = parseResolvedNumber(resolved.previousValue);
-  const target = parseResolvedNumber(resolved.target, 1);
+  const target = parseResolvedNumber(resolved.target);
 
   const change = value - previousValue;
   const changePercent = previousValue === 0 ? 0 : Number(((change / previousValue) * 100).toFixed(1));

@@ -619,7 +619,7 @@ export function PlanningSidebarClient({
                 <HiSwitchHorizontal className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                    Reasignando servicio
+                    {tr("pages.planning.sidebar.reassignment.title", dict)}
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400 truncate">
                     {displayState.reassigningService.service.service.id}
@@ -677,7 +677,7 @@ export function PlanningSidebarClient({
 
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
               {displayState.reassigningService
-                ? "Seleccione una fecha y hora en el calendario para reasignar"
+                ? tr("pages.planning.sidebar.reassignment.hint", dict)
                 : tr("pages.planning.sidebar.selectServiceHint", dict)}
             </p>
           </div>

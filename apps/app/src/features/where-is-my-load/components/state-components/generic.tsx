@@ -17,7 +17,6 @@ import { FaTrailer } from "react-icons/fa6";
 // Fields that are used internally and should not be displayed
 const HIDDEN_EXTRADATA_KEYS = new Set(["delivered"]);
 
-// TODO: This component should be used for the "extradata" section
 export const EXTRADATA_ICONS_KEYS: Record<string, React.ReactNode> = {
   source: <FaBox className="h-4 w-4" />,
   terminal: <FaMapMarkerAlt className="h-4 w-4" />,

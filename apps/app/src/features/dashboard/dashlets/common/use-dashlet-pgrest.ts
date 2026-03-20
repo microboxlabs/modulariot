@@ -46,7 +46,8 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
     const result: Record<string, string> = {};
     for (const key of fieldKeys) {
       const v = configRecord[key];
-      result[key] = v != null ? String(v) : fieldDefaults[key];
+      result[key] =
+        v == null || typeof v === "object" ? fieldDefaults[key] : String(v);
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps

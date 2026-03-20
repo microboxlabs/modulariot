@@ -26,11 +26,32 @@ export interface PgrestDashletFields {
 /**
  * Wraps usePgrestResolvedFields with config-level defaults.
  * Used by card-style dashlets that resolve scalar Handlebars fields.
+ *
+ * Accepts a `fieldDefaults` record (e.g. `{ title: "Metric", value: "0" }`)
+ * and builds the memoized fields internally from config values, so each
+ * dashlet component only needs a single hook call.
  */
-export function useDashletPgrest(
-  config: PgrestDashletFields,
-  fields: Record<string, string>,
+export function useDashletPgrest<C extends PgrestDashletFields>(
+  config: C,
+  fieldDefaults: Record<string, string>,
 ) {
+  const fieldKeys = Object.keys(fieldDefaults);
+
+  // Build a stable dep string from the config values matching field keys
+  const configRecord = config as unknown as Record<string, unknown>;
+  const depValues = fieldKeys.map((k) => configRecord[k]);
+  const depKey = JSON.stringify(depValues);
+
+  const fields = useMemo(() => {
+    const result: Record<string, string> = {};
+    for (const key of fieldKeys) {
+      const v = configRecord[key];
+      result[key] = v != null ? String(v) : fieldDefaults[key];
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depKey]);
+
   return usePgrestResolvedFields({
     dataMode: (config.dataMode as "static" | "pgrest") || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",

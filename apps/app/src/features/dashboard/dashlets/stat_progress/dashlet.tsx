@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
@@ -32,6 +31,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Quarterly Goal", value: "78", target: "100", unit: "%" };
+
 // ============================================================================
 // Component - Style 7: Progress Bar
 // ============================================================================
@@ -52,17 +53,7 @@ function getBarColor(percentage: number): string {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Quarterly Goal",
-      value: String(config.value ?? "78"),
-      target: String(config.target ?? "100"),
-      unit: config.unit ?? "%",
-    }),
-    [config.title, config.value, config.target, config.unit],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

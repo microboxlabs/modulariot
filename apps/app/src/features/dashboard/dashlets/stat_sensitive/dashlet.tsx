@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
@@ -33,6 +33,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Account Balance", value: "125847.32", unit: "$" };
+
 // ============================================================================
 // Component - Style 10: Sensitive Data (Hidden by default)
 // ============================================================================
@@ -45,16 +47,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const isSensitive = config.isSensitive ?? true;
   const [isHidden, setIsHidden] = useState(isSensitive);
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Account Balance",
-      value: String(config.value ?? "125847.32"),
-      unit: config.unit ?? "$",
-    }),
-    [config.title, config.value, config.unit],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

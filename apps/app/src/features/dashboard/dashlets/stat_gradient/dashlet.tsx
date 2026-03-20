@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
@@ -34,6 +33,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Active Users", value: "2847", unit: "" };
+
 const COLORS = {
   blue: "from-blue-500 to-blue-600",
   green: "from-green-500 to-green-600",
@@ -52,16 +53,7 @@ const COLORS = {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Active Users",
-      value: String(config.value ?? "2847"),
-      unit: config.unit ?? "",
-    }),
-    [config.title, config.value, config.unit],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

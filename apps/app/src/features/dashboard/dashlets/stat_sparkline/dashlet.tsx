@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
@@ -32,6 +31,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Page Views", value: "24567", unit: "" };
+
 // ============================================================================
 // Component - Style 9: Sparkline
 // ============================================================================
@@ -43,16 +44,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const sparkline = config.sparkline || defaultConfig.sparkline;
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Page Views",
-      value: String(config.value ?? "24567"),
-      unit: config.unit ?? "",
-    }),
-    [config.title, config.value, config.unit],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

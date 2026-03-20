@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { HiShoppingCart } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
@@ -33,6 +32,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Orders", value: "156", unit: "", subtitle: "Last 24 hours" };
+
 // ============================================================================
 // Component - Style 4: Icon Accent
 // ============================================================================
@@ -43,17 +44,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Orders",
-      value: String(config.value ?? "156"),
-      unit: config.unit ?? "",
-      subtitle: config.subtitle || "Last 24 hours",
-    }),
-    [config.title, config.value, config.unit, config.subtitle],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
@@ -45,6 +44,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Traffic Sources", unit: "%" };
+
 // ============================================================================
 // Component - Style 8: Stacked Bars
 // ============================================================================
@@ -56,15 +57,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const { items, showHeader = true } = config;
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Traffic Sources",
-      unit: config.unit ?? "%",
-    }),
-    [config.title, config.unit],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

@@ -1,19 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {
   HbTextFieldList,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
   PgrestDataTab,
-  useActiveProviders,
+  useSimplePgrestSettings,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-
-type SimpleDataMode = "static" | "pgrest";
 
 const FIELDS = [
   { id: "si-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Orders" },
@@ -22,6 +17,8 @@ const FIELDS = [
   { id: "si-subtitle", labelKey: "common.subtitle", state: "subtitle", hbPlaceholder: "{{row.subtitle}}", staticPlaceholder: "Last 24 hours" },
 ] as const;
 
+const FIELD_NAMES = ["title", "value", "unit", "subtitle"] as const;
+
 export function DashletSettings({
   isOpen,
   onClose,
@@ -29,41 +26,28 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const activeProviders = useActiveProviders();
   const [title, setTitle] = useState(config.title || "Orders");
   const [value, setValue] = useState(String(config.value ?? "156"));
   const [unit, setUnit] = useState(config.unit ?? "");
   const [subtitle, setSubtitle] = useState(config.subtitle || "Last 24 hours");
-  const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
-      ? config.dataMode
-      : "static",
-  );
-  const [dataSourceId, setDataSourceId] = useState<string>(
-    config.dataSourceId ?? ""
-  );
 
-  const staticSnapshot = useRef({ title, value, unit, subtitle });
+  const fieldValues = { title, value, unit, subtitle };
+  const fieldSetters = { title: setTitle, value: setValue, unit: setUnit, subtitle: setSubtitle };
 
-  const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
-      staticSnapshot.current = { title, value, unit, subtitle };
-    } else if (mode === "static" && dataMode === "pgrest") {
-      setTitle(staticSnapshot.current.title);
-      setValue(staticSnapshot.current.value);
-      setUnit(staticSnapshot.current.unit);
-      setSubtitle(staticSnapshot.current.subtitle);
-    }
-    setDataMode(mode);
-  };
-
-  const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
-      if (detected.length >= 3) setUnit(`{{row.${detected[2].key}}}`);
-      if (detected.length >= 4) setSubtitle(`{{row.${detected[3].key}}}`);
-    }),
+  const {
+    isPgrest,
+    activeProviders,
+    dataMode,
+    dataSourceId,
+    setDataSourceId,
+    pg,
+    handleDataModeChange,
+    pgrestSaveFields,
+  } = useSimplePgrestSettings({
+    config,
+    fieldNames: FIELD_NAMES,
+    fieldValues,
+    fieldSetters,
   });
 
   const handleSave = () => {
@@ -72,23 +56,9 @@ export function DashletSettings({
       value: value.trim() || "156",
       unit: unit.trim(),
       subtitle: subtitle.trim(),
-      dataMode,
-      pgrestFunctionName: pg.pgrestFunctionName,
-      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
-      pgrestHttpMethod: pg.pgrestHttpMethod,
-      dataSourceId: dataSourceId || undefined,
+      ...pgrestSaveFields,
     });
     onClose();
-  };
-
-  const isPgrest = dataMode === "pgrest";
-
-  const fieldValues: Record<string, string> = { title, value, unit, subtitle };
-  const fieldSetters: Record<string, (v: string) => void> = {
-    title: setTitle,
-    value: setValue,
-    unit: setUnit,
-    subtitle: setSubtitle,
   };
 
   const visualizationTab = (

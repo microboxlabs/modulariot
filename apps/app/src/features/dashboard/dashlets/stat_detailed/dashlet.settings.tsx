@@ -1,19 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {
   HbTextFieldList,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
   PgrestDataTab,
-  useActiveProviders,
+  useSimplePgrestSettings,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-
-type SimpleDataMode = "static" | "pgrest";
 
 const FIELDS = [
   { id: "sd-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Monthly Revenue" },
@@ -24,6 +19,8 @@ const FIELDS = [
   { id: "sd-target", labelKey: "common.target", state: "target", hbPlaceholder: "{{row.target}}", staticPlaceholder: "100000" },
 ] as const;
 
+const FIELD_NAMES = ["title", "value", "previousValue", "unit", "description", "target"] as const;
+
 export function DashletSettings({
   isOpen,
   onClose,
@@ -31,48 +28,37 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const activeProviders = useActiveProviders();
-
   const [title, setTitle] = useState(config.title || "Monthly Revenue");
   const [value, setValue] = useState(String(config.value ?? "84500"));
   const [previousValue, setPreviousValue] = useState(String(config.previousValue ?? "72000"));
   const [unit, setUnit] = useState(config.unit ?? "$");
   const [description, setDescription] = useState(config.description || "Total monthly revenue across all products");
   const [target, setTarget] = useState(String(config.target ?? "100000"));
-  const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
-      ? config.dataMode
-      : "static",
-  );
-  const [dataSourceId, setDataSourceId] = useState<string>(
-    config.dataSourceId ?? ""
-  );
 
-  const staticSnapshot = useRef({ title, value, previousValue, unit, description, target });
-
-  const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
-      staticSnapshot.current = { title, value, previousValue, unit, description, target };
-    } else if (mode === "static" && dataMode === "pgrest") {
-      setTitle(staticSnapshot.current.title);
-      setValue(staticSnapshot.current.value);
-      setPreviousValue(staticSnapshot.current.previousValue);
-      setUnit(staticSnapshot.current.unit);
-      setDescription(staticSnapshot.current.description);
-      setTarget(staticSnapshot.current.target);
-    }
-    setDataMode(mode);
+  const fieldValues = { title, value, previousValue, unit, description, target };
+  const fieldSetters = {
+    title: setTitle,
+    value: setValue,
+    previousValue: setPreviousValue,
+    unit: setUnit,
+    description: setDescription,
+    target: setTarget,
   };
 
-  const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
-      if (detected.length >= 3) setPreviousValue(`{{row.${detected[2].key}}}`);
-      if (detected.length >= 4) setUnit(`{{row.${detected[3].key}}}`);
-      if (detected.length >= 5) setDescription(`{{row.${detected[4].key}}}`);
-      if (detected.length >= 6) setTarget(`{{row.${detected[5].key}}}`);
-    }),
+  const {
+    isPgrest,
+    activeProviders,
+    dataMode,
+    dataSourceId,
+    setDataSourceId,
+    pg,
+    handleDataModeChange,
+    pgrestSaveFields,
+  } = useSimplePgrestSettings({
+    config,
+    fieldNames: FIELD_NAMES,
+    fieldValues,
+    fieldSetters,
   });
 
   const handleSave = () => {
@@ -83,25 +69,9 @@ export function DashletSettings({
       unit: unit.trim() || "$",
       description: description.trim(),
       target: target.trim() || "100000",
-      dataMode,
-      pgrestFunctionName: pg.pgrestFunctionName,
-      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
-      pgrestHttpMethod: pg.pgrestHttpMethod,
-      dataSourceId: dataSourceId || undefined,
+      ...pgrestSaveFields,
     });
     onClose();
-  };
-
-  const isPgrest = dataMode === "pgrest";
-
-  const fieldValues: Record<string, string> = { title, value, previousValue, unit, description, target };
-  const fieldSetters: Record<string, (v: string) => void> = {
-    title: setTitle,
-    value: setValue,
-    previousValue: setPreviousValue,
-    unit: setUnit,
-    description: setDescription,
-    target: setTarget,
   };
 
   const visualizationTab = (

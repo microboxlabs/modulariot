@@ -1,25 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Button, TextInput, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
 import {
   HbTextFieldList,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
   PgrestDataTab,
-  useActiveProviders,
+  useSimplePgrestSettings,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-
-type SimpleDataMode = "static" | "pgrest";
 
 const COLOR_OPTIONS: ColorOption<BarColor>[] = [
   {
@@ -62,6 +57,8 @@ const FIELDS = [
   { id: "st-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
 ] as const;
 
+const FIELD_NAMES = ["title", "unit"] as const;
+
 export function DashletSettings({
   isOpen,
   onClose,
@@ -69,19 +66,9 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const activeProviders = useActiveProviders();
-
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit ?? "%");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
-  const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
-      ? config.dataMode
-      : "static",
-  );
-  const [dataSourceId, setDataSourceId] = useState<string>(
-    config.dataSourceId ?? ""
-  );
 
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
@@ -97,23 +84,23 @@ export function DashletSettings({
 
   const [items, setItems] = useState(initializeItems);
 
-  const staticSnapshot = useRef({ title, unit });
+  const fieldValues = { title, unit };
+  const fieldSetters = { title: setTitle, unit: setUnit };
 
-  const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
-      staticSnapshot.current = { title, unit };
-    } else if (mode === "static" && dataMode === "pgrest") {
-      setTitle(staticSnapshot.current.title);
-      setUnit(staticSnapshot.current.unit);
-    }
-    setDataMode(mode);
-  };
-
-  const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setUnit(`{{row.${detected[1].key}}}`);
-    }),
+  const {
+    isPgrest,
+    activeProviders,
+    dataMode,
+    dataSourceId,
+    setDataSourceId,
+    pg,
+    handleDataModeChange,
+    pgrestSaveFields,
+  } = useSimplePgrestSettings({
+    config,
+    fieldNames: FIELD_NAMES,
+    fieldValues,
+    fieldSetters,
   });
 
   const handleSave = () => {
@@ -127,11 +114,7 @@ export function DashletSettings({
       items: itemsToSave,
       unit: unit.trim() || "%",
       showHeader,
-      dataMode,
-      pgrestFunctionName: pg.pgrestFunctionName,
-      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
-      pgrestHttpMethod: pg.pgrestHttpMethod,
-      dataSourceId: dataSourceId || undefined,
+      ...pgrestSaveFields,
     });
     onClose();
   };
@@ -160,14 +143,6 @@ export function DashletSettings({
     setItems(
       items.map((item) => (item.id === id ? { ...item, [field]: val } : item))
     );
-  };
-
-  const isPgrest = dataMode === "pgrest";
-
-  const fieldValues: Record<string, string> = { title, unit };
-  const fieldSetters: Record<string, (v: string) => void> = {
-    title: setTitle,
-    unit: setUnit,
   };
 
   const visualizationTab = (

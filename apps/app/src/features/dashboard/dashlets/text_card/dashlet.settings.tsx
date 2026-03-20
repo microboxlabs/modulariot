@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { Label, Textarea, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, TextAlign } from "./dashlet";
-import { tr } from "@/features/i18n/tr.service";
 import {
   SettingsSelectField,
   getHandlebarsStatus,

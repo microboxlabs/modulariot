@@ -230,6 +230,7 @@
       },
       "sidebar": {
         "title": "Plan Trip",
+        "assignmentTitle": "Assign Trip",
         "servicesList": "Today's Services",
         "noServiceSelected": "Select a service from the calendar to assign driver and vehicle",
         "selectServiceHint": "Select a service to assign driver and vehicle",

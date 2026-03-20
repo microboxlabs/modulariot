@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestRows } from "../common";
 import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 import {
   HiWrench,
@@ -87,6 +90,11 @@ export interface DashletConfig {
   color: StatusColor;
   icon: StatusIcon;
   dataProvider?: DataProviderEntry[];
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -152,6 +160,7 @@ const COLOR_MAP: Record<
 };
 
 const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Component
@@ -168,14 +177,44 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
-  const templateContext = useMemo(() => buildDataProviderContext(dataProvider), [dataProvider]);
+  const dataMode = (config.dataMode as "static" | "pgrest") || "static";
 
-  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
-  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
-  const compiledSubtitle = useMemo(() => {
-    if (!subtitle) return "";
-    return resolveHandlebarsField(subtitle, templateContext);
-  }, [subtitle, templateContext]);
+  const { rows, loading, fetchError } = usePgrestRows(
+    dataMode,
+    config.pgrestFunctionName || "",
+    config.pgrestHttpMethod || "POST",
+    config.pgrestParams || EMPTY_PARAMS,
+    config.dataSourceId,
+  );
+
+  const templateContext = useMemo(() => {
+    const dpContext = buildDataProviderContext(dataProvider);
+    if (dataMode === "pgrest" && rows.length > 0) {
+      const firstRow = rows[0];
+      return { ...dpContext, row: firstRow, ...firstRow };
+    }
+    return dpContext;
+  }, [dataProvider, dataMode, rows]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const compiledTitle = resolveHandlebarsField(title, templateContext);
+  const compiledValue = resolveHandlebarsField(value, templateContext);
+  const compiledSubtitle = subtitle ? resolveHandlebarsField(subtitle, templateContext) : "";
 
   const colors = COLOR_MAP[color] ?? COLOR_MAP.gray;
   const IconComponent = ICONS[icon] ?? ICONS.check;

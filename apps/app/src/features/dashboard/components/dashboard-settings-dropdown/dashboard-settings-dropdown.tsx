@@ -36,13 +36,13 @@ function isSectionActive(
   return selected === option;
 }
 
-function getSectionClasses(expanded: boolean, active: boolean) {
+function getSectionClasses(expanded: boolean, active: boolean, maxHeight = "max-h-[400px]") {
   return {
     headerHeightClass: expanded ? "h-16" : "h-0",
     headerInteractiveClass: active
       ? ""
       : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-full",
-    contentMaxHeightClass: active ? "max-h-[400px]" : "max-h-0",
+    contentMaxHeightClass: active ? maxHeight : "max-h-0",
   };
 }
 
@@ -139,6 +139,7 @@ interface SettingsSectionProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  maxHeight?: string;
 }
 
 function SettingsSection({
@@ -148,10 +149,11 @@ function SettingsSection({
   title,
   description,
   children,
+  maxHeight,
 }: Readonly<SettingsSectionProps>) {
   const active = isSectionActive(selected, option);
   const expanded = isSectionExpanded(selected, option);
-  const classes = getSectionClasses(expanded, active);
+  const classes = getSectionClasses(expanded, active, maxHeight);
 
   const handleSelect = () => {
     if (!active) setSelected(option);
@@ -504,7 +506,7 @@ export default function DashboardSettingsDropdown() {
       </Button>
 
       {open && (
-        <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[320px] w-[380px]">
+        <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
           <SettingsSection
             option="rename"
             selected={selected}
@@ -549,6 +551,7 @@ export default function DashboardSettingsDropdown() {
             setSelected={setSelected}
             title="Request Planner"
             description="Define shared data queries"
+            maxHeight="max-h-[600px]"
           >
             <PlannerManagerForm />
           </SettingsSection>

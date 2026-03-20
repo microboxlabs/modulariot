@@ -147,7 +147,7 @@ export function DashletSettings({
           { value: "planner", label: "Planner" },
         ]}
       />
-      {isPgrest && (
+      {dataMode === "pgrest" && (
         <PgrestSettingsSection
           pgrest={pg}
           dictionary={dictionary}

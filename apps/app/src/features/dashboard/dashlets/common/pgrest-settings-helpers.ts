@@ -23,13 +23,14 @@ export function defaultOnColumnsDetected(keys: string[]): ColumnItem[] {
  * (labeled_data, card) that use raw keys and a no-op setColumns.
  */
 export function buildSimplePgrestConfig(
-  config: { pgrestFunctionName?: string; pgrestParams?: PgrestParam[]; pgrestHttpMethod?: PgrestHttpMethod },
+  config: { pgrestFunctionName?: string; pgrestParams?: PgrestParam[]; pgrestHttpMethod?: PgrestHttpMethod; dataSourceId?: string },
   onDetectionComplete?: PgrestSettingsStateConfig["onDetectionComplete"],
-): Pick<PgrestSettingsStateConfig, "pgrestFunctionName" | "pgrestParams" | "pgrestHttpMethod" | "onColumnsDetected" | "setColumns" | "onDetectionComplete"> {
+): Pick<PgrestSettingsStateConfig, "pgrestFunctionName" | "pgrestParams" | "pgrestHttpMethod" | "dataSourceId" | "onColumnsDetected" | "setColumns" | "onDetectionComplete"> {
   return {
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestParams: config.pgrestParams || [],
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    dataSourceId: config.dataSourceId,
     onColumnsDetected: defaultOnColumnsDetected,
     setColumns: () => {},
     onDetectionComplete,

@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import Handlebars from "handlebars";
+import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestRows } from "../common";
+import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 
 // ============================================================================
 // Configuration Types
@@ -15,6 +18,11 @@ export interface DashletConfig {
   italic: boolean;
   align: TextAlign;
   dataProvider?: DataProviderEntry[];
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -42,6 +50,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // ============================================================================
 
 const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 const ALIGN_CLASS: Record<TextAlign, string> = {
   left: "text-left",
@@ -58,22 +67,42 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
+  const dataMode = (config.dataMode as "static" | "pgrest") || "static";
+
+  const { rows, loading, fetchError } = usePgrestRows(
+    dataMode,
+    config.pgrestFunctionName || "",
+    config.pgrestHttpMethod || "POST",
+    config.pgrestParams || EMPTY_PARAMS,
+    config.dataSourceId,
+  );
+
   const templateContext = useMemo(() => {
-    const data_provider: Record<string, string> = {};
-    for (const entry of dataProvider) {
-      if (entry.key) data_provider[entry.key] = entry.value;
+    const dpContext = buildDataProviderContext(dataProvider);
+    if (dataMode === "pgrest" && rows.length > 0) {
+      const firstRow = rows[0];
+      return { ...dpContext, row: firstRow, ...firstRow };
     }
-    return { data_provider };
-  }, [dataProvider]);
+    return dpContext;
+  }, [dataProvider, dataMode, rows]);
 
-  const compiledText = useMemo(() => {
-    try {
-      return Handlebars.compile(text)(templateContext);
-    } catch {
-      return text;
-    }
-  }, [text, templateContext]);
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
 
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const compiledText = resolveHandlebarsField(text, templateContext);
   const alignClass = ALIGN_CLASS[align] ?? ALIGN_CLASS.left;
 
   return (

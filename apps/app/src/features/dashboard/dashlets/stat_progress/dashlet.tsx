@@ -77,7 +77,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const value = parseResolvedNumber(resolved.value);
   const target = parseResolvedNumber(resolved.target, 100);
 
-  const percentage = target > 0 ? Math.min(100, (value / target) * 100) : 0;
+  const percentage = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
   const barColor = getBarColor(percentage);
 
   return (

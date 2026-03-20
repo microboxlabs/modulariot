@@ -19,7 +19,6 @@ import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
-import { ShowNotification } from "@/features/notifications/notification";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
@@ -163,7 +162,7 @@ export function PlanningSidebarClient({
     closeSidebar,
     selectService,
     reassigningService,
-    cancelReassignment,
+    assigningService,
     andenesCount,
     backendSlots,
     isSlotsLoading,
@@ -179,15 +178,6 @@ export function PlanningSidebarClient({
   const [searchTags, setSearchTags] = useState<
     Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
-
-  // Handle cancel reassignment
-  const handleCancelReassignment = useCallback(() => {
-    cancelReassignment();
-    ShowNotification({
-      type: "info",
-      message: "Reasignación cancelada",
-    });
-  }, [cancelReassignment]);
 
   // Build API params from search tags
   const apiParams = useMemo(() => {
@@ -495,22 +485,27 @@ export function PlanningSidebarClient({
       <div className="px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 h-10">
           {isFormActive ? (
-            <button
-              type="button"
-              onClick={
-                reassigningService === null
-                  ? handleBack
-                  : handleCancelReassignment
-              }
-              className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-              aria-label={
-                reassigningService === null
-                  ? tr("pages.planning.sidebar.form.back", dict)
-                  : tr("pages.planning.sidebar.form.cancelReassignment", dict)
-              }
-            >
-              <HiArrowLeft className="w-5 h-5" />
-            </button>
+            reassigningService !== null || assigningService !== null ? (
+              // During reassignment/assignment: show X to close sidebar directly
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+                aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
+              >
+                <HiX className="w-5 h-5" />
+              </button>
+            ) : (
+              // Normal mode: show back arrow to return to services list
+              <button
+                type="button"
+                onClick={handleBack}
+                className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+                aria-label={tr("pages.planning.sidebar.form.back", dict)}
+              >
+                <HiArrowLeft className="w-5 h-5" />
+              </button>
+            )
           ) : (
             <button
               type="button"

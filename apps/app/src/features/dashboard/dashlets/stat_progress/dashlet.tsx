@@ -1,6 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
+import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestResolvedFields } from "../common";
+
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Configuration Types
@@ -8,15 +14,20 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 
 export interface DashletConfig {
   title: string;
-  value: number;
-  target: number;
+  value: string;
+  target: string;
   unit: string;
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Quarterly Goal",
-  value: 78,
-  target: 100,
+  value: "78",
+  target: "100",
   unit: "%",
 };
 
@@ -48,9 +59,50 @@ function getBarColor(percentage: number): string {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, target, unit } = config;
 
-  const percentage = Math.min(100, (value / target) * 100);
+  const fields = useMemo(
+    () => ({
+      title: config.title || "Quarterly Goal",
+      value: String(config.value ?? "78"),
+      target: String(config.target ?? "100"),
+      unit: config.unit ?? "%",
+    }),
+    [config.title, config.value, config.target, config.unit],
+  );
+
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    fields,
+    dataSourceId: config.dataSourceId,
+  });
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const title = resolved.title || "Quarterly Goal";
+  const unit = resolved.unit ?? "%";
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const parsedTarget = resolved.target === "" || resolved.target == null ? Number.NaN : Number(resolved.target);
+  const value = Number.isFinite(parsedValue) ? parsedValue : 0;
+  const target = Number.isFinite(parsedTarget) ? parsedTarget : 100;
+
+  const percentage = target > 0 ? Math.min(100, (value / target) * 100) : 0;
   const barColor = getBarColor(percentage);
 
   return (

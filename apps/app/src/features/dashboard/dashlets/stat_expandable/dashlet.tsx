@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestResolvedFields, EMPTY_PGREST_PARAMS, DashletLoading, DashletError } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -64,14 +64,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     [config.title, config.value, config.unit],
   );
 
-  const { resolved, loading, fetchError } = usePgrestResolvedFields({
-    dataMode: (config.dataMode as "static" | "pgrest") || "static",
-    pgrestFunctionName: config.pgrestFunctionName || "",
-    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    pgrestParams: config.pgrestParams || EMPTY_PGREST_PARAMS,
-    fields,
-    dataSourceId: config.dataSourceId,
-  });
+  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

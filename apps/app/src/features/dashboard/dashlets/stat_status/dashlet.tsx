@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestRows, EMPTY_PGREST_PARAMS, DashletLoading, DashletError } from "../common";
-import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
+import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import {
   HiWrench,
   HiCalendarDays,
@@ -175,24 +175,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
-  const dataMode = (config.dataMode as "static" | "pgrest") || "static";
-
-  const { rows, loading, fetchError } = usePgrestRows(
-    dataMode,
-    config.pgrestFunctionName || "",
-    config.pgrestHttpMethod || "POST",
-    config.pgrestParams || EMPTY_PGREST_PARAMS,
-    config.dataSourceId,
-  );
-
-  const templateContext = useMemo(() => {
-    const dpContext = buildDataProviderContext(dataProvider);
-    if (dataMode === "pgrest" && rows.length > 0) {
-      const firstRow = rows[0];
-      return { ...dpContext, row: firstRow, ...firstRow };
-    }
-    return dpContext;
-  }, [dataProvider, dataMode, rows]);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider);
 
   const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
   const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);

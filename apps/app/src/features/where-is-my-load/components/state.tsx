@@ -1,7 +1,6 @@
 import { FaCheck, FaMinus } from "react-icons/fa";
 import { State } from "../timeline";
 import { FormattedDate } from "@/features/common/components/formatted-date";
-import { fromString } from "@/features/common/services/days.service";
 import React, { useState, useRef } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -14,7 +13,8 @@ export default function TimelineStates({
   statesCount,
   setSelectedTask,
   dict,
-}: {
+  lang,
+}: Readonly<{
   index: number;
   count: number;
   actualState: number;
@@ -22,10 +22,11 @@ export default function TimelineStates({
   statesCount: number;
   setSelectedTask: (taskId: string | null) => void;
   dict: I18nRecord;
+  lang: string;
   oferta_producto?: string | null;
   origin?: string | null;
   destination?: string | null;
-}) {
+}>) {
   const [hovered, setHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const is_urgent = state.urgency;
@@ -33,8 +34,8 @@ export default function TimelineStates({
   const temporalData = TemporalComponent({
     time: state.time,
     dict,
-    index,
-    actualState,
+    stateCode: state.code,
+    lang,
   });
   const task_id = state.task_id;
 
@@ -93,12 +94,7 @@ export default function TimelineStates({
             className={`absolute top-1/2 left-0 -translate-y-1/2 bg-gray-400/10 ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-[100%]"}`}
             style={{ zIndex: 1 }}
           />
-          <DataBox
-            temporalData={temporalData}
-            state={state}
-            minimal={false}
-            dict={dict}
-          />
+          <DataBox temporalData={temporalData} state={state} minimal={false} />
         </div>
       </div>
     </>
@@ -110,71 +106,27 @@ export function DataBox({
   state,
   minimal = true,
   className = "",
-  dict,
-}: {
-  temporalData: {
-    component: React.ReactNode;
-    start_delay: number | null;
-    end_delay: number | null;
-  };
+}: Readonly<{
+  temporalData: React.ReactNode;
   state: State;
   minimal: boolean;
   className?: string;
-  dict: I18nRecord;
-}) {
+}>) {
   return (
     <div className={className}>
-      {minimal == false ? (
+      {!minimal && (
         <div className="relative z-10">
           {(() => {
-            return temporalData.component;
+            return temporalData;
           })()}
           <h1 className="text-lg font-semibold text-gray-700 dark:text-gray-100">
             {state.name}
           </h1>
         </div>
-      ) : null}
+      )}
       <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 relative z-10">
-        <DelayCalculations temporalData={temporalData} dict={dict} />
         <div>{state.description}</div>
       </div>
-    </div>
-  );
-}
-
-export function DelayCalculations({
-  temporalData,
-  dict,
-}: {
-  temporalData: {
-    delay_projected_start?: boolean;
-    delay_projected_end?: boolean;
-    start_delay: number | null;
-    end_delay: number | null;
-    component: React.ReactNode | null;
-  };
-  dict: I18nRecord;
-}) {
-  return (
-    <div
-      className={`flex flex-wrap gap-1 ${temporalData.start_delay || temporalData.end_delay ? "flex" : "hidden"}`}
-    >
-      <DelayComponent
-        label={
-          temporalData.delay_projected_start
-            ? tr("wheres_my_load.delay_proj_start", dict)
-            : tr("wheres_my_load.delay_pre_start", dict)
-        }
-        delay={temporalData.start_delay}
-      />
-      <DelayComponent
-        label={
-          temporalData.delay_projected_end
-            ? tr("wheres_my_load.delay_proj_end", dict)
-            : tr("wheres_my_load.delay_pre_end", dict)
-        }
-        delay={temporalData.end_delay}
-      />
     </div>
   );
 }
@@ -182,154 +134,82 @@ export function DelayCalculations({
 export function TemporalComponent({
   time,
   dict,
-  index,
-  actualState,
-}: {
+  stateCode,
+  lang,
+}: Readonly<{
   time: {
     start: string | null;
-    end: string | null;
     projected_start: string | null;
+    end: string | null;
     projected_end: string | null;
-    lead_time_end: string | null;
-    lead_time_start: string | null;
+    compromised_time: string | null;
+    delivered: boolean | null;
     duration: number | null;
   };
   dict: I18nRecord;
-  index?: number;
-  actualState?: number;
-}) {
-  if (
-    time.start === null &&
-    time.projected_start === null &&
-    time.end === null &&
-    time.projected_end === null
-  ) {
-    return {
-      delay_projected_start: false,
-      delay_projected_end: false,
-      start_delay: null,
-      end_delay: null,
-      component: null,
-    };
-  }
+  stateCode?: string | null;
+  lang: string;
+}>) {
+  const isDeliveryExpedition = stateCode === "DELIVERY_EXPEDITION";
+  const locale = lang === "es" ? "es-CL" : "en-US";
 
-  // Agregar verificacion, si leadtime es nulo en inicio o fin, no hacer calculos afin
-  const startDate = (time.start ? time.start : time.projected_start) as string;
-  const endDate = (time.end ? time.end : time.projected_end) as string;
+  const start_label = isDeliveryExpedition
+    ? tr("wheres_my_load.compromised", dict)
+    : tr("wheres_my_load.start", dict);
 
-  let start_delay = null;
-  let end_delay = null;
-
-  const lead_time_start = time.lead_time_start;
-  const lead_time_end = time.lead_time_end;
-
-  // Use timezone-aware comparison for Santiago, Chile
-  const start_delayed = lead_time_start
-    ? fromString(startDate).isAfter(fromString(lead_time_start))
-    : false;
-
-  const end_delayed = lead_time_end
-    ? fromString(endDate).isAfter(fromString(lead_time_end))
-    : false;
-
-  if (start_delayed && lead_time_start) {
-    start_delay = getDelay(startDate, lead_time_start);
-  }
-
-  if (end_delayed && lead_time_end) {
-    end_delay = getDelay(endDate, lead_time_end);
-  }
-
-  if (index !== undefined && actualState !== undefined) {
-    if (index < actualState) {
-      if (!time.start && !time.end) {
-        return {
-          delay_projected_start: false,
-          delay_projected_end: false,
-          component: null,
-          start_delay: null,
-          end_delay: null,
-        };
-      }
+  const getEndLabel = () => {
+    if (time.delivered === null) {
+      return tr("wheres_my_load.end", dict);
     }
-  }
-
-  return {
-    component: (
-      <div className="text-sm font-light text-gray-500 dark:text-gray-400 flex flex-col md:flex-row gap-2">
-        <span>
-          {time.start
-            ? tr("wheres_my_load.start", dict)
-            : tr("wheres_my_load.projected_start", dict)}
-          :{" "}
-          <span
-            className={`${start_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
-          >
-            <FormattedDate
-              date={startDate}
-              format="datetime"
-              locale="es-CL"
-              timeZone="America/Santiago"
-            />
-          </span>
-        </span>
-        <span>
-          {time.end
-            ? tr("wheres_my_load.end", dict)
-            : tr("wheres_my_load.projected_end", dict)}
-          :{" "}
-          <span
-            className={`${end_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
-          >
-            <FormattedDate
-              date={endDate}
-              format="datetime"
-              locale="es-CL"
-              timeZone="America/Santiago"
-            />
-          </span>
-        </span>
-      </div>
-    ),
-    start_delay, // Duration object or null, if its a duration object paint the flag in the main component
-    end_delay, // Duration object or null, if its a duration object paint the flag in the main component
-    delay_projected_start: time.start ? false : true,
-    delay_projected_end: time.end ? false : true,
+    return time.delivered
+      ? tr("wheres_my_load.real", dict)
+      : tr("wheres_my_load.projected", dict);
   };
-}
+  const end_label = getEndLabel();
 
-function getDelay(date: string, date_to_compare: string): number | null {
-  return fromString(date).diff(fromString(date_to_compare));
-}
+  const isLate = (() => {
+    if (!isDeliveryExpedition || !time.end || !time.start) {
+      return false;
+    }
+    const actualDeliveryDate = new Date(time.end);
+    const committedDate = new Date(time.start);
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return actualDeliveryDate.getTime() - committedDate.getTime() > oneDayMs;
+  })();
 
-function DelayComponent({
-  label,
-  delay,
-}: {
-  label: string;
-  delay: number | null;
-}) {
-  if (delay === null) return null;
-
-  // Convert milliseconds to a readable format
-  const formatDuration = (ms: number) => {
-    const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-
-    const parts = [];
-    if (days > 0) parts.push(`${days}d`);
-    if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0) parts.push(`${minutes}m`);
-
-    return parts.length > 0 ? parts.join(" ") : "0m";
-  };
+  // For DELIVERY_EXPEDITION: show start as committed date, end as actual delivery date
+  // For other states: show start/projected_start and end/projected_end
+  const displayStart = time.start ?? time.projected_start;
+  const displayEnd = time.end ?? time.projected_end;
 
   return (
-    <div className="bg-red-500 rounded-md w-fit">
-      <span className="text-white text-sm py-1 px-2 whitespace-nowrap">
-        {label} {formatDuration(delay)}
-      </span>
+    <div
+      className={`text-sm font-light flex flex-col md:flex-row gap-2 text-gray-500 dark:text-gray-400`}
+    >
+      {displayStart && (
+        <span>
+          {start_label}:{" "}
+          <span className={`whitespace-nowrap`}>
+            <FormattedDate
+              date={displayStart}
+              format="datetime"
+              locale={locale}
+            />
+          </span>
+        </span>
+      )}
+      {displayEnd && (
+        <span className={isLate ? "text-red-500 dark:text-red-400" : ""}>
+          {end_label}:{" "}
+          <span className={`whitespace-nowrap`}>
+            <FormattedDate
+              date={displayEnd}
+              format="datetime"
+              locale={locale}
+            />
+          </span>
+        </span>
+      )}
     </div>
   );
 }

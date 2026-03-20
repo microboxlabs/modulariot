@@ -1451,7 +1451,9 @@
     "value": "Value",
     "max": "Max",
     "unit": "Unit",
-    "all": "All"
+    "all": "All",
+    "yes": "Yes",
+    "no": "No"
   },
   "dashboard": {
     "settings": {
@@ -2278,14 +2280,34 @@
     "projected_end": "Projected end",
     "start": "Start",
     "end": "End",
+    "estimated": "Estimated",
+    "delivered": "Delivered",
+    "lead_time": "Due date",
     "delay_pre_start": "Start with Delay of ",
     "delay_pre_end": "End with Delay of ",
     "delay_proj_start": "Projected start with Delay of ",
     "delay_proj_end": "Projected end with Delay of ",
+    "delivery_delayed": "Delivery delayed by ",
+    "estimated_delivery_delayed": "Estimated delivery delayed by ",
+    "estimated_delivery_date": "Estimated delivery date",
+    "compromised_delivery_date": "Compromised delivery date",
+    "projected_delivery_date": "Projected delivery date",
+    "actual_delivery_date": "Actual delivery date",
     "expedition_info": "Expedition Information",
     "search_for_your_load": "Search for your load",
     "use_searchbar": "Use the searchbar to track the state of your load.",
-    "wheres_my_load": "Where's my load?"
+    "wheres_my_load": "Where's my load?",
+    "compromised": "Compromised",
+    "projected": "Projected",
+    "real": "Real",
+    "code": "Code",
+    "expedition_number": "Expedition Number",
+    "origin": "Origin",
+    "volume": "Volume",
+    "destination": "Destination",
+    "weight": "Weight",
+    "product_offer": "Product Offer",
+    "packages": "Packages"
   },
   "signal_historic": {
     "search": "Search",

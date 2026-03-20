@@ -744,7 +744,12 @@ export function PlanningSidebarForm({
                 color="blue"
                 className="flex-1"
                 onClick={handleAssign}
-                disabled={!assigningService}
+                disabled={
+                  !assigningService ||
+                  !assignmentData.transportista ||
+                  !assignmentData.conductor ||
+                  !assignmentData.camion
+                }
               >
                 {tr("pages.planning.sidebar.form.assign", dict)}
               </Button>

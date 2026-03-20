@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -167,6 +167,7 @@ export function PlanningSidebarClient({
     backendSlots,
     isSlotsLoading,
     bookingVersion,
+    isSidebarOpen,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -216,8 +217,18 @@ export function PlanningSidebarClient({
   }, [searchTags, calendarId]);
 
   // Fetch tasks from API
-  const { data: myTasksData, isLoading: isLoadingTasks, refresh: refreshTasks } = useMyTasks(
-    ["planService", "assignDriver", "presentDriver", "prepareService", "missionControl"],
+  const {
+    data: myTasksData,
+    isLoading: isLoadingTasks,
+    refresh: refreshTasks,
+  } = useMyTasks(
+    [
+      "planService",
+      "assignDriver",
+      "presentDriver",
+      "prepareService",
+      "missionControl",
+    ],
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit
@@ -457,26 +468,72 @@ export function PlanningSidebarClient({
     // because filtering is now based directly on searchTags array
   };
 
-  const isFormActive = Boolean(selectedService);
+  // Preserve content state during close animation to prevent flicker.
+  // When the sidebar closes, all state (selectedService, selectedSlot, etc.) is cleared
+  // immediately, but the CSS transition takes 300ms. We snapshot the state when the
+  // sidebar is open and use that snapshot during the close animation.
+  const stateSnapshotRef = useRef<{
+    isFormActive: boolean;
+    selectedService: typeof selectedService;
+    formattedSlot: typeof formattedSlot;
+    reassigningService: typeof reassigningService;
+    assigningService: typeof assigningService;
+  }>({
+    isFormActive: false,
+    selectedService: null,
+    formattedSlot: undefined,
+    reassigningService: null,
+    assigningService: null,
+  });
+
+  // Update snapshot only when sidebar is open
+  useEffect(() => {
+    if (isSidebarOpen) {
+      stateSnapshotRef.current = {
+        isFormActive: Boolean(selectedService),
+        selectedService,
+        formattedSlot,
+        reassigningService,
+        assigningService,
+      };
+    }
+  }, [
+    isSidebarOpen,
+    selectedService,
+    formattedSlot,
+    reassigningService,
+    assigningService,
+  ]);
+
+  // Use actual state when open, snapshot when closing
+  const displayState = isSidebarOpen
+    ? {
+        isFormActive: Boolean(selectedService),
+        selectedService,
+        formattedSlot,
+        reassigningService,
+        assigningService,
+      }
+    : stateSnapshotRef.current;
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
       {/* Selected slot display */}
-      {formattedSlot && (
+      {displayState.formattedSlot && (
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-500 dark:text-gray-400">
               {tr("pages.planning.sidebar.form.slot", dict)}:
             </span>
             <span className="font-medium text-gray-900 dark:text-white capitalize">
-              {formattedSlot.date}
+              {displayState.formattedSlot.date}
             </span>
             <span className="font-mono font-medium text-gray-900 dark:text-white">
-              {formattedSlot.startTime}
+              {displayState.formattedSlot.startTime}
             </span>
             <span className="text-gray-300 dark:text-gray-600">→</span>
             <span className="font-mono font-medium text-gray-900 dark:text-white">
-              {formattedSlot.endTime}
+              {displayState.formattedSlot.endTime}
             </span>
           </div>
         </div>
@@ -484,8 +541,9 @@ export function PlanningSidebarClient({
       {/* Header */}
       <div className="px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 h-10">
-          {isFormActive ? (
-            reassigningService !== null || assigningService !== null ? (
+          {displayState.isFormActive ? (
+            displayState.reassigningService !== null ||
+            displayState.assigningService !== null ? (
               // During reassignment/assignment: show X to close sidebar directly
               <button
                 type="button"
@@ -517,42 +575,42 @@ export function PlanningSidebarClient({
             </button>
           )}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {isFormActive
+            {displayState.isFormActive
               ? tr("pages.planning.sidebar.title", dict)
               : tr("pages.planning.sidebar.servicesList", dict)}
           </h2>
-          {selectedService?.id && (
+          {displayState.selectedService?.id && (
             <span className="text-sm font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
-              {selectedService.id}
+              {displayState.selectedService.id}
             </span>
           )}
         </div>
       </div>
       {/* Content */}
       <div className="flex-1 p-3 overflow-y-auto">
-        {isFormActive ? (
+        {displayState.isFormActive ? (
           <PlanningSidebarForm
             dict={dict}
             isActive={true}
             selectedService={
-              selectedService
+              displayState.selectedService
                 ? {
-                    ...selectedService,
-                    slot: formattedSlot?.full,
+                    ...displayState.selectedService,
+                    slot: displayState.formattedSlot?.full,
                   }
                 : undefined
             }
             onSubmit={handleSubmit}
             andenesCount={andenesCount}
-            slotStartTime={formattedSlot?.startTime}
-            slotEndTime={formattedSlot?.endTime}
+            slotStartTime={displayState.formattedSlot?.startTime}
+            slotEndTime={displayState.formattedSlot?.endTime}
             backendSlots={backendSlots}
             isSlotsLoading={isSlotsLoading}
           />
         ) : (
           <div className="flex flex-col gap-3">
             {/* Reassignment mode banner */}
-            {reassigningService && (
+            {displayState.reassigningService && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
                 <HiSwitchHorizontal className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -560,7 +618,7 @@ export function PlanningSidebarClient({
                     Reasignando servicio
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400 truncate">
-                    {reassigningService.service.service.id}
+                    {displayState.reassigningService.service.service.id}
                   </p>
                 </div>
               </div>
@@ -591,7 +649,8 @@ export function PlanningSidebarClient({
               {sortedServices.length > 0 ? (
                 sortedServices.map((service) => {
                   const isReassigning =
-                    reassigningService?.service.service.id === service.id;
+                    displayState.reassigningService?.service.service.id ===
+                    service.id;
                   return (
                     <div
                       key={service.id}
@@ -613,7 +672,7 @@ export function PlanningSidebarClient({
             </div>
 
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-              {reassigningService
+              {displayState.reassigningService
                 ? "Seleccione una fecha y hora en el calendario para reasignar"
                 : tr("pages.planning.sidebar.selectServiceHint", dict)}
             </p>

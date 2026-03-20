@@ -25,6 +25,8 @@ export interface PlannerQueryResult {
 interface PlannerContextValue {
   results: Map<string, PlannerQueryResult>;
   definitions: PlannerRequestDefinition[];
+  /** Column keys per variable name, derived from the first row of results */
+  schemas: Map<string, string[]>;
 }
 
 const EMPTY_RESULT: PlannerQueryResult = { rows: [], loading: false, error: null };
@@ -117,9 +119,20 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definitionsKey]);
 
+  // Derive column schemas from the first row of each result
+  const schemas = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const [varName, result] of results) {
+      if (result.rows.length > 0) {
+        map.set(varName, Object.keys(result.rows[0]));
+      }
+    }
+    return map;
+  }, [results]);
+
   const value = useMemo<PlannerContextValue>(
-    () => ({ results, definitions: plannerDefinitions }),
-    [results, plannerDefinitions]
+    () => ({ results, definitions: plannerDefinitions, schemas }),
+    [results, plannerDefinitions, schemas]
   );
 
   return (

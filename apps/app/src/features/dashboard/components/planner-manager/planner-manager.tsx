@@ -9,6 +9,7 @@ import { PgrestFunctionAutocomplete } from "../../dashlets/common/pgrest-functio
 import { SettingsSelectField } from "../../dashlets/common/settings-fields";
 import { buildDataSourceParams } from "../../dashlets/common/pgrest-utils";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
+import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -76,6 +77,7 @@ interface RequestEditorProps {
   existingNames: string[];
   dictionary: I18nRecord;
   activeProviders: DataSourceOption[];
+  schemaKeys: string[];
   onUpdate: (id: string, partial: Partial<PlannerRequestDefinition>) => void;
   onRemove: (id: string) => void;
 }
@@ -85,6 +87,7 @@ function RequestEditor({
   existingNames,
   dictionary,
   activeProviders,
+  schemaKeys,
   onUpdate,
   onRemove,
 }: Readonly<RequestEditorProps>) {
@@ -299,6 +302,28 @@ function RequestEditor({
               Add Parameter
             </Button>
           </div>
+
+          {/* Schema Preview */}
+          {schemaKeys.length > 0 && (
+            <div className="rounded border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-800">
+              <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                Response columns:
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {schemaKeys.map((key) => (
+                  <span
+                    key={key}
+                    className="inline-block rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                  >
+                    {key}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                Use <code className="rounded bg-gray-100 px-1 dark:bg-gray-600">{"{{row.<column>}}"}</code> in dashlet fields
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -320,6 +345,7 @@ export function PlannerManagerForm() {
   } = useDashboard();
 
   const { dataSources } = useDataSources(siteId ?? undefined);
+  const { schemas } = usePlannerContext();
 
   const activeProviders = dataSources.filter(
     (ds) => ds.isActive === true && ds.lastTestResult === true,
@@ -356,6 +382,7 @@ export function PlannerManagerForm() {
             existingNames={existingNames}
             dictionary={dictionary}
             activeProviders={activeProviders}
+            schemaKeys={schemas.get(def.variableName) ?? []}
             onUpdate={updatePlannerRequest}
             onRemove={removePlannerRequest}
           />

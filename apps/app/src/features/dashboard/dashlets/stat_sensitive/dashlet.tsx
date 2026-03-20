@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useState, useMemo } from "react";
+import { Spinner } from "flowbite-react";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestResolvedFields } from "../common";
+
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Configuration Types
@@ -10,14 +15,19 @@ import { HiEye, HiEyeSlash } from "react-icons/hi2";
 
 export interface DashletConfig {
   title: string;
-  value: number;
+  value: string;
   unit: string;
   isSensitive: boolean;
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Account Balance",
-  value: 125847.32,
+  value: "125847.32",
   unit: "$",
   isSensitive: true,
 };
@@ -40,15 +50,54 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, unit, isSensitive } = config;
+  const isSensitive = config.isSensitive ?? true;
   const [isHidden, setIsHidden] = useState(isSensitive);
 
-  const displayValue = isHidden
-    ? "••••••"
-    : `${unit}${value.toLocaleString(undefined, {
+  const fields = useMemo(
+    () => ({
+      title: config.title || "Account Balance",
+      value: String(config.value ?? "125847.32"),
+      unit: config.unit ?? "$",
+    }),
+    [config.title, config.value, config.unit],
+  );
+
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    fields,
+    dataSourceId: config.dataSourceId,
+  });
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const title = resolved.title || "Account Balance";
+  const unit = resolved.unit ?? "$";
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const formattedValue = Number.isFinite(parsedValue)
+    ? `${unit}${parsedValue.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      })}`;
+      })}`
+    : `${unit}${resolved.value}`;
+
+  const displayValue = isHidden ? "••••••" : formattedValue;
 
   return (
     <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

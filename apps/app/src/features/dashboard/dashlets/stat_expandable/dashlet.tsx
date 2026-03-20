@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
@@ -38,6 +38,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Conversion Rate", value: "3.24", unit: "%" };
+
 // ============================================================================
 // Component - Style 6: Expandable Details
 // ============================================================================
@@ -50,16 +52,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const details = config.details || defaultConfig.details;
   const [expanded, setExpanded] = useState(false);
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Conversion Rate",
-      value: String(config.value ?? "3.24"),
-      unit: config.unit ?? "%",
-    }),
-    [config.title, config.value, config.unit],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

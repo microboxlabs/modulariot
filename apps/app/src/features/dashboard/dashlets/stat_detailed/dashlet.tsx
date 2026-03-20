@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { HiArrowTrendingUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
@@ -37,6 +36,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Monthly Revenue", value: "84500", previousValue: "72000", unit: "$", description: "Total monthly revenue across all products", target: "100000" };
+
 // ============================================================================
 // Component - Style 2: Full Details Card
 // ============================================================================
@@ -47,19 +48,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
-  const fields = useMemo(
-    () => ({
-      title: config.title || "Monthly Revenue",
-      value: String(config.value ?? "84500"),
-      previousValue: String(config.previousValue ?? "72000"),
-      unit: config.unit ?? "$",
-      description: config.description || "Total monthly revenue across all products",
-      target: String(config.target ?? "100000"),
-    }),
-    [config.title, config.value, config.previousValue, config.unit, config.description, config.target],
-  );
-
-  const { resolved, loading, fetchError } = useDashletPgrest(config, fields);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

@@ -1,7 +1,13 @@
 "use client";
 
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useMemo } from "react";
+import { Spinner } from "flowbite-react";
 import { HiArrowTrendingUp } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestResolvedFields } from "../common";
+
+const EMPTY_PARAMS: PgrestParam[] = [];
 
 // ============================================================================
 // Configuration Types
@@ -9,20 +15,25 @@ import { HiArrowTrendingUp } from "react-icons/hi2";
 
 export interface DashletConfig {
   title: string;
-  value: number;
-  previousValue: number;
+  value: string;
+  previousValue: string;
   unit: string;
   description: string;
-  target: number;
+  target: string;
+  dataMode?: string;
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Monthly Revenue",
-  value: 84500,
-  previousValue: 72000,
+  value: "84500",
+  previousValue: "72000",
   unit: "$",
   description: "Total monthly revenue across all products",
-  target: 100000,
+  target: "100000",
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -43,11 +54,59 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, previousValue, unit, description, target } = config;
+
+  const fields = useMemo(
+    () => ({
+      title: config.title || "Monthly Revenue",
+      value: String(config.value ?? "84500"),
+      previousValue: String(config.previousValue ?? "72000"),
+      unit: config.unit ?? "$",
+      description: config.description || "Total monthly revenue across all products",
+      target: String(config.target ?? "100000"),
+    }),
+    [config.title, config.value, config.previousValue, config.unit, config.description, config.target],
+  );
+
+  const { resolved, loading, fetchError } = usePgrestResolvedFields({
+    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    fields,
+    dataSourceId: config.dataSourceId,
+  });
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+      </div>
+    );
+  }
+
+  const title = resolved.title || "Monthly Revenue";
+  const unit = resolved.unit ?? "$";
+  const description = resolved.description || "";
+
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const parsedPrev = resolved.previousValue === "" || resolved.previousValue == null ? Number.NaN : Number(resolved.previousValue);
+  const parsedTarget = resolved.target === "" || resolved.target == null ? Number.NaN : Number(resolved.target);
+
+  const value = Number.isFinite(parsedValue) ? parsedValue : 0;
+  const previousValue = Number.isFinite(parsedPrev) ? parsedPrev : 0;
+  const target = Number.isFinite(parsedTarget) ? parsedTarget : 1;
 
   const change = value - previousValue;
-  const changePercent = ((change / previousValue) * 100).toFixed(1);
-  const progressPercent = Math.min(100, (value / target) * 100);
+  const changePercent = previousValue === 0 ? 0 : Number(((change / previousValue) * 100).toFixed(1));
+  const progressPercent = target > 0 ? Math.min(100, (value / target) * 100) : 0;
   const isPositive = change >= 0;
 
   return (

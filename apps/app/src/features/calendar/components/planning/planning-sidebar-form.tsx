@@ -18,7 +18,13 @@ import {
   type SelectedSlot,
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
-import { HiCalendar, HiCheck, HiChevronDown, HiExclamation, HiUserAdd } from "react-icons/hi";
+import {
+  HiCalendar,
+  HiCheck,
+  HiChevronDown,
+  HiExclamation,
+  HiUserAdd,
+} from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
@@ -59,7 +65,12 @@ function PlanningTabContent({
   selectedServiceCategory: string;
   onServiceCategoryChange: (v: string) => void;
   isLoadingServiceTypes: boolean;
-  timeOptions: { time: string; totalAndenes: number; availableAndenes: number; isFullyOccupied: boolean }[];
+  timeOptions: {
+    time: string;
+    totalAndenes: number;
+    availableAndenes: number;
+    isFullyOccupied: boolean;
+  }[];
   selectedTime: string;
   onTimeChange: (v: string) => void;
   isSlotsLoading: boolean;
@@ -71,7 +82,10 @@ function PlanningTabContent({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
+      if (
+        categoryRef.current &&
+        !categoryRef.current.contains(event.target as Node)
+      ) {
         setIsCategoryOpen(false);
       }
     }
@@ -95,10 +109,17 @@ function PlanningTabContent({
           <span className="font-medium text-gray-900 dark:text-white">
             {isLoadingServiceTypes
               ? tr("pages.planning.sidebar.form.serviceCategoryLoading", dict)
-              : (serviceCategoryOptions.find((o) => o.value === selectedServiceCategory)?.label ??
-                tr("pages.planning.sidebar.form.serviceCategoryPlaceholder", dict))}
+              : (serviceCategoryOptions.find(
+                  (o) => o.value === selectedServiceCategory
+                )?.label ??
+                tr(
+                  "pages.planning.sidebar.form.serviceCategoryPlaceholder",
+                  dict
+                ))}
           </span>
-          <HiChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`} />
+          <HiChevronDown
+            className={`w-4 h-4 text-gray-500 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`}
+          />
         </button>
         {isCategoryOpen && (
           <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -106,14 +127,23 @@ function PlanningTabContent({
               <button
                 key={option.value}
                 type="button"
-                onClick={() => { onServiceCategoryChange(option.value); setIsCategoryOpen(false); }}
+                onClick={() => {
+                  onServiceCategoryChange(option.value);
+                  setIsCategoryOpen(false);
+                }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                  option.value === selectedServiceCategory ? "bg-blue-50 dark:bg-blue-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  option.value === selectedServiceCategory
+                    ? "bg-blue-50 dark:bg-blue-900/20"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 } cursor-pointer`}
               >
                 <div className="flex items-center gap-2">
-                  {option.value === selectedServiceCategory && <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
-                  <span className={`text-sm ${option.value === selectedServiceCategory ? "text-blue-700 dark:text-blue-300" : "text-gray-900 dark:text-white"}`}>
+                  {option.value === selectedServiceCategory && (
+                    <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  )}
+                  <span
+                    className={`text-sm ${option.value === selectedServiceCategory ? "text-blue-700 dark:text-blue-300" : "text-gray-900 dark:text-white"}`}
+                  >
                     {option.label}
                   </span>
                 </div>
@@ -136,7 +166,12 @@ function PlanningTabContent({
         />
       )}
       <div className="flex gap-2 pt-2">
-        <Button type="submit" color="blue" className="flex-1" disabled={!canConfirm}>
+        <Button
+          type="submit"
+          color="blue"
+          className="flex-1"
+          disabled={!canConfirm}
+        >
           {reassigningService
             ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
             : tr("pages.planning.sidebar.form.confirm", dict)}
@@ -257,12 +292,16 @@ export function PlanningSidebarForm({
           0,
           Math.min(andenesCount - localOccupied.length, slot.availableCapacity)
         );
-        const isFullyOccupied = slot.availableCapacity <= 0 || localOccupied.length >= andenesCount;
+        const isFullyOccupied =
+          slot.availableCapacity <= 0 || localOccupied.length >= andenesCount;
         // When reassigning, the original slot is full in the backend but
         // should still be selectable (the old booking will be replaced).
         const isReassigningSlot =
           reassigningService &&
-          dayjs(reassigningService.originalSlot.date).isSame(selectedSlot.date, "day") &&
+          dayjs(reassigningService.originalSlot.date).isSame(
+            selectedSlot.date,
+            "day"
+          ) &&
           reassigningService.originalSlot.hour === slot.slotHour &&
           reassigningService.originalSlot.minutes === slot.slotMinutes;
         return {
@@ -658,7 +697,10 @@ export function PlanningSidebarForm({
         {selectedService.expectedDepartureDate && (
           <InfoRow
             label={tr("pages.planning.sidebar.form.departureDate", dict)}
-            value={formatDateString(selectedService.expectedDepartureDate, "datetime")}
+            value={formatDateString(
+              selectedService.expectedDepartureDate,
+              "datetime"
+            )}
           />
         )}
       </FormSection>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Button, TextInput } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type {
   DashletConfig,
@@ -18,10 +17,10 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
+  useActiveProviders,
+  DataProviderEntries,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 type SimpleDataMode = "static" | "pgrest";
 
@@ -32,11 +31,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const { siteId } = useDashboard();
-  const { dataSources } = useDataSources(siteId ?? undefined);
-  const activeProviders = dataSources.filter(
-    (ds) => ds.isActive === true && ds.lastTestResult === true
-  );
+  const activeProviders = useActiveProviders();
 
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
@@ -92,8 +87,6 @@ export function DashletSettings({
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
-
   const visualizationTab = (
     <>
       <HbTextField
@@ -146,53 +139,7 @@ export function DashletSettings({
         onDataSourceIdChange={setDataSourceId}
         activeProviders={activeProviders}
       />
-      {/* Data provider entries */}
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        {tr("dashboard.settings.defineVariablesHint", dictionary, {
-          code: "{{data_provider.key}}",
-        })}
-      </p>
-      <div className="space-y-2">
-        {dp.dataProvider.map((entry, i) => (
-          <div
-            key={entry._id}
-            className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
-          >
-            <TextInput
-              value={entry.key}
-              onChange={(e) => dp.updateEntry(i, "key", e.target.value)}
-              placeholder={tr("dashboard.settings.key", dictionary)}
-              sizing="sm"
-              className="flex-1"
-            />
-            <TextInput
-              value={entry.value}
-              onChange={(e) => dp.updateEntry(i, "value", e.target.value)}
-              placeholder={tr("common.value", dictionary)}
-              sizing="sm"
-              className="flex-1"
-            />
-            <Button
-              size="xs"
-              color="failure"
-              onClick={() => dp.removeEntry(i)}
-              onMouseDown={handleMouseDown}
-              className="no-drag shrink-0"
-            >
-              ✕
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button
-        size="xs"
-        color="light"
-        onClick={dp.addEntry}
-        onMouseDown={handleMouseDown}
-        className="no-drag w-full"
-      >
-        {tr("dashboard.settings.addEntry", dictionary)}
-      </Button>
+      <DataProviderEntries dataProvider={dp} dictionary={dictionary} />
     </>
   );
 

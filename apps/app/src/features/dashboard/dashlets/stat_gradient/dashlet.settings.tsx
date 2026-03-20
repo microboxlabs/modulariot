@@ -10,14 +10,13 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 type SimpleDataMode = "static" | "pgrest";
 
@@ -42,11 +41,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const { siteId } = useDashboard();
-  const { dataSources } = useDataSources(siteId ?? undefined);
-  const activeProviders = dataSources.filter(
-    (ds) => ds.isActive === true && ds.lastTestResult === true
-  );
+  const activeProviders = useActiveProviders();
   const [title, setTitle] = useState(config.title || "Active Users");
   const [value, setValue] = useState(String(config.value ?? "2847"));
   const [unit, setUnit] = useState(config.unit ?? "");

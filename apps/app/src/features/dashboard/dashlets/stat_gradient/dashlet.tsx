@@ -1,12 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestResolvedFields } from "../common";
-
-const EMPTY_PARAMS: PgrestParam[] = [];
+import { usePgrestResolvedFields, EMPTY_PGREST_PARAMS, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -73,32 +70,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataMode: (config.dataMode as "static" | "pgrest") || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
-    pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    pgrestParams: config.pgrestParams || EMPTY_PGREST_PARAMS,
     fields,
     dataSourceId: config.dataSourceId,
   });
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        <Spinner size="sm" />
-      </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
-      </div>
-    );
-  }
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
 
   const title = resolved.title || "Active Users";
   const unit = resolved.unit ?? "";
   const color = config.color || "blue";
-  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
-  const value = Number.isFinite(parsedValue) ? parsedValue : 0;
+  const value = parseResolvedNumber(resolved.value);
 
   return (
     <div

@@ -11,10 +11,9 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -70,11 +69,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const { siteId } = useDashboard();
-  const { dataSources } = useDataSources(siteId ?? undefined);
-  const activeProviders = dataSources.filter(
-    (ds) => ds.isActive === true && ds.lastTestResult === true
-  );
+  const activeProviders = useActiveProviders();
 
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit ?? "%");

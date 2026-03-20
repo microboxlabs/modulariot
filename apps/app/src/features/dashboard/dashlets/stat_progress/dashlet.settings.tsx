@@ -9,10 +9,9 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 
 type SimpleDataMode = "static" | "pgrest";
 
@@ -30,11 +29,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const { siteId } = useDashboard();
-  const { dataSources } = useDataSources(siteId ?? undefined);
-  const activeProviders = dataSources.filter(
-    (ds) => ds.isActive === true && ds.lastTestResult === true
-  );
+  const activeProviders = useActiveProviders();
   const [title, setTitle] = useState(config.title || "Quarterly Goal");
   const [value, setValue] = useState(String(config.value ?? "78"));
   const [target, setTarget] = useState(String(config.target ?? "100"));

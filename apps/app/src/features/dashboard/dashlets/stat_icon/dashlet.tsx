@@ -3,23 +3,18 @@
 import { useMemo } from "react";
 import { HiShoppingCart } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
   value: string;
   unit: string;
   subtitle: string;
-  dataMode?: string;
-  pgrestFunctionName?: string;
-  pgrestParams?: PgrestParam[];
-  pgrestHttpMethod?: PgrestHttpMethod;
-  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {

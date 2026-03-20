@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestDashletFields } from "../common";
 import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
@@ -12,16 +12,11 @@ import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
 export type TextAlign = "left" | "center" | "right";
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   text: string;
   italic: boolean;
   align: TextAlign;
   dataProvider?: DataProviderEntry[];
-  dataMode?: string;
-  pgrestFunctionName?: string;
-  pgrestParams?: PgrestParam[];
-  pgrestHttpMethod?: PgrestHttpMethod;
-  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {

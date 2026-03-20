@@ -16,7 +16,7 @@ import {
   HiBolt,
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestDashletFields } from "../common";
 import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
@@ -69,7 +69,7 @@ const ICONS: Record<
 ) as Record<InfoCardIcon, React.ComponentType<{ className?: string }>>;
 
 /** Configuration for this dashlet */
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   /** Title displayed in header (top-left) */
   title: string;
   /** Icon displayed in header (top-right) */
@@ -84,11 +84,6 @@ export interface DashletConfig {
   viewMoreUrl: string;
   /** Data provider entries for dynamic values */
   dataProvider?: DataProviderEntry[];
-  dataMode?: string;
-  pgrestFunctionName?: string;
-  pgrestParams?: PgrestParam[];
-  pgrestHttpMethod?: PgrestHttpMethod;
-  dataSourceId?: string;
 }
 
 /** Default configuration */

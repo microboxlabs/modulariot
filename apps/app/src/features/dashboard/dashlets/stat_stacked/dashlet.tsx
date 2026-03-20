@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 
 // ============================================================================
@@ -17,16 +17,11 @@ export type BarColor =
   | "bg-red-500 dark:bg-red-400"
   | "bg-cyan-500 dark:bg-cyan-400";
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
   items: { label: string; value: number; color: BarColor }[];
   unit: string;
   showHeader: boolean;
-  dataMode?: string;
-  pgrestFunctionName?: string;
-  pgrestParams?: PgrestParam[];
-  pgrestHttpMethod?: PgrestHttpMethod;
-  dataSourceId?: string;
 }
 
 export const defaultConfig: DashletConfig = {

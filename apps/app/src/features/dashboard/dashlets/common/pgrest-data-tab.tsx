@@ -2,12 +2,13 @@
 
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestSettingsSection } from "./pgrest-settings-section";
+import { PlannerVariableSelector } from "./planner-variable-selector";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { buildPgrestContentLabels } from "./pgrest-settings-helpers";
 
-type SimpleDataMode = "static" | "pgrest";
+type SimpleDataMode = "static" | "pgrest" | "planner";
 
 interface PgrestDataTabProps {
   id: string;
@@ -15,11 +16,13 @@ interface PgrestDataTabProps {
   onDataModeChange: (mode: SimpleDataMode) => void;
   pgrest: ReturnType<typeof usePgrestSettingsState>;
   dictionary: I18nRecord;
+  plannerVariableName?: string;
+  onPlannerVariableNameChange?: (name: string) => void;
 }
 
 /**
  * Reusable data-provider tab content for card-style dashlet settings.
- * Renders a static/pgrest mode selector and, when pgrest is selected,
+ * Renders a static/pgrest/planner mode selector and, when pgrest is selected,
  * the full PgrestSettingsSection.
  */
 export function PgrestDataTab({
@@ -28,6 +31,8 @@ export function PgrestDataTab({
   onDataModeChange,
   pgrest,
   dictionary,
+  plannerVariableName,
+  onPlannerVariableNameChange,
 }: Readonly<PgrestDataTabProps>) {
   const labels = buildPgrestContentLabels(dictionary);
 
@@ -47,10 +52,21 @@ export function PgrestDataTab({
             value: "pgrest",
             label: tr("dashboard.settings.pgrest", dictionary),
           },
+          {
+            value: "planner",
+            label: "Planner",
+          },
         ]}
       />
       {dataMode === "pgrest" && (
         <PgrestSettingsSection pgrest={pgrest} dictionary={dictionary} labels={labels} />
+      )}
+      {dataMode === "planner" && onPlannerVariableNameChange && (
+        <PlannerVariableSelector
+          label="Variable"
+          value={plannerVariableName ?? ""}
+          onChange={onPlannerVariableNameChange}
+        />
       )}
     </>
   );

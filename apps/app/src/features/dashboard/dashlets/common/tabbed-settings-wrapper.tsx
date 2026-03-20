@@ -23,6 +23,8 @@ interface TabbedSettingsWrapperProps {
   dataProvider: UseDataProviderReturn;
   dictionary: I18nRecord;
   children: ReactNode;
+  /** Content rendered when planner mode is selected */
+  plannerContent?: ReactNode;
 }
 
 // ============================================================================
@@ -130,6 +132,7 @@ export function TabbedSettingsWrapper({
   dataProvider,
   dictionary,
   children,
+  plannerContent,
 }: Readonly<TabbedSettingsWrapperProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
@@ -174,10 +177,13 @@ export function TabbedSettingsWrapper({
               {children}
             </>
           ) : (
-            <DataProviderTab
-              dataProvider={dataProvider}
-              dictionary={dictionary}
-            />
+            <>
+              <DataProviderTab
+                dataProvider={dataProvider}
+                dictionary={dictionary}
+              />
+              {plannerContent}
+            </>
           )}
         </div>
 

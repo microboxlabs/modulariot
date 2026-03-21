@@ -1523,6 +1523,7 @@
       "staticJson": "Static (JSON)",
       "pgrest": "PGREST",
       "dynamicApi": "Dynamic (API)",
+      "planner": "Planner",
       "rowsJsonArray": "Rows (JSON array)",
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",

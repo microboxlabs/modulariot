@@ -40,37 +40,33 @@ const introspectionSchema = z.object({
 async function introspectFunction(
   functionName: string,
   dataSourceId?: string,
-): Promise<IntrospectionResult | null> {
+): Promise<IntrospectionResult> {
   const fn = functionName.trim();
-  if (!fn) return null;
+  if (!fn) throw new Error("Function name is empty");
 
-  try {
-    const qs = buildDataSourceParams(dataSourceId);
-    qs.set("fn", fn);
-    const res = await fetch(`/app/api/dashboard/pgrest/openapi?${qs.toString()}`);
-    if (!res.ok) return null;
+  const qs = buildDataSourceParams(dataSourceId);
+  qs.set("fn", fn);
+  const res = await fetch(`/app/api/dashboard/pgrest/openapi?${qs.toString()}`);
+  if (!res.ok) throw new Error(`Introspection failed (${res.status})`);
 
-    const data = await introspectionSchema.parseAsync(await res.json());
+  const data = await introspectionSchema.parseAsync(await res.json());
 
-    const firstMethod = data.methods[0];
-    const method: "POST" | "GET" =
-      firstMethod === "POST" || firstMethod === "GET" ? firstMethod : "POST";
+  const firstMethod = data.methods[0];
+  const method: "POST" | "GET" =
+    firstMethod === "POST" || firstMethod === "GET" ? firstMethod : "POST";
 
-    const params: PlannerParam[] = data.parameters
-      .filter((p): p is typeof p & { name: string } => !!p.name)
-      .map((p) => ({ key: p.name, value: "" }));
+  const params: PlannerParam[] = data.parameters
+    .filter((p): p is typeof p & { name: string } => !!p.name)
+    .map((p) => ({ key: p.name, value: "" }));
 
-    const paramHints: Record<string, string> = {};
-    for (const p of data.parameters) {
-      if (p.name && p.format) {
-        paramHints[p.name] = p.format;
-      }
+  const paramHints: Record<string, string> = {};
+  for (const p of data.parameters) {
+    if (p.name && p.format) {
+      paramHints[p.name] = p.format;
     }
-
-    return { method, params, paramHints };
-  } catch {
-    return null;
   }
+
+  return { method, params, paramHints };
 }
 
 // ============================================================================
@@ -108,6 +104,7 @@ function RequestEditor({
   const [expanded, setExpanded] = useState(false);
   const [introspecting, setIntrospecting] = useState(false);
   const [paramHints, setParamHints] = useState<Record<string, string>>({});
+  const [introspectionError, setIntrospectionError] = useState<string | null>(null);
 
   const nameError = (() => {
     if (!def.variableName) return "Required";
@@ -119,15 +116,21 @@ function RequestEditor({
   const handleFunctionSelect = useCallback(
     async (fn: string) => {
       setIntrospecting(true);
-      const result = await introspectFunction(fn, def.dataSourceId);
-      setIntrospecting(false);
-      if (result) {
+      setIntrospectionError(null);
+      try {
+        const result = await introspectFunction(fn, def.dataSourceId);
         onUpdate(def.id, {
           pgrestFunctionName: fn,
           pgrestHttpMethod: result.method,
           pgrestParams: result.params,
         });
         setParamHints(result.paramHints);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        console.error("Introspection failed:", err);
+        setIntrospectionError(message);
+      } finally {
+        setIntrospecting(false);
       }
     },
     [def.id, def.dataSourceId, onUpdate],
@@ -142,6 +145,7 @@ function RequestEditor({
         pgrestParams: [],
       });
       setParamHints({});
+      setIntrospectionError(null);
     },
     [def.id, onUpdate],
   );
@@ -243,6 +247,11 @@ function RequestEditor({
               dataSourceId={def.dataSourceId}
               loading={introspecting}
             />
+            {introspectionError && (
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+                Introspection failed: {introspectionError}
+              </p>
+            )}
           </div>
 
           {/* HTTP Method (auto-detected, still editable) */}

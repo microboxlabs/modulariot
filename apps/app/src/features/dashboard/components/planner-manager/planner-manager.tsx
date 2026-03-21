@@ -297,7 +297,7 @@ function RequestEditor({
                   />
                   <button
                     type="button"
-                    aria-label={`Remove parameter ${p.key || `#${i + 1}`}`}
+                    aria-label={`Remove parameter ${p.key || "#" + (i + 1)}`}
                     onClick={() => {
                       const params = def.pgrestParams.filter((_, j) => j !== i);
                       onUpdate(def.id, { pgrestParams: params });

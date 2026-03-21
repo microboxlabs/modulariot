@@ -179,6 +179,7 @@ function RequestEditor({
         </button>
         <button
           type="button"
+          aria-label={`Remove ${def.variableName || "request"}`}
           onClick={() => onRemove(def.id)}
           className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
         >
@@ -296,6 +297,7 @@ function RequestEditor({
                   />
                   <button
                     type="button"
+                    aria-label={`Remove parameter ${p.key || `#${i + 1}`}`}
                     onClick={() => {
                       const params = def.pgrestParams.filter((_, j) => j !== i);
                       onUpdate(def.id, { pgrestParams: params });

@@ -1,6 +1,8 @@
 "use client";
 
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -8,16 +10,16 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 
 export type GradientColor = "blue" | "green" | "red" | "yellow" | "purple";
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  value: number;
+  value: string;
   unit: string;
   color: GradientColor;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Active Users",
-  value: 2847,
+  value: "2847",
   unit: "",
   color: "blue",
 };
@@ -30,6 +32,8 @@ export const layoutDefaults: DashletLayoutDefaults = {
 export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
+
+const FIELD_DEFAULTS: Record<string, string> = { title: "Active Users", value: "2847", unit: "" };
 
 const COLORS = {
   blue: "from-blue-500 to-blue-600",
@@ -48,7 +52,16 @@ const COLORS = {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, unit, color } = config;
+
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Active Users";
+  const unit = resolved.unit ?? "";
+  const color = config.color || "blue";
+  const value = parseResolvedNumber(resolved.value);
 
   return (
     <div

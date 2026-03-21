@@ -11,6 +11,7 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   IconColorPickerRow,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
@@ -45,6 +46,8 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const activeProviders = useActiveProviders();
+
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
   const [color, setColor] = useState<ColorTheme>(config.color || "gray");
@@ -55,6 +58,9 @@ export function DashletSettings({
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
   );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
 
   const { schemas } = usePlannerContext();
   const schemaSuggestions =
@@ -63,7 +69,7 @@ export function DashletSettings({
       : undefined;
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig(config, (detected) => {
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
       if (detected.length >= 1) {
         setName(`{{row.${detected[0].key}}}`);
       }
@@ -84,6 +90,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -126,6 +133,9 @@ export function DashletSettings({
       dictionary={dictionary}
       plannerVariableName={plannerVariableName}
       onPlannerVariableNameChange={setPlannerVariableName}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={(v) => { setDataSourceId(v); }}
+      activeProviders={activeProviders}
     />
   );
 

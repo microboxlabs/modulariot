@@ -7,8 +7,12 @@ import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { buildPgrestContentLabels } from "./pgrest-settings-helpers";
+import type { SimpleDataMode } from "./use-simple-pgrest-settings";
 
-type SimpleDataMode = "static" | "pgrest" | "planner";
+interface DataSourceOption {
+  id: string;
+  name: string;
+}
 
 interface PgrestDataTabProps {
   id: string;
@@ -18,12 +22,15 @@ interface PgrestDataTabProps {
   dictionary: I18nRecord;
   plannerVariableName?: string;
   onPlannerVariableNameChange?: (name: string) => void;
+  dataSourceId?: string;
+  onDataSourceIdChange?: (id: string) => void;
+  activeProviders?: DataSourceOption[];
 }
 
 /**
  * Reusable data-provider tab content for card-style dashlet settings.
  * Renders a static/pgrest/planner mode selector and, when pgrest is selected,
- * the full PgrestSettingsSection.
+ * the full PgrestSettingsSection (including Data Source Provider dropdown).
  */
 export function PgrestDataTab({
   id,
@@ -33,6 +40,9 @@ export function PgrestDataTab({
   dictionary,
   plannerVariableName,
   onPlannerVariableNameChange,
+  dataSourceId,
+  onDataSourceIdChange,
+  activeProviders,
 }: Readonly<PgrestDataTabProps>) {
   const labels = buildPgrestContentLabels(dictionary);
 
@@ -59,7 +69,14 @@ export function PgrestDataTab({
         ]}
       />
       {dataMode === "pgrest" && (
-        <PgrestSettingsSection pgrest={pgrest} dictionary={dictionary} labels={labels} />
+        <PgrestSettingsSection
+          pgrest={pgrest}
+          dictionary={dictionary}
+          labels={labels}
+          dataSourceId={dataSourceId}
+          onDataSourceIdChange={onDataSourceIdChange}
+          activeProviders={activeProviders}
+        />
       )}
       {dataMode === "planner" && onPlannerVariableNameChange && (
         <PlannerVariableSelector

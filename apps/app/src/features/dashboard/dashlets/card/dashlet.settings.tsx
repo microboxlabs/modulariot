@@ -14,6 +14,7 @@ import {
   buildSimplePgrestConfig,
   buildPgrestContentLabels,
   IconColorPickerRow,
+  useActiveProviders,
 } from "../common";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { SettingsModalShell } from "../common/settings-modal-shell";
@@ -53,6 +54,8 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const activeProviders = useActiveProviders();
+
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
   const [descriptor, setDescriptor] = useState(config.descriptor || "");
@@ -66,6 +69,9 @@ export function DashletSettings({
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
   );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
 
   const { schemas } = usePlannerContext();
   const schemaSuggestions =
@@ -74,7 +80,7 @@ export function DashletSettings({
       : undefined;
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig(config, (detected) => {
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
       if (detected.length >= 1) {
         setName(`{{row.${detected[0].key}}}`);
       }
@@ -99,6 +105,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -152,6 +159,9 @@ export function DashletSettings({
           pgrest={pg}
           dictionary={dictionary}
           labels={buildPgrestContentLabels(dictionary)}
+          dataSourceId={dataSourceId}
+          onDataSourceIdChange={setDataSourceId}
+          activeProviders={activeProviders}
         />
       )}
       {dataMode === "planner" && (

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import Handlebars from "handlebars";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
 // ============================================================================
 // Configuration Types
@@ -10,7 +12,7 @@ import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } 
 
 export type TextAlign = "left" | "center" | "right";
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   text: string;
   italic: boolean;
   align: TextAlign;
@@ -58,22 +60,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
-  const templateContext = useMemo(() => {
-    const data_provider: Record<string, string> = {};
-    for (const entry of dataProvider) {
-      if (entry.key) data_provider[entry.key] = entry.value;
-    }
-    return { data_provider };
-  }, [dataProvider]);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider);
 
-  const compiledText = useMemo(() => {
-    try {
-      return Handlebars.compile(text)(templateContext);
-    } catch {
-      return text;
-    }
-  }, [text, templateContext]);
+  const compiledText = useMemo(() => resolveHandlebarsField(text, templateContext), [text, templateContext]);
 
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
   const alignClass = ALIGN_CLASS[align] ?? ALIGN_CLASS.left;
 
   return (

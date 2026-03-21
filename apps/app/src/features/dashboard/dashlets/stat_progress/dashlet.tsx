@@ -1,22 +1,24 @@
 "use client";
 
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  value: number;
-  target: number;
+  value: string;
+  target: string;
   unit: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Quarterly Goal",
-  value: 78,
-  target: 100,
+  value: "78",
+  target: "100",
   unit: "%",
 };
 
@@ -28,6 +30,8 @@ export const layoutDefaults: DashletLayoutDefaults = {
 export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
+
+const FIELD_DEFAULTS: Record<string, string> = { title: "Quarterly Goal", value: "78", target: "100", unit: "%" };
 
 // ============================================================================
 // Component - Style 7: Progress Bar
@@ -48,9 +52,18 @@ function getBarColor(percentage: number): string {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, target, unit } = config;
 
-  const percentage = Math.min(100, (value / target) * 100);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Quarterly Goal";
+  const unit = resolved.unit ?? "%";
+  const value = parseResolvedNumber(resolved.value);
+  const target = parseResolvedNumber(resolved.target, 100);
+
+  const percentage = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
   const barColor = getBarColor(percentage);
 
   return (
@@ -88,9 +101,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         {/* Labels */}
         <div className="mt-1 flex justify-between text-xs text-gray-400">
           <span>0</span>
-          <span>25</span>
-          <span>50</span>
-          <span>75</span>
+          <span>{Math.round(target * 0.25)}</span>
+          <span>{Math.round(target * 0.5)}</span>
+          <span>{Math.round(target * 0.75)}</span>
           <span>{target}</span>
         </div>
       </div>

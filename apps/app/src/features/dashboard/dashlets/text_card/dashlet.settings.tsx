@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Label, Textarea, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, TextAlign } from "./dashlet";
@@ -9,8 +9,15 @@ import {
   getHandlebarsStatus,
   getFlowbiteColor,
   useDataProvider,
-  TabbedSettingsWrapper,
+  usePgrestSettingsState,
+  fromPgrestParamItems,
+  buildSimplePgrestConfig,
+  PgrestDataTab,
+  useActiveProviders,
+  DataProviderEntries,
+  type SimpleDataMode,
 } from "../common";
+import { SettingsModalShell } from "../common/settings-modal-shell";
 
 export function DashletSettings({
   isOpen,
@@ -19,11 +26,38 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const activeProviders = useActiveProviders();
+
   const [text, setText] = useState(config.text ?? "Add your text or quote here...");
   const [italic, setItalic] = useState(config.italic ?? true);
   const [align, setAlign] = useState<TextAlign>(config.align ?? "left");
+  const [dataMode, setDataMode] = useState<SimpleDataMode>(
+    config.dataMode === "static" || config.dataMode === "pgrest"
+      ? config.dataMode
+      : "static",
+  );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
 
   const dp = useDataProvider(config.dataProvider ?? []);
+
+  const staticSnapshot = useRef({ text });
+
+  const handleDataModeChange = (mode: SimpleDataMode) => {
+    if (mode === "pgrest" && dataMode === "static") {
+      staticSnapshot.current = { text };
+    } else if (mode === "static" && dataMode === "pgrest") {
+      setText(staticSnapshot.current.text);
+    }
+    setDataMode(mode);
+  };
+
+  const pg = usePgrestSettingsState({
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
+      if (detected.length >= 1) setText(`{{row.${detected[0].key}}}`);
+    }),
+  });
 
   const handleSave = () => {
     onSave({
@@ -31,20 +65,19 @@ export function DashletSettings({
       italic,
       align,
       dataProvider: dp.getCleanEntries(),
+      dataMode,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
+      dataSourceId: dataSourceId || undefined,
     } as DashletConfig);
     onClose();
   };
 
   const textStatus = getHandlebarsStatus(text);
 
-  return (
-    <TabbedSettingsWrapper
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={handleSave}
-      dataProvider={dp}
-      dictionary={dictionary}
-    >
+  const visualizationTab = (
+    <>
       <div>
         <Label htmlFor="tc-text" className="mb-1 block text-sm font-medium">
           Text
@@ -78,6 +111,33 @@ export function DashletSettings({
           label=""
         />
       </div>
-    </TabbedSettingsWrapper>
+    </>
+  );
+
+  const dataTab = (
+    <>
+      <PgrestDataTab
+        id="tc-data-mode"
+        dataMode={dataMode}
+        onDataModeChange={handleDataModeChange}
+        pgrest={pg}
+        dictionary={dictionary}
+        dataSourceId={dataSourceId}
+        onDataSourceIdChange={setDataSourceId}
+        activeProviders={activeProviders}
+      />
+      <DataProviderEntries dataProvider={dp} dictionary={dictionary} />
+    </>
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
   );
 }

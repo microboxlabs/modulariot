@@ -64,7 +64,7 @@ export function PgrestDataTab({
           },
           {
             value: "planner",
-            label: "Planner",
+            label: tr("dashboard.settings.planner", dictionary),
           },
         ]}
       />
@@ -80,7 +80,7 @@ export function PgrestDataTab({
       )}
       {dataMode === "planner" && onPlannerVariableNameChange && (
         <PlannerVariableSelector
-          label="Variable"
+          label={tr("dashboard.settings.plannerVariable", dictionary)}
           value={plannerVariableName ?? ""}
           onChange={onPlannerVariableNameChange}
         />

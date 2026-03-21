@@ -134,10 +134,19 @@ function RequestEditor({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={`Toggle ${def.variableName || "Unnamed"}`}
         onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-center justify-between p-3 text-left text-sm"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((prev) => !prev);
+          }
+        }}
+        className="flex w-full cursor-pointer items-center justify-between p-3 text-left text-sm"
       >
         <div className="flex items-center gap-2 min-w-0">
           {expanded ? (
@@ -168,7 +177,7 @@ function RequestEditor({
         >
           <HiTrash className="h-4 w-4" />
         </button>
-      </button>
+      </div>
 
       {expanded && (
         <div className="space-y-3 border-t border-gray-200 p-3 dark:border-gray-600">

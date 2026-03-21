@@ -52,9 +52,8 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
   const persistSchema = useCallback(
     (defId: string, newSchema: string[], currentSchema?: string[]) => {
       const same =
-        currentSchema &&
-        currentSchema.length === newSchema.length &&
-        currentSchema.every((k, i) => k === newSchema[i]);
+        currentSchema?.length === newSchema.length &&
+        currentSchema?.every((k, i) => k === newSchema[i]);
       if (!same) {
         updatePlannerRequest(defId, { schema: newSchema });
       }

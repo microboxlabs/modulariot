@@ -12,6 +12,7 @@ import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { z } from "zod";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -24,6 +25,17 @@ interface IntrospectionResult {
   params: PlannerParam[];
   paramHints: Record<string, string>;
 }
+
+const introspectionSchema = z.object({
+  methods: z.array(z.string()),
+  parameters: z.array(
+    z.object({
+      name: z.string().optional(),
+      type: z.string().optional(),
+      format: z.string().optional(),
+    }),
+  ),
+});
 
 async function introspectFunction(
   functionName: string,
@@ -38,19 +50,21 @@ async function introspectFunction(
     const res = await fetch(`/app/api/dashboard/pgrest/openapi?${qs.toString()}`);
     if (!res.ok) return null;
 
-    const data = (await res.json()) as {
-      methods: string[];
-      parameters: { name: string; type: string; format: string }[];
-    };
+    const data = await introspectionSchema.parseAsync(await res.json());
 
-    const method = (data.methods[0] as "POST" | "GET") ?? "POST";
-    const params: PlannerParam[] = data.parameters.map((p) => ({
-      key: p.name,
-      value: "",
-    }));
+    const firstMethod = data.methods[0];
+    const method: "POST" | "GET" =
+      firstMethod === "POST" || firstMethod === "GET" ? firstMethod : "POST";
+
+    const params: PlannerParam[] = data.parameters
+      .filter((p): p is typeof p & { name: string } => !!p.name)
+      .map((p) => ({ key: p.name, value: "" }));
+
     const paramHints: Record<string, string> = {};
     for (const p of data.parameters) {
-      paramHints[p.name] = p.format;
+      if (p.name && p.format) {
+        paramHints[p.name] = p.format;
+      }
     }
 
     return { method, params, paramHints };

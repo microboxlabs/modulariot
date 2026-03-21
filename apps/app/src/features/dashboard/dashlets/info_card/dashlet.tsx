@@ -16,7 +16,9 @@ import {
   HiBolt,
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
-import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
+import type { PgrestDashletFields } from "../common";
+import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
 // ============================================================================
 // Configuration Types
@@ -67,7 +69,7 @@ const ICONS: Record<
 ) as Record<InfoCardIcon, React.ComponentType<{ className?: string }>>;
 
 /** Configuration for this dashlet */
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   /** Title displayed in header (top-left) */
   title: string;
   /** Icon displayed in header (top-right) */
@@ -114,13 +116,6 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 /**
  * Info Card Dashlet
- *
- * A comprehensive card displaying:
- * - Header: Title (left) + Icon (right)
- * - Body: Large value + Descriptor text
- * - Children Section: Optional nested dashlets for additional info
- * - AI Section: Placeholder for AI-generated summary
- * - Footer: Optional "View more" button (right-aligned)
  */
 export function Dashlet({
   widget,
@@ -139,13 +134,16 @@ export function Dashlet({
     dataProvider = [],
   } = config;
 
-  const templateContext = useMemo(() => buildDataProviderContext(dataProvider), [dataProvider]);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider);
 
   const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
   const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
   const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
   const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
   const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
 
   const IconComponent = ICONS[icon] || ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;

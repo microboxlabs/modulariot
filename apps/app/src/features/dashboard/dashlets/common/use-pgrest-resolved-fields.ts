@@ -13,9 +13,10 @@ interface PgrestResolvedFieldsConfig {
   pgrestParams: PgrestParam[];
   fields: Record<string, string>;
   plannerVariableName?: string;
+  dataSourceId?: string;
 }
 
-interface PgrestResolvedFieldsResult {
+export interface PgrestResolvedFieldsResult {
   resolved: Record<string, string>;
   loading: boolean;
   fetchError: string | null;
@@ -33,6 +34,7 @@ export function usePgrestResolvedFields({
   pgrestParams,
   fields,
   plannerVariableName,
+  dataSourceId,
 }: PgrestResolvedFieldsConfig): PgrestResolvedFieldsResult {
   const stableParams = pgrestParams.length > 0 ? pgrestParams : EMPTY_PARAMS;
 
@@ -41,6 +43,7 @@ export function usePgrestResolvedFields({
     pgrestFunctionName,
     pgrestHttpMethod,
     stableParams,
+    dataSourceId,
   );
 
   const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(

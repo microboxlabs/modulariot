@@ -9,6 +9,7 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
@@ -32,6 +33,8 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const activeProviders = useActiveProviders();
+
   const [title, setTitle] = useState(config.title || "Progress");
   const [value, setValue] = useState(String(config.value ?? "6"));
   const [max, setMax] = useState(String(config.max ?? "10"));
@@ -42,6 +45,9 @@ export function DashletSettings({
   );
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
+  );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
   );
 
   // Snapshot of static field values, saved when entering pgrest mode
@@ -67,7 +73,7 @@ export function DashletSettings({
       : undefined;
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig(config, (detected) => {
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
       if (detected.length >= 1) {
         setTitle(`{{row.${detected[0].key}}}`);
       }
@@ -90,6 +96,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -123,6 +130,9 @@ export function DashletSettings({
       dictionary={dictionary}
       plannerVariableName={plannerVariableName}
       onPlannerVariableNameChange={setPlannerVariableName}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
     />
   );
 

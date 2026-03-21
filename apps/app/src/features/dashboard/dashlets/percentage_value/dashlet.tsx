@@ -22,6 +22,7 @@ export interface DashletConfig {
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
   plannerVariableName?: string;
+  dataSourceId?: string;
 }
 
 /** Default configuration */
@@ -71,6 +72,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams: config.pgrestParams || EMPTY_PARAMS,
     plannerVariableName: config.plannerVariableName,
     fields,
+    dataSourceId: config.dataSourceId,
   });
 
   if (loading) {

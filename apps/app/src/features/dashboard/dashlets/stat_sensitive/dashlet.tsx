@@ -1,23 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  value: number;
+  value: string;
   unit: string;
   isSensitive: boolean;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Account Balance",
-  value: 125847.32,
+  value: "125847.32",
   unit: "$",
   isSensitive: true,
 };
@@ -31,6 +33,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Account Balance", value: "125847.32", unit: "$" };
+
 // ============================================================================
 // Component - Style 10: Sensitive Data (Hidden by default)
 // ============================================================================
@@ -40,15 +44,25 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, unit, isSensitive } = config;
+  const isSensitive = config.isSensitive ?? true;
   const [isHidden, setIsHidden] = useState(isSensitive);
 
-  const displayValue = isHidden
-    ? "••••••"
-    : `${unit}${value.toLocaleString(undefined, {
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Account Balance";
+  const unit = resolved.unit ?? "$";
+  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const formattedValue = Number.isFinite(parsedValue)
+    ? `${unit}${parsedValue.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      })}`;
+      })}`
+    : `${unit}${resolved.value}`;
+
+  const displayValue = isHidden ? "••••••" : formattedValue;
 
   return (
     <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

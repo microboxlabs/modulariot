@@ -1,22 +1,24 @@
 "use client";
 
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { HiShoppingCart } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  value: number;
+  value: string;
   unit: string;
   subtitle: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Orders",
-  value: 156,
+  value: "156",
   unit: "",
   subtitle: "Last 24 hours",
 };
@@ -30,6 +32,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Orders", value: "156", unit: "", subtitle: "Last 24 hours" };
+
 // ============================================================================
 // Component - Style 4: Icon Accent
 // ============================================================================
@@ -39,7 +43,16 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, unit, subtitle } = config;
+
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Orders";
+  const unit = resolved.unit ?? "";
+  const subtitle = resolved.subtitle || "";
+  const value = parseResolvedNumber(resolved.value);
 
   return (
     <div className="flex h-full items-center gap-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

@@ -49,6 +49,7 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  dataSourceId?: string;
   filter: FilterConfig;
   sort: SortConfig;
   cardLayout: CardLayoutConfig;
@@ -319,6 +320,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestHttpMethod,
     pgrestParams: pgrestParamsStable,
     plannerVariableName,
+    dataSourceId: config.dataSourceId,
   });
 
   const loading = dynamicLoading || fetchedLoading;

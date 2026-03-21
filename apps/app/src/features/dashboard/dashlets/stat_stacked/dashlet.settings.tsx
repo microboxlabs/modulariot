@@ -6,10 +6,11 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
 import {
-  DashletSettingsWrapper,
-  SettingsTextField,
-  SettingsFieldGrid,
+  HbTextFieldList,
+  PgrestDataTab,
+  useSimplePgrestSettings,
 } from "../common";
+import { SettingsModalShell } from "../common/settings-modal-shell";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -51,6 +52,13 @@ interface StackItem {
   color: BarColor;
 }
 
+const FIELDS = [
+  { id: "st-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Traffic Sources" },
+  { id: "st-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
+] as const;
+
+const FIELD_NAMES = ["title", "unit"] as const;
+
 export function DashletSettings({
   isOpen,
   onClose,
@@ -59,7 +67,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [title, setTitle] = useState(config.title || "Traffic Sources");
-  const [unit, setUnit] = useState(config.unit || "%");
+  const [unit, setUnit] = useState(config.unit ?? "%");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
 
   // Initialize items with unique IDs
@@ -76,13 +84,38 @@ export function DashletSettings({
 
   const [items, setItems] = useState(initializeItems);
 
+  const fieldValues = { title, unit };
+  const fieldSetters = { title: setTitle, unit: setUnit };
+
+  const {
+    isPgrest,
+    activeProviders,
+    dataMode,
+    dataSourceId,
+    setDataSourceId,
+    pg,
+    handleDataModeChange,
+    pgrestSaveFields,
+  } = useSimplePgrestSettings({
+    config,
+    fieldNames: FIELD_NAMES,
+    fieldValues,
+    fieldSetters,
+  });
+
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
       label,
       value,
       color,
     }));
-    onSave({ title, items: itemsToSave, unit, showHeader });
+    onSave({
+      title: title.trim() || "Traffic Sources",
+      items: itemsToSave,
+      unit: unit.trim() || "%",
+      showHeader,
+      ...pgrestSaveFields,
+    });
     onClose();
   };
 
@@ -112,15 +145,8 @@ export function DashletSettings({
     );
   };
 
-  return (
-    <DashletSettingsWrapper
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={handleSave}
-      width="w-80"
-      scrollable
-      dictionary={dictionary}
-    >
+  const visualizationTab = (
+    <>
       <div className="flex items-center justify-between py-1">
         <Label className="text-sm font-medium">Show Header</Label>
         <div className="shrink-0">
@@ -132,22 +158,13 @@ export function DashletSettings({
         </div>
       </div>
 
-      {showHeader && (
-        <SettingsFieldGrid cols={2}>
-          <SettingsTextField
-            id="title"
-            label="Title"
-            value={title}
-            onChange={setTitle}
-          />
-          <SettingsTextField
-            id="unit"
-            label="Unit"
-            value={unit}
-            onChange={setUnit}
-          />
-        </SettingsFieldGrid>
-      )}
+      <HbTextFieldList
+        fields={FIELDS}
+        fieldValues={fieldValues}
+        fieldSetters={fieldSetters}
+        isPgrest={isPgrest}
+        dictionary={dictionary}
+      />
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -202,6 +219,30 @@ export function DashletSettings({
           </div>
         ))}
       </div>
-    </DashletSettingsWrapper>
+    </>
+  );
+
+  const dataTab = (
+    <PgrestDataTab
+      id="st-data-mode"
+      dataMode={dataMode}
+      onDataModeChange={handleDataModeChange}
+      pgrest={pg}
+      dictionary={dictionary}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
+    />
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+    />
   );
 }

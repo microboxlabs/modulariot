@@ -19,6 +19,7 @@ import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
+import { useActiveProviders } from "../common";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -28,6 +29,8 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const activeProviders = useActiveProviders();
+
   const s = useSettingsState({
     title: config.title,
     defaultTitle: "Data List",
@@ -56,6 +59,10 @@ export function DashletSettings({
   const [kpiColumns, setKpiColumns] = useState<string[]>(cl.kpiColumns);
   const [footerColumns, setFooterColumns] = useState<string[]>(cl.footerColumns);
 
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
+
   const autoPopulateCardLayout = (detected: { key: string }[]) => {
     const keys = detected.map((c) => c.key);
     setTitleColumn(keys[0] ?? "");
@@ -69,6 +76,7 @@ export function DashletSettings({
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestParams: config.pgrestParams ?? [],
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
+    dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
     onDetectionComplete: autoPopulateCardLayout,
   });
@@ -108,6 +116,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      dataSourceId: dataSourceId || undefined,
       filter,
       sort,
       cardLayout,
@@ -121,6 +130,9 @@ export function DashletSettings({
       pgrest={pg}
       dictionary={dictionary}
       labels={buildPgrestContentLabels(dictionary)}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={setDataSourceId}
+      activeProviders={activeProviders}
     />
   );
 

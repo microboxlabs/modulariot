@@ -42,7 +42,11 @@ const FIELD_DEFAULTS: Record<string, string> = { title: "Page Views", value: "24
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const sparkline = config.sparkline || defaultConfig.sparkline;
+  const rawSparkline = config.sparkline;
+  const sparkline =
+    Array.isArray(rawSparkline) && rawSparkline.length >= 2
+      ? rawSparkline
+      : defaultConfig.sparkline;
 
   const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
 

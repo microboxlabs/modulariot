@@ -362,7 +362,7 @@ interface HbTextFieldProps {
 function detectRowPrefix(text: string, cursorPos: number): string | null {
   const before = text.slice(0, cursorPos);
   // Match the last unclosed {{row. expression
-  const match = /\{\{row\.([a-zA-Z0-9_]*)$/.exec(before);
+  const match = /\{\{row\.(\w*)$/.exec(before);
   return match ? match[1] : null;
 }
 
@@ -403,7 +403,7 @@ export function HbTextField({
       // Replace from the `{{row.` to cursor with `{{row.key}}`
       const before = value.slice(0, cursorPos);
       const after = value.slice(cursorPos);
-      const prefixMatch = /\{\{row\.[a-zA-Z0-9_]*$/.exec(before);
+      const prefixMatch = /\{\{row\.\w*$/.exec(before);
       if (prefixMatch) {
         const start = prefixMatch.index;
         const newValue = `${before.slice(0, start)}{{row.${key}}}${after}`;
@@ -439,11 +439,11 @@ export function HbTextField({
 
     if (schemaSuggestions?.length) {
       const p = detectRowPrefix(newValue, newCursor);
-      if (p !== null) {
+      if (p === null) {
+        setIsOpen(false);
+      } else {
         setIsOpen(true);
         setSelectedIndex(0);
-      } else {
-        setIsOpen(false);
       }
     }
   };

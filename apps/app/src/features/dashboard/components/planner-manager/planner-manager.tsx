@@ -107,9 +107,9 @@ function RequestEditor({
   const [introspectionError, setIntrospectionError] = useState<string | null>(null);
 
   const nameError = (() => {
-    if (!def.variableName) return "Required";
-    if (!/^[a-zA-Z_]\w*$/.test(def.variableName)) return "Alphanumeric + underscore only";
-    if (existingNames.filter((n) => n === def.variableName).length > 1) return "Must be unique";
+    if (!def.variableName) return tr("dashboard.settings.plannerVarRequired", dictionary);
+    if (!/^[a-zA-Z_]\w*$/.test(def.variableName)) return tr("dashboard.settings.plannerVarInvalidChars", dictionary);
+    if (existingNames.filter((n) => n === def.variableName).length > 1) return tr("dashboard.settings.plannerVarDuplicate", dictionary);
     return null;
   })();
 

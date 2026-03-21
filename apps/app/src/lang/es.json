@@ -1549,6 +1549,7 @@
       "pgrest": "PGREST",
       "dynamicApi": "Dinámico (API)",
       "planner": "Planificador",
+      "plannerVariable": "Variable",
       "rowsJsonArray": "Filas (arreglo JSON)",
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",

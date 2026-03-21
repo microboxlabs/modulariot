@@ -1524,6 +1524,7 @@
       "pgrest": "PGREST",
       "dynamicApi": "Dynamic (API)",
       "planner": "Planner",
+      "plannerVariable": "Variable",
       "rowsJsonArray": "Rows (JSON array)",
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",

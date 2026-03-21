@@ -126,7 +126,7 @@ export function DashletSettings({
 
   const plannerContent = (
     <PlannerVariableSelector
-      label="Variable"
+      label={tr("dashboard.settings.plannerVariable", dictionary)}
       value={plannerVariableName}
       onChange={setPlannerVariableName}
       onSchemaDetected={(keys) => syncColumnsFromKeys(keys, s, autoPopulateCardLayout)}

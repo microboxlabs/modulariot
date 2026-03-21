@@ -134,21 +134,14 @@ function RequestEditor({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700">
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={expanded}
-        aria-label={`Toggle ${def.variableName || "Unnamed"}`}
-        onClick={() => setExpanded((e) => !e)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setExpanded((prev) => !prev);
-          }
-        }}
-        className="flex w-full cursor-pointer items-center justify-between p-3 text-left text-sm"
-      >
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex w-full items-center justify-between p-3 text-sm">
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={`Toggle ${def.variableName || "Unnamed"}`}
+          onClick={() => setExpanded((e) => !e)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
           {expanded ? (
             <HiChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
           ) : (
@@ -165,14 +158,10 @@ function RequestEditor({
           {introspecting && (
             <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
           )}
-        </div>
+        </button>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(def.id);
-          }}
-          onMouseDown={stopPropagation}
+          onClick={() => onRemove(def.id)}
           className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
         >
           <HiTrash className="h-4 w-4" />

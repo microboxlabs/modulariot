@@ -8,6 +8,7 @@ interface PlannerVariableSelectorProps {
   label: string;
   value: string;
   onChange: (variableName: string) => void;
+  onSchemaDetected?: (keys: string[]) => void;
   noDefinitionsHint?: string;
 }
 
@@ -21,6 +22,7 @@ export function PlannerVariableSelector({
   label,
   value,
   onChange,
+  onSchemaDetected,
   noDefinitionsHint = "No planner variables defined",
 }: Readonly<PlannerVariableSelectorProps>) {
   const { definitions, schemas } = usePlannerContext();
@@ -35,7 +37,16 @@ export function PlannerVariableSelector({
         id={id}
         sizing="sm"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const variableName = e.target.value;
+          onChange(variableName);
+          if (variableName && onSchemaDetected) {
+            const keys = schemas.get(variableName);
+            if (keys?.length) {
+              onSchemaDetected(keys);
+            }
+          }
+        }}
       >
         <option value="">
           {definitions.length === 0

@@ -17,7 +17,7 @@ import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
-import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
+import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -56,19 +56,21 @@ export function DashletSettings({
   const [kpiColumns, setKpiColumns] = useState<string[]>(cl.kpiColumns);
   const [footerColumns, setFooterColumns] = useState<string[]>(cl.footerColumns);
 
+  const autoPopulateCardLayout = (detected: { key: string }[]) => {
+    const keys = detected.map((c) => c.key);
+    setTitleColumn(keys[0] ?? "");
+    setSubtitleColumn(keys[1] ?? "");
+    setHeaderBadgeColumns(keys.length > 2 ? [keys[2]] : []);
+    setKpiColumns(keys.slice(3, 9));
+    setFooterColumns(keys.slice(9, 11));
+  };
+
   const pg = usePgrestSettingsState({
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestParams: config.pgrestParams ?? [],
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     ...buildPgrestSettingsConfig(s),
-    onDetectionComplete: (detected) => {
-      const keys = detected.map((c) => c.key);
-      setTitleColumn(keys[0] ?? "");
-      setSubtitleColumn(keys[1] ?? "");
-      setHeaderBadgeColumns(keys.length > 2 ? [keys[2]] : []);
-      setKpiColumns(keys.slice(3, 9));
-      setFooterColumns(keys.slice(9, 11));
-    },
+    onDetectionComplete: autoPopulateCardLayout,
   });
 
   const toggleList = (
@@ -127,6 +129,7 @@ export function DashletSettings({
       label="Variable"
       value={plannerVariableName}
       onChange={setPlannerVariableName}
+      onSchemaDetected={(keys) => syncColumnsFromKeys(keys, s, autoPopulateCardLayout)}
     />
   );
 

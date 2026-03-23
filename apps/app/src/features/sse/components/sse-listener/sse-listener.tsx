@@ -5,6 +5,7 @@ import React, { useEffect, useRef } from "react";
 import { configureLocale } from "@/features/common/services/days.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import InnerData from "@/features/common/components/notification/notification-types/inner-data";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 
 // Global singleton to track SSE connection
 let globalEventSource: EventSource | null = null;
@@ -20,14 +21,18 @@ export default function SseListener({
 }) {
   configureLocale();
 
+  const runtimeConfig = useRuntimeConfig();
   const lastNotificationRef = useRef<string>("");
   const notificationTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Wait for runtime config and tenantId before connecting
+    if (!runtimeConfig?.ECM_API_URL || !tenantId) return;
+
     // Initialize the global EventSource if not already done
     if (!isInitialized) {
       globalEventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`
+        `${runtimeConfig.ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`
       );
 
       isInitialized = true;
@@ -107,7 +112,7 @@ export default function SseListener({
         clearTimeout(notificationTimeoutRef.current);
       }
     };
-  }, [dictionary]);
+  }, [dictionary, runtimeConfig, tenantId]);
 
   return null;
 }

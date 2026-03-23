@@ -16,9 +16,11 @@ import {
   IconColorPickerRow,
   useActiveProviders,
 } from "../common";
+import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { SettingsModalShell } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
-type CardDataMode = "static" | "pgrest";
+type CardDataMode = "static" | "pgrest" | "planner";
 
 /** Background color options for ColorPickerDropdown */
 const BG_COLOR_OPTIONS: ColorOption<CardBackgroundColor>[] = [
@@ -64,9 +66,18 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<CardDataMode>(
     config.dataMode || "static"
   );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
   );
+
+  const { schemas } = usePlannerContext();
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
@@ -93,12 +104,13 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
 
-  const isPgrest = dataMode === "pgrest";
+  const isPgrest = dataMode !== "static";
 
   const fieldValues: Record<string, string> = { name, value, descriptor };
   const fieldSetters: Record<string, (v: string) => void> = {
@@ -115,6 +127,7 @@ export function DashletSettings({
         fieldSetters={fieldSetters}
         isPgrest={isPgrest}
         dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
       />
       <IconColorPickerRow
         icon={icon}
@@ -138,9 +151,10 @@ export function DashletSettings({
         options={[
           { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
           { value: "pgrest", label: "PGREST" },
+          { value: "planner", label: "Planner" },
         ]}
       />
-      {isPgrest && (
+      {dataMode === "pgrest" && (
         <PgrestSettingsSection
           pgrest={pg}
           dictionary={dictionary}
@@ -148,6 +162,13 @@ export function DashletSettings({
           dataSourceId={dataSourceId}
           onDataSourceIdChange={setDataSourceId}
           activeProviders={activeProviders}
+        />
+      )}
+      {dataMode === "planner" && (
+        <PlannerVariableSelector
+          label="Variable"
+          value={plannerVariableName}
+          onChange={setPlannerVariableName}
         />
       )}
     </>

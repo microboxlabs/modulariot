@@ -54,6 +54,7 @@ export function DataProviderEntries({
             <Button
               size="xs"
               color="failure"
+              aria-label={`Remove entry ${entry.key || i + 1}`}
               onClick={() => dataProvider.removeEntry(i)}
               onMouseDown={stopPropagation}
               className="no-drag shrink-0"

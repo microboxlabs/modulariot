@@ -43,10 +43,11 @@ export interface DashletConfig {
   value: string;
   color: ColorTheme;
   icon: IconType;
-  dataMode: "static" | "pgrest";
+  dataMode: "static" | "pgrest" | "planner";
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  plannerVariableName?: string;
   dataSourceId?: string;
 }
 
@@ -176,6 +177,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || [],
+    plannerVariableName: config.plannerVariableName,
     fields: {
       name: config.name || "Metric",
       value: config.value || "0",

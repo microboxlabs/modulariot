@@ -6,6 +6,7 @@ import fetcher from "@/features/common/providers/fetcher";
 import {
   type Widget,
   type DashboardStorageSchema,
+  type PlannerRequestDefinition,
   DEFAULT_STORAGE,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
@@ -389,6 +390,47 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  // ── Planner CRUD ──────────────────────────────────────────────────────────
+
+  const getPlannerDefinitions = useCallback(
+    (): PlannerRequestDefinition[] => configRef.current.requestPlanner ?? [],
+    []
+  );
+
+  const addPlannerRequest = useCallback(
+    (def: Omit<PlannerRequestDefinition, "id">) => {
+      const id = crypto.randomUUID();
+      updateConfig((c) => ({
+        ...c,
+        requestPlanner: [...(c.requestPlanner ?? []), { ...def, id }],
+      }));
+      return id;
+    },
+    [updateConfig]
+  );
+
+  const updatePlannerRequest = useCallback(
+    (id: string, partial: Partial<PlannerRequestDefinition>) => {
+      updateConfig((c) => ({
+        ...c,
+        requestPlanner: (c.requestPlanner ?? []).map((r) =>
+          r.id === id ? { ...r, ...partial } : r
+        ),
+      }));
+    },
+    [updateConfig]
+  );
+
+  const removePlannerRequest = useCallback(
+    (id: string) => {
+      updateConfig((c) => ({
+        ...c,
+        requestPlanner: (c.requestPlanner ?? []).filter((r) => r.id !== id),
+      }));
+    },
+    [updateConfig]
+  );
+
   // Download dashboard as JSON file
   const downloadDashboard = useCallback(() => {
     const current = configRef.current;
@@ -442,6 +484,7 @@ export function useDashboardStorage(
           name: imported.name || DEFAULT_STORAGE.name,
           widgets: normalizedWidgets,
           preferences: imported.preferences ?? { editMode: false },
+          requestPlanner: imported.requestPlanner,
         };
 
         saveData(newData);
@@ -458,6 +501,7 @@ export function useDashboardStorage(
 
   return {
     widgets: resolvedConfig.widgets,
+    plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
     isLoaded,
@@ -473,5 +517,9 @@ export function useDashboardStorage(
     exportDashboard,
     importDashboard,
     downloadDashboard,
+    getPlannerDefinitions,
+    addPlannerRequest,
+    updatePlannerRequest,
+    removePlannerRequest,
   };
 }

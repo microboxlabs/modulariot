@@ -13,8 +13,10 @@ import {
   type Widget,
   type GridLayoutItem,
   type DashboardStorageSchema,
+  type PlannerRequestDefinition,
 } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
+import { PlannerProvider } from "./planner-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 /** Context value type */
@@ -65,6 +67,12 @@ interface DashboardContextValue {
   exportDashboard: () => string;
   importDashboard: (jsonString: string) => { success: boolean; error?: string };
   downloadDashboard: () => void;
+
+  // Request Planner
+  plannerDefinitions: PlannerRequestDefinition[];
+  addPlannerRequest: (def: Omit<PlannerRequestDefinition, "id">) => string;
+  updatePlannerRequest: (id: string, partial: Partial<PlannerRequestDefinition>) => void;
+  removePlannerRequest: (id: string) => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -152,6 +160,10 @@ export function DashboardProvider({
     exportDashboard,
     importDashboard,
     downloadDashboard,
+    plannerDefinitions,
+    addPlannerRequest,
+    updatePlannerRequest,
+    removePlannerRequest,
   } = useDashboardStorage(slug, defaultConfig, siteId);
 
   const createWidget = useCallback(
@@ -351,6 +363,10 @@ export function DashboardProvider({
       exportDashboard,
       importDashboard,
       downloadDashboard,
+      plannerDefinitions,
+      addPlannerRequest,
+      updatePlannerRequest,
+      removePlannerRequest,
     }),
     [
       widgets,
@@ -371,12 +387,16 @@ export function DashboardProvider({
       exportDashboard,
       importDashboard,
       downloadDashboard,
+      plannerDefinitions,
+      addPlannerRequest,
+      updatePlannerRequest,
+      removePlannerRequest,
     ]
   );
 
   return (
     <DashboardContext.Provider value={value}>
-      {children}
+      <PlannerProvider>{children}</PlannerProvider>
     </DashboardContext.Provider>
   );
 }

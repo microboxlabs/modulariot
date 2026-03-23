@@ -19,10 +19,9 @@ import {
   PgrestDataTab,
   useActiveProviders,
   DataProviderEntries,
+  type SimpleDataMode,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-
-type SimpleDataMode = "static" | "pgrest";
 
 export function DashletSettings({
   isOpen,

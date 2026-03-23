@@ -278,11 +278,14 @@ interface DataProviderTabProps {
   onApiUrlChange: (url: string) => void;
   /** Content rendered when dataMode === "pgrest" */
   pgrestContent?: React.ReactNode;
+  /** Content rendered when dataMode === "planner" */
+  plannerContent?: React.ReactNode;
   labels: {
     dataSource: string;
     staticJson: string;
     dynamicApi: string;
     pgrest?: string;
+    planner?: string;
     rowsJsonArray: string;
     apiUrl: string;
   };
@@ -299,6 +302,7 @@ export function DataProviderTab({
   apiUrl,
   onApiUrlChange,
   pgrestContent,
+  plannerContent,
   labels,
 }: Readonly<DataProviderTabProps>) {
   const options = [
@@ -307,6 +311,9 @@ export function DataProviderTab({
   ];
   if (pgrestContent !== undefined || dataMode === "pgrest") {
     options.push({ value: "pgrest", label: labels.pgrest ?? "PGREST" });
+  }
+  if (plannerContent !== undefined || dataMode === "planner") {
+    options.push({ value: "planner", label: labels.planner ?? "Planner" });
   }
 
   return (
@@ -357,6 +364,8 @@ export function DataProviderTab({
       )}
 
       {dataMode === "pgrest" && pgrestContent}
+
+      {dataMode === "planner" && plannerContent}
     </>
   );
 }

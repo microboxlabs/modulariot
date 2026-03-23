@@ -21,6 +21,7 @@ export interface DashletConfig {
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
+  plannerVariableName?: string;
   dataSourceId?: string;
 }
 
@@ -65,10 +66,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   );
 
   const { resolved, loading, fetchError } = usePgrestResolvedFields({
-    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    dataMode: (config.dataMode as "static" | "pgrest" | "planner") || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    plannerVariableName: config.plannerVariableName,
     fields,
     dataSourceId: config.dataSourceId,
   });

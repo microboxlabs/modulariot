@@ -11,7 +11,7 @@ import { useActiveProviders } from "./use-active-providers";
 // Types
 // ============================================================================
 
-export type SimpleDataMode = "static" | "pgrest";
+export type SimpleDataMode = "static" | "pgrest" | "planner";
 
 interface PgrestConfigFields {
   dataMode?: string;
@@ -73,7 +73,7 @@ export function useSimplePgrestSettings<F extends string>({
   const activeProviders = useActiveProviders();
 
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
+    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
       ? config.dataMode
       : "static",
   );
@@ -84,10 +84,12 @@ export function useSimplePgrestSettings<F extends string>({
   // Snapshot of field values when entering pgrest mode
   const staticSnapshot = useRef({ ...fieldValues });
 
+  const isRemoteMode = (m: SimpleDataMode) => m === "pgrest" || m === "planner";
+
   const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
+    if (isRemoteMode(mode) && dataMode === "static") {
       staticSnapshot.current = { ...fieldValues };
-    } else if (mode === "static" && dataMode === "pgrest") {
+    } else if (mode === "static" && isRemoteMode(dataMode)) {
       for (const key of fieldNames) {
         fieldSetters[key](staticSnapshot.current[key]);
       }
@@ -106,7 +108,7 @@ export function useSimplePgrestSettings<F extends string>({
     ),
   });
 
-  const isPgrest = dataMode === "pgrest";
+  const isPgrest = isRemoteMode(dataMode);
 
   const pgrestSaveFields = {
     dataMode,

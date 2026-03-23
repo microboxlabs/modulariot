@@ -14,8 +14,9 @@ import {
   useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
-type LabeledDataMode = "static" | "pgrest";
+type LabeledDataMode = "static" | "pgrest" | "planner";
 
 /** Color options for ColorPickerDropdown */
 const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
@@ -54,9 +55,18 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<LabeledDataMode>(
     config.dataMode || "static"
   );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
   );
+
+  const { schemas } = usePlannerContext();
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
@@ -79,12 +89,13 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
 
-  const isPgrest = dataMode === "pgrest";
+  const isPgrest = dataMode !== "static";
 
   const fieldValues: Record<string, string> = { name, value };
   const fieldSetters: Record<string, (v: string) => void> = {
@@ -100,6 +111,7 @@ export function DashletSettings({
         fieldSetters={fieldSetters}
         isPgrest={isPgrest}
         dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
       />
       <IconColorPickerRow
         icon={icon}
@@ -119,6 +131,8 @@ export function DashletSettings({
       onDataModeChange={(v) => setDataMode(v as LabeledDataMode)}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
       dataSourceId={dataSourceId}
       onDataSourceIdChange={(v) => { setDataSourceId(v); }}
       activeProviders={activeProviders}

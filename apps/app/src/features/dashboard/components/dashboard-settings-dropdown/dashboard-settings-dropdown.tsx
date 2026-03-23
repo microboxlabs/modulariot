@@ -9,12 +9,13 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ShowNotification } from "@/features/notifications/notification";
+import type { DashboardFilterParam } from "../../types/dashboard.types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "export" | "import" | "planner" | null;
+type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -404,6 +405,120 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
 }
 
 // ============================================================================
+// Filter Manager Form
+// ============================================================================
+
+interface FilterManagerFormProps {
+  filters: DashboardFilterParam[];
+  onSave: (filters: DashboardFilterParam[]) => void;
+}
+
+function FilterManagerForm({
+  filters,
+  onSave,
+}: Readonly<FilterManagerFormProps>) {
+  const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
+
+  const addFilter = () => {
+    setLocalFilters((prev) => [
+      ...prev,
+      { key: "", label: "", type: "text" },
+    ]);
+  };
+
+  const updateFilter = (
+    index: number,
+    field: keyof DashboardFilterParam,
+    value: string
+  ) => {
+    setLocalFilters((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
+    );
+  };
+
+  const removeFilter = (index: number) => {
+    setLocalFilters((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSave = () => {
+    // Only save filters with both key and label
+    const validFilters = localFilters.filter((f) => f.key.trim() && f.label.trim());
+    onSave(validFilters);
+    ShowNotification({
+      type: "success",
+      message: "Filters updated successfully",
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      {localFilters.length === 0 && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          No filters configured. Add filters to enable the dashboard filter bar.
+        </p>
+      )}
+
+      {localFilters.map((filter, index) => (
+        <div
+          key={index}
+          className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
+        >
+          <div className="flex-1 space-y-2">
+            <div className="flex gap-2">
+              <TextInput
+                sizing="sm"
+                placeholder="Key (e.g. asset_id)"
+                value={filter.key}
+                onChange={(e) => updateFilter(index, "key", e.target.value)}
+                className="flex-1"
+              />
+              <TextInput
+                sizing="sm"
+                placeholder="Label"
+                value={filter.label}
+                onChange={(e) => updateFilter(index, "label", e.target.value)}
+                className="flex-1"
+              />
+            </div>
+            <select
+              value={filter.type}
+              onChange={(e) =>
+                updateFilter(index, "type", e.target.value as "text" | "date_range")
+              }
+              className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="text">Text Search</option>
+              <option value="date_range">Date Range</option>
+            </select>
+          </div>
+          <Button
+            type="button"
+            color="failure"
+            size="xs"
+            onClick={() => removeFilter(index)}
+          >
+            &times;
+          </Button>
+        </div>
+      ))}
+
+      <div className="flex justify-between gap-2">
+        <Button type="button" color="light" size="sm" onClick={addFilter}>
+          + Add Filter
+        </Button>
+        <Button type="button" size="sm" onClick={handleSave}>
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -411,6 +526,8 @@ export default function DashboardSettingsDropdown() {
   const {
     dashboardName,
     setDashboardName,
+    filters,
+    setFilters,
     exportDashboard,
     importDashboard,
     downloadDashboard,
@@ -543,6 +660,16 @@ export default function DashboardSettingsDropdown() {
             description="Restore from JSON file or text"
           >
             <ImportForm onImport={importDashboard} onClose={closePanel} />
+          </SettingsSection>
+
+          <SettingsSection
+            option="filters"
+            selected={selected}
+            setSelected={setSelected}
+            title="Filter Bar"
+            description="Configure dashboard filter parameters"
+          >
+            <FilterManagerForm filters={filters} onSave={setFilters} />
           </SettingsSection>
 
           <SettingsSection

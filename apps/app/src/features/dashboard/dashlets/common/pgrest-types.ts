@@ -25,3 +25,6 @@ export function toPgrestParamItems(params: PgrestParam[]): PgrestParamItem[] {
 export function fromPgrestParamItems(items: PgrestParamItem[]): PgrestParam[] {
   return items.map(({ key, value }) => ({ key, value }));
 }
+
+/** Stable empty array to avoid re-renders when no pgrest params are configured. */
+export const EMPTY_PGREST_PARAMS: PgrestParam[] = [];

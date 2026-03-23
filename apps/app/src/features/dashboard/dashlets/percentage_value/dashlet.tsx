@@ -21,6 +21,7 @@ export interface DashletConfig {
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
+  dataSourceId?: string;
 }
 
 /** Default configuration */
@@ -69,6 +70,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || EMPTY_PARAMS,
     fields,
+    dataSourceId: config.dataSourceId,
   });
 
   if (loading) {

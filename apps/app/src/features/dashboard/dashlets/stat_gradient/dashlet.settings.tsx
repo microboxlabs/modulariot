@@ -3,11 +3,7 @@
 import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, GradientColor } from "./dashlet";
-import {
-  DashletSettingsWrapper,
-  SettingsTitleValueUnit,
-  SettingsPickerItem,
-} from "../common";
+import { SimpleDashletSettings, SettingsPickerItem } from "../common";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -21,47 +17,35 @@ const COLOR_OPTIONS: ColorOption<GradientColor>[] = [
   { value: "purple", label: "Purple", dotClass: "bg-purple-500" },
 ];
 
-export function DashletSettings({
-  isOpen,
-  onClose,
-  config,
-  onSave,
-  dictionary,
-}: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const [title, setTitle] = useState(config.title || "Active Users");
-  const [value, setValue] = useState(config.value || 2847);
-  const [unit, setUnit] = useState(config.unit || "");
-  const [color, setColor] = useState<GradientColor>(config.color || "blue");
+const FIELDS = [
+  { id: "sg-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Active Users" },
+  { id: "sg-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.count}}", staticPlaceholder: "2847" },
+  { id: "sg-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "" },
+] as const;
 
-  const handleSave = () => {
-    onSave({ title, value, unit, color });
-    onClose();
-  };
+export function DashletSettings(
+  props: Readonly<DashletSettingsProps<DashletConfig>>,
+) {
+  const [color, setColor] = useState<GradientColor>(
+    props.config.color || "blue",
+  );
 
   return (
-    <DashletSettingsWrapper
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={handleSave}
-      dictionary={dictionary}
-    >
-      <SettingsTitleValueUnit
-        title={title}
-        onTitleChange={setTitle}
-        value={value}
-        onValueChange={setValue}
-        unit={unit}
-        onUnitChange={setUnit}
-        dictionary={dictionary}
-      />
-      <SettingsPickerItem label="Color">
-        <ColorPickerDropdown
-          options={COLOR_OPTIONS}
-          value={color}
-          onChange={setColor}
-          title="Select color"
-        />
-      </SettingsPickerItem>
-    </DashletSettingsWrapper>
+    <SimpleDashletSettings
+      fields={FIELDS}
+      idPrefix="sg"
+      settingsProps={props}
+      extraSaveFields={{ color }}
+      extraVisualization={
+        <SettingsPickerItem label="Color">
+          <ColorPickerDropdown
+            options={COLOR_OPTIONS}
+            value={color}
+            onChange={setColor}
+            title="Select color"
+          />
+        </SettingsPickerItem>
+      }
+    />
   );
 }

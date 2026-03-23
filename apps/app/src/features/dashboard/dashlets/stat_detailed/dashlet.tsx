@@ -1,28 +1,30 @@
 "use client";
 
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { HiArrowTrendingUp } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  value: number;
-  previousValue: number;
+  value: string;
+  previousValue: string;
   unit: string;
   description: string;
-  target: number;
+  target: string;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Monthly Revenue",
-  value: 84500,
-  previousValue: 72000,
+  value: "84500",
+  previousValue: "72000",
   unit: "$",
   description: "Total monthly revenue across all products",
-  target: 100000,
+  target: "100000",
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -34,6 +36,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Monthly Revenue", value: "84500", previousValue: "72000", unit: "$", description: "Total monthly revenue across all products", target: "100000" };
+
 // ============================================================================
 // Component - Style 2: Full Details Card
 // ============================================================================
@@ -43,11 +47,23 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, previousValue, unit, description, target } = config;
+
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Monthly Revenue";
+  const unit = resolved.unit ?? "$";
+  const description = resolved.description || "";
+
+  const value = parseResolvedNumber(resolved.value);
+  const previousValue = parseResolvedNumber(resolved.previousValue);
+  const target = parseResolvedNumber(resolved.target);
 
   const change = value - previousValue;
-  const changePercent = ((change / previousValue) * 100).toFixed(1);
-  const progressPercent = Math.min(100, (value / target) * 100);
+  const changePercent = previousValue === 0 ? 0 : Number(((change / previousValue) * 100).toFixed(1));
+  const progressPercent = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
   const isPositive = change >= 0;
 
   return (

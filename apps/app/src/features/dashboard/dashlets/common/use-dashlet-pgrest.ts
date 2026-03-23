@@ -4,6 +4,7 @@ import { EMPTY_PGREST_PARAMS } from "./pgrest-types";
 import type { DataProviderEntry } from "../types";
 import { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 import { usePgrestRows } from "./use-pgrest-rows";
+import { usePlannerData } from "./use-planner-data";
 import { buildDataProviderContext } from "./use-handlebars-templates";
 
 // ============================================================================
@@ -17,6 +18,7 @@ export interface PgrestDashletFields {
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
   dataSourceId?: string;
+  plannerVariableName?: string;
 }
 
 // ============================================================================
@@ -59,12 +61,13 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
   }, [depKey]);
 
   return usePgrestResolvedFields({
-    dataMode: (config.dataMode as "static" | "pgrest") || "static",
+    dataMode: (config.dataMode as "static" | "pgrest" | "planner") || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || EMPTY_PGREST_PARAMS,
     fields,
     dataSourceId: config.dataSourceId,
+    plannerVariableName: config.plannerVariableName,
   });
 }
 
@@ -80,21 +83,29 @@ export function useHybridPgrestContext(
   config: PgrestDashletFields,
   dataProvider: DataProviderEntry[],
 ) {
-  const dataMode = (config.dataMode as "static" | "pgrest") || "static";
+  const dataMode = (config.dataMode as "static" | "pgrest" | "planner") || "static";
 
-  const { rows, loading, fetchError } = usePgrestRows(
-    dataMode,
+  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
+    dataMode === "pgrest" ? "pgrest" : "static",
     config.pgrestFunctionName || "",
     config.pgrestHttpMethod || "POST",
     config.pgrestParams || EMPTY_PGREST_PARAMS,
     config.dataSourceId,
   );
 
+  const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(
+    dataMode === "planner" ? config.plannerVariableName : undefined,
+  );
+
+  const rows = dataMode === "planner" ? plannerRows : pgrestRows;
+  const loading = dataMode === "planner" ? plannerLoading : pgrestLoading;
+  const fetchError = dataMode === "planner" ? plannerError : pgrestError;
+
   const templateContext = useMemo(() => {
     const dpContext = buildDataProviderContext(dataProvider);
-    if (dataMode === "pgrest" && rows.length > 0) {
+    if ((dataMode === "pgrest" || dataMode === "planner") && rows.length > 0) {
       const firstRow = rows[0];
-      return { ...dpContext, ...firstRow, row: firstRow };
+      return { ...firstRow, row: firstRow, ...dpContext };
     }
     return dpContext;
   }, [dataProvider, dataMode, rows]);

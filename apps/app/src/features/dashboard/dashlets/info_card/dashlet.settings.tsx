@@ -21,10 +21,9 @@ import {
   PgrestDataTab,
   useActiveProviders,
   DataProviderEntries,
+  type SimpleDataMode,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
-
-type SimpleDataMode = "static" | "pgrest";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(

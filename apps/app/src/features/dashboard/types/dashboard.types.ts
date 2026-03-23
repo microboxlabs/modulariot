@@ -55,6 +55,33 @@ export interface DashboardPreferences {
   editMode: boolean;
 }
 
+/** Planner request parameter (inline to avoid circular deps with pgrest-types) */
+export interface PlannerParam {
+  key: string;
+  value: string;
+}
+
+/** HTTP method for planner requests */
+export type PlannerHttpMethod = "POST" | "GET";
+
+/** A single named request definition in the Request Planner */
+export interface PlannerRequestDefinition {
+  /** Unique identifier (UUID) */
+  id: string;
+  /** User-assigned variable name (e.g. "fleet_stats") */
+  variableName: string;
+  /** PgREST function to call */
+  pgrestFunctionName: string;
+  /** HTTP method */
+  pgrestHttpMethod: PlannerHttpMethod;
+  /** Parameters to pass to the function */
+  pgrestParams: PlannerParam[];
+  /** Optional data source ID */
+  dataSourceId?: string;
+  /** Persisted response column keys (populated on successful fetch) */
+  schema?: string[];
+}
+
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
   /** Schema version for migrations */
@@ -65,6 +92,8 @@ export interface DashboardStorageSchema {
   widgets: Widget[];
   /** User preferences */
   preferences: DashboardPreferences;
+  /** Request Planner definitions (optional, backward compatible) */
+  requestPlanner?: PlannerRequestDefinition[];
 }
 
 /** Default storage state */

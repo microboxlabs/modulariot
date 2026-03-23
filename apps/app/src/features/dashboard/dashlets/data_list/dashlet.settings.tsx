@@ -17,7 +17,8 @@ import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
-import { buildPgrestSettingsConfig, buildPgrestContentLabels } from "../common/pgrest-settings-helpers";
+import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
+import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { useActiveProviders } from "../common";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -46,6 +47,10 @@ export function DashletSettings({
     apiUrl: config.apiUrl,
   });
 
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
+
   // Card layout config (unique to data_list)
   const cl = config.cardLayout ?? defaultCardLayout;
   const [titleColumn, setTitleColumn] = useState(cl.titleColumn);
@@ -58,20 +63,22 @@ export function DashletSettings({
     config.dataSourceId ?? ""
   );
 
+  const autoPopulateCardLayout = (detected: { key: string }[]) => {
+    const keys = detected.map((c) => c.key);
+    setTitleColumn(keys[0] ?? "");
+    setSubtitleColumn(keys[1] ?? "");
+    setHeaderBadgeColumns(keys.length > 2 ? [keys[2]] : []);
+    setKpiColumns(keys.slice(3, 9));
+    setFooterColumns(keys.slice(9, 11));
+  };
+
   const pg = usePgrestSettingsState({
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestParams: config.pgrestParams ?? [],
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
-    onDetectionComplete: (detected) => {
-      const keys = detected.map((c) => c.key);
-      setTitleColumn(keys[0] ?? "");
-      setSubtitleColumn(keys[1] ?? "");
-      setHeaderBadgeColumns(keys.length > 2 ? [keys[2]] : []);
-      setKpiColumns(keys.slice(3, 9));
-      setFooterColumns(keys.slice(9, 11));
-    },
+    onDetectionComplete: autoPopulateCardLayout,
   });
 
   const toggleList = (
@@ -113,6 +120,7 @@ export function DashletSettings({
       filter,
       sort,
       cardLayout,
+      plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
     });
     onClose();
   };
@@ -125,6 +133,15 @@ export function DashletSettings({
       dataSourceId={dataSourceId}
       onDataSourceIdChange={setDataSourceId}
       activeProviders={activeProviders}
+    />
+  );
+
+  const plannerContent = (
+    <PlannerVariableSelector
+      label={tr("dashboard.settings.plannerVariable", dictionary)}
+      value={plannerVariableName}
+      onChange={setPlannerVariableName}
+      onSchemaDetected={(keys) => syncColumnsFromKeys(keys, s, autoPopulateCardLayout)}
     />
   );
 
@@ -192,6 +209,7 @@ export function DashletSettings({
       state={s}
       dictionary={dictionary}
       dataTabChildren={pgrestContent}
+      plannerContent={plannerContent}
       handlebarsColorKeys
     >
       {cardLayoutSection}

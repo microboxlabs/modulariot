@@ -28,6 +28,8 @@ interface TableListSettingsShellProps {
   children?: ReactNode;
   /** Content rendered inside the data provider tab when dataMode === "pgrest" */
   dataTabChildren?: ReactNode;
+  /** Content rendered inside the data provider tab when dataMode === "planner" */
+  plannerContent?: ReactNode;
   /** Enable Handlebars color coding on column key/label inputs */
   handlebarsColorKeys?: boolean;
 }
@@ -45,6 +47,7 @@ export function TableListSettingsShell({
   dictionary,
   children,
   dataTabChildren,
+  plannerContent,
   handlebarsColorKeys = false,
 }: Readonly<TableListSettingsShellProps>) {
   const visualizationTab = (
@@ -126,11 +129,13 @@ export function TableListSettingsShell({
       apiUrl={s.apiUrl}
       onApiUrlChange={s.setApiUrl}
       pgrestContent={dataTabChildren}
+      plannerContent={plannerContent}
       labels={{
         dataSource: tr("dashboard.settings.dataSource", dictionary),
         staticJson: tr("dashboard.settings.staticJson", dictionary),
         dynamicApi: tr("dashboard.settings.dynamicApi", dictionary),
         pgrest: "PGREST",
+        planner: tr("dashboard.settings.planner", dictionary),
         rowsJsonArray: tr("dashboard.settings.rowsJsonArray", dictionary),
         apiUrl: tr("dashboard.settings.apiUrl", dictionary),
       }}

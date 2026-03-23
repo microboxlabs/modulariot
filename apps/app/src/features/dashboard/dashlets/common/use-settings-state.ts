@@ -121,7 +121,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     errorMustBeArray: string,
     errorInvalidJson: string,
   ): Record<string, string>[] | null => {
-    if (dataMode === "dynamic" || dataMode === "pgrest") return cfg.rows ?? cfg.defaultRows;
+    if (dataMode === "dynamic" || dataMode === "pgrest" || dataMode === "planner") return cfg.rows ?? cfg.defaultRows;
     try {
       const parsed = JSON.parse(rowsJson);
       if (!Array.isArray(parsed)) {

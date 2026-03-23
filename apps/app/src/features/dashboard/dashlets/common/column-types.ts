@@ -1,4 +1,4 @@
-export type DataMode = "static" | "dynamic" | "pgrest";
+export type DataMode = "static" | "dynamic" | "pgrest" | "planner";
 
 export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 

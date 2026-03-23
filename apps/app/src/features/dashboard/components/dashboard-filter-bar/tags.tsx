@@ -1,58 +1,44 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { HiTag, HiX } from "react-icons/hi";
 
-interface TagItem {
-  name: string;
-  value: string;
-  label: string;
-}
+const EXCLUDED_PARAMS = new Set(["view", "titleLabel", "icon"]);
 
 interface TagsProps {
   searchParams: URLSearchParams;
   onRemoveParam: (key: string) => void;
-  navegation_params?: Array<{
+  filters?: Array<{
+    key: string;
     label: string;
-    param: { key: string; type: string };
+    type: string;
   }>;
 }
 
 export default function Tags({
   searchParams,
   onRemoveParam,
-  navegation_params,
+  filters,
 }: TagsProps) {
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filter, setFilter] = useState<TagItem[]>([]);
   const buttonRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 });
 
-  // Build tags from URL search params
-  useEffect(() => {
-    if (searchParams) {
-      const params = new URLSearchParams(searchParams.toString());
-      const tags = Array.from(params.entries())
-        .filter(
-          ([key]) => key !== "view" && key !== "titleLabel" && key !== "icon"
-        )
-        .map(([key, value]) => {
-          const navParam = navegation_params?.find(
-            (param) => param.param.key === key
-          );
-          return {
-            name: key,
-            value,
-            label: navParam?.label || key,
-          };
-        });
-      setFilter(tags);
-    }
-  }, [searchParams, navegation_params]);
+  const tags = useMemo(() => {
+    return Array.from(searchParams.entries())
+      .filter(([key]) => !EXCLUDED_PARAMS.has(key))
+      .map(([key, value]) => {
+        const matchedFilter = filters?.find((f) => f.key === key);
+        return {
+          name: key,
+          value,
+          label: matchedFilter?.label || key,
+        };
+      });
+  }, [searchParams, filters]);
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -74,12 +60,10 @@ export default function Tags({
     };
   }, [filterOpen]);
 
+  if (tags.length === 0) return null;
+
   return (
-    <div
-      className={`relative z-[1] shrink-0 overflow-visible transition-all duration-300 ${
-        filter.length > 0 ? "block scale-100" : "hidden w-0 scale-0"
-      }`}
-    >
+    <div className="relative z-[1] shrink-0 overflow-visible">
       <div
         ref={buttonRef}
         className="relative flex h-[42px] w-[42px] cursor-pointer select-none items-center justify-center rounded-lg border border-gray-300 bg-gray-100 transition-all duration-300 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500"
@@ -108,7 +92,6 @@ export default function Tags({
         <HiTag className="text-gray-500 dark:text-gray-400" />
       </div>
       {filterOpen &&
-        filter.length > 0 &&
         createPortal(
           <div
             ref={dropdownRef}
@@ -119,9 +102,9 @@ export default function Tags({
               left: buttonPosition.left,
             }}
           >
-            {filter.map((tag, index) => (
+            {tags.map((tag) => (
               <div
-                key={index}
+                key={tag.name}
                 className="flex w-fit gap-1 whitespace-nowrap rounded-lg border border-gray-300 bg-gray-100 px-2 py-1 text-sm font-light text-gray-500 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-300"
               >
                 <HiX
@@ -129,11 +112,7 @@ export default function Tags({
                   size={20}
                   onClick={() => {
                     onRemoveParam(tag.name);
-                    // Remove from local state immediately
-                    setFilter((prev) =>
-                      prev.filter((t) => t.name !== tag.name)
-                    );
-                    if (filter.length <= 1) {
+                    if (tags.length <= 1) {
                       setFilterOpen(false);
                     }
                   }}
@@ -146,7 +125,7 @@ export default function Tags({
           document.body
         )}
       <div className="absolute right-[-0.625rem] top-[-0.625rem] z-50 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-sm font-light whitespace-nowrap text-gray-500 dark:text-gray-300">
-        {filter.length}
+        {tags.length}
       </div>
     </div>
   );

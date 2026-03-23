@@ -32,6 +32,7 @@ const config: Config = {
         "hide-flex-middle": "hide-flex-middle 0.2s ease-in-out forwards",
         "hide-scale": "hide-scale 0.2s ease-in-out forwards",
         "show-scale": "show-scale 0.2s ease-in-out forwards",
+        "carousel-progress": "carousel-progress linear forwards",
       },
       keyframes: {
         "hide-scale": {
@@ -103,6 +104,10 @@ const config: Config = {
         "fade-out-opacity": {
           "0%": { opacity: "1" },
           "100%": { opacity: "0" },
+        },
+        "carousel-progress": {
+          "0%": { strokeDashoffset: "31.4159" },
+          "100%": { strokeDashoffset: "0" },
         },
       },
     },

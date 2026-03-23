@@ -9,18 +9,26 @@ import { buildPgrestContentLabels } from "./pgrest-settings-helpers";
 
 type SimpleDataMode = "static" | "pgrest";
 
+interface DataSourceOption {
+  id: string;
+  name: string;
+}
+
 interface PgrestDataTabProps {
   id: string;
   dataMode: SimpleDataMode;
   onDataModeChange: (mode: SimpleDataMode) => void;
   pgrest: ReturnType<typeof usePgrestSettingsState>;
   dictionary: I18nRecord;
+  dataSourceId?: string;
+  onDataSourceIdChange?: (id: string) => void;
+  activeProviders?: DataSourceOption[];
 }
 
 /**
  * Reusable data-provider tab content for card-style dashlet settings.
  * Renders a static/pgrest mode selector and, when pgrest is selected,
- * the full PgrestSettingsSection.
+ * the full PgrestSettingsSection (including Data Source Provider dropdown).
  */
 export function PgrestDataTab({
   id,
@@ -28,6 +36,9 @@ export function PgrestDataTab({
   onDataModeChange,
   pgrest,
   dictionary,
+  dataSourceId,
+  onDataSourceIdChange,
+  activeProviders,
 }: Readonly<PgrestDataTabProps>) {
   const labels = buildPgrestContentLabels(dictionary);
 
@@ -50,7 +61,14 @@ export function PgrestDataTab({
         ]}
       />
       {dataMode === "pgrest" && (
-        <PgrestSettingsSection pgrest={pgrest} dictionary={dictionary} labels={labels} />
+        <PgrestSettingsSection
+          pgrest={pgrest}
+          dictionary={dictionary}
+          labels={labels}
+          dataSourceId={dataSourceId}
+          onDataSourceIdChange={onDataSourceIdChange}
+          activeProviders={activeProviders}
+        />
       )}
     </>
   );

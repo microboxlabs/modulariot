@@ -1,21 +1,23 @@
 "use client";
 
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  value: number;
+  value: string;
   unit: string;
   sparkline: number[];
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Page Views",
-  value: 24567,
+  value: "24567",
   unit: "",
   sparkline: [30, 45, 35, 50, 40, 60, 55, 70, 65, 80, 75, 90],
 };
@@ -29,6 +31,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Page Views", value: "24567", unit: "" };
+
 // ============================================================================
 // Component - Style 9: Sparkline
 // ============================================================================
@@ -38,7 +42,16 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, unit, sparkline } = config;
+  const sparkline = config.sparkline || defaultConfig.sparkline;
+
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Page Views";
+  const unit = resolved.unit ?? "";
+  const value = parseResolvedNumber(resolved.value);
 
   const min = Math.min(...sparkline);
   const max = Math.max(...sparkline);

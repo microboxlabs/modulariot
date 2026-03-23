@@ -11,6 +11,7 @@ import {
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   IconColorPickerRow,
+  useActiveProviders,
 } from "../common";
 import { SettingsModalShell } from "../common/settings-modal-shell";
 
@@ -44,6 +45,8 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const activeProviders = useActiveProviders();
+
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
   const [color, setColor] = useState<ColorTheme>(config.color || "gray");
@@ -51,9 +54,12 @@ export function DashletSettings({
   const [dataMode, setDataMode] = useState<LabeledDataMode>(
     config.dataMode || "static"
   );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig(config, (detected) => {
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
       if (detected.length >= 1) {
         setName(`{{row.${detected[0].key}}}`);
       }
@@ -73,6 +79,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      dataSourceId: dataSourceId || undefined,
     });
     onClose();
   };
@@ -112,6 +119,9 @@ export function DashletSettings({
       onDataModeChange={(v) => setDataMode(v as LabeledDataMode)}
       pgrest={pg}
       dictionary={dictionary}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={(v) => { setDataSourceId(v); }}
+      activeProviders={activeProviders}
     />
   );
 

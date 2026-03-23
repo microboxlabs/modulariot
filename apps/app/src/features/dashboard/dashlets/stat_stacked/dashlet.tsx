@@ -1,6 +1,8 @@
 "use client";
 
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestDashletFields } from "../common";
+import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 
 // ============================================================================
 // Configuration Types
@@ -14,7 +16,7 @@ export type BarColor =
   | "bg-red-500 dark:bg-red-400"
   | "bg-cyan-500 dark:bg-cyan-400";
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
   items: { label: string; value: number; color: BarColor }[];
   unit: string;
@@ -42,6 +44,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
+const FIELD_DEFAULTS: Record<string, string> = { title: "Traffic Sources", unit: "%" };
+
 // ============================================================================
 // Component - Style 8: Stacked Bars
 // ============================================================================
@@ -51,8 +55,15 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, items, unit, showHeader = true } = config;
+  const { items, showHeader = true } = config;
 
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
+
+  const title = resolved.title || "Traffic Sources";
+  const unit = resolved.unit ?? "%";
   const total = items.reduce((sum, item) => sum + item.value, 0);
 
   return (

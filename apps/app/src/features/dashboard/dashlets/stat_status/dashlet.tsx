@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
-import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
+import type { PgrestDashletFields } from "../common";
+import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import {
   HiWrench,
   HiCalendarDays,
@@ -80,7 +82,7 @@ export const COLOR_OPTIONS: ColorOption[] = [
   { id: "gray", label: "Gray" },
 ];
 
-export interface DashletConfig {
+export interface DashletConfig extends PgrestDashletFields {
   title: string;
   value: string;
   subtitle?: string;
@@ -168,7 +170,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
-  const templateContext = useMemo(() => buildDataProviderContext(dataProvider), [dataProvider]);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider);
 
   const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
   const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
@@ -176,6 +178,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     if (!subtitle) return "";
     return resolveHandlebarsField(subtitle, templateContext);
   }, [subtitle, templateContext]);
+
+  if (loading) return <DashletLoading />;
+  if (fetchError) return <DashletError message={fetchError} />;
 
   const colors = COLOR_MAP[color] ?? COLOR_MAP.gray;
   const IconComponent = ICONS[icon] ?? ICONS.check;

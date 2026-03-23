@@ -11,9 +11,10 @@ interface PgrestResolvedFieldsConfig {
   pgrestHttpMethod: PgrestHttpMethod;
   pgrestParams: PgrestParam[];
   fields: Record<string, string>;
+  dataSourceId?: string;
 }
 
-interface PgrestResolvedFieldsResult {
+export interface PgrestResolvedFieldsResult {
   resolved: Record<string, string>;
   loading: boolean;
   fetchError: string | null;
@@ -29,6 +30,7 @@ export function usePgrestResolvedFields({
   pgrestHttpMethod,
   pgrestParams,
   fields,
+  dataSourceId,
 }: PgrestResolvedFieldsConfig): PgrestResolvedFieldsResult {
   const stableParams = pgrestParams.length > 0 ? pgrestParams : EMPTY_PARAMS;
 
@@ -37,6 +39,7 @@ export function usePgrestResolvedFields({
     pgrestFunctionName,
     pgrestHttpMethod,
     stableParams,
+    dataSourceId,
   );
 
   const firstRow = rows[0];

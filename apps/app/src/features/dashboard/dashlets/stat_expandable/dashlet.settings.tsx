@@ -5,7 +5,7 @@ import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { DashletSettingsWrapper, SettingsTitleValueUnit } from "../common";
+import { SimpleDashletSettings } from "../common";
 
 interface DetailWithId {
   id: string;
@@ -13,18 +13,17 @@ interface DetailWithId {
   value: string;
 }
 
-export function DashletSettings({
-  isOpen,
-  onClose,
-  config,
-  onSave,
-  dictionary,
-}: Readonly<DashletSettingsProps<DashletConfig>>) {
-  const [title, setTitle] = useState(config.title || "Conversion Rate");
-  const [value, setValue] = useState(config.value || 3.24);
-  const [unit, setUnit] = useState(config.unit || "%");
+const FIELDS = [
+  { id: "se-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Conversion Rate" },
+  { id: "se-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.rate}}", staticPlaceholder: "3.24" },
+  { id: "se-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
+] as const;
 
-  // Initialize details with unique IDs
+export function DashletSettings(
+  props: Readonly<DashletSettingsProps<DashletConfig>>,
+) {
+  const { config } = props;
+
   const initializeDetails = (): DetailWithId[] => {
     const defaultDetails = [
       { label: "Visitors", value: "12,847" },
@@ -37,12 +36,6 @@ export function DashletSettings({
   };
 
   const [details, setDetails] = useState(initializeDetails);
-
-  const handleSave = () => {
-    const detailsToSave = details.map(({ label, value }) => ({ label, value }));
-    onSave({ title, value, unit, details: detailsToSave });
-    onClose();
-  };
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -57,67 +50,57 @@ export function DashletSettings({
   };
 
   return (
-    <DashletSettingsWrapper
-      isOpen={isOpen}
-      onClose={onClose}
-      onSave={handleSave}
-      width="w-80"
-      scrollable
-      dictionary={dictionary}
-    >
-      <SettingsTitleValueUnit
-        title={title}
-        onTitleChange={setTitle}
-        value={value}
-        onValueChange={setValue}
-        unit={unit}
-        onUnitChange={setUnit}
-        valueStep="0.01"
-        dictionary={dictionary}
-      />
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Expandable Details</Label>
-          <Button
-            size="xs"
-            color="light"
-            onClick={addDetail}
-            onMouseDown={handleMouseDown}
-            className="no-drag"
-          >
-            <HiPlus className="mr-1 h-3 w-3" />
-            Add
-          </Button>
-        </div>
-        {details.map((d) => (
-          <div key={d.id} className="flex items-center gap-2">
-            <TextInput
-              value={d.label}
-              onChange={(e) => updateDetail(d.id, "label", e.target.value)}
-              placeholder="Label"
-              sizing="sm"
-              className="flex-1"
-            />
-            <TextInput
-              value={d.value}
-              onChange={(e) => updateDetail(d.id, "value", e.target.value)}
-              placeholder="Value"
-              sizing="sm"
-              className="flex-1"
-            />
+    <SimpleDashletSettings
+      fields={FIELDS}
+      idPrefix="se"
+      settingsProps={props}
+      extraSaveFields={{
+        details: details.map(({ label, value }) => ({ label, value })),
+      }}
+      extraVisualization={
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Expandable Details</Label>
             <Button
               size="xs"
-              color="failure"
-              onClick={() => removeDetail(d.id)}
+              color="light"
+              onClick={addDetail}
               onMouseDown={handleMouseDown}
               className="no-drag"
             >
-              <HiTrash className="h-3 w-3" />
+              <HiPlus className="mr-1 h-3 w-3" />
+              Add
             </Button>
           </div>
-        ))}
-      </div>
-    </DashletSettingsWrapper>
+          {details.map((d) => (
+            <div key={d.id} className="flex items-center gap-2">
+              <TextInput
+                value={d.label}
+                onChange={(e) => updateDetail(d.id, "label", e.target.value)}
+                placeholder="Label"
+                sizing="sm"
+                className="flex-1"
+              />
+              <TextInput
+                value={d.value}
+                onChange={(e) => updateDetail(d.id, "value", e.target.value)}
+                placeholder="Value"
+                sizing="sm"
+                className="flex-1"
+              />
+              <Button
+                size="xs"
+                color="failure"
+                onClick={() => removeDetail(d.id)}
+                onMouseDown={handleMouseDown}
+                className="no-drag"
+              >
+                <HiTrash className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      }
+    />
   );
 }

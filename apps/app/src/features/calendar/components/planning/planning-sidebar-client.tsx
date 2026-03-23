@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -19,7 +19,6 @@ import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
-import { ShowNotification } from "@/features/notifications/notification";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
@@ -163,11 +162,12 @@ export function PlanningSidebarClient({
     closeSidebar,
     selectService,
     reassigningService,
-    cancelReassignment,
+    assigningService,
     andenesCount,
     backendSlots,
     isSlotsLoading,
     bookingVersion,
+    isSidebarOpen,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -179,15 +179,6 @@ export function PlanningSidebarClient({
   const [searchTags, setSearchTags] = useState<
     Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
-
-  // Handle cancel reassignment
-  const handleCancelReassignment = useCallback(() => {
-    cancelReassignment();
-    ShowNotification({
-      type: "info",
-      message: "Reasignación cancelada",
-    });
-  }, [cancelReassignment]);
 
   // Build API params from search tags
   const apiParams = useMemo(() => {
@@ -226,8 +217,18 @@ export function PlanningSidebarClient({
   }, [searchTags, calendarId]);
 
   // Fetch tasks from API
-  const { data: myTasksData, isLoading: isLoadingTasks, refresh: refreshTasks } = useMyTasks(
-    ["planService", "assignDriver", "presentDriver", "prepareService", "missionControl"],
+  const {
+    data: myTasksData,
+    isLoading: isLoadingTasks,
+    refresh: refreshTasks,
+  } = useMyTasks(
+    [
+      "planService",
+      "assignDriver",
+      "presentDriver",
+      "prepareService",
+      "missionControl",
+    ],
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit
@@ -467,26 +468,110 @@ export function PlanningSidebarClient({
     // because filtering is now based directly on searchTags array
   };
 
-  const isFormActive = Boolean(selectedService);
+  // Preserve content state during close animation to prevent flicker.
+  // When the sidebar closes, all state (selectedService, selectedSlot, etc.) is cleared
+  // immediately, but the CSS transition takes 300ms. We snapshot the state when the
+  // sidebar is open and use that snapshot during the close animation.
+  const stateSnapshotRef = useRef<{
+    isFormActive: boolean;
+    selectedService: typeof selectedService;
+    formattedSlot: typeof formattedSlot;
+    reassigningService: typeof reassigningService;
+    assigningService: typeof assigningService;
+  }>({
+    isFormActive: false,
+    selectedService: null,
+    formattedSlot: undefined,
+    reassigningService: null,
+    assigningService: null,
+  });
+
+  // Update snapshot only when sidebar is open
+  useEffect(() => {
+    if (isSidebarOpen) {
+      stateSnapshotRef.current = {
+        isFormActive: Boolean(selectedService),
+        selectedService,
+        formattedSlot,
+        reassigningService,
+        assigningService,
+      };
+    }
+  }, [
+    isSidebarOpen,
+    selectedService,
+    formattedSlot,
+    reassigningService,
+    assigningService,
+  ]);
+
+  // Use actual state when open, snapshot when closing
+  const displayState = isSidebarOpen
+    ? {
+        isFormActive: Boolean(selectedService),
+        selectedService,
+        formattedSlot,
+        reassigningService,
+        assigningService,
+      }
+    : stateSnapshotRef.current;
+
+  // Determine which header button to show based on current mode
+  const isInSpecialMode =
+    displayState.reassigningService !== null ||
+    displayState.assigningService !== null;
+  const showCloseButton = !displayState.isFormActive || isInSpecialMode;
+
+  const headerButton = showCloseButton ? (
+    <button
+      type="button"
+      onClick={handleCancel}
+      className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+      aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
+    >
+      <HiX className="w-5 h-5" />
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={handleBack}
+      className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+      aria-label={tr("pages.planning.sidebar.form.back", dict)}
+    >
+      <HiArrowLeft className="w-5 h-5" />
+    </button>
+  );
+
+  // Determine the header title based on current mode
+  const getHeaderTitle = (): string => {
+    if (!displayState.isFormActive) {
+      return tr("pages.planning.sidebar.servicesList", dict);
+    }
+    if (displayState.assigningService) {
+      return tr("pages.planning.sidebar.assignmentTitle", dict);
+    }
+    return tr("pages.planning.sidebar.title", dict);
+  };
+  const headerTitle = getHeaderTitle();
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
       {/* Selected slot display */}
-      {formattedSlot && (
+      {displayState.formattedSlot && (
         <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-500 dark:text-gray-400">
               {tr("pages.planning.sidebar.form.slot", dict)}:
             </span>
             <span className="font-medium text-gray-900 dark:text-white capitalize">
-              {formattedSlot.date}
+              {displayState.formattedSlot.date}
             </span>
             <span className="font-mono font-medium text-gray-900 dark:text-white">
-              {formattedSlot.startTime}
+              {displayState.formattedSlot.startTime}
             </span>
             <span className="text-gray-300 dark:text-gray-600">→</span>
             <span className="font-mono font-medium text-gray-900 dark:text-white">
-              {formattedSlot.endTime}
+              {displayState.formattedSlot.endTime}
             </span>
           </div>
         </div>
@@ -494,78 +579,50 @@ export function PlanningSidebarClient({
       {/* Header */}
       <div className="px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 h-10">
-          {isFormActive ? (
-            <button
-              type="button"
-              onClick={
-                reassigningService === null
-                  ? handleBack
-                  : handleCancelReassignment
-              }
-              className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-              aria-label={
-                reassigningService === null
-                  ? tr("pages.planning.sidebar.form.back", dict)
-                  : tr("pages.planning.sidebar.form.cancelReassignment", dict)
-              }
-            >
-              <HiArrowLeft className="w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="p-1 -ml-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
-              aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
-            >
-              <HiX className="w-5 h-5" />
-            </button>
-          )}
+          {headerButton}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {isFormActive
-              ? tr("pages.planning.sidebar.title", dict)
-              : tr("pages.planning.sidebar.servicesList", dict)}
+            {headerTitle}
           </h2>
-          {selectedService?.id && (
+          {displayState.selectedService?.id && (
             <span className="text-sm font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
-              {selectedService.id}
+              {displayState.selectedService.id}
             </span>
           )}
         </div>
       </div>
       {/* Content */}
       <div className="flex-1 p-3 overflow-y-auto">
-        {isFormActive ? (
+        {displayState.isFormActive ? (
           <PlanningSidebarForm
             dict={dict}
             isActive={true}
             selectedService={
-              selectedService
+              displayState.selectedService
                 ? {
-                    ...selectedService,
-                    slot: formattedSlot?.full,
+                    ...displayState.selectedService,
+                    slot: displayState.formattedSlot?.full,
                   }
                 : undefined
             }
             onSubmit={handleSubmit}
             andenesCount={andenesCount}
-            slotStartTime={formattedSlot?.startTime}
-            slotEndTime={formattedSlot?.endTime}
+            slotStartTime={displayState.formattedSlot?.startTime}
+            slotEndTime={displayState.formattedSlot?.endTime}
             backendSlots={backendSlots}
             isSlotsLoading={isSlotsLoading}
           />
         ) : (
           <div className="flex flex-col gap-3">
             {/* Reassignment mode banner */}
-            {reassigningService && (
+            {displayState.reassigningService && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
                 <HiSwitchHorizontal className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                    Reasignando servicio
+                    {tr("pages.planning.sidebar.reassignment.title", dict)}
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400 truncate">
-                    {reassigningService.service.service.id}
+                    {displayState.reassigningService.service.service.id}
                   </p>
                 </div>
               </div>
@@ -596,7 +653,8 @@ export function PlanningSidebarClient({
               {sortedServices.length > 0 ? (
                 sortedServices.map((service) => {
                   const isReassigning =
-                    reassigningService?.service.service.id === service.id;
+                    displayState.reassigningService?.service.service.id ===
+                    service.id;
                   return (
                     <div
                       key={service.id}
@@ -618,8 +676,8 @@ export function PlanningSidebarClient({
             </div>
 
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-              {reassigningService
-                ? "Seleccione una fecha y hora en el calendario para reasignar"
+              {displayState.reassigningService
+                ? tr("pages.planning.sidebar.reassignment.hint", dict)
                 : tr("pages.planning.sidebar.selectServiceHint", dict)}
             </p>
           </div>

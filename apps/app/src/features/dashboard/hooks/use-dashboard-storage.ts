@@ -6,6 +6,7 @@ import fetcher from "@/features/common/providers/fetcher";
 import {
   type Widget,
   type DashboardStorageSchema,
+  type DashboardFilterParam,
   type PlannerRequestDefinition,
   DEFAULT_STORAGE,
 } from "../types/dashboard.types";
@@ -390,6 +391,15 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  // ── Filters CRUD ─────────────────────────────────────────────────────────
+
+  const setFilters = useCallback(
+    (filters: DashboardFilterParam[]) => {
+      updateConfig({ filters });
+    },
+    [updateConfig]
+  );
+
   // ── Planner CRUD ──────────────────────────────────────────────────────────
 
   const getPlannerDefinitions = useCallback(
@@ -485,6 +495,7 @@ export function useDashboardStorage(
           widgets: normalizedWidgets,
           preferences: imported.preferences ?? { editMode: false },
           requestPlanner: imported.requestPlanner,
+          filters: imported.filters,
         };
 
         saveData(newData);
@@ -501,6 +512,7 @@ export function useDashboardStorage(
 
   return {
     widgets: resolvedConfig.widgets,
+    filters: resolvedConfig.filters ?? [],
     plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
@@ -512,6 +524,7 @@ export function useDashboardStorage(
     deleteWidget,
     setEditMode,
     setDashboardName,
+    setFilters,
     findWidget,
     findParent,
     exportDashboard,

@@ -5,7 +5,8 @@ import type { DataProviderEntry } from "../types";
 import { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
-import { buildDataProviderContext } from "./use-handlebars-templates";
+import { buildDataProviderContext, resolveHandlebarsField } from "./use-handlebars-templates";
+import { useDashboardFilters } from "../../context/dashboard-filters-context";
 
 // ============================================================================
 // Shared pgrest config interface
@@ -84,12 +85,30 @@ export function useHybridPgrestContext(
   dataProvider: DataProviderEntry[],
 ) {
   const dataMode = (config.dataMode as "static" | "pgrest" | "planner") || "static";
+  const { activeFilters } = useDashboardFilters();
+
+  // Resolve {{filter.*}} templates in pgrest param values
+  const resolvedParams = useMemo(() => {
+    const params = config.pgrestParams || EMPTY_PGREST_PARAMS;
+    if (params.length === 0) return EMPTY_PGREST_PARAMS;
+    const filterContext = { filter: activeFilters };
+    const resolved = params.map((p) => {
+      if (p.value && p.value.includes("{{filter.")) {
+        const resolvedValue = resolveHandlebarsField(p.value, filterContext);
+        return { ...p, value: resolvedValue };
+      }
+      return p;
+    });
+    return resolved.filter(
+      (p) => p.value !== "" || !params.find((op) => op.key === p.key)?.value?.includes("{{filter.")
+    );
+  }, [config.pgrestParams, activeFilters]);
 
   const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
     dataMode === "pgrest" ? "pgrest" : "static",
     config.pgrestFunctionName || "",
     config.pgrestHttpMethod || "POST",
-    config.pgrestParams || EMPTY_PGREST_PARAMS,
+    resolvedParams,
     config.dataSourceId,
   );
 
@@ -105,10 +124,10 @@ export function useHybridPgrestContext(
     const dpContext = buildDataProviderContext(dataProvider);
     if ((dataMode === "pgrest" || dataMode === "planner") && rows.length > 0) {
       const firstRow = rows[0];
-      return { ...firstRow, row: firstRow, ...dpContext };
+      return { ...firstRow, row: firstRow, ...dpContext, filter: activeFilters };
     }
-    return dpContext;
-  }, [dataProvider, dataMode, rows]);
+    return { ...dpContext, filter: activeFilters };
+  }, [dataProvider, dataMode, rows, activeFilters]);
 
   return { templateContext, loading, fetchError };
 }

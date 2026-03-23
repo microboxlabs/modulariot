@@ -26,8 +26,8 @@ export default function SseListener({
   const notificationTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // Wait for runtime config to load before connecting
-    if (!runtimeConfig?.ECM_API_URL) return;
+    // Wait for runtime config and tenantId before connecting
+    if (!runtimeConfig?.ECM_API_URL || !tenantId) return;
 
     // Initialize the global EventSource if not already done
     if (!isInitialized) {
@@ -112,7 +112,7 @@ export default function SseListener({
         clearTimeout(notificationTimeoutRef.current);
       }
     };
-  }, [dictionary, runtimeConfig]);
+  }, [dictionary, runtimeConfig, tenantId]);
 
   return null;
 }

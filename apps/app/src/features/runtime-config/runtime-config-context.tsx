@@ -34,7 +34,7 @@ export function RuntimeConfigProvider({ children }: Readonly<{ children: React.R
 
   useEffect(() => {
     if (config) return;
-    fetchConfig().then(setConfig);
+    fetchConfig().then(setConfig).catch(console.error);
   }, [config]);
 
   return (

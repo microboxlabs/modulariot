@@ -21,10 +21,9 @@ export default function LoadableLabel({
       }
     >
       {icon && (
-        <div className="flex items-center mr-1 text-gray-400">{icon}</div>
+        <div className="flex items-center mr-1.5 text-gray-400">{icon}</div>
       )}
       <span>{label}</span>
-      <span className="mr-1">:</span>
       {isLoading ? (
         <div className="bg-gray-500 text-gray-500 animate-pulse whitespace-nowrap rounded-full flex-grow w-full">
           Loading...

@@ -29,7 +29,7 @@ function fetchConfig(): Promise<RuntimeConfig> {
   return fetchPromise;
 }
 
-export function RuntimeConfigProvider({ children }: { children: React.ReactNode }) {
+export function RuntimeConfigProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [config, setConfig] = useState<RuntimeConfig | null>(cachedConfig);
 
   useEffect(() => {

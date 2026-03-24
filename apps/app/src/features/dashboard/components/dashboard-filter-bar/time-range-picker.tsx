@@ -55,6 +55,7 @@ export default function TimeRangePicker({
   ranges = "time",
 }: Readonly<TimeRangePickerProps>) {
   const t = (key: string) => tr(`${T_PREFIX}.${key}`, dictionary);
+  const storageKey = `${RECENT_RANGES_KEY}:${mode}`;
 
   const [isOpen, setIsOpen] = useState(false);
   const [fromDate, setFromDate] = useState<string>("");
@@ -69,7 +70,7 @@ export default function TimeRangePicker({
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(RECENT_RANGES_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         setRecentRanges(JSON.parse(saved));
       }
@@ -103,7 +104,7 @@ export default function TimeRangePicker({
     const updated = [newRange, ...filtered].slice(0, MAX_RECENT_RANGES);
     setRecentRanges(updated);
     try {
-      localStorage.setItem(RECENT_RANGES_KEY, JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (e) {
       console.error("Failed to save recent ranges:", e);
     }

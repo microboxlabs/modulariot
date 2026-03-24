@@ -184,6 +184,15 @@ export default function TimeRangePicker({
     };
   }, [isOpen]);
 
+  // Prevent keydown events inside the panel from bubbling to parent components
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !isOpen) return;
+    const stop = (e: KeyboardEvent) => e.stopPropagation();
+    panel.addEventListener("keydown", stop);
+    return () => panel.removeEventListener("keydown", stop);
+  }, [isOpen]);
+
   const handleToggle = () => {
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
@@ -243,7 +252,6 @@ export default function TimeRangePicker({
               width: "600px",
               maxWidth: "calc(100vw - 32px)",
             }}
-            onKeyDown={(e) => e.stopPropagation()}
           >
             {/* Left Panel - Absolute Range */}
             <div className="flex-1 border-r border-gray-200 p-4 dark:border-gray-700">

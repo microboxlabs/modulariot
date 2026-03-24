@@ -140,7 +140,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
  */
 export function DashboardFiltersProvider({ children }: Readonly<PropsWithChildren>) {
   return (
-    <Suspense fallback={children}>
+    <Suspense fallback={null}>
       <DashboardFiltersInner>{children}</DashboardFiltersInner>
     </Suspense>
   );

@@ -46,14 +46,17 @@ export function usePgrestResolvedFields({
     const resolved = pgrestParams.map((p) => {
       if (p.value?.includes("{{filter.")) {
         const resolvedValue = resolveHandlebarsField(p.value, filterContext);
-        return { ...p, value: resolvedValue };
+        return { ...p, value: resolvedValue, _fromTemplate: true };
       }
-      return p;
+      return { ...p, _fromTemplate: false };
     });
-    // Filter out params that resolved to empty string from filter templates
-    return resolved.filter(
-      (p) => p.value !== "" || !pgrestParams.find((op) => op.key === p.key)?.value?.includes("{{filter.")
-    );
+    return resolved
+      .filter((p) => {
+        if (!p._fromTemplate) return true;
+        // Drop template params that resolved to empty or operator-only (e.g. "eq.", "like.")
+        return p.value !== "" && !p.value.endsWith(".");
+      })
+      .map(({ _fromTemplate, ...p }) => p);
   }, [pgrestParams, activeFilters]);
 
   const stableParams = resolvedParams.length > 0 ? resolvedParams : EMPTY_PARAMS;

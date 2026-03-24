@@ -1,54 +1,85 @@
-# modulariot-srv
+# ModularIoT Server
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Single Quarkus monorepo that produces one container image containing all ModularIoT components. Each component can be activated/deactivated at runtime via configuration.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Deployment Modes
 
-## Running the application in dev mode
+| Mode | Command | Use Case |
+|------|---------|----------|
+| All-in-one | `miot all` | Local dev, small on-prem |
+| Single component | `miot fleet` | Kubernetes, scale independently |
+| Selective | `miot all --components=fleet,alerts` | Mixed mode |
 
-You can run your application in dev mode that enables live coding using:
+## Module Structure
 
-```shell script
-./mvnw quarkus:dev
+```
+miot-core/    Shared foundation (config, models, auth, messaging, persistence)
+miot-fleet/   Fleet monitoring (vehicles, trips, GPS ingestion)
+miot-cli/     Application entrypoint (Picocli CLI)
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Tech Stack
 
-## Packaging and running the application
+- **Quarkus 3.x** — CDI conditional activation, Picocli, Kubernetes-native
+- **Java 21**
+- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_fleet`, ...)
+- **Hibernate Reactive + Panache**
+- **Vert.x EventBus** — In-process inter-component messaging
 
-The application can be packaged using:
+## Quick Start
 
-```shell script
-./mvnw package
+```bash
+# Build
+./mvnw clean install
+
+# Run all-in-one (dev mode with hot reload)
+./mvnw quarkus:dev -pl miot-cli
+
+# Run only fleet component
+./mvnw quarkus:dev -pl miot-cli -Dmiot.component.fleet.enabled=true
+
+# Run tests
+./mvnw test
+
+# Build container image
+./mvnw package -Dquarkus.container-image.build=true
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+## Component Activation
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+Components activate via config properties:
 
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+```properties
+miot.component.fleet.enabled=true
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+Override at runtime:
 
-## Creating a native executable
+```bash
+# Via CLI
+docker run ghcr.io/microboxlabs/miot:latest miot fleet
 
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
+# Via env var
+MIOT_COMPONENT_FLEET_ENABLED=true
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
+## Database
 
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+Each component owns its schema. Migrations run via Flyway at startup:
+
+```
+miot-core/src/main/resources/db/migration/core/     # tenants, assets
+miot-fleet/src/main/resources/db/migration/fleet/    # vehicles, trips
 ```
 
-You can then execute your native executable with: `./target/modulariot-srv-1.0.0-SNAPSHOT-runner`
+## Docker
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
+```bash
+docker build -t miot:latest .
+docker run miot:latest miot all         # all-in-one
+docker run miot:latest miot fleet       # single component
+```
+
+## License
+
+Apache 2.0

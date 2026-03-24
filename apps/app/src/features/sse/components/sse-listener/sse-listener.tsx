@@ -27,12 +27,12 @@ export default function SseListener({
 
   useEffect(() => {
     // Wait for runtime config and tenantId before connecting
-    if (!runtimeConfig?.ECM_API_URL || !tenantId) return;
+    if (!runtimeConfig?.ECM_PUBLIC_URL || !tenantId) return;
 
     // Initialize the global EventSource if not already done
     if (!isInitialized) {
       globalEventSource = new EventSource(
-        `${runtimeConfig.ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`
+        `${runtimeConfig.ECM_PUBLIC_URL}/api/v1/events/tenant/${tenantId}/stream`
       );
 
       isInitialized = true;

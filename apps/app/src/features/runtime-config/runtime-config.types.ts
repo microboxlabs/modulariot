@@ -3,5 +3,5 @@
  * Only add keys here that are safe to expose publicly (no secrets).
  */
 export interface RuntimeConfig {
-  ECM_API_URL: string;
+  ECM_PUBLIC_URL: string;
 }

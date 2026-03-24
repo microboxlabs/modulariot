@@ -4,5 +4,5 @@
  * Only add non-secret, public-safe values here.
  */
 export const RUNTIME_CONFIG_WHITELIST: Record<string, string> = {
-  ECM_API_URL: "ECM_API_URL",
+  ECM_PUBLIC_URL: "ECM_PUBLIC_URL",
 } as const;

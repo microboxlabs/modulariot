@@ -265,6 +265,7 @@ export default function TimeRangePicker({
 
               <div className="mb-4 flex gap-2">
                 <button
+                  type="button"
                   onClick={handleApply}
                   disabled={!fromDate || !toDate}
                   className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-400"

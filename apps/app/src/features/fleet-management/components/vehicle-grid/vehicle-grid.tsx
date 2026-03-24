@@ -18,16 +18,36 @@ export default function VehicleGrid({ vehicles, dict }: VehicleGridProps) {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const visibleVehicles = vehicles.slice(0, visibleCount);
   const hasMore = visibleCount < vehicles.length;
+
+  const clearLoadTimeout = useCallback(() => {
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Reset state when vehicles prop changes
+  useEffect(() => {
+    clearLoadTimeout();
+    setVisibleCount(Math.min(ITEMS_PER_PAGE, vehicles.length));
+    setIsLoading(false);
+  }, [vehicles, clearLoadTimeout]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return clearLoadTimeout;
+  }, [clearLoadTimeout]);
 
   const loadMore = useCallback(() => {
     if (isLoading || !hasMore) return;
 
     setIsLoading(true);
     // Simulate loading delay
-    setTimeout(() => {
+    loadTimeoutRef.current = setTimeout(() => {
       setVisibleCount((prev) =>
         Math.min(prev + ITEMS_PER_PAGE, vehicles.length)
       );

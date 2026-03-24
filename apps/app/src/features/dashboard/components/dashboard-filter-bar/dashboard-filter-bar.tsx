@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { HiSearch, HiX } from "react-icons/hi";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 import TimeRangePicker from "./time-range-picker";
 import Tags from "./tags";
 
@@ -14,7 +15,7 @@ import Tags from "./tags";
  * 3. Tags (active filter badge)
  */
 export function DashboardFilterBar() {
-  const { filters } = useDashboard();
+  const { filters, dictionary } = useDashboard();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -35,11 +36,11 @@ export function DashboardFilterBar() {
   );
 
   const placeholder = useMemo(() => {
-    if (textFilters.length === 0) return "Search...";
-    if (textFilters.length === 1)
-      return `Search by ${textFilters[0].label}...`;
-    return `Search by ${textFilters.map((f) => f.label).join(", ")}...`;
-  }, [textFilters]);
+    if (textFilters.length === 0)
+      return tr("dashboard.filterBar.search", dictionary);
+    const labels = textFilters.map((f) => f.label).join(", ");
+    return tr("dashboard.filterBar.searchBy", dictionary, { labels });
+  }, [textFilters, dictionary]);
 
   const pushParams = useCallback(
     (params: URLSearchParams) => {
@@ -206,11 +207,11 @@ export function DashboardFilterBar() {
                   handleSearch(search.trim(), filter.key);
                 }}
               >
-                Search{' '}
+                {tr("dashboard.filterBar.searchLabel", dictionary)}{' '}
                 <span className="max-w-[120px] truncate font-medium text-gray-900 dark:text-white">
                   {search}
                 </span>{' '}
-                as{' '}
+                {tr("dashboard.filterBar.searchAs", dictionary)}{' '}
                 <span className="font-medium text-gray-900 dark:text-white">
                   {filter.label}
                 </span>

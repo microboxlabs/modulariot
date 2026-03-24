@@ -1563,6 +1563,12 @@
       "failedToLoadFunctions": "Error al cargar funciones",
       "invalidResponseFormat": "Formato de respuesta inválido"
     },
+    "filterBar": {
+      "search": "Buscar...",
+      "searchBy": "Buscar por {labels}...",
+      "searchLabel": "Buscar",
+      "searchAs": "como"
+    },
     "dashlets": {
       "data_list": {
         "name": "Lista de Datos",

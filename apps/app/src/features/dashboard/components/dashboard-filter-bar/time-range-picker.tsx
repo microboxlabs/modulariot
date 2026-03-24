@@ -24,6 +24,8 @@ interface QuickRangeDef {
 interface TimeRangePickerProps {
   onDateChange: (startDate: string, endDate: string) => void;
   dictionary: I18nRecord;
+  from?: string;
+  to?: string;
   format?: string;
   className?: string;
   mode?: "date" | "datetime";
@@ -58,6 +60,8 @@ const MAX_RECENT_RANGES = 5;
 export default function TimeRangePicker({
   onDateChange,
   dictionary,
+  from: externalFrom,
+  to: externalTo,
   format = "YYYY-MM-DD HH:mm",
   className = "",
   mode = "datetime",
@@ -67,8 +71,16 @@ export default function TimeRangePicker({
   const storageKey = `${RECENT_RANGES_KEY}:${mode}`;
 
   const [isOpen, setIsOpen] = useState(false);
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
+  const [fromDate, setFromDate] = useState<string>(externalFrom ?? "");
+  const [toDate, setToDate] = useState<string>(externalTo ?? "");
+
+  useEffect(() => {
+    if (externalFrom !== undefined) setFromDate(externalFrom);
+  }, [externalFrom]);
+
+  useEffect(() => {
+    if (externalTo !== undefined) setToDate(externalTo);
+  }, [externalTo]);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentRanges, setRecentRanges] = useState<
     Array<{ from: string; to: string; labelKey?: string }>

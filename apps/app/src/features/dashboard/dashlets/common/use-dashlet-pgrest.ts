@@ -95,13 +95,16 @@ export function useHybridPgrestContext(
     const resolved = params.map((p) => {
       if (p.value?.includes("{{filter.")) {
         const resolvedValue = resolveHandlebarsField(p.value, filterContext);
-        return { ...p, value: resolvedValue };
+        return { ...p, value: resolvedValue, _fromTemplate: true };
       }
-      return p;
+      return { ...p, _fromTemplate: false };
     });
-    return resolved.filter(
-      (p) => p.value !== "" || !params.find((op) => op.key === p.key)?.value?.includes("{{filter.")
-    );
+    return resolved
+      .filter((p) => {
+        if (!p._fromTemplate) return true;
+        return p.value !== "" && !p.value.endsWith(".");
+      })
+      .map(({ _fromTemplate, ...p }) => p);
   }, [config.pgrestParams, activeFilters]);
 
   const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(

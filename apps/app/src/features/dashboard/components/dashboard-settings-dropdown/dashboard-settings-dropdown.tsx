@@ -491,37 +491,53 @@ function FilterManagerForm({
       )}
 
       {localFilters.map((filter, index) => (
-        <div
-          key={filterIds[index]}
-          className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
-        >
-          <div className="flex-1 space-y-2">
-            <div className="flex gap-2">
-              <TextInput
-                sizing="sm"
-                placeholder={t("keyPlaceholder")}
-                value={filter.key}
-                onChange={(e) => updateFilter(index, "key", e.target.value)}
-                className="flex-1"
-              />
-              <TextInput
-                sizing="sm"
-                placeholder={t("labelPlaceholder")}
-                value={filter.label}
-                onChange={(e) => updateFilter(index, "label", e.target.value)}
-                className="flex-1"
-              />
+        <div key={filterIds[index]} className="space-y-1">
+          <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600">
+            <div className="flex-1 space-y-2">
+              <div className="flex gap-2">
+                <TextInput
+                  sizing="sm"
+                  placeholder={t("keyPlaceholder")}
+                  value={filter.key}
+                  onChange={(e) => updateFilter(index, "key", e.target.value)}
+                  className="flex-1"
+                />
+                <TextInput
+                  sizing="sm"
+                  placeholder={t("labelPlaceholder")}
+                  value={filter.label}
+                  onChange={(e) => updateFilter(index, "label", e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+              {/* Type selector hidden — default is "text" */}
             </div>
-            {/* Type selector hidden — default is "text" */}
+            <Button
+              type="button"
+              color="failure"
+              size="xs"
+              onClick={() => removeFilter(index)}
+            >
+              &times;
+            </Button>
           </div>
-          <Button
-            type="button"
-            color="failure"
-            size="xs"
-            onClick={() => removeFilter(index)}
-          >
-            &times;
-          </Button>
+          {filter.type === "date_range" && filter.key && (
+            <div className="ml-4 space-y-1">
+              {[`${filter.key}_from`, `${filter.key}_to`].map((derived) => (
+                <div
+                  key={derived}
+                  className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
+                >
+                  <code className="flex-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                    {`{{filter.${derived}}}`}
+                  </code>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                    auto
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 

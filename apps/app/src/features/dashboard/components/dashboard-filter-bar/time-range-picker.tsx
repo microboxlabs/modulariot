@@ -11,7 +11,6 @@ interface QuickRange {
 }
 
 interface TimeRangePickerProps {
-  label?: string;
   onDateChange: (startDate: string, endDate: string) => void;
   format?: string;
   className?: string;
@@ -48,7 +47,7 @@ export default function TimeRangePicker({
   className = "",
   mode = "datetime",
   ranges = "time",
-}: TimeRangePickerProps) {
+}: Readonly<TimeRangePickerProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
@@ -57,7 +56,7 @@ export default function TimeRangePicker({
     Array<{ from: string; to: string; label?: string }>
   >([]);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const buttonRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,6 +106,12 @@ export default function TimeRangePicker({
 
   const extractDatePart = (dateStr: string): string =>
     dateStr.split(" ")[0] || dateStr.split("T")[0] || dateStr;
+
+  const getInputValue = (dateStr: string): string => {
+    if (!dateStr) return "";
+    if (mode === "date") return extractDatePart(dateStr);
+    return dateStr.replace(" ", "T");
+  };
 
   const handleQuickRangeSelect = (quickRange: QuickRange) => {
     const range = quickRange.getValue();
@@ -186,10 +191,10 @@ export default function TimeRangePicker({
   return (
     <div className={`relative flex items-center ${className}`}>
       {/* Trigger Button */}
-      <div
+      <button
         ref={buttonRef}
+        type="button"
         onClick={handleToggle}
-        onKeyDown={(e) => e.stopPropagation()}
         className="flex h-[42px] w-[42px] cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500"
         title={
           fromDate && toDate
@@ -198,7 +203,7 @@ export default function TimeRangePicker({
         }
       >
         <HiCalendar className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-      </div>
+      </button>
 
       {/* Dropdown Panel */}
       {isOpen &&
@@ -233,13 +238,7 @@ export default function TimeRangePicker({
                   </label>
                   <input
                     type={mode === "date" ? "date" : "datetime-local"}
-                    value={
-                      value
-                        ? mode === "date"
-                          ? extractDatePart(value)
-                          : value.replace(" ", "T")
-                        : ""
-                    }
+                    value={getInputValue(value)}
                     onChange={(e) => {
                       setter(
                         mode === "date"
@@ -271,15 +270,15 @@ export default function TimeRangePicker({
                   </h4>
                   <div className="max-h-32 space-y-1 overflow-y-auto">
                     {recentRanges.map((range) => (
-                      <div
+                      <button
+                        type="button"
                         key={`${range.from}-${range.to}`}
                         onClick={() => handleRecentRangeSelect(range)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                        className="cursor-pointer truncate rounded px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+                        className="w-full cursor-pointer truncate rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
                       >
                         {range.label ||
                           `${extractDatePart(range.from)} - ${extractDatePart(range.to)}`}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -311,14 +310,14 @@ export default function TimeRangePicker({
 
               <div className="max-h-64 space-y-1 overflow-y-auto">
                 {filteredQuickRanges.map((range) => (
-                  <div
+                  <button
+                    type="button"
                     key={range.label}
                     onClick={() => handleQuickRangeSelect(range)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    className="cursor-pointer rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+                    className="w-full cursor-pointer rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
                   >
                     {range.label}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

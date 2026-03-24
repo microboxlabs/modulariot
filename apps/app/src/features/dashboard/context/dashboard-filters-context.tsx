@@ -36,7 +36,7 @@ const DashboardFiltersContext =
 /**
  * Inner provider that uses useSearchParams (requires Suspense boundary).
  */
-function DashboardFiltersInner({ children }: PropsWithChildren) {
+function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
   const { filters } = useDashboard();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -126,7 +126,7 @@ function DashboardFiltersInner({ children }: PropsWithChildren) {
 /**
  * Outer provider with Suspense boundary for useSearchParams.
  */
-export function DashboardFiltersProvider({ children }: PropsWithChildren) {
+export function DashboardFiltersProvider({ children }: Readonly<PropsWithChildren>) {
   return (
     <Suspense fallback={children}>
       <DashboardFiltersInner>{children}</DashboardFiltersInner>

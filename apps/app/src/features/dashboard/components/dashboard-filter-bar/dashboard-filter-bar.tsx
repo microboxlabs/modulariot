@@ -206,11 +206,11 @@ export function DashboardFilterBar() {
                   handleSearch(search.trim(), filter.key);
                 }}
               >
-                Search
+                Search{' '}
                 <span className="max-w-[120px] truncate font-medium text-gray-900 dark:text-white">
                   {search}
-                </span>
-                as
+                </span>{' '}
+                as{' '}
                 <span className="font-medium text-gray-900 dark:text-white">
                   {filter.label}
                 </span>

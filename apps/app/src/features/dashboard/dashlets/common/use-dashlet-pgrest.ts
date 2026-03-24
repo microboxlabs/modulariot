@@ -93,7 +93,7 @@ export function useHybridPgrestContext(
     if (params.length === 0) return EMPTY_PGREST_PARAMS;
     const filterContext = { filter: activeFilters };
     const resolved = params.map((p) => {
-      if (p.value && p.value.includes("{{filter.")) {
+      if (p.value?.includes("{{filter.")) {
         const resolvedValue = resolveHandlebarsField(p.value, filterContext);
         return { ...p, value: resolvedValue };
       }

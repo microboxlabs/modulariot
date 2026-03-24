@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
+import { resolveFilterParams } from "./resolve-filter-params";
+import { useDashboardFilters } from "../../context/dashboard-filters-context";
 
 interface DashletDataConfig {
   dataMode: string;
@@ -32,12 +35,19 @@ export function useDashletData(config: DashletDataConfig): DashletDataResult {
     plannerVariableName,
   } = config;
 
+  // Resolve {{filter.*}} templates in pgrest param values before fetching
+  const { activeFilters } = useDashboardFilters();
+  const resolvedParams = useMemo(
+    () => resolveFilterParams(pgrestParams, activeFilters),
+    [pgrestParams, activeFilters],
+  );
+
   // Always call both hooks (hooks rules)
   const pgrest = usePgrestRows(
     dataMode === "pgrest" ? "pgrest" : "static", // only activate when pgrest mode
     pgrestFunctionName,
     pgrestHttpMethod,
-    pgrestParams,
+    resolvedParams,
     dataSourceId
   );
 

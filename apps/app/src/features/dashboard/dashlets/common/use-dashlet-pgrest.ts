@@ -5,7 +5,8 @@ import type { DataProviderEntry } from "../types";
 import { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
-import { buildDataProviderContext, resolveHandlebarsField } from "./use-handlebars-templates";
+import { buildDataProviderContext } from "./use-handlebars-templates";
+import { resolveFilterParams } from "./resolve-filter-params";
 import { useDashboardFilters } from "../../context/dashboard-filters-context";
 
 // ============================================================================
@@ -88,24 +89,10 @@ export function useHybridPgrestContext(
   const { activeFilters } = useDashboardFilters();
 
   // Resolve {{filter.*}} templates in pgrest param values
-  const resolvedParams = useMemo(() => {
-    const params = config.pgrestParams || EMPTY_PGREST_PARAMS;
-    if (params.length === 0) return EMPTY_PGREST_PARAMS;
-    const filterContext = { filter: activeFilters };
-    const resolved = params.map((p) => {
-      if (p.value?.includes("{{filter.")) {
-        const resolvedValue = resolveHandlebarsField(p.value, filterContext);
-        return { ...p, value: resolvedValue, _fromTemplate: true };
-      }
-      return { ...p, _fromTemplate: false };
-    });
-    return resolved
-      .filter((p) => {
-        if (!p._fromTemplate) return true;
-        return p.value !== "" && !p.value.endsWith(".");
-      })
-      .map(({ _fromTemplate, ...p }) => p);
-  }, [config.pgrestParams, activeFilters]);
+  const resolvedParams = useMemo(
+    () => resolveFilterParams(config.pgrestParams || EMPTY_PGREST_PARAMS, activeFilters),
+    [config.pgrestParams, activeFilters],
+  );
 
   const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
     dataMode === "pgrest" ? "pgrest" : "static",

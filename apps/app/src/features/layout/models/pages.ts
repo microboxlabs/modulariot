@@ -69,17 +69,14 @@ export const pages: SidebarItem[] = [
     ],
     requiredGroups: [], // Public route
   },
-  ...(process.env.NEXT_PUBLIC_ENABLE_FLEET_MANAGEMENT === "true"
-    ? [
-        {
-          href: "/fleet-management",
-          icon: TruckIcon,
-          label: "fleetManagement",
-          totals: {},
-          requiredGroups: [],
-        },
-      ]
-    : []),
+  {
+    href: "/fleet-management",
+    icon: TruckIcon,
+    label: "fleetManagement",
+    totals: {},
+    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
+    blockedGroups: [],
+  },
   {
     icon: CalendarIcon,
     label: "calendar",

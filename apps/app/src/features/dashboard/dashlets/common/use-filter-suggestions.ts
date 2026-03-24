@@ -21,6 +21,6 @@ export function useFilterSuggestions(filters: DashboardFilterParam[]): string[] 
     if (!hasDateRange) {
       keys.push("date_range_from", "date_range_to");
     }
-    return keys;
+    return [...new Set(keys)];
   }, [filters]);
 }

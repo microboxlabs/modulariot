@@ -1559,7 +1559,8 @@
       "textSearch": "Text Search",
       "dateRange": "Date Range",
       "addFilterButton": "+ Add Filter",
-      "filtersUpdated": "Filters updated successfully"
+      "filtersUpdated": "Filters updated successfully",
+      "filtersValidationError": "Some filters have empty fields or duplicate keys. Please fix them before saving."
     },
     "filterBar": {
       "search": "Search...",

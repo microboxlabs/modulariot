@@ -1454,6 +1454,7 @@
     "all": "All"
   },
   "dashboard": {
+    "editMode": "Edit Mode",
     "settings": {
       "sparklineData": "Sparkline Data (comma-separated)",
       "subtitle": "Subtitle",

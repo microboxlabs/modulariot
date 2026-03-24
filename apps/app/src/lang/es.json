@@ -1479,6 +1479,7 @@
     "all": "Todos"
   },
   "dashboard": {
+    "editMode": "Modo Edición",
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",
       "subtitle": "Subtítulo",

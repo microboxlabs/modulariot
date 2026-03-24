@@ -75,11 +75,11 @@ export default function TimeRangePicker({
   const [toDate, setToDate] = useState<string>(externalTo ?? "");
 
   useEffect(() => {
-    if (externalFrom !== undefined) setFromDate(externalFrom);
+    setFromDate(externalFrom ?? "");
   }, [externalFrom]);
 
   useEffect(() => {
-    if (externalTo !== undefined) setToDate(externalTo);
+    setToDate(externalTo ?? "");
   }, [externalTo]);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentRanges, setRecentRanges] = useState<

@@ -12,7 +12,7 @@ const recentRangeSchema = z.array(
   z.object({
     from: z.string(),
     to: z.string(),
-    label: z.string().optional(),
+    labelKey: z.string().optional(),
   })
 );
 
@@ -71,7 +71,7 @@ export default function TimeRangePicker({
   const [toDate, setToDate] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [recentRanges, setRecentRanges] = useState<
-    Array<{ from: string; to: string; label?: string }>
+    Array<{ from: string; to: string; labelKey?: string }>
   >([]);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -108,8 +108,8 @@ export default function TimeRangePicker({
 
   const dateFormat = mode === "date" ? "YYYY-MM-DD" : format;
 
-  const saveRecentRange = (from: string, to: string, label?: string) => {
-    const newRange = { from, to, label };
+  const saveRecentRange = (from: string, to: string, labelKey?: string) => {
+    const newRange = { from, to, labelKey };
     const filtered = recentRanges.filter(
       (r) => r.from !== from || r.to !== to
     );
@@ -146,14 +146,14 @@ export default function TimeRangePicker({
     setFromDate(fromStr);
     setToDate(toStr);
     onDateChange(fromStr, toStr);
-    saveRecentRange(fromStr, toStr, range.label);
+    saveRecentRange(fromStr, toStr, range.labelKey);
     setIsOpen(false);
   };
 
   const handleRecentRangeSelect = (range: {
     from: string;
     to: string;
-    label?: string;
+    labelKey?: string;
   }) => {
     const fromFormatted = mode === "date" ? extractDatePart(range.from) : range.from;
     const toFormatted = mode === "date" ? extractDatePart(range.to) : range.to;
@@ -308,8 +308,9 @@ export default function TimeRangePicker({
                         onClick={() => handleRecentRangeSelect(range)}
                         className="w-full cursor-pointer truncate rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
                       >
-                        {range.label ||
-                          `${extractDatePart(range.from)} - ${extractDatePart(range.to)}`}
+                        {range.labelKey
+                          ? t(range.labelKey)
+                          : `${extractDatePart(range.from)} - ${extractDatePart(range.to)}`}
                       </button>
                     ))}
                   </div>

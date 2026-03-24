@@ -506,16 +506,7 @@ function FilterManagerForm({
                 className="flex-1"
               />
             </div>
-            <select
-              value={filter.type}
-              onChange={(e) =>
-                updateFilter(index, "type", e.target.value as "text" | "date_range")
-              }
-              className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="text">{t("textSearch")}</option>
-              <option value="date_range">{t("dateRange")}</option>
-            </select>
+            {/* Type selector hidden — default is "text" */}
           </div>
           <Button
             type="button"

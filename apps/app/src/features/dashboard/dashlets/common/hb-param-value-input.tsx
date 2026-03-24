@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { TextInput } from "flowbite-react";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { useDropdown } from "./use-dropdown";
@@ -36,7 +37,7 @@ function detectFilterPrefix(text: string, cursorPos: number): string | null {
 
 /**
  * Compact TextInput with Handlebars validation and {{filter.*}} autocomplete.
- * Designed for parameter value fields in the Planner Manager.
+ * Uses a portal to render the dropdown outside overflow-hidden containers.
  */
 export function HbParamValueInput({
   value,
@@ -48,6 +49,11 @@ export function HbParamValueInput({
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
   const [isOpen, setIsOpen] = useState(false);
   const [cursorPos, setCursorPos] = useState(value.length);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +69,13 @@ export function HbParamValueInput({
     const lower = partial.toLowerCase();
     return filterSuggestions.filter((s) => s.toLowerCase().includes(lower));
   }, [partial, filterSuggestions]);
+
+  // Update dropdown position when open
+  useEffect(() => {
+    if (!isOpen || !inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+  }, [isOpen, filtered]);
 
   const handleSelect = useCallback(
     (key: string) => {
@@ -131,6 +144,8 @@ export function HbParamValueInput({
     }
   };
 
+  const showDropdown = isOpen && filtered.length > 0;
+
   return (
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
       <TextInput
@@ -144,23 +159,35 @@ export function HbParamValueInput({
         color={getFlowbiteColor(status)}
         autoComplete="off"
       />
-      {isOpen && filtered.length > 0 && (
-        <DropdownList
-          items={filtered}
-          selectedIndex={selectedIndex}
-          onSelect={handleSelect}
-          onHover={setSelectedIndex}
-          dropdownRef={dropdownRef}
-          getKey={(s) => s}
-          renderItem={(s) => (
-            <span className="font-mono text-xs">
-              {"{{filter."}
-              <span className="font-semibold">{s}</span>
-              {"}}"}
-            </span>
-          )}
-        />
-      )}
+      {showDropdown &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              zIndex: 9999,
+            }}
+          >
+            <DropdownList
+              items={filtered}
+              selectedIndex={selectedIndex}
+              onSelect={handleSelect}
+              onHover={setSelectedIndex}
+              dropdownRef={dropdownRef}
+              getKey={(s) => s}
+              renderItem={(s) => (
+                <span className="font-mono text-xs">
+                  {"{{filter."}
+                  <span className="font-semibold">{s}</span>
+                  {"}}"}
+                </span>
+              )}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

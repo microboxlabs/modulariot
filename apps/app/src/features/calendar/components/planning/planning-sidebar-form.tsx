@@ -733,7 +733,7 @@ export function PlanningSidebarForm({
           </FormSection>
         )}
       {/* Custom Tabs */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <TabButtons
           pill
           tabs={

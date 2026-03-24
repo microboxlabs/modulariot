@@ -13,7 +13,7 @@ export default function SpecialViewCard({ view, dict }: SpecialViewCardProps) {
   const Icon = view.icon;
 
   return (
-    <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-green-200 dark:border-green-800/40 rounded-xl p-4 min-w-0">
+    <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-600 dark:border-gray-600 rounded-xl p-4 min-w-0">
       <div
         className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${view.iconColor} ${view.iconDarkColor}`}
       >

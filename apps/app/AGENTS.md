@@ -162,18 +162,20 @@ function GenericComponent<T extends string>({
 
 ## Accessibility
 
-- **Never add event handlers to non-interactive elements** (`<div>`, `<span>`) without proper accessibility attributes
+- **Never add click/keyboard event handlers to non-interactive elements** (`<div>`, `<span>`) that require user action
 - If a `<div>` or `<span>` needs click/touch handlers for **actual user interaction**, convert it to a `<button>` or add `role`, `tabIndex`, and keyboard support
-- If event handlers are only for **event propagation control** (e.g., `stopPropagation`), add `role="presentation"` to indicate the element is not interactive
+- **Mouse-only UX handlers** (e.g., `onMouseEnter`/`onMouseLeave` for hover effects, auto-pause behavior) are acceptable on divs without any role — they don't make the element interactive
+- **Do NOT use `role="presentation"`** on divs with event handlers — this role is intended for decorative images and will trigger SonarQube warnings
+- For **event propagation control** (e.g., `stopPropagation` only), handlers are acceptable on divs without any role since they don't represent user interaction
 - SonarQube/ESLint enforces: "Avoid non-native interactive elements"
 
-**Example - Avoid (non-interactive div with handlers):**
+**Example - Avoid (non-interactive div with click handler):**
 
 ```tsx
 <div onClick={handleClick}>Click me</div>
 ```
 
-**Example - Correct (use native button):**
+**Example - Correct (use native button for interactive elements):**
 
 ```tsx
 <button type="button" onClick={handleClick}>
@@ -181,12 +183,23 @@ function GenericComponent<T extends string>({
 </button>
 ```
 
-**Example - Correct (propagation control only, not interactive):**
+**Example - Correct (hover-only UX handlers, no role needed):**
 
 ```tsx
-<div role="presentation" onMouseDown={(e) => e.stopPropagation()}>
+// Mouse handlers for UX enhancement (e.g., pausing carousel on hover) are fine
+<div
+  className="carousel-container"
+  onMouseEnter={() => setIsPaused(true)}
+  onMouseLeave={() => setIsPaused(false)}
+>
   {children}
 </div>
+```
+
+**Example - Correct (propagation control, no role needed):**
+
+```tsx
+<div onMouseDown={(e) => e.stopPropagation()}>{children}</div>
 ```
 
 ## Regular Expressions

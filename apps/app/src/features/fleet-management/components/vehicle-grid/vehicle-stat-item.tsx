@@ -14,10 +14,14 @@ export default function VehicleStatItem({
   value,
 }: VehicleStatItemProps) {
   return (
-    <div className="flex items-center gap-1.5">
-      <Icon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-      <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
-      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+    <div className="flex flex-col items-center gap-0.5">
+      <div className="flex items-center gap-1">
+        <Icon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {label}
+        </span>
+      </div>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
         {value}
       </span>
     </div>

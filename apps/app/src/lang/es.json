@@ -2469,7 +2469,9 @@
       "technicalHealthViewDesc": "Diagnóstico técnico, estado mecánico y cumplimiento de revisiones",
       "devicesTelemetryView": "Dispositivos y Telemetría",
       "devicesTelemetryViewDesc": "Monitoreo de sensores, GPS y dispositivos instalados en la flota",
-      "goToSlide": "Ir a diapositiva {number}"
+      "goToSlide": "Ir a diapositiva {number}",
+      "previous": "Anterior",
+      "next": "Siguiente"
     },
     "vehicleGrid": {
       "title": "Vehículos",
@@ -2478,9 +2480,12 @@
       "simplified": "Simplificada",
       "driver": "Conductor",
       "location": "Ubicación",
+      "brand": "Marca",
+      "transportist": "Transportista",
       "fuel": "Combustible",
-      "maintenance": "Mantención",
-      "kmTraveled": "Km Recorridos"
+      "maintenance": "Próx. Mantención",
+      "kmTraveled": "Km Totales",
+      "loading": "Cargando..."
     },
     "status": {
       "active": "Activo",

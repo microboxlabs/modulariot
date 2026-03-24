@@ -421,9 +421,13 @@ function FilterManagerForm({
   const { dictionary } = useDashboard();
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
   const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
+  const [filterIds, setFilterIds] = useState(() =>
+    filters.map(() => crypto.randomUUID())
+  );
 
   useEffect(() => {
     setLocalFilters(filters);
+    setFilterIds(filters.map(() => crypto.randomUUID()));
   }, [filters]);
 
   const addFilter = () => {
@@ -431,6 +435,7 @@ function FilterManagerForm({
       ...prev,
       { key: "", label: "", type: "text" },
     ]);
+    setFilterIds((prev) => [...prev, crypto.randomUUID()]);
   };
 
   const updateFilter = (
@@ -445,6 +450,7 @@ function FilterManagerForm({
 
   const removeFilter = (index: number) => {
     setLocalFilters((prev) => prev.filter((_, i) => i !== index));
+    setFilterIds((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = () => {
@@ -486,7 +492,7 @@ function FilterManagerForm({
 
       {localFilters.map((filter, index) => (
         <div
-          key={`filter-${index}`}
+          key={filterIds[index]}
           className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
         >
           <div className="flex-1 space-y-2">

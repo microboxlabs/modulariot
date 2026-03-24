@@ -4,38 +4,43 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch } from "react-icons/hi";
 import dayjs from "dayjs";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-interface QuickRange {
-  label: string;
-  getValue: () => { from: dayjs.Dayjs; to: dayjs.Dayjs; label?: string };
+interface QuickRangeDef {
+  labelKey: string;
+  getValue: () => { from: dayjs.Dayjs; to: dayjs.Dayjs };
 }
 
 interface TimeRangePickerProps {
   onDateChange: (startDate: string, endDate: string) => void;
+  dictionary: I18nRecord;
   format?: string;
   className?: string;
   mode?: "date" | "datetime";
   ranges?: "date" | "time";
 }
 
-const TIME_QUICK_RANGES: QuickRange[] = [
-  { label: "Últimos 5 minutos", getValue: () => ({ from: dayjs().subtract(5, "minute"), to: dayjs() }) },
-  { label: "Últimos 15 minutos", getValue: () => ({ from: dayjs().subtract(15, "minute"), to: dayjs() }) },
-  { label: "Últimos 30 minutos", getValue: () => ({ from: dayjs().subtract(30, "minute"), to: dayjs() }) },
-  { label: "Última hora", getValue: () => ({ from: dayjs().subtract(1, "hour"), to: dayjs() }) },
-  { label: "Últimas 3 horas", getValue: () => ({ from: dayjs().subtract(3, "hour"), to: dayjs() }) },
-  { label: "Últimas 6 horas", getValue: () => ({ from: dayjs().subtract(6, "hour"), to: dayjs() }) },
-  { label: "Últimas 12 horas", getValue: () => ({ from: dayjs().subtract(12, "hour"), to: dayjs() }) },
+const T_PREFIX = "dashboard.filterBar";
+
+const TIME_QUICK_RANGES: QuickRangeDef[] = [
+  { labelKey: "last5Minutes", getValue: () => ({ from: dayjs().subtract(5, "minute"), to: dayjs() }) },
+  { labelKey: "last15Minutes", getValue: () => ({ from: dayjs().subtract(15, "minute"), to: dayjs() }) },
+  { labelKey: "last30Minutes", getValue: () => ({ from: dayjs().subtract(30, "minute"), to: dayjs() }) },
+  { labelKey: "lastHour", getValue: () => ({ from: dayjs().subtract(1, "hour"), to: dayjs() }) },
+  { labelKey: "last3Hours", getValue: () => ({ from: dayjs().subtract(3, "hour"), to: dayjs() }) },
+  { labelKey: "last6Hours", getValue: () => ({ from: dayjs().subtract(6, "hour"), to: dayjs() }) },
+  { labelKey: "last12Hours", getValue: () => ({ from: dayjs().subtract(12, "hour"), to: dayjs() }) },
 ];
 
-const DATE_QUICK_RANGES: QuickRange[] = [
-  { label: "Hoy", getValue: () => ({ from: dayjs().startOf("day"), to: dayjs().endOf("day"), label: "Hoy" }) },
-  { label: "Ayer", getValue: () => ({ from: dayjs().subtract(1, "day").startOf("day"), to: dayjs().subtract(1, "day").endOf("day"), label: "Ayer" }) },
-  { label: "Últimos 7 días", getValue: () => ({ from: dayjs().subtract(7, "day").startOf("day"), to: dayjs().endOf("day"), label: "Últimos 7 días" }) },
-  { label: "Últimos 14 días", getValue: () => ({ from: dayjs().subtract(14, "day").startOf("day"), to: dayjs().endOf("day"), label: "Últimos 14 días" }) },
-  { label: "Últimos 30 días", getValue: () => ({ from: dayjs().subtract(30, "day").startOf("day"), to: dayjs().endOf("day"), label: "Últimos 30 días" }) },
-  { label: "Último mes (cerrado)", getValue: () => ({ from: dayjs().subtract(1, "month").startOf("month"), to: dayjs().subtract(1, "month").endOf("month"), label: "Último mes (cerrado)" }) },
-  { label: "Mes móvil", getValue: () => ({ from: dayjs().subtract(30, "day").startOf("day"), to: dayjs().endOf("day"), label: "Mes móvil" }) },
+const DATE_QUICK_RANGES: QuickRangeDef[] = [
+  { labelKey: "today", getValue: () => ({ from: dayjs().startOf("day"), to: dayjs().endOf("day") }) },
+  { labelKey: "yesterday", getValue: () => ({ from: dayjs().subtract(1, "day").startOf("day"), to: dayjs().subtract(1, "day").endOf("day") }) },
+  { labelKey: "last7Days", getValue: () => ({ from: dayjs().subtract(7, "day").startOf("day"), to: dayjs().endOf("day") }) },
+  { labelKey: "last14Days", getValue: () => ({ from: dayjs().subtract(14, "day").startOf("day"), to: dayjs().endOf("day") }) },
+  { labelKey: "last30Days", getValue: () => ({ from: dayjs().subtract(30, "day").startOf("day"), to: dayjs().endOf("day") }) },
+  { labelKey: "lastMonthClosed", getValue: () => ({ from: dayjs().subtract(1, "month").startOf("month"), to: dayjs().subtract(1, "month").endOf("month") }) },
+  { labelKey: "rollingMonth", getValue: () => ({ from: dayjs().subtract(30, "day").startOf("day"), to: dayjs().endOf("day") }) },
 ];
 
 const RECENT_RANGES_KEY = "time-range-picker-recent";
@@ -43,11 +48,14 @@ const MAX_RECENT_RANGES = 5;
 
 export default function TimeRangePicker({
   onDateChange,
+  dictionary,
   format = "YYYY-MM-DD HH:mm",
   className = "",
   mode = "datetime",
   ranges = "time",
 }: Readonly<TimeRangePickerProps>) {
+  const t = (key: string) => tr(`${T_PREFIX}.${key}`, dictionary);
+
   const [isOpen, setIsOpen] = useState(false);
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
@@ -70,15 +78,20 @@ export default function TimeRangePicker({
     }
   }, []);
 
-  const quickRanges = ranges === "date" ? DATE_QUICK_RANGES : TIME_QUICK_RANGES;
+  const quickRangeDefs = ranges === "date" ? DATE_QUICK_RANGES : TIME_QUICK_RANGES;
+
+  const resolvedRanges = useMemo(
+    () => quickRangeDefs.map((r) => ({ ...r, label: t(r.labelKey) })),
+    [quickRangeDefs, dictionary]
+  );
 
   const filteredQuickRanges = useMemo(() => {
-    if (!searchQuery) return quickRanges;
+    if (!searchQuery) return resolvedRanges;
     const query = searchQuery.toLowerCase();
-    return quickRanges.filter((range) =>
+    return resolvedRanges.filter((range) =>
       range.label.toLowerCase().includes(query)
     );
-  }, [searchQuery, quickRanges]);
+  }, [searchQuery, resolvedRanges]);
 
   const dateFormat = mode === "date" ? "YYYY-MM-DD" : format;
 
@@ -113,14 +126,14 @@ export default function TimeRangePicker({
     return dateStr.replace(" ", "T");
   };
 
-  const handleQuickRangeSelect = (quickRange: QuickRange) => {
-    const range = quickRange.getValue();
-    const fromStr = range.from.format(dateFormat);
-    const toStr = range.to.format(dateFormat);
+  const handleQuickRangeSelect = (range: (typeof resolvedRanges)[number]) => {
+    const value = range.getValue();
+    const fromStr = value.from.format(dateFormat);
+    const toStr = value.to.format(dateFormat);
     setFromDate(fromStr);
     setToDate(toStr);
     onDateChange(fromStr, toStr);
-    saveRecentRange(fromStr, toStr, quickRange.label);
+    saveRecentRange(fromStr, toStr, range.label);
     setIsOpen(false);
   };
 
@@ -190,7 +203,6 @@ export default function TimeRangePicker({
 
   return (
     <div className={`relative flex items-center ${className}`}>
-      {/* Trigger Button */}
       <button
         ref={buttonRef}
         type="button"
@@ -199,13 +211,12 @@ export default function TimeRangePicker({
         title={
           fromDate && toDate
             ? `${fromDate} - ${toDate}`
-            : "Seleccionar rango de fechas"
+            : t("selectDateRange")
         }
       >
         <HiCalendar className="h-5 w-5 text-gray-500 dark:text-gray-400" />
       </button>
 
-      {/* Dropdown Panel */}
       {isOpen &&
         createPortal(
           <div
@@ -224,17 +235,17 @@ export default function TimeRangePicker({
             <div className="flex-1 border-r border-gray-200 p-4 dark:border-gray-700">
               <h3 className="mb-4 text-sm font-medium text-gray-800 dark:text-gray-200">
                 {mode === "date"
-                  ? "Rango de fechas absoluto"
-                  : "Rango de tiempo absoluto"}
+                  ? t("absoluteDateRange")
+                  : t("absoluteTimeRange")}
               </h3>
 
               {([
-                { label: "Desde", value: fromDate, setter: setFromDate },
-                { label: "Hasta", value: toDate, setter: setToDate },
-              ] as const).map(({ label, value, setter }) => (
-                <div key={label} className="mb-4">
+                { labelKey: "from" as const, value: fromDate, setter: setFromDate },
+                { labelKey: "to" as const, value: toDate, setter: setToDate },
+              ]).map(({ labelKey, value, setter }) => (
+                <div key={labelKey} className="mb-4">
                   <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                    {label}
+                    {t(labelKey)}
                   </label>
                   <input
                     type={mode === "date" ? "date" : "datetime-local"}
@@ -251,22 +262,20 @@ export default function TimeRangePicker({
                 </div>
               ))}
 
-              {/* Apply */}
               <div className="mb-4 flex gap-2">
                 <button
                   onClick={handleApply}
                   disabled={!fromDate || !toDate}
                   className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-400"
                 >
-                  Aplicar rango
+                  {t("applyRange")}
                 </button>
               </div>
 
-              {/* Recent Ranges */}
               {recentRanges.length > 0 && (
                 <div>
                   <h4 className="mb-2 text-xs text-gray-600 dark:text-gray-400">
-                    Rangos recientes
+                    {t("recentRanges")}
                   </h4>
                   <div className="max-h-32 space-y-1 overflow-y-auto">
                     {recentRanges.map((range) => (
@@ -284,12 +293,11 @@ export default function TimeRangePicker({
                 </div>
               )}
 
-              {/* Timezone */}
               {mode === "datetime" && (
                 <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
                   <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                     <HiClock className="h-3 w-3" />
-                    <span>Zona horaria: {timezone}</span>
+                    <span>{t("timezone")}: {timezone}</span>
                   </div>
                 </div>
               )}
@@ -301,7 +309,7 @@ export default function TimeRangePicker({
                 <HiSearch className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar rangos"
+                  placeholder={t("searchRanges")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-md border border-gray-300 bg-gray-50 py-2 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500"
@@ -312,7 +320,7 @@ export default function TimeRangePicker({
                 {filteredQuickRanges.map((range) => (
                   <button
                     type="button"
-                    key={range.label}
+                    key={range.labelKey}
                     onClick={() => handleQuickRangeSelect(range)}
                     className="w-full cursor-pointer rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
                   >

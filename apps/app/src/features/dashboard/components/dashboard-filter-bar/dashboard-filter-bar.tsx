@@ -226,6 +226,8 @@ export function DashboardFilterBar() {
         <TimeRangePicker
           key={filter.key}
           dictionary={dictionary}
+          from={searchParams.get(`${filter.key}_from`) ?? undefined}
+          to={searchParams.get(`${filter.key}_to`) ?? undefined}
           className="shrink-0"
           mode="date"
           ranges="date"
@@ -237,6 +239,8 @@ export function DashboardFilterBar() {
       {dateFilters.length === 0 && (
         <TimeRangePicker
           dictionary={dictionary}
+          from={searchParams.get("date_range_from") ?? undefined}
+          to={searchParams.get("date_range_to") ?? undefined}
           className="shrink-0"
           mode="date"
           ranges="date"

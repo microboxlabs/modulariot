@@ -10,6 +10,7 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 import { EmptyState } from "../empty-state";
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
@@ -30,6 +31,7 @@ export function DashboardView() {
     editMode,
     isLoaded,
     dashboardName,
+    dictionary,
     toggleEditMode,
     updateWidgetLayouts,
   } = useDashboard();
@@ -147,7 +149,7 @@ export function DashboardView() {
               <ToggleSwitch
                 checked={editMode}
                 onChange={toggleEditMode}
-                label="Edit Mode"
+                label={tr("dashboard.editMode", dictionary)}
               />
             )}
             <DashboardSettingsDropdown />

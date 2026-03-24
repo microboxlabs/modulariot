@@ -1561,7 +1561,16 @@
       "selectProvider": "Seleccionar proveedor…",
       "noActiveProviders": "No hay proveedores activos disponibles",
       "failedToLoadFunctions": "Error al cargar funciones",
-      "invalidResponseFormat": "Formato de respuesta inválido"
+      "invalidResponseFormat": "Formato de respuesta inválido",
+      "filterBarTitle": "Barra de Filtros",
+      "filterBarDescription": "Configurar parámetros de filtro del dashboard",
+      "noFiltersConfigured": "No hay filtros configurados. Agregue filtros para habilitar la barra de filtros del dashboard.",
+      "keyPlaceholder": "Clave (ej. asset_id)",
+      "labelPlaceholder": "Etiqueta",
+      "textSearch": "Búsqueda de Texto",
+      "dateRange": "Rango de Fechas",
+      "addFilterButton": "+ Agregar Filtro",
+      "filtersUpdated": "Filtros actualizados correctamente"
     },
     "filterBar": {
       "search": "Buscar...",

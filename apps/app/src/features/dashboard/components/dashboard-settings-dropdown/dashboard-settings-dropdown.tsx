@@ -9,6 +9,7 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ShowNotification } from "@/features/notifications/notification";
+import { tr } from "@/features/i18n/tr.service";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 
 // ============================================================================
@@ -417,6 +418,8 @@ function FilterManagerForm({
   filters,
   onSave,
 }: Readonly<FilterManagerFormProps>) {
+  const { dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
   const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
 
   useEffect(() => {
@@ -469,7 +472,7 @@ function FilterManagerForm({
     onSave(validFilters);
     ShowNotification({
       type: "success",
-      message: "Filters updated successfully",
+      message: t("filtersUpdated"),
     });
   };
 
@@ -477,7 +480,7 @@ function FilterManagerForm({
     <div className="p-4 space-y-3">
       {localFilters.length === 0 && (
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          No filters configured. Add filters to enable the dashboard filter bar.
+          {t("noFiltersConfigured")}
         </p>
       )}
 
@@ -490,14 +493,14 @@ function FilterManagerForm({
             <div className="flex gap-2">
               <TextInput
                 sizing="sm"
-                placeholder="Key (e.g. asset_id)"
+                placeholder={t("keyPlaceholder")}
                 value={filter.key}
                 onChange={(e) => updateFilter(index, "key", e.target.value)}
                 className="flex-1"
               />
               <TextInput
                 sizing="sm"
-                placeholder="Label"
+                placeholder={t("labelPlaceholder")}
                 value={filter.label}
                 onChange={(e) => updateFilter(index, "label", e.target.value)}
                 className="flex-1"
@@ -510,8 +513,8 @@ function FilterManagerForm({
               }
               className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-1.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
-              <option value="text">Text Search</option>
-              <option value="date_range">Date Range</option>
+              <option value="text">{t("textSearch")}</option>
+              <option value="date_range">{t("dateRange")}</option>
             </select>
           </div>
           <Button
@@ -527,10 +530,10 @@ function FilterManagerForm({
 
       <div className="flex justify-between gap-2">
         <Button type="button" color="light" size="sm" onClick={addFilter}>
-          + Add Filter
+          {t("addFilterButton")}
         </Button>
         <Button type="button" size="sm" onClick={handleSave}>
-          Save
+          {tr("common.save", dictionary)}
         </Button>
       </div>
     </div>
@@ -550,6 +553,7 @@ export default function DashboardSettingsDropdown() {
     exportDashboard,
     importDashboard,
     downloadDashboard,
+    dictionary,
   } = useDashboard();
 
   const [open, setOpen] = useState(false);
@@ -685,8 +689,8 @@ export default function DashboardSettingsDropdown() {
             option="filters"
             selected={selected}
             setSelected={setSelected}
-            title="Filter Bar"
-            description="Configure dashboard filter parameters"
+            title={tr("dashboard.settings.filterBarTitle", dictionary)}
+            description={tr("dashboard.settings.filterBarDescription", dictionary)}
           >
             <FilterManagerForm filters={filters} onSave={setFilters} />
           </SettingsSection>

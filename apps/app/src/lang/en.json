@@ -1536,7 +1536,16 @@
       "selectProvider": "Select a provider…",
       "noActiveProviders": "No active providers available",
       "failedToLoadFunctions": "Failed to load functions",
-      "invalidResponseFormat": "Invalid response format"
+      "invalidResponseFormat": "Invalid response format",
+      "filterBarTitle": "Filter Bar",
+      "filterBarDescription": "Configure dashboard filter parameters",
+      "noFiltersConfigured": "No filters configured. Add filters to enable the dashboard filter bar.",
+      "keyPlaceholder": "Key (e.g. asset_id)",
+      "labelPlaceholder": "Label",
+      "textSearch": "Text Search",
+      "dateRange": "Date Range",
+      "addFilterButton": "+ Add Filter",
+      "filtersUpdated": "Filters updated successfully"
     },
     "filterBar": {
       "search": "Search...",

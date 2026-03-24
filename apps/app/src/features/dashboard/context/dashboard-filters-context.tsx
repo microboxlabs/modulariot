@@ -99,7 +99,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
       }
 
       const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [searchParams, router, pathname, filters, filterKeys]
   );
@@ -109,7 +109,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete(key);
       const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [searchParams, router, pathname]
   );
@@ -120,7 +120,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
       params.delete(key);
     }
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [searchParams, router, pathname, filterKeys]);
 
   const value = useMemo(

@@ -1599,7 +1599,8 @@
       "last14Days": "Últimos 14 días",
       "last30Days": "Últimos 30 días",
       "lastMonthClosed": "Último mes (cerrado)",
-      "rollingMonth": "Mes móvil"
+      "rollingMonth": "Mes móvil",
+      "clearSearch": "Limpiar búsqueda"
     },
     "dashlets": {
       "data_list": {

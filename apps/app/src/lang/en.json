@@ -1574,7 +1574,8 @@
       "last14Days": "Last 14 days",
       "last30Days": "Last 30 days",
       "lastMonthClosed": "Last month (closed)",
-      "rollingMonth": "Rolling month"
+      "rollingMonth": "Rolling month",
+      "clearSearch": "Clear search"
     },
     "dashlets": {
       "data_list": {

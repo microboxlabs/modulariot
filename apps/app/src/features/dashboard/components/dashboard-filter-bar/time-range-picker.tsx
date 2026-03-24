@@ -4,8 +4,17 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch } from "react-icons/hi";
 import dayjs from "dayjs";
+import { z } from "zod";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+
+const recentRangeSchema = z.array(
+  z.object({
+    from: z.string(),
+    to: z.string(),
+    label: z.string().optional(),
+  })
+);
 
 interface QuickRangeDef {
   labelKey: string;
@@ -72,12 +81,15 @@ export default function TimeRangePicker({
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
-        setRecentRanges(JSON.parse(saved));
+        const parsed = recentRangeSchema.safeParse(JSON.parse(saved));
+        if (parsed.success) {
+          setRecentRanges(parsed.data);
+        }
       }
-    } catch (e) {
-      console.error("Failed to load recent ranges:", e);
+    } catch {
+      // Corrupted localStorage — ignore
     }
-  }, []);
+  }, [storageKey]);
 
   const quickRangeDefs = ranges === "date" ? DATE_QUICK_RANGES : TIME_QUICK_RANGES;
 

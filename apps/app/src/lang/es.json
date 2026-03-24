@@ -1584,7 +1584,8 @@
       "textSearch": "Búsqueda de Texto",
       "dateRange": "Rango de Fechas",
       "addFilterButton": "+ Agregar Filtro",
-      "filtersUpdated": "Filtros actualizados correctamente"
+      "filtersUpdated": "Filtros actualizados correctamente",
+      "filtersValidationError": "Algunos filtros tienen campos vacíos o claves duplicadas. Corríjalos antes de guardar."
     },
     "filterBar": {
       "search": "Buscar...",

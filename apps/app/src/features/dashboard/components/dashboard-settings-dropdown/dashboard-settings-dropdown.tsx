@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Button, TextInput, Textarea, FileInput, Label } from "flowbite-react";
+import { Button, TextInput, Textarea, FileInput, Label, Select } from "flowbite-react";
 import { FaGear } from "react-icons/fa6";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { HiArrowDownTray } from "react-icons/hi2";
@@ -509,8 +509,16 @@ function FilterManagerForm({
                   onChange={(e) => updateFilter(index, "label", e.target.value)}
                   className="flex-1"
                 />
+                <Select
+                  sizing="sm"
+                  value={filter.type}
+                  onChange={(e) => updateFilter(index, "type", e.target.value)}
+                  className="w-32 shrink-0"
+                >
+                  <option value="text">{t("textSearch")}</option>
+                  <option value="date_range">{t("dateRange")}</option>
+                </Select>
               </div>
-              {/* Type selector hidden — default is "text" */}
             </div>
             <Button
               type="button"

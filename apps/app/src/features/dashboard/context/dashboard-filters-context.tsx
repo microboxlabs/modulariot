@@ -72,11 +72,16 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString());
 
-      // Check if this filter is marked as unique
-      const filterConfig = filters.find((f) => f.key === key);
+      // Match on exact key or base key for suffixed params (e.g. date_range_from → date_range)
+      const filterConfig = filters.find(
+        (f) => f.key === key || key.startsWith(`${f.key}_`)
+      );
       if (filterConfig?.unique && value) {
+        // Clear only params belonging to this filter's base key
         for (const k of filterKeys) {
-          params.delete(k);
+          if (k === filterConfig.key || k.startsWith(`${filterConfig.key}_`)) {
+            params.delete(k);
+          }
         }
       }
 

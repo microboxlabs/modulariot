@@ -134,8 +134,10 @@ export default function TimeRangePicker({
     }
   };
 
+  const isValidRange = fromDate !== "" && toDate !== "" && fromDate <= toDate;
+
   const handleApply = () => {
-    if (fromDate && toDate) {
+    if (isValidRange) {
       onDateChange(fromDate, toDate);
       saveRecentRange(fromDate, toDate);
       setIsOpen(false);
@@ -300,7 +302,7 @@ export default function TimeRangePicker({
                 <button
                   type="button"
                   onClick={handleApply}
-                  disabled={!fromDate || !toDate}
+                  disabled={!isValidRange}
                   className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 dark:disabled:bg-gray-600 dark:disabled:text-gray-400"
                 >
                   {t("applyRange")}

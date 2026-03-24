@@ -1,0 +1,62 @@
+# 🔔 Release Notes v1.28.8 — ModularIoT
+
+### Fecha: 24/03/2026
+
+**Objetivo**: Esta versión se centra en potenciar el sistema de dashboards con soporte completo de proveedores de fuentes de datos y un planificador de consultas compartidas, junto con mejoras en la experiencia de usuario del calendario y el módulo de seguimiento de cargas.
+
+## 🚀 Evolutivos
+
+- **📊 Planificador de Consultas y Proveedor de Fuentes de Datos en Dashboards**
+  - **Planificador de consultas**: Nuevo sistema que permite definir consultas PGREST compartidas como variables nombradas, reutilizables por múltiples dashlets sin duplicar configuración ni peticiones de red. *(Integración OSS — MIOT-0.4.5)*
+  - **Selección de proveedor de datos**: Todos los dashlets con soporte PGREST ahora incluyen un selector de proveedor de fuentes de datos, habilitando configuraciones multi-tenant y multi-base de datos.
+  - **Modo Planner**: Nuevo modo de datos en dashlets que permite referenciar variables del planificador, compartiendo caché entre dashlets que consumen la misma consulta.
+  - **Infraestructura compartida**: Extracción de hooks reutilizables (`useSimplePgrestSettings`, `useDashletPgrest`, `useHybridPgrestContext`), componentes comunes y factory `createSimpleDashletSettings` que eliminan duplicación de código en la configuración de dashlets.
+
+- **📈 Soporte PGREST en Dashlets Individuales**
+  - **Circular Stat**: Soporte de datos dinámicos vía PGREST con resolución de templates Handlebars, auto-detección de columnas y estados de carga/error. *(Integración OSS — MIOT-0.4.5)*
+  - **Percentage Value**: Modo PGREST con resolución de campos Handlebars, modal de configuración con pestañas (Visualización / Datos), y snapshot de valores estáticos al cambiar de modo. *(Integración OSS — MIOT-0.4.5)*
+  - **Labeled Data**: Integración PGREST con auto-llenado de campos desde columnas detectadas, modal de configuración con pestañas y localización EN/ES. *(Integración OSS — MIOT-0.4.5)*
+  - **Card**: Datos dinámicos vía PGREST con texto responsivo mediante CSS container queries, auto-llenado de templates y estados de carga/error. *(Integración OSS — MIOT-0.4.5)*
+
+- **📍 Mejoras en la UI del Calendario Lateral**
+  - **Título dinámico**: El título del sidebar se adapta según el flujo activo (planificación o asignación). *(Integración OSS — MIOT-0.4.5)*
+  - **Validación de asignación**: El botón de asignar ahora requiere transportista, conductor y vehículo antes de habilitarse.
+  - **Navegación mejorada**: Transiciones más fluidas de apertura/cierre y reasignación, con comportamiento de cancelar/volver más claro.
+
+- **📍 Iconos Contextuales en Where Is My Load**
+  - **Iconos por tipo de dato**: Se agregaron iconos contextuales a las entradas de datos adicionales del seguimiento de cargas para identificación más rápida. *(Integración OSS — MIOT-0.4.5)*
+  - **Limpieza visual**: Eliminación de separadores de dos puntos innecesarios y ajuste de espaciado para mejor alineación.
+
+- **⚙️ Módulo de Configuración en Tiempo de Ejecución**
+  - **Configuración runtime**: Nuevo módulo que reemplaza las variables de entorno `NEXT_PUBLIC_*` de tiempo de compilación con un sistema de configuración en tiempo de ejecución. *(Integración OSS — MIOT-0.4.5)*
+  - **Despliegue único**: Permite desplegar el mismo artefacto de build en múltiples ambientes (dev, staging, prod) sin recompilar.
+  - **API route + React Context**: Ruta `GET /app/api/runtime-config` con whitelist de variables seguras, provider con caché singleton y hook tipado `useRuntimeConfig()`.
+
+## 🐛 Correcciones
+
+- **🐛 URL base incorrecta en datasource de Alfresco**
+  - **Impacto**: Las operaciones de datasource (listar, crear, actualizar, eliminar) fallaban con 404 debido a que apuntaban al path legacy `/alfresco/s/mintral/datasource/`. *(Integración OSS — MIOT-0.4.5)*
+  - **Solución**: Actualización al endpoint correcto `/alfresco/s/microboxlabs/dashboards/datasource/`.
+
+- **🐛 Correcciones menores en dashlets de progreso**
+  - **Clamping de porcentajes**: Los dashlets `stat_progress` y `stat_detailed` ahora limitan porcentajes al rango 0–100 para evitar desbordamiento visual.
+  - **Labels de hitos dinámicos**: Las etiquetas de hitos en `stat_progress` ahora derivan del valor objetivo dinámico en lugar de un 100 fijo.
+  - **Protección de contexto híbrido**: Se previene que las columnas de filas PGREST sobrescriban el objeto sintético `row` en dashlets de contexto híbrido.
+
+## 📊 Beneficios
+
+- 🚀 **Dashboards más potentes**: Los usuarios pueden conectar cualquier dashlet a fuentes de datos dinámicas sin necesidad de desarrollo personalizado.
+- 🔄 **Consultas compartidas**: El planificador de consultas elimina la duplicación de configuración y reduce peticiones redundantes al servidor.
+- 🏗️ **Arquitectura multi-tenant**: La selección de proveedor de datos por dashlet habilita dashboards que combinan datos de múltiples fuentes y bases de datos.
+- ⚡ **Despliegues simplificados**: El módulo de configuración runtime permite promover el mismo build entre ambientes sin recompilar, acelerando el pipeline de CI/CD.
+- 🎯 **Mejor experiencia de planificación**: Las mejoras en el calendario lateral ofrecen un flujo de asignación más claro y con validaciones apropiadas.
+- 🔧 **Menos código duplicado**: La infraestructura compartida de dashlets reduce significativamente la duplicación y facilita la incorporación de nuevos dashlets.
+- 🐛 **Mayor estabilidad**: Correcciones en el datasource de Alfresco y en dashlets de progreso mejoran la confiabilidad de la plataforma.
+
+## 📌 Conclusión
+
+La versión 1.28.8 representa un avance significativo en la madurez del sistema de dashboards de ModularIoT. La incorporación del planificador de consultas y el soporte universal de proveedores de fuentes de datos transforman los dashboards de simples visualizaciones estáticas a herramientas analíticas dinámicas capaces de operar en entornos multi-tenant complejos.
+
+La inversión en infraestructura compartida — hooks reutilizables, componentes comunes y factories de configuración — no solo reduce la deuda técnica existente sino que establece un patrón escalable para futuros dashlets. Cada nuevo componente de visualización podrá integrarse con datos dinámicos con mínimo esfuerzo adicional.
+
+El módulo de configuración en tiempo de ejecución complementa estas mejoras operativas al desacoplar la configuración del proceso de compilación, simplificando significativamente los flujos de despliegue y permitiendo una gestión de ambientes más ágil. En conjunto, esta release sienta las bases para funcionalidades analíticas más avanzadas en próximas iteraciones.

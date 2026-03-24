@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash, HiChevronDown, HiChevronRight } from "react-icons/hi2";
 import type { PlannerRequestDefinition, PlannerParam } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
 import { PgrestFunctionAutocomplete } from "../../dashlets/common/pgrest-function-autocomplete";
 import { SettingsSelectField } from "../../dashlets/common/settings-fields";
+import { HbParamValueInput } from "../../dashlets/common/hb-param-value-input";
 import { buildDataSourceParams } from "../../dashlets/common/pgrest-utils";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import { usePlannerContext } from "../../context/planner-context";
@@ -88,6 +89,7 @@ interface RequestEditorProps {
   dictionary: I18nRecord;
   activeProviders: DataSourceOption[];
   schemaKeys: string[];
+  filterSuggestions: string[];
   onUpdate: (id: string, partial: Partial<PlannerRequestDefinition>) => void;
   onRemove: (id: string) => void;
 }
@@ -98,6 +100,7 @@ function RequestEditor({
   dictionary,
   activeProviders,
   schemaKeys,
+  filterSuggestions,
   onUpdate,
   onRemove,
 }: Readonly<RequestEditorProps>) {
@@ -284,15 +287,15 @@ function RequestEditor({
                     }}
                     className="flex-1"
                   />
-                  <TextInput
-                    sizing="sm"
+                  <HbParamValueInput
                     placeholder={paramHints[p.key] ?? "Value"}
                     value={p.value}
-                    onChange={(e) => {
+                    onChange={(v) => {
                       const params = [...def.pgrestParams];
-                      params[i] = { ...params[i], value: e.target.value };
+                      params[i] = { ...params[i], value: v };
                       onUpdate(def.id, { pgrestParams: params });
                     }}
+                    filterSuggestions={filterSuggestions}
                     className="flex-1"
                   />
                   <button
@@ -365,10 +368,25 @@ export function PlannerManagerForm() {
     removePlannerRequest,
     dictionary,
     siteId,
+    filters,
   } = useDashboard();
 
   const { dataSources } = useDataSources(siteId ?? undefined);
   const { schemas } = usePlannerContext();
+
+  // Build filter key suggestions for {{filter.*}} autocomplete.
+  // Date range filters expand to _from and _to suffixes.
+  const filterSuggestions = useMemo(() => {
+    const keys: string[] = [];
+    for (const f of filters) {
+      if (f.type === "date_range") {
+        keys.push(`${f.key}_from`, `${f.key}_to`);
+      } else {
+        keys.push(f.key);
+      }
+    }
+    return keys;
+  }, [filters]);
 
   const activeProviders = dataSources.filter(
     (ds) => ds.isActive === true && ds.lastTestResult === true,
@@ -406,6 +424,7 @@ export function PlannerManagerForm() {
             dictionary={dictionary}
             activeProviders={activeProviders}
             schemaKeys={schemas.get(def.variableName) ?? []}
+            filterSuggestions={filterSuggestions}
             onUpdate={updatePlannerRequest}
             onRemove={removePlannerRequest}
           />

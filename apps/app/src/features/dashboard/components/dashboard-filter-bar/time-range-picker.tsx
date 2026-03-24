@@ -221,6 +221,7 @@ export default function TimeRangePicker({
         createPortal(
           <div
             ref={panelRef}
+            role="dialog"
             className="z-[9999] flex rounded-lg border border-gray-200 bg-white text-gray-700 shadow-2xl dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             style={{
               position: "fixed",

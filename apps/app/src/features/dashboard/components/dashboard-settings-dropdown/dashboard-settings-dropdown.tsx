@@ -452,8 +452,8 @@ function FilterManagerForm({
         // Normalize key: trim, lowercase, spaces→underscores, strip unsafe chars
         let key = (f.key.trim() || trimmedLabel)
           .toLowerCase()
-          .replace(/\s+/g, "_")
-          .replace(/[^a-z0-9_-]/g, "");
+          .replaceAll(/\s+/g, "_")
+          .replaceAll(/[^a-z0-9_-]/g, "");
         // Ensure key starts with a letter or underscore
         if (key && !/^[a-z_]/i.test(key)) {
           key = `_${key}`;

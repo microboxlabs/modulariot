@@ -139,7 +139,7 @@ export function DashboardView() {
           <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
             {dashboardName}
           </h1>
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 justify-center">
             <DashboardFilterBar />
           </div>
           <div className="flex shrink-0 items-center gap-4">

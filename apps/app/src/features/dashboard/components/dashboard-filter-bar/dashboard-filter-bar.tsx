@@ -161,7 +161,7 @@ export function DashboardFilterBar() {
   return (
     <div className="flex items-center gap-2">
       {/* Search Input */}
-      <div ref={containerRef} className="relative min-w-[200px] flex-1">
+      <div ref={containerRef} className="relative min-w-[200px] max-w-md flex-1">
         <div className="relative flex w-full items-center rounded-lg border border-gray-300 bg-white transition-all duration-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700">
           <HiSearch className="absolute left-3 h-4 w-4 text-gray-400" />
           <input

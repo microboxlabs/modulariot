@@ -486,7 +486,7 @@ function FilterManagerForm({
 
       {localFilters.map((filter, index) => (
         <div
-          key={filter.key || `new-filter-${index}`}
+          key={`filter-${index}`}
           className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
         >
           <div className="flex-1 space-y-2">

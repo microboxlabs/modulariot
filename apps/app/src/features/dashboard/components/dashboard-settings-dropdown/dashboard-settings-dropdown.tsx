@@ -541,6 +541,28 @@ function FilterManagerForm({
         </div>
       ))}
 
+      {/* Show default date range keys when no date_range filter is configured */}
+      {!localFilters.some((f) => f.type === "date_range") && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {t("builtInDateRange") ?? "Built-in Date Range"}
+          </p>
+          {["date_range_from", "date_range_to"].map((derived) => (
+            <div
+              key={derived}
+              className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
+            >
+              <code className="flex-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                {`{{filter.${derived}}}`}
+              </code>
+              <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                auto
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex justify-between gap-2">
         <Button type="button" color="light" size="sm" onClick={addFilter}>
           {t("addFilterButton")}

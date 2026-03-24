@@ -42,16 +42,23 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Build a set of configured filter keys (including _from/_to for date ranges)
+  // Build a set of configured filter keys (including _from/_to for date ranges).
+  // A default date_range picker is always present even without a configured filter.
   const filterKeys = useMemo(() => {
     const keys = new Set<string>();
+    let hasDateRange = false;
     for (const f of filters) {
       if (f.type === "date_range") {
         keys.add(`${f.key}_from`);
         keys.add(`${f.key}_to`);
+        hasDateRange = true;
       } else {
         keys.add(f.key);
       }
+    }
+    if (!hasDateRange) {
+      keys.add("date_range_from");
+      keys.add("date_range_to");
     }
     return keys;
   }, [filters]);

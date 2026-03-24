@@ -45,12 +45,17 @@ export function PgrestSettingsSection({
   const { filters } = useDashboard();
   const filterSuggestions = useMemo(() => {
     const keys: string[] = [];
+    let hasDateRange = false;
     for (const f of filters) {
       if (f.type === "date_range") {
         keys.push(`${f.key}_from`, `${f.key}_to`);
+        hasDateRange = true;
       } else {
         keys.push(f.key);
       }
+    }
+    if (!hasDateRange) {
+      keys.push("date_range_from", "date_range_to");
     }
     return keys;
   }, [filters]);

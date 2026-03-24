@@ -347,7 +347,7 @@ function RequestEditor({
                 ))}
               </div>
               <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                Use <code className="rounded bg-gray-100 px-1 dark:bg-gray-600">{"{{row.<column>}}"}</code> in dashlet fields
+                {tr("dashboard.settings.plannerSchemaHint", dictionary)}
               </p>
             </div>
           )}
@@ -428,7 +428,7 @@ export function PlannerManagerForm() {
         className="no-drag w-full"
       >
         <HiPlus className="mr-1 h-4 w-4" />
-        Add Request
+        {tr("dashboard.settings.plannerAddRequest", dictionary)}
       </Button>
     </div>
   );

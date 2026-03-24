@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash, HiChevronDown, HiChevronRight } from "react-icons/hi2";
 import type { PlannerRequestDefinition, PlannerParam } from "../../types/dashboard.types";
@@ -8,6 +8,7 @@ import { useDashboard } from "../../context/dashboard-context";
 import { PgrestFunctionAutocomplete } from "../../dashlets/common/pgrest-function-autocomplete";
 import { SettingsSelectField } from "../../dashlets/common/settings-fields";
 import { HbParamValueInput } from "../../dashlets/common/hb-param-value-input";
+import { useFilterSuggestions } from "../../dashlets/common/use-filter-suggestions";
 import { buildDataSourceParams } from "../../dashlets/common/pgrest-utils";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import { usePlannerContext } from "../../context/planner-context";
@@ -374,25 +375,7 @@ export function PlannerManagerForm() {
   const { dataSources } = useDataSources(siteId ?? undefined);
   const { schemas } = usePlannerContext();
 
-  // Build filter key suggestions for {{filter.*}} autocomplete.
-  // Date range filters expand to _from and _to suffixes.
-  // A default date_range picker is always present even without a configured filter.
-  const filterSuggestions = useMemo(() => {
-    const keys: string[] = [];
-    let hasDateRange = false;
-    for (const f of filters) {
-      if (f.type === "date_range") {
-        keys.push(`${f.key}_from`, `${f.key}_to`);
-        hasDateRange = true;
-      } else {
-        keys.push(f.key);
-      }
-    }
-    if (!hasDateRange) {
-      keys.push("date_range_from", "date_range_to");
-    }
-    return keys;
-  }, [filters]);
+  const filterSuggestions = useFilterSuggestions(filters);
 
   const activeProviders = dataSources.filter(
     (ds) => ds.isActive === true && ds.lastTestResult === true,

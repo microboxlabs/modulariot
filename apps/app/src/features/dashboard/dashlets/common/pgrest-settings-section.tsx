@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -8,6 +7,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import { HbParamValueInput } from "./hb-param-value-input";
+import { useFilterSuggestions } from "./use-filter-suggestions";
 import { useDashboard } from "../../context/dashboard-context";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
 
@@ -43,22 +43,7 @@ export function PgrestSettingsSection({
   activeProviders,
 }: Readonly<PgrestSettingsSectionProps>) {
   const { filters } = useDashboard();
-  const filterSuggestions = useMemo(() => {
-    const keys: string[] = [];
-    let hasDateRange = false;
-    for (const f of filters) {
-      if (f.type === "date_range") {
-        keys.push(`${f.key}_from`, `${f.key}_to`);
-        hasDateRange = true;
-      } else {
-        keys.push(f.key);
-      }
-    }
-    if (!hasDateRange) {
-      keys.push("date_range_from", "date_range_to");
-    }
-    return keys;
-  }, [filters]);
+  const filterSuggestions = useFilterSuggestions(filters);
 
   return (
     <>

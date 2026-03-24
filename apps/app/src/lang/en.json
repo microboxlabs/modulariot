@@ -1538,6 +1538,12 @@
       "failedToLoadFunctions": "Failed to load functions",
       "invalidResponseFormat": "Invalid response format"
     },
+    "filterBar": {
+      "search": "Search...",
+      "searchBy": "Search by {labels}...",
+      "searchLabel": "Search",
+      "searchAs": "as"
+    },
     "dashlets": {
       "data_list": {
         "name": "Data List",

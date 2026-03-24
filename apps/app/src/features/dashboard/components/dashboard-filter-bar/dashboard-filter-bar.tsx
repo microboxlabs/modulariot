@@ -225,6 +225,7 @@ export function DashboardFilterBar() {
       {dateFilters.map((filter) => (
         <TimeRangePicker
           key={filter.key}
+          dictionary={dictionary}
           className="shrink-0"
           mode="date"
           ranges="date"
@@ -235,6 +236,7 @@ export function DashboardFilterBar() {
       ))}
       {dateFilters.length === 0 && (
         <TimeRangePicker
+          dictionary={dictionary}
           className="shrink-0"
           mode="date"
           ranges="date"

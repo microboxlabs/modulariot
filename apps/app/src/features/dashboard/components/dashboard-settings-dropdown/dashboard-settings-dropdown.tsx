@@ -445,8 +445,27 @@ function FilterManagerForm({
   };
 
   const handleSave = () => {
-    // Only save filters with both key and label
-    const validFilters = localFilters.filter((f) => f.key.trim() && f.label.trim());
+    const seen = new Set<string>();
+    const validFilters = localFilters
+      .map((f) => {
+        const trimmedLabel = f.label.trim();
+        // Normalize key: trim, lowercase, spaces→underscores, strip unsafe chars
+        let key = (f.key.trim() || trimmedLabel)
+          .toLowerCase()
+          .replace(/\s+/g, "_")
+          .replace(/[^a-z0-9_-]/g, "");
+        // Ensure key starts with a letter or underscore
+        if (key && !/^[a-z_]/i.test(key)) {
+          key = `_${key}`;
+        }
+        return { ...f, key, label: trimmedLabel };
+      })
+      .filter((f) => {
+        if (!f.key || !f.label) return false;
+        if (seen.has(f.key)) return false;
+        seen.add(f.key);
+        return true;
+      });
     onSave(validFilters);
     ShowNotification({
       type: "success",

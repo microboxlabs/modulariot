@@ -196,7 +196,7 @@ function RequestEditor({
           {/* Variable Name */}
           <div>
             <Label htmlFor={`planner-var-${def.id}`} className="mb-1 block text-xs font-medium">
-              Variable Name
+              {tr("dashboard.settings.plannerVariableName", dictionary)}
             </Label>
             <TextInput
               id={`planner-var-${def.id}`}
@@ -241,7 +241,7 @@ function RequestEditor({
           {/* Function Name (autocomplete) */}
           <div>
             <Label htmlFor={`planner-fn-${def.id}`} className="mb-1 block text-xs font-medium">
-              Function Name
+              {tr("dashboard.settings.plannerFunctionName", dictionary)}
             </Label>
             <PgrestFunctionAutocomplete
               id={`planner-fn-${def.id}`}
@@ -254,7 +254,7 @@ function RequestEditor({
             />
             {introspectionError && (
               <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                Introspection failed: {introspectionError}
+                {tr("dashboard.settings.plannerIntrospectionFailed", dictionary)} {introspectionError}
               </p>
             )}
           </div>
@@ -262,7 +262,7 @@ function RequestEditor({
           {/* HTTP Method (auto-detected, still editable) */}
           <SettingsSelectField
             id={`planner-method-${def.id}`}
-            label="HTTP Method"
+            label={tr("dashboard.settings.plannerHttpMethod", dictionary)}
             value={def.pgrestHttpMethod}
             onChange={(v) => onUpdate(def.id, { pgrestHttpMethod: v as "POST" | "GET" })}
             options={[
@@ -273,13 +273,13 @@ function RequestEditor({
 
           {/* Parameters (auto-populated with hints) */}
           <div>
-            <Label className="mb-1 block text-xs font-medium">Parameters</Label>
+            <Label className="mb-1 block text-xs font-medium">{tr("dashboard.settings.plannerParameters", dictionary)}</Label>
             <div className="space-y-1">
               {def.pgrestParams.map((p, i) => (
                 <div key={`${def.id}-p-${i}`} className="flex items-center gap-1">
                   <TextInput
                     sizing="sm"
-                    placeholder="Key"
+                    placeholder={tr("dashboard.settings.plannerKey", dictionary)}
                     value={p.key}
                     onChange={(e) => {
                       const params = [...def.pgrestParams];
@@ -289,7 +289,7 @@ function RequestEditor({
                     className="flex-1"
                   />
                   <HbParamValueInput
-                    placeholder={paramHints[p.key] ?? "Value"}
+                    placeholder={paramHints[p.key] ?? tr("dashboard.settings.plannerValue", dictionary)}
                     value={p.value}
                     onChange={(v) => {
                       const params = [...def.pgrestParams];
@@ -326,7 +326,7 @@ function RequestEditor({
               className="no-drag mt-1"
             >
               <HiPlus className="mr-1 h-3 w-3" />
-              Add Parameter
+              {tr("dashboard.settings.plannerAddParameter", dictionary)}
             </Button>
           </div>
 
@@ -334,7 +334,7 @@ function RequestEditor({
           {schemaKeys.length > 0 && (
             <div className="rounded border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-800">
               <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-                Response columns:
+                {tr("dashboard.settings.plannerResponseColumns", dictionary)}
               </p>
               <div className="flex flex-wrap gap-1">
                 {schemaKeys.map((key) => (

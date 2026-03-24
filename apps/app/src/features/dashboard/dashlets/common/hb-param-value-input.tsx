@@ -1,0 +1,166 @@
+"use client";
+
+import { useMemo, useState, useRef, useCallback } from "react";
+import { TextInput } from "flowbite-react";
+import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
+import { useDropdown } from "./use-dropdown";
+import { DropdownList } from "./dropdown-list";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface HbParamValueInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  /** Filter keys available for {{filter.*}} autocomplete */
+  filterSuggestions?: string[];
+  className?: string;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/** Detect if the cursor is inside an open `{{filter.` expression. */
+function detectFilterPrefix(text: string, cursorPos: number): string | null {
+  const before = text.slice(0, cursorPos);
+  const match = /\{\{filter\.(\w*)$/.exec(before);
+  return match ? match[1] : null;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Compact TextInput with Handlebars validation and {{filter.*}} autocomplete.
+ * Designed for parameter value fields in the Planner Manager.
+ */
+export function HbParamValueInput({
+  value,
+  onChange,
+  placeholder,
+  filterSuggestions,
+  className,
+}: Readonly<HbParamValueInputProps>) {
+  const status = useMemo(() => getHandlebarsStatus(value), [value]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [cursorPos, setCursorPos] = useState(value.length);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
+
+  const partial = useMemo(
+    () => (filterSuggestions?.length ? detectFilterPrefix(value, cursorPos) : null),
+    [value, cursorPos, filterSuggestions],
+  );
+
+  const filtered = useMemo(() => {
+    if (partial === null || !filterSuggestions?.length) return [];
+    const lower = partial.toLowerCase();
+    return filterSuggestions.filter((s) => s.toLowerCase().includes(lower));
+  }, [partial, filterSuggestions]);
+
+  const handleSelect = useCallback(
+    (key: string) => {
+      const before = value.slice(0, cursorPos);
+      const after = value.slice(cursorPos);
+      const prefixMatch = /\{\{filter\.\w*$/.exec(before);
+      if (prefixMatch) {
+        const start = prefixMatch.index;
+        const newValue = `${before.slice(0, start)}{{filter.${key}}}${after}`;
+        onChange(newValue);
+        const newCursor = start + `{{filter.${key}}}`.length;
+        setCursorPos(newCursor);
+        setTimeout(() => {
+          inputRef.current?.focus();
+          inputRef.current?.setSelectionRange(newCursor, newCursor);
+        }, 0);
+      }
+      setIsOpen(false);
+    },
+    [value, cursorPos, onChange],
+  );
+
+  const close = useCallback(() => setIsOpen(false), []);
+
+  const { selectedIndex, setSelectedIndex, handleKeyDown } = useDropdown({
+    items: filtered,
+    isOpen: isOpen && filtered.length > 0,
+    onClose: close,
+    onSelect: handleSelect,
+    containerRef,
+    dropdownRef,
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    const newCursor = e.target.selectionStart ?? newValue.length;
+    onChange(newValue);
+    setCursorPos(newCursor);
+
+    if (filterSuggestions?.length) {
+      const p = detectFilterPrefix(newValue, newCursor);
+      if (p === null) {
+        setIsOpen(false);
+      } else {
+        setIsOpen(true);
+        setSelectedIndex(0);
+      }
+    }
+  };
+
+  const handleKeyDownCombined = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isOpen && filtered.length > 0) {
+      handleKeyDown(e);
+    }
+  };
+
+  const handleClick = () => {
+    const pos = inputRef.current?.selectionStart ?? value.length;
+    setCursorPos(pos);
+    if (filterSuggestions?.length) {
+      const p = detectFilterPrefix(value, pos);
+      if (p !== null) {
+        setIsOpen(true);
+        setSelectedIndex(0);
+      }
+    }
+  };
+
+  return (
+    <div ref={containerRef} className={`relative ${className ?? ""}`}>
+      <TextInput
+        ref={inputRef}
+        value={value}
+        onChange={handleChange}
+        onClick={handleClick}
+        onKeyDown={handleKeyDownCombined}
+        placeholder={placeholder}
+        sizing="sm"
+        color={getFlowbiteColor(status)}
+        autoComplete="off"
+      />
+      {isOpen && filtered.length > 0 && (
+        <DropdownList
+          items={filtered}
+          selectedIndex={selectedIndex}
+          onSelect={handleSelect}
+          onHover={setSelectedIndex}
+          dropdownRef={dropdownRef}
+          getKey={(s) => s}
+          renderItem={(s) => (
+            <span className="font-mono text-xs">
+              {"{{filter."}
+              <span className="font-semibold">{s}</span>
+              {"}}"}
+            </span>
+          )}
+        />
+      )}
+    </div>
+  );
+}

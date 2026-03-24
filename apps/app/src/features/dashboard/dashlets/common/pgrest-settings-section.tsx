@@ -1,11 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
+import { HbParamValueInput } from "./hb-param-value-input";
+import { useDashboard } from "../../context/dashboard-context";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
@@ -39,6 +42,19 @@ export function PgrestSettingsSection({
   onDataSourceIdChange,
   activeProviders,
 }: Readonly<PgrestSettingsSectionProps>) {
+  const { filters } = useDashboard();
+  const filterSuggestions = useMemo(() => {
+    const keys: string[] = [];
+    for (const f of filters) {
+      if (f.type === "date_range") {
+        keys.push(`${f.key}_from`, `${f.key}_to`);
+      } else {
+        keys.push(f.key);
+      }
+    }
+    return keys;
+  }, [filters]);
+
   return (
     <>
       {onDataSourceIdChange && (
@@ -122,14 +138,13 @@ export function PgrestSettingsSection({
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <TextInput
-                  sizing="sm"
+                <HbParamValueInput
                   placeholder={pg.paramHints[p.key] ?? labels.value}
-                  aria-label={labels.value}
                   value={p.value}
-                  onChange={(e) =>
-                    pg.updatePgrestParam(p._id, "value", e.target.value)
+                  onChange={(v) =>
+                    pg.updatePgrestParam(p._id, "value", v)
                   }
+                  filterSuggestions={filterSuggestions}
                 />
               </div>
               <button

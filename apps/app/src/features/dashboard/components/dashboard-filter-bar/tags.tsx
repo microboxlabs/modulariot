@@ -20,9 +20,9 @@ export default function Tags({
   searchParams,
   onRemoveParam,
   filters,
-}: TagsProps) {
+}: Readonly<TagsProps>) {
   const [filterOpen, setFilterOpen] = useState(false);
-  const buttonRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 });
 
@@ -64,8 +64,9 @@ export default function Tags({
 
   return (
     <div className="relative z-[1] shrink-0 overflow-visible">
-      <div
+      <button
         ref={buttonRef}
+        type="button"
         className="relative flex h-[42px] w-[42px] cursor-pointer select-none items-center justify-center rounded-lg border border-gray-300 bg-gray-100 transition-all duration-300 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500"
         onClick={() => {
           if (!filterOpen && buttonRef.current) {
@@ -90,7 +91,7 @@ export default function Tags({
         }}
       >
         <HiTag className="text-gray-500 dark:text-gray-400" />
-      </div>
+      </button>
       {filterOpen &&
         createPortal(
           <div

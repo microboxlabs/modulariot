@@ -30,7 +30,6 @@ export function DashboardView() {
     editMode,
     isLoaded,
     dashboardName,
-    filters,
     toggleEditMode,
     updateWidgetLayouts,
   } = useDashboard();

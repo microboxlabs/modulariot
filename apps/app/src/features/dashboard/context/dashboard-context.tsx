@@ -13,10 +13,12 @@ import {
   type Widget,
   type GridLayoutItem,
   type DashboardStorageSchema,
+  type DashboardFilterParam,
   type PlannerRequestDefinition,
 } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import { PlannerProvider } from "./planner-context";
+import { DashboardFiltersProvider } from "./dashboard-filters-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 /** Context value type */
@@ -31,6 +33,10 @@ interface DashboardContextValue {
   dictionary: I18nRecord;
   /** Alfresco site short name (when available) */
   siteId?: string | null;
+  /** Dashboard filter bar configuration */
+  filters: DashboardFilterParam[];
+  /** Update dashboard filter configuration */
+  setFilters: (filters: DashboardFilterParam[]) => void;
 
   // Widget actions
   createWidget: (
@@ -146,6 +152,7 @@ export function DashboardProvider({
 }: Readonly<DashboardProviderProps>) {
   const {
     widgets,
+    filters,
     preferences,
     dashboardName,
     isLoaded,
@@ -156,6 +163,7 @@ export function DashboardProvider({
     deleteWidget: deleteWidgetStorage,
     setEditMode: setEditModeStorage,
     setDashboardName: setDashboardNameStorage,
+    setFilters,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -350,6 +358,8 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
+      filters,
+      setFilters,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -374,6 +384,8 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
+      filters,
+      setFilters,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -396,7 +408,9 @@ export function DashboardProvider({
 
   return (
     <DashboardContext.Provider value={value}>
-      <PlannerProvider>{children}</PlannerProvider>
+      <DashboardFiltersProvider>
+        <PlannerProvider>{children}</PlannerProvider>
+      </DashboardFiltersProvider>
     </DashboardContext.Provider>
   );
 }

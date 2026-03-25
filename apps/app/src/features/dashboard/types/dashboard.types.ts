@@ -82,6 +82,18 @@ export interface PlannerRequestDefinition {
   schema?: string[];
 }
 
+/** A filter parameter available in the dashboard filter bar */
+export interface DashboardFilterParam {
+  /** URL param key (e.g., "asset_id", "date_range") */
+  key: string;
+  /** Display label shown in the filter bar */
+  label: string;
+  /** Filter type */
+  type: "text" | "date_range";
+  /** When true, setting this filter clears all other filters */
+  unique?: boolean;
+}
+
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
   /** Schema version for migrations */
@@ -94,6 +106,8 @@ export interface DashboardStorageSchema {
   preferences: DashboardPreferences;
   /** Request Planner definitions (optional, backward compatible) */
   requestPlanner?: PlannerRequestDefinition[];
+  /** Filter bar configuration (optional, backward compatible) */
+  filters?: DashboardFilterParam[];
 }
 
 /** Default storage state */

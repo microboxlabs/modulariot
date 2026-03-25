@@ -1,0 +1,185 @@
+# Dashboard Configuration
+
+Dashboard config files (`*-config.json`) define the default layout and widget tree for each dashboard view. They are loaded as the initial state when a user has no persisted dashboard data in `localStorage`.
+
+All config files follow the `DashboardStorageSchema` TypeScript type. A standalone JSON Schema is available at [`/schemas/dashboard-config.schema.json`](/schemas/dashboard-config.schema.json).
+
+## Top-level Structure
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `version` | `2` (constant) | Yes | Schema version for migrations. |
+| `name` | `string` | Yes | Dashboard display name. |
+| `widgets` | `Widget[]` | Yes | Root-level widgets (recursive tree). |
+| `preferences` | `object` | Yes | User preferences (e.g., `editMode`). |
+
+## Grid System
+
+The dashboard uses a **24-column grid** powered by `react-grid-layout`. Every widget has a `layout` object that positions it on this grid.
+
+| Property | Type | Description |
+|---|---|---|
+| `i` | `string` | Layout identifier — must match the widget's `id`. |
+| `x` | `integer` | Column position (0–23). |
+| `y` | `integer` | Row position (0-based, grows downward). |
+| `w` | `integer` | Width in columns (1–24). |
+| `h` | `integer` | Height in rows (1+). |
+| `minW` | `integer?` | Minimum width constraint. |
+| `minH` | `integer?` | Minimum height constraint. |
+| `maxW` | `integer?` | Maximum width constraint. |
+| `maxH` | `integer?` | Maximum height constraint. |
+
+Widgets cannot exceed column 24 (`x + w ≤ 24`). There is no maximum row limit — the dashboard scrolls vertically.
+
+## Widget Structure
+
+Every element in the dashboard — containers, cards, tables — is a `Widget`. Widgets form a recursive tree via the `children` array.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | `string` (UUID) | Yes | Unique identifier. |
+| `componentId` | `string` (enum) | Yes | References a dashlet in the registry. |
+| `layout` | `GridLayoutItem` | Yes | Position and size on the grid. |
+| `config` | `object` | Yes | Dashlet-specific configuration. |
+| `children` | `Widget[]` | No | Nested widgets (container types only). |
+| `createdAt` | `string` (ISO 8601) | Yes | Creation timestamp. |
+| `updatedAt` | `string` (ISO 8601) | Yes | Last update timestamp. |
+
+## Available Dashlets
+
+### Containers
+
+| `componentId` | Description | `hasChildren` | `hasSettings` |
+|---|---|---|---|
+| `container` | Multi-purpose container with two variants: **bento-box** (grid layout) and **labeled-group** (labeled section). | Yes | Yes |
+| `info_card` | Card that can hold nested child widgets. | Yes | Yes |
+
+**Nesting rules:**
+- A `bento-box` container cannot be nested inside another `bento-box`.
+- A `labeled-group` container can be nested anywhere.
+- At root level, containers default to the `bento-box` variant. When nested, they default to `labeled-group`.
+
+### Data Display
+
+| `componentId` | Description | `hasChildren` | `hasSettings` |
+|---|---|---|---|
+| `card` | Simple data card. | No | Yes |
+| `labeled-data` | Key-value labeled data display. | No | Yes |
+| `percentage_value` | Percentage metric with visual indicator. | No | Yes |
+| `stat_detailed` | Detailed statistic with breakdown. | No | Yes |
+| `stat_gradient` | Stat with gradient background. | No | Yes |
+| `stat_icon` | Stat with icon accent. | No | Yes |
+| `stat_circular` | Circular progress indicator stat. | No | Yes |
+| `stat_expandable` | Expandable stat with detail toggle. | No | Yes |
+| `stat_progress` | Linear progress bar stat. | No | Yes |
+| `stat_stacked` | Stacked bar or segmented stat. | No | Yes |
+| `stat_sparkline` | Stat with inline sparkline chart. | No | Yes |
+| `stat_sensitive` | Stat with masked/sensitive value. | No | Yes |
+| `stat_status` | Status indicator stat. | No | Yes |
+| `data_table` | Tabular data display. | No | Yes |
+| `data_list` | Scrollable data list. | No | Yes |
+| `text_card` | Rich text or AI-generated insight card. | No | Yes |
+
+## Config Examples
+
+### Minimal dashboard
+
+```json
+{
+  "version": 2,
+  "name": "Empty Dashboard",
+  "widgets": [],
+  "preferences": { "editMode": false }
+}
+```
+
+### Single widget
+
+```json
+{
+  "version": 2,
+  "name": "Simple Dashboard",
+  "widgets": [
+    {
+      "id": "a1b2c3d4-0000-0000-0000-000000000001",
+      "componentId": "stat_icon",
+      "layout": { "i": "a1b2c3d4-0000-0000-0000-000000000001", "x": 0, "y": 0, "w": 6, "h": 3 },
+      "config": {
+        "title": "Active Vehicles",
+        "value": "{{data_provider.active_count}}",
+        "icon": "truck"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": { "editMode": false }
+}
+```
+
+### Nested widgets (container with children)
+
+```json
+{
+  "version": 2,
+  "name": "Nested Dashboard",
+  "widgets": [
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "componentId": "container",
+      "layout": { "i": "a1b2c3d4-0001-4000-8000-000000000001", "x": 0, "y": 0, "w": 24, "h": 8 },
+      "config": { "variant": "bento-box" },
+      "children": [
+        {
+          "id": "a1b2c3d4-0002-4000-8000-000000000002",
+          "componentId": "stat_progress",
+          "layout": { "i": "a1b2c3d4-0002-4000-8000-000000000002", "x": 0, "y": 0, "w": 8, "h": 4 },
+          "config": {
+            "title": "Compliance",
+            "value": "{{data_provider.compliance_pct}}",
+            "max": 100
+          },
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "updatedAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": { "editMode": false }
+}
+```
+
+## Default Configurations
+
+The project ships seven default dashboard configs located in `apps/app/src/features/dashboard/defaults/`:
+
+| File | Dashboard View |
+|---|---|
+| `dashboard-config.json` | Main overview dashboard with fleet summary widgets. |
+| `generalInfo-config.json` | Administrative metrics: compliance, contracts, fleet composition. |
+| `fleetUsage-config.json` | Fleet utilization: total km, deviation, intensity, fuel efficiency. |
+| `maintenanceStatus-config.json` | Vehicle maintenance schedules and status. |
+| `operativeEvents-config.json` | Active operational events and incidents. |
+| `devicesAndTelemetry-config.json` | Device connectivity and telemetry monitoring. |
+| `vehicleTechnicalHealth-config.json` | Technical diagnostics and system health metrics. |
+
+## Data Provider Pattern
+
+Widget `config` values support **Handlebars-style template strings** that are resolved at runtime from a data provider:
+
+```
+{{data_provider.key}}
+```
+
+For example, a stat widget might define:
+
+```json
+{
+  "title": "Active Vehicles",
+  "value": "{{data_provider.active_count}}"
+}
+```
+
+At render time, `{{data_provider.active_count}}` is replaced with the live value from the backend. This allows the same config structure to work across different tenants and data sets without code changes.

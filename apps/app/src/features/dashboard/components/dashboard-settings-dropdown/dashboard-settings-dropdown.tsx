@@ -9,12 +9,14 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ShowNotification } from "@/features/notifications/notification";
+import { tr } from "@/features/i18n/tr.service";
+import type { DashboardFilterParam } from "../../types/dashboard.types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "export" | "import" | "planner" | null;
+type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -404,6 +406,138 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
 }
 
 // ============================================================================
+// Filter Manager Form
+// ============================================================================
+
+interface FilterManagerFormProps {
+  filters: DashboardFilterParam[];
+  onSave: (filters: DashboardFilterParam[]) => void;
+}
+
+function FilterManagerForm({
+  filters,
+  onSave,
+}: Readonly<FilterManagerFormProps>) {
+  const { dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
+  const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
+  const [filterIds, setFilterIds] = useState(() =>
+    filters.map(() => crypto.randomUUID())
+  );
+
+  useEffect(() => {
+    setLocalFilters(filters);
+    setFilterIds(filters.map(() => crypto.randomUUID()));
+  }, [filters]);
+
+  const addFilter = () => {
+    setLocalFilters((prev) => [
+      ...prev,
+      { key: "", label: "", type: "text" },
+    ]);
+    setFilterIds((prev) => [...prev, crypto.randomUUID()]);
+  };
+
+  const updateFilter = (
+    index: number,
+    field: keyof DashboardFilterParam,
+    value: string
+  ) => {
+    setLocalFilters((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
+    );
+  };
+
+  const removeFilter = (index: number) => {
+    setLocalFilters((prev) => prev.filter((_, i) => i !== index));
+    setFilterIds((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSave = () => {
+    const seen = new Set<string>();
+    const validFilters = localFilters
+      .map((f) => {
+        const trimmedLabel = f.label.trim();
+        // Normalize key: trim, lowercase, spaces→underscores, strip unsafe chars
+        let key = (f.key.trim() || trimmedLabel)
+          .toLowerCase()
+          .replaceAll(/\s+/g, "_")
+          .replaceAll(/[^a-z0-9_-]/g, "");
+        // Ensure key starts with a letter or underscore
+        if (key && !/^[a-z_]/i.test(key)) {
+          key = `_${key}`;
+        }
+        return { ...f, key, label: trimmedLabel };
+      })
+      .filter((f) => {
+        if (!f.key || !f.label) return false;
+        if (seen.has(f.key)) return false;
+        seen.add(f.key);
+        return true;
+      });
+    onSave(validFilters);
+    ShowNotification({
+      type: "success",
+      message: t("filtersUpdated"),
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      {localFilters.length === 0 && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t("noFiltersConfigured")}
+        </p>
+      )}
+
+      {localFilters.map((filter, index) => (
+        <div
+          key={filterIds[index]}
+          className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
+        >
+          <div className="flex-1 space-y-2">
+            <div className="flex gap-2">
+              <TextInput
+                sizing="sm"
+                placeholder={t("keyPlaceholder")}
+                value={filter.key}
+                onChange={(e) => updateFilter(index, "key", e.target.value)}
+                className="flex-1"
+              />
+              <TextInput
+                sizing="sm"
+                placeholder={t("labelPlaceholder")}
+                value={filter.label}
+                onChange={(e) => updateFilter(index, "label", e.target.value)}
+                className="flex-1"
+              />
+            </div>
+            {/* Type selector hidden — default is "text" */}
+          </div>
+          <Button
+            type="button"
+            color="failure"
+            size="xs"
+            onClick={() => removeFilter(index)}
+          >
+            &times;
+          </Button>
+        </div>
+      ))}
+
+      <div className="flex justify-between gap-2">
+        <Button type="button" color="light" size="sm" onClick={addFilter}>
+          {t("addFilterButton")}
+        </Button>
+        <Button type="button" size="sm" onClick={handleSave}>
+          {tr("common.save", dictionary)}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -411,9 +545,12 @@ export default function DashboardSettingsDropdown() {
   const {
     dashboardName,
     setDashboardName,
+    filters,
+    setFilters,
     exportDashboard,
     importDashboard,
     downloadDashboard,
+    dictionary,
   } = useDashboard();
 
   const [open, setOpen] = useState(false);
@@ -543,6 +680,16 @@ export default function DashboardSettingsDropdown() {
             description="Restore from JSON file or text"
           >
             <ImportForm onImport={importDashboard} onClose={closePanel} />
+          </SettingsSection>
+
+          <SettingsSection
+            option="filters"
+            selected={selected}
+            setSelected={setSelected}
+            title={tr("dashboard.settings.filterBarTitle", dictionary)}
+            description={tr("dashboard.settings.filterBarDescription", dictionary)}
+          >
+            <FilterManagerForm filters={filters} onSave={setFilters} />
           </SettingsSection>
 
           <SettingsSection

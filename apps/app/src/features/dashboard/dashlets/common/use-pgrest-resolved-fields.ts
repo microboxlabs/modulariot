@@ -3,6 +3,7 @@ import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
 import { resolveHandlebarsField } from "./use-handlebars-templates";
+import { useDashboardFilters } from "../../context/dashboard-filters-context";
 
 const EMPTY_PARAMS: PgrestParam[] = [];
 
@@ -36,10 +37,32 @@ export function usePgrestResolvedFields({
   plannerVariableName,
   dataSourceId,
 }: PgrestResolvedFieldsConfig): PgrestResolvedFieldsResult {
-  const stableParams = pgrestParams.length > 0 ? pgrestParams : EMPTY_PARAMS;
+  const { activeFilters } = useDashboardFilters();
+
+  // Resolve {{filter.*}} templates in pgrest param values before fetching
+  const resolvedParams = useMemo(() => {
+    if (pgrestParams.length === 0) return EMPTY_PARAMS;
+    const filterContext = { filter: activeFilters };
+    const resolved = pgrestParams.map((p) => {
+      if (p.value?.includes("{{filter.")) {
+        const resolvedValue = resolveHandlebarsField(p.value, filterContext);
+        return { ...p, value: resolvedValue, _fromTemplate: true };
+      }
+      return { ...p, _fromTemplate: false };
+    });
+    return resolved
+      .filter((p) => {
+        if (!p._fromTemplate) return true;
+        // Drop template params that resolved to empty or operator-only (e.g. "eq.", "like.")
+        return p.value !== "" && !p.value.endsWith(".");
+      })
+      .map(({ _fromTemplate, ...p }) => p);
+  }, [pgrestParams, activeFilters]);
+
+  const stableParams = resolvedParams.length > 0 ? resolvedParams : EMPTY_PARAMS;
 
   const { rows: pgrestRowsResult, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
-    dataMode === "pgrest" ? "pgrest" : "static", // only activate pgrest fetch when dataMode is pgrest
+    dataMode === "pgrest" ? "pgrest" : "static",
     pgrestFunctionName,
     pgrestHttpMethod,
     stableParams,
@@ -57,13 +80,15 @@ export function usePgrestResolvedFields({
   const firstRow = rows[0];
 
   const resolved = useMemo(() => {
-    const context = firstRow ? { ...firstRow, row: firstRow } : {};
+    const context = firstRow
+      ? { ...firstRow, row: firstRow, filter: activeFilters }
+      : { filter: activeFilters };
     const out: Record<string, string> = {};
     for (const [key, template] of Object.entries(fields)) {
       out[key] = resolveHandlebarsField(template, context);
     }
     return out;
-  }, [firstRow, fields]);
+  }, [firstRow, fields, activeFilters]);
 
   return { resolved, loading, fetchError };
 }

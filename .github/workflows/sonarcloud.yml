@@ -16,14 +16,19 @@ name: SonarCloud Analysis
 
 on:
   push:
+    paths:
+      - 'turbo-repo/**'
     branches:
       - trunk
       - main
   pull_request:
+    paths:
+      - 'turbo-repo/**'
     types: [opened, synchronize, reopened]
     branches:
       - trunk
       - main
+  workflow_dispatch:
 
 jobs:
   sonarcloud:

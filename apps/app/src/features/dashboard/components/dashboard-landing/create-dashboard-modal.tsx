@@ -60,11 +60,21 @@ export function CreateDashboardModal({
         preferences: { editMode: false },
       };
 
-      await fetch("/app/api/dashboard/config", {
+      const res = await fetch("/app/api/dashboard/config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ site: siteName, slug, config }),
       });
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        ShowNotification({
+          type: "error",
+          message: (errorBody as Record<string, string>)?.error
+            ?? tr("dashboard.create.errorNotification", dict),
+        });
+        return;
+      }
 
       // Refresh the dashboard list in sidebar and landing page
       await mutate(

@@ -17,6 +17,7 @@ on:
     paths:
       - 'quarkus-srv/**'
     branches: [trunk, main]
+  workflow_dispatch:
 
 env:
   JAVA_VERSION: "21"

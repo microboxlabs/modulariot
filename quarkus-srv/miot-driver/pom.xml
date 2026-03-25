@@ -10,9 +10,9 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>miot-fleet</artifactId>
-    <name>ModularIoT — Fleet</name>
-    <description>Fleet monitoring component: vehicles, trips, routes, geofences</description>
+    <artifactId>miot-driver</artifactId>
+    <name>ModularIoT — Driver</name>
+    <description>Driver resource directory: lifecycle, documents, compliance, scoring</description>
 
     <dependencies>
         <dependency>
@@ -26,16 +26,6 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

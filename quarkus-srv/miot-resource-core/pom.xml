@@ -10,9 +10,9 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>miot-fleet</artifactId>
-    <name>ModularIoT — Fleet</name>
-    <description>Fleet monitoring component: vehicles, trips, routes, geofences</description>
+    <artifactId>miot-resource-core</artifactId>
+    <name>ModularIoT — Resource Core</name>
+    <description>Shared SDK: entity events, KPI interfaces, resolution interfaces, Alfresco client</description>
 
     <dependencies>
         <dependency>
@@ -20,22 +20,12 @@
             <artifactId>miot-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-resource-core</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <scope>test</scope>
+            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
         </dependency>
     </dependencies>
 

@@ -55,4 +55,4 @@ else
     echo "Starting with: ${COMPONENTS[*]}"
 fi
 
-exec ./mvnw quarkus:dev -pl miot-cli ${PROPS[@]+"${PROPS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+exec ./mvnw quarkus:dev -pl miot-cli -am ${PROPS[@]+"${PROPS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}

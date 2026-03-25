@@ -71,6 +71,7 @@ export default function GenericComponent({
               value={formatValue(value)}
               icon={EXTRADATA_ICONS_KEYS[key]}
               className={className}
+              showEquals={false}
             />
           ))}
         </CustomCard>

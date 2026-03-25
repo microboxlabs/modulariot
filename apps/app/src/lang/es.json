@@ -2480,18 +2480,127 @@
       "simplified": "Simplificada",
       "driver": "Conductor",
       "location": "Ubicación",
-      "brand": "Marca",
+      "model": "Modelo",
       "transportist": "Transportista",
       "fuel": "Combustible",
       "maintenance": "Próx. Mantención",
       "kmTraveled": "Km Totales",
-      "loading": "Cargando..."
+      "loading": "Cargando...",
+      "plate": "Patente",
+      "lastSignal": "Última señal",
+      "status": "Estado"
     },
     "status": {
       "active": "Activo",
       "maintenance": "En Mantención",
       "alert": "Alerta",
       "inactive": "Inactivo"
+    },
+    "vehicleDetail": {
+      "title": "Detalles del Vehículo",
+      "back": "Volver a la flota",
+      "sections": {
+        "health": {
+          "title": "Salud",
+          "description": "Estado general de salud del vehículo",
+          "overallHealth": "Salud General",
+          "fuelLevel": "Nivel de Combustible",
+          "operationalStatus": "Estado Operacional",
+          "systemsCheck": "Revisión de Sistemas",
+          "stableHealth": "Salud Estable",
+          "moderateHealth": "Salud Moderada",
+          "poorHealth": "Salud Deficiente"
+        },
+        "maintenance": {
+          "title": "Estado de Mantención",
+          "description": "Mantenciones programadas e historial de servicio",
+          "totalKm": "Kilometraje Total",
+          "totalKmDesc": "Odómetro actual del vehículo",
+          "nextMaintenance": "Próxima Mantención",
+          "nextMaintenanceDesc": "Fecha o km programado",
+          "lastService": "Última Mantención",
+          "lastServiceDesc": "Fecha del último servicio",
+          "contractualFrequency": "Frecuencia Contractual",
+          "contractualFrequencyDesc": "Intervalo entre mantenciones",
+          "maintenanceCount": "Mantenciones Realizadas",
+          "maintenanceCountDesc": "Total de servicios completados",
+          "kmSinceService": "Km Desde Mantención",
+          "kmSinceServiceDesc": "Recorrido desde último servicio"
+        },
+        "technicalHealth": {
+          "title": "Salud Técnica",
+          "description": "Estado of motor, transmisión y componentes",
+          "engine": "Motor",
+          "transmission": "Transmisión",
+          "brakes": "Frenos",
+          "tires": "Neumáticos",
+          "noErrorCodes": "Sin códigos de error detectados",
+          "brakePadWear": "Desgaste de pastillas de freno (28%)"
+        },
+        "telemetry": {
+          "title": "Dispositivos y Telemetría",
+          "description": "Dispositivos conectados y datos de sensores",
+          "fuelSensor": "Sensor de Combustible",
+          "tempSensor": "Sensor de Temp (calibrando)",
+          "lastUpdate": "Última Actualización",
+          "signalStrength": "Intensidad de Señal"
+        },
+        "events": {
+          "title": "Eventos Operativos",
+          "description": "Alertas e incidentes recientes",
+          "hardBraking": "Frenado brusco detectado",
+          "routeCompleted": "Ruta completada exitosamente",
+          "incidentsThisMonth": "Incidentes Este Mes"
+        },
+        "usage": {
+          "title": "Uso de Flota",
+          "description": "Estadísticas de utilización y kilometraje",
+          "totalKm": "Kilómetros Totales",
+          "avgDailyKm": "Km Promedio Diario",
+          "utilizationRate": "Tasa de Utilización",
+          "idleTime": "Tiempo Inactivo",
+          "weeklyGoal": "Progreso Meta Semanal"
+        },
+        "general": {
+          "title": "Información General",
+          "description": "Identificación y asignación del vehículo",
+          "plate": "Patente",
+          "model": "Modelo",
+          "type": "Tipo",
+          "brand": "Marca",
+          "carrier": "Transportista",
+          "driver": "Conductor",
+          "location": "Última Ubicación"
+        }
+      }
+    },
+    "gamification": {
+      "healthScore": "Salud",
+      "healthStatus": "Estado de Salud",
+      "level": "Nivel",
+      "achievements": "Logros",
+      "unlocked": "desbloqueados",
+      "badge": {
+        "road_warrior": "Guerrero del Camino",
+        "eco_champion": "Campeón Ecológico",
+        "perfect_maintenance": "Mantención Perfecta",
+        "speed_demon": "Demonio de la Velocidad",
+        "early_bird": "Madrugador",
+        "night_owl": "Ave Nocturna",
+        "long_hauler": "Largo Recorrido",
+        "city_navigator": "Navegador Urbano"
+      },
+      "driverPerformance": "Desempeño del Conductor",
+      "trips": "Viajes",
+      "onTime": "A Tiempo",
+      "safetyScore": "Seguridad",
+      "currentStreak": "Racha Actual",
+      "days": "días",
+      "onFire": "¡En Llamas!",
+      "experiencePoints": "Puntos de Experiencia",
+      "toNextLevel": "para subir de nivel",
+      "weeklyGoal": "Meta Semanal",
+      "goalCompleted": "¡Meta completada!"
     }
   },
   "ext_tasks": {

@@ -99,7 +99,7 @@ export default function SpecialViewsCarousel({
           <button
             type="button"
             onClick={goToPrevious}
-            className="shrink-0 p-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="shrink-0 p-1.5 rounded-full border border-gray-600 dark:border-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             aria-label={tr("specialViews.previous", dict)}
           >
             <HiChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
@@ -129,7 +129,7 @@ export default function SpecialViewsCarousel({
           <button
             type="button"
             onClick={goToNext}
-            className="shrink-0 p-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="shrink-0 p-1.5 rounded-full border border-gray-600 dark:border-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             aria-label={tr("specialViews.next", dict)}
           >
             <HiChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />

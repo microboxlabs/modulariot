@@ -20,23 +20,58 @@ interface VehicleCardProps {
   readonly vehicle: Vehicle;
   readonly dict: I18nRecord;
   readonly isDetailed: boolean;
+  readonly onSelect?: (plate: string) => void;
 }
 
 export default function VehicleCard({
   vehicle,
   dict,
   isDetailed,
+  onSelect,
 }: VehicleCardProps) {
+  const handleClick = () => {
+    onSelect?.(vehicle.plate);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelect?.(vehicle.plate);
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 cursor-pointer transition-colors hover:border-blue-500 dark:hover:border-blue-400">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 cursor-pointer transition-colors hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+    >
       <div className="flex items-start justify-between">
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-semibold text-gray-900 dark:text-white">
             {vehicle.plate}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {vehicle.model}
-          </span>
+          {/* Mini score in simplified view */}
+          {!isDetailed && vehicle.gamification && (
+            <div className="flex items-center gap-1">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  vehicle.gamification.healthScore >= 80
+                    ? "bg-green-500"
+                    : vehicle.gamification.healthScore >= 60
+                      ? "bg-yellow-500"
+                      : vehicle.gamification.healthScore >= 40
+                        ? "bg-orange-500"
+                        : "bg-red-500"
+                }`}
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Lv.{vehicle.gamification.level}
+              </span>
+            </div>
+          )}
         </div>
         <VehicleStatusBadge status={vehicle.status} dict={dict} />
       </div>
@@ -57,8 +92,8 @@ export default function VehicleCard({
               className="text-sm"
             />
             <LoadableLabel
-              label={tr("vehicleGrid.brand", dict)}
-              value={vehicle.brand}
+              label={tr("vehicleGrid.model", dict)}
+              value={vehicle.model}
               icon={<HiOutlineTruck className="w-5 h-5" />}
               className="text-sm"
             />

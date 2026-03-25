@@ -30,6 +30,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - run: npm ci
+        working-directory: turbo-repo
 
       - name: Set version from tag or input
         run: |
@@ -40,18 +41,20 @@ jobs:
           fi
           cd packages/sonarcloud-tools
           npm version "$VERSION" --no-git-tag-version
+        working-directory: turbo-repo
 
       - name: Build
         run: npx turbo run build --filter=@microboxlabs/sonarcloud-tools
+        working-directory: turbo-repo
 
       - name: Publish
         if: ${{ github.event.inputs.dry-run != 'true' }}
         run: npm publish --provenance --access public
-        working-directory: packages/sonarcloud-tools
+        working-directory: turbo-repo/packages/sonarcloud-tools
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish (dry run)
         if: ${{ github.event.inputs.dry-run == 'true' }}
         run: npm publish --dry-run --access public
-        working-directory: packages/sonarcloud-tools
+        working-directory: turbo-repo/packages/sonarcloud-tools

@@ -78,13 +78,13 @@ jobs:
         with:
           filters: |
             apps:
-              - 'apps/**'
-              - 'packages/ui/**'
-              - 'packages/db/**'
-              - 'packages/typescript-config/**'
-              - 'packages/eslint-config/**'
-              - 'package-lock.json'
-              - 'docker/**'
+              - 'turbo-repo/apps/**'
+              - 'turbo-repo/packages/ui/**'
+              - 'turbo-repo/packages/db/**'
+              - 'turbo-repo/packages/typescript-config/**'
+              - 'turbo-repo/packages/eslint-config/**'
+              - 'turbo-repo/package-lock.json'
+              - 'turbo-repo/docker/**'
 
   # ===========================================================================
   # Install - Shared dependency installation with node_modules cache
@@ -110,6 +110,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          cache-dependency-path: turbo-repo/package-lock.json
 
       - name: Determine version
         id: version
@@ -131,14 +132,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            node_modules
-            packages/*/node_modules
-            apps/*/node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
+            turbo-repo/node_modules
+            turbo-repo/packages/*/node_modules
+            turbo-repo/apps/*/node_modules
+          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
 
       - name: Install dependencies
         if: steps.cache-modules.outputs.cache-hit != 'true'
         run: npm ci
+        working-directory: turbo-repo
 
   # ===========================================================================
   # Lint and Type Check - Fast feedback on code quality
@@ -167,16 +169,18 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            node_modules
-            packages/*/node_modules
-            apps/*/node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
+            turbo-repo/node_modules
+            turbo-repo/packages/*/node_modules
+            turbo-repo/apps/*/node_modules
+          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
 
       - name: Run linting
         run: npx turbo run lint --filter='!@modulariot/web-admin'
+        working-directory: turbo-repo
 
       - name: Run type checking
         run: npx turbo run check-types --filter='!@modulariot/web-admin'
+        working-directory: turbo-repo
 
   # ===========================================================================
   # Build - Turbo build all Next.js apps and upload standalone artifacts
@@ -204,34 +208,35 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            node_modules
-            packages/*/node_modules
-            apps/*/node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
+            turbo-repo/node_modules
+            turbo-repo/packages/*/node_modules
+            turbo-repo/apps/*/node_modules
+          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
 
       - name: Build apps with Turbo
         run: npx turbo run build --filter=@modulariot/docs --filter=@modulariot/app --filter=@modulariot/web-site
+        working-directory: turbo-repo
 
       - name: Stage docs artifacts
         run: |
           mkdir -p /tmp/build-docs/.next
-          cp -r apps/docs/.next/standalone /tmp/build-docs/.next/standalone
-          cp -r apps/docs/.next/static /tmp/build-docs/.next/static
-          cp -r apps/docs/public /tmp/build-docs/public
+          cp -r turbo-repo/apps/docs/.next/standalone /tmp/build-docs/.next/standalone
+          cp -r turbo-repo/apps/docs/.next/static /tmp/build-docs/.next/static
+          cp -r turbo-repo/apps/docs/public /tmp/build-docs/public
 
       - name: Stage app artifacts
         run: |
           mkdir -p /tmp/build-app/.next
-          cp -r apps/app/.next/standalone /tmp/build-app/.next/standalone
-          cp -r apps/app/.next/static /tmp/build-app/.next/static
-          cp -r apps/app/public /tmp/build-app/public
+          cp -r turbo-repo/apps/app/.next/standalone /tmp/build-app/.next/standalone
+          cp -r turbo-repo/apps/app/.next/static /tmp/build-app/.next/static
+          cp -r turbo-repo/apps/app/public /tmp/build-app/public
 
       - name: Stage web-site artifacts
         run: |
           mkdir -p /tmp/build-web-site/.next
-          cp -r apps/web-site/.next/standalone /tmp/build-web-site/.next/standalone
-          cp -r apps/web-site/.next/static /tmp/build-web-site/.next/static
-          cp -r apps/web-site/public /tmp/build-web-site/public
+          cp -r turbo-repo/apps/web-site/.next/standalone /tmp/build-web-site/.next/standalone
+          cp -r turbo-repo/apps/web-site/.next/static /tmp/build-web-site/.next/static
+          cp -r turbo-repo/apps/web-site/public /tmp/build-web-site/public
 
       - name: Upload docs artifact
         uses: actions/upload-artifact@v4
@@ -293,7 +298,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          sparse-checkout: docker
+          sparse-checkout: turbo-repo/docker
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -302,7 +307,7 @@ jobs:
           path: build-context/
 
       - name: Copy Dockerfile into build context
-        run: cp docker/nextjs.standalone.Dockerfile build-context/
+        run: cp turbo-repo/docker/nextjs.standalone.Dockerfile build-context/
 
       # =========================================================================
       # Docker Build Setup

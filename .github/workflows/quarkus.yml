@@ -1,0 +1,57 @@
+# =============================================================================
+# Quarkus CI — ModularIoT Backend
+# =============================================================================
+# Builds and tests the Quarkus multi-module backend.
+# Triggers only on changes within quarkus-srv/.
+# =============================================================================
+
+name: Quarkus CI
+
+on:
+  push:
+    paths:
+      - 'quarkus-srv/**'
+    branches: [trunk, main]
+  pull_request:
+    paths:
+      - 'quarkus-srv/**'
+    branches: [trunk, main]
+
+env:
+  JAVA_VERSION: "21"
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: quarkus-srv/pom.xml
+
+      - name: Build & Test
+        run: ./mvnw clean verify
+        working-directory: quarkus-srv
+
+      - name: SonarCloud Scan
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: SonarSource/sonarqube-scan-action@v7.0.0
+        with:
+          projectBaseDir: quarkus-srv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

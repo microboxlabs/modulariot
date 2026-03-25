@@ -10,7 +10,41 @@ import {
   HiOutlineShieldCheck,
   HiOutlineCpuChip,
 } from "react-icons/hi2";
-import type { Vehicle, FleetKpi, SpecialView } from "../types/fleet.types";
+import type {
+  Vehicle,
+  FleetKpi,
+  SpecialView,
+  VehicleGamification,
+} from "../types/fleet.types";
+
+// Helper to generate gamification data
+function generateGamification(
+  healthScore: number,
+  level: number,
+  xp: number,
+  achievements: VehicleGamification["achievements"],
+  streakDays: number,
+  weeklyKmProgress: number,
+  driverRating: number,
+  trips: number
+): VehicleGamification {
+  return {
+    healthScore,
+    level,
+    xp,
+    xpToNextLevel: level * 1000,
+    achievements,
+    streakDays,
+    weeklyKmGoal: 500,
+    weeklyKmProgress,
+    driverStats: {
+      rating: driverRating,
+      tripsCompleted: trips,
+      onTimeDeliveryRate: Math.min(99, 85 + Math.floor(Math.random() * 15)),
+      safetyScore: Math.min(100, 80 + Math.floor(Math.random() * 20)),
+    },
+  };
+}
 
 export const fleetKpis: FleetKpi[] = [
   {
@@ -120,6 +154,21 @@ export const vehicles: Vehicle[] = [
     fuelLevel: 78,
     nextMaintenance: "2026-03-15",
     kmTraveled: 12450,
+    gamification: generateGamification(
+      92,
+      7,
+      650,
+      [
+        { id: "road_warrior", unlockedAt: "2026-01-15" },
+        { id: "eco_champion", unlockedAt: "2026-02-20" },
+        { id: "perfect_maintenance", unlockedAt: "2026-03-01" },
+        { id: "long_hauler", unlockedAt: "2026-02-10" },
+      ],
+      14,
+      420,
+      4.8,
+      156
+    ),
   },
   {
     id: "v2",
@@ -134,6 +183,19 @@ export const vehicles: Vehicle[] = [
     fuelLevel: 45,
     nextMaintenance: "2026-03-02",
     kmTraveled: 8920,
+    gamification: generateGamification(
+      78,
+      5,
+      320,
+      [
+        { id: "early_bird", unlockedAt: "2026-01-20" },
+        { id: "city_navigator", unlockedAt: "2026-02-15" },
+      ],
+      7,
+      280,
+      4.2,
+      89
+    ),
   },
   {
     id: "v3",
@@ -148,6 +210,7 @@ export const vehicles: Vehicle[] = [
     fuelLevel: 30,
     nextMaintenance: "2026-02-28",
     kmTraveled: 15780,
+    gamification: generateGamification(45, 3, 180, [], 0, 50, 3.5, 45),
   },
   {
     id: "v4",
@@ -162,6 +225,19 @@ export const vehicles: Vehicle[] = [
     fuelLevel: 15,
     nextMaintenance: "2026-02-27",
     kmTraveled: 22100,
+    gamification: generateGamification(
+      58,
+      4,
+      890,
+      [
+        { id: "speed_demon", unlockedAt: "2026-01-05" },
+        { id: "night_owl", unlockedAt: "2026-02-28" },
+      ],
+      3,
+      380,
+      3.9,
+      67
+    ),
   },
   {
     id: "v5",
@@ -176,6 +252,20 @@ export const vehicles: Vehicle[] = [
     fuelLevel: 92,
     nextMaintenance: "2026-04-10",
     kmTraveled: 5340,
+    gamification: generateGamification(
+      85,
+      6,
+      540,
+      [
+        { id: "eco_champion", unlockedAt: "2026-03-10" },
+        { id: "perfect_maintenance", unlockedAt: "2026-02-01" },
+        { id: "early_bird", unlockedAt: "2026-01-28" },
+      ],
+      21,
+      510,
+      4.6,
+      112
+    ),
   },
   {
     id: "v6",

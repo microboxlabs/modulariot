@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dashboard-config.schema.json",
+  "title": "Dashboard Configuration",
+  "description": "Schema for ModularIoT dashboard configuration files. Mirrors the TypeScript DashboardStorageSchema type.",
+  "type": "object",
+  "required": ["version", "name", "widgets", "preferences"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 2,
+      "description": "Schema version for migrations."
+    },
+    "name": {
+      "type": "string",
+      "description": "Dashboard display name."
+    },
+    "widgets": {
+      "type": "array",
+      "description": "Root-level widgets (recursive tree structure).",
+      "items": {
+        "$ref": "#/$defs/Widget"
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "description": "User preferences for the dashboard.",
+      "required": ["editMode"],
+      "additionalProperties": false,
+      "properties": {
+        "editMode": {
+          "type": "boolean",
+          "description": "Last edit mode state."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Widget": {
+      "type": "object",
+      "description": "Unified widget model. Everything in the dashboard is a Widget with a componentId referencing the dashlet registry.",
+      "required": ["id", "componentId", "layout", "config", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier (UUID).",
+          "format": "uuid"
+        },
+        "componentId": {
+          "type": "string",
+          "description": "References a dashlet in the registry.",
+          "enum": [
+            "container",
+            "card",
+            "labeled-data",
+            "percentage_value",
+            "stat_detailed",
+            "stat_gradient",
+            "stat_icon",
+            "stat_circular",
+            "stat_expandable",
+            "stat_progress",
+            "stat_stacked",
+            "stat_sparkline",
+            "stat_sensitive",
+            "info_card",
+            "data_table",
+            "data_list",
+            "stat_status",
+            "text_card"
+          ]
+        },
+        "layout": {
+          "$ref": "#/$defs/GridLayoutItem",
+          "description": "Grid layout position and size."
+        },
+        "config": {
+          "type": "object",
+          "description": "Dashlet-specific configuration. Structure varies by componentId.",
+          "additionalProperties": true
+        },
+        "children": {
+          "type": "array",
+          "description": "Nested widgets (for container types).",
+          "items": {
+            "$ref": "#/$defs/Widget"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update.",
+          "format": "date-time"
+        }
+      }
+    },
+    "GridLayoutItem": {
+      "type": "object",
+      "description": "Grid layout item compatible with react-grid-layout.",
+      "required": ["i", "x", "y", "w", "h"],
+      "additionalProperties": false,
+      "properties": {
+        "i": {
+          "type": "string",
+          "description": "Layout identifier (matches widget id)."
+        },
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Column position (0-based)."
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Row position (0-based)."
+        },
+        "w": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24,
+          "description": "Width in grid columns (max 24 = GRID_COLS)."
+        },
+        "h": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Height in grid rows."
+        },
+        "minW": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum width in grid units."
+        },
+        "minH": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum height in grid units."
+        },
+        "maxW": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24,
+          "description": "Maximum width in grid units."
+        },
+        "maxH": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum height in grid units."
+        }
+      }
+    }
+  }
+}

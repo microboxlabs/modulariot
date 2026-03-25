@@ -188,7 +188,7 @@ export function DashboardFilterBar() {
               onClick={handleClear}
               type="button"
               className="absolute right-3 rounded p-0.5 transition-colors hover:bg-gray-100 dark:hover:bg-gray-600"
-              aria-label="Clear search"
+              aria-label={tr("dashboard.filterBar.clearSearch", dictionary)}
             >
               <HiX className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
             </button>

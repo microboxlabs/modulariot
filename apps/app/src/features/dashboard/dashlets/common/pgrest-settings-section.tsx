@@ -6,6 +6,9 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
+import { HbParamValueInput } from "./hb-param-value-input";
+import { useFilterSuggestions } from "./use-filter-suggestions";
+import { useDashboard } from "../../context/dashboard-context";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
@@ -39,6 +42,9 @@ export function PgrestSettingsSection({
   onDataSourceIdChange,
   activeProviders,
 }: Readonly<PgrestSettingsSectionProps>) {
+  const { filters } = useDashboard();
+  const filterSuggestions = useFilterSuggestions(filters);
+
   return (
     <>
       {onDataSourceIdChange && (
@@ -122,14 +128,13 @@ export function PgrestSettingsSection({
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <TextInput
-                  sizing="sm"
+                <HbParamValueInput
                   placeholder={pg.paramHints[p.key] ?? labels.value}
-                  aria-label={labels.value}
                   value={p.value}
-                  onChange={(e) =>
-                    pg.updatePgrestParam(p._id, "value", e.target.value)
+                  onChange={(v) =>
+                    pg.updatePgrestParam(p._id, "value", v)
                   }
+                  filterSuggestions={filterSuggestions}
                 />
               </div>
               <button

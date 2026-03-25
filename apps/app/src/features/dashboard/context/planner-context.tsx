@@ -11,7 +11,9 @@ import {
 } from "react";
 import type { PlannerRequestDefinition } from "../types/dashboard.types";
 import { useDashboard } from "./dashboard-context";
+import { useDashboardFilters } from "./dashboard-filters-context";
 import { buildPgrestFetch, parseRows } from "../dashlets/common/pgrest-utils";
+import { resolveFilterParams } from "../dashlets/common/resolve-filter-params";
 
 // ============================================================================
 // Types
@@ -44,6 +46,7 @@ const PlannerContext = createContext<PlannerContextValue | null>(null);
 
 export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
   const { plannerDefinitions, updatePlannerRequest } = useDashboard();
+  const { activeFilters } = useDashboardFilters();
   const [results, setResults] = useState<Map<string, PlannerQueryResult>>(
     () => new Map()
   );
@@ -64,10 +67,11 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
   // Serialize definitions to detect config changes (exclude schema to avoid loops)
   const definitionsKey = useMemo(
     () =>
-      JSON.stringify(
+      JSON.stringify([
         plannerDefinitions.map(({ schema: _s, ...rest }) => rest),
-      ),
-    [plannerDefinitions],
+        activeFilters,
+      ]),
+    [plannerDefinitions, activeFilters],
   );
 
   useEffect(() => {
@@ -99,10 +103,14 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
             if (!def.pgrestFunctionName) {
               return [def.variableName, { rows: [], loading: false, error: null }];
             }
+            const resolvedParams = resolveFilterParams(
+              def.pgrestParams,
+              activeFilters,
+            );
             const { url, init } = buildPgrestFetch(
               def.pgrestFunctionName,
               def.pgrestHttpMethod,
-              def.pgrestParams,
+              resolvedParams,
               def.dataSourceId
             );
             const res = await fetch(url, init);

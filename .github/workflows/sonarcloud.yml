@@ -16,14 +16,19 @@ name: SonarCloud Analysis
 
 on:
   push:
+    paths:
+      - 'turbo-repo/**'
     branches:
       - trunk
       - main
   pull_request:
+    paths:
+      - 'turbo-repo/**'
     types: [opened, synchronize, reopened]
     branches:
       - trunk
       - main
+  workflow_dispatch:
 
 jobs:
   sonarcloud:
@@ -48,15 +53,17 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+          cache-dependency-path: turbo-repo/package-lock.json
 
       - name: Install dependencies
         # Installs workspace symlinks so @repo/typescript-config resolves
         run: npm ci
+        working-directory: turbo-repo
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v7.0.0
         with:
-          projectBaseDir: apps/app
+          projectBaseDir: turbo-repo/apps/app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

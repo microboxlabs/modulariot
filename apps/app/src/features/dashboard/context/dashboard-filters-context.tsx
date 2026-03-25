@@ -42,16 +42,23 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Build a set of configured filter keys (including _from/_to for date ranges)
+  // Build a set of configured filter keys (including _from/_to for date ranges).
+  // A default date_range picker is always present even without a configured filter.
   const filterKeys = useMemo(() => {
     const keys = new Set<string>();
+    let hasDateRange = false;
     for (const f of filters) {
       if (f.type === "date_range") {
         keys.add(`${f.key}_from`);
         keys.add(`${f.key}_to`);
+        hasDateRange = true;
       } else {
         keys.add(f.key);
       }
+    }
+    if (!hasDateRange) {
+      keys.add("date_range_from");
+      keys.add("date_range_to");
     }
     return keys;
   }, [filters]);
@@ -92,7 +99,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
       }
 
       const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [searchParams, router, pathname, filters, filterKeys]
   );
@@ -102,7 +109,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete(key);
       const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [searchParams, router, pathname]
   );
@@ -113,7 +120,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
       params.delete(key);
     }
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [searchParams, router, pathname, filterKeys]);
 
   const value = useMemo(
@@ -133,7 +140,7 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
  */
 export function DashboardFiltersProvider({ children }: Readonly<PropsWithChildren>) {
   return (
-    <Suspense fallback={children}>
+    <Suspense fallback={null}>
       <DashboardFiltersInner>{children}</DashboardFiltersInner>
     </Suspense>
   );

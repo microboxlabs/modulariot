@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo } from "react";
 import { Label, TextInput, Textarea, Select } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
-import { useDropdown } from "./use-dropdown";
+import { useHbAutocomplete } from "./use-hb-autocomplete";
 import { DropdownList } from "./dropdown-list";
 
 // ============================================================================
@@ -356,17 +356,6 @@ interface HbTextFieldProps {
 }
 
 /**
- * Detect if the cursor is inside an open `{{row.` expression and extract the
- * partial property name typed so far. Returns null when not in that position.
- */
-function detectRowPrefix(text: string, cursorPos: number): string | null {
-  const before = text.slice(0, cursorPos);
-  // Match the last unclosed {{row. expression
-  const match = /\{\{row\.(\w*)$/.exec(before);
-  return match ? match[1] : null;
-}
-
-/**
  * Text input that shows Handlebars validation status via Flowbite color.
  * When `schemaSuggestions` are provided, shows a dropdown when typing `{{row.`
  * with matching column key suggestions.
@@ -380,116 +369,38 @@ export function HbTextField({
   schemaSuggestions,
 }: Readonly<HbTextFieldProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [cursorPos, setCursorPos] = useState(value.length);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLUListElement>(null);
-
-  const partial = useMemo(
-    () => (schemaSuggestions?.length ? detectRowPrefix(value, cursorPos) : null),
-    [value, cursorPos, schemaSuggestions],
-  );
-
-  const filtered = useMemo(() => {
-    if (partial === null || !schemaSuggestions?.length) return [];
-    const lower = partial.toLowerCase();
-    return schemaSuggestions.filter((s) => s.toLowerCase().includes(lower));
-  }, [partial, schemaSuggestions]);
-
-  const handleSelect = useCallback(
-    (key: string) => {
-      // Replace from the `{{row.` to cursor with `{{row.key}}`
-      const before = value.slice(0, cursorPos);
-      const after = value.slice(cursorPos);
-      const prefixMatch = /\{\{row\.\w*$/.exec(before);
-      if (prefixMatch) {
-        const start = prefixMatch.index;
-        const newValue = `${before.slice(0, start)}{{row.${key}}}${after}`;
-        onChange(newValue);
-        const newCursor = start + `{{row.${key}}}`.length;
-        setCursorPos(newCursor);
-        setTimeout(() => {
-          inputRef.current?.focus();
-          inputRef.current?.setSelectionRange(newCursor, newCursor);
-        }, 0);
-      }
-      setIsOpen(false);
-    },
-    [value, cursorPos, onChange],
-  );
-
-  const close = useCallback(() => setIsOpen(false), []);
-
-  const { selectedIndex, setSelectedIndex, handleKeyDown } = useDropdown({
-    items: filtered,
-    isOpen: isOpen && filtered.length > 0,
-    onClose: close,
-    onSelect: handleSelect,
-    containerRef,
-    dropdownRef,
+  const ac = useHbAutocomplete({
+    value,
+    onChange,
+    prefix: "row",
+    suggestions: schemaSuggestions,
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    const newCursor = e.target.selectionStart ?? newValue.length;
-    onChange(newValue);
-    setCursorPos(newCursor);
-
-    if (schemaSuggestions?.length) {
-      const p = detectRowPrefix(newValue, newCursor);
-      if (p === null) {
-        setIsOpen(false);
-      } else {
-        setIsOpen(true);
-        setSelectedIndex(0);
-      }
-    }
-  };
-
-  const handleKeyDownCombined = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isOpen && filtered.length > 0) {
-      handleKeyDown(e);
-    }
-  };
-
-  const handleClick = () => {
-    const pos = inputRef.current?.selectionStart ?? value.length;
-    setCursorPos(pos);
-    if (schemaSuggestions?.length) {
-      const p = detectRowPrefix(value, pos);
-      if (p !== null) {
-        setIsOpen(true);
-        setSelectedIndex(0);
-      }
-    }
-  };
-
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={ac.containerRef} className="relative">
       <Label htmlFor={id} className="mb-1 block text-sm font-medium">
         {label}
       </Label>
       <TextInput
-        ref={inputRef}
+        ref={ac.inputRef}
         id={id}
         value={value}
-        onChange={handleChange}
-        onClick={handleClick}
-        onKeyDown={handleKeyDownCombined}
+        onChange={ac.handleChange}
+        onClick={ac.handleClick}
+        onKeyDown={ac.handleKeyDownCombined}
         placeholder={placeholder}
         sizing="sm"
         color={getFlowbiteColor(status)}
         autoComplete="off"
       />
-      {isOpen && filtered.length > 0 && (
+      {ac.isOpen && (
         <DropdownList
-          items={filtered}
-          selectedIndex={selectedIndex}
-          onSelect={handleSelect}
-          onHover={setSelectedIndex}
-          dropdownRef={dropdownRef}
+          items={ac.filtered}
+          selectedIndex={ac.selectedIndex}
+          onSelect={ac.handleSelect}
+          onHover={ac.setSelectedIndex}
+          dropdownRef={ac.dropdownRef}
           getKey={(s) => s}
           renderItem={(s) => (
             <span className="font-mono text-xs">

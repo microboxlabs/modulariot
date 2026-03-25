@@ -108,16 +108,19 @@ export default function Tags({
                 key={tag.name}
                 className="flex w-fit gap-1 whitespace-nowrap rounded-lg border border-gray-300 bg-gray-100 px-2 py-1 text-sm font-light text-gray-500 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-300"
               >
-                <HiX
+                <button
+                  type="button"
+                  aria-label={`Remove ${tag.label}`}
                   className="cursor-pointer rounded-full bg-gray-200 text-gray-500 transition-all duration-300 hover:bg-gray-300 hover:text-gray-700 dark:bg-gray-500 dark:text-gray-300 dark:hover:bg-gray-300 dark:hover:text-gray-700"
-                  size={20}
                   onClick={() => {
                     onRemoveParam(tag.name);
                     if (tags.length <= 1) {
                       setFilterOpen(false);
                     }
                   }}
-                />
+                >
+                  <HiX size={20} />
+                </button>
                 <label className="font-normal">{tag.label}:</label>{" "}
                 {tag.value}
               </div>

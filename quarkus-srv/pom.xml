@@ -14,7 +14,9 @@
 
     <modules>
         <module>miot-core</module>
+        <module>miot-resource-core</module>
         <module>miot-fleet</module>
+        <module>miot-driver</module>
         <module>miot-cli</module>
     </modules>
 
@@ -48,6 +50,16 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-fleet</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-resource-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-driver</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

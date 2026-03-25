@@ -55,4 +55,8 @@ else
     echo "Starting with: ${COMPONENTS[*]}"
 fi
 
-exec ./mvnw quarkus:dev -pl miot-cli -am ${PROPS[@]+"${PROPS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
+# Build dependencies first (needed on fresh clones or after clean)
+echo "Building modules..."
+./mvnw install -DskipTests -q ${PROPS[@]+"${PROPS[@]}"}
+
+exec ./mvnw quarkus:dev -pl miot-cli ${PROPS[@]+"${PROPS[@]}"} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}

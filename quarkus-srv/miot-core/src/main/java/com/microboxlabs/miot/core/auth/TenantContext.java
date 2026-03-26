@@ -4,13 +4,22 @@ import jakarta.enterprise.context.RequestScoped;
 
 /**
  * Holds the resolved tenant for the current request.
- * Resolved from JWT claims (Auth0 / Entra ID).
+ * Populated by TenantRequestFilter from JWT claims or dev header.
  */
 @RequestScoped
 public class TenantContext {
 
+    private String clientId;
     private String tenantCode;
     private Long tenantId;
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
 
     public String getTenantCode() {
         return tenantCode;

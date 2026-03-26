@@ -42,4 +42,22 @@ public class Driver extends BaseResourceEntity {
 
     @Column(name = "operation_blocked")
     public boolean operationBlocked = false;
+
+    @Column(name = "address_street")
+    public String addressStreet;
+
+    @Column(name = "address_city")
+    public String addressCity;
+
+    @Column(name = "address_postal_code")
+    public String addressPostalCode;
+
+    @Column(name = "address_country")
+    public String addressCountry;
+
+    @Column(name = "deactivated_at")
+    public Instant deactivatedAt;
+
+    @Column(name = "source_system")
+    public String sourceSystem;
 }

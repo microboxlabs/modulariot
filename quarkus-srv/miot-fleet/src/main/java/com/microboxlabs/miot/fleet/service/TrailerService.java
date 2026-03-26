@@ -72,7 +72,7 @@ public class TrailerService {
                     String oldStatus = trailer.status;
                     trailer.status = req.status();
                     trailer.updatedAt = Instant.now();
-                    if ("DEACTIVATED".equals(req.status())) trailer.active = false;
+                    if ("INACTIVE".equals(req.status())) trailer.active = false;
                     return eventService.record(clientId, EntityType.TRAILER, trailer.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,
                                     JsonUtil.toJson(Map.of("old", oldStatus, "new", req.status())))

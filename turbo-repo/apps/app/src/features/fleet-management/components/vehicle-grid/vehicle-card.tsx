@@ -15,6 +15,7 @@ import { tr } from "@/features/i18n/tr.service";
 import VehicleStatusBadge from "./vehicle-status-badge";
 import VehicleStatItem from "./vehicle-stat-item";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
+import { Button } from "flowbite-react";
 
 interface VehicleCardProps {
   readonly vehicle: Vehicle;
@@ -41,8 +42,7 @@ export default function VehicleCard({
   };
 
   return (
-    <div
-      role="button"
+    <button
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -53,25 +53,6 @@ export default function VehicleCard({
           <span className="text-lg font-semibold text-gray-900 dark:text-white">
             {vehicle.plate}
           </span>
-          {/* Mini score in simplified view */}
-          {!isDetailed && vehicle.gamification && (
-            <div className="flex items-center gap-1">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  vehicle.gamification.healthScore >= 80
-                    ? "bg-green-500"
-                    : vehicle.gamification.healthScore >= 60
-                      ? "bg-yellow-500"
-                      : vehicle.gamification.healthScore >= 40
-                        ? "bg-orange-500"
-                        : "bg-red-500"
-                }`}
-              />
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Lv.{vehicle.gamification.level}
-              </span>
-            </div>
-          )}
         </div>
         <VehicleStatusBadge status={vehicle.status} dict={dict} />
       </div>
@@ -124,6 +105,6 @@ export default function VehicleCard({
           </div>
         </>
       )}
-    </div>
+    </button>
   );
 }

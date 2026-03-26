@@ -26,7 +26,6 @@ interface TelemetrySectionProps {
 }
 
 export default function TelemetrySection({ dict }: TelemetrySectionProps) {
-  // TODO: Replace with real data from props
   const isConnected = true;
   const batteryPercentage = 85;
 

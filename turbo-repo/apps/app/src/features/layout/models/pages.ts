@@ -23,9 +23,6 @@ export const pages: SidebarItem[] = [
     ],
     requiredGroups: ["GROUP_DASHBOARD"],
   },
-  ...(process.env.NEXT_PUBLIC_ENABLE_FLEET_MANAGEMENT === "true"
-    ? [
-  },
   {
     href: "/fleet-management",
     icon: TruckIcon,

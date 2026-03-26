@@ -113,7 +113,7 @@ export default function MaintenanceSection({
             className: "text-green-500 dark:text-green-400",
           }}
           description={{
-            text: tr("vehicleDetail.sections.maintenance.intervalPercent", dict, { percent: 24, interval: "10k" }),
+            text: tr("vehicleDetail.sections.maintenance.intervalPercent", dict, { percent: "24", interval: "10k" }),
           }}
           variant="vertical"
         />

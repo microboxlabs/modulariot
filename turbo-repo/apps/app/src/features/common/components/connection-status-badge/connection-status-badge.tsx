@@ -5,8 +5,8 @@ import { twMerge } from "tailwind-merge";
 interface ConnectionStatusBadgeProps {
   readonly isConnected: boolean;
   readonly signalStrength: number; // 0-100 percentage
-  readonly connectedLabel?: string;
-  readonly disconnectedLabel?: string;
+  readonly connectedLabel: string;
+  readonly disconnectedLabel: string;
   readonly className?: string;
 }
 
@@ -85,8 +85,8 @@ function SignalIcon({ level, isConnected }: SignalIconProps) {
 export default function ConnectionStatusBadge({
   isConnected,
   signalStrength,
-  connectedLabel = "Conectado",
-  disconnectedLabel = "Desconectado",
+  connectedLabel,
+  disconnectedLabel,
   className,
 }: ConnectionStatusBadgeProps) {
   const signalLevel = getSignalLevel(signalStrength);

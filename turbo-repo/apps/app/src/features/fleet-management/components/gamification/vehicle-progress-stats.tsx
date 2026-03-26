@@ -14,9 +14,12 @@ export default function VehicleProgressStats({
   gamification,
   dict,
 }: VehicleProgressStatsProps) {
-  const xpProgress = (gamification.xp / gamification.xpToNextLevel) * 100;
-  const kmProgress =
-    (gamification.weeklyKmProgress / gamification.weeklyKmGoal) * 100;
+  const xpProgress = gamification.xpToNextLevel
+    ? Math.min(100, (gamification.xp / gamification.xpToNextLevel) * 100)
+    : 0;
+  const kmProgress = gamification.weeklyKmGoal
+    ? Math.min(100, (gamification.weeklyKmProgress / gamification.weeklyKmGoal) * 100)
+    : 0;
 
   return (
     <div className="flex flex-col gap-4">

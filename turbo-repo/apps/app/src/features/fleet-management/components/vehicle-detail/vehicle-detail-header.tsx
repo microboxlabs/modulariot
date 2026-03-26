@@ -27,9 +27,6 @@ export default function VehicleDetailHeader({
   hasPrevious = true,
   hasNext = true,
 }: VehicleDetailHeaderProps) {
-  // Placeholder for last signal - would come from vehicle data in real implementation
-  const lastSignal = "25 Mar 2026, 14:32";
-
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div className="flex items-center justify-between gap-4">
@@ -91,14 +88,16 @@ export default function VehicleDetailHeader({
             </div>
 
             {/* Last signal */}
-            <div className="flex flex-col shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("vehicleGrid.lastSignal", dict)}
-              </span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {lastSignal}
-              </span>
-            </div>
+            {vehicle.lastSignal && (
+              <div className="flex flex-col shrink-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("vehicleGrid.lastSignal", dict)}
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {vehicle.lastSignal}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

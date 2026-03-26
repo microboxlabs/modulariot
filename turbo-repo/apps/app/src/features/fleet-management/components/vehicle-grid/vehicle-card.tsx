@@ -15,7 +15,6 @@ import { tr } from "@/features/i18n/tr.service";
 import VehicleStatusBadge from "./vehicle-status-badge";
 import VehicleStatItem from "./vehicle-stat-item";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
-import { Button } from "flowbite-react";
 
 interface VehicleCardProps {
   readonly vehicle: Vehicle;

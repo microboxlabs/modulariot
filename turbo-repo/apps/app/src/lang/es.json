@@ -1469,6 +1469,8 @@
     "cancel": "Cancelar",
     "saving": "Guardando...",
     "retry": "Reintentar",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
     "editableField": {
       "saveError": "Error al guardar los cambios",
       "saveSuccess": "Cambios guardados correctamente"
@@ -2582,7 +2584,7 @@
         },
         "technicalHealth": {
           "title": "Salud Técnica",
-          "description": "Estado of motor, transmisión y componentes",
+          "description": "Estado del motor, transmisión y componentes",
           "engine": "Motor",
           "transmission": "Transmisión",
           "brakes": "Frenos",
@@ -2596,7 +2598,20 @@
           "fuelSensor": "Sensor de Combustible",
           "tempSensor": "Sensor de Temp (calibrando)",
           "lastUpdate": "Última Actualización",
-          "signalStrength": "Intensidad de Señal"
+          "signalStrength": "Intensidad de Señal",
+          "odometer": "Odómetro",
+          "dateTime": "Fecha y hora",
+          "status": "Estado",
+          "onRoute": "En ruta",
+          "engine": "Motor",
+          "running": "En marcha",
+          "speed": "Velocidad",
+          "rpm": "RPM",
+          "battery": "Batería",
+          "engineTemp": "Temp. motor",
+          "location": "Ubicación",
+          "transmissionInterval": "Intervalo de transmisión",
+          "every30Seconds": "Cada 30 segundos"
         },
         "events": {
           "title": "Eventos Operativos",

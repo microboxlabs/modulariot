@@ -1444,6 +1444,8 @@
     "cancel": "Cancel",
     "saving": "Saving...",
     "retry": "Retry",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
     "editableField": {
       "saveError": "Failed to save changes",
       "saveSuccess": "Changes saved successfully"
@@ -2565,7 +2567,20 @@
           "fuelSensor": "Fuel Sensor",
           "tempSensor": "Temp Sensor (calibrating)",
           "lastUpdate": "Last Update",
-          "signalStrength": "Signal Strength"
+          "signalStrength": "Signal Strength",
+          "odometer": "Odometer",
+          "dateTime": "Date and time",
+          "status": "Status",
+          "onRoute": "On route",
+          "engine": "Engine",
+          "running": "Running",
+          "speed": "Speed",
+          "rpm": "RPM",
+          "battery": "Battery",
+          "engineTemp": "Engine temp",
+          "location": "Location",
+          "transmissionInterval": "Transmission interval",
+          "every30Seconds": "Every 30 seconds"
         },
         "events": {
           "title": "Operational Events",

@@ -1,0 +1,62 @@
+# =============================================================================
+# Quarkus CI — ModularIoT Backend
+# =============================================================================
+# Builds and tests the Quarkus multi-module backend.
+# Triggers only on changes within quarkus-srv/.
+# Uses sonar-maven-plugin for SonarCloud (recommended for Maven projects).
+# =============================================================================
+
+name: Quarkus CI
+
+on:
+  push:
+    paths:
+      - 'quarkus-srv/**'
+    branches: [trunk, main]
+  pull_request:
+    paths:
+      - 'quarkus-srv/**'
+    branches: [trunk, main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: "21"
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: quarkus-srv/pom.xml
+
+      - name: Build & Test
+        run: ./mvnw clean verify
+        working-directory: quarkus-srv
+
+      - name: SonarCloud Scan
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        run: >
+          ./mvnw sonar:sonar
+          -Dsonar.projectKey=microboxlabs_modulariot-quarkus
+          -Dsonar.organization=microboxlabs
+          -Dsonar.host.url=https://sonarcloud.io
+        working-directory: quarkus-srv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

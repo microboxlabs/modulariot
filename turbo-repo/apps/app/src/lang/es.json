@@ -2624,7 +2624,7 @@
           "hardBraking": "Frenado brusco detectado",
           "routeCompleted": "Ruta completada exitosamente",
           "incidentsThisMonth": "Incidentes Este Mes",
-          "hoursAgo": "Hace {{count}}h"
+          "hoursAgo": "Hace {count}h"
         },
         "usage": {
           "title": "Uso de Flota",

@@ -1,10 +1,7 @@
 "use client";
 
 import { FaTruck, FaTruckLoading } from "react-icons/fa";
-import TimelineStates, {
-  TemporalComponent,
-  DelayCalculations,
-} from "./components/state";
+import TimelineStates from "./components/state";
 import React, { useEffect, useMemo } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
@@ -33,17 +30,18 @@ const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
 
 export type State = {
   name: string;
+  code: string | null;
   icon: React.ReactElement | null;
   description?: string | React.ReactElement;
   ended: boolean;
-  extradata: { [key: string]: string | number | boolean };
+  extradata: { [key: string]: string | number | boolean | null };
   time: {
     start: string | null;
     projected_start: string | null;
     end: string | null;
     projected_end: string | null;
-    lead_time_start: string | null;
-    lead_time_end: string | null;
+    compromised_time: string | null;
+    delivered: boolean | null;
     duration: number | null;
   };
   visible: boolean;
@@ -94,13 +92,14 @@ export default function Timeline({
       ? data?.map((item) => {
           return {
             name: item.nombre_etapa_,
+            code: item.codigo_etapa,
             time: {
               start: item.start_time__,
-              end: item.end_time__,
               projected_start: item.projected_start_time_,
+              end: item.end_time__,
               projected_end: item.projected_end_time_,
-              lead_time_start: item.start_lead_time_,
-              lead_time_end: item.end_lead_time_,
+              compromised_time: item.extradata.fecha_comprometida,
+              delivered: item.extradata.delivered,
               duration: item.duration__,
             },
             icon: getLoadIcon(item.icon),
@@ -134,6 +133,20 @@ export default function Timeline({
     }
   }, [data]);
 
+  // Helper to update debug position tracking the active timeline state
+  const updateDebugPosition = React.useCallback(() => {
+    if (!timelineRef.current) return;
+    const container = timelineRef.current.querySelector(
+      ".timeline-states-container"
+    ) as HTMLDivElement | null;
+    if (!container) return;
+    const activeEl = container.children[actualState] as HTMLElement | undefined;
+    if (!activeEl) return;
+    const rect = activeEl.getBoundingClientRect();
+    // Use viewport coordinates with position: fixed
+    setDebugPos({ top: rect.top, left: rect.right + 16 });
+  }, [actualState]);
+
   useEffect(() => {
     if (timelineRef.current) {
       const timelineContainer = timelineRef.current.querySelector(
@@ -150,7 +163,7 @@ export default function Timeline({
     if (debug) {
       updateDebugPosition();
     }
-  }, [actualState]);
+  }, [actualState, debug, updateDebugPosition]);
 
   // Center on actualState when states are loaded (component initialization)
   useEffect(() => {
@@ -168,21 +181,7 @@ export default function Timeline({
     if (debug) {
       updateDebugPosition();
     }
-  }, [states]);
-
-  // Helper to update debug position tracking the active timeline state
-  const updateDebugPosition = React.useCallback(() => {
-    if (!timelineRef.current) return;
-    const container = timelineRef.current.querySelector(
-      ".timeline-states-container"
-    ) as HTMLDivElement | null;
-    if (!container) return;
-    const activeEl = container.children[actualState] as HTMLElement | undefined;
-    if (!activeEl) return;
-    const rect = activeEl.getBoundingClientRect();
-    // Use viewport coordinates with position: fixed
-    setDebugPos({ top: rect.top, left: rect.right + 16 });
-  }, [actualState]);
+  }, [states, actualState, debug, updateDebugPosition]);
 
   // Attach scroll / resize listeners to keep debug panel aligned while scrolling
   useEffect(() => {
@@ -224,7 +223,10 @@ export default function Timeline({
     );
   }
 
-  if ((data && data.length === 0) || (error && (error as any).status === 404)) {
+  if (
+    (data && data.length === 0) ||
+    (error && (error as { status?: number }).status === 404)
+  ) {
     return (
       <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
         <EmptyAnimation />
@@ -308,6 +310,8 @@ export default function Timeline({
           state={states[actualState]}
           dict={dict}
           className="w-full"
+          allStates={states}
+          lang={lang}
         />
       </div>
 
@@ -327,6 +331,7 @@ export default function Timeline({
               statesCount={states.length}
               setSelectedTask={setSelectedTask}
               dict={dict}
+              lang={lang}
             />
           );
         })}
@@ -337,6 +342,8 @@ export default function Timeline({
           item={data ? data[actualState] : undefined}
           state={states[actualState]}
           dict={dict}
+          allStates={states}
+          lang={lang}
         />
       </div>
     </div>
@@ -349,14 +356,31 @@ function SideInfo({
   state,
   dict,
   className = "",
-}: {
+  allStates,
+  lang,
+}: Readonly<{
   badges: InformationBadge[];
   item: LoadSearchResponse | undefined;
   state: State;
   dict: I18nRecord;
   className?: string;
-}) {
-  const temporal_data = TemporalComponent({ time: state.time, dict });
+  allStates: State[];
+  lang: string;
+}>) {
+  // Find DELIVERY_EXPEDITION state for delivery dates
+  const deliveryExpeditionState = allStates.find(
+    (s) => s.code === "DELIVERY_EXPEDITION"
+  );
+
+  // Use delivery expedition state for all delivery-related fields
+  // For DELIVERY_EXPEDITION: committed date is start_time, actual delivery is end_time
+  const committedDeliveryDate = deliveryExpeditionState?.time.start;
+  const actualDeliveryDate =
+    deliveryExpeditionState?.time.end ??
+    deliveryExpeditionState?.time.projected_end;
+  const isDelivered = deliveryExpeditionState?.time.delivered;
+
+  const locale = lang === "es" ? "es-CL" : "en-US";
 
   return (
     <div className={`w-fit h-fit flex flex-col gap-2 ${className}`}>
@@ -366,39 +390,83 @@ function SideInfo({
           subtitle={null}
           style={{ title: "text-xl", subtitle: "text-sm" }}
         >
-          <div className="grid grid-cols-[max-content_max-content] gap-2">
-            <LoadableLabel
-              label="Código"
-              value={state.expedition.code ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel
-              label="N° de expedición"
-              value={state.expedition.number ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel
-              label="Origen"
-              value={state.origin ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel label="Volumen" value="-" className="!text-base" />
-            <LoadableLabel
-              label="Destino"
-              value={state.destination ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel label="Peso" value="-" className="!text-base" />
-            <LoadableLabel
-              label="Oferta producto"
-              value={state.oferta_producto ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel label="Bultos" value="-" className="!text-base" />
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-[max-content_max-content] gap-2">
+              <LoadableLabel
+                label={tr("wheres_my_load.code", dict)}
+                value={state.expedition.code ?? "-"}
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.expedition_number", dict)}
+                value={state.expedition.number ?? "-"}
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.origin", dict)}
+                value={state.origin ?? "-"}
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.volume", dict)}
+                value="-"
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.destination", dict)}
+                value={state.destination ?? "-"}
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.weight", dict)}
+                value="-"
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.product_offer", dict)}
+                value={state.oferta_producto ?? "-"}
+                className="text-base!"
+              />
+              <LoadableLabel
+                label={tr("wheres_my_load.packages", dict)}
+                value="-"
+                className="text-base!"
+              />
+            </div>
+            {committedDeliveryDate && (
+              <LoadableLabel
+                label={tr("wheres_my_load.compromised_delivery_date", dict)}
+                value={
+                  <FormattedDate
+                    date={committedDeliveryDate}
+                    format="datetime"
+                    locale={locale}
+                  />
+                }
+                className="text-base! w-full"
+              />
+            )}
+            {actualDeliveryDate && (
+              <LoadableLabel
+                label={tr(
+                  isDelivered
+                    ? "wheres_my_load.actual_delivery_date"
+                    : "wheres_my_load.projected_delivery_date",
+                  dict
+                )}
+                value={
+                  <FormattedDate
+                    date={actualDeliveryDate}
+                    format="datetime"
+                    locale={locale}
+                  />
+                }
+                className="text-base! w-full"
+              />
+            )}
           </div>
         </CustomCard>
       </div>
-      <DelayCalculations temporalData={temporal_data} dict={dict} />
       <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit">
         <CustomCard
           title={state.name}
@@ -406,7 +474,7 @@ function SideInfo({
           style={{ title: "text-xl", subtitle: "text-sm" }}
           badges={badges.length > 0 ? badges : undefined}
         >
-          {item && getComponent(item, "!text-base")}
+          {item && getComponent(item, "text-base!")}
           <DateBox time={state.time} dict={dict} />
         </CustomCard>
       </div>
@@ -445,7 +513,7 @@ function DateBox({
               : tr("wheres_my_load.projected_start", dict)
           }
           value={<FormattedDate date={start} format="datetime" />}
-          className="!text-base"
+          className="text-base!"
         />
         <LoadableLabel
           label={
@@ -454,7 +522,7 @@ function DateBox({
               : tr("wheres_my_load.projected_end", dict)
           }
           value={<FormattedDate date={end} format="datetime" />}
-          className="!text-base"
+          className="text-base!"
         />
       </CustomCard>
     </div>

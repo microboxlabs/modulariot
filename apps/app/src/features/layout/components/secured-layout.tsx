@@ -12,6 +12,7 @@ import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 
 export default async function SecuredLayout({
   children,
@@ -23,6 +24,7 @@ export default async function SecuredLayout({
   const session = await auth();
   const initialOrgLogo = await getPublicOrgLogo();
   return (
+    <RuntimeConfigProvider>
     <SidebarProvider initialCollapsed={(await sidebarCookie.get()).isCollapsed}>
       <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
       <SecuredNavbar
@@ -44,5 +46,6 @@ export default async function SecuredLayout({
       </div>
       <FooterSecuredLayout messages={dict} />
     </SidebarProvider>
+    </RuntimeConfigProvider>
   );
 }

@@ -230,6 +230,7 @@
       },
       "sidebar": {
         "title": "Planificar viaje",
+        "assignmentTitle": "Asignar viaje",
         "servicesList": "Servicios del día",
         "noServiceSelected": "Seleccione un servicio del calendario para asignar conductor y vehículo",
         "selectServiceHint": "Seleccione un servicio para asignar conductor y vehículo",
@@ -1478,7 +1479,9 @@
     "max": "Máx",
     "unit": "Unidad",
     "all": "Todos",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "yes": "Sí",
+    "no": "No"
   },
   "dashboard": {
     "editMode": "Modo Edición",
@@ -2395,14 +2398,34 @@
     "projected_end": "Fin proyectado",
     "start": "Inicio",
     "end": "Fin",
+    "estimated": "Estimado",
+    "delivered": "Entregado",
+    "lead_time": "Fecha límite",
     "delay_pre_start": "Inicio con Retraso de ",
     "delay_pre_end": "Fin con Retraso de ",
     "delay_proj_start": "Inicio proyectado con Retraso de ",
     "delay_proj_end": "Fin proyectado con Retraso de ",
+    "delivery_delayed": "Entrega con retraso de ",
+    "estimated_delivery_delayed": "Entrega estimada con retraso de ",
+    "estimated_delivery_date": "Fecha de entrega estimada",
+    "actual_delivery_date": "Fecha de entrega real",
     "expedition_info": "Información de la expedición",
+    "compromised_delivery_date": "Fecha de entrega comprometida",
+    "projected_delivery_date": "Fecha de entrega proyectada",
     "search_for_your_load": "¿Dónde está mi carga?",
     "use_searchbar": "Usa la barra de búsqueda para encontrar el estado de tu carga",
-    "wheres_my_load": "¿Dónde está mi carga?"
+    "wheres_my_load": "¿Dónde está mi carga?",
+    "compromised": "Comprometida",
+    "projected": "Proyectada",
+    "real": "Real",
+    "code": "Código",
+    "expedition_number": "N° de expedición",
+    "origin": "Origen",
+    "volume": "Volumen",
+    "destination": "Destino",
+    "weight": "Peso",
+    "product_offer": "Oferta producto",
+    "packages": "Bultos"
   },
   "signal_historic": {
     "search": "Buscar",
@@ -2527,7 +2550,9 @@
       "technicalHealthViewDesc": "Diagnóstico técnico, estado mecánico y cumplimiento de revisiones",
       "devicesTelemetryView": "Dispositivos y Telemetría",
       "devicesTelemetryViewDesc": "Monitoreo de sensores, GPS y dispositivos instalados en la flota",
-      "goToSlide": "Ir a diapositiva {number}"
+      "goToSlide": "Ir a diapositiva {number}",
+      "previous": "Anterior",
+      "next": "Siguiente"
     },
     "vehicleGrid": {
       "title": "Vehículos",
@@ -2536,9 +2561,12 @@
       "simplified": "Simplificada",
       "driver": "Conductor",
       "location": "Ubicación",
+      "brand": "Marca",
+      "transportist": "Transportista",
       "fuel": "Combustible",
-      "maintenance": "Mantención",
-      "kmTraveled": "Km Recorridos"
+      "maintenance": "Próx. Mantención",
+      "kmTraveled": "Km Totales",
+      "loading": "Cargando..."
     },
     "status": {
       "active": "Activo",

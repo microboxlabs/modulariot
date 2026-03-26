@@ -20,18 +20,20 @@ export default function ProgressBar({
   label,
   color = "blue",
 }: ProgressBarProps) {
+  const sanitizedValue = Math.max(0, Math.min(100, Number(value) || 0));
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between text-xs">
         <span className="text-gray-600 dark:text-gray-400">{label}</span>
         <span className="text-gray-900 dark:text-white font-medium">
-          {value}%
+          {sanitizedValue}%
         </span>
       </div>
       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${colorClasses[color]}`}
-          style={{ width: `${value}%` }}
+          style={{ width: `${sanitizedValue}%` }}
         />
       </div>
     </div>

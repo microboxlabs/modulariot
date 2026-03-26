@@ -49,6 +49,7 @@ export interface Vehicle {
   fuelLevel: number;
   nextMaintenance: string;
   kmTraveled: number;
+  lastSignal?: string;
   gamification?: VehicleGamification;
 }
 

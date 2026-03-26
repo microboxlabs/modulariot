@@ -125,7 +125,7 @@ export default function AchievementBadges({
         })}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        {achievements.length} / {allAchievementIds.length}{" "}
+        {unlockedIds.size} / {allAchievementIds.length}{" "}
         {tr("gamification.unlocked", dict)}
       </p>
     </div>

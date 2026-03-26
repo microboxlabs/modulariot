@@ -44,9 +44,14 @@ export default function UsageSection({
         />
         {gamification && (
           <ProgressBar
-            value={Math.round(
-              (gamification.weeklyKmProgress / gamification.weeklyKmGoal) * 100
-            )}
+            value={
+              gamification.weeklyKmGoal > 0
+                ? Math.round(
+                    (gamification.weeklyKmProgress / gamification.weeklyKmGoal) *
+                      100
+                  )
+                : 0
+            }
             label={tr("vehicleDetail.sections.usage.weeklyGoal", dict)}
             color="blue"
           />

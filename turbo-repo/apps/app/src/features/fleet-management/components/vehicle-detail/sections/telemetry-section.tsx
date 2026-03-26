@@ -38,6 +38,8 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
         <ConnectionStatusBadge
           isConnected={isConnected}
           signalStrength={batteryPercentage}
+          connectedLabel={tr("common.connected", dict)}
+          disconnectedLabel={tr("common.disconnected", dict)}
         />
       }
     >
@@ -49,7 +51,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30",
           }}
           title={{
-            text: "Odómetro",
+            text: tr("vehicleDetail.sections.telemetry.odometer", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
@@ -67,7 +69,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
                 "text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700",
             }}
             title={{
-              text: "Fecha y hora",
+              text: tr("vehicleDetail.sections.telemetry.dateTime", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
             value={{
@@ -82,11 +84,11 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
                 "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
             }}
             title={{
-              text: "Estado",
+              text: tr("vehicleDetail.sections.telemetry.status", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
             value={{
-              text: "En ruta",
+              text: tr("vehicleDetail.sections.telemetry.onRoute", dict),
               className: "text-green-500 dark:text-green-400 bold",
             }}
             variant="horizontal"
@@ -100,11 +102,11 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
           }}
           title={{
-            text: "Motor",
+            text: tr("vehicleDetail.sections.telemetry.engine", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
-            text: "En marcha",
+            text: tr("vehicleDetail.sections.telemetry.running", dict),
             className: "text-green-500 dark:text-green-400 bold",
           }}
           variant="horizontal"
@@ -116,7 +118,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30",
           }}
           title={{
-            text: "Velocidad",
+            text: tr("vehicleDetail.sections.telemetry.speed", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
@@ -131,7 +133,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30",
           }}
           title={{
-            text: "RPM",
+            text: tr("vehicleDetail.sections.telemetry.rpm", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
@@ -147,7 +149,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
           }}
           title={{
-            text: "Bateria",
+            text: tr("vehicleDetail.sections.telemetry.battery", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
@@ -163,7 +165,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30",
           }}
           title={{
-            text: "Temp. motor",
+            text: tr("vehicleDetail.sections.telemetry.engineTemp", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
@@ -178,7 +180,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30",
           }}
           title={{
-            text: "Ubicación",
+            text: tr("vehicleDetail.sections.telemetry.location", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
@@ -197,11 +199,11 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
               "text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30",
           }}
           title={{
-            text: "Intervalo de transmisión:",
+            text: tr("vehicleDetail.sections.telemetry.transmissionInterval", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
-            text: "Cada 30 segundos",
+            text: tr("vehicleDetail.sections.telemetry.every30Seconds", dict),
           }}
           variant="horizontal"
         />

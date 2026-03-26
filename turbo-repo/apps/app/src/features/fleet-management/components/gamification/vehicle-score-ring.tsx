@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -42,6 +43,7 @@ export default function VehicleScoreRing({
   level,
   dict,
 }: VehicleScoreRingProps) {
+  const gradientId = useId();
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
@@ -65,7 +67,7 @@ export default function VehicleScoreRing({
             cy="50"
             r="45"
             fill="none"
-            stroke="url(#scoreGradient)"
+            stroke={`url(#${gradientId})`}
             strokeWidth="8"
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -74,7 +76,7 @@ export default function VehicleScoreRing({
           />
           <defs>
             <linearGradient
-              id="scoreGradient"
+              id={gradientId}
               x1="0%"
               y1="0%"
               x2="100%"

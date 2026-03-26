@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS miot_driver;
 
 CREATE TABLE miot_driver.rd_drivers (
     id              BIGSERIAL PRIMARY KEY,
-    tenant_id       BIGINT        NOT NULL REFERENCES miot_core.tenants(id),
+    tenant_id       BIGINT        REFERENCES miot_core.tenants(id),
     client_id       VARCHAR(128)  NOT NULL,
     entity_id       UUID          NOT NULL DEFAULT gen_random_uuid(),
     external_id     VARCHAR(255)  NOT NULL,

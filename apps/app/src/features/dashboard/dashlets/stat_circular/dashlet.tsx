@@ -1,6 +1,10 @@
 "use client";
 
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useMemo } from "react";
+import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
+import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
+import { usePgrestRows } from "../common/use-pgrest-rows";
 
 // ============================================================================
 // Configuration Types
@@ -8,16 +12,27 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 
 export interface DashletConfig {
   title: string;
-  value: number;
-  maxValue: number;
+  value: string;
+  maxValue: string;
   unit: string;
+  dataMode: "static" | "pgrest";
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
+  dataSourceId?: string;
+  dataProvider?: DataProviderEntry[];
 }
 
 export const defaultConfig: DashletConfig = {
   title: "Storage Used",
-  value: 67,
-  maxValue: 100,
+  value: "67",
+  maxValue: "100",
   unit: "GB",
+  dataMode: "static",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
+  dataProvider: [],
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -42,14 +57,55 @@ function getStrokeColor(percentage: number): string {
   return "stroke-red-500";
 }
 
+const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
+
 /**
  * Circular Progress Card - Donut chart style
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { title, value, maxValue, unit } = config;
+  const {
+    dataMode = defaultConfig.dataMode,
+    pgrestFunctionName = "",
+    pgrestParams = [],
+    pgrestHttpMethod = "POST",
+    dataSourceId,
+    dataProvider = EMPTY_DATA_PROVIDER,
+  } = config;
 
-  const rawPercentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
+  // Coerce to string for backwards compatibility with old numeric configs
+  const title = String(config.title ?? defaultConfig.title);
+  const value = String(config.value ?? defaultConfig.value);
+  const maxValue = String(config.maxValue ?? defaultConfig.maxValue);
+  const unit = String(config.unit ?? defaultConfig.unit);
+
+  // ── PGREST data fetching ──────────────────────────────────────────────────
+  const {
+    rows: pgrestRows,
+    loading,
+    fetchError,
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
+
+  // ── Build template context ────────────────────────────────────────────────
+  const templateContext = useMemo(() => {
+    const dpContext = buildDataProviderContext(dataProvider);
+    if (dataMode === "pgrest" && pgrestRows.length > 0) {
+      const firstRow = pgrestRows[0];
+      return { ...dpContext, row: firstRow, ...firstRow };
+    }
+    return dpContext;
+  }, [dataProvider, dataMode, pgrestRows]);
+
+  // ── Resolve handlebars templates ──────────────────────────────────────────
+  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
+  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
+  const compiledMaxValue = useMemo(() => resolveHandlebarsField(maxValue, templateContext), [maxValue, templateContext]);
+  const compiledUnit = useMemo(() => resolveHandlebarsField(unit, templateContext), [unit, templateContext]);
+
+  const numericValue = Number(compiledValue) || 0;
+  const numericMaxValue = Number(compiledMaxValue) || 0;
+
+  const rawPercentage = numericMaxValue > 0 ? (numericValue / numericMaxValue) * 100 : 0;
   const percentage = Math.min(100, Math.max(0, rawPercentage));
   const size = 100;
   const strokeWidth = 8;
@@ -58,10 +114,26 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const offset = circumference - (percentage / 100) * circumference;
   const color = getStrokeColor(percentage);
 
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <p className="text-sm text-red-500 dark:text-red-400">Error: {fetchError}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <p className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-        {title}
+        {compiledTitle}
       </p>
 
       {/* Circular gauge */}
@@ -90,14 +162,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xl font-bold text-gray-900 dark:text-white">
-            {value}
+            {compiledValue}
           </span>
-          <span className="text-xs text-gray-500">{unit}</span>
+          <span className="text-xs text-gray-500">{compiledUnit}</span>
         </div>
       </div>
 
       <p className="mt-2 text-xs text-gray-400">
-        of {maxValue} {unit}
+        of {compiledMaxValue} {compiledUnit}
       </p>
     </div>
   );

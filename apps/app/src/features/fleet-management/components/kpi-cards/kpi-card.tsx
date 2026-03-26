@@ -20,11 +20,11 @@ export default function KpiCard({ kpi, dict }: KpiCardProps) {
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex flex-col">
-        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-          {kpi.value}
-        </span>
         <span className="text-xs text-gray-500 dark:text-gray-400">
           {tr(`kpi.${kpi.labelKey}`, dict)}
+        </span>
+        <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          {kpi.value}
         </span>
       </div>
     </div>

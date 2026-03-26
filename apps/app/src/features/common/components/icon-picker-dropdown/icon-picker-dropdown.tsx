@@ -68,7 +68,7 @@ export function IconPickerDropdown<T extends string = string>({
         createPortal(
           <div
             data-iconpicker-portal
-            className="no-drag fixed z-9999 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-30"
+            className="no-drag fixed z-[9999] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-30"
             style={{ top: position.top, left: position.left }}
           >
             {options.map((iconOpt) => {

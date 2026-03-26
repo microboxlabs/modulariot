@@ -10,6 +10,8 @@ export interface Vehicle {
   status: VehicleStatus;
   driver: string;
   lastLocation: string;
+  brand: string;
+  transportist: string;
   fuelLevel: number;
   nextMaintenance: string;
   kmTraveled: number;

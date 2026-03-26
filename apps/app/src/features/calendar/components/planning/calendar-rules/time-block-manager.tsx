@@ -113,7 +113,7 @@ function PortalDatepicker({
         createPortal(
           <div
             data-datepicker-portal
-            className="fixed z-9999"
+            className="fixed z-[9999]"
             style={{ top: position.top, left: position.left }}
           >
             <Datepicker

@@ -1,6 +1,6 @@
 import { ComponentProps } from "react";
 
-export default function HomeIcon(props: ComponentProps<"svg">) {
+export default function HomeIcon(props: Readonly<ComponentProps<"svg">>) {
   return (
     <svg
       className="w-6 h-6 text-gray-800 dark:text-white"

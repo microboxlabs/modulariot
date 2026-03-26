@@ -1,85 +1,397 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<model name="acme:contentModel" xmlns="http://www.alfresco.org/model/dictionary/1.0">
+<model name="miot:resourceDirectory" xmlns="http://www.alfresco.org/model/dictionary/1.0">
 
-    <!-- Optional meta-data about the model -->
-    <description>Sample Document Model</description>
-    <author>My Name</author>
+    <description>ModularIoT Resource Directory Content Model</description>
+    <author>MicroBoxLabs</author>
     <version>1.0</version>
 
     <imports>
-        <!-- Import Alfresco Dictionary Definitions -->
         <import uri="http://www.alfresco.org/model/dictionary/1.0" prefix="d"/>
-        <!-- Import Alfresco Content Domain Model Definitions -->
         <import uri="http://www.alfresco.org/model/content/1.0" prefix="cm"/>
-        <!-- Import Alfresco System Model Definitions -->
         <import uri="http://www.alfresco.org/model/system/1.0" prefix="sys"/>
     </imports>
 
-    <!-- Custom namespace for the ACME company -->
     <namespaces>
-        <namespace uri="http://www.acme.org/model/content/1.0" prefix="acme"/>
+        <namespace uri="http://www.microboxlabs.com/model/miot/1.0" prefix="miot"/>
     </namespaces>
 
     <constraints>
-        <constraint name="acme:securityClassificationOptions" type="LIST">
+        <constraint name="miot:entityStatusOptions" type="LIST">
             <parameter name="allowedValues">
                 <list>
-                    <value></value>
-                    <!-- Empty for default search-->
-                    <value>Public</value>
-                    <value>Client Confidential</value>
-                    <value>Company Confidential</value>
-                    <value>Strictly Confidential</value>
+                    <value>ACTIVE</value>
+                    <value>SUSPENDED</value>
+                    <value>DEACTIVATED</value>
+                </list>
+            </parameter>
+        </constraint>
+        <constraint name="miot:entityTypeOptions" type="LIST">
+            <parameter name="allowedValues">
+                <list>
+                    <value>DRIVER</value>
+                    <value>TRUCK</value>
+                    <value>TRAILER</value>
+                    <value>CARRIER</value>
                 </list>
             </parameter>
         </constraint>
     </constraints>
 
-    <!-- ===============================================================================================================
-        Constraints, Types, and Aspects go here...
-        -->
+    <!-- ================================================================
+         TYPES — Entity folder types (each entity IS a folder node)
+         ================================================================ -->
 
     <types>
-        <!--
-            ACME Enterprise-wide Document root type.
-            All other custom document types would extend this one.
-        -->
-        <type name="acme:document">
-            <title>Sample Document Type</title>
-            <parent>cm:content</parent>
+
+        <!-- Base type for all directory entities -->
+        <type name="miot:resourceEntity">
+            <title>Resource Entity</title>
+            <description>Base type for all resource directory entities</description>
+            <parent>cm:folder</parent>
             <properties>
-                <property name="acme:documentId">
-                    <title>Document Identification Number</title>
+                <property name="miot:entityId">
+                    <title>Entity UUID</title>
+                    <description>Cross-system correlation ID (PostgreSQL entity_id)</description>
+                    <type>d:text</type>
+                    <mandatory>true</mandatory>
+                    <index enabled="true">
+                        <tokenised>false</tokenised>
+                    </index>
+                </property>
+                <property name="miot:externalId">
+                    <title>External ID</title>
+                    <description>Source system identifier</description>
+                    <type>d:text</type>
+                    <index enabled="true">
+                        <tokenised>false</tokenised>
+                    </index>
+                </property>
+                <property name="miot:clientId">
+                    <title>Client ID</title>
+                    <description>Tenant isolation key</description>
+                    <type>d:text</type>
+                    <mandatory>true</mandatory>
+                    <index enabled="true">
+                        <tokenised>false</tokenised>
+                    </index>
+                </property>
+                <property name="miot:entityStatus">
+                    <title>Status</title>
+                    <type>d:text</type>
+                    <default>ACTIVE</default>
+                    <constraints>
+                        <constraint ref="miot:entityStatusOptions"/>
+                    </constraints>
+                </property>
+                <property name="miot:sourceSystem">
+                    <title>Source System</title>
+                    <description>Origin system (e.g. alerce, api, manual)</description>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:licensePlate">
+                    <title>License Plate</title>
+                    <type>d:text</type>
+                    <index enabled="true">
+                        <tokenised>false</tokenised>
+                    </index>
+                </property>
+                <property name="miot:maxWeight">
+                    <title>Max Weight (kg)</title>
+                    <type>d:double</type>
+                </property>
+            </properties>
+        </type>
+
+        <!-- Vehicle (truck) entity -->
+        <type name="miot:vehicle">
+            <title>Vehicle</title>
+            <description>Fleet vehicle (truck)</description>
+            <parent>miot:resourceEntity</parent>
+            <properties>
+                <property name="miot:vin">
+                    <title>VIN</title>
+                    <type>d:text</type>
+                    <index enabled="true">
+                        <tokenised>false</tokenised>
+                    </index>
+                </property>
+                <property name="miot:vehicleType">
+                    <title>Vehicle Type</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:volume">
+                    <title>Volume (m³)</title>
+                    <type>d:double</type>
+                </property>
+            </properties>
+        </type>
+
+        <!-- Trailer entity -->
+        <type name="miot:trailer">
+            <title>Trailer</title>
+            <description>Fleet trailer</description>
+            <parent>miot:resourceEntity</parent>
+            <properties>
+                <property name="miot:trailerType">
+                    <title>Trailer Type</title>
                     <type>d:text</type>
                 </property>
             </properties>
-            <mandatory-aspects>
-                <aspect>acme:securityClassified</aspect>
-            </mandatory-aspects>
         </type>
-    </types>
 
-    <aspects>
-        <!-- A document can have security classification applied and
-             faceted search is specifically enabled for best performance and we change
-             default index config to not tokenize the value. -->
-        <aspect name="acme:securityClassified">
-            <title>ACME Security Classified</title>
-            <description>Content has been security classified</description>
+        <!-- Driver entity -->
+        <type name="miot:driver">
+            <title>Driver</title>
+            <description>Driver/operator</description>
+            <parent>miot:resourceEntity</parent>
             <properties>
-                <property name="acme:securityClassification">
+                <property name="miot:firstName">
+                    <title>First Name</title>
+                    <type>d:text</type>
+                    <mandatory>true</mandatory>
+                </property>
+                <property name="miot:lastName">
+                    <title>Last Name</title>
+                    <type>d:text</type>
+                    <mandatory>true</mandatory>
+                </property>
+                <property name="miot:rut">
+                    <title>RUT</title>
+                    <description>Chilean national ID</description>
                     <type>d:text</type>
                     <index enabled="true">
-                        <atomic>true</atomic>
-                        <stored>false</stored>
                         <tokenised>false</tokenised>
                     </index>
-                    <constraints>
-                        <constraint ref="acme:securityClassificationOptions"/>
-                    </constraints>
+                </property>
+                <property name="miot:licenseNumber">
+                    <title>License Number</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:licenseCategory">
+                    <title>License Category</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:licenseExpires">
+                    <title>License Expiry Date</title>
+                    <type>d:datetime</type>
+                </property>
+            </properties>
+        </type>
+
+        <!-- Carrier entity -->
+        <type name="miot:carrier">
+            <title>Carrier</title>
+            <description>Transport carrier company</description>
+            <parent>miot:resourceEntity</parent>
+            <properties>
+                <property name="miot:carrierName">
+                    <title>Carrier Name</title>
+                    <type>d:text</type>
+                    <mandatory>true</mandatory>
+                </property>
+                <property name="miot:transportLicense">
+                    <title>Transport License</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:transportLicenseExpires">
+                    <title>Transport License Expiry</title>
+                    <type>d:datetime</type>
+                </property>
+            </properties>
+        </type>
+
+        <!-- ================================================================
+             DOCUMENT TYPES — child content nodes inside entity folders
+             ================================================================ -->
+
+        <type name="miot:driverLicense">
+            <title>Driver License Document</title>
+            <parent>cm:content</parent>
+            <properties>
+                <property name="miot:docLicenseCategory">
+                    <title>License Category</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:issuingAuthority">
+                    <title>Issuing Authority</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:expiryDate">
+                    <title>Expiry Date</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:licenseStatus">
+                    <title>License Status</title>
+                    <type>d:text</type>
+                </property>
+            </properties>
+        </type>
+
+        <type name="miot:medicalExam">
+            <title>Medical Exam</title>
+            <parent>cm:content</parent>
+            <properties>
+                <property name="miot:examType">
+                    <title>Exam Type</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:examDate">
+                    <title>Exam Date</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:validUntil">
+                    <title>Valid Until</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:examResult">
+                    <title>Result</title>
+                    <type>d:text</type>
+                </property>
+            </properties>
+        </type>
+
+        <type name="miot:certification">
+            <title>Certification</title>
+            <description>ADR, forklift, or other professional certification</description>
+            <parent>cm:content</parent>
+            <properties>
+                <property name="miot:certType">
+                    <title>Certification Type</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:certExpiry">
+                    <title>Certification Expiry</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:issuedBy">
+                    <title>Issued By</title>
+                    <type>d:text</type>
+                </property>
+            </properties>
+        </type>
+
+        <type name="miot:insurancePolicy">
+            <title>Insurance Policy</title>
+            <parent>cm:content</parent>
+            <properties>
+                <property name="miot:policyNumber">
+                    <title>Policy Number</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:insurer">
+                    <title>Insurer</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:coverage">
+                    <title>Coverage</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:policyExpiry">
+                    <title>Policy Expiry</title>
+                    <type>d:datetime</type>
+                </property>
+            </properties>
+        </type>
+
+        <type name="miot:inspectionReport">
+            <title>Inspection Report</title>
+            <parent>cm:content</parent>
+            <properties>
+                <property name="miot:inspectionType">
+                    <title>Inspection Type</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:inspectionDate">
+                    <title>Inspection Date</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:inspectionResult">
+                    <title>Result</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:nextDue">
+                    <title>Next Due</title>
+                    <type>d:datetime</type>
+                </property>
+            </properties>
+        </type>
+
+        <type name="miot:performanceEval">
+            <title>Performance Evaluation</title>
+            <parent>cm:content</parent>
+            <properties>
+                <property name="miot:evalPeriod">
+                    <title>Evaluation Period</title>
+                    <type>d:text</type>
+                </property>
+                <property name="miot:overallRating">
+                    <title>Overall Rating</title>
+                    <type>d:int</type>
+                </property>
+                <property name="miot:evaluator">
+                    <title>Evaluator</title>
+                    <type>d:text</type>
+                </property>
+            </properties>
+        </type>
+
+    </types>
+
+    <!-- ================================================================
+         ASPECTS — shared cross-entity concerns (applied to any entity)
+         ================================================================ -->
+
+    <aspects>
+
+        <!-- KPI scoring -->
+        <aspect name="miot:scorable">
+            <title>Scorable</title>
+            <description>Enables KPI scoring on any entity</description>
+            <properties>
+                <property name="miot:compositeScore">
+                    <title>Composite Score</title>
+                    <description>Weighted average of all dimension scores (0-100)</description>
+                    <type>d:int</type>
+                </property>
+                <property name="miot:lastScoreUpdate">
+                    <title>Last Score Update</title>
+                    <type>d:datetime</type>
                 </property>
             </properties>
         </aspect>
+
+        <!-- Insurance tracking -->
+        <aspect name="miot:insurable">
+            <title>Insurable</title>
+            <description>Insurance tracking for vehicles and trailers</description>
+            <properties>
+                <property name="miot:cargoInsuranceExpires">
+                    <title>Cargo Insurance Expiry</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:liabilityInsuranceExpires">
+                    <title>Liability Insurance Expiry</title>
+                    <type>d:datetime</type>
+                </property>
+            </properties>
+        </aspect>
+
+        <!-- Technical inspection tracking -->
+        <aspect name="miot:inspectable">
+            <title>Inspectable</title>
+            <description>Technical inspection tracking for vehicles and trailers</description>
+            <properties>
+                <property name="miot:technicalInspectionExpires">
+                    <title>Technical Inspection Expiry</title>
+                    <type>d:datetime</type>
+                </property>
+                <property name="miot:tachographRevision">
+                    <title>Tachograph Revision Date</title>
+                    <type>d:datetime</type>
+                </property>
+            </properties>
+        </aspect>
+
     </aspects>
 
 </model>

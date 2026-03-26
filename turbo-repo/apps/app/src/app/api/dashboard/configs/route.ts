@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const transformed = {
       data: (result.data ?? []).map((item) => ({
         slug: item.slug,
-        name: (item.config as Record<string, unknown>)?.name as string ?? item.slug,
+        name: (item.config?.name as string) ?? item.slug,
       })),
     };
 

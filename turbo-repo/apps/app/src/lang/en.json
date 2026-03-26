@@ -2593,7 +2593,7 @@
           "hardBraking": "Hard braking event detected",
           "routeCompleted": "Route completed successfully",
           "incidentsThisMonth": "Incidents This Month",
-          "hoursAgo": "{{count}}h ago"
+          "hoursAgo": "{count}h ago"
         },
         "usage": {
           "title": "Fleet Usage",

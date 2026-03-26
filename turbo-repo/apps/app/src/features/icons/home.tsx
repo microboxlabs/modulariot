@@ -1,4 +1,6 @@
-export default function HomeIcon() {
+import { ComponentProps } from "react";
+
+export default function HomeIcon(props: ComponentProps<"svg">) {
   return (
     <svg
       className="w-6 h-6 text-gray-800 dark:text-white"
@@ -8,6 +10,7 @@ export default function HomeIcon() {
       height="24"
       fill="currentColor"
       viewBox="0 0 24 24"
+      {...props}
     >
       <path
         fillRule="evenodd"

@@ -126,7 +126,10 @@ public class DriverService {
                     String oldStatus = driver.status;
                     driver.status = req.status();
                     driver.updatedAt = Instant.now();
-                    if ("DEACTIVATED".equals(req.status())) driver.active = false;
+                    if ("INACTIVE".equals(req.status())) {
+                        driver.active = false;
+                        driver.deactivatedAt = Instant.now();
+                    }
 
                     return eventService.record(clientId, EntityType.DRIVER, driver.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,

@@ -6,12 +6,14 @@ export default function LoadableLabel({
   isLoading = false,
   icon,
   className = "",
+  showEquals = true,
 }: {
   readonly label: string;
   readonly value: string | React.ReactNode;
   readonly isLoading?: boolean;
   readonly icon?: React.ReactNode;
   readonly className?: string;
+  readonly showEquals?: boolean; // New prop to control whether to show ":" or "="
 }) {
   return (
     <span
@@ -21,15 +23,16 @@ export default function LoadableLabel({
       }
     >
       {icon && (
-        <div className="flex items-center mr-1.5 text-gray-400">{icon}</div>
+        <div className="flex items-center mr-1 text-gray-400">{icon}</div>
       )}
       <span>{label}</span>
+      {showEquals && <span className="mr-1">:</span>}
       {isLoading ? (
         <div className="bg-gray-500 text-gray-500 animate-pulse whitespace-nowrap rounded-full flex-grow w-full">
           Loading...
         </div>
       ) : (
-        <span className="text-gray-800 dark:text-gray-200 flex-grow whitespace-normal font-normal">
+        <span className="text-gray-800 dark:text-gray-200 flex-grow text-left whitespace-normal font-normal">
           {value}
         </span>
       )}

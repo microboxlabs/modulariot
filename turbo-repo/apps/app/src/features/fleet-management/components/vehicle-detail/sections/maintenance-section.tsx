@@ -57,7 +57,7 @@ export default function MaintenanceSection({
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{
-            text: "Faltan 7,600 km (proyección: 20 días)",
+            text: tr("vehicleDetail.sections.maintenance.kmRemaining", dict, { km: "7,600", days: 20 }),
             className: "text-gray-500 dark:text-gray-300/60",
           }}
           variant="vertical"
@@ -68,7 +68,7 @@ export default function MaintenanceSection({
           }}
           value={{ text: "25 Ene 2026" }}
           description={{
-            text: "A los 45,000 km",
+            text: tr("vehicleDetail.sections.maintenance.atKm", dict, { km: "45,000" }),
           }}
           variant="vertical"
         />
@@ -100,20 +100,20 @@ export default function MaintenanceSection({
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{
-            text: "Total de servicios completados",
+            text: tr("vehicleDetail.sections.maintenance.maintenanceCountDesc", dict),
           }}
           variant="vertical"
         />
         <KpiStat
           title={{
-            text: "Km desde ultima",
+            text: tr("vehicleDetail.sections.maintenance.kmSinceService", dict),
           }}
           value={{
             text: "2.400 km",
             className: "text-green-500 dark:text-green-400",
           }}
           description={{
-            text: "24% del intervalo (10k)",
+            text: tr("vehicleDetail.sections.maintenance.intervalPercent", dict, { percent: 24, interval: "10k" }),
           }}
           variant="vertical"
         />
@@ -121,8 +121,8 @@ export default function MaintenanceSection({
       <div className="mt-3">
         <MessageBanner
           icon={HiOutlineCheckCircle}
-          title="Mantención al día"
-          description="El vehículo cumple con el plan de mantención preventiva."
+          title={tr("vehicleDetail.sections.maintenance.upToDate", dict)}
+          description={tr("vehicleDetail.sections.maintenance.upToDateDesc", dict)}
           variant="success"
         />
       </div>

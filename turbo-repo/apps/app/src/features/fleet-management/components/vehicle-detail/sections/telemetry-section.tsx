@@ -27,7 +27,7 @@ interface TelemetrySectionProps {
 
 export default function TelemetrySection({ dict }: TelemetrySectionProps) {
   const isConnected = true;
-  const batteryPercentage = 85;
+  const signalStrength = 85;
 
   return (
     <ExpandableSection
@@ -37,7 +37,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
       badge={
         <ConnectionStatusBadge
           isConnected={isConnected}
-          signalStrength={batteryPercentage}
+          signalStrength={signalStrength}
           connectedLabel={tr("common.connected", dict)}
           disconnectedLabel={tr("common.disconnected", dict)}
         />
@@ -56,7 +56,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
           }}
           value={{
             text: "47.000 km",
-            className: "text-blue-600 dark:text-blue-400 bold",
+            className: "text-blue-600 dark:text-blue-400 font-bold",
           }}
           className="bg-blue-100/40 dark:bg-blue-600/10 border border-blue-500/50"
           variant="horizontal"
@@ -89,7 +89,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
             }}
             value={{
               text: tr("vehicleDetail.sections.telemetry.onRoute", dict),
-              className: "text-green-500 dark:text-green-400 bold",
+              className: "text-green-500 dark:text-green-400 font-bold",
             }}
             variant="horizontal"
           />
@@ -107,7 +107,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
           }}
           value={{
             text: tr("vehicleDetail.sections.telemetry.running", dict),
-            className: "text-green-500 dark:text-green-400 bold",
+            className: "text-green-500 dark:text-green-400 font-bold",
           }}
           variant="horizontal"
         />
@@ -154,7 +154,7 @@ export default function TelemetrySection({ dict }: TelemetrySectionProps) {
           }}
           value={{
             text: "80%",
-            className: "text-green-500 dark:text-green-400 bold",
+            className: "text-green-500 dark:text-green-400 font-bold",
           }}
           variant="horizontal"
         />

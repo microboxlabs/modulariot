@@ -2,7 +2,7 @@
 
 CREATE TABLE miot_fleet.rd_trucks (
     id              BIGSERIAL PRIMARY KEY,
-    tenant_id       BIGINT        NOT NULL REFERENCES miot_core.tenants(id),
+    tenant_id       BIGINT        REFERENCES miot_core.tenants(id),
     client_id       VARCHAR(128)  NOT NULL,
     entity_id       UUID          NOT NULL DEFAULT gen_random_uuid(),
     external_id     VARCHAR(255)  NOT NULL,
@@ -28,7 +28,7 @@ CREATE INDEX idx_trucks_client ON miot_fleet.rd_trucks(client_id);
 
 CREATE TABLE miot_fleet.rd_trailers (
     id              BIGSERIAL PRIMARY KEY,
-    tenant_id       BIGINT        NOT NULL REFERENCES miot_core.tenants(id),
+    tenant_id       BIGINT        REFERENCES miot_core.tenants(id),
     client_id       VARCHAR(128)  NOT NULL,
     entity_id       UUID          NOT NULL DEFAULT gen_random_uuid(),
     external_id     VARCHAR(255)  NOT NULL,
@@ -49,7 +49,7 @@ CREATE INDEX idx_trailers_tenant ON miot_fleet.rd_trailers(tenant_id);
 
 CREATE TABLE miot_fleet.rd_carriers (
     id              BIGSERIAL PRIMARY KEY,
-    tenant_id       BIGINT        NOT NULL REFERENCES miot_core.tenants(id),
+    tenant_id       BIGINT        REFERENCES miot_core.tenants(id),
     client_id       VARCHAR(128)  NOT NULL,
     entity_id       UUID          NOT NULL DEFAULT gen_random_uuid(),
     external_id     VARCHAR(255)  NOT NULL,

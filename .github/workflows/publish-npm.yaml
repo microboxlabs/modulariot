@@ -32,6 +32,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org
           cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
 
       - name: Upgrade npm for trusted publishing (requires >= 11.5.1)
         run: npm install -g npm@latest
@@ -40,24 +41,30 @@ jobs:
         id: cache-modules
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
+          path: turbo-repo/node_modules
+          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
 
       - name: Install dependencies
         if: steps.cache-modules.outputs.cache-hit != 'true'
         run: npm ci
+        working-directory: turbo-repo
 
       - name: Build package
         run: npx turbo run build --filter=@microboxlabs/miot-calendar-client
+        working-directory: turbo-repo
 
       - name: Run lint
         run: npx turbo run lint --filter=@microboxlabs/miot-calendar-client
+        working-directory: turbo-repo
 
       - name: Run type check
         run: npx turbo run check-types --filter=@microboxlabs/miot-calendar-client
+        working-directory: turbo-repo
 
       - name: Run tests
         run: npx turbo run test --filter=@microboxlabs/miot-calendar-client
+        working-directory: turbo-repo
 
       - name: Publish to npm
         run: npm publish --workspace=packages/miot-calendar-client --access public
+        working-directory: turbo-repo

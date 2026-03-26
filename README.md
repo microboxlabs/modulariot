@@ -1,128 +1,52 @@
 # ModularIoT
 
-A modern, scalable IoT platform built with a microservices architecture.
-
-## What is ModularIoT?
-
-ModularIoT is a comprehensive IoT platform that provides:
-
-- **Data Ingestion**: High-performance data ingestion service built with Quarkus
-- **Web Admin**: Next.js-based administration interface
-- **BFF (Backend for Frontend)**: Node.js API layer for web clients
-- **Device Simulation**: CLI tools for testing and development
-- **Shared Libraries**: Reusable components and utilities
+Open-source platform for fleet and asset monitoring. Integrates data from hardware providers, monitors operations in real time, detects anomalies, and coordinates corrective actions.
 
 ## Architecture
 
-This monorepo uses [Turborepo](https://turbo.build/repo) to manage multiple front-end applications and shared packages.
+Three workspaces, one monorepo:
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web Admin     │    │    BFF Node      │    │ Ingest Quarkus  │
-│   (Next.js)     │◄──►│   (Fastify)      │◄──►│   (Java)        │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌──────────────────┐
-                    │   PostgreSQL     │
-                    │   (Supabase)     │
-                    └──────────────────┘
-```
+| Workspace | Role | Stack |
+|-----------|------|-------|
+| `quarkus-srv/` | **Integration** — data ingestion, real-time monitoring, anomaly detection | Quarkus, Java 21, PostgreSQL |
+| `ecm-srv/` | **Coordinator** — workflows, document management, compliance | Alfresco ECM |
+| `turbo-repo/` | **Frontend** — dashboards, admin UI, documentation | Next.js, TypeScript |
 
-## Quick Start
+## Getting Started
 
-1.  **Prerequisites**:
-   - Java 17+ and Maven
-   - Docker and Docker Compose
-   - [Bun](https://bun.sh/)
+See the [documentation site](turbo-repo/apps/docs/) for guides and API reference.
 
-2.  **Clone and install**:
-   ```bash
-   git clone <repository-url>
-   cd modulariot
-   bun install
-   ```
-
-3.  **Start services**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   # Start all services in development mode
-   turbo run dev
-   ```
-
-4. **Access the applications**:
-   Each Next.js application will run on a different port. Check the terminal output after running `bun dev` to see the specific ports for `docs`, `web`, `web-admin`, and `web-site`.
-
-## Development
-
-### Prerequisites
-
-- Java 17+
-- Maven 3.8+
-- [Bun](https://bun.sh/)
-
-### Project Structure
-
-```
-modulariot/
-├── apps/              # Runnable applications
-│   ├── web-admin/     # Next.js admin interface
-│   ├── bff-node/      # Node.js BFF
-│   ├── ingest-quarkus/# Quarkus ingestion service
-│   └── dummy-simulator/# IoT device simulator
-├── packages/          # Shared libraries
-│   ├── ui/           # UI components
-│   ├── db/           # Database schema and client
-│   ├── auth/         # Authentication utilities
-│   ├── contracts/    # API contracts
-│   └── tsconfig/     # TypeScript configuration
-├── infra/            # Infrastructure as code
-├── scripts/          # Utility scripts
-└── tests/            # Integration and E2E tests
-```
-
-### Available Scripts
-
-Run these scripts from the root of the monorepo.
+### Frontend
 
 ```bash
-# Start all services in development mode
-turbo run dev
-
-# Build all packages and applications
-turbo run build
-
-# Lint all code
-turbo run lint
-
-# Format all code
-turbo run format
-
-# Check types
-turbo run check-types
+cd turbo-repo
+npm install
+npx turbo dev
 ```
 
-# Database
-turbo run db:migrate       # Run database migrations
-turbo run db:seed          # Seed database with sample data
-turbo run db:studio        # Open Prisma Studio
+### Backend
 
-# Individual service commands
-turbo run --filter web-admin dev
-turbo run --filter bff-node dev
-turbo run --filter ingest-quarkus dev
+```bash
+cd quarkus-srv
+./mvnw quarkus:dev -pl miot-cli
+```
+
+### Coordinator
+
+```bash
+cd ecm-srv
+# setup instructions TBD
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development setup and contribution guidelines.
+See [CONTRIBUTING.md](turbo-repo/CONTRIBUTING.md).
+
+## Community
+
+- [GitHub Issues](https://github.com/microboxlabs/modulariot/issues) — bug reports and feature requests
+- [GitHub Discussions](https://github.com/microboxlabs/modulariot/discussions) — questions and ideas
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
-
-## Code of Conduct
-
-This project adheres to the Contributor Covenant [Code of Conduct](./CODE_OF_CONDUCT.md). 
+[Apache License 2.0](LICENSE)

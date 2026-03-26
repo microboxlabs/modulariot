@@ -23,6 +23,20 @@ function getScoreGradient(score: number): string {
   return "from-red-400 to-red-600";
 }
 
+function getGradientStartColor(score: number): string {
+  if (score >= 80) return "#4ade80";
+  if (score >= 60) return "#facc15";
+  if (score >= 40) return "#fb923c";
+  return "#f87171";
+}
+
+function getGradientEndColor(score: number): string {
+  if (score >= 80) return "#059669";
+  if (score >= 60) return "#d97706";
+  if (score >= 40) return "#ea580c";
+  return "#dc2626";
+}
+
 export default function VehicleScoreRing({
   score,
   level,
@@ -69,27 +83,11 @@ export default function VehicleScoreRing({
               <stop
                 offset="0%"
                 className={`${getScoreGradient(score).split(" ")[0].replace("from-", "stop-")}`}
-                stopColor={
-                  score >= 80
-                    ? "#4ade80"
-                    : score >= 60
-                      ? "#facc15"
-                      : score >= 40
-                        ? "#fb923c"
-                        : "#f87171"
-                }
+                stopColor={getGradientStartColor(score)}
               />
               <stop
                 offset="100%"
-                stopColor={
-                  score >= 80
-                    ? "#059669"
-                    : score >= 60
-                      ? "#d97706"
-                      : score >= 40
-                        ? "#ea580c"
-                        : "#dc2626"
-                }
+                stopColor={getGradientEndColor(score)}
               />
             </linearGradient>
           </defs>

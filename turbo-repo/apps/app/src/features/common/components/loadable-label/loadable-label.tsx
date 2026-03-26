@@ -32,7 +32,7 @@ export default function LoadableLabel({
           Loading...
         </div>
       ) : (
-        <span className="text-gray-800 dark:text-gray-200 flex-grow whitespace-normal font-normal">
+        <span className="text-gray-800 dark:text-gray-200 flex-grow text-left whitespace-normal font-normal">
           {value}
         </span>
       )}

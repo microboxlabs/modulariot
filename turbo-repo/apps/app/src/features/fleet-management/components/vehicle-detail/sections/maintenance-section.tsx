@@ -57,7 +57,7 @@ export default function MaintenanceSection({
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{
-            text: tr("vehicleDetail.sections.maintenance.kmRemaining", dict, { km: "7,600", days: 20 }),
+            text: tr("vehicleDetail.sections.maintenance.kmRemaining", dict, { km: "7,600", days: "20" }),
             className: "text-gray-500 dark:text-gray-300/60",
           }}
           variant="vertical"

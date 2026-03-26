@@ -2549,7 +2549,12 @@
           "maintenanceCount": "Maintenances Performed",
           "maintenanceCountDesc": "Total completed services",
           "kmSinceService": "Km Since Maintenance",
-          "kmSinceServiceDesc": "Distance since last service"
+          "kmSinceServiceDesc": "Distance since last service",
+          "kmRemaining": "{{km}} km remaining (est: {{days}} days)",
+          "atKm": "At {{km}} km",
+          "intervalPercent": "{{percent}}% of interval ({{interval}})",
+          "upToDate": "Maintenance up to date",
+          "upToDateDesc": "The vehicle complies with the preventive maintenance plan."
         },
         "technicalHealth": {
           "title": "Technical Health",
@@ -2587,7 +2592,8 @@
           "description": "Recent alerts and incidents",
           "hardBraking": "Hard braking event detected",
           "routeCompleted": "Route completed successfully",
-          "incidentsThisMonth": "Incidents This Month"
+          "incidentsThisMonth": "Incidents This Month",
+          "hoursAgo": "{{count}}h ago"
         },
         "usage": {
           "title": "Fleet Usage",

@@ -2580,7 +2580,12 @@
           "maintenanceCount": "Mantenciones Realizadas",
           "maintenanceCountDesc": "Total de servicios completados",
           "kmSinceService": "Km Desde Mantención",
-          "kmSinceServiceDesc": "Recorrido desde último servicio"
+          "kmSinceServiceDesc": "Recorrido desde último servicio",
+          "kmRemaining": "Faltan {{km}} km (proyección: {{days}} días)",
+          "atKm": "A los {{km}} km",
+          "intervalPercent": "{{percent}}% del intervalo ({{interval}})",
+          "upToDate": "Mantención al día",
+          "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva."
         },
         "technicalHealth": {
           "title": "Salud Técnica",
@@ -2618,7 +2623,8 @@
           "description": "Alertas e incidentes recientes",
           "hardBraking": "Frenado brusco detectado",
           "routeCompleted": "Ruta completada exitosamente",
-          "incidentsThisMonth": "Incidentes Este Mes"
+          "incidentsThisMonth": "Incidentes Este Mes",
+          "hoursAgo": "Hace {{count}}h"
         },
         "usage": {
           "title": "Uso de Flota",

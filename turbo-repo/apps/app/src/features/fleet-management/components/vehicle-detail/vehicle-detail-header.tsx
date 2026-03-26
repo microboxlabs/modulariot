@@ -106,7 +106,7 @@ export default function VehicleDetailHeader({
           <button
             type="button"
             onClick={onPrevious}
-            disabled={!hasPrevious}
+            disabled={!onPrevious || !hasPrevious}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label={tr("fleetManagement.previous", dict)}
           >
@@ -115,7 +115,7 @@ export default function VehicleDetailHeader({
           <button
             type="button"
             onClick={onNext}
-            disabled={!hasNext}
+            disabled={!onNext || !hasNext}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label={tr("fleetManagement.next", dict)}
           >

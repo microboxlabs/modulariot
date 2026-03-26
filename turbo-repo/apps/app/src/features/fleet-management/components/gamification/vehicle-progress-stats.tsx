@@ -15,11 +15,12 @@ export default function VehicleProgressStats({
   dict,
 }: VehicleProgressStatsProps) {
   const xpProgress = gamification.xpToNextLevel
-    ? Math.min(100, (gamification.xp / gamification.xpToNextLevel) * 100)
+    ? Math.max(0, Math.min(100, (gamification.xp / gamification.xpToNextLevel) * 100))
     : 0;
   const kmProgress = gamification.weeklyKmGoal
-    ? Math.min(100, (gamification.weeklyKmProgress / gamification.weeklyKmGoal) * 100)
+    ? Math.max(0, Math.min(100, (gamification.weeklyKmProgress / gamification.weeklyKmGoal) * 100))
     : 0;
+  const xpRemaining = Math.max(0, gamification.xpToNextLevel - gamification.xp);
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,18 +64,16 @@ export default function VehicleProgressStats({
         <div className="relative h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 bg-linear-to-r from-purple-500 to-indigo-600 rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(xpProgress, 100)}%` }}
+            style={{ width: `${xpProgress}%` }}
           />
           {/* Animated shine effect */}
           <div
             className="absolute inset-y-0 w-1/4 bg-linear-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]"
-            style={{ left: `${Math.min(xpProgress, 100) - 25}%` }}
+            style={{ left: `${xpProgress - 25}%` }}
           />
         </div>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {Math.round(
-            gamification.xpToNextLevel - gamification.xp
-          ).toLocaleString()}{" "}
+          {Math.round(xpRemaining).toLocaleString()}{" "}
           XP {tr("gamification.toNextLevel", dict)}
         </p>
       </div>
@@ -97,7 +96,7 @@ export default function VehicleProgressStats({
                 ? "bg-linear-to-r from-green-500 to-emerald-600"
                 : "bg-linear-to-r from-blue-500 to-cyan-600"
             }`}
-            style={{ width: `${Math.min(kmProgress, 100)}%` }}
+            style={{ width: `${kmProgress}%` }}
           />
         </div>
         {kmProgress >= 100 && (

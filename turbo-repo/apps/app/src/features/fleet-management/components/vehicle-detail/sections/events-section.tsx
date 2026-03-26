@@ -30,7 +30,7 @@ export default function EventsSection({ dict }: EventsSectionProps) {
               </span>
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Hace 3h
+              {tr("vehicleDetail.sections.events.hoursAgo", dict, { count: 3 })}
             </span>
           </div>
           <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -41,7 +41,7 @@ export default function EventsSection({ dict }: EventsSectionProps) {
               </span>
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Hace 5h
+              {tr("vehicleDetail.sections.events.hoursAgo", dict, { count: 5 })}
             </span>
           </div>
         </div>

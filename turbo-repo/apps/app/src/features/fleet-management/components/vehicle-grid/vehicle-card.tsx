@@ -40,13 +40,12 @@ export default function VehicleCard({
     }
   };
 
-  return (
-    <button
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 cursor-pointer transition-colors hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-    >
+  const isInteractive = Boolean(onSelect);
+  const baseClasses = "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 transition-colors";
+  const interactiveClasses = "cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400";
+
+  const cardContent = (
+    <>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -104,6 +103,26 @@ export default function VehicleCard({
           </div>
         </>
       )}
-    </button>
+    </>
+  );
+
+  if (isInteractive) {
+    return (
+      <button
+        type="button"
+        tabIndex={0}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        className={`${baseClasses} ${interactiveClasses}`}
+      >
+        {cardContent}
+      </button>
+    );
+  }
+
+  return (
+    <div className={baseClasses}>
+      {cardContent}
+    </div>
   );
 }

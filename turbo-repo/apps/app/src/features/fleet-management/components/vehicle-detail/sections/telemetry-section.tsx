@@ -22,7 +22,6 @@ import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { ConnectionStatusBadge } from "@/features/common/components/connection-status-badge";
 import { GoPulse } from "react-icons/go";
 import { IoMdPin } from "react-icons/io";
-import { MdSpeed } from "react-icons/md";
 import { VehicleDetailData } from "../vehicle-detail-accordion";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
@@ -223,9 +222,9 @@ export default function TelemetrySection({ dict, data }: TelemetrySectionProps) 
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             {tr("vehicleDetail.sections.telemetry.installedDevices", dict)}
           </h4>
-          {data.telemetry.installedDevices.map((device, index) => (
+          {data.telemetry.installedDevices.map((device) => (
             <KpiStat
-              key={index}
+              key={device.name}
               icon={{
                 icon: (() => {
                   switch (device.icon) {

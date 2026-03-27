@@ -101,7 +101,7 @@ export default function EventsSection({ dict, data }: EventsSectionProps) {
       <div className="pt-4 max-h-[600px] overflow-y-auto">
         {data.events.map((event, index) => (
           <TimelineEvent
-            key={index}
+            key={event.title}
             {...event}
             urgency={event.urgency as EventUrgency}
             category={event.category as EventCategory}

@@ -5,8 +5,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { CircularProgress } from "@/features/common/components/circular-progress";
-import { ProgressBar } from "@/features/common/components/progress-bar";
-import { StatusIndicator } from "@/features/common/components/status-indicator";
 import MessageBanner from "@/features/common/components/message-banner/message-banner";
 import { GoAlert } from "react-icons/go";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";

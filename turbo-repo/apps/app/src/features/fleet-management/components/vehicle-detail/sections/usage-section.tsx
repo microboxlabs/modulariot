@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
 import { HiOutlineArrowPath } from "react-icons/hi2";
-import type { Vehicle, VehicleGamification } from "../../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";

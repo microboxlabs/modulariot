@@ -196,7 +196,7 @@ export default function TelemetrySection({ dict, data }: TelemetrySectionProps) 
               text: data.telemetry.location,
             }}
             description={{
-              text: "-33.4122, 70.5789",
+              text: `Lat: ${data.telemetry.locationCoords.lat}, Lng: ${data.telemetry.locationCoords.lng}`
             }}
             className="col-span-2"
             variant="horizontal"

@@ -62,7 +62,13 @@ export function CreateDashboardModal({
   const onSubmit = useCallback(
     async (data: CreateDashboardFormData) => {
       const name = data.name.trim();
-      if (!siteName) return;
+      if (!siteName) {
+        ShowNotification({
+          type: "error",
+          message: tr("dashboard.create.siteRequired", dict),
+        });
+        return;
+      }
 
       setIsProcessing(true);
 

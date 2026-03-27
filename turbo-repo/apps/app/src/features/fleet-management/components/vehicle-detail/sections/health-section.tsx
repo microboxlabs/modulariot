@@ -7,6 +7,9 @@ import ExpandableSection from "../expandable-section";
 import { CircularProgress } from "@/features/common/components/circular-progress";
 import { ProgressBar } from "@/features/common/components/progress-bar";
 import { StatusIndicator } from "@/features/common/components/status-indicator";
+import MessageBanner from "@/features/common/components/message-banner/message-banner";
+import { GoAlert } from "react-icons/go";
+import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 
 type HealthColor = "green" | "yellow" | "red";
 type StatusLevel = "good" | "warning" | "critical";
@@ -69,27 +72,64 @@ export default function HealthSection({
       description={tr("vehicleDetail.sections.health.description", dict)}
       defaultExpanded
     >
-      <div className="flex flex-col gap-4 pt-4">
-        <div className="grid grid-cols-2 gap-4">
-          <ProgressBar
-            value={healthScore}
-            label={tr("vehicleDetail.sections.health.overallHealth", dict)}
-            color={getHealthColor(healthScore)}
+      <div className="flex flex-col gap-4">
+        <MessageBanner
+          icon={GoAlert}
+          title="Falla DPF - Saturación crítica"
+          description="Sistema de filtro de partículas diésel requiere regeneración urgente (Detectada: 10 Feb 2026 14:45)"
+          variant="error"
+        />
+        <MessageBanner
+          icon={GoAlert}
+          title="Falla sensor presión neumáticos"
+          description="TPMS reporta error en sensor rueda delantera derecha (Detectada: 22 Ene 2026 16:30)"
+          variant="warning"
+        />
+        <div className="flex flex-row gap-3 w-full">
+          <KpiStat
+            icon={{
+              className:
+                "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
+            }}
+            value={{
+              text: "2",
+              className: "text-green-500 dark:text-green-400 font-bold",
+            }}
+            title={{
+              text: tr("vehicleDetail.sections.health.activeFailures", dict)
+            }}
+            className="w-full"
+            variant="vertical"
           />
-          <ProgressBar
-            value={vehicle.fuelLevel}
-            label={tr("vehicleDetail.sections.health.fuelLevel", dict)}
-            color={getFuelColor(vehicle.fuelLevel)}
+          <KpiStat
+            icon={{
+              className:
+                "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
+            }}
+            title={{
+              text: tr("vehicleDetail.sections.health.resolved30days", dict)
+            }}
+            value={{
+              text: "5",
+              className: "text-green-500 dark:text-green-400 font-bold",
+            }}
+            className="w-full"
+            variant="vertical"
           />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <StatusIndicator
-            status={getOperationalStatus(vehicle.status)}
-            label={tr("vehicleDetail.sections.health.operationalStatus", dict)}
-          />
-          <StatusIndicator
-            status={getSystemsCheckStatus(healthScore)}
-            label={tr("vehicleDetail.sections.health.systemsCheck", dict)}
+          <KpiStat
+            icon={{
+              className:
+                "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
+            }}
+            title={{
+              text: tr("vehicleDetail.sections.health.responseTime", dict)
+            }}
+            value={{
+              text: "18h",
+              className: "text-green-500 dark:text-green-400 font-bold",
+            }}
+            className="w-full"
+            variant="vertical"
           />
         </div>
       </div>

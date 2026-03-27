@@ -2533,7 +2533,10 @@
           "systemsCheck": "Systems Check",
           "stableHealth": "Stable Health",
           "moderateHealth": "Moderate Health",
-          "poorHealth": "Poor Health"
+          "poorHealth": "Poor Health",
+          "responseTime": "Response Time",
+          "resolved30days": "Resolved (30d)",
+          "activeFailures": "Active Failures"
         },
         "maintenance": {
           "title": "Maintenance Status",
@@ -2550,9 +2553,9 @@
           "maintenanceCountDesc": "Total completed services",
           "kmSinceService": "Km Since Maintenance",
           "kmSinceServiceDesc": "Distance since last service",
-          "kmRemaining": "{{km}} km remaining (est: {{days}} days)",
-          "atKm": "At {{km}} km",
-          "intervalPercent": "{{percent}}% of interval ({{interval}})",
+          "kmRemaining": "{km} km remaining (est: {days} days)",
+          "atKm": "At {km} km",
+          "intervalPercent": "{percent}% of interval ({interval})",
           "upToDate": "Maintenance up to date",
           "upToDateDesc": "The vehicle complies with the preventive maintenance plan."
         },
@@ -2569,6 +2572,10 @@
         "telemetry": {
           "title": "Devices & Telemetry",
           "description": "Connected devices and sensor data",
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "lastDataReceived": "Last data received",
+          "installedDevices": "Installed devices",
           "fuelSensor": "Fuel Sensor",
           "tempSensor": "Temp Sensor (calibrating)",
           "lastUpdate": "Last Update",
@@ -2579,13 +2586,18 @@
           "onRoute": "On route",
           "engine": "Engine",
           "running": "Running",
+          "notRunning": "Off",
           "speed": "Speed",
           "rpm": "RPM",
           "battery": "Battery",
           "engineTemp": "Engine temp",
           "location": "Location",
           "transmissionInterval": "Transmission interval",
-          "every30Seconds": "Every 30 seconds"
+          "every30Seconds": "Every 30 seconds",
+          "acumulatedUptime": "Accumulated Uptime",
+          "dataProcessedToday": "Data Processed Today",
+          "signalLost": "Signal Lost (30d)",
+          "everySeconds": "Every {seconds} seconds"
         },
         "events": {
           "title": "Operational Events",
@@ -2602,7 +2614,24 @@
           "avgDailyKm": "Average Daily Km",
           "utilizationRate": "Utilization Rate",
           "idleTime": "Idle Time",
-          "weeklyGoal": "Weekly Goal Progress"
+          "weeklyGoal": "Weekly Goal Progress",
+          "totalKilometrage": "Total Kilometrage of the vehicle",
+          "odometerSinceOrigin": "Odometer since origin",
+          "monthlyContractualConsumption": "Monthly contractual consumption",
+          "deviationFromAverage": "Deviation from average",
+          "kmTraveledThisMonth": "Km traveled this month", 
+          "kmRemainingThisMonth": "Km remaining this month",
+          "avgDaily": "Average daily",
+          "operationHours": "Operation hours",
+          "activeDays": "Active days",
+          "annualTotalKm": "Annual total km",
+          "kmPerDay": "{km} km/day",
+          "projectedDays": "Projected days: {days}",
+          "limitKmMonthly": "Limit {km} km/month",
+          "avgDailyOperationHours": "Average daily: {hours}",
+          "utilization": "{percentage}% Utilization",
+          "estimatedProjection": "Estimated projection",
+          "intensityLastDays": "Intensity last 30 days"
         },
         "general": {
           "title": "General Information",

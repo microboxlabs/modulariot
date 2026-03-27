@@ -10,6 +10,7 @@ import {
   EventsSection,
   UsageSection,
 } from "./sections";
+import { data } from "jquery";
 
 interface VehicleDetailAccordionProps {
   readonly vehicle: Vehicle;
@@ -49,6 +50,7 @@ export interface VehicleDetailData {
     batteryPercentage: number;
     engineTempC: number;
     location: string;
+    locationCoords: { lat: number, lng: number },
     transmissionIntervalSecs: number;
     installedDevices: Array<{
       name: string;
@@ -120,6 +122,7 @@ const vehicleData = {
     batteryPercentage: 80,
     engineTempC: 90,
     location: "Av Kennedy 5000, Las Condes",
+    locationCoords: { lat: -33.393, lng: -70.567 },
     transmissionIntervalSecs: 30,
     installedDevices: [
       {
@@ -188,7 +191,7 @@ export default function VehicleDetailAccordion({
 
   return (
     <div className="flex flex-col gap-3">
-      <HealthSection vehicle={vehicle} dict={dict} healthScore={20} />
+      <HealthSection vehicle={vehicle} dict={dict} healthScore={vehicleData.general.health} />
       <MaintenanceSection vehicle={vehicle} dict={dict} data={vehicleData} />
       <TechnicalHealthSection dict={dict} data={vehicleData} />
       <TelemetrySection dict={dict} data={vehicleData} />

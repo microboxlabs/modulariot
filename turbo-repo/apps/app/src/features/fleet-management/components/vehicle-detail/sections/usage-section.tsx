@@ -20,7 +20,7 @@ export default function UsageSection({
   data,
   dict,
 }: UsageSectionProps) {
-  const percentage = 75;
+  const percentage = data.usage.monthlyContractualConsumptionPercentage;
 
   const chartOption = {
     grid: {
@@ -178,7 +178,16 @@ export default function UsageSection({
               text: data.usage.operationHours.toLocaleString() + " hrs",
             }}
             description={{
-              text: tr("vehicleDetail.sections.usage.avgDailyOperationHours", dict, { hours: (data.usage.operationHours / data.usage.activeDays).toFixed(1) + "h" }),
+              text: tr(
+                "vehicleDetail.sections.usage.avgDailyOperationHours",
+                dict,
+                {
+                  hours:
+                    data.usage.activeDays > 0
+                      ? (data.usage.operationHours / data.usage.activeDays).toFixed(1) + "h"
+                      : "0h",
+                }
+              ),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"

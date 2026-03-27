@@ -77,7 +77,7 @@ export function CreateDashboardModal({
         if (!slug) {
           ShowNotification({
             type: "error",
-            message: tr("dashboard.create.errorNotification", dict),
+            message: tr("dashboard.create.nameInvalid", dict),
           });
           return;
         }

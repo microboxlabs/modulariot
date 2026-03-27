@@ -1485,7 +1485,8 @@
       "errorNotification": "Failed to create dashboard",
       "namePlaceholder": "My Dashboard",
       "nameRequired": "Name is required",
-      "siteRequired": "Unable to create dashboard: site not available"
+      "siteRequired": "Unable to create dashboard: site not available",
+      "nameInvalid": "Name must contain at least one letter or number"
     },
     "settings": {
       "sparklineData": "Sparkline Data (comma-separated)",

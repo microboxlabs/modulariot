@@ -1507,7 +1507,9 @@
       "nameLabel": "Nombre",
       "submit": "Crear",
       "successNotification": "Dashboard creado exitosamente",
-      "errorNotification": "Error al crear el dashboard"
+      "errorNotification": "Error al crear el dashboard",
+      "namePlaceholder": "Mi Dashboard",
+      "nameRequired": "El nombre es obligatorio"
     },
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",

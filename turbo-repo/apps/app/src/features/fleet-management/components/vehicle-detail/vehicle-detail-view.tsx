@@ -1,9 +1,7 @@
 "use client";
 
-import { HiArrowLeft } from "react-icons/hi2";
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
 import VehicleDetailHeader from "./vehicle-detail-header";
 import VehicleDetailAccordion from "./vehicle-detail-accordion";
 

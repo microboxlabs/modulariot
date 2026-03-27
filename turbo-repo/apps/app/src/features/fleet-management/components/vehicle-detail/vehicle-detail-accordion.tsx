@@ -33,7 +33,7 @@ export interface VehicleDetailData {
     alerts: Array<{
       title: string;
       description: string;
-      type: "critical" | "warning" | string;
+      type: "critical" | "warning";
     }>;
     activeFailures: number;
     resolved: number;
@@ -53,7 +53,7 @@ export interface VehicleDetailData {
     installedDevices: Array<{
       name: string;
       description: string;
-      icon: "location" | "odometer" | "live" | string;
+      icon: "location" | "odometer" | "live";
     }>;
     accumulatedUptimePercentage: number;
     dataProcessedToday: number;
@@ -62,10 +62,10 @@ export interface VehicleDetailData {
   events: Array<{
     title: string;
     description: string;
-    urgency: "critical" | "warning" | "info" | string;
+    urgency: "critical" | "warning" | "info";
     direction: string;
     date: string;
-    category: "evento" | "mantencion" | string;
+    category: "evento" | "mantencion";
   }>;
   usage: {
     totalKilometers: number;
@@ -98,12 +98,12 @@ const vehicleData = {
       {
         title: "Falla DPF - Saturación crítica",
         description: "Sistema de filtro de partículas diésel requiere regeneración urgente (Detectada: 10 Feb 2026 14:45)",
-        type: "critical"
+        type: "critical" as "critical"
       },
       {
         title: "Falla sensor presión neumáticos",
         description: "TPMS reporta error en sensor rueda delantera derecha (Detectada: 22 Ene 2026 16:30)",
-        type: "warning"
+        type: "warning" as "warning"
       }
     ],
     "activeFailures": 3,
@@ -125,17 +125,17 @@ const vehicleData = {
       {
         name: "GPS Tracker",
         description: "S/N: GT-2341-A8F2",
-        icon: "location"
+        icon: "location" as "location"
       },
       {
         name: "Sensor OBD-II",
         description: "Diagnóstico motor",
-        icon: "odometer"
+        icon: "odometer" as "odometer"
       },
       {
         name: "Acelerómetro 3-Ejes",
         description: "Detección de eventos",
-        icon: "live"
+        icon: "live" as "live"
       },
     ],
     accumulatedUptimePercentage: 99.7,
@@ -146,26 +146,26 @@ const vehicleData = {
     {
       title: "Frenado brusco detectado",
       description: "Sistema de telemetría detectó evento de frenado brusco superior a 8G",
-      urgency: "warning",
+      urgency: "warning" as "warning",
       direction: "Av. Kennedy 5000, Las Condes",
       date: "10 Feb 2026 14:45",
-      category: "evento",
+      category: "evento" as "evento",
     },
     {
       title: "Exceso de velocidad",
       description: "Velocidad máxima de 120 km/h superada en zona de 80 km/h",
-      urgency: "critical",
+      urgency: "critical" as "critical",
       direction: "Ruta 5 Sur, Km 45",
       date: "10 Feb 2026 12:30",
-      category: "evento",
+      category: "evento" as "evento",
     },
     {
       title: "Mantención programada completada",
       description: "Cambio de aceite y filtros realizado según pauta de 10.000 km",
-      urgency: "info",
+      urgency: "info" as "info",
       direction: "Taller Central, Santiago",
       date: "08 Feb 2026 09:00",
-      category: "mantencion",
+      category: "mantencion" as "mantencion",
     },
   ],
   usage: {

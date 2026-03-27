@@ -17,7 +17,7 @@ import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
-import { DashboardFilterBar } from "../dashboard-filter-bar";
+import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
 import "react-grid-layout/css/styles.css";
 
@@ -135,15 +135,15 @@ export function DashboardView() {
 
   return (
     <div className="w-full">
+      {/* Portal: renders DashboardFilterBar into the navbar search slot */}
+      <DashboardNavbarPortal />
+
       {/* Header */}
       <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex items-center gap-4 p-4">
+        <div className="flex items-center justify-between gap-4 p-4">
           <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
             {dashboardName}
           </h1>
-          <div className="flex min-w-0 flex-1 justify-center">
-            <DashboardFilterBar />
-          </div>
           <div className="flex shrink-0 items-center gap-4">
             {hasWidgets && (
               <ToggleSwitch

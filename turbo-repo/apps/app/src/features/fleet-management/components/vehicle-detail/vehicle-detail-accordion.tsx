@@ -85,7 +85,7 @@ const vehicleData = {
     health: 50,
   },
   maintenance: {
-    status: "up_to_date" as "up_to_date", // up_to_date | due_soon | overdue
+    status: "up_to_date" as const, // up_to_date | due_soon | overdue
     totalKm: 12450,
     nextMaintenanceKm: 55000,
     lastManteinanceDate: "2026-01-25", 
@@ -98,13 +98,13 @@ const vehicleData = {
       {
         title: "Falla DPF - Saturación crítica",
         description: "Sistema de filtro de partículas diésel requiere regeneración urgente (Detectada: 10 Feb 2026 14:45)",
-        type: "critical" as "critical"
-      },
+        type: "critical"
+      } as const,
       {
         title: "Falla sensor presión neumáticos",
         description: "TPMS reporta error en sensor rueda delantera derecha (Detectada: 22 Ene 2026 16:30)",
-        type: "warning" as "warning"
-      }
+        type: "warning"
+      } as const
     ],
     "activeFailures": 3,
     "resolved": 5,
@@ -125,18 +125,18 @@ const vehicleData = {
       {
         name: "GPS Tracker",
         description: "S/N: GT-2341-A8F2",
-        icon: "location" as "location"
-      },
+        icon: "location"
+      } as const,
       {
         name: "Sensor OBD-II",
         description: "Diagnóstico motor",
-        icon: "odometer" as "odometer"
-      },
+        icon: "odometer"
+      } as const,
       {
         name: "Acelerómetro 3-Ejes",
         description: "Detección de eventos",
-        icon: "live" as "live"
-      },
+        icon: "live"
+      } as const,
     ],
     accumulatedUptimePercentage: 99.7,
     dataProcessedToday: 708,
@@ -146,27 +146,27 @@ const vehicleData = {
     {
       title: "Frenado brusco detectado",
       description: "Sistema de telemetría detectó evento de frenado brusco superior a 8G",
-      urgency: "warning" as "warning",
+      urgency: "warning",
       direction: "Av. Kennedy 5000, Las Condes",
       date: "10 Feb 2026 14:45",
-      category: "evento" as "evento",
-    },
+      category: "evento",
+    } as const,
     {
       title: "Exceso de velocidad",
       description: "Velocidad máxima de 120 km/h superada en zona de 80 km/h",
-      urgency: "critical" as "critical",
+      urgency: "critical",
       direction: "Ruta 5 Sur, Km 45",
       date: "10 Feb 2026 12:30",
-      category: "evento" as "evento",
-    },
+      category: "evento",
+    } as const,
     {
       title: "Mantención programada completada",
       description: "Cambio de aceite y filtros realizado según pauta de 10.000 km",
-      urgency: "info" as "info",
+      urgency: "info",
       direction: "Taller Central, Santiago",
       date: "08 Feb 2026 09:00",
-      category: "mantencion" as "mantencion",
-    },
+      category: "mantencion",
+    } as const,
   ],
   usage: {
     totalKilometers: 47400,

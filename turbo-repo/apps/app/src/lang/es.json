@@ -1509,7 +1509,8 @@
       "successNotification": "Dashboard creado exitosamente",
       "errorNotification": "Error al crear el dashboard",
       "namePlaceholder": "Mi Dashboard",
-      "nameRequired": "El nombre es obligatorio"
+      "nameRequired": "El nombre es obligatorio",
+      "siteRequired": "No se puede crear el dashboard: sitio no disponible"
     },
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",

@@ -15,7 +15,7 @@ import { generateSlug } from "./create-dashboard-modal.config";
 import type { DashboardStorageSchema } from "../../types/dashboard.types";
 
 const createDashboardSchema = z.object({
-  name: z.string().min(1, "dashboard.create.nameRequired"),
+  name: z.string().trim().min(1, "dashboard.create.nameRequired"),
 });
 
 type CreateDashboardFormData = z.infer<typeof createDashboardSchema>;
@@ -144,7 +144,7 @@ export function CreateDashboardModal({
           </Label>
           <TextInput
             id="name"
-            placeholder="My Dashboard"
+            placeholder={tr("dashboard.create.namePlaceholder", dict)}
             {...register("name")}
             color={errors.name ? "failure" : undefined}
           />

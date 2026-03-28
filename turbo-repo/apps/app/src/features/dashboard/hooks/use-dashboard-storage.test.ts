@@ -32,7 +32,7 @@ describe("ensureWidgetDefaults", () => {
       layout: undefined as never,
     });
     // Remove layout to simulate missing
-    delete (widget as Record<string, unknown>).layout;
+    delete (widget as unknown as Record<string, unknown>).layout;
 
     const result = ensureWidgetDefaults(widget, 2);
     expect(result.layout).toEqual({

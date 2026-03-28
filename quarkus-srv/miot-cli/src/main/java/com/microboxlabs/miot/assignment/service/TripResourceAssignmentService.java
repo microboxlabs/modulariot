@@ -114,7 +114,8 @@ public class TripResourceAssignmentService {
                             loadTruckAccreditation(normalizedRutMandante, normalizedDelegacion, trucks),
                             loadDriverAssignments(drivers),
                             loadTruckAssignments(trucks),
-                            loadTrailerAssignments(trailers))
+                            loadTrailerAssignments(trailers),
+                            loadTrailerAccreditation(normalizedRutMandante, normalizedDelegacion, trailers))
                             .asTuple()
                             .map(lookups -> toResourceSearchResponse(
                                     drivers,
@@ -124,7 +125,8 @@ public class TripResourceAssignmentService {
                                     lookups.getItem2(),
                                     lookups.getItem3(),
                                     lookups.getItem4(),
-                                    lookups.getItem5()));
+                                    lookups.getItem5(),
+                                    lookups.getItem6()));
                 });
     }
 
@@ -284,6 +286,37 @@ public class TripResourceAssignmentService {
                 });
     }
 
+    private Uni<Map<String, AccreditationInfo>> loadTrailerAccreditation(String normalizedRutMandante,
+            String normalizedDelegacion, List<TrailerResourceRow> trailers) {
+        String[] normalizedPlates = trailers.stream()
+                .map(trailer -> normalizeAlphaNumeric(trailer.licensePlate()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toArray(String[]::new);
+
+        if (normalizedPlates.length == 0) {
+            return Uni.createFrom().item(Map.of());
+        }
+
+        PgPool coordinatorPool = assignmentReactivePools.coordinatorPool();
+        return coordinatorPool.preparedQuery(trailerAccreditationSql())
+                .execute(Tuple.of(normalizedRutMandante, normalizedDelegacion, normalizedPlates))
+                .map(rows -> {
+                    Map<String, AccreditationInfo> accreditationByPlate = new HashMap<>();
+                    for (Row row : rows) {
+                        String resourceKey = row.getString("resource_key");
+                        if (resourceKey == null) {
+                            continue;
+                        }
+                        accreditationByPlate.put(resourceKey, new AccreditationInfo(
+                                Boolean.TRUE.equals(row.getBoolean("certified")),
+                                row.getLocalDate("minimum_accreditation_date"),
+                                defaultLong(row.getLong("record_count"))));
+                    }
+                    return accreditationByPlate;
+                });
+    }
+
     private Uni<Map<String, LiveTripAssignment>> loadDriverAssignments(List<Driver> drivers) {
         String[] normalizedRuts = drivers.stream()
                 .map(driver -> normalizeAlphaNumeric(driver.rut))
@@ -405,7 +438,8 @@ public class TripResourceAssignmentService {
             Map<String, AccreditationInfo> truckAccreditation,
             Map<String, LiveTripAssignment> driverAssignments,
             Map<String, LiveTripAssignment> truckAssignments,
-            Map<String, LiveTripAssignment> trailerAssignments) {
+            Map<String, LiveTripAssignment> trailerAssignments,
+            Map<String, AccreditationInfo> trailerAccreditation) {
 
         List<ResourceSearchResponse.DriverCandidate> driverCandidates = drivers.stream()
                 .map(driver -> toDriverCandidate(driver, driverAccreditation, driverAssignments))
@@ -416,7 +450,7 @@ public class TripResourceAssignmentService {
                 .toList();
 
         List<ResourceSearchResponse.TrailerCandidate> trailerCandidates = trailers.stream()
-                .map(trailer -> toTrailerCandidate(trailer, trailerAssignments))
+                .map(trailer -> toTrailerCandidate(trailer, trailerAccreditation, trailerAssignments))
                 .toList();
 
         return new ResourceSearchResponse(driverCandidates, truckCandidates, trailerCandidates);
@@ -474,11 +508,14 @@ public class TripResourceAssignmentService {
 
     private ResourceSearchResponse.TrailerCandidate toTrailerCandidate(
             TrailerResourceRow trailer,
+            Map<String, AccreditationInfo> trailerAccreditation,
             Map<String, LiveTripAssignment> trailerAssignments) {
 
-        LiveTripAssignment assignment = normalizeAlphaNumeric(trailer.licensePlate()) != null
-                ? trailerAssignments.get(normalizeAlphaNumeric(trailer.licensePlate()))
-                : null;
+        String normalizedPlate = normalizeAlphaNumeric(trailer.licensePlate());
+        AccreditationInfo accreditation = normalizedPlate != null
+                ? trailerAccreditation.getOrDefault(normalizedPlate, AccreditationInfo.EMPTY)
+                : AccreditationInfo.EMPTY;
+        LiveTripAssignment assignment = normalizedPlate != null ? trailerAssignments.get(normalizedPlate) : null;
 
         return new ResourceSearchResponse.TrailerCandidate(
                 trailer.id(),
@@ -488,7 +525,9 @@ public class TripResourceAssignmentService {
                 trailer.trailerType(),
                 trailer.status(),
                 trailer.active(),
-                buildTrailerCalculatedFields(trailer, assignment));
+                accreditation.certified(),
+                trailer.active() && assignment == null,
+                buildTrailerCalculatedFields(trailer, accreditation, assignment));
     }
 
     private Map<String, Object> buildCarrierCalculatedFields(Carrier carrier, CarrierDriverMetrics driverMetrics) {
@@ -550,11 +589,14 @@ public class TripResourceAssignmentService {
     }
 
     private Map<String, Object> buildTrailerCalculatedFields(TrailerResourceRow trailer,
+            AccreditationInfo accreditation,
             LiveTripAssignment assignment) {
         LinkedHashMap<String, Object> calculatedFields = new LinkedHashMap<>();
         calculatedFields.put("carrierId", trailer.carrierId());
         calculatedFields.put("maxWeight", trailer.maxWeight());
         calculatedFields.put("axleCount", trailer.axleCount());
+        calculatedFields.put("hasActiveAccreditationRecord", accreditation.recordCount() > 0);
+        calculatedFields.put("minimumAccreditationDate", accreditation.minimumAccreditationDate());
         addLiveTripFields(calculatedFields, assignment);
         return calculatedFields;
     }
@@ -573,11 +615,11 @@ public class TripResourceAssignmentService {
 
     private LiveTripAssignment lookupTruckAssignment(TruckResourceRow truck,
             Map<String, LiveTripAssignment> truckAssignments) {
-        for (String key : List.of(
+        for (String key : new String[] {
                 cleanText(truck.externalId()),
                 normalizeAlphaNumeric(truck.externalId()),
                 cleanText(truck.licensePlate()),
-                normalizeAlphaNumeric(truck.licensePlate()))) {
+                normalizeAlphaNumeric(truck.licensePlate()) }) {
             if (key == null) {
                 continue;
             }
@@ -771,7 +813,7 @@ public class TripResourceAssignmentService {
                        count(*) as record_count
                 from %s.acreditacion_recursos
                 where tipo_recurso = 'persona'
-                  and cargo ILIKE '%conductor%'
+                  and cargo ILIKE '%%conductor%%'
                   and is_active = true
                   and upper(regexp_replace(rut_mandante, '[^0-9A-Za-z]', '', 'g')) = $1
                   and upper(trim(delegacion)) = $2
@@ -781,6 +823,22 @@ public class TripResourceAssignmentService {
     }
 
     private String truckAccreditationSql() {
+        return """
+                select upper(regexp_replace(patente, '[^0-9A-Za-z]', '', 'g')) as resource_key,
+                       bool_or(acreditar = 'A') as certified,
+                       min(fecha_minima_acreditacion) filter (where acreditar = 'A') as minimum_accreditation_date,
+                       count(*) as record_count
+                from %s.acreditacion_recursos
+                where tipo_recurso = 'vehiculo'
+                  and is_active = true
+                  and upper(regexp_replace(rut_mandante, '[^0-9A-Za-z]', '', 'g')) = $1
+                  and upper(trim(delegacion)) = $2
+                  and upper(regexp_replace(coalesce(patente, ''), '[^0-9A-Za-z]', '', 'g')) = any($3)
+                group by upper(regexp_replace(patente, '[^0-9A-Za-z]', '', 'g'))
+                """.formatted(assignmentConfig.coordinator().schema());
+    }
+
+    private String trailerAccreditationSql() {
         return """
                 select upper(regexp_replace(patente, '[^0-9A-Za-z]', '', 'g')) as resource_key,
                        bool_or(acreditar = 'A') as certified,

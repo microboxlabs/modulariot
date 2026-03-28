@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const site = searchParams.get("site");
+  const site = searchParams.get("site")?.trim();
 
   if (!site) {
     return badRequestResponse("Missing required query parameter: site");

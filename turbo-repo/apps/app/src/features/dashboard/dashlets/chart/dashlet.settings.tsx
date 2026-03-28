@@ -114,17 +114,35 @@ export function DashletSettings({
     return [];
   });
 
+  // Reconcile xAxisColumn and series against a new set of valid column keys
+  const reconcileColumns = (keys: string[]) => {
+    setDetectedColumns(keys);
+    const keySet = new Set(keys);
+
+    // Reset xAxisColumn if it's no longer valid
+    setXAxisColumn((prev) => (prev && keySet.has(prev) ? prev : keys[0] ?? ""));
+
+    setSeries((prev) => {
+      const reconciled = prev.map((s) => {
+        if (s.columnKey && !keySet.has(s.columnKey)) {
+          return { ...s, columnKey: "", label: "" };
+        }
+        return s;
+      });
+      // If every series was cleared and we have keys, seed the first one
+      if (reconciled.every((s) => !s.columnKey) && keys.length >= 2) {
+        return toSeriesItems([{ columnKey: keys[1], label: keys[1] }]);
+      }
+      return reconciled;
+    });
+  };
+
   // Pgrest settings
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig(
       { ...config, dataSourceId: dataSourceId || undefined },
       (detected) => {
-        const keys = detected.map((d) => d.key);
-        setDetectedColumns(keys);
-        if (keys.length >= 1 && !xAxisColumn) setXAxisColumn(keys[0]);
-        if (keys.length >= 2 && series.length === 1 && !series[0].columnKey) {
-          setSeries(toSeriesItems([{ columnKey: keys[1], label: keys[1] }]));
-        }
+        reconcileColumns(detected.map((d) => d.key));
       },
     ),
   });
@@ -135,7 +153,9 @@ export function DashletSettings({
     try {
       const parsed = JSON.parse(val);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        setDetectedColumns(Object.keys(parsed[0]));
+        reconcileColumns(Object.keys(parsed[0]));
+      } else if (Array.isArray(parsed)) {
+        reconcileColumns([]);
       }
     } catch {
       // ignore parse errors during editing

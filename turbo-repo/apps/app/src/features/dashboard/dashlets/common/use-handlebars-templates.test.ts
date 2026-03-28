@@ -56,7 +56,7 @@ describe("resolveTemplate", () => {
   });
 
   it("returns fallback when id not in map", () => {
-    const map = new Map();
+    const map = new Map<string, Handlebars.TemplateDelegate>();
     expect(resolveTemplate(map, "missing", {}, "fallback")).toBe("fallback");
   });
 

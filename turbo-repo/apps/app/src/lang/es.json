@@ -1676,7 +1676,23 @@
       "chart": {
         "name": "Gráfico",
         "description": "Muestra datos como gráficos de línea, barras, pastel, indicador o dispersión",
-        "noData": "Sin datos disponibles"
+        "noData": "Sin datos disponibles",
+        "typeLine": "Línea",
+        "typeBar": "Barras",
+        "typePie": "Pastel",
+        "typeGauge": "Indicador",
+        "typeScatter": "Dispersión",
+        "palette_default": "Predeterminado",
+        "palette_cool": "Frío",
+        "palette_warm": "Cálido",
+        "palette_monochrome": "Monocromático",
+        "palette_pastel": "Pastel",
+        "palette_vivid": "Vívido",
+        "paletteCustom": "Personalizado",
+        "noColumnsDetected": "No se detectaron columnas",
+        "selectPlaceholder": "Seleccionar...",
+        "labelPlaceholder": "Etiqueta",
+        "seriesNumber": "Serie {n}"
       },
       "data_list": {
         "name": "Lista de Datos",

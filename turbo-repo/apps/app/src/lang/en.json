@@ -1651,7 +1651,23 @@
       "chart": {
         "name": "Chart",
         "description": "Displays data as line, bar, pie, gauge, or scatter charts",
-        "noData": "No data available"
+        "noData": "No data available",
+        "typeLine": "Line",
+        "typeBar": "Bar",
+        "typePie": "Pie",
+        "typeGauge": "Gauge",
+        "typeScatter": "Scatter",
+        "palette_default": "Default",
+        "palette_cool": "Cool",
+        "palette_warm": "Warm",
+        "palette_monochrome": "Monochrome",
+        "palette_pastel": "Pastel",
+        "palette_vivid": "Vivid",
+        "paletteCustom": "Custom",
+        "noColumnsDetected": "No columns detected",
+        "selectPlaceholder": "Select...",
+        "labelPlaceholder": "Label",
+        "seriesNumber": "Series {n}"
       },
       "data_list": {
         "name": "Data List",

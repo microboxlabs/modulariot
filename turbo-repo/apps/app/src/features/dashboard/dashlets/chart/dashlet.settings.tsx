@@ -26,20 +26,20 @@ import { SettingsModalShell } from "../common/settings-modal-shell";
 // Chart type options
 // ============================================================================
 
-const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
-  { value: "line", label: "Line" },
-  { value: "bar", label: "Bar" },
-  { value: "pie", label: "Pie" },
-  { value: "gauge", label: "Gauge" },
-  { value: "scatter", label: "Scatter" },
+const CHART_TYPE_KEYS: { value: ChartType; i18nKey: string }[] = [
+  { value: "line", i18nKey: "dashboard.dashlets.chart.typeLine" },
+  { value: "bar", i18nKey: "dashboard.dashlets.chart.typeBar" },
+  { value: "pie", i18nKey: "dashboard.dashlets.chart.typePie" },
+  { value: "gauge", i18nKey: "dashboard.dashlets.chart.typeGauge" },
+  { value: "scatter", i18nKey: "dashboard.dashlets.chart.typeScatter" },
 ];
 
-const PALETTE_OPTIONS: { value: string; label: string }[] = [
+const PALETTE_KEYS: { value: string; i18nKey: string }[] = [
   ...Object.keys(COLOR_PALETTES).map((k) => ({
     value: k,
-    label: k.charAt(0).toUpperCase() + k.slice(1),
+    i18nKey: `dashboard.dashlets.chart.palette_${k}`,
   })),
-  { value: "custom", label: "Custom" },
+  { value: "custom", i18nKey: "dashboard.dashlets.chart.paletteCustom" },
 ];
 
 const isCartesian = (t: ChartType) => t === "line" || t === "bar" || t === "scatter";
@@ -63,6 +63,16 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
+
+  const chartTypeOptions = useMemo(
+    () => CHART_TYPE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
+    [dictionary],
+  );
+
+  const paletteOptions = useMemo(
+    () => PALETTE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
+    [dictionary],
+  );
 
   // Visualization state
   const [title, setTitle] = useState(config.title ?? "Chart");
@@ -235,7 +245,7 @@ export function DashletSettings({
         label={tr("dashboard.settings.chartType", dictionary)}
         value={chartType}
         onChange={handleChartTypeChange}
-        options={CHART_TYPE_OPTIONS}
+        options={chartTypeOptions}
       />
 
       {/* X-Axis / Category Column (hidden for gauge) */}
@@ -251,7 +261,9 @@ export function DashletSettings({
             sizing="sm"
           >
             <option value="">
-              {detectedColumns.length === 0 ? "No columns detected" : "Select..."}
+              {detectedColumns.length === 0
+                ? tr("dashboard.dashlets.chart.noColumnsDetected", dictionary)
+                : tr("dashboard.dashlets.chart.selectPlaceholder", dictionary)}
             </option>
             {columnOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -283,7 +295,7 @@ export function DashletSettings({
                   }
                   sizing="sm"
                 >
-                  <option value="">Select...</option>
+                  <option value="">{tr("dashboard.dashlets.chart.selectPlaceholder", dictionary)}</option>
                   {columnOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
@@ -302,7 +314,7 @@ export function DashletSettings({
                   onChange={(e) =>
                     updateSeries(s._id, { label: e.target.value })
                   }
-                  placeholder="Label"
+                  placeholder={tr("dashboard.dashlets.chart.labelPlaceholder", dictionary)}
                   sizing="sm"
                 />
               </div>
@@ -362,7 +374,7 @@ export function DashletSettings({
         label={tr("dashboard.settings.colorPalette", dictionary)}
         value={colorPalette}
         onChange={(v) => setColorPalette(v as ColorPalette)}
-        options={PALETTE_OPTIONS}
+        options={paletteOptions}
       />
 
       {/* Custom colors per series */}
@@ -371,7 +383,7 @@ export function DashletSettings({
           {series.map((s, i) => (
             <div key={s._id} className="flex items-center gap-2">
               <span className="text-xs text-gray-500 dark:text-gray-400 min-w-[60px] truncate">
-                {s.label || `Series ${i + 1}`}
+                {s.label || tr("dashboard.dashlets.chart.seriesNumber", dictionary).replace("{n}", String(i + 1))}
               </span>
               <input
                 type="color"

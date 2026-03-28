@@ -90,7 +90,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 function useDarkMode(): boolean {
   const [dark, setDark] = useState(() => {
-    if (typeof globalThis.window === "undefined") return false;
+    if (globalThis.window === undefined) return false;
     return document.documentElement.classList.contains("dark");
   });
 

@@ -142,7 +142,7 @@ describe("buildPgrestSettingsConfig", () => {
 
 describe("buildPgrestContentLabels", () => {
   it("returns labels using tr() for each key", () => {
-    const labels = buildPgrestContentLabels({} as never);
+    const labels = buildPgrestContentLabels({});
     expect(labels.functionName).toBe("dashboard.settings.functionName");
     expect(labels.httpMethod).toBe("dashboard.settings.httpMethod");
     expect(labels.parameters).toBe("dashboard.settings.parameters");

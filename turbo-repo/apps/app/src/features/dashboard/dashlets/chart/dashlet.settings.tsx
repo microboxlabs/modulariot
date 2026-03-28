@@ -342,6 +342,8 @@ export function DashletSettings({
                 <button
                   type="button"
                   onClick={() => removeSeries(s._id)}
+                  aria-label={tr("dashboard.settings.removeSeries", dictionary)}
+                  title={tr("dashboard.settings.removeSeries", dictionary)}
                   className="mb-0.5 rounded p-1 text-gray-400 hover:text-red-500"
                 >
                   <HiXMark className="h-4 w-4" />

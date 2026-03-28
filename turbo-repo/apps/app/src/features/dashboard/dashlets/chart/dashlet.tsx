@@ -90,7 +90,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 function useDarkMode(): boolean {
   // Check if the document root or body has dark class (Tailwind convention)
-  if (typeof window === "undefined") return false;
+  if (typeof globalThis.window === "undefined") return false;
   return document.documentElement.classList.contains("dark");
 }
 

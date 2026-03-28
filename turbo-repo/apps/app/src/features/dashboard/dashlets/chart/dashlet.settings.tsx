@@ -45,6 +45,12 @@ const PALETTE_OPTIONS: { value: string; label: string }[] = [
 const isCartesian = (t: ChartType) => t === "line" || t === "bar" || t === "scatter";
 const isSingleSeries = (t: ChartType) => t === "pie" || t === "gauge";
 
+type SeriesItem = SeriesConfig & { _id: string };
+let seriesIdCounter = 0;
+function toSeriesItems(items: SeriesConfig[]): SeriesItem[] {
+  return items.map((s) => ({ ...s, _id: `s-${++seriesIdCounter}` }));
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -62,8 +68,8 @@ export function DashletSettings({
   const [title, setTitle] = useState(config.title ?? "Chart");
   const [chartType, setChartType] = useState<ChartType>(config.chartType ?? "bar");
   const [xAxisColumn, setXAxisColumn] = useState(config.xAxisColumn ?? "");
-  const [series, setSeries] = useState<SeriesConfig[]>(
-    config.series?.length ? config.series : [{ columnKey: "", label: "" }],
+  const [series, setSeries] = useState<SeriesItem[]>(
+    toSeriesItems(config.series?.length ? config.series : [{ columnKey: "", label: "" }]),
   );
   const [xAxisLabel, setXAxisLabel] = useState(config.xAxisLabel ?? "");
   const [yAxisLabel, setYAxisLabel] = useState(config.yAxisLabel ?? "");
@@ -107,7 +113,7 @@ export function DashletSettings({
         setDetectedColumns(keys);
         if (keys.length >= 1 && !xAxisColumn) setXAxisColumn(keys[0]);
         if (keys.length >= 2 && series.length === 1 && !series[0].columnKey) {
-          setSeries([{ columnKey: keys[1], label: keys[1] }]);
+          setSeries(toSeriesItems([{ columnKey: keys[1], label: keys[1] }]));
         }
       },
     ),
@@ -143,18 +149,18 @@ export function DashletSettings({
   };
 
   // Series CRUD
-  const updateSeries = (index: number, patch: Partial<SeriesConfig>) => {
+  const updateSeries = (id: string, patch: Partial<SeriesConfig>) => {
     setSeries((prev) =>
-      prev.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+      prev.map((s) => (s._id === id ? { ...s, ...patch } : s)),
     );
   };
 
   const addSeries = () => {
-    setSeries((prev) => [...prev, { columnKey: "", label: "" }]);
+    setSeries((prev) => [...prev, ...toSeriesItems([{ columnKey: "", label: "" }])]);
   };
 
-  const removeSeries = (index: number) => {
-    setSeries((prev) => prev.filter((_, i) => i !== index));
+  const removeSeries = (id: string) => {
+    setSeries((prev) => prev.filter((s) => s._id !== id));
   };
 
   // Custom color helpers
@@ -183,7 +189,9 @@ export function DashletSettings({
       title,
       chartType,
       xAxisColumn,
-      series: series.filter((s) => s.columnKey),
+      series: series
+        .filter((s) => s.columnKey)
+        .map(({ _id: _, ...rest }) => rest),
       xAxisLabel,
       yAxisLabel,
       showLegend,
@@ -261,7 +269,7 @@ export function DashletSettings({
         </Label>
         <div className="space-y-2">
           {series.map((s, i) => (
-            <div key={i} className="flex items-end gap-1.5">
+            <div key={s._id} className="flex items-end gap-1.5">
               <div className="flex-1">
                 {i === 0 && (
                   <Label className="mb-0.5 block text-xs text-gray-500">
@@ -271,7 +279,7 @@ export function DashletSettings({
                 <Select
                   value={s.columnKey}
                   onChange={(e) =>
-                    updateSeries(i, { columnKey: e.target.value })
+                    updateSeries(s._id, { columnKey: e.target.value })
                   }
                   sizing="sm"
                 >
@@ -292,7 +300,7 @@ export function DashletSettings({
                 <TextInput
                   value={s.label}
                   onChange={(e) =>
-                    updateSeries(i, { label: e.target.value })
+                    updateSeries(s._id, { label: e.target.value })
                   }
                   placeholder="Label"
                   sizing="sm"
@@ -301,7 +309,7 @@ export function DashletSettings({
               {series.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => removeSeries(i)}
+                  onClick={() => removeSeries(s._id)}
                   className="mb-0.5 rounded p-1 text-gray-400 hover:text-red-500"
                 >
                   <HiXMark className="h-4 w-4" />
@@ -361,7 +369,7 @@ export function DashletSettings({
       {colorPalette === "custom" && (
         <div className="space-y-1.5">
           {series.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={s._id} className="flex items-center gap-2">
               <span className="text-xs text-gray-500 dark:text-gray-400 min-w-[60px] truncate">
                 {s.label || `Series ${i + 1}`}
               </span>

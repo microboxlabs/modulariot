@@ -72,7 +72,7 @@ function buildCartesianOption(
       type: config.chartType as "line" | "bar" | "scatter",
       name: s.label,
       data: rows.map((r) => {
-        const v = parseFloat(r[s.columnKey]);
+        const v = Number.parseFloat(r[s.columnKey]);
         return Number.isFinite(v) ? v : 0;
       }),
       smooth: config.chartType === "line" ? config.smooth : undefined,
@@ -105,7 +105,7 @@ function buildPieOption(
         type: "pie",
         radius: ["30%", "65%"],
         data: rows.map((r) => {
-          const v = parseFloat(r[valueSeries.columnKey]);
+          const v = Number.parseFloat(r[valueSeries.columnKey]);
           return {
             name: r[config.xAxisColumn] ?? "",
             value: Number.isFinite(v) ? v : 0,
@@ -127,7 +127,7 @@ function buildGaugeOption(
   const valueSeries = config.series[0];
   if (!valueSeries) return noDataOption(darkMode);
 
-  const raw = parseFloat(rows[0]?.[valueSeries.columnKey] ?? "0");
+  const raw = Number.parseFloat(rows[0]?.[valueSeries.columnKey] ?? "0");
   const value = Number.isFinite(raw) ? raw : 0;
 
   return {

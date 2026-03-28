@@ -142,14 +142,25 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     instance?.resize();
   }, []);
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [handleResize]);
+  // Callback ref so the ResizeObserver attaches whenever the container mounts
+  // (e.g. after DashletLoading -> ready transitions)
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const attachContainerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      // Disconnect previous observer if any
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      containerRef.current = el;
+      if (el) {
+        const observer = new ResizeObserver(handleResize);
+        observer.observe(el);
+        observerRef.current = observer;
+      }
+    },
+    [handleResize],
+  );
 
   if (loading && config.dataMode !== "static") return <DashletLoading />;
   if (fetchError && config.dataMode !== "static")
@@ -157,7 +168,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   return (
     <div
-      ref={containerRef}
+      ref={attachContainerRef}
       className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
     >
       {config.title && (

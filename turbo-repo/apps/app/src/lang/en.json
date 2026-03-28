@@ -1486,7 +1486,8 @@
       "namePlaceholder": "My Dashboard",
       "nameRequired": "Name is required",
       "siteRequired": "Unable to create dashboard: site not available",
-      "nameInvalid": "Name must contain at least one letter or number"
+      "nameInvalid": "Name must contain at least one letter or number",
+      "duplicateSlug": "A dashboard with this name already exists. Please choose a different name."
     },
     "settings": {
       "sparklineData": "Sparkline Data (comma-separated)",

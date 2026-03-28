@@ -1511,7 +1511,8 @@
       "namePlaceholder": "Mi Dashboard",
       "nameRequired": "El nombre es obligatorio",
       "siteRequired": "No se puede crear el dashboard: sitio no disponible",
-      "nameInvalid": "El nombre debe contener al menos una letra o número"
+      "nameInvalid": "El nombre debe contener al menos una letra o número",
+      "duplicateSlug": "Ya existe un dashboard con este nombre. Por favor elige un nombre diferente."
     },
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",

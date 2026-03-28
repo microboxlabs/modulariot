@@ -82,6 +82,21 @@ export function CreateDashboardModal({
           return;
         }
 
+        // Check if a dashboard with this slug already exists
+        const checkRes = await fetch(
+          `/app/api/dashboard/config?site=${encodeURIComponent(siteName)}&slug=${encodeURIComponent(slug)}`
+        );
+        if (checkRes.ok) {
+          const existing = (await checkRes.json()) as { data: unknown };
+          if (existing.data != null) {
+            ShowNotification({
+              type: "error",
+              message: tr("dashboard.create.duplicateSlug", dict),
+            });
+            return;
+          }
+        }
+
         const config: DashboardStorageSchema = {
           version: 2,
           name,

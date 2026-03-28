@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo, useCallback } from "react";
+import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
@@ -89,9 +89,24 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // ============================================================================
 
 function useDarkMode(): boolean {
-  // Check if the document root or body has dark class (Tailwind convention)
-  if (typeof globalThis.window === "undefined") return false;
-  return document.documentElement.classList.contains("dark");
+  const [dark, setDark] = useState(() => {
+    if (typeof globalThis.window === "undefined") return false;
+    return document.documentElement.classList.contains("dark");
+  });
+
+  useEffect(() => {
+    const target = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setDark(target.classList.contains("dark"));
+    });
+    observer.observe(target, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return dark;
 }
 
 // ============================================================================

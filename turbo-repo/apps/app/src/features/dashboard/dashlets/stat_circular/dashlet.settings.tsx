@@ -12,7 +12,7 @@ import {
   useDataProvider,
 } from "../common";
 import type { ColumnItem } from "../common/column-helpers";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { fromPgrestParamItems } from "../common/pgrest-types";
@@ -28,6 +28,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
   const { dataSources } = useDataSources(siteId ?? undefined);
 
@@ -99,6 +100,7 @@ export function DashletSettings({
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
       dataProvider: dp.getCleanEntries(),
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -230,6 +232,7 @@ export function DashletSettings({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

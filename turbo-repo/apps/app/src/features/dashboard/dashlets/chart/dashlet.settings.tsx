@@ -20,7 +20,7 @@ import {
   useActiveProviders,
   type SimpleDataMode,
 } from "../common";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 
 // ============================================================================
 // Chart type options
@@ -63,6 +63,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
+  const refresh = useWidgetRefreshSettings(config, dictionary);
 
   const chartTypeOptions = useMemo(
     () => CHART_TYPE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
@@ -236,6 +237,7 @@ export function DashletSettings({
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
       plannerVariableName: plannerVariableName || undefined,
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -479,6 +481,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       className="w-[28rem]"
+      refreshSelect={refresh.selectNode}
     />
   );
 }

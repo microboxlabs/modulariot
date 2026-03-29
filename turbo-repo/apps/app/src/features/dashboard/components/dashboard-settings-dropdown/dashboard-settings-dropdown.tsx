@@ -10,13 +10,14 @@ import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
-import type { DashboardFilterParam } from "../../types/dashboard.types";
+import type { DashboardFilterParam, RefreshInterval } from "../../types/dashboard.types";
+import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | null;
+type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | "refresh" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -598,6 +599,34 @@ function FilterManagerForm({
 }
 
 // ============================================================================
+// Auto-Refresh Form
+// ============================================================================
+
+function RefreshForm() {
+  const { refreshInterval, setRefreshInterval, dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
+
+  return (
+    <div className="p-4 space-y-3">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {t("autoRefreshDescription")}
+      </p>
+      <Select
+        sizing="sm"
+        value={String(refreshInterval)}
+        onChange={(e) => setRefreshInterval(Number(e.target.value) as RefreshInterval)}
+      >
+        {REFRESH_INTERVAL_OPTIONS.map((opt) => (
+          <option key={opt.value} value={String(opt.value)}>
+            {t(opt.labelKey)}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -750,6 +779,16 @@ export default function DashboardSettingsDropdown() {
             description={tr("dashboard.settings.filterBarDescription", dictionary)}
           >
             <FilterManagerForm filters={filters} onSave={setFilters} />
+          </SettingsSection>
+
+          <SettingsSection
+            option="refresh"
+            selected={selected}
+            setSelected={setSelected}
+            title={tr("dashboard.settings.autoRefresh", dictionary)}
+            description={tr("dashboard.settings.autoRefreshDescription", dictionary)}
+          >
+            <RefreshForm />
           </SettingsSection>
 
           <SettingsSection

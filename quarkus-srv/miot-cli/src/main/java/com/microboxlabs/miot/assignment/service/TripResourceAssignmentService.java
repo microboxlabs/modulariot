@@ -115,7 +115,10 @@ public class TripResourceAssignmentService {
                             loadDriverAssignments(drivers),
                             loadTruckAssignments(trucks),
                             loadTrailerAssignments(trailers),
-                            loadTrailerAccreditation(normalizedRutMandante, normalizedDelegacion, trailers))
+                            loadTrailerAccreditation(normalizedRutMandante, normalizedDelegacion, trailers),
+                            loadDriverKpiSummary(normalizedClientId, drivers),
+                            loadTruckKpiSummary(normalizedClientId, trucks),
+                            loadTrailerKpiSummary(normalizedClientId, trailers))
                             .asTuple()
                             .map(lookups -> toResourceSearchResponse(
                                     drivers,
@@ -126,7 +129,10 @@ public class TripResourceAssignmentService {
                                     lookups.getItem3(),
                                     lookups.getItem4(),
                                     lookups.getItem5(),
-                                    lookups.getItem6()));
+                                    lookups.getItem6(),
+                                    lookups.getItem7(),
+                                    lookups.getItem8(),
+                                    lookups.getItem9()));
                 });
     }
 
@@ -439,18 +445,22 @@ public class TripResourceAssignmentService {
             Map<String, LiveTripAssignment> driverAssignments,
             Map<String, LiveTripAssignment> truckAssignments,
             Map<String, LiveTripAssignment> trailerAssignments,
-            Map<String, AccreditationInfo> trailerAccreditation) {
+            Map<String, AccreditationInfo> trailerAccreditation,
+            Map<String, KpisSummary> driverKpiSummary,
+            Map<String, KpisSummary> truckKpiSummary,
+            Map<String, KpisSummary> trailerKpiSummary) {
 
         List<ResourceSearchResponse.DriverCandidate> driverCandidates = drivers.stream()
-                .map(driver -> toDriverCandidate(driver, driverAccreditation, driverAssignments))
+                .map(driver -> toDriverCandidate(driver, driverAccreditation, driverAssignments, driverKpiSummary))
                 .toList();
 
         List<ResourceSearchResponse.TruckCandidate> truckCandidates = trucks.stream()
-                .map(truck -> toTruckCandidate(truck, truckAccreditation, truckAssignments))
+                .map(truck -> toTruckCandidate(truck, truckAccreditation, truckAssignments, truckKpiSummary))
                 .toList();
 
         List<ResourceSearchResponse.TrailerCandidate> trailerCandidates = trailers.stream()
-                .map(trailer -> toTrailerCandidate(trailer, trailerAccreditation, trailerAssignments))
+                .map(trailer -> toTrailerCandidate(trailer, trailerAccreditation, trailerAssignments,
+                        trailerKpiSummary))
                 .toList();
 
         return new ResourceSearchResponse(driverCandidates, truckCandidates, trailerCandidates);
@@ -459,13 +469,15 @@ public class TripResourceAssignmentService {
     private ResourceSearchResponse.DriverCandidate toDriverCandidate(
             Driver driver,
             Map<String, AccreditationInfo> driverAccreditation,
-            Map<String, LiveTripAssignment> driverAssignments) {
+            Map<String, LiveTripAssignment> driverAssignments,
+            Map<String, KpisSummary> driverKpiSummary) {
 
         String normalizedRut = normalizeAlphaNumeric(driver.rut);
         AccreditationInfo accreditation = normalizedRut != null
                 ? driverAccreditation.getOrDefault(normalizedRut, AccreditationInfo.EMPTY)
                 : AccreditationInfo.EMPTY;
         LiveTripAssignment assignment = normalizedRut != null ? driverAssignments.get(normalizedRut) : null;
+        KpisSummary kpiSummary = lookupDriverKpiSummary(driver, driverKpiSummary);
 
         return new ResourceSearchResponse.DriverCandidate(
                 driver.id,
@@ -477,19 +489,21 @@ public class TripResourceAssignmentService {
                 driver.active,
                 accreditation.certified(),
                 driver.active && assignment == null,
-                buildDriverCalculatedFields(driver, accreditation, assignment));
+                buildDriverCalculatedFields(driver, accreditation, assignment, kpiSummary));
     }
 
     private ResourceSearchResponse.TruckCandidate toTruckCandidate(
             TruckResourceRow truck,
             Map<String, AccreditationInfo> truckAccreditation,
-            Map<String, LiveTripAssignment> truckAssignments) {
+            Map<String, LiveTripAssignment> truckAssignments,
+            Map<String, KpisSummary> truckKpiSummary) {
 
         String normalizedPlate = normalizeAlphaNumeric(truck.licensePlate());
         AccreditationInfo accreditation = normalizedPlate != null
                 ? truckAccreditation.getOrDefault(normalizedPlate, AccreditationInfo.EMPTY)
                 : AccreditationInfo.EMPTY;
         LiveTripAssignment assignment = lookupTruckAssignment(truck, truckAssignments);
+        KpisSummary kpiSummary = lookupTruckKpiSummary(truck, truckKpiSummary);
 
         return new ResourceSearchResponse.TruckCandidate(
                 truck.id(),
@@ -503,19 +517,21 @@ public class TripResourceAssignmentService {
                 truck.active(),
                 accreditation.certified(),
                 truck.active() && assignment == null,
-                buildTruckCalculatedFields(truck, accreditation, assignment));
+                buildTruckCalculatedFields(truck, accreditation, assignment, kpiSummary));
     }
 
     private ResourceSearchResponse.TrailerCandidate toTrailerCandidate(
             TrailerResourceRow trailer,
             Map<String, AccreditationInfo> trailerAccreditation,
-            Map<String, LiveTripAssignment> trailerAssignments) {
+            Map<String, LiveTripAssignment> trailerAssignments,
+            Map<String, KpisSummary> trailerKpiSummary) {
 
         String normalizedPlate = normalizeAlphaNumeric(trailer.licensePlate());
         AccreditationInfo accreditation = normalizedPlate != null
                 ? trailerAccreditation.getOrDefault(normalizedPlate, AccreditationInfo.EMPTY)
                 : AccreditationInfo.EMPTY;
         LiveTripAssignment assignment = normalizedPlate != null ? trailerAssignments.get(normalizedPlate) : null;
+        KpisSummary kpiSummary = lookupTrailerKpiSummary(trailer, trailerKpiSummary);
 
         return new ResourceSearchResponse.TrailerCandidate(
                 trailer.id(),
@@ -527,7 +543,7 @@ public class TripResourceAssignmentService {
                 trailer.active(),
                 accreditation.certified(),
                 trailer.active() && assignment == null,
-                buildTrailerCalculatedFields(trailer, accreditation, assignment));
+                buildTrailerCalculatedFields(trailer, accreditation, assignment, kpiSummary));
     }
 
     private Map<String, Object> buildCarrierCalculatedFields(Carrier carrier, CarrierDriverMetrics driverMetrics) {
@@ -560,7 +576,7 @@ public class TripResourceAssignmentService {
     }
 
     private Map<String, Object> buildDriverCalculatedFields(Driver driver, AccreditationInfo accreditation,
-            LiveTripAssignment assignment) {
+            LiveTripAssignment assignment, KpisSummary driverKpiSummary) {
         LinkedHashMap<String, Object> calculatedFields = new LinkedHashMap<>();
         calculatedFields.put("carrierId", driver.carrierId);
         calculatedFields.put("licenseNumber", driver.licenseNumber);
@@ -571,11 +587,22 @@ public class TripResourceAssignmentService {
         calculatedFields.put("hasActiveAccreditationRecord", accreditation.recordCount() > 0);
         calculatedFields.put("minimumAccreditationDate", accreditation.minimumAccreditationDate());
         addLiveTripFields(calculatedFields, assignment);
+
+        // Add driver KPI summary fields if available
+        if (driverKpiSummary != null) {
+            calculatedFields.put("previousTrips", driverKpiSummary.previousTrips);
+            calculatedFields.put("lastTripId", driverKpiSummary.lastTripId);
+            calculatedFields.put("lastTripStartTime", driverKpiSummary.lastTripStartTime);
+            calculatedFields.put("lastTripEndTime", driverKpiSummary.lastTripEndTime);
+            calculatedFields.put("traveledKilometers", driverKpiSummary.traveledKilometers);
+            calculatedFields.put("speedLimitEvents", driverKpiSummary.speedLimitEvents);
+            calculatedFields.put("continuousRestingEvents", driverKpiSummary.continuousRestingEvents);
+        }
         return calculatedFields;
     }
 
     private Map<String, Object> buildTruckCalculatedFields(TruckResourceRow truck, AccreditationInfo accreditation,
-            LiveTripAssignment assignment) {
+            LiveTripAssignment assignment, KpisSummary truckKpiSummary) {
         LinkedHashMap<String, Object> calculatedFields = new LinkedHashMap<>();
         calculatedFields.put("carrierId", truck.carrierId());
         calculatedFields.put("vin", truck.vin());
@@ -585,12 +612,23 @@ public class TripResourceAssignmentService {
         calculatedFields.put("hasActiveAccreditationRecord", accreditation.recordCount() > 0);
         calculatedFields.put("minimumAccreditationDate", accreditation.minimumAccreditationDate());
         addLiveTripFields(calculatedFields, assignment);
+
+        // Add truck KPI summary fields if available
+        if (truckKpiSummary != null) {
+            calculatedFields.put("previousTrips", truckKpiSummary.previousTrips);
+            calculatedFields.put("lastTripId", truckKpiSummary.lastTripId);
+            calculatedFields.put("lastTripStartTime", truckKpiSummary.lastTripStartTime);
+            calculatedFields.put("lastTripEndTime", truckKpiSummary.lastTripEndTime);
+            calculatedFields.put("traveledKilometers", truckKpiSummary.traveledKilometers);
+            calculatedFields.put("lostSignalEvents", truckKpiSummary.lostSignalEvents);
+        }
         return calculatedFields;
     }
 
     private Map<String, Object> buildTrailerCalculatedFields(TrailerResourceRow trailer,
             AccreditationInfo accreditation,
-            LiveTripAssignment assignment) {
+            LiveTripAssignment assignment,
+            KpisSummary trailerKpiSummary) {
         LinkedHashMap<String, Object> calculatedFields = new LinkedHashMap<>();
         calculatedFields.put("carrierId", trailer.carrierId());
         calculatedFields.put("maxWeight", trailer.maxWeight());
@@ -598,6 +636,15 @@ public class TripResourceAssignmentService {
         calculatedFields.put("hasActiveAccreditationRecord", accreditation.recordCount() > 0);
         calculatedFields.put("minimumAccreditationDate", accreditation.minimumAccreditationDate());
         addLiveTripFields(calculatedFields, assignment);
+
+        // Add trailer KPI summary fields if available
+        if (trailerKpiSummary != null) {
+            calculatedFields.put("previousTrips", trailerKpiSummary.previousTrips);
+            calculatedFields.put("lastTripId", trailerKpiSummary.lastTripId);
+            calculatedFields.put("lastTripStartTime", trailerKpiSummary.lastTripStartTime);
+            calculatedFields.put("lastTripEndTime", trailerKpiSummary.lastTripEndTime);
+            calculatedFields.put("traveledKilometers", trailerKpiSummary.traveledKilometers);
+        }
         return calculatedFields;
     }
 
@@ -611,6 +658,134 @@ public class TripResourceAssignmentService {
         calculatedFields.put("currentTripStartTime", assignment.startTime());
         calculatedFields.put("currentTripEndTime", assignment.endTime());
         calculatedFields.put("estimatedArrivalTime", assignment.estimatedArrivalTime());
+    }
+
+    // --- KPI summary loading from streamhub ---
+    private Uni<Map<String, KpisSummary>> loadDriverKpiSummary(String clientId, List<Driver> drivers) {
+        String[] rawDriverIds = drivers.stream()
+                .map(driver -> cleanText(driver.rut))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toArray(String[]::new);
+
+        if (rawDriverIds.length == 0) {
+            return Uni.createFrom().item(Map.of());
+        }
+
+        PgPool streamHubPool = assignmentReactivePools.streamHubPool();
+        return streamHubPool.preparedQuery(driverKpisSummarySql())
+                .execute(Tuple.of(clientId, rawDriverIds))
+                .map(rows -> {
+                    Map<String, KpisSummary> summaryByDriver = new HashMap<>();
+                    for (Row row : rows) {
+                        KpisSummary kpi = new KpisSummary(
+                                row.getLong("previous_trips"),
+                                row.getString("last_trip_id"),
+                                row.getOffsetDateTime("last_trip_start_time"),
+                                row.getOffsetDateTime("last_trip_end_time"),
+                                row.getBigDecimal("traveled_kilometers"),
+                                row.getLong("speed_limit_events"),
+                                row.getLong("continuous_resting_events"),
+                                row.getLong("lost_signal_events"));
+                        String driverId = row.getString("driver_id");
+                        if (driverId == null) {
+                            continue;
+                        }
+                        summaryByDriver.put(cleanText(driverId), kpi);
+                    }
+                    return summaryByDriver;
+                });
+    }
+
+    private Uni<Map<String, KpisSummary>> loadTruckKpiSummary(String clientId, List<TruckResourceRow> trucks) {
+        String[] rawIdentifiers = trucks.stream()
+                .flatMap(truck -> Stream.of(cleanText(truck.externalId()), cleanText(truck.licensePlate())))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toArray(String[]::new);
+
+        if (rawIdentifiers.length == 0) {
+            return Uni.createFrom().item(Map.of());
+        }
+
+        PgPool streamHubPool = assignmentReactivePools.streamHubPool();
+        return streamHubPool.preparedQuery(truckKpisSummarySql())
+                .execute(Tuple.of(clientId, rawIdentifiers))
+                .map(rows -> {
+                    Map<String, KpisSummary> summaryByTruck = new HashMap<>();
+                    for (Row row : rows) {
+                        KpisSummary kpi = new KpisSummary(
+                                row.getLong("previous_trips"),
+                                row.getString("last_trip_id"),
+                                row.getOffsetDateTime("last_trip_start_time"),
+                                row.getOffsetDateTime("last_trip_end_time"),
+                                row.getBigDecimal("traveled_kilometers"),
+                                row.getLong("speed_limit_events"),
+                                row.getLong("continuous_resting_events"),
+                                row.getLong("lost_signal_events"));
+                        String assetId = row.getString("asset_id");
+                        if (assetId == null) {
+                            continue;
+                        }
+                        summaryByTruck.put(cleanText(assetId), kpi);
+                    }
+                    return summaryByTruck;
+                });
+    }
+
+    private Uni<Map<String, KpisSummary>> loadTrailerKpiSummary(String clientId,
+            List<TrailerResourceRow> trailers) {
+        String[] rawPlates = trailers.stream()
+                .map(trailer -> cleanText(trailer.licensePlate()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toArray(String[]::new);
+
+        if (rawPlates.length == 0) {
+            return Uni.createFrom().item(Map.of());
+        }
+
+        PgPool streamHubPool = assignmentReactivePools.streamHubPool();
+        return streamHubPool.preparedQuery(trailerKpisSummarySql())
+                .execute(Tuple.of(clientId, rawPlates))
+                .map(rows -> {
+                    Map<String, KpisSummary> summaryByTrailer = new HashMap<>();
+                    for (Row row : rows) {
+                        KpisSummary kpi = new KpisSummary(
+                                row.getLong("previous_trips"),
+                                row.getString("last_trip_id"),
+                                row.getOffsetDateTime("last_trip_start_time"),
+                                row.getOffsetDateTime("last_trip_end_time"),
+                                row.getBigDecimal("traveled_kilometers"),
+                                row.getLong("speed_limit_events"),
+                                row.getLong("continuous_resting_events"),
+                                row.getLong("lost_signal_events"));
+                        String plate = row.getString("rampla_plate");
+                        if (plate == null) {
+                            continue;
+                        }
+                        summaryByTrailer.put(cleanText(plate), kpi);
+                    }
+                    return summaryByTrailer;
+                });
+    }
+
+    private KpisSummary lookupDriverKpiSummary(Driver driver,
+            Map<String, KpisSummary> driverKpiSummary) {
+        for (String key : new String[] {
+                cleanText(driver.rut),
+                normalizeAlphaNumeric(driver.rut) }) {
+            if (key == null) {
+                continue;
+            }
+
+            KpisSummary summary = driverKpiSummary.get(key);
+            if (summary != null) {
+                return summary;
+            }
+        }
+
+        return null;
     }
 
     private LiveTripAssignment lookupTruckAssignment(TruckResourceRow truck,
@@ -627,6 +802,44 @@ public class TripResourceAssignmentService {
             LiveTripAssignment assignment = truckAssignments.get(key);
             if (assignment != null) {
                 return assignment;
+            }
+        }
+
+        return null;
+    }
+
+    private KpisSummary lookupTruckKpiSummary(TruckResourceRow truck,
+            Map<String, KpisSummary> truckKpiSummary) {
+        for (String key : new String[] {
+                cleanText(truck.externalId()),
+                normalizeAlphaNumeric(truck.externalId()),
+                cleanText(truck.licensePlate()),
+                normalizeAlphaNumeric(truck.licensePlate()) }) {
+            if (key == null) {
+                continue;
+            }
+
+            KpisSummary summary = truckKpiSummary.get(key);
+            if (summary != null) {
+                return summary;
+            }
+        }
+
+        return null;
+    }
+
+    private KpisSummary lookupTrailerKpiSummary(TrailerResourceRow trailer,
+            Map<String, KpisSummary> trailerKpiSummary) {
+        for (String key : new String[] {
+                cleanText(trailer.licensePlate()),
+                normalizeAlphaNumeric(trailer.licensePlate()) }) {
+            if (key == null) {
+                continue;
+            }
+
+            KpisSummary summary = trailerKpiSummary.get(key);
+            if (summary != null) {
+                return summary;
             }
         }
 
@@ -870,7 +1083,8 @@ public class TripResourceAssignmentService {
                     or upper(regexp_replace(coalesce(second_driver_id, ''), '[^0-9A-Za-z]', '', 'g')) = any($1)
                   )
                 order by start_time desc nulls last, estimated_arrival_time desc nulls last, trip_id
-                """.formatted(assignmentConfig.streamhub().schema());
+                """
+                .formatted(assignmentConfig.streamhub().schema());
     }
 
     private String truckAssignmentsSql() {
@@ -903,6 +1117,58 @@ public class TripResourceAssignmentService {
                 where (end_time is null or coalesce(lower(status), '') not in ('completed', 'cancelled', 'finished'))
                   and upper(regexp_replace(coalesce(rampla_plate, ''), '[^0-9A-Za-z]', '', 'g')) = any($1)
                 order by start_time desc nulls last, estimated_arrival_time desc nulls last, trip_id
+                """
+                .formatted(assignmentConfig.streamhub().schema());
+    }
+
+    private String driverKpisSummarySql() {
+        return """
+                select driver_id,
+                       previous_trips,
+                       last_trip_id,
+                       last_trip_start_time,
+                       last_trip_end_time,
+                       traveled_kilometers,
+                       speed_limit_events,
+                       continuous_resting_events,
+                       null::bigint as lost_signal_events
+                from %s.driver_kpi_summary
+                where client_id = $1
+                  and coalesce(driver_id, '') = any($2)
+                """.formatted(assignmentConfig.streamhub().schema());
+    }
+
+    private String truckKpisSummarySql() {
+        return """
+                select asset_id,
+                       previous_trips,
+                       last_trip_id,
+                       last_trip_start_time,
+                       last_trip_end_time,
+                       traveled_kilometers,
+                       null::bigint as speed_limit_events,
+                       null::bigint as continuous_resting_events,
+                       lost_signal_events
+                from %s.truck_kpi_summary
+                where client_id = $1
+                  and coalesce(asset_id, '') = any($2)
+                """.formatted(assignmentConfig.streamhub().schema());
+    }
+
+    private String trailerKpisSummarySql() {
+        return """
+                select rampla_plate,
+                       previous_trips,
+                       last_trip_id,
+                       last_trip_start_time,
+                       last_trip_end_time,
+                       traveled_kilometers,
+                       null::bigint as speed_limit_events,
+                       null::bigint as continuous_resting_events,
+                       null::bigint as lost_signal_events
+                from %s.trailer_kpi_summary
+                where client_id = $1
+                  and coalesce(rampla_plate, '') = any($2)
                 """.formatted(assignmentConfig.streamhub().schema());
     }
 
@@ -1054,5 +1320,17 @@ public class TripResourceAssignmentService {
             String status,
             boolean active,
             Long carrierId) {
+    }
+
+    private record KpisSummary(
+            Long previousTrips,
+            String lastTripId,
+            OffsetDateTime lastTripStartTime,
+            OffsetDateTime lastTripEndTime,
+            BigDecimal traveledKilometers,
+            Long speedLimitEvents,
+            Long continuousRestingEvents,
+            Long lostSignalEvents) {
+
     }
 }

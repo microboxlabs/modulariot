@@ -20,10 +20,11 @@ export function useEffectiveRefreshInterval(
   const widgetValue = widgetConfig.refreshInterval;
 
   // Widget explicitly sets a numeric interval (including 0 = off)
-  if (typeof widgetValue === "number") {
+  if (typeof widgetValue === "number" && Number.isFinite(widgetValue) && widgetValue >= 0) {
     return widgetValue * 1000;
   }
 
   // "inherit" or absent → fall through to dashboard setting
-  return (dashboardInterval ?? 0) * 1000;
+  const di = dashboardInterval ?? 0;
+  return Number.isFinite(di) && di >= 0 ? di * 1000 : 0;
 }

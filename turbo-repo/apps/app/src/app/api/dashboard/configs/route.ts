@@ -32,10 +32,14 @@ export async function GET(request: NextRequest) {
 
     // Transform { slug, config } → { slug, name } for the client
     const transformed = {
-      data: (result.data ?? []).map((item) => ({
-        slug: item.slug,
-        name: (item.config?.name as string) ?? item.slug,
-      })),
+      data: (result.data ?? []).map((item) => {
+        const rawName = item.config?.name;
+        const name =
+          typeof rawName === "string" && rawName.trim().length > 0
+            ? rawName
+            : item.slug;
+        return { slug: item.slug, name };
+      }),
     };
 
     return NextResponse.json(transformed);

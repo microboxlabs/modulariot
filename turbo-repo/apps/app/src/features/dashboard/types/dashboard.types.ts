@@ -8,6 +8,22 @@
 /** Number of columns in the dashboard grid */
 export const GRID_COLS = 24;
 
+/** Refresh interval in seconds (0 = off) */
+export type RefreshInterval = 0 | 10 | 30 | 60 | 300;
+
+/** Options for refresh interval UI selects (value in seconds, i18n suffix key) */
+export const REFRESH_INTERVAL_OPTIONS: readonly {
+  value: RefreshInterval;
+  /** Short i18n key suffix under `dashboard.settings.*` */
+  labelKey: string;
+}[] = [
+  { value: 0, labelKey: "refreshOff" },
+  { value: 10, labelKey: "refresh10s" },
+  { value: 30, labelKey: "refresh30s" },
+  { value: 60, labelKey: "refresh60s" },
+  { value: 300, labelKey: "refresh5m" },
+] as const;
+
 /** Grid layout item compatible with react-grid-layout */
 export interface GridLayoutItem {
   i: string;
@@ -108,6 +124,8 @@ export interface DashboardStorageSchema {
   requestPlanner?: PlannerRequestDefinition[];
   /** Filter bar configuration (optional, backward compatible) */
   filters?: DashboardFilterParam[];
+  /** Auto-refresh interval in seconds (0 = off, default off) */
+  refreshInterval?: RefreshInterval;
 }
 
 /** Default storage state */

@@ -62,7 +62,7 @@ export function usePgrestRows(
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setRows([]);
+        if (!silent) setRows([]);
         setFetchError(err instanceof Error ? err.message : "Failed to fetch");
       })
       .finally(() => {

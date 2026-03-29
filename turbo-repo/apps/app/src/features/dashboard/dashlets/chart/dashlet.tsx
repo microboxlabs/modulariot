@@ -5,6 +5,7 @@ import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { useDashletData, DashletLoading, DashletError } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
 import type { ColorPalette } from "./chart-palettes";
 
@@ -120,6 +121,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const darkMode = useDarkMode();
 
   // Fetch row data for pgrest/planner modes
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const { rows: fetchedRows, loading, fetchError } = useDashletData({
     dataMode: config.dataMode ?? "static",
     pgrestFunctionName: config.pgrestFunctionName ?? "",
@@ -127,6 +129,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams: config.pgrestParams ?? [],
     dataSourceId: config.dataSourceId,
     plannerVariableName: config.plannerVariableName,
+    refreshIntervalMs,
   });
 
   const rows = config.dataMode === "static" ? (config.rows ?? []) : fetchedRows;

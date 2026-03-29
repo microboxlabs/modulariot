@@ -11,6 +11,7 @@ import {
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
 // Configuration Types
@@ -125,6 +126,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const bgColor = config.backgroundColor || "white";
   const iconType = config.icon || "chart";
 
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const { resolved, loading, fetchError } = usePgrestResolvedFields({
     dataMode: config.dataMode || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",
@@ -137,6 +139,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       descriptor: config.descriptor || "",
     },
     dataSourceId: config.dataSourceId,
+    refreshIntervalMs,
   });
 
   const { name, value, descriptor } = resolved;

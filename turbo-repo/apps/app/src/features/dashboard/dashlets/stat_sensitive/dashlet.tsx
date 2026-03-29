@@ -5,6 +5,7 @@ import { HiEye, HiEyeSlash } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
 // Configuration Types
@@ -46,8 +47,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const isSensitive = config.isSensitive ?? true;
   const [isHidden, setIsHidden] = useState(isSensitive);
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

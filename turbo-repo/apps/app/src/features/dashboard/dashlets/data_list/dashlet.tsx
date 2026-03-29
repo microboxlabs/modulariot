@@ -12,6 +12,7 @@ import { renderCell } from "../common/cell-renderers";
 import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
 import { useDashletData } from "../common/use-dashlet-data";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { normalizeFilterConfig } from "../common/filter-helpers";
 import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
@@ -313,6 +314,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const { rows: dynamicRows, loading: dynamicLoading, fetchError: dynamicError } = useDynamicRows(dataMode, apiUrl);
 
   // ── PGREST / Planner data fetching ──────────────────────────────────────────
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const pgrestParamsStable = useMemo(() => pgrestParams, [pgrestParams]);
   const { rows: fetchedRows, loading: fetchedLoading, fetchError: fetchedError } = useDashletData({
     dataMode,
@@ -321,6 +323,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams: pgrestParamsStable,
     plannerVariableName,
     dataSourceId: config.dataSourceId,
+    refreshIntervalMs,
   });
 
   const loading = dynamicLoading || fetchedLoading;

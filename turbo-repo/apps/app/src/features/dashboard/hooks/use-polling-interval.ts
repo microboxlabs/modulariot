@@ -40,7 +40,7 @@ export function usePollingInterval(
       }
     };
 
-    start();
+    if (!document.hidden) start();
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {

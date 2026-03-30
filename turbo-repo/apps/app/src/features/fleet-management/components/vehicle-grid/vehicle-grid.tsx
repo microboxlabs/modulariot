@@ -11,9 +11,14 @@ const ITEMS_PER_PAGE = 9;
 interface VehicleGridProps {
   readonly vehicles: Vehicle[];
   readonly dict: I18nRecord;
+  readonly onSelectVehicle?: (plate: string) => void;
 }
 
-export default function VehicleGrid({ vehicles, dict }: VehicleGridProps) {
+export default function VehicleGrid({
+  vehicles,
+  dict,
+  onSelectVehicle,
+}: VehicleGridProps) {
   const [isDetailed, setIsDetailed] = useState(true);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
@@ -119,6 +124,7 @@ export default function VehicleGrid({ vehicles, dict }: VehicleGridProps) {
             vehicle={vehicle}
             dict={dict}
             isDetailed={isDetailed}
+            onSelect={onSelectVehicle}
           />
         ))}
       </div>

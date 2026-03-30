@@ -10,7 +10,11 @@ import {
   HiOutlineShieldCheck,
   HiOutlineCpuChip,
 } from "react-icons/hi2";
-import type { Vehicle, FleetKpi, SpecialView } from "../types/fleet.types";
+import type {
+  Vehicle,
+  FleetKpi,
+  SpecialView,
+} from "../types/fleet.types";
 
 export const fleetKpis: FleetKpi[] = [
   {

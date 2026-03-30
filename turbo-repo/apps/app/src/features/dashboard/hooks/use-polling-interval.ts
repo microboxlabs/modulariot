@@ -18,9 +18,7 @@ export function usePollingInterval(
     let id: ReturnType<typeof setInterval> | null = null;
 
     const start = () => {
-      if (id === null) {
-        id = setInterval(() => callbackRef.current(), intervalMs);
-      }
+      id ??= setInterval(() => callbackRef.current(), intervalMs);
     };
 
     const stop = () => {

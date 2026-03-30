@@ -525,7 +525,7 @@ export function useDashboardStorage(
     plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
-    refreshInterval: (resolvedConfig.refreshInterval ?? 0) as RefreshInterval,
+    refreshInterval: resolvedConfig.refreshInterval ?? 0,
     isLoaded,
     addWidget,
     addChildWidget,

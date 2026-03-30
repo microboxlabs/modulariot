@@ -68,7 +68,7 @@ export default function ExpandableSection({
           isExpanded ? "max-h-none opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <div className="p-4 pt-0 border-t border-gray-100 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700">
           {children}
         </div>
       </div>

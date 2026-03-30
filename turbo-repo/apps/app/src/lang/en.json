@@ -1445,6 +1445,8 @@
     "cancel": "Cancel",
     "saving": "Saving...",
     "retry": "Retry",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
     "editableField": {
       "saveError": "Failed to save changes",
       "saveSuccess": "Changes saved successfully"
@@ -2584,18 +2586,146 @@
       "simplified": "Simplified",
       "driver": "Driver",
       "location": "Location",
-      "brand": "Brand",
+      "model": "Model",
       "transportist": "Carrier",
       "fuel": "Fuel",
       "maintenance": "Next Maint.",
       "kmTraveled": "Total Km",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "plate": "Plate",
+      "lastSignal": "Last signal",
+      "status": "Status"
     },
     "status": {
       "active": "Active",
       "maintenance": "In Maintenance",
       "alert": "Alert",
       "inactive": "Inactive"
+    },
+    "vehicleDetail": {
+      "title": "Vehicle Details",
+      "back": "Back to fleet",
+      "sections": {
+        "health": {
+          "title": "Health",
+          "description": "Overall vehicle health status",
+          "overallHealth": "Overall Health",
+          "fuelLevel": "Fuel Level",
+          "operationalStatus": "Operational Status",
+          "systemsCheck": "Systems Check",
+          "stableHealth": "Stable Health",
+          "moderateHealth": "Moderate Health",
+          "poorHealth": "Poor Health"
+        },
+        "maintenance": {
+          "title": "Maintenance Status",
+          "description": "Scheduled maintenance and service history",
+          "totalKm": "Total Mileage",
+          "totalKmDesc": "Current vehicle odometer",
+          "nextMaintenance": "Next Maintenance",
+          "nextMaintenanceDesc": "Scheduled date or km",
+          "lastService": "Last Maintenance",
+          "lastServiceDesc": "Date of last service",
+          "contractualFrequency": "Contractual Frequency",
+          "contractualFrequencyDesc": "Interval between services",
+          "maintenanceCount": "Maintenances Performed",
+          "maintenanceCountDesc": "Total completed services",
+          "kmSinceService": "Km Since Maintenance",
+          "kmSinceServiceDesc": "Distance since last service",
+          "kmRemaining": "{{km}} km remaining (est: {{days}} days)",
+          "atKm": "At {{km}} km",
+          "intervalPercent": "{{percent}}% of interval ({{interval}})",
+          "upToDate": "Maintenance up to date",
+          "upToDateDesc": "The vehicle complies with the preventive maintenance plan."
+        },
+        "technicalHealth": {
+          "title": "Technical Health",
+          "description": "Engine, transmission and component status",
+          "engine": "Engine",
+          "transmission": "Transmission",
+          "brakes": "Brakes",
+          "tires": "Tires",
+          "noErrorCodes": "No error codes detected",
+          "brakePadWear": "Brake pad wear detected (28%)"
+        },
+        "telemetry": {
+          "title": "Devices & Telemetry",
+          "description": "Connected devices and sensor data",
+          "fuelSensor": "Fuel Sensor",
+          "tempSensor": "Temp Sensor (calibrating)",
+          "lastUpdate": "Last Update",
+          "signalStrength": "Signal Strength",
+          "odometer": "Odometer",
+          "dateTime": "Date and time",
+          "status": "Status",
+          "onRoute": "On route",
+          "engine": "Engine",
+          "running": "Running",
+          "speed": "Speed",
+          "rpm": "RPM",
+          "battery": "Battery",
+          "engineTemp": "Engine temp",
+          "location": "Location",
+          "transmissionInterval": "Transmission interval",
+          "every30Seconds": "Every 30 seconds"
+        },
+        "events": {
+          "title": "Operational Events",
+          "description": "Recent alerts and incidents",
+          "hardBraking": "Hard braking event detected",
+          "routeCompleted": "Route completed successfully",
+          "incidentsThisMonth": "Incidents This Month",
+          "hoursAgo": "{count}h ago"
+        },
+        "usage": {
+          "title": "Fleet Usage",
+          "description": "Utilization and mileage statistics",
+          "totalKm": "Total Kilometers",
+          "avgDailyKm": "Average Daily Km",
+          "utilizationRate": "Utilization Rate",
+          "idleTime": "Idle Time",
+          "weeklyGoal": "Weekly Goal Progress"
+        },
+        "general": {
+          "title": "General Information",
+          "description": "Vehicle identification and assignment",
+          "plate": "License Plate",
+          "model": "Model",
+          "type": "Type",
+          "brand": "Brand",
+          "carrier": "Carrier",
+          "driver": "Driver",
+          "location": "Last Location"
+        }
+      }
+    },
+    "gamification": {
+      "healthScore": "Health",
+      "healthStatus": "Health Status",
+      "level": "Level",
+      "achievements": "Achievements",
+      "unlocked": "unlocked",
+      "badge": {
+        "road_warrior": "Road Warrior",
+        "eco_champion": "Eco Champion",
+        "perfect_maintenance": "Perfect Maintenance",
+        "speed_demon": "Speed Demon",
+        "early_bird": "Early Bird",
+        "night_owl": "Night Owl",
+        "long_hauler": "Long Hauler",
+        "city_navigator": "City Navigator"
+      },
+      "driverPerformance": "Driver Performance",
+      "trips": "Trips",
+      "onTime": "On Time",
+      "safetyScore": "Safety",
+      "currentStreak": "Current Streak",
+      "days": "days",
+      "onFire": "On Fire!",
+      "experiencePoints": "Experience Points",
+      "toNextLevel": "to next level",
+      "weeklyGoal": "Weekly Goal",
+      "goalCompleted": "Goal completed!"
     }
   },
   "ext_tasks": {

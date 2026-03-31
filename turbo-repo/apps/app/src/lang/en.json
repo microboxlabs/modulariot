@@ -1324,7 +1324,8 @@
         "facilitySCL": "Facility SCL",
         "truckBeds": "Truck Beds",
         "allDevices": "All Devices",
-        "fleetManagement": "Fleet Management"
+        "fleetManagement": "Fleet Management",
+        "colaboratorsManagement": "Colaborators Management"
       }
     },
     "calendar": {

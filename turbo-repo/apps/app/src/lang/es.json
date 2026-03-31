@@ -1349,7 +1349,8 @@
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
-        "fleetManagement": "Gestión de Flotas"
+        "fleetManagement": "Gestión de Flotas",
+        "colaboratorsManagement": "Gestión de Colaboradores"
       }
     },
     "calendar": {

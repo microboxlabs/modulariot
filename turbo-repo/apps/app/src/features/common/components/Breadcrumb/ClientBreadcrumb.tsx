@@ -34,7 +34,7 @@ export const ClientBreadcrumb: React.FC<Readonly<ClientBreadcrumbProps>> = ({
   const translatedPath = normalizedPath.map((item) => ({
     ...item,
     label: tr(item.label, dict),
-    href: item.href ? `/${lang}${item.href}` : undefined,
+    href: item.href ? `/app/${lang}${item.href}` : undefined,
   }));
 
   return (

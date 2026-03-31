@@ -15,7 +15,7 @@ export interface BreadcrumbPathItem {
 interface ClientBreadcrumbProps {
   path: (string | BreadcrumbPathItem)[];
   rootIcon?: React.ReactNode;
-  rightContent?: React.ReactNode[];
+  rightContent?: { key: string; content: React.ReactNode }[];
   dict: I18nRecord;
 }
 
@@ -61,8 +61,8 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
       </FlowbiteBreadcrumb>
       {rightContent.length > 0 && (
         <div className="flex items-center space-x-2">
-          {rightContent.map((content, index) => (
-            <React.Fragment key={`right-content-${index}`}>{content}</React.Fragment>
+          {rightContent.map((item) => (
+            <React.Fragment key={item.key}>{item.content}</React.Fragment>
           ))}
         </div>
       )}

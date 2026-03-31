@@ -17,9 +17,11 @@ export default function VehicleDetailView({
   onBack,
 }: VehicleDetailViewProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col h-full items-center w-full">
       <VehicleDetailHeader vehicle={vehicle} dict={dict} onBack={onBack} />
-      <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
+      <div className="flex-1 min-h-0 overflow-y-auto max-w-screen-2xl">
+        <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
+      </div>
     </div>
   );
 }

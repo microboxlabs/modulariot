@@ -19,34 +19,56 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
-import { ConnectionStatusBadge } from "@/features/common/components/connection-status-badge";
 import { GoPulse } from "react-icons/go";
 import { IoMdPin } from "react-icons/io";
-import { VehicleDetailData } from "../vehicle-detail-accordion";
+import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+import { CustomBadge } from "@/features/common/components/custom-badge";
 
 interface TelemetrySectionProps {
   readonly data: VehicleDetailData;
   readonly dict: I18nRecord;
+  readonly status: SectionStatus;
 }
 
-export default function TelemetrySection({ dict, data }: TelemetrySectionProps) {
-  const isConnected = true;
-  const signalStrength = 85;
+function getTelemetryBadge(data: VehicleDetailData, status: SectionStatus, dict: I18nRecord) {
+  const issues: string[] = [];
+  
+  if (data.telemetry.batteryPercentage < 20) {
+    issues.push(tr("vehicleDetail.sections.telemetry.lowBattery", dict) || "Batería baja");
+  } else if (data.telemetry.batteryPercentage < 40) {
+    issues.push(tr("vehicleDetail.sections.telemetry.batteryWarning", dict) || "Batería baja");
+  }
+  
+  if (data.telemetry.signalLost30d > 5) {
+    issues.push(tr("vehicleDetail.sections.telemetry.signalLost", dict) || "Pérdida de señal");
+  } else if (data.telemetry.signalLost30d > 2) {
+    issues.push(tr("vehicleDetail.sections.telemetry.signalWarning", dict) || "Señal inestable");
+  }
 
+  if (issues.length > 0) {
+    const className = status === "critical" 
+      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+      : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    return <CustomBadge text={issues.join(", ")} className={className} />;
+  }
+  
+  return (
+    <CustomBadge 
+      text={tr("vehicleDetail.sections.telemetry.connected", dict) || "Conectado"}
+      className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+    />
+  );
+}
+
+export default function TelemetrySection({ dict, data, status }: TelemetrySectionProps) {
   return (
     <ExpandableSection
       icon={HiOutlineSignal}
       title={tr("vehicleDetail.sections.telemetry.title", dict)}
       description={tr("vehicleDetail.sections.telemetry.description", dict)}
-      badge={
-        <ConnectionStatusBadge
-          isConnected={isConnected}
-          signalStrength={signalStrength}
-          connectedLabel={tr("vehicleDetail.sections.telemetry.connected", dict)}
-          disconnectedLabel={tr("vehicleDetail.sections.telemetry.disconnected", dict)}
-        />
-      }
+      status={status}
+      badge={getTelemetryBadge(data, status, dict)}
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3">

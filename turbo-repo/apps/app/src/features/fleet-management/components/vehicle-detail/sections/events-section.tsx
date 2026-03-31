@@ -7,7 +7,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { CustomBadge } from "@/features/common/components/custom-badge";
-import { VehicleDetailData } from "../vehicle-detail-accordion";
+import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
 
 type EventUrgency = "critical" | "warning" | "info";
 type EventCategory = "falla_tecnica" | "evento" | "uso" | "cambio_datos" | "mantencion";
@@ -89,14 +89,47 @@ function TimelineEvent({ title, description, urgency, direction, date, category,
 interface EventsSectionProps {
   readonly data: VehicleDetailData;
   readonly dict: I18nRecord;
+  readonly status: SectionStatus;
 }
 
-export default function EventsSection({ dict, data }: EventsSectionProps) {
+function getEventsBadge(data: VehicleDetailData, status: SectionStatus, dict: I18nRecord) {
+  const criticalCount = data.events.filter(e => e.urgency === "critical").length;
+  const warningCount = data.events.filter(e => e.urgency === "warning").length;
+  
+  if (criticalCount > 0) {
+    return (
+      <CustomBadge 
+        text={`${criticalCount} evento${criticalCount > 1 ? 's' : ''} crítico${criticalCount > 1 ? 's' : ''}`}
+        className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+      />
+    );
+  }
+  
+  if (warningCount > 0) {
+    return (
+      <CustomBadge 
+        text={`${warningCount} alerta${warningCount > 1 ? 's' : ''}`}
+        className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+      />
+    );
+  }
+  
+  return (
+    <CustomBadge 
+      text={tr("vehicleDetail.sections.events.noIssues", dict) || "Sin alertas"}
+      className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+    />
+  );
+}
+
+export default function EventsSection({ dict, data, status }: EventsSectionProps) {
   return (
     <ExpandableSection
       icon={HiOutlineExclamationTriangle}
       title={tr("vehicleDetail.sections.events.title", dict)}
       description={tr("vehicleDetail.sections.events.description", dict)}
+      status={status}
+      badge={getEventsBadge(data, status, dict)}
     >
       <div className="pt-4 max-h-[600px] overflow-y-auto">
         {data.events.map((event, index) => (

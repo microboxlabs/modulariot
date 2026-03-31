@@ -5,10 +5,15 @@ import { Breadcrumb as FlowbiteBreadcrumb, BreadcrumbItem } from "flowbite-react
 import { HiHome } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useParams } from "next/navigation";
+
+export interface BreadcrumbPathItem {
+  label: string;
+  href?: string;
+}
 
 interface ClientBreadcrumbProps {
-  path: string[];
-  lang?: string;
+  path: (string | BreadcrumbPathItem)[];
   rootIcon?: React.ReactNode;
   rightContent?: React.ReactNode[];
   dict: I18nRecord;
@@ -20,23 +25,36 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
   rightContent = [],
   dict,
 }) => {
-  /* const tr = (key: string, dict?: I18nRecord) => {
-    return dict && dict[key] ? (dict[key] as string) : key;
-  }; */
-
-  const translatedPath = path.map((item) => tr(item, dict));
+  const { lang } = useParams<{ lang: string }>();
+  
+  const normalizedPath = path.map((item) => 
+    typeof item === "string" ? { label: item, href: undefined } : item
+  );
+  
+  const translatedPath = normalizedPath.map((item) => ({
+    ...item,
+    label: tr(item.label, dict),
+    href: item.href ? `/app/${lang}${item.href}` : undefined,
+  }));
 
   return (
     <div className="flex justify-between items-center">
       <FlowbiteBreadcrumb aria-label="Breadcrumb">
         {translatedPath.map((item, index) =>
           index === 0 ? (
-            <BreadcrumbItem icon={() => rootIcon} key={index}>
-              {item}
+            <BreadcrumbItem 
+              icon={() => rootIcon} 
+              key={index}
+              href={item.href}
+            >
+              {item.label}
             </BreadcrumbItem>
           ) : (
-            <BreadcrumbItem key={index}>
-              {item}
+            <BreadcrumbItem 
+              key={index}
+              href={item.href}
+            >
+              {item.label}
             </BreadcrumbItem>
           )
         )}

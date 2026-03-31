@@ -31,8 +31,6 @@ export default function VehicleDetailHeader({
   hasNext = true,
   onBack,
 }: VehicleDetailHeaderProps) {
-  console.log(dict.breadcrumb)
-
   return (
     <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
         <ClientBreadcrumb

@@ -28,7 +28,7 @@ export default function TechnicalHealthSection({
     if (criticalCount > 0) {
       return (
         <CustomBadge 
-          text={`${criticalCount} falla${criticalCount > 1 ? 's' : ''} crítica${criticalCount > 1 ? 's' : ''}`}
+          text={tr("vehicleDetail.sections.technicalHealth.criticalIssues", dict, { count: criticalCount }) || `${criticalCount} falla(s) crítica(s)`}
           className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
         />
       );
@@ -36,7 +36,7 @@ export default function TechnicalHealthSection({
     if (warningCount > 0) {
       return (
         <CustomBadge 
-          text={`${warningCount} alerta${warningCount > 1 ? 's' : ''}`}
+          text={tr("vehicleDetail.sections.technicalHealth.warningIssues", dict, { count: warningCount }) || `${warningCount} alerta(s)`}
           className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
         />
       );

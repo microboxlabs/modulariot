@@ -19,7 +19,7 @@ interface ClientBreadcrumbProps {
   dict: I18nRecord;
 }
 
-export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
+export const ClientBreadcrumb: React.FC<Readonly<ClientBreadcrumbProps>> = ({
   path,
   rootIcon = <HiHome className="mr-2 h-4 w-4" />,
   rightContent = [],
@@ -34,7 +34,7 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
   const translatedPath = normalizedPath.map((item) => ({
     ...item,
     label: tr(item.label, dict),
-    href: item.href ? `/app/${lang}${item.href}` : undefined,
+    href: item.href ? `/${lang}${item.href}` : undefined,
   }));
 
   return (

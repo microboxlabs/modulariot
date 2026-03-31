@@ -2611,7 +2611,10 @@
           "brakes": "Frenos",
           "tires": "Neumáticos",
           "noErrorCodes": "Sin códigos de error detectados",
-          "brakePadWear": "Desgaste de pastillas de freno (28%)"
+          "brakePadWear": "Desgaste de pastillas de freno (28%)",
+          "noIssues": "Sin fallas",
+          "criticalIssues": "{count} falla(s) crítica(s)",
+          "warningIssues": "{count} alerta(s)"
         },
         "telemetry": {
           "title": "Dispositivos y Telemetría",
@@ -2676,7 +2679,10 @@
           "avgDailyOperationHours": "Promedio diario: {hours}",
           "utilization": "{percentage}% Utilización",
           "estimatedProjection": "Proyección estimada",
-          "intensityLastDays": "Intensidad últimos 30 días"
+          "intensityLastDays": "Intensidad últimos 30 días",
+          "exceeded": "Excedido",
+          "nearLimit": "Próximo al límite",
+          "usageLabel": "uso"
         },
         "general": {
           "title": "Información General",

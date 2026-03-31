@@ -86,9 +86,9 @@ export default function UsageSection({
   };
 
   const getUsageBadgeText = () => {
-    if (percentage > 100) return `${percentage}% - Excedido`;
-    if (percentage > 90) return `${percentage}% - Próximo al límite`;
-    return `${percentage}% uso`;
+    if (percentage > 100) return `${percentage}% - ${tr("vehicleDetail.sections.usage.exceeded", dict)}`;
+    if (percentage > 90) return `${percentage}% - ${tr("vehicleDetail.sections.usage.nearLimit", dict)}`;
+    return `${percentage}% ${tr("vehicleDetail.sections.usage.usageLabel", dict)}`;
   };
 
   return (

@@ -70,6 +70,14 @@ export const pages: SidebarItem[] = [
     requiredGroups: [], // Public route
   },
   {
+    href: "/colaborators-management",
+    icon: TruckIcon,
+    label: "colaboratorsManagement",
+    totals: {},
+    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
+    blockedGroups: [],
+  },
+  {
     href: "/fleet-management",
     icon: TruckIcon,
     label: "fleetManagement",

@@ -61,9 +61,9 @@ export default function TechnicalHealthSection({
       badge={getBadge()}
     >
       <div className="flex flex-col gap-3">
-        {data.technicalHealth.alerts.map((alert) => (
+        {data.technicalHealth.alerts.map((alert, index) => (
           <MessageBanner
-            key={`${alert.type}-${alert.title}`}
+            key={`alert-${index}-${alert.type}-${alert.title}`}
             icon={GoAlert}
             title={alert.title}
             description={alert.description}

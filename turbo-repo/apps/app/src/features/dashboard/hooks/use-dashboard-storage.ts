@@ -98,6 +98,31 @@ function deepCloneWidget(widget: Widget, now?: string): Widget {
   };
 }
 
+/**
+ * Insert `cloned` widget right after the widget with `sourceId` inside
+ * the subtree rooted at `parentId`.  Returns a new widget array (immutable).
+ */
+function insertClonedAfterSource(
+  widgets: Widget[],
+  parentId: string,
+  sourceId: string,
+  cloned: Widget
+): Widget[] {
+  return widgets.map((w) => {
+    if (w.id === parentId) {
+      const children = w.children ?? [];
+      const sourceIndex = children.findIndex((c) => c.id === sourceId);
+      const newChildren = [...children];
+      newChildren.splice(sourceIndex + 1, 0, cloned);
+      return { ...w, children: newChildren, updatedAt: new Date().toISOString() };
+    }
+    if (w.children) {
+      return { ...w, children: insertClonedAfterSource(w.children, parentId, sourceId, cloned) };
+    }
+    return w;
+  });
+}
+
 /** Strip editMode from config before persisting to Alfresco */
 function stripEphemeralState(
   data: DashboardStorageSchema
@@ -427,23 +452,10 @@ export function useDashboardStorage(
       }
 
       if (parent) {
-        const parentId = parent.id;
-        const insertAfterSource = (widgets: Widget[]): Widget[] =>
-          widgets.map((w) => {
-            if (w.id === parentId) {
-              const children = w.children ?? [];
-              const sourceIndex = children.findIndex((c) => c.id === widgetId);
-              const newChildren = [...children];
-              newChildren.splice(sourceIndex + 1, 0, cloned);
-              return { ...w, children: newChildren, updatedAt: new Date().toISOString() };
-            }
-            if (w.children) {
-              return { ...w, children: insertAfterSource(w.children) };
-            }
-            return w;
-          });
-
-        updateConfig((c) => ({ ...c, widgets: insertAfterSource(c.widgets) }));
+        updateConfig((c) => ({
+          ...c,
+          widgets: insertClonedAfterSource(c.widgets, parent.id, widgetId, cloned),
+        }));
       } else {
         updateConfig((c) => {
           const sourceIndex = c.widgets.findIndex((w) => w.id === widgetId);

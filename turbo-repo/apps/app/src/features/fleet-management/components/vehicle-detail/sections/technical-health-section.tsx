@@ -8,7 +8,7 @@ import MessageBanner from "@/features/common/components/message-banner/message-b
 import { KpiStat } from "@/features/common/components/kpi-stat";
 import { GoAlert } from "react-icons/go";
 import { CustomBadge } from "@/features/common/components/custom-badge";
-import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
+import type { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
 
 interface TechnicalHealthSectionProps {
   readonly data: VehicleDetailData;

@@ -80,7 +80,6 @@ export default function HealthSection({
 }: HealthSectionProps) {
   const criticalSections = sectionConfig.filter(s => statuses[s.key] === "critical");
   const warningSections = sectionConfig.filter(s => statuses[s.key] === "warning");
-  const okSections = sectionConfig.filter(s => statuses[s.key] === "ok");
   
   return (
     <ExpandableSection

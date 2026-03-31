@@ -4,7 +4,6 @@ import {
   HiOutlineTruck,
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
-  HiArrowLeft,
 } from "react-icons/hi2";
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";

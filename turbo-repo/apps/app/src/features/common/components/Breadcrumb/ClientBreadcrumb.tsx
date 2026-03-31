@@ -44,14 +44,14 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
           index === 0 ? (
             <BreadcrumbItem 
               icon={() => rootIcon} 
-              key={index}
+              key={item.label + index}
               href={item.href}
             >
               {item.label}
             </BreadcrumbItem>
           ) : (
             <BreadcrumbItem 
-              key={index}
+              key={item.label + index}
               href={item.href}
             >
               {item.label}
@@ -62,7 +62,7 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
       {rightContent.length > 0 && (
         <div className="flex items-center space-x-2">
           {rightContent.map((content, index) => (
-            <React.Fragment key={index}>{content}</React.Fragment>
+            <React.Fragment key={`right-content-${index}`}>{content}</React.Fragment>
           ))}
         </div>
       )}

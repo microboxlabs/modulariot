@@ -9,7 +9,7 @@ import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { TbRoute } from "react-icons/tb";
 import ReactECharts from "echarts-for-react";
 import { CustomBadge } from "@/features/common/components/custom-badge";
-import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
+import type { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
 
 interface UsageSectionProps {
   readonly data: VehicleDetailData;

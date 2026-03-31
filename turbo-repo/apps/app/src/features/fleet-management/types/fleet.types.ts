@@ -69,4 +69,5 @@ export interface SpecialView {
   icon: IconType;
   iconColor: string;
   iconDarkColor: string;
+  route: string;
 }

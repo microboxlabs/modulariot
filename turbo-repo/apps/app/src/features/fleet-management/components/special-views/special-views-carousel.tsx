@@ -91,7 +91,7 @@ export default function SpecialViewsCarousel({
       onFocus={handleFocus}
       onBlur={handleBlur}
     >
-      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-left">
         {tr("specialViews.title", dict)}
       </h2>
       <div className="relative flex items-center">

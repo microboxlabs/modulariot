@@ -2580,7 +2580,10 @@
           "brakes": "Brakes",
           "tires": "Tires",
           "noErrorCodes": "No error codes detected",
-          "brakePadWear": "Brake pad wear detected (28%)"
+          "brakePadWear": "Brake pad wear detected (28%)",
+          "noIssues": "No failures",
+          "criticalIssues": "{count} critical failure(s)",
+          "warningIssues": "{count} warning(s)"
         },
         "telemetry": {
           "title": "Devices & Telemetry",
@@ -2644,7 +2647,10 @@
           "avgDailyOperationHours": "Average daily: {hours}",
           "utilization": "{percentage}% Utilization",
           "estimatedProjection": "Estimated projection",
-          "intensityLastDays": "Intensity last 30 days"
+          "intensityLastDays": "Intensity last 30 days",
+          "exceeded": "Exceeded",
+          "nearLimit": "Near limit",
+          "usageLabel": "usage"
         },
         "general": {
           "title": "General Information",

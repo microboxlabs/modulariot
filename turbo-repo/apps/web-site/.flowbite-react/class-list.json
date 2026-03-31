@@ -281,8 +281,7 @@
   "top-right",
   "w-5",
   "w-full",
-  "z-50"
-],
+"z-50",
   "rounded-t-lg",
   "scroll-smooth",
   "shadow-md",

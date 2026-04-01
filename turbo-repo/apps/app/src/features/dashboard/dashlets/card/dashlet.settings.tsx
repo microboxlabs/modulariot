@@ -17,7 +17,7 @@ import {
   useActiveProviders,
 } from "../common";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 
 type CardDataMode = "static" | "pgrest" | "planner";
@@ -55,6 +55,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
+  const refresh = useWidgetRefreshSettings(config, dictionary);
 
   const [name, setName] = useState(config.name || "Metric");
   const [value, setValue] = useState(config.value || "0");
@@ -106,6 +107,7 @@ export function DashletSettings({
       pgrestHttpMethod: pg.pgrestHttpMethod,
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -182,6 +184,7 @@ export function DashletSettings({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

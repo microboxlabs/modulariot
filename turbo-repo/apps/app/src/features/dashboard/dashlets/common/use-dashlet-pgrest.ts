@@ -38,6 +38,7 @@ export interface PgrestDashletFields {
 export function useDashletPgrest<C extends PgrestDashletFields>(
   config: C,
   fieldDefaults: Record<string, string>,
+  refreshIntervalMs: number = 0,
 ) {
   const fieldKeys = Object.keys(fieldDefaults);
 
@@ -70,6 +71,7 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
     fields,
     dataSourceId: config.dataSourceId,
     plannerVariableName: config.plannerVariableName,
+    refreshIntervalMs,
   });
 }
 
@@ -84,6 +86,7 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
 export function useHybridPgrestContext(
   config: PgrestDashletFields,
   dataProvider: DataProviderEntry[],
+  refreshIntervalMs: number = 0,
 ) {
   const dataMode = (config.dataMode as "static" | "pgrest" | "planner") || "static";
   const { activeFilters } = useDashboardFilters();
@@ -100,6 +103,7 @@ export function useHybridPgrestContext(
     config.pgrestHttpMethod || "POST",
     resolvedParams,
     config.dataSourceId,
+    refreshIntervalMs,
   );
 
   const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(

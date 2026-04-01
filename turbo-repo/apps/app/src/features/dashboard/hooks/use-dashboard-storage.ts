@@ -8,6 +8,7 @@ import {
   type DashboardStorageSchema,
   type DashboardFilterParam,
   type PlannerRequestDefinition,
+  type RefreshInterval,
   DEFAULT_STORAGE,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
@@ -400,6 +401,13 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  const setRefreshInterval = useCallback(
+    (refreshInterval: RefreshInterval) => {
+      updateConfig({ refreshInterval });
+    },
+    [updateConfig]
+  );
+
   // ── Planner CRUD ──────────────────────────────────────────────────────────
 
   const getPlannerDefinitions = useCallback(
@@ -496,6 +504,7 @@ export function useDashboardStorage(
           preferences: imported.preferences ?? { editMode: false },
           requestPlanner: imported.requestPlanner,
           filters: imported.filters,
+          refreshInterval: imported.refreshInterval,
         };
 
         saveData(newData);
@@ -516,6 +525,7 @@ export function useDashboardStorage(
     plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
+    refreshInterval: resolvedConfig.refreshInterval ?? 0,
     isLoaded,
     addWidget,
     addChildWidget,
@@ -525,6 +535,7 @@ export function useDashboardStorage(
     setEditMode,
     setDashboardName,
     setFilters,
+    setRefreshInterval,
     findWidget,
     findParent,
     exportDashboard,

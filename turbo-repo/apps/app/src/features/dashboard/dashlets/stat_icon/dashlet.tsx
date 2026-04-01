@@ -9,6 +9,7 @@ import {
   DashletError,
   parseResolvedNumber,
 } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 
 // ============================================================================
@@ -54,10 +55,11 @@ const FIELD_DEFAULTS: Record<string, string> = {
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
   const { resolved, loading, fetchError } = useDashletPgrest(
     config,
-    FIELD_DEFAULTS
+    FIELD_DEFAULTS, refreshIntervalMs
   );
 
   if (loading) return <DashletLoading />;

@@ -32,6 +32,8 @@ interface TableListSettingsShellProps {
   plannerContent?: ReactNode;
   /** Enable Handlebars color coding on column key/label inputs */
   handlebarsColorKeys?: boolean;
+  /** Optional refresh interval select rendered above the save button */
+  refreshSelect?: ReactNode;
 }
 
 // ============================================================================
@@ -49,6 +51,7 @@ export function TableListSettingsShell({
   dataTabChildren,
   plannerContent,
   handlebarsColorKeys = false,
+  refreshSelect,
 }: Readonly<TableListSettingsShellProps>) {
   const visualizationTab = (
     <>
@@ -151,6 +154,7 @@ export function TableListSettingsShell({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       className="w-[28rem]"
+      refreshSelect={refreshSelect}
     />
   );
 }

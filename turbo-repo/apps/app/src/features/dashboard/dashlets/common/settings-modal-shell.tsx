@@ -8,6 +8,7 @@ import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import { RefreshIntervalSelect } from "./refresh-interval-select";
 
 type SettingsTab = "visualization" | "data";
 
@@ -22,6 +23,8 @@ interface SettingsModalShellProps {
   dataTab: ReactNode;
   /** Optional class override for the modal width */
   className?: string;
+  /** Optional refresh interval select rendered above the save button (overrides built-in) */
+  refreshSelect?: ReactNode;
 }
 
 export function SettingsModalShell({
@@ -32,6 +35,7 @@ export function SettingsModalShell({
   visualizationTab,
   dataTab,
   className,
+  refreshSelect,
 }: Readonly<SettingsModalShellProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
@@ -82,6 +86,9 @@ export function SettingsModalShell({
           {activeTab === "visualization" ? visualizationTab : dataTab}
         </div>
 
+        {/* Optional refresh interval */}
+        {refreshSelect}
+
         {/* Save button */}
         <Button
           onClick={onSave}
@@ -96,4 +103,45 @@ export function SettingsModalShell({
   );
 
   return createPortal(modalContent, document.body);
+}
+
+// ============================================================================
+// Hook: per-widget refresh interval state for settings modals
+// ============================================================================
+
+/**
+ * Manages widget-level refresh interval state and provides props for the
+ * RefreshIntervalSelect + the save payload. Use this in any custom settings
+ * modal that uses SettingsModalShell directly.
+ *
+ * Usage:
+ * ```ts
+ * const refresh = useWidgetRefreshSettings(config);
+ * // In save: onSave({ ...myFields, ...refresh.savePayload });
+ * // In shell: <SettingsModalShell refreshSelect={refresh.selectNode} ... />
+ * ```
+ */
+export function useWidgetRefreshSettings(
+  config: object,
+  dictionary: I18nRecord,
+) {
+  const [value, setValue] = useState<number | "inherit">(() => {
+    const v = (config as Record<string, unknown>).refreshInterval;
+    return typeof v === "number" ? v : "inherit";
+  });
+
+  const savePayload =
+    value === "inherit"
+      ? { refreshInterval: undefined }
+      : { refreshInterval: value };
+
+  const selectNode = (
+    <RefreshIntervalSelect
+      value={value}
+      onChange={setValue}
+      dictionary={dictionary}
+    />
+  );
+
+  return { value, setValue, savePayload, selectNode };
 }

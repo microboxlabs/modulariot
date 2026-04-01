@@ -13,6 +13,7 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
+import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
@@ -27,6 +28,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
   const { dataSources } = useDataSources(siteId ?? undefined);
 
@@ -87,6 +89,7 @@ export function DashletSettings({
       sort,
       dataSourceId: dataSourceId || undefined,
       plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -122,6 +125,7 @@ export function DashletSettings({
       dataTabChildren={pgrestContent}
       plannerContent={plannerContent}
       handlebarsColorKeys
+      refreshSelect={refresh.selectNode}
     />
   );
 }

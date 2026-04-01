@@ -1625,7 +1625,8 @@
       "showLegend": "Show Legend",
       "colorPalette": "Color Palette",
       "smooth": "Smooth Lines",
-      "stacked": "Stacked"
+      "stacked": "Stacked",
+      "duplicate": "Duplicate"
     },
     "filterBar": {
       "search": "Search...",

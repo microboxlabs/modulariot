@@ -7,6 +7,7 @@ import { useDashboard } from "../../context/dashboard-context";
 import { getDashlet } from "../../dashlets";
 import { DeleteWidgetModal } from "../delete-widget-modal";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
+import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // WidgetControls - Extracted component for edit mode buttons
@@ -15,6 +16,7 @@ import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 interface WidgetControlsProps {
   hasChildren: boolean;
   hasSettings: boolean;
+  duplicateLabel: string;
   onAddChild: () => void;
   onOpenSettings: () => void;
   onDuplicate: () => void;
@@ -27,6 +29,7 @@ interface WidgetControlsProps {
 function WidgetControls({
   hasChildren,
   hasSettings,
+  duplicateLabel,
   onAddChild,
   onOpenSettings,
   onDuplicate,
@@ -61,7 +64,8 @@ function WidgetControls({
         onClick={onDuplicate}
         onMouseDown={(e) => e.stopPropagation()}
         className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-        title="Duplicate"
+        title={duplicateLabel}
+        aria-label={duplicateLabel}
       >
         <HiDocumentDuplicate className="h-4 w-4" />
       </button>
@@ -165,6 +169,7 @@ export function WidgetRenderer({
         <WidgetControls
           hasChildren={meta.hasChildren}
           hasSettings={meta.hasSettings && !!SettingsModal}
+          duplicateLabel={tr("dashboard.settings.duplicate", dictionary)}
           onAddChild={handleOpenAddChild}
           onOpenSettings={handleOpenSettings}
           onDuplicate={handleDuplicate}

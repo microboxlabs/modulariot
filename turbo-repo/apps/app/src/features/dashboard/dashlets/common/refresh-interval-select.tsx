@@ -22,10 +22,11 @@ export function RefreshIntervalSelect({
 
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <Label className="text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">
+      <Label htmlFor="refresh-interval-select" className="text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">
         {t("autoRefresh")}
       </Label>
       <Select
+        id="refresh-interval-select"
         sizing="sm"
         value={current}
         onChange={(e) => {

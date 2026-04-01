@@ -9,16 +9,18 @@ import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { TbRoute } from "react-icons/tb";
 import ReactECharts from "echarts-for-react";
 import { CustomBadge } from "@/features/common/components/custom-badge";
-import { VehicleDetailData } from "../vehicle-detail-accordion";
+import type { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
 
 interface UsageSectionProps {
   readonly data: VehicleDetailData;
   readonly dict: I18nRecord;
+  readonly status: SectionStatus;
 }
 
 export default function UsageSection({
   data,
   dict,
+  status,
 }: UsageSectionProps) {
   const percentage = data.usage.monthlyContractualConsumptionPercentage;
 
@@ -77,19 +79,32 @@ export default function UsageSection({
     },
   };
 
+  const getUsageBadgeClass = () => {
+    if (percentage > 100) return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    if (percentage > 90) return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+  };
+
+  const getUsageBadgeText = () => {
+    if (percentage > 100) return `${percentage}% - ${tr("vehicleDetail.sections.usage.exceeded", dict)}`;
+    if (percentage > 90) return `${percentage}% - ${tr("vehicleDetail.sections.usage.nearLimit", dict)}`;
+    return `${percentage}% ${tr("vehicleDetail.sections.usage.usageLabel", dict)}`;
+  };
+
   return (
     <ExpandableSection
       icon={HiOutlineArrowPath}
       title={tr("vehicleDetail.sections.usage.title", dict)}
       description={tr("vehicleDetail.sections.usage.description", dict)}
+      status={status}
       badge={
         <CustomBadge 
-          text={`${percentage}% uso`}
-          className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+          text={getUsageBadgeText()}
+          className={getUsageBadgeClass()}
         />
       }
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3">
           <KpiStat
             icon={{

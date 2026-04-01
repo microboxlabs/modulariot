@@ -1,16 +1,21 @@
 "use client";
 
-import type { Vehicle } from "../../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { CircularProgress } from "@/features/common/components/circular-progress";
 import MessageBanner from "@/features/common/components/message-banner/message-banner";
-import { GoAlert } from "react-icons/go";
-import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
-
-type HealthColor = "green" | "yellow" | "red";
-type StatusLevel = "good" | "warning" | "critical";
+import { GoAlert, GoCheckCircle } from "react-icons/go";
+import { SectionStatus, SectionStatuses } from "../vehicle-detail-accordion";
+import { 
+  HiOutlineWrenchScrewdriver, 
+  HiOutlineShieldCheck, 
+  HiOutlineSignal, 
+  HiOutlineExclamationTriangle,
+  HiOutlineArrowPath,
+  HiOutlineCheckCircle,
+  HiOutlineExclamationCircle,
+} from "react-icons/hi2";
 
 function getHealthTitleClass(score: number): string {
   if (score >= 80) return "text-green-600 dark:text-green-400";
@@ -24,41 +29,58 @@ function getHealthTitleKey(score: number): string {
   return "vehicleDetail.sections.health.poorHealth";
 }
 
-function getHealthColor(score: number): HealthColor {
-  if (score >= 80) return "green";
-  if (score >= 60) return "yellow";
-  return "red";
-}
+const statusStyles: Record<SectionStatus, { 
+  bg: string; 
+  text: string; 
+  border: string;
+  statusIcon: typeof HiOutlineCheckCircle;
+  statusIconClass: string;
+}> = {
+  ok: { 
+    bg: "bg-green-50 dark:bg-green-900/20", 
+    text: "text-green-700 dark:text-green-400",
+    border: "border-green-200 dark:border-green-800",
+    statusIcon: HiOutlineCheckCircle,
+    statusIconClass: "text-green-500",
+  },
+  warning: { 
+    bg: "bg-yellow-50 dark:bg-yellow-900/20", 
+    text: "text-yellow-700 dark:text-yellow-400",
+    border: "border-yellow-200 dark:border-yellow-800",
+    statusIcon: HiOutlineExclamationCircle,
+    statusIconClass: "text-yellow-500",
+  },
+  critical: { 
+    bg: "bg-red-50 dark:bg-red-900/20", 
+    text: "text-red-700 dark:text-red-400",
+    border: "border-red-200 dark:border-red-800",
+    statusIcon: HiOutlineExclamationCircle,
+    statusIconClass: "text-red-500",
+  },
+};
 
-function getFuelColor(level: number): HealthColor {
-  if (level >= 50) return "green";
-  if (level >= 25) return "yellow";
-  return "red";
-}
-
-function getOperationalStatus(status: Vehicle["status"]): StatusLevel {
-  if (status === "active") return "good";
-  if (status === "maintenance") return "warning";
-  return "critical";
-}
-
-function getSystemsCheckStatus(score: number): StatusLevel {
-  if (score >= 70) return "good";
-  if (score >= 40) return "warning";
-  return "critical";
-}
+const sectionConfig = [
+  { key: "maintenance" as const, icon: HiOutlineWrenchScrewdriver, labelKey: "vehicleDetail.sections.maintenance.title" },
+  { key: "technicalHealth" as const, icon: HiOutlineShieldCheck, labelKey: "vehicleDetail.sections.technicalHealth.title" },
+  { key: "telemetry" as const, icon: HiOutlineSignal, labelKey: "vehicleDetail.sections.telemetry.title" },
+  { key: "events" as const, icon: HiOutlineExclamationTriangle, labelKey: "vehicleDetail.sections.events.title" },
+  { key: "usage" as const, icon: HiOutlineArrowPath, labelKey: "vehicleDetail.sections.usage.title" },
+];
 
 interface HealthSectionProps {
-  readonly vehicle: Vehicle;
   readonly dict: I18nRecord;
   readonly healthScore: number;
+  readonly statuses: SectionStatuses;
 }
 
 export default function HealthSection({
-  vehicle,
   dict,
   healthScore,
+  statuses,
 }: HealthSectionProps) {
+  const criticalSections = sectionConfig.filter(s => statuses[s.key] === "critical");
+  const warningSections = sectionConfig.filter(s => statuses[s.key] === "warning");
+  
   return (
     <ExpandableSection
       customIcon={<CircularProgress value={healthScore} />}
@@ -70,66 +92,61 @@ export default function HealthSection({
       description={tr("vehicleDetail.sections.health.description", dict)}
       defaultExpanded
     >
-      <div className="flex flex-col gap-4">
-        <MessageBanner
-          icon={GoAlert}
-          title="Falla DPF - Saturación crítica"
-          description="Sistema de filtro de partículas diésel requiere regeneración urgente (Detectada: 10 Feb 2026 14:45)"
-          variant="error"
-        />
-        <MessageBanner
-          icon={GoAlert}
-          title="Falla sensor presión neumáticos"
-          description="TPMS reporta error en sensor rueda delantera derecha (Detectada: 22 Ene 2026 16:30)"
-          variant="warning"
-        />
-        <div className="flex flex-row gap-3 w-full">
-          <KpiStat
-            icon={{
-              className:
-                "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
-            }}
-            value={{
-              text: "2",
-              className: "text-green-500 dark:text-green-400 font-bold",
-            }}
-            title={{
-              text: tr("vehicleDetail.sections.health.activeFailures", dict)
-            }}
-            className="w-full"
-            variant="vertical"
-          />
-          <KpiStat
-            icon={{
-              className:
-                "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
-            }}
-            title={{
-              text: tr("vehicleDetail.sections.health.resolved30days", dict)
-            }}
-            value={{
-              text: "5",
-              className: "text-green-500 dark:text-green-400 font-bold",
-            }}
-            className="w-full"
-            variant="vertical"
-          />
-          <KpiStat
-            icon={{
-              className:
-                "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
-            }}
-            title={{
-              text: tr("vehicleDetail.sections.health.responseTime", dict)
-            }}
-            value={{
-              text: "18h",
-              className: "text-green-500 dark:text-green-400 font-bold",
-            }}
-            className="w-full"
-            variant="vertical"
-          />
+      <div className="flex flex-col gap-3">
+        {/* Section Status Cards */}
+        <div className="grid grid-cols-5 gap-3">
+          {sectionConfig.map((section) => {
+            const status = statuses[section.key];
+            const styles = statusStyles[status];
+            const Icon = section.icon;
+            const StatusIcon = styles.statusIcon;
+            
+            return (
+              <div 
+                key={section.key}
+                className={`flex flex-col items-center p-3 rounded-lg border ${styles.bg} ${styles.border} transition-all hover:shadow-sm`}
+              >
+                <div className="relative">
+                  <Icon className={`w-6 h-6 ${styles.text}`} />
+                  <StatusIcon className={`w-3 h-3 ${styles.statusIconClass} absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full`} />
+                </div>
+                <span className={`text-[10px] font-medium mt-2 text-center leading-tight ${styles.text}`}>
+                  {tr(section.labelKey, dict)}
+                </span>
+              </div>
+            );
+          })}
         </div>
+
+        {/* Critical Issues */}
+        {criticalSections.length > 0 && (
+          <MessageBanner
+            icon={GoAlert}
+            title={`${criticalSections.length} ${tr("vehicleDetail.sections.health.criticalIssues", dict) || "problema(s) crítico(s)"}`}
+            description={criticalSections.map(s => tr(s.labelKey, dict)).join(" • ")}
+            variant="error"
+          />
+        )}
+
+        {/* Warning Issues */}
+        {warningSections.length > 0 && (
+          <MessageBanner
+            icon={GoAlert}
+            title={`${warningSections.length} ${tr("vehicleDetail.sections.health.warningIssues", dict) || "alerta(s)"}`}
+            description={warningSections.map(s => tr(s.labelKey, dict)).join(" • ")}
+            variant="warning"
+          />
+        )}
+
+        {/* All OK */}
+        {criticalSections.length === 0 && warningSections.length === 0 && (
+          <MessageBanner
+            icon={GoCheckCircle}
+            title={tr("vehicleDetail.sections.health.allSystemsOk", dict) || "Todos los sistemas operando normalmente"}
+            description={tr("vehicleDetail.sections.health.allSystemsOkDesc", dict) || "No se detectaron problemas en ninguna sección"}
+            variant="success"
+          />
+        )}
       </div>
     </ExpandableSection>
   );

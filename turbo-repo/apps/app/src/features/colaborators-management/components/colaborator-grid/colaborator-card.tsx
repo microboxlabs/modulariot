@@ -41,12 +41,10 @@ export default function ColaboratorCard({
     "cursor-pointer hover:border-gray-500 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400";
 
   return (
-    <div
+    <button
       className={`${baseClasses} ${isInteractive ? interactiveClasses : ""}`}
-      onClick={isInteractive ? handleClick : undefined}
-      onKeyDown={isInteractive ? handleKeyDown : undefined}
-      tabIndex={isInteractive ? 0 : undefined}
-      role={isInteractive ? "button" : undefined}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Header: Avatar, Performance Score, Name, Rank, Status */}
       <div className="flex items-center gap-3">
@@ -96,6 +94,6 @@ export default function ColaboratorCard({
           value={`${colaborator.incidentsCount}`}
         />
       </div>
-    </div>
+    </button>
   );
 }

@@ -70,8 +70,9 @@ export default function ColaboratorGrid({
     if (!sort.field) return filteredColaborators;
     
     return [...filteredColaborators].sort((a, b) => {
-      const aVal = a[sort.field!];
-      const bVal = b[sort.field!];
+      if (!sort.field) return 0;
+      const aVal = a[sort.field];
+      const bVal = b[sort.field];
       const diff = (aVal as number) - (bVal as number);
       return sort.direction === "asc" ? diff : -diff;
     });
@@ -170,7 +171,7 @@ export default function ColaboratorGrid({
             {tr("grid.title", dict)}
           </h2>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            {tr("grid.colaboratorCount", dict).replace("{count}", String(sortedColaborators.length))}
+            {tr("grid.colaboratorCount", dict, { count: String(sortedColaborators.length) })}
           </span>
         </div>
         <div className="flex items-end gap-2 flex-wrap">

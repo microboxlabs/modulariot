@@ -84,7 +84,7 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Build & Test
-        run: ./mvnw clean verify
+        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true
         working-directory: quarkus-srv
 
       - name: SonarCloud Scan

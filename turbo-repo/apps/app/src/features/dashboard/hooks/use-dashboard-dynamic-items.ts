@@ -17,7 +17,8 @@ interface DashboardConfigsResponse {
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const body = await res.text().catch(() => "");
+    throw new Error(`Dashboard fetch failed (${res.status}): ${body}`);
   }
   return res.json();
 };

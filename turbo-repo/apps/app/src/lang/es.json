@@ -1513,7 +1513,8 @@
       "namePlaceholder": "Mi Dashboard",
       "nameRequired": "El nombre es obligatorio",
       "siteRequired": "No se puede crear el dashboard: sitio no disponible",
-      "nameInvalid": "El nombre debe contener al menos una letra o número"
+      "nameInvalid": "El nombre debe contener al menos una letra o número",
+      "duplicateSlug": "Ya existe un dashboard con este nombre. Por favor elige un nombre diferente."
     },
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",
@@ -1621,7 +1622,27 @@
       "addFilterButton": "+ Agregar Filtro",
       "filtersUpdated": "Filtros actualizados correctamente",
       "filtersValidationError": "Algunos filtros tienen campos vacíos o claves duplicadas. Corríjalos antes de guardar.",
-      "deleteDescription": "Eliminar permanentemente este dashboard"
+      "deleteDescription": "Eliminar permanentemente este dashboard",
+      "chartType": "Tipo de Gráfico",
+      "line": "Línea",
+      "bar": "Barras",
+      "pie": "Pastel",
+      "gauge": "Indicador",
+      "scatter": "Dispersión",
+      "xAxisColumn": "Columna Eje X",
+      "categoryColumn": "Columna de Categoría",
+      "valueColumn": "Columna de Valor",
+      "series": "Series",
+      "addSeries": "+ Agregar Serie",
+      "seriesLabel": "Etiqueta",
+      "seriesColumn": "Columna",
+      "removeSeries": "Eliminar",
+      "xAxisLabel": "Etiqueta Eje X",
+      "yAxisLabel": "Etiqueta Eje Y",
+      "showLegend": "Mostrar Leyenda",
+      "colorPalette": "Paleta de Colores",
+      "smooth": "Líneas Suaves",
+      "stacked": "Apilado"
     },
     "filterBar": {
       "search": "Buscar...",
@@ -1654,6 +1675,27 @@
       "clearSearch": "Limpiar búsqueda"
     },
     "dashlets": {
+      "chart": {
+        "name": "Gráfico",
+        "description": "Muestra datos como gráficos de línea, barras, pastel, indicador o dispersión",
+        "noData": "Sin datos disponibles",
+        "typeLine": "Línea",
+        "typeBar": "Barras",
+        "typePie": "Pastel",
+        "typeGauge": "Indicador",
+        "typeScatter": "Dispersión",
+        "palette_default": "Predeterminado",
+        "palette_cool": "Frío",
+        "palette_warm": "Cálido",
+        "palette_monochrome": "Monocromático",
+        "palette_pastel": "Pastel",
+        "palette_vivid": "Vívido",
+        "paletteCustom": "Personalizado",
+        "noColumnsDetected": "No se detectaron columnas",
+        "selectPlaceholder": "Seleccionar...",
+        "labelPlaceholder": "Etiqueta",
+        "seriesNumber": "Serie {n}"
+      },
       "data_list": {
         "name": "Lista de Datos",
         "description": "Muestra datos como una lista de tarjetas con grillas de KPI y metadatos",

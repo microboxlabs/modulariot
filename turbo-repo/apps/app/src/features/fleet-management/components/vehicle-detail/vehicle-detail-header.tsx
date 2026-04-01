@@ -9,6 +9,8 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import VehicleStatusBadge from "../vehicle-grid/vehicle-status-badge";
+import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
+import { HiClipboardList } from "react-icons/hi";
 
 interface VehicleDetailHeaderProps {
   readonly vehicle: Vehicle;
@@ -17,6 +19,7 @@ interface VehicleDetailHeaderProps {
   readonly onNext?: () => void;
   readonly hasPrevious?: boolean;
   readonly hasNext?: boolean;
+  readonly onBack: () => void;
 }
 
 export default function VehicleDetailHeader({
@@ -26,10 +29,19 @@ export default function VehicleDetailHeader({
   onNext,
   hasPrevious = true,
   hasNext = true,
+  onBack,
 }: VehicleDetailHeaderProps) {
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
+        <ClientBreadcrumb
+          path={[
+            { label: "breadcrumb.fleetManagement", href: "/fleet-management" },
+            vehicle.plate,
+          ]}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={dict}
+        />
+      <div className="flex items-center justify-between gap-4 ">
         {/* Left: Vehicle info */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           {/* Truck icon */}
@@ -106,7 +118,6 @@ export default function VehicleDetailHeader({
           <button
             type="button"
             onClick={onPrevious}
-            disabled={!onPrevious || !hasPrevious}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label={tr("fleetManagement.previous", dict)}
           >
@@ -115,7 +126,6 @@ export default function VehicleDetailHeader({
           <button
             type="button"
             onClick={onNext}
-            disabled={!onNext || !hasNext}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label={tr("fleetManagement.next", dict)}
           >

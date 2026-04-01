@@ -1488,7 +1488,8 @@
       "namePlaceholder": "My Dashboard",
       "nameRequired": "Name is required",
       "siteRequired": "Unable to create dashboard: site not available",
-      "nameInvalid": "Name must contain at least one letter or number"
+      "nameInvalid": "Name must contain at least one letter or number",
+      "duplicateSlug": "A dashboard with this name already exists. Please choose a different name."
     },
     "settings": {
       "sparklineData": "Sparkline Data (comma-separated)",
@@ -1596,7 +1597,27 @@
       "addFilterButton": "+ Add Filter",
       "filtersUpdated": "Filters updated successfully",
       "filtersValidationError": "Some filters have empty fields or duplicate keys. Please fix them before saving.",
-      "deleteDescription": "Permanently remove this dashboard"
+      "deleteDescription": "Permanently remove this dashboard",
+      "chartType": "Chart Type",
+      "line": "Line",
+      "bar": "Bar",
+      "pie": "Pie",
+      "gauge": "Gauge",
+      "scatter": "Scatter",
+      "xAxisColumn": "X-Axis Column",
+      "categoryColumn": "Category Column",
+      "valueColumn": "Value Column",
+      "series": "Series",
+      "addSeries": "+ Add Series",
+      "seriesLabel": "Label",
+      "seriesColumn": "Column",
+      "removeSeries": "Remove",
+      "xAxisLabel": "X-Axis Label",
+      "yAxisLabel": "Y-Axis Label",
+      "showLegend": "Show Legend",
+      "colorPalette": "Color Palette",
+      "smooth": "Smooth Lines",
+      "stacked": "Stacked"
     },
     "filterBar": {
       "search": "Search...",
@@ -1629,6 +1650,27 @@
       "clearSearch": "Clear search"
     },
     "dashlets": {
+      "chart": {
+        "name": "Chart",
+        "description": "Displays data as line, bar, pie, gauge, or scatter charts",
+        "noData": "No data available",
+        "typeLine": "Line",
+        "typeBar": "Bar",
+        "typePie": "Pie",
+        "typeGauge": "Gauge",
+        "typeScatter": "Scatter",
+        "palette_default": "Default",
+        "palette_cool": "Cool",
+        "palette_warm": "Warm",
+        "palette_monochrome": "Monochrome",
+        "palette_pastel": "Pastel",
+        "palette_vivid": "Vivid",
+        "paletteCustom": "Custom",
+        "noColumnsDetected": "No columns detected",
+        "selectPlaceholder": "Select...",
+        "labelPlaceholder": "Label",
+        "seriesNumber": "Series {n}"
+      },
       "data_list": {
         "name": "Data List",
         "description": "Displays data as a list of cards with KPI grids and metadata",

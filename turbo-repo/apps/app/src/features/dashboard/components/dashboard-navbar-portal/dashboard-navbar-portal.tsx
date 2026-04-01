@@ -13,7 +13,21 @@ export function DashboardNavbarPortal() {
 
   useEffect(() => {
     const el = document.getElementById("navbar-search-slot");
-    setPortalTarget(el);
+    if (el) {
+      setPortalTarget(el);
+      return;
+    }
+
+    // Slot not yet in DOM — watch for it to appear
+    const observer = new MutationObserver(() => {
+      const slot = document.getElementById("navbar-search-slot");
+      if (slot) {
+        setPortalTarget(slot);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, []);
 
   if (!portalTarget) return null;

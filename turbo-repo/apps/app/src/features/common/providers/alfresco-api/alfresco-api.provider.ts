@@ -1425,6 +1425,7 @@ interface AlfrescoDataSourceOAuthConfig {
   clientSecretSuffix?: string;
   tokenUrl?: string;
   scope?: string;
+  audience?: string;
 }
 
 export type AlfrescoDataSourceConfig =

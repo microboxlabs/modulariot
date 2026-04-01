@@ -16,6 +16,7 @@ export interface DataSourceListItem {
     maskedClientSecret?: string;
     tokenUrl?: string;
     scope?: string;
+    audience?: string;
   };
   isActive: boolean;
   lastTestedAt?: string;
@@ -37,6 +38,7 @@ export interface DataSourceFormData {
   clientSecret?: string;
   tokenUrl?: string;
   scope?: string;
+  audience?: string;
 }
 
 const baseFields = {
@@ -60,6 +62,7 @@ const oauthCreateFields = z.object({
   clientSecret: z.string().min(1, "validation.clientSecretRequired"),
   tokenUrl: z.string().url("validation.tokenUrlInvalid"),
   scope: z.string().max(500).optional(),
+  audience: z.string().max(500).optional(),
 });
 
 export const CreateDataSourceSchema = z.discriminatedUnion("authMethod", [
@@ -79,8 +82,9 @@ export const UpdateDataSourceSchema = z.object({
   // OAuth auth
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
-  tokenUrl: z.string().url("validation.tokenUrlInvalid").optional(),
+  tokenUrl: z.union([z.string().url("validation.tokenUrlInvalid"), z.literal("")]).optional(),
   scope: z.string().max(500).optional().nullable(),
+  audience: z.string().max(500).optional().nullable(),
 });
 
 export type CreateDataSourceInput = z.infer<typeof CreateDataSourceSchema>;

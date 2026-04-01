@@ -3,6 +3,7 @@ import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
 import TruckIcon from "@/features/icons/truck";
+import PeopleIcon from "@/features/icons/people";
 import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
@@ -71,7 +72,7 @@ export const pages: SidebarItem[] = [
   },
   {
     href: "/colaborators-management",
-    icon: TruckIcon,
+    icon: PeopleIcon,
     label: "colaboratorsManagement",
     totals: {},
     requiredGroups: ["GROUP_FLEET_MANAGEMENT"],

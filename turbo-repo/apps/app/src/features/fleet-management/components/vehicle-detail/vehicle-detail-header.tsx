@@ -32,7 +32,7 @@ export default function VehicleDetailHeader({
 }: VehicleDetailHeaderProps) {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-end justify-between gap-4">
         {/* Left: Vehicle info */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <button

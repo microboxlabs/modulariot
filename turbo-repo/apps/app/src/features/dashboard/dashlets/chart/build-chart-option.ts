@@ -20,14 +20,14 @@ const LIGHT_TEXT = "#374151";
 const DARK_AXIS_LINE = "#4b5563";
 const LIGHT_AXIS_LINE = "#e5e7eb";
 
-function noDataOption(darkMode: boolean): EChartsOption {
+function noDataOption(darkMode: boolean, label = "No data"): EChartsOption {
   return {
     graphic: {
       type: "text",
       left: "center",
       top: "center",
       style: {
-        text: "No data",
+        text: label,
         fontSize: 14,
         fill: darkMode ? "#9ca3af" : "#6b7280",
       },
@@ -73,7 +73,7 @@ function buildCartesianOption(
       name: s.label,
       data: rows.map((r) => {
         const v = Number.parseFloat(r[s.columnKey]);
-        return Number.isFinite(v) ? v : 0;
+        return Number.isFinite(v) ? v : null;
       }),
       smooth: config.chartType === "line" ? config.smooth : undefined,
       stack:
@@ -104,13 +104,13 @@ function buildPieOption(
       {
         type: "pie",
         radius: ["30%", "65%"],
-        data: rows.map((r) => {
-          const v = Number.parseFloat(r[valueSeries.columnKey]);
-          return {
-            name: r[config.xAxisColumn] ?? "",
-            value: Number.isFinite(v) ? v : 0,
-          };
-        }),
+        data: rows.reduce<{ name: string; value: number }[]>((acc, r) => {
+            const v = Number.parseFloat(r[valueSeries.columnKey]);
+            if (Number.isFinite(v)) {
+              acc.push({ name: r[config.xAxisColumn] ?? "", value: v });
+            }
+            return acc;
+          }, []),
         label: { color: textColor },
       },
     ],
@@ -127,8 +127,9 @@ function buildGaugeOption(
   const valueSeries = config.series[0];
   if (!valueSeries) return noDataOption(darkMode);
 
-  const raw = Number.parseFloat(rows[0]?.[valueSeries.columnKey] ?? "0");
-  const value = Number.isFinite(raw) ? raw : 0;
+  const raw = Number.parseFloat(rows[0]?.[valueSeries.columnKey] ?? "");
+  if (!Number.isFinite(raw)) return noDataOption(darkMode);
+  const value = raw;
 
   return {
     color: colors,
@@ -151,8 +152,9 @@ export function buildEChartsOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   darkMode = false,
+  noDataLabel?: string,
 ): EChartsOption {
-  if (rows.length === 0) return noDataOption(darkMode);
+  if (rows.length === 0) return noDataOption(darkMode, noDataLabel);
 
   const colors = getColors(config.colorPalette, config.customColors);
 

@@ -126,7 +126,7 @@ export function useWidgetRefreshSettings(
   dictionary: I18nRecord,
 ) {
   const [value, setValue] = useState<number | "inherit">(() => {
-    const v = (config as Record<string, unknown>).refreshInterval;
+    const v = "refreshInterval" in config ? config.refreshInterval : undefined;
     return typeof v === "number" ? v : "inherit";
   });
 

@@ -112,10 +112,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 201 });
   } catch (err) {
     logger.error({ err }, "Failed to create data source");
-    const message = err instanceof Error ? err.message : "Internal server error";
-    console.error("[data-sources] POST failed:", message, err);
     return NextResponse.json(
-      { error: message },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

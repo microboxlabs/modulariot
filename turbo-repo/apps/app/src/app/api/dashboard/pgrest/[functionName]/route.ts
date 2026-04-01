@@ -33,21 +33,10 @@ function isValidHttpError(status: number): boolean {
   return status >= 400 && status < 600;
 }
 
-async function validateResponse(response: Response, fullUrl: string) {
+function validateResponse(response: Response) {
   if (!response.ok) {
     const status = isValidHttpError(response.status) ? response.status : 502;
     const contentType = response.headers.get("content-type");
-
-    // Log upstream error details for debugging
-    let upstreamBody = "";
-    try {
-      upstreamBody = await response.text();
-    } catch { /* ignore */ }
-    console.error(
-      `[pgrest] Upstream ${response.status} from ${fullUrl}:`,
-      upstreamBody || response.statusText
-    );
-
     if (contentType?.includes("text/html")) {
       return NextResponse.json(
         { error: "Service temporarily unavailable. Please try again." },
@@ -87,16 +76,11 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
   }
 
   try {
-    const dataSourceId = parseDataSourceParam(req);
-    const creds = await resolvePgrestCredentials(session, dataSourceId);
-    if (creds instanceof NextResponse) {
-      const body = await creds.clone().json().catch(() => ({}));
-      console.error(
-        `[pgrest] Credential resolution failed for dataSourceId=${dataSourceId}:`,
-        body
-      );
-      return creds;
-    }
+    const creds = await resolvePgrestCredentials(
+      session,
+      parseDataSourceParam(req)
+    );
+    if (creds instanceof NextResponse) return creds;
 
     const rpcUrl = `${creds.baseUrl}/rpc/${functionName}`;
     const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
@@ -107,7 +91,7 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
     }
 
     const response = await fetch(fullUrl, fetchInit);
-    const validationError = await validateResponse(response, fullUrl);
+    const validationError = validateResponse(response);
     if (validationError) return validationError;
 
     const data = await response.json();

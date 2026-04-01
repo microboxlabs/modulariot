@@ -18,7 +18,7 @@ import { getNextPosition } from "../utils/get-next-position";
 /**
  * Ensure widget has all required fields with defaults
  */
-function ensureWidgetDefaults(widget: Widget, index: number): Widget {
+export function ensureWidgetDefaults(widget: Widget, index: number): Widget {
   const dashlet = getDashlet(widget.componentId);
   const defaultConfig = dashlet?.defaultConfig ?? {};
 
@@ -43,7 +43,7 @@ type LayoutItem = { i: string; x: number; y: number; w: number; h: number };
 /**
  * Apply layout update to a single widget if matching layout found
  */
-function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
+export function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
   const layout = layouts.find((l) => l.i === widget.id);
   if (layout) {
     return { ...widget, layout, updatedAt: new Date().toISOString() };
@@ -54,7 +54,7 @@ function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
 /**
  * Update children layouts for a specific parent widget
  */
-function updateChildrenLayouts(
+export function updateChildrenLayouts(
   widget: Widget,
   parentId: string,
   layouts: LayoutItem[]
@@ -124,7 +124,7 @@ function insertClonedAfterSource(
 }
 
 /** Strip editMode from config before persisting to Alfresco */
-function stripEphemeralState(
+export function stripEphemeralState(
   data: DashboardStorageSchema
 ): DashboardStorageSchema {
   return {

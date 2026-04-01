@@ -210,7 +210,6 @@ export default function PageContent({
               "breadcrumb.tasks",
               showFinishedTasks ? "breadcrumb.finished" : "breadcrumb.shipping",
             ]}
-            lang={lang}
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
             dict={dictionary.base}
           />

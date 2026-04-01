@@ -93,6 +93,15 @@ function buildPieOption(
   const valueSeries = config.series[0];
   if (!valueSeries) return noDataOption(darkMode);
 
+  const data = rows.reduce<{ name: string; value: number }[]>((acc, r) => {
+    const v = Number.parseFloat(r[valueSeries.columnKey]);
+    if (Number.isFinite(v)) {
+      acc.push({ name: r[config.xAxisColumn] ?? "", value: v });
+    }
+    return acc;
+  }, []);
+  if (data.length === 0) return noDataOption(darkMode);
+
   return {
     color: colors,
     tooltip: { trigger: "item" },
@@ -104,13 +113,7 @@ function buildPieOption(
       {
         type: "pie",
         radius: ["30%", "65%"],
-        data: rows.reduce<{ name: string; value: number }[]>((acc, r) => {
-            const v = Number.parseFloat(r[valueSeries.columnKey]);
-            if (Number.isFinite(v)) {
-              acc.push({ name: r[config.xAxisColumn] ?? "", value: v });
-            }
-            return acc;
-          }, []),
+        data,
         label: { color: textColor },
       },
     ],

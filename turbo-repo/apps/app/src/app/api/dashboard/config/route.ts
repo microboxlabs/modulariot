@@ -13,7 +13,7 @@ import {
 /**
  * GET /api/dashboard/config?site={siteShortName}&slug={slug}
  *
- * Proxies to the Alfresco dashboard config webscript.
+ * Proxies to the Alfresco dashboard config webscript (POST /dashboard-config/get).
  * Returns { data: <parsed JSON> } or { data: null } if no config exists yet.
  */
 export async function GET(request: NextRequest) {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 /**
  * PUT /api/dashboard/config
  *
- * Proxies to the Alfresco dashboard config webscript.
+ * Proxies to the Alfresco dashboard config webscript (POST /dashboard-config/save).
  * Body: { site: string, slug: string, config: DashboardStorageSchema }
  */
 export async function PUT(request: NextRequest) {

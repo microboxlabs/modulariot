@@ -34,6 +34,7 @@ import { dashletDefinition as dataTableDefinition } from "./data_table";
 import { dashletDefinition as dataListDefinition } from "./data_list";
 import { dashletDefinition as statStatusDefinition } from "./stat_status";
 import { dashletDefinition as textCardDefinition } from "./text_card";
+import { dashletDefinition as chartDefinition } from "./chart";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -57,6 +58,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   dataListDefinition,
   statStatusDefinition,
   textCardDefinition,
+  chartDefinition,
 ];
 
 /** Registry of all available dashlets */

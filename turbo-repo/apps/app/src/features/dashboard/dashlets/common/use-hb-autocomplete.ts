@@ -50,8 +50,8 @@ export function useHbAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
 
-  const prefixPattern = useMemo(() => new RegExp(String.raw`\{\{${prefix}\.(\w*)$`), [prefix]);
-  const replacePattern = useMemo(() => new RegExp(String.raw`\{\{${prefix}\.\w*$`), [prefix]);
+  const prefixPattern = useMemo(() => new RegExp(String.raw`\{\{${prefix}\.([a-z0-9_-]*)$`, "i"), [prefix]);
+  const replacePattern = useMemo(() => new RegExp(String.raw`\{\{${prefix}\.[a-z0-9_-]*$`, "i"), [prefix]);
 
   const detectPrefix = useCallback(
     (text: string, cursor: number): string | null => {

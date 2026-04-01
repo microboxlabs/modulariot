@@ -88,116 +88,45 @@
                     <description>Origin system (e.g. alerce, api, manual)</description>
                     <type>d:text</type>
                 </property>
-                <property name="miot:licensePlate">
-                    <title>License Plate</title>
-                    <type>d:text</type>
-                    <index enabled="true">
-                        <tokenised>false</tokenised>
-                    </index>
-                </property>
-                <property name="miot:maxWeight">
-                    <title>Max Weight (kg)</title>
-                    <type>d:double</type>
-                </property>
             </properties>
         </type>
+
+        <!--
+            Entity subtypes are lean: identity only (inherited from miot:resourceEntity).
+            MER fields (name, phone, address, license, etc.) live in PostgreSQL only.
+            Client-specific extension attributes are added at runtime via CMM API aspects.
+            These subtypes exist to:
+              1. Enable type-specific Alfresco searches and rules
+              2. Allow type-specific child associations (document types)
+              3. Support type-specific workflow triggers
+        -->
 
         <!-- Vehicle (truck) entity -->
         <type name="miot:vehicle">
             <title>Vehicle</title>
-            <description>Fleet vehicle (truck)</description>
+            <description>Fleet vehicle (truck) — document container</description>
             <parent>miot:resourceEntity</parent>
-            <properties>
-                <property name="miot:vin">
-                    <title>VIN</title>
-                    <type>d:text</type>
-                    <index enabled="true">
-                        <tokenised>false</tokenised>
-                    </index>
-                </property>
-                <property name="miot:vehicleType">
-                    <title>Vehicle Type</title>
-                    <type>d:text</type>
-                </property>
-                <property name="miot:volume">
-                    <title>Volume (m³)</title>
-                    <type>d:double</type>
-                </property>
-            </properties>
         </type>
 
         <!-- Trailer entity -->
         <type name="miot:trailer">
             <title>Trailer</title>
-            <description>Fleet trailer</description>
+            <description>Fleet trailer — document container</description>
             <parent>miot:resourceEntity</parent>
-            <properties>
-                <property name="miot:trailerType">
-                    <title>Trailer Type</title>
-                    <type>d:text</type>
-                </property>
-            </properties>
         </type>
 
         <!-- Driver entity -->
         <type name="miot:driver">
             <title>Driver</title>
-            <description>Driver/operator</description>
+            <description>Driver/operator — document container</description>
             <parent>miot:resourceEntity</parent>
-            <properties>
-                <property name="miot:firstName">
-                    <title>First Name</title>
-                    <type>d:text</type>
-                    <mandatory>true</mandatory>
-                </property>
-                <property name="miot:lastName">
-                    <title>Last Name</title>
-                    <type>d:text</type>
-                    <mandatory>true</mandatory>
-                </property>
-                <property name="miot:rut">
-                    <title>RUT</title>
-                    <description>Chilean national ID</description>
-                    <type>d:text</type>
-                    <index enabled="true">
-                        <tokenised>false</tokenised>
-                    </index>
-                </property>
-                <property name="miot:licenseNumber">
-                    <title>License Number</title>
-                    <type>d:text</type>
-                </property>
-                <property name="miot:licenseCategory">
-                    <title>License Category</title>
-                    <type>d:text</type>
-                </property>
-                <property name="miot:licenseExpires">
-                    <title>License Expiry Date</title>
-                    <type>d:datetime</type>
-                </property>
-            </properties>
         </type>
 
         <!-- Carrier entity -->
         <type name="miot:carrier">
             <title>Carrier</title>
-            <description>Transport carrier company</description>
+            <description>Transport carrier company — document container</description>
             <parent>miot:resourceEntity</parent>
-            <properties>
-                <property name="miot:carrierName">
-                    <title>Carrier Name</title>
-                    <type>d:text</type>
-                    <mandatory>true</mandatory>
-                </property>
-                <property name="miot:transportLicense">
-                    <title>Transport License</title>
-                    <type>d:text</type>
-                </property>
-                <property name="miot:transportLicenseExpires">
-                    <title>Transport License Expiry</title>
-                    <type>d:datetime</type>
-                </property>
-            </properties>
         </type>
 
         <!-- ================================================================

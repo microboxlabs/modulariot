@@ -1,6 +1,8 @@
 {
-    "sonarlint.connectedMode.project": {
-        "connectionId": "microboxlabs",
-        "projectKey": "microboxlabs_modulariot"
-    }
+  "sonarlint.connectedMode.project": {
+      "connectionId": "microboxlabs",
+      "projectKey": "microboxlabs_modulariot"
+  },
+  "typescript.tsdk": "turbo-repo/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
 }

@@ -2,53 +2,145 @@
 
 import {
   HiOutlineExclamationTriangle,
-  HiOutlineCheckCircle,
 } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
-import { InfoRow } from "@/features/common/components/info-row";
+import { CustomBadge } from "@/features/common/components/custom-badge";
+import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
 
-interface EventsSectionProps {
-  readonly dict: I18nRecord;
+type EventUrgency = "critical" | "warning" | "info";
+type EventCategory = "falla_tecnica" | "evento" | "uso" | "cambio_datos" | "mantencion";
+
+interface TimelineEventProps {
+  readonly title: string;
+  readonly description: string;
+  readonly urgency: EventUrgency;
+  readonly direction?: string;
+  readonly date: string;
+  readonly category: EventCategory;
+  readonly isLast?: boolean;
 }
 
-export default function EventsSection({ dict }: EventsSectionProps) {
+const urgencyConfig: Record<EventUrgency, { className: string; label: string; dotColor: string }> = {
+  critical: { 
+    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", 
+    label: "Crítico",
+    dotColor: "bg-red-500 dark:bg-red-400"
+  },
+  warning: { 
+    className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400", 
+    label: "Alerta",
+    dotColor: "bg-yellow-500 dark:bg-yellow-400"
+  },
+  info: { 
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", 
+    label: "Info",
+    dotColor: "bg-blue-500 dark:bg-blue-400"
+  },
+};
+
+const categoryLabels: Record<EventCategory, string> = {
+  falla_tecnica: "Falla técnica",
+  evento: "Evento",
+  uso: "Uso",
+  cambio_datos: "Cambio de datos",
+  mantencion: "Mantención",
+};
+
+function TimelineEvent({ title, description, urgency, direction, date, category, isLast }: TimelineEventProps) {
+  const urgencyData = urgencyConfig[urgency];
+  
+  return (
+    <div className="relative flex gap-4">
+      {/* Timeline line and dot */}
+      <div className="flex flex-col items-center">
+        <div className={`w-3 h-3 rounded-full ${urgencyData.dotColor} ring-4 ring-white dark:ring-gray-800 z-10`} />
+        {!isLast && (
+          <div className="w-0.5 flex-1 bg-gray-200 dark:bg-gray-700" />
+        )}
+      </div>
+      
+      {/* Content */}
+      <div className={`flex-1 ${isLast ? '' : 'pb-4 mb-4 border-b border-gray-100 dark:border-gray-700'}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h4>
+          <CustomBadge text={urgencyData.label} className={urgencyData.className} />
+          <CustomBadge 
+            text={categoryLabels[category]} 
+            className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" 
+          />
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{description}</p>
+        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+          {direction && (
+            <>
+              <span>{direction}</span>
+              <span>•</span>
+            </>
+          )}
+          <span>{date}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface EventsSectionProps {
+  readonly data: VehicleDetailData;
+  readonly dict: I18nRecord;
+  readonly status: SectionStatus;
+}
+
+function getEventsBadge(data: VehicleDetailData, status: SectionStatus, dict: I18nRecord) {
+  const criticalCount = data.events.filter(e => e.urgency === "critical").length;
+  const warningCount = data.events.filter(e => e.urgency === "warning").length;
+  
+  if (criticalCount > 0) {
+    return (
+      <CustomBadge 
+        text={`${criticalCount} evento${criticalCount > 1 ? 's' : ''} crítico${criticalCount > 1 ? 's' : ''}`}
+        className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+      />
+    );
+  }
+  
+  if (warningCount > 0) {
+    return (
+      <CustomBadge 
+        text={`${warningCount} alerta${warningCount > 1 ? 's' : ''}`}
+        className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+      />
+    );
+  }
+  
+  return (
+    <CustomBadge 
+      text={tr("vehicleDetail.sections.events.noIssues", dict) || "Sin alertas"}
+      className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+    />
+  );
+}
+
+export default function EventsSection({ dict, data, status }: EventsSectionProps) {
   return (
     <ExpandableSection
       icon={HiOutlineExclamationTriangle}
       title={tr("vehicleDetail.sections.events.title", dict)}
       description={tr("vehicleDetail.sections.events.description", dict)}
+      status={status}
+      badge={getEventsBadge(data, status, dict)}
     >
-      <div className="flex flex-col gap-3 pt-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <HiOutlineExclamationTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                {tr("vehicleDetail.sections.events.hardBraking", dict)}
-              </span>
-            </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {tr("vehicleDetail.sections.events.hoursAgo", dict, { count: "3" })}
-            </span>
-          </div>
-          <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <HiOutlineCheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                {tr("vehicleDetail.sections.events.routeCompleted", dict)}
-              </span>
-            </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {tr("vehicleDetail.sections.events.hoursAgo", dict, { count: "5" })}
-            </span>
-          </div>
-        </div>
-        <InfoRow
-          label={tr("vehicleDetail.sections.events.incidentsThisMonth", dict)}
-          value="2"
-        />
+      <div className="pt-4 max-h-[600px] overflow-y-auto">
+        {data.events.map((event, index) => (
+          <TimelineEvent
+            key={`${event.title}-${index}`}
+            {...event}
+            urgency={event.urgency as EventUrgency}
+            category={event.category as EventCategory}
+            isLast={index === data.events.length - 1}
+          />
+        ))}
       </div>
     </ExpandableSection>
   );

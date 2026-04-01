@@ -113,6 +113,22 @@ public class DriverBulkSyncService {
         d.licenseCategory = strField(fields, "licenseCategory", null);
         d.isOccasional = boolField(fields, "isOccasional", false);
         d.operationBlocked = boolField(fields, "operationBlocked", false);
+        d.addressStreet = strField(fields, "addressStreet", null);
+        d.addressCity = strField(fields, "addressCity", null);
+        d.addressPostalCode = strField(fields, "addressPostalCode", null);
+        d.addressCountry = strField(fields, "addressCountry", null);
+        d.sourceSystem = sourceSystem;
+
+        // Derive status
+        String deactivatedAt = strField(fields, "deactivatedAt", null);
+        boolean blocked = boolField(fields, "operationBlocked", false);
+        if (deactivatedAt != null && !deactivatedAt.isBlank()) {
+            d.status = "INACTIVE";
+            d.active = false;
+            d.deactivatedAt = Instant.parse(deactivatedAt);
+        } else if (blocked) {
+            d.status = "SUSPENDED";
+        }
 
         // Resolve carrier FK
         String carrierExternalId = strField(fields, "carrierExternalId", null);
@@ -146,6 +162,19 @@ public class DriverBulkSyncService {
         diffField(changes, "email", driver.email, strField(fields, "email", null), v -> driver.email = v);
         diffField(changes, "licenseNumber", driver.licenseNumber, strField(fields, "licenseNumber", null), v -> driver.licenseNumber = v);
         diffField(changes, "licenseCategory", driver.licenseCategory, strField(fields, "licenseCategory", null), v -> driver.licenseCategory = v);
+        diffField(changes, "addressStreet", driver.addressStreet, strField(fields, "addressStreet", null), v -> driver.addressStreet = v);
+        diffField(changes, "addressCity", driver.addressCity, strField(fields, "addressCity", null), v -> driver.addressCity = v);
+        diffField(changes, "addressPostalCode", driver.addressPostalCode, strField(fields, "addressPostalCode", null), v -> driver.addressPostalCode = v);
+        diffField(changes, "addressCountry", driver.addressCountry, strField(fields, "addressCountry", null), v -> driver.addressCountry = v);
+
+        // Derive status from deactivatedAt and operationBlocked
+        String deactivatedAt = strField(fields, "deactivatedAt", null);
+        if (deactivatedAt != null && !deactivatedAt.isBlank() && !"INACTIVE".equals(driver.status)) {
+            changes.put("status", Map.of("old", driver.status, "new", "INACTIVE"));
+            driver.status = "INACTIVE";
+            driver.active = false;
+            driver.deactivatedAt = Instant.parse(deactivatedAt);
+        }
 
         Boolean isOccasional = boolFieldNullable(fields, "isOccasional");
         if (isOccasional != null && !Objects.equals(isOccasional, driver.isOccasional)) {

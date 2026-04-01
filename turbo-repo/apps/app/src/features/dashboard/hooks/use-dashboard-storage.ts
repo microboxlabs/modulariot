@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useSWR from "swr";
 import fetcher from "@/features/common/providers/fetcher";
 import {
+  GRID_COLS,
   type Widget,
   type DashboardStorageSchema,
   type DashboardFilterParam,
@@ -13,6 +14,7 @@ import {
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
 import { useUndoRedo } from "./use-undo-redo";
+import { getNextPosition } from "../utils/get-next-position";
 
 /**
  * Ensure widget has all required fields with defaults
@@ -77,6 +79,49 @@ export function updateChildrenLayouts(
     };
   }
   return widget;
+}
+
+/**
+ * Deep-clone a widget tree, regenerating UUIDs and timestamps.
+ * A single timestamp is shared across the entire cloned subtree.
+ */
+function deepCloneWidget(widget: Widget, now?: string): Widget {
+  const timestamp = now ?? new Date().toISOString();
+  const newId = crypto.randomUUID();
+  return {
+    ...widget,
+    id: newId,
+    layout: { ...widget.layout, i: newId },
+    config: structuredClone(widget.config),
+    children: widget.children?.map((child) => deepCloneWidget(child, timestamp)),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/**
+ * Insert `cloned` widget right after the widget with `sourceId` inside
+ * the subtree rooted at `parentId`.  Returns a new widget array (immutable).
+ */
+function insertClonedAfterSource(
+  widgets: Widget[],
+  parentId: string,
+  sourceId: string,
+  cloned: Widget
+): Widget[] {
+  return widgets.map((w) => {
+    if (w.id === parentId) {
+      const children = w.children ?? [];
+      const sourceIndex = children.findIndex((c) => c.id === sourceId);
+      const newChildren = [...children];
+      newChildren.splice(sourceIndex + 1, 0, cloned);
+      return { ...w, children: newChildren, updatedAt: new Date().toISOString() };
+    }
+    if (w.children) {
+      return { ...w, children: insertClonedAfterSource(w.children, parentId, sourceId, cloned) };
+    }
+    return w;
+  });
 }
 
 /** Strip editMode from config before persisting to Alfresco */
@@ -398,6 +443,47 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  // Duplicate a widget (deep-clone with new UUIDs, place adjacent)
+  const duplicateWidget = useCallback(
+    (widgetId: string): Widget | null => {
+      const source = findWidget(widgetId);
+      if (!source) return null;
+
+      const cloned = deepCloneWidget(source);
+      const parent = findParent(widgetId);
+
+      // Position clone adjacent to the original; containers clamp via react-grid-layout
+      const siblings = parent ? (parent.children ?? []) : configRef.current.widgets;
+      const adjacentX = source.layout.x + source.layout.w;
+
+      if (adjacentX + cloned.layout.w <= GRID_COLS) {
+        cloned.layout.x = adjacentX;
+        cloned.layout.y = source.layout.y;
+      } else {
+        const nextPos = getNextPosition(siblings, cloned.layout.w);
+        cloned.layout.x = nextPos.x;
+        cloned.layout.y = nextPos.y;
+      }
+
+      if (parent) {
+        updateConfig((c) => ({
+          ...c,
+          widgets: insertClonedAfterSource(c.widgets, parent.id, widgetId, cloned),
+        }));
+      } else {
+        updateConfig((c) => {
+          const sourceIndex = c.widgets.findIndex((w) => w.id === widgetId);
+          const newWidgets = [...c.widgets];
+          newWidgets.splice(sourceIndex + 1, 0, cloned);
+          return { ...c, widgets: newWidgets };
+        });
+      }
+
+      return cloned;
+    },
+    [findWidget, findParent, updateConfig]
+  );
+
   // Set dashboard name
   const setDashboardName = useCallback(
     (name: string) => {
@@ -547,6 +633,7 @@ export function useDashboardStorage(
     updateWidgetConfig,
     updateWidgetLayouts,
     deleteWidget,
+    duplicateWidget,
     setEditMode,
     setDashboardName,
     setFilters,

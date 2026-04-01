@@ -153,9 +153,13 @@ export function DashletSettings({
     setRowsJson(val);
     try {
       const parsed = JSON.parse(val);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (!Array.isArray(parsed)) return;
+      const isObjectArray = parsed.every(
+        (item) => item !== null && typeof item === "object" && !Array.isArray(item),
+      );
+      if (isObjectArray && parsed.length > 0) {
         reconcileColumns(Object.keys(parsed[0]));
-      } else if (Array.isArray(parsed)) {
+      } else {
         reconcileColumns([]);
       }
     } catch {
@@ -191,6 +195,10 @@ export function DashletSettings({
   };
 
   const removeSeries = (id: string) => {
+    const index = series.findIndex((s) => s._id === id);
+    if (index >= 0) {
+      setCustomColors((prev) => prev.filter((_, i) => i !== index));
+    }
     setSeries((prev) => prev.filter((s) => s._id !== id));
   };
 
@@ -210,6 +218,10 @@ export function DashletSettings({
       try {
         const parsed = JSON.parse(rowsJson);
         if (!Array.isArray(parsed)) return;
+        const isObjectArray = parsed.every(
+          (item) => item !== null && typeof item === "object" && !Array.isArray(item),
+        );
+        if (!isObjectArray) return;
         parsedRows = parsed;
       } catch {
         return;

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         tokenSuffix: token.length > 4 ? token.slice(-4) : "",
       };
     } else {
-      const { clientId, clientSecret, tokenUrl, scope } = parsed.data;
+      const { clientId, clientSecret, tokenUrl, scope, audience } = parsed.data;
       config = {
         authMethod: "OAUTH",
         clientId,
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         clientSecretSuffix: clientSecret.length > 4 ? clientSecret.slice(-4) : "",
         tokenUrl,
         scope,
+        audience,
       };
     }
 
@@ -97,13 +98,14 @@ export async function POST(request: NextRequest) {
         maskedToken: maskToken(token),
       };
     } else {
-      const { clientId, clientSecret, tokenUrl, scope } = parsed.data;
+      const { clientId, clientSecret, tokenUrl, scope, audience } = parsed.data;
       response.connectionConfig = {
         url: created.url || url,
         clientId,
         maskedClientSecret: maskToken(clientSecret),
         tokenUrl,
         scope,
+        audience,
       };
     }
 

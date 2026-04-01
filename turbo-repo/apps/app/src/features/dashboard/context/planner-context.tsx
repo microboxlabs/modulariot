@@ -158,10 +158,20 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
     void run();
   }, []);
 
-  // Initial + dependency-driven fetch (shows loading state)
+  // Initial + dependency-driven fetch (shows loading state).
+  // Debounced so rapid keystrokes in planner inputs don't spam API calls.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRenderRef = useRef(true);
   useEffect(() => {
-    doFetchAll(false);
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      doFetchAll(false);
+      return () => { abortRef.current?.abort(); };
+    }
+
+    debounceRef.current = setTimeout(() => doFetchAll(false), 600);
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

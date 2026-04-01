@@ -12,6 +12,7 @@ interface DashletDataConfig {
   pgrestParams: PgrestParam[];
   dataSourceId?: string;
   plannerVariableName?: string;
+  refreshIntervalMs?: number;
 }
 
 interface DashletDataResult {
@@ -33,6 +34,7 @@ export function useDashletData(config: DashletDataConfig): DashletDataResult {
     pgrestParams,
     dataSourceId,
     plannerVariableName,
+    refreshIntervalMs = 0,
   } = config;
 
   // Resolve {{filter.*}} templates in pgrest param values before fetching
@@ -48,7 +50,8 @@ export function useDashletData(config: DashletDataConfig): DashletDataResult {
     pgrestFunctionName,
     pgrestHttpMethod,
     resolvedParams,
-    dataSourceId
+    dataSourceId,
+    refreshIntervalMs,
   );
 
   const planner = usePlannerData(

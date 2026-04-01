@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getNextPosition } from "./dashboard-context";
+import { getNextPosition } from "../utils/get-next-position";
 import { GRID_COLS } from "../types/dashboard.types";
 import { makeWidget, makeLayout } from "../test-fixtures";
 

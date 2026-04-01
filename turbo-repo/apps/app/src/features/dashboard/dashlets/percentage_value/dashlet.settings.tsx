@@ -11,7 +11,7 @@ import {
   PgrestDataTab,
   useActiveProviders,
 } from "../common";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 
 type SimpleDataMode = "static" | "pgrest" | "planner";
@@ -34,6 +34,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
+  const refresh = useWidgetRefreshSettings(config, dictionary);
 
   const [title, setTitle] = useState(config.title || "Progress");
   const [value, setValue] = useState(String(config.value ?? "6"));
@@ -97,6 +98,7 @@ export function DashletSettings({
       pgrestHttpMethod: pg.pgrestHttpMethod,
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -144,6 +146,7 @@ export function DashletSettings({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

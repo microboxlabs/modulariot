@@ -5,7 +5,10 @@ import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { useDashletData, DashletLoading, DashletError } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
+import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 import type { ColorPalette } from "./chart-palettes";
 
 // ============================================================================
@@ -115,11 +118,13 @@ function useDarkMode(): boolean {
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
+  const { dictionary } = useDashboard();
   const chartRef = useRef<ReactECharts | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const darkMode = useDarkMode();
 
   // Fetch row data for pgrest/planner modes
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const { rows: fetchedRows, loading, fetchError } = useDashletData({
     dataMode: config.dataMode ?? "static",
     pgrestFunctionName: config.pgrestFunctionName ?? "",
@@ -127,13 +132,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams: config.pgrestParams ?? [],
     dataSourceId: config.dataSourceId,
     plannerVariableName: config.plannerVariableName,
+    refreshIntervalMs,
   });
 
   const rows = config.dataMode === "static" ? (config.rows ?? []) : fetchedRows;
 
+  const noDataLabel = tr("dashboard.dashlets.chart.noData", dictionary);
   const option = useMemo(
-    () => buildEChartsOption(config, rows, darkMode),
-    [config, rows, darkMode],
+    () => buildEChartsOption(config, rows, darkMode, noDataLabel),
+    [config, rows, darkMode, noDataLabel],
   );
 
   // Resize chart when container size changes (react-grid-layout doesn't trigger echarts auto-resize)

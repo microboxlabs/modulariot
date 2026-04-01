@@ -23,7 +23,7 @@ import {
   DataProviderEntries,
   type SimpleDataMode,
 } from "../common";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
@@ -47,6 +47,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
+  const refresh = useWidgetRefreshSettings(config, dictionary);
 
   const [title, setTitle] = useState(config.title || "Metric");
   const [icon, setIcon] = useState<InfoCardIcon>(config.icon || "chart");
@@ -109,6 +110,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
+      ...refresh.savePayload,
     } as DashletConfig);
     onClose();
   };
@@ -194,6 +196,7 @@ export function DashletSettings({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

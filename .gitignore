@@ -40,3 +40,6 @@ apps/app/.env.local.dev
 
 # Claude Code
 # .claude/
+
+# Aura
+.aura

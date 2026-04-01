@@ -1,9 +1,22 @@
 # =============================================================================
 # Quarkus CI — ModularIoT Backend
 # =============================================================================
-# Builds and tests the Quarkus multi-module backend.
+# Builds, tests, and publishes the Quarkus multi-module backend modulith.
 # Triggers only on changes within quarkus-srv/.
-# Uses sonar-maven-plugin for SonarCloud (recommended for Maven projects).
+#
+# Docker Image:
+#   - GitHub Container Registry (GHCR) — Primary registry
+#   - Docker Hub — Secondary mirror (non-PR only)
+#
+# Tagging Strategy:
+#   - PRs:        ghcr.io/<org>/miot-srv:pr-<number>
+#   - main/trunk: ghcr.io/<org>/miot-srv:latest
+#   - Tags:       ghcr.io/<org>/miot-srv:<version>
+#
+# Required Secrets:
+#   - DOCKERHUB_USERNAME: Docker Hub username
+#   - DOCKERHUB_TOKEN:    Docker Hub access token
+#   - SONAR_TOKEN:        SonarCloud analysis token
 # =============================================================================
 
 name: Quarkus CI
@@ -13,6 +26,8 @@ on:
     paths:
       - 'quarkus-srv/**'
     branches: [trunk, main]
+    tags:
+      - 'v*'
   pull_request:
     paths:
       - 'quarkus-srv/**'
@@ -20,16 +35,27 @@ on:
   workflow_dispatch:
 
 env:
-  JAVA_VERSION: "21"
+  GHCR_REGISTRY: ghcr.io
+  DOCKERHUB_REGISTRY: docker.io
+  IMAGE_NAME: microboxlabs/miot-srv
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
 
 jobs:
-  build:
+  # ===========================================================================
+  # Build JVM — Compile, Test, Package, and SonarCloud
+  # ===========================================================================
+  build-jvm:
     name: Build & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     permissions:
       contents: read
+      packages: write
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -40,13 +66,25 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
           cache-dependency-path: quarkus-srv/pom.xml
 
+      - name: Determine version
+        id: version
+        working-directory: quarkus-srv
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
       - name: Build & Test
-        run: ./mvnw clean verify
+        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true
         working-directory: quarkus-srv
 
       - name: SonarCloud Scan
@@ -60,3 +98,127 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload JVM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jvm-build
+          path: |
+            quarkus-srv/miot-cli/target/quarkus-app/
+            quarkus-srv/Dockerfile
+          retention-days: 1
+
+  # ===========================================================================
+  # Docker JVM — Build and Publish Image
+  # ===========================================================================
+  docker-jvm:
+    name: Docker Image
+    runs-on: ubuntu-latest
+    needs: build-jvm
+
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    outputs:
+      image-digest: ${{ steps.build-push.outputs.digest }}
+
+    steps:
+      - name: Download JVM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: jvm-build
+          path: .
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKERHUB_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ github.event_name != 'pull_request' && format('{0}/{1}', env.DOCKERHUB_REGISTRY, env.IMAGE_NAME) || '' }}
+          tags: |
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=ModularIoT Server
+            org.opencontainers.image.description=Quarkus modulith backend for ModularIoT — fleet, driver and resource management
+            org.opencontainers.image.vendor=MicroboxLabs
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image summary
+        run: |
+          echo "## Docker Image Published 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Security Scan — Trivy (non-PR only)
+  # ===========================================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: docker-jvm
+    if: github.event_name != 'pull_request'
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true

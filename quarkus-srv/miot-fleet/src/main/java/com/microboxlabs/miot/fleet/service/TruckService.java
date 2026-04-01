@@ -76,7 +76,7 @@ public class TruckService {
                     String oldStatus = truck.status;
                     truck.status = req.status();
                     truck.updatedAt = Instant.now();
-                    if ("DEACTIVATED".equals(req.status())) truck.active = false;
+                    if ("INACTIVE".equals(req.status())) truck.active = false;
                     return eventService.record(clientId, EntityType.TRUCK, truck.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,
                                     JsonUtil.toJson(Map.of("old", oldStatus, "new", req.status())))

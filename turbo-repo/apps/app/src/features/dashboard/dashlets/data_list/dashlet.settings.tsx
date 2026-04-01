@@ -15,6 +15,7 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
+import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
@@ -29,6 +30,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const refresh = useWidgetRefreshSettings(config, dictionary);
   const activeProviders = useActiveProviders();
 
   const s = useSettingsState({
@@ -121,6 +123,7 @@ export function DashletSettings({
       sort,
       cardLayout,
       plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -211,6 +214,7 @@ export function DashletSettings({
       dataTabChildren={pgrestContent}
       plannerContent={plannerContent}
       handlebarsColorKeys
+      refreshSelect={refresh.selectNode}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

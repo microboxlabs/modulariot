@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
 // ============================================================================
@@ -60,7 +61,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
-  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider);
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
+
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider, refreshIntervalMs);
 
   const compiledText = useMemo(() => resolveHandlebarsField(text, templateContext), [text, templateContext]);
 

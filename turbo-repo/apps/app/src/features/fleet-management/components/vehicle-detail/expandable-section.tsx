@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { HiChevronDown } from "react-icons/hi2";
 import type { IconType } from "react-icons";
+import type { SectionStatus } from "./vehicle-detail-accordion";
 
 interface ExpandableSectionProps {
   readonly icon?: IconType;
@@ -12,6 +13,7 @@ interface ExpandableSectionProps {
   readonly badge?: ReactNode;
   readonly children: ReactNode;
   readonly defaultExpanded?: boolean;
+  readonly status?: SectionStatus;
 }
 
 export default function ExpandableSection({
@@ -22,8 +24,10 @@ export default function ExpandableSection({
   badge,
   children,
   defaultExpanded = false,
+  status,
 }: ExpandableSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  // Auto-expand if status is critical
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded || status === "critical");
 
   const renderIcon = () => {
     if (customIcon) {

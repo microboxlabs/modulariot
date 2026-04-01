@@ -20,6 +20,7 @@ import {
   useUserFilters,
 } from "@/features/common/providers/client-api.provider";
 import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
+import { useDashboardDynamicItems } from "@/features/dashboard/hooks/use-dashboard-dynamic-items";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
@@ -130,6 +131,7 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
   const { count: symptomsCount } = useSymptoms();
   const taskDynamicItems = useTaskDynamicItems();
   const calendarDynamicItems = useCalendarDynamicItems();
+  const dashboardDynamicItems = useDashboardDynamicItems();
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -184,6 +186,7 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
     const dynamicMap: Record<string, SidebarItem[]> = {
       tasks: taskDynamicItems,
       calendars: calendarDynamicItems,
+      dashboards: dashboardDynamicItems,
     };
 
     const resolvedItems = pages.map((page) => {
@@ -193,7 +196,7 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
     });
 
     return { items: resolvedItems, totals, isLoading: false };
-  }, [taskDynamicItems, calendarDynamicItems, data, historicInstances, mapCount, symptomsCount, error]);
+  }, [taskDynamicItems, calendarDynamicItems, dashboardDynamicItems, data, historicInstances, mapCount, symptomsCount, error]);
 
   return (
     <SidebarNavigationContext.Provider

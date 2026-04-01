@@ -11,64 +11,18 @@ import VideoCameraIcon from "@/features/icons/video-camera";
 // cpd-off — sidebar configuration data, structural repetition is intentional
 export const pages: SidebarItem[] = [
   {
-    href: "/home",
     icon: HomeIcon,
     label: "home",
     totals: {},
+    dynamicItemsSource: "dashboards",
     items: [
       {
-        href: "/home/dashboard",
-        label: "dashboard",
-        totals: {
-          totals: 10,
-        },
+        href: "/home",
+        label: "dashboardOverview",
         requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/maintenanceStatus",
-        label: "maintenanceStatus", // Estado de Mantención
-        totals: {},
-        requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/vehicleTechnicalHealth",
-        label: "vehicleTechnicalHealth", // Salud Técnica del Vehículo
-        totals: {},
-        requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/devicesAndTelemetry",
-        label: "devicesAndTelemetry", // Dispositivos y Telemetría
-        totals: {},
-        requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/operativeEvents",
-        label: "operativeEvents", // Eventos Operativos
-        totals: {},
-        requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/fleetUsage",
-        label: "fleetUsage", // Uso de Flota
-        totals: {},
-        requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/generalInfo",
-        label: "generalInfo", // Información General
-        totals: {},
-        requiredGroups: ["GROUP_DASHBOARD"],
-        blockedGroups: [],
       },
     ],
-    requiredGroups: [], // Public route
+    requiredGroups: ["GROUP_DASHBOARD"],
   },
   {
     href: "/colaborators-management",

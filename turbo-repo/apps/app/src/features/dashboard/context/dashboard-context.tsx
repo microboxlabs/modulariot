@@ -9,14 +9,15 @@ import {
 } from "react";
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
 import {
-  GRID_COLS,
   type Widget,
   type GridLayoutItem,
   type DashboardStorageSchema,
   type DashboardFilterParam,
   type PlannerRequestDefinition,
+  type RefreshInterval,
 } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
+import { getNextPosition } from "../utils/get-next-position";
 import { PlannerProvider } from "./planner-context";
 import { DashboardFiltersProvider } from "./dashboard-filters-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -37,6 +38,10 @@ interface DashboardContextValue {
   filters: DashboardFilterParam[];
   /** Update dashboard filter configuration */
   setFilters: (filters: DashboardFilterParam[]) => void;
+  /** Auto-refresh interval in seconds (0 = off) */
+  refreshInterval: RefreshInterval;
+  /** Update auto-refresh interval */
+  setRefreshInterval: (interval: RefreshInterval) => void;
 
   // Widget actions
   createWidget: (
@@ -57,6 +62,7 @@ interface DashboardContextValue {
     constraints: { minW?: number; minH?: number; maxW?: number; maxH?: number }
   ) => void;
   deleteWidget: (widgetId: string) => void;
+  duplicateWidget: (widgetId: string) => Widget | null;
 
   // Utility
   findWidget: (widgetId: string) => Widget | undefined;
@@ -79,6 +85,12 @@ interface DashboardContextValue {
   addPlannerRequest: (def: Omit<PlannerRequestDefinition, "id">) => string;
   updatePlannerRequest: (id: string, partial: Partial<PlannerRequestDefinition>) => void;
   removePlannerRequest: (id: string) => void;
+
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -88,50 +100,6 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-/** Calculate next available position in the grid */
-function getNextPosition(
-  children: Widget[],
-  width: number = 1
-): { x: number; y: number } {
-  if (children.length === 0) {
-    return { x: 0, y: 0 };
-  }
-
-  // Find the maximum y + h (bottom of grid)
-  let maxBottom = 0;
-  let maxBottomRowEndX = 0;
-
-  for (const widget of children) {
-    const bottom = widget.layout.y + widget.layout.h;
-    if (bottom > maxBottom) {
-      maxBottom = bottom;
-    }
-    if (bottom === maxBottom) {
-      maxBottomRowEndX = Math.max(
-        maxBottomRowEndX,
-        widget.layout.x + widget.layout.w
-      );
-    }
-  }
-
-  // Check if we can fit in the last row
-  const lastRowY = maxBottom - 1;
-  const widgetsInLastRow = children.filter(
-    (w) => w.layout.y <= lastRowY && w.layout.y + w.layout.h > lastRowY
-  );
-
-  let usedColumns = 0;
-  for (const w of widgetsInLastRow) {
-    usedColumns = Math.max(usedColumns, w.layout.x + w.layout.w);
-  }
-
-  if (usedColumns + width <= GRID_COLS) {
-    return { x: usedColumns, y: lastRowY };
-  }
-
-  // Start new row
-  return { x: 0, y: maxBottom };
-}
 
 interface DashboardProviderProps extends PropsWithChildren {
   dictionary: I18nRecord;
@@ -155,15 +123,18 @@ export function DashboardProvider({
     filters,
     preferences,
     dashboardName,
+    refreshInterval,
     isLoaded,
     addWidget: addWidgetStorage,
     addChildWidget,
     updateWidgetConfig: updateConfigStorage,
     updateWidgetLayouts: updateLayoutsStorage,
     deleteWidget: deleteWidgetStorage,
+    duplicateWidget: duplicateWidgetStorage,
     setEditMode: setEditModeStorage,
     setDashboardName: setDashboardNameStorage,
     setFilters,
+    setRefreshInterval,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -172,6 +143,10 @@ export function DashboardProvider({
     addPlannerRequest,
     updatePlannerRequest,
     removePlannerRequest,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useDashboardStorage(slug, defaultConfig, siteId);
 
   const createWidget = useCallback(
@@ -333,6 +308,13 @@ export function DashboardProvider({
     [deleteWidgetStorage]
   );
 
+  const duplicateWidget = useCallback(
+    (widgetId: string): Widget | null => {
+      return duplicateWidgetStorage(widgetId);
+    },
+    [duplicateWidgetStorage]
+  );
+
   const toggleEditMode = useCallback(() => {
     setEditModeStorage(!preferences.editMode);
   }, [preferences.editMode, setEditModeStorage]);
@@ -360,12 +342,15 @@ export function DashboardProvider({
       siteId,
       filters,
       setFilters,
+      refreshInterval,
+      setRefreshInterval,
       dashboardName,
       createWidget,
       updateWidgetConfig,
       updateWidgetLayouts,
       updateWidgetConstraints,
       deleteWidget,
+      duplicateWidget,
       findWidget,
       toggleEditMode,
       setEditMode,
@@ -377,6 +362,10 @@ export function DashboardProvider({
       addPlannerRequest,
       updatePlannerRequest,
       removePlannerRequest,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
     }),
     [
       widgets,
@@ -386,12 +375,15 @@ export function DashboardProvider({
       siteId,
       filters,
       setFilters,
+      refreshInterval,
+      setRefreshInterval,
       dashboardName,
       createWidget,
       updateWidgetConfig,
       updateWidgetLayouts,
       updateWidgetConstraints,
       deleteWidget,
+      duplicateWidget,
       findWidget,
       toggleEditMode,
       setEditMode,
@@ -403,6 +395,10 @@ export function DashboardProvider({
       addPlannerRequest,
       updatePlannerRequest,
       removePlannerRequest,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
     ]
   );
 

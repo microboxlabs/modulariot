@@ -1295,6 +1295,7 @@
         "operativeEvents": "Operative Events",
         "fleetUsage": "Fleet Usage",
         "generalInfo": "General Information",
+        "dashboardOverview": "Overview",
         "calendar": "Calendar",
         "kanban": "Kanban",
         "completed_tasks": "Completed tasks",
@@ -1456,11 +1457,41 @@
     "max": "Max",
     "unit": "Unit",
     "all": "All",
+    "delete": "Delete",
     "yes": "Yes",
     "no": "No"
   },
   "dashboard": {
     "editMode": "Edit Mode",
+    "landing": {
+      "title": "Dashboards",
+      "subtitle": "Create and manage custom dashboards with widgets, filters, and data visualizations.",
+      "widgets_title": "Custom Widgets",
+      "widgets_description": "Build dashboards with cards, charts, tables, and container widgets.",
+      "filters_title": "Data Filters",
+      "filters_description": "Configure dynamic filters to drill down into your data across widgets.",
+      "import_export_title": "Import & Export",
+      "import_export_description": "Share dashboard configurations as JSON files between teams.",
+      "cta": "Create Dashboard",
+      "no_dashboards": "No dashboards yet. Create your first one to get started.",
+      "delete_confirm_title": "Delete Dashboard",
+      "delete_confirm_message": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+      "deleteSuccess": "Dashboard deleted successfully",
+      "deleteError": "Failed to delete dashboard"
+    },
+    "create": {
+      "title": "New Dashboard",
+      "subtitle": "Give your dashboard a name to get started.",
+      "nameLabel": "Name",
+      "submit": "Create",
+      "successNotification": "Dashboard created successfully",
+      "errorNotification": "Failed to create dashboard",
+      "namePlaceholder": "My Dashboard",
+      "nameRequired": "Name is required",
+      "siteRequired": "Unable to create dashboard: site not available",
+      "nameInvalid": "Name must contain at least one letter or number",
+      "duplicateSlug": "A dashboard with this name already exists. Please choose a different name."
+    },
     "settings": {
       "sparklineData": "Sparkline Data (comma-separated)",
       "subtitle": "Subtitle",
@@ -1565,7 +1596,38 @@
       "textSearch": "Text Search",
       "dateRange": "Date Range",
       "addFilterButton": "+ Add Filter",
-      "filtersUpdated": "Filters updated successfully"
+      "filtersUpdated": "Filters updated successfully",
+      "filtersValidationError": "Some filters have empty fields or duplicate keys. Please fix them before saving.",
+      "autoRefresh": "Auto-Refresh",
+      "autoRefreshDescription": "Automatically refresh dashboard data at a regular interval",
+      "refreshOff": "Off",
+      "refresh10s": "Every 10 seconds",
+      "refresh30s": "Every 30 seconds",
+      "refresh60s": "Every minute",
+      "refresh5m": "Every 5 minutes",
+      "widgetRefreshInherit": "Use dashboard setting",
+      "deleteDescription": "Permanently remove this dashboard",
+      "chartType": "Chart Type",
+      "line": "Line",
+      "bar": "Bar",
+      "pie": "Pie",
+      "gauge": "Gauge",
+      "scatter": "Scatter",
+      "xAxisColumn": "X-Axis Column",
+      "categoryColumn": "Category Column",
+      "valueColumn": "Value Column",
+      "series": "Series",
+      "addSeries": "+ Add Series",
+      "seriesLabel": "Label",
+      "seriesColumn": "Column",
+      "removeSeries": "Remove",
+      "xAxisLabel": "X-Axis Label",
+      "yAxisLabel": "Y-Axis Label",
+      "showLegend": "Show Legend",
+      "colorPalette": "Color Palette",
+      "smooth": "Smooth Lines",
+      "stacked": "Stacked",
+      "duplicate": "Duplicate"
     },
     "filterBar": {
       "search": "Search...",
@@ -1598,6 +1660,27 @@
       "clearSearch": "Clear search"
     },
     "dashlets": {
+      "chart": {
+        "name": "Chart",
+        "description": "Displays data as line, bar, pie, gauge, or scatter charts",
+        "noData": "No data available",
+        "typeLine": "Line",
+        "typeBar": "Bar",
+        "typePie": "Pie",
+        "typeGauge": "Gauge",
+        "typeScatter": "Scatter",
+        "palette_default": "Default",
+        "palette_cool": "Cool",
+        "palette_warm": "Warm",
+        "palette_monochrome": "Monochrome",
+        "palette_pastel": "Pastel",
+        "palette_vivid": "Vivid",
+        "paletteCustom": "Custom",
+        "noColumnsDetected": "No columns detected",
+        "selectPlaceholder": "Select...",
+        "labelPlaceholder": "Label",
+        "seriesNumber": "Series {n}"
+      },
       "data_list": {
         "name": "Data List",
         "description": "Displays data as a list of cards with KPI grids and metadata",
@@ -2470,6 +2553,9 @@
     }
   },
   "fleetManagement": {
+    "breadcrumb": {
+      "fleetManagement": "Fleet Management"
+    },
     "title": "Fleet Management",
     "subtitle": "Monitor and manage all your fleet vehicles in real time",
     "kpi": {
@@ -2483,17 +2569,17 @@
       "title": "Special Views",
       "badge": "Special view",
       "eventsView": "Events View",
-      "eventsViewDesc": "Record of incidents, alerts and critical operational events",
+      "eventsViewDesc": "Record of incidents, alerts and critical events",
       "usageView": "Usage View",
       "usageViewDesc": "Mileage analysis, consumption and contractual compliance",
       "generalInfoView": "General Information View",
       "generalInfoViewDesc": "Executive dashboard with indicators and regulatory compliance",
-      "maintenanceStatusView": "Maintenance Status",
-      "maintenanceStatusViewDesc": "Tracking of preventive and corrective maintenance status",
-      "technicalHealthView": "Vehicle Technical Health",
-      "technicalHealthViewDesc": "Technical diagnostics, mechanical status and inspection compliance",
-      "devicesTelemetryView": "Devices & Telemetry",
-      "devicesTelemetryViewDesc": "Monitoring of sensors, GPS and devices installed in the fleet",
+      "maintenanceStatusView": "Maintenance View",
+      "maintenanceStatusViewDesc": "Calendar and alerts for preventive and corrective maintenance",
+      "technicalHealthView": "Technical Health View",
+      "technicalHealthViewDesc": "Early fault detection and behavior patterns",
+      "devicesTelemetryView": "Devices View",
+      "devicesTelemetryViewDesc": "GPS monitoring, telemetry and real-time connectivity",
       "goToSlide": "Go to slide {number}",
       "previous": "Previous",
       "next": "Next"
@@ -2537,7 +2623,14 @@
           "poorHealth": "Poor Health",
           "responseTime": "Response Time",
           "resolved30days": "Resolved (30d)",
-          "activeFailures": "Active Failures"
+          "activeFailures": "Active Failures",
+          "critical": "Critical",
+          "warnings": "Warnings",
+          "ok": "OK",
+          "criticalIssues": "critical issue(s)",
+          "warningIssues": "warning(s)",
+          "allSystemsOk": "All systems operating normally",
+          "allSystemsOkDesc": "No issues detected in any section"
         },
         "maintenance": {
           "title": "Maintenance Status",
@@ -2558,7 +2651,10 @@
           "atKm": "At {km} km",
           "intervalPercent": "{percent}% of interval ({interval})",
           "upToDate": "Maintenance up to date",
-          "upToDateDesc": "The vehicle complies with the preventive maintenance plan."
+          "upToDateDesc": "The vehicle complies with the preventive maintenance plan.",
+          "upToDateBadge": "Up to date",
+          "dueSoon": "Due soon",
+          "overdue": "Overdue"
         },
         "technicalHealth": {
           "title": "Technical Health",
@@ -2568,7 +2664,10 @@
           "brakes": "Brakes",
           "tires": "Tires",
           "noErrorCodes": "No error codes detected",
-          "brakePadWear": "Brake pad wear detected (28%)"
+          "brakePadWear": "Brake pad wear detected (28%)",
+          "noIssues": "No failures",
+          "criticalIssues": "{count} critical failure(s)",
+          "warningIssues": "{count} warning(s)"
         },
         "telemetry": {
           "title": "Devices & Telemetry",
@@ -2632,7 +2731,10 @@
           "avgDailyOperationHours": "Average daily: {hours}",
           "utilization": "{percentage}% Utilization",
           "estimatedProjection": "Estimated projection",
-          "intensityLastDays": "Intensity last 30 days"
+          "intensityLastDays": "Intensity last 30 days",
+          "exceeded": "Exceeded",
+          "nearLimit": "Near limit",
+          "usageLabel": "usage"
         },
         "general": {
           "title": "General Information",

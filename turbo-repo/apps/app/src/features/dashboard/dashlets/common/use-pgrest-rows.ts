@@ -38,8 +38,12 @@ export function usePgrestRows(
       return;
     }
 
-    // Cancel any in-flight request
-    abortRef.current?.abort();
+    // If the previous in-flight request was non-silent (visible), clear its
+    // loading state before aborting — the aborted request's finally block will
+    // not run setLoading(false) because the signal is already aborted.
+    const prev = abortRef.current;
+    prev?.abort();
+
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -58,17 +62,15 @@ export function usePgrestRows(
       .then((data: unknown) => {
         if (!controller.signal.aborted) {
           setRows(parseRows(data, { singleObjectFallback: true }));
+          setFetchError(null);
+          setLoading(false);
         }
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
         if (!silent) setRows([]);
         setFetchError(err instanceof Error ? err.message : "Failed to fetch");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted && !silent) {
-          setLoading(false);
-        }
+        setLoading(false);
       });
   }, []);
 

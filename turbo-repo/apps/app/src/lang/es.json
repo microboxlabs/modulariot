@@ -1650,7 +1650,8 @@
       "showLegend": "Mostrar Leyenda",
       "colorPalette": "Paleta de Colores",
       "smooth": "Líneas Suaves",
-      "stacked": "Apilado"
+      "stacked": "Apilado",
+      "duplicate": "Duplicar"
     },
     "filterBar": {
       "search": "Buscar...",

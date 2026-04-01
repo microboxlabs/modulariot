@@ -87,7 +87,7 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
     const { plannerDefinitions: defs, activeFilters: filters, persistSchema: persist } = depsRef.current;
 
     if (defs.length === 0) {
-      setResults(new Map());
+      setResults((prev) => (prev.size === 0 ? prev : new Map()));
       return;
     }
 
@@ -168,7 +168,10 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
   }, [definitionsKey]);
 
   // Polling (silent — no loading state flash)
-  const pollingIntervalMs = editMode || !dashboardRefreshInterval ? 0 : dashboardRefreshInterval * 1000;
+  const pollingIntervalMs =
+    editMode || !dashboardRefreshInterval || plannerDefinitions.length === 0
+      ? 0
+      : dashboardRefreshInterval * 1000;
   const pollCallback = useCallback(() => doFetchAll(true), [doFetchAll]);
   usePollingInterval(pollCallback, pollingIntervalMs);
 

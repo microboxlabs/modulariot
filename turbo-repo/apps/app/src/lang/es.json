@@ -1350,7 +1350,8 @@
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
-        "fleetManagement": "Flotas"
+        "fleetManagement": "Flotas",
+        "colaboratorsManagement": "Colaboradores"
       }
     },
     "calendar": {
@@ -2807,6 +2808,58 @@
       "toNextLevel": "para subir de nivel",
       "weeklyGoal": "Meta Semanal",
       "goalCompleted": "¡Meta completada!"
+    }
+  },
+  "colaboratorsManagement": {
+    "title": "Gestión de Colaboradores",
+    "subtitle": "Monitorea y administra el desempeño de todos los colaboradores de tu organización",
+    "kpi": {
+      "totalColaborators": "Total Colaboradores",
+      "averageScore": "Score Promedio de Equipo",
+      "driversAtRisk": "Conductores en Riesgo",
+      "outstandingDrivers": "Conductores Destacados",
+      "incidentsLast30Days": "Incidentes Últimos 30 Días",
+      "averageEfficiency": "Eficiencia Promedio"
+    },
+    "grid": {
+      "title": "Colaboradores",
+      "colaboratorCount": "{count} colaboradores",
+      "loading": "Cargando..."
+    },
+    "rank": {
+      "conductor-senior": "Conductor Senior",
+      "conductor-especializado": "Conductor Especializado",
+      "conductor": "Conductor",
+      "operador-logistico": "Operador Logístico"
+    },
+    "employmentStatus": {
+      "activo": "Activo",
+      "suspendido": "Suspendido"
+    },
+    "performanceStatus": {
+      "excelente": "Excelente",
+      "bueno": "Bueno",
+      "en-observacion": "En Observación"
+    },
+    "stats": {
+      "punctuality": "Puntualidad",
+      "safety": "Seguridad",
+      "incidents": "Incidentes"
+    },
+    "sort": {
+      "performance": "Desempeño",
+      "incidents": "Incidencias",
+      "efficiency": "Eficiencia"
+    },
+    "filter": {
+      "all": "Todos",
+      "active": "Activos",
+      "atRisk": "En riesgo",
+      "outstanding": "Destacados",
+      "withIncidents": "Con incidentes"
+    },
+    "detail": {
+      "back": "Volver"
     }
   },
   "ext_tasks": {

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3050",
+    "storm": "dotenv -e .env.storm -- next dev --port 3050",
     "build": "NODE_OPTIONS=--enable-source-maps next build",
     "start": "next start",
     "lint": "eslint .",
@@ -100,6 +101,7 @@
     "@vitest/coverage-v8": "^4.0.10",
     "@vitest/ui": "^4.0.10",
     "autoprefixer": "^10.4.19",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "jsdom": "^24.0.0",

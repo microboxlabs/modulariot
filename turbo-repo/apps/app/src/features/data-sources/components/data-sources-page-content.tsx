@@ -69,6 +69,7 @@ export default function DataSourcesPageContent({
                 ...(data.clientSecret ? { clientSecret: data.clientSecret } : {}),
                 tokenUrl: data.tokenUrl,
                 scope: data.scope,
+                audience: data.audience,
               }),
         });
         toast.success(tr("toast.updated", dsDict));

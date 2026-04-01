@@ -89,13 +89,13 @@ function resolveClientSecret(
 }
 
 async function buildConfigFromParsedData(
-  data: { authMethod?: string; token?: string; clientId?: string; clientSecret?: string; tokenUrl?: string; scope?: string | null },
+  data: { authMethod?: string; token?: string; clientId?: string; clientSecret?: string; tokenUrl?: string; scope?: string | null; audience?: string | null },
   session: Parameters<typeof getDataSource>[0],
   dataSourceId: string
 ): Promise<Record<string, unknown> | null> {
-  const { authMethod, token, clientId, clientSecret, tokenUrl, scope } = data;
+  const { authMethod, token, clientId, clientSecret, tokenUrl, scope, audience } = data;
   const hasAuthChanges = authMethod !== undefined || token || clientId !== undefined
-    || clientSecret || tokenUrl !== undefined || scope !== undefined;
+    || clientSecret || tokenUrl !== undefined || scope !== undefined || audience !== undefined;
 
   if (!hasAuthChanges) return null;
 
@@ -107,6 +107,7 @@ async function buildConfigFromParsedData(
   if (clientId !== undefined) configObj.clientId = clientId;
   if (tokenUrl !== undefined) configObj.tokenUrl = tokenUrl;
   if (scope !== undefined) configObj.scope = scope ?? "";
+  if (audience !== undefined) configObj.audience = audience ?? "";
 
   // Determine effective auth method (incoming or existing)
   const effectiveAuthMethod = authMethod ?? existingConfig?.authMethod;
@@ -126,6 +127,7 @@ async function buildConfigFromParsedData(
       configObj.clientId = "";
       configObj.tokenUrl = "";
       configObj.scope = "";
+      configObj.audience = "";
     } else if (effectiveAuthMethod === "OAUTH") {
       configObj.encryptedToken = "";
       configObj.tokenSuffix = "";

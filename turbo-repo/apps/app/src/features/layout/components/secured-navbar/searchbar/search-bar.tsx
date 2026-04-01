@@ -38,6 +38,12 @@ export default function SearchBar({
   const navegation_params = getNavegationParams(dict, searchParams.size);
 
   if (!(final_path in navegation_params)) {
+    // Dashboard pages: render an empty slot for the DashboardFilterBar portal
+    const isDashboardPage = /\/home\/[^/]+/.test(pathName);
+    if (isDashboardPage) {
+      return <div id="navbar-search-slot" className="flex items-center gap-2" />;
+    }
+
     return (
       <div className="flex items-center gap-2">
         <TextInput
@@ -50,10 +56,6 @@ export default function SearchBar({
           defaultValue={searchParams.get("search") || ""}
           onChange={handleSearch}
         />
-        {/* @TODO: Add filter button */}
-        {/* <Button color="gray">
-        <Filter className="h-4 w-4" />
-      </Button> */}
       </div>
     );
   }

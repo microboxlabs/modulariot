@@ -3,13 +3,28 @@
 import { useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSWRConfig } from "swr";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Label, TextInput } from "flowbite-react";
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import { DynamicFormField, useDynamicFormState } from "@/features/dynamic-forms";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import { CREATE_DASHBOARD_FORM_CONFIG, generateSlug } from "./create-dashboard-modal.config";
+import { generateSlug } from "./create-dashboard-modal.config";
 import type { DashboardStorageSchema } from "../../types/dashboard.types";
+
+const createDashboardSchema = z.object({
+  name: z.string().trim().min(1, "dashboard.create.nameRequired"),
+});
+
+type CreateDashboardFormData = z.infer<typeof createDashboardSchema>;
+
+const ApiErrorResponseSchema = z.object({
+  error: z.string(),
+  status: z.number(),
+  code: z.string().optional(),
+});
 
 interface CreateDashboardModalProps {
   isOpen: boolean;
@@ -29,76 +44,93 @@ export function CreateDashboardModal({
   const router = useRouter();
   const params = useParams<{ lang: string }>();
 
-  const { formValues, setFormValue, resetFormValues, isFieldVisible } =
-    useDynamicFormState(isOpen, CREATE_DASHBOARD_FORM_CONFIG);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CreateDashboardFormData>({
+    resolver: zodResolver(createDashboardSchema),
+    defaultValues: { name: "" },
+  });
 
   const handleClose = useCallback(() => {
-    resetFormValues();
+    reset();
     onClose();
-  }, [resetFormValues, onClose]);
+  }, [reset, onClose]);
 
-  const handleSubmit = useCallback(async () => {
-    const name = (formValues.name as string)?.trim();
-    if (!name || !siteName) return;
+  const onSubmit = useCallback(
+    async (data: CreateDashboardFormData) => {
+      const name = data.name.trim();
+      if (!siteName) {
+        ShowNotification({
+          type: "error",
+          message: tr("dashboard.create.siteRequired", dict),
+        });
+        return;
+      }
 
-    setIsProcessing(true);
+      setIsProcessing(true);
 
-    try {
-      const slug = generateSlug(name);
-      if (!slug) {
+      try {
+        const slug = generateSlug(name);
+        if (!slug) {
+          ShowNotification({
+            type: "error",
+            message: tr("dashboard.create.nameInvalid", dict),
+          });
+          return;
+        }
+
+        const config: DashboardStorageSchema = {
+          version: 2,
+          name,
+          widgets: [],
+          preferences: { editMode: false },
+        };
+
+        const res = await fetch("/app/api/dashboard/config", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ site: siteName, slug, config }),
+        });
+
+        if (!res.ok) {
+          const errorBody = await res.json().catch(() => ({}));
+          const parsed = ApiErrorResponseSchema.safeParse(errorBody);
+          ShowNotification({
+            type: "error",
+            message:
+              parsed.success && parsed.data.error
+                ? parsed.data.error
+                : tr("dashboard.create.errorNotification", dict),
+          });
+          return;
+        }
+
+        // Refresh the dashboard list in sidebar and landing page
+        await mutate(
+          `/app/api/dashboard/configs?site=${encodeURIComponent(siteName)}`
+        );
+
+        ShowNotification({
+          type: "success",
+          message: tr("dashboard.create.successNotification", dict),
+        });
+
+        handleClose();
+        router.push(`/${params.lang}/home/${slug}`);
+      } catch {
         ShowNotification({
           type: "error",
           message: tr("dashboard.create.errorNotification", dict),
         });
-        return;
+      } finally {
+        setIsProcessing(false);
       }
-
-      const config: DashboardStorageSchema = {
-        version: 2,
-        name,
-        widgets: [],
-        preferences: { editMode: false },
-      };
-
-      const res = await fetch("/app/api/dashboard/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site: siteName, slug, config }),
-      });
-
-      if (!res.ok) {
-        const errorBody = await res.json().catch(() => null);
-        ShowNotification({
-          type: "error",
-          message: (errorBody as Record<string, string>)?.error
-            ?? tr("dashboard.create.errorNotification", dict),
-        });
-        return;
-      }
-
-      // Refresh the dashboard list in sidebar and landing page
-      await mutate(
-        `/app/api/dashboard/configs?site=${encodeURIComponent(siteName)}`
-      );
-
-      ShowNotification({
-        type: "success",
-        message: tr("dashboard.create.successNotification", dict),
-      });
-
-      handleClose();
-      router.push(`/${params.lang}/home/${slug}`);
-    } catch {
-      ShowNotification({
-        type: "error",
-        message: tr("dashboard.create.errorNotification", dict),
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [formValues, siteName, mutate, dict, handleClose, router, params.lang]);
-
-  const standardFields = CREATE_DASHBOARD_FORM_CONFIG.fields;
+    },
+    [siteName, mutate, dict, handleClose, router, params.lang]
+  );
 
   return (
     <FormModal
@@ -108,20 +140,26 @@ export function CreateDashboardModal({
       subtitle={tr("dashboard.create.subtitle", dict)}
       submitLabel={tr("dashboard.create.submit", dict)}
       isProcessing={isProcessing}
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmit(onSubmit)}
       size="md"
     >
       <div className="flex flex-col gap-4">
-        {standardFields.map((field) => (
-          <DynamicFormField
-            key={field.name}
-            field={field}
-            value={formValues[field.name] ?? field.defaultValue ?? ""}
-            onChange={(value) => setFormValue(field.name, value)}
-            isVisible={isFieldVisible(field)}
-            translate={(key) => tr(key, dict)}
+        <div>
+          <Label htmlFor="name">
+            {tr("dashboard.create.nameLabel", dict)}
+          </Label>
+          <TextInput
+            id="name"
+            placeholder={tr("dashboard.create.namePlaceholder", dict)}
+            {...register("name")}
+            color={errors.name ? "failure" : undefined}
           />
-        ))}
+          {errors.name?.message && (
+            <p className="mt-1 text-sm text-red-600">
+              {tr(errors.name.message, dict)}
+            </p>
+          )}
+        </div>
       </div>
     </FormModal>
   );

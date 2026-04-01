@@ -67,7 +67,12 @@ export function PgrestFunctionAutocomplete({
       const url = `/app/api/dashboard/pgrest/functions${suffix}`;
       const res = await fetch(url);
       if (reqId !== requestIdRef.current) return;
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          (body as { error?: string }).error ?? `HTTP ${res.status}`
+        );
+      }
       const parsed = functionsResponseSchema.safeParse(await res.json());
       if (reqId !== requestIdRef.current) return;
       if (!parsed.success)
@@ -88,9 +93,13 @@ export function PgrestFunctionAutocomplete({
     }
   }, [dictionary, dataSourceId]);
 
-  // Fetch function list once on first interaction
+  // Fetch function list on focus – retries automatically after errors
   const fetchFunctions = useCallback(async () => {
-    if (allFunctions !== null || isFetchingRef.current) return;
+    if (isFetchingRef.current) return;
+    // Already have data – nothing to do
+    if (allFunctions !== null) return;
+    // Clear stale error so the dropdown can open after a successful retry
+    setFetchError(null);
     await doFetch(requestIdRef.current);
   }, [allFunctions, doFetch]);
 
@@ -149,9 +158,9 @@ export function PgrestFunctionAutocomplete({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoComplete="off"
-        disabled={loading || isFetching}
+        disabled={loading}
       />
-      {(loading || isFetching) && (
+      {loading && (
         <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
           <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
         </div>

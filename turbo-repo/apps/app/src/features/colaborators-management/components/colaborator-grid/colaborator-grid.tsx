@@ -89,8 +89,10 @@ export default function ColaboratorGrid({
 
   // Reset visible count when filter changes
   useEffect(() => {
+    clearLoadTimeout();
     setVisibleCount(Math.min(ITEMS_PER_PAGE, sortedColaborators.length));
-  }, [filter, sortedColaborators.length]);
+    setIsLoading(false);
+  }, [filter, sortedColaborators.length, clearLoadTimeout]);
 
   // Reset state when colaborators prop changes
   useEffect(() => {

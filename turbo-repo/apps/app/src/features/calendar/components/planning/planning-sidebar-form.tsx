@@ -9,9 +9,9 @@ import {
   FormSection,
   InfoRow,
   KpiRow,
-  ProgressBar,
   LeadTimeDisplay,
 } from "./form-components";
+import { ProgressBar } from "@/features/common/components/progress-bar";
 import {
   usePlanningSelection,
   type SelectedService,
@@ -618,8 +618,8 @@ export function PlanningSidebarForm({
         <LeadTimeDisplay leadTime={selectedService.leadTime} dict={dict} />
         <KpiRow label="ETA" value={eta} />
         <ProgressBar
-          label={tr("pages.planning.sidebar.form.occupancy", dict)}
-          value={occupancy}
+          label={{ text: tr("pages.planning.sidebar.form.occupancy", dict) }}
+          progress={occupancy}
         />
       </FormSection>
       {/* Load Utilization Section */}

@@ -94,6 +94,51 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
+/** Calculate next available position in the grid */
+export function getNextPosition(
+  children: Widget[],
+  width: number = 1
+): { x: number; y: number } {
+  if (children.length === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  // Find the maximum y + h (bottom of grid)
+  let maxBottom = 0;
+  let maxBottomRowEndX = 0;
+
+  for (const widget of children) {
+    const bottom = widget.layout.y + widget.layout.h;
+    if (bottom > maxBottom) {
+      maxBottom = bottom;
+    }
+    if (bottom === maxBottom) {
+      maxBottomRowEndX = Math.max(
+        maxBottomRowEndX,
+        widget.layout.x + widget.layout.w
+      );
+    }
+  }
+
+  // Check if we can fit in the last row
+  const lastRowY = maxBottom - 1;
+  const widgetsInLastRow = children.filter(
+    (w) => w.layout.y <= lastRowY && w.layout.y + w.layout.h > lastRowY
+  );
+
+  let usedColumns = 0;
+  for (const w of widgetsInLastRow) {
+    usedColumns = Math.max(usedColumns, w.layout.x + w.layout.w);
+  }
+
+  if (usedColumns + width <= GRID_COLS) {
+    return { x: usedColumns, y: lastRowY };
+  }
+
+  // Start new row
+  return { x: 0, y: maxBottom };
+}
+
 interface DashboardProviderProps extends PropsWithChildren {
   dictionary: I18nRecord;
   /** Dashboard slug (e.g. "dashboard", "maintenanceStatus") */

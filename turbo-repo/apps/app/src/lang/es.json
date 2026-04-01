@@ -1622,6 +1622,14 @@
       "addFilterButton": "+ Agregar Filtro",
       "filtersUpdated": "Filtros actualizados correctamente",
       "filtersValidationError": "Algunos filtros tienen campos vacíos o claves duplicadas. Corríjalos antes de guardar.",
+      "autoRefresh": "Auto-Actualización",
+      "autoRefreshDescription": "Actualizar automáticamente los datos del dashboard a un intervalo regular",
+      "refreshOff": "Desactivado",
+      "refresh10s": "Cada 10 segundos",
+      "refresh30s": "Cada 30 segundos",
+      "refresh60s": "Cada minuto",
+      "refresh5m": "Cada 5 minutos",
+      "widgetRefreshInherit": "Usar configuración del dashboard",
       "deleteDescription": "Eliminar permanentemente este dashboard",
       "chartType": "Tipo de Gráfico",
       "line": "Línea",
@@ -1642,7 +1650,8 @@
       "showLegend": "Mostrar Leyenda",
       "colorPalette": "Paleta de Colores",
       "smooth": "Líneas Suaves",
-      "stacked": "Apilado"
+      "stacked": "Apilado",
+      "duplicate": "Duplicar"
     },
     "filterBar": {
       "search": "Buscar...",

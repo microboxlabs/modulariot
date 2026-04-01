@@ -10,7 +10,7 @@ import {
   PgrestDataTab,
   useSimplePgrestSettings,
 } from "../common";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -66,6 +66,7 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const refresh = useWidgetRefreshSettings(config, dictionary);
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit ?? "%");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
@@ -115,6 +116,7 @@ export function DashletSettings({
       unit: unit.trim() || "%",
       showHeader,
       ...pgrestSaveFields,
+      ...refresh.savePayload,
     });
     onClose();
   };
@@ -243,6 +245,7 @@ export function DashletSettings({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

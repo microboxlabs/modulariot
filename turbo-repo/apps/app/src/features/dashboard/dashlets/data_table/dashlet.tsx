@@ -11,6 +11,7 @@ import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filt
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
@@ -154,6 +155,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
   // ── Data fetching (pgrest or planner) ───────────────────────────────────────
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const {
     rows: fetchedRows,
     loading,
@@ -165,6 +167,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestParams,
     dataSourceId,
     plannerVariableName,
+    refreshIntervalMs,
   });
 
   const allRows = dataMode === "pgrest" || dataMode === "planner" ? fetchedRows : staticRows;

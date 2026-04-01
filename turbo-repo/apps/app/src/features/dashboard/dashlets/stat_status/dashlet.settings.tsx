@@ -21,7 +21,7 @@ import {
   DataProviderEntries,
   type SimpleDataMode,
 } from "../common";
-import { SettingsModalShell } from "../common/settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 
 export function DashletSettings({
   isOpen,
@@ -31,6 +31,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
+  const refresh = useWidgetRefreshSettings(config, dictionary);
 
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
@@ -82,6 +83,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
+      ...refresh.savePayload,
     } as DashletConfig);
     onClose();
   };
@@ -150,6 +152,7 @@ export function DashletSettings({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

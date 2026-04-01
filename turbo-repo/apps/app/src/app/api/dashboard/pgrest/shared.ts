@@ -8,6 +8,13 @@ import {
 import { resolveBearerToken } from "@/app/api/data-sources/resolve-credentials";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
 
+function toPgrestBaseUrl(rawUrl: string): string {
+  const trimmed = rawUrl.replace(/\/+$/, "");
+  return trimmed.endsWith("/api/v1/pgrest")
+    ? trimmed
+    : `${trimmed}/api/v1/pgrest`;
+}
+
 interface OpenApiParameter {
   name: string;
   in: string;
@@ -123,8 +130,7 @@ export async function resolvePgrestCredentials(
     );
   }
 
-  // Env var contains the host only — append the standard PgREST path
-  return { baseUrl: `${envUrl}/api/v1/pgrest`, token };
+  return { baseUrl: toPgrestBaseUrl(envUrl), token };
 }
 
 /**

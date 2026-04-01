@@ -1295,6 +1295,7 @@
         "operativeEvents": "Operative Events",
         "fleetUsage": "Fleet Usage",
         "generalInfo": "General Information",
+        "dashboardOverview": "Overview",
         "calendar": "Calendar",
         "kanban": "Kanban",
         "completed_tasks": "Completed tasks",
@@ -1455,11 +1456,36 @@
     "max": "Max",
     "unit": "Unit",
     "all": "All",
+    "delete": "Delete",
     "yes": "Yes",
     "no": "No"
   },
   "dashboard": {
     "editMode": "Edit Mode",
+    "landing": {
+      "title": "Dashboards",
+      "subtitle": "Create and manage custom dashboards with widgets, filters, and data visualizations.",
+      "widgets_title": "Custom Widgets",
+      "widgets_description": "Build dashboards with cards, charts, tables, and container widgets.",
+      "filters_title": "Data Filters",
+      "filters_description": "Configure dynamic filters to drill down into your data across widgets.",
+      "import_export_title": "Import & Export",
+      "import_export_description": "Share dashboard configurations as JSON files between teams.",
+      "cta": "Create Dashboard",
+      "no_dashboards": "No dashboards yet. Create your first one to get started.",
+      "delete_confirm_title": "Delete Dashboard",
+      "delete_confirm_message": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+      "deleteSuccess": "Dashboard deleted successfully",
+      "deleteError": "Failed to delete dashboard"
+    },
+    "create": {
+      "title": "New Dashboard",
+      "subtitle": "Give your dashboard a name to get started.",
+      "nameLabel": "Name",
+      "submit": "Create",
+      "successNotification": "Dashboard created successfully",
+      "errorNotification": "Failed to create dashboard"
+    },
     "settings": {
       "sparklineData": "Sparkline Data (comma-separated)",
       "subtitle": "Subtitle",
@@ -1564,7 +1590,9 @@
       "textSearch": "Text Search",
       "dateRange": "Date Range",
       "addFilterButton": "+ Add Filter",
-      "filtersUpdated": "Filters updated successfully"
+      "filtersUpdated": "Filters updated successfully",
+      "filtersValidationError": "Some filters have empty fields or duplicate keys. Please fix them before saving.",
+      "deleteDescription": "Permanently remove this dashboard"
     },
     "filterBar": {
       "search": "Search...",

@@ -1,4 +1,6 @@
-export default function ChartMixedIcon() {
+import { ComponentProps } from "react";
+
+export default function ChartMixedIcon(props: Readonly<ComponentProps<"svg">>) {
   return (
     <svg
       className="w-6 h-6 text-gray-800 dark:text-white"
@@ -8,6 +10,7 @@ export default function ChartMixedIcon() {
       height="24"
       fill="none"
       viewBox="0 0 24 24"
+      {...props}
     >
       <path
         stroke="currentColor"

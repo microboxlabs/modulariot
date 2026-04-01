@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     let errorMessage: string | undefined;
 
     try {
-      const specUrl = `${ds.url}/api/v1/pgrest/`;
+      const specUrl = `${ds.url}/`;
 
       const urlCheck = await validateTargetUrl(specUrl);
       if (!urlCheck.valid) {

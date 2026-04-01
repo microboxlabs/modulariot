@@ -36,6 +36,10 @@
       "cache": false,
       "persistent": true
     },
+    "storm": {
+      "cache": false,
+      "persistent": true
+    },
     "test": {
       "cache": false,
       "persistent": true

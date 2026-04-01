@@ -95,8 +95,8 @@ export function DashboardView() {
         undo();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [editMode, undo, redo]);
 
   // Convert widgets to react-grid-layout format

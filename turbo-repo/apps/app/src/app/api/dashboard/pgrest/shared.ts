@@ -113,17 +113,18 @@ export async function resolvePgrestCredentials(
     return resolveDataSourceCredentials(session, dataSourceId);
   }
 
-  const baseUrl = process.env.OPENAPI_URL;
+  const envUrl = process.env.OPENAPI_URL;
   const token = process.env.OPENAPI_TOKEN;
 
-  if (!baseUrl || !token) {
+  if (!envUrl || !token) {
     return NextResponse.json(
       { error: "PGREST is not configured on the server." },
       { status: 500 }
     );
   }
 
-  return { baseUrl, token };
+  // Env var contains the host only — append the standard PgREST path
+  return { baseUrl: `${envUrl}/api/v1/pgrest`, token };
 }
 
 /**
@@ -145,7 +146,7 @@ export async function fetchPgrestSpec(
   const creds = await resolvePgrestCredentials(session, dataSourceId);
   if (creds instanceof NextResponse) return creds;
 
-  const specUrl = `${creds.baseUrl}/api/v1/pgrest/`;
+  const specUrl = `${creds.baseUrl}/`;
   const res = await fetch(specUrl, {
     headers: {
       Accept: "application/openapi+json",

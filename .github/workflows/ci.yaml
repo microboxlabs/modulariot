@@ -33,15 +33,20 @@ run-name: ${{ github.actor }} is building ${{ github.repository }} 🚀
 
 on:
   push:
+    paths:
+      - 'turbo-repo/**'
     branches:
       - trunk
       - main
     tags:
       - "v*"
   pull_request:
+    paths:
+      - 'turbo-repo/**'
     branches:
       - trunk
       - main
+  workflow_dispatch:
 
 env:
   # Registry configuration

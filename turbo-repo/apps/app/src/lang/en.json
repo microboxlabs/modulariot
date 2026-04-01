@@ -2676,6 +2676,58 @@
       "goalCompleted": "Goal completed!"
     }
   },
+  "colaboratorsManagement": {
+    "title": "Collaborators Management",
+    "subtitle": "Monitor and manage the performance of all collaborators in your organization",
+    "kpi": {
+      "totalColaborators": "Total Collaborators",
+      "averageScore": "Team Average Score",
+      "driversAtRisk": "Drivers at Risk",
+      "outstandingDrivers": "Outstanding Drivers",
+      "incidentsLast30Days": "Incidents Last 30 Days",
+      "averageEfficiency": "Average Efficiency"
+    },
+    "grid": {
+      "title": "Collaborators",
+      "colaboratorCount": "{count} collaborators",
+      "loading": "Loading..."
+    },
+    "rank": {
+      "conductor-senior": "Senior Driver",
+      "conductor-especializado": "Specialized Driver",
+      "conductor": "Driver",
+      "operador-logistico": "Logistics Operator"
+    },
+    "employmentStatus": {
+      "activo": "Active",
+      "suspendido": "Suspended"
+    },
+    "performanceStatus": {
+      "excelente": "Excellent",
+      "bueno": "Good",
+      "en-observacion": "Under Review"
+    },
+    "stats": {
+      "punctuality": "Punctuality",
+      "safety": "Safety",
+      "incidents": "Incidents"
+    },
+    "sort": {
+      "performance": "Performance",
+      "incidents": "Incidents",
+      "efficiency": "Efficiency"
+    },
+    "filter": {
+      "all": "All",
+      "active": "Active",
+      "atRisk": "At Risk",
+      "outstanding": "Outstanding",
+      "withIncidents": "With Incidents"
+    },
+    "detail": {
+      "back": "Back"
+    }
+  },
   "ext_tasks": {
     "processing": "Processing your request...",
     "completed": "Action completed successfully",

@@ -39,7 +39,6 @@ export function PgrestFunctionAutocomplete({
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +58,7 @@ export function PgrestFunctionAutocomplete({
   const doFetch = useCallback(async (reqId: number) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    setIsFetching(true);
+
     setFetchError(null);
     try {
       const qs = buildDataSourceParams(dataSourceId).toString();
@@ -89,7 +88,6 @@ export function PgrestFunctionAutocomplete({
       );
     } finally {
       isFetchingRef.current = false;
-      setIsFetching(false);
     }
   }, [dictionary, dataSourceId]);
 

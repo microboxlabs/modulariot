@@ -73,7 +73,7 @@ export default function ColaboratorGrid({
       if (!sort.field) return 0;
       const aVal = a[sort.field];
       const bVal = b[sort.field];
-      const diff = (aVal as number) - (bVal as number);
+      const diff = aVal - bVal;
       return sort.direction === "asc" ? diff : -diff;
     });
   }, [filteredColaborators, sort]);

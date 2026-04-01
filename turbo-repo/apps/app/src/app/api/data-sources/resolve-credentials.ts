@@ -10,7 +10,8 @@ export async function exchangeOAuthToken(
   tokenUrl: string,
   clientId: string,
   clientSecret: string,
-  scope?: string
+  scope?: string,
+  audience?: string
 ): Promise<string> {
   const params = new URLSearchParams({
     grant_type: "client_credentials",
@@ -18,6 +19,7 @@ export async function exchangeOAuthToken(
     client_secret: clientSecret,
   });
   if (scope) params.set("scope", scope);
+  if (audience) params.set("audience", audience);
 
   const res = await fetch(tokenUrl, {
     method: "POST",
@@ -54,14 +56,15 @@ async function resolveOAuthToken(
   tokenUrl: string,
   clientId: string,
   encryptedClientSecret: string,
-  scope?: string
+  scope?: string,
+  audience?: string
 ): Promise<BearerResult> {
   const tokenUrlCheck = await validateTargetUrl(tokenUrl);
   if (!tokenUrlCheck.valid) {
     return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
   }
   const clientSecret = decrypt(encryptedClientSecret);
-  const token = await exchangeOAuthToken(tokenUrl, clientId, clientSecret, scope);
+  const token = await exchangeOAuthToken(tokenUrl, clientId, clientSecret, scope, audience);
   return { ok: true, token };
 }
 
@@ -72,7 +75,7 @@ export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null
     }
     try {
       return await resolveOAuthToken(
-        config.tokenUrl, config.clientId, config.encryptedClientSecret, config.scope
+        config.tokenUrl, config.clientId, config.encryptedClientSecret, config.scope, config.audience
       );
     } catch (err) {
       return errorResult(err, "OAuth token resolution failed");

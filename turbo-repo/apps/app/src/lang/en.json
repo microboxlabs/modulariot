@@ -1136,6 +1136,8 @@
           "scope": "Scope",
           "scopePlaceholder": "e.g. read write",
           "scopeHint": "Space-separated list of scopes (optional)",
+          "audience": "Audience",
+          "audienceHint": "API identifier for the token (required for Auth0)",
           "testConnection": "Test Connection",
           "saving": "Saving...",
           "saveButton": "Save",

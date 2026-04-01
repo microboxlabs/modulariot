@@ -98,7 +98,7 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
       return creds;
     }
 
-    const rpcUrl = `${creds.baseUrl}/api/v1/pgrest/rpc/${functionName}`;
+    const rpcUrl = `${creds.baseUrl}/rpc/${functionName}`;
     const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
 
     if (req.method === "POST") {

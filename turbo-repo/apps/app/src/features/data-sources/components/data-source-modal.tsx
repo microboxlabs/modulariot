@@ -58,6 +58,7 @@ export function DataSourceModal({
       clientSecret: "",
       tokenUrl: "",
       scope: "",
+      audience: "",
     },
   });
 
@@ -76,6 +77,7 @@ export function DataSourceModal({
         clientSecret: "",
         tokenUrl: editingSource.connectionConfig.tokenUrl || "",
         scope: editingSource.connectionConfig.scope || "",
+        audience: editingSource.connectionConfig.audience || "",
       });
     } else {
       reset({
@@ -89,6 +91,7 @@ export function DataSourceModal({
         clientSecret: "",
         tokenUrl: "",
         scope: "",
+        audience: "",
       });
     }
   }, [editingSource, reset, show]);
@@ -151,7 +154,8 @@ export function DataSourceModal({
           <TextInput
             id="url"
             type="url"
-            placeholder="https://api.example.com"
+            autoComplete="off"
+            placeholder="https://api.example.com/api/v1/pgrest"
             {...register("url")}
             color={errors.url ? "failure" : undefined}
           />
@@ -182,6 +186,7 @@ export function DataSourceModal({
             <TextInput
               id="token"
               type="password"
+              autoComplete="new-password"
               placeholder={
                 editingSource
                   ? tr("modal.tokenPlaceholderEdit", dict)
@@ -218,6 +223,7 @@ export function DataSourceModal({
               <TextInput
                 id="clientSecret"
                 type="password"
+                autoComplete="new-password"
                 placeholder={
                   editingSource
                     ? tr("modal.secretPlaceholderEdit", dict)
@@ -256,6 +262,16 @@ export function DataSourceModal({
                 {...register("scope")}
               />
               <p className="mt-1 text-sm text-gray-500">{tr("modal.scopeHint", dict)}</p>
+            </div>
+
+            <div>
+              <Label htmlFor="audience">{tr("modal.audience", dict)}</Label>
+              <TextInput
+                id="audience"
+                placeholder="https://api.example.com"
+                {...register("audience")}
+              />
+              <p className="mt-1 text-sm text-gray-500">{tr("modal.audienceHint", dict)}</p>
             </div>
           </>
         )}

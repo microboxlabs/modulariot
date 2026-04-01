@@ -12,12 +12,14 @@ interface VehicleGridProps {
   readonly vehicles: Vehicle[];
   readonly dict: I18nRecord;
   readonly onSelectVehicle?: (plate: string) => void;
+  readonly fetchLoading?: boolean;
 }
 
 export default function VehicleGrid({
   vehicles,
   dict,
   onSelectVehicle,
+  fetchLoading = false,
 }: VehicleGridProps) {
   const [isDetailed, setIsDetailed] = useState(true);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -118,15 +120,22 @@ export default function VehicleGrid({
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        {visibleVehicles.map((vehicle) => (
-          <VehicleCard
-            key={vehicle.id}
-            vehicle={vehicle}
-            dict={dict}
-            isDetailed={isDetailed}
-            onSelect={onSelectVehicle}
-          />
-        ))}
+        {fetchLoading && vehicles.length === 0
+          ? Array.from({ length: 9 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 h-32 animate-pulse"
+              />
+            ))
+          : visibleVehicles.map((vehicle) => (
+              <VehicleCard
+                key={vehicle.id}
+                vehicle={vehicle}
+                dict={dict}
+                isDetailed={isDetailed}
+                onSelect={onSelectVehicle}
+              />
+            ))}
       </div>
       {hasMore && (
         <div ref={loaderRef} className="flex justify-center py-4">

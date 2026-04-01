@@ -13,6 +13,7 @@ import {
   DEFAULT_STORAGE,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
+import { useUndoRedo } from "./use-undo-redo";
 import { getNextPosition } from "../utils/get-next-position";
 
 /**
@@ -282,13 +283,26 @@ export function useDashboardStorage(
     };
   }, [slug]);
 
-  // Save data: optimistic SWR mutate + debounced Alfresco PUT
-  const saveData = useCallback(
+  // Raw save: optimistic SWR mutate + debounced Alfresco PUT (no history)
+  const rawSaveData = useCallback(
     (newData: DashboardStorageSchema) => {
       void mutate({ data: newData }, { revalidate: false });
       scheduleSaveToAlfresco(newData);
     },
     [mutate, scheduleSaveToAlfresco]
+  );
+
+  // Undo/redo history wrapping rawSaveData
+  const {
+    saveDataWithHistory: saveData,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    clearHistory,
+  } = useUndoRedo(
+    () => configRef.current,
+    rawSaveData
   );
 
   // Helper: update config via a transform on the current widgets.
@@ -593,7 +607,8 @@ export function useDashboardStorage(
           refreshInterval: imported.refreshInterval,
         };
 
-        saveData(newData);
+        clearHistory();
+        rawSaveData(newData);
         return { success: true };
       } catch (e) {
         return {
@@ -602,7 +617,7 @@ export function useDashboardStorage(
         };
       }
     },
-    [saveData]
+    [clearHistory, rawSaveData]
   );
 
   return {
@@ -632,5 +647,9 @@ export function useDashboardStorage(
     addPlannerRequest,
     updatePlannerRequest,
     removePlannerRequest,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }

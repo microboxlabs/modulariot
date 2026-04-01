@@ -84,6 +84,12 @@ interface DashboardContextValue {
   addPlannerRequest: (def: Omit<PlannerRequestDefinition, "id">) => string;
   updatePlannerRequest: (id: string, partial: Partial<PlannerRequestDefinition>) => void;
   removePlannerRequest: (id: string) => void;
+
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -179,6 +185,10 @@ export function DashboardProvider({
     addPlannerRequest,
     updatePlannerRequest,
     removePlannerRequest,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useDashboardStorage(slug, defaultConfig, siteId);
 
   const createWidget = useCallback(
@@ -386,6 +396,10 @@ export function DashboardProvider({
       addPlannerRequest,
       updatePlannerRequest,
       removePlannerRequest,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
     }),
     [
       widgets,
@@ -414,6 +428,10 @@ export function DashboardProvider({
       addPlannerRequest,
       updatePlannerRequest,
       removePlannerRequest,
+      undo,
+      redo,
+      canUndo,
+      canRedo,
     ]
   );
 

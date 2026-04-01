@@ -191,13 +191,11 @@ export function DashletSettings({
   };
 
   const removeSeries = (id: string) => {
-    setSeries((prev) => {
-      const index = prev.findIndex((s) => s._id === id);
-      if (index >= 0) {
-        setCustomColors((colors) => colors.filter((_, i) => i !== index));
-      }
-      return prev.filter((s) => s._id !== id);
-    });
+    const index = series.findIndex((s) => s._id === id);
+    if (index >= 0) {
+      setCustomColors((prev) => prev.filter((_, i) => i !== index));
+    }
+    setSeries((prev) => prev.filter((s) => s._id !== id));
   };
 
   // Custom color helpers

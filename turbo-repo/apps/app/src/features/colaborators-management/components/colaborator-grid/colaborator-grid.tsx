@@ -34,7 +34,7 @@ export default function ColaboratorGrid({
   const [sort, setSort] = useState<SortState>({ field: null, direction: "desc" });
   const [filter, setFilter] = useState<FilterType>("todos");
   const loaderRef = useRef<HTMLDivElement>(null);
-  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSortClick = (field: SortField) => {
     setSort((prev) => {
@@ -122,7 +122,7 @@ export default function ColaboratorGrid({
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
+        if (entries[0]?.isIntersecting && hasMore && !isLoading) {
           loadMore();
         }
       },

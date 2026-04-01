@@ -2551,6 +2551,9 @@
     }
   },
   "fleetManagement": {
+    "breadcrumb": {
+      "fleetManagement": "Fleet Management"
+    },
     "title": "Fleet Management",
     "subtitle": "Monitor and manage all your fleet vehicles in real time",
     "kpi": {
@@ -2564,17 +2567,17 @@
       "title": "Special Views",
       "badge": "Special view",
       "eventsView": "Events View",
-      "eventsViewDesc": "Record of incidents, alerts and critical operational events",
+      "eventsViewDesc": "Record of incidents, alerts and critical events",
       "usageView": "Usage View",
       "usageViewDesc": "Mileage analysis, consumption and contractual compliance",
       "generalInfoView": "General Information View",
       "generalInfoViewDesc": "Executive dashboard with indicators and regulatory compliance",
-      "maintenanceStatusView": "Maintenance Status",
-      "maintenanceStatusViewDesc": "Tracking of preventive and corrective maintenance status",
-      "technicalHealthView": "Vehicle Technical Health",
-      "technicalHealthViewDesc": "Technical diagnostics, mechanical status and inspection compliance",
-      "devicesTelemetryView": "Devices & Telemetry",
-      "devicesTelemetryViewDesc": "Monitoring of sensors, GPS and devices installed in the fleet",
+      "maintenanceStatusView": "Maintenance View",
+      "maintenanceStatusViewDesc": "Calendar and alerts for preventive and corrective maintenance",
+      "technicalHealthView": "Technical Health View",
+      "technicalHealthViewDesc": "Early fault detection and behavior patterns",
+      "devicesTelemetryView": "Devices View",
+      "devicesTelemetryViewDesc": "GPS monitoring, telemetry and real-time connectivity",
       "goToSlide": "Go to slide {number}",
       "previous": "Previous",
       "next": "Next"
@@ -2615,7 +2618,17 @@
           "systemsCheck": "Systems Check",
           "stableHealth": "Stable Health",
           "moderateHealth": "Moderate Health",
-          "poorHealth": "Poor Health"
+          "poorHealth": "Poor Health",
+          "responseTime": "Response Time",
+          "resolved30days": "Resolved (30d)",
+          "activeFailures": "Active Failures",
+          "critical": "Critical",
+          "warnings": "Warnings",
+          "ok": "OK",
+          "criticalIssues": "critical issue(s)",
+          "warningIssues": "warning(s)",
+          "allSystemsOk": "All systems operating normally",
+          "allSystemsOkDesc": "No issues detected in any section"
         },
         "maintenance": {
           "title": "Maintenance Status",
@@ -2632,11 +2645,14 @@
           "maintenanceCountDesc": "Total completed services",
           "kmSinceService": "Km Since Maintenance",
           "kmSinceServiceDesc": "Distance since last service",
-          "kmRemaining": "{{km}} km remaining (est: {{days}} days)",
-          "atKm": "At {{km}} km",
-          "intervalPercent": "{{percent}}% of interval ({{interval}})",
+          "kmRemaining": "{km} km remaining (est: {days} days)",
+          "atKm": "At {km} km",
+          "intervalPercent": "{percent}% of interval ({interval})",
           "upToDate": "Maintenance up to date",
-          "upToDateDesc": "The vehicle complies with the preventive maintenance plan."
+          "upToDateDesc": "The vehicle complies with the preventive maintenance plan.",
+          "upToDateBadge": "Up to date",
+          "dueSoon": "Due soon",
+          "overdue": "Overdue"
         },
         "technicalHealth": {
           "title": "Technical Health",
@@ -2646,11 +2662,18 @@
           "brakes": "Brakes",
           "tires": "Tires",
           "noErrorCodes": "No error codes detected",
-          "brakePadWear": "Brake pad wear detected (28%)"
+          "brakePadWear": "Brake pad wear detected (28%)",
+          "noIssues": "No failures",
+          "criticalIssues": "{count} critical failure(s)",
+          "warningIssues": "{count} warning(s)"
         },
         "telemetry": {
           "title": "Devices & Telemetry",
           "description": "Connected devices and sensor data",
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "lastDataReceived": "Last data received",
+          "installedDevices": "Installed devices",
           "fuelSensor": "Fuel Sensor",
           "tempSensor": "Temp Sensor (calibrating)",
           "lastUpdate": "Last Update",
@@ -2661,13 +2684,18 @@
           "onRoute": "On route",
           "engine": "Engine",
           "running": "Running",
+          "notRunning": "Off",
           "speed": "Speed",
           "rpm": "RPM",
           "battery": "Battery",
           "engineTemp": "Engine temp",
           "location": "Location",
           "transmissionInterval": "Transmission interval",
-          "every30Seconds": "Every 30 seconds"
+          "every30Seconds": "Every 30 seconds",
+          "acumulatedUptime": "Accumulated Uptime",
+          "dataProcessedToday": "Data Processed Today",
+          "signalLost": "Signal Lost (30d)",
+          "everySeconds": "Every {seconds} seconds"
         },
         "events": {
           "title": "Operational Events",
@@ -2684,7 +2712,27 @@
           "avgDailyKm": "Average Daily Km",
           "utilizationRate": "Utilization Rate",
           "idleTime": "Idle Time",
-          "weeklyGoal": "Weekly Goal Progress"
+          "weeklyGoal": "Weekly Goal Progress",
+          "totalKilometrage": "Total Kilometrage of the vehicle",
+          "odometerSinceOrigin": "Odometer since origin",
+          "monthlyContractualConsumption": "Monthly contractual consumption",
+          "deviationFromAverage": "Deviation from average",
+          "kmTraveledThisMonth": "Km traveled this month", 
+          "kmRemainingThisMonth": "Km remaining this month",
+          "avgDaily": "Average daily",
+          "operationHours": "Operation hours",
+          "activeDays": "Active days",
+          "annualTotalKm": "Annual total km",
+          "kmPerDay": "{km} km/day",
+          "projectedDays": "Projected days: {days}",
+          "limitKmMonthly": "Limit {km} km/month",
+          "avgDailyOperationHours": "Average daily: {hours}",
+          "utilization": "{percentage}% Utilization",
+          "estimatedProjection": "Estimated projection",
+          "intensityLastDays": "Intensity last 30 days",
+          "exceeded": "Exceeded",
+          "nearLimit": "Near limit",
+          "usageLabel": "usage"
         },
         "general": {
           "title": "General Information",

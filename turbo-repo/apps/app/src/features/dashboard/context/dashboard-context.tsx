@@ -94,7 +94,7 @@ function generateId(): string {
 }
 
 /** Calculate next available position in the grid */
-function getNextPosition(
+export function getNextPosition(
   children: Widget[],
   width: number = 1
 ): { x: number; y: number } {

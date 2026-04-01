@@ -139,7 +139,7 @@ export default function KpiStat({
   return (
     <div
       className={twMerge(
-        "flex flex-col justify-center bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 min-w-0",
+        "flex flex-col justify-center bg-gray-50 dark:bg-gray-700 rounded-lg p-3 min-w-0",
         className
       )}
     >

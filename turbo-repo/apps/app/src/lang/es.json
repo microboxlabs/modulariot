@@ -1316,6 +1316,7 @@
         "operativeEvents": "Eventos Operativos",
         "fleetUsage": "Uso de Flota",
         "generalInfo": "Información General",
+        "dashboardOverview": "Inicio",
         "calendar": "Calendario",
         "kanban": "Kanban",
         "tasks": "Mis tareas",
@@ -1480,11 +1481,36 @@
     "max": "Máx",
     "unit": "Unidad",
     "all": "Todos",
+    "delete": "Eliminar",
     "yes": "Sí",
     "no": "No"
   },
   "dashboard": {
     "editMode": "Modo Edición",
+    "landing": {
+      "title": "Dashboards",
+      "subtitle": "Crea y gestiona dashboards personalizados con widgets, filtros y visualizaciones de datos.",
+      "widgets_title": "Widgets Personalizados",
+      "widgets_description": "Construye dashboards con tarjetas, gráficos, tablas y widgets contenedores.",
+      "filters_title": "Filtros de Datos",
+      "filters_description": "Configura filtros dinámicos para explorar tus datos a través de los widgets.",
+      "import_export_title": "Importar y Exportar",
+      "import_export_description": "Comparte configuraciones de dashboards como archivos JSON entre equipos.",
+      "cta": "Crear Dashboard",
+      "no_dashboards": "Aún no hay dashboards. Crea el primero para comenzar.",
+      "delete_confirm_title": "Eliminar Dashboard",
+      "delete_confirm_message": "¿Estás seguro de que deseas eliminar \"{name}\"? Esta acción no se puede deshacer.",
+      "deleteSuccess": "Dashboard eliminado exitosamente",
+      "deleteError": "Error al eliminar el dashboard"
+    },
+    "create": {
+      "title": "Nuevo Dashboard",
+      "subtitle": "Dale un nombre a tu dashboard para comenzar.",
+      "nameLabel": "Nombre",
+      "submit": "Crear",
+      "successNotification": "Dashboard creado exitosamente",
+      "errorNotification": "Error al crear el dashboard"
+    },
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",
       "subtitle": "Subtítulo",
@@ -1589,7 +1615,9 @@
       "textSearch": "Búsqueda de Texto",
       "dateRange": "Rango de Fechas",
       "addFilterButton": "+ Agregar Filtro",
-      "filtersUpdated": "Filtros actualizados correctamente"
+      "filtersUpdated": "Filtros actualizados correctamente",
+      "filtersValidationError": "Algunos filtros tienen campos vacíos o claves duplicadas. Corríjalos antes de guardar.",
+      "deleteDescription": "Eliminar permanentemente este dashboard"
     },
     "filterBar": {
       "search": "Buscar...",

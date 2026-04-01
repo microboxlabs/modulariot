@@ -1,4 +1,6 @@
-export default function ClipboardIcon() {
+import { ComponentProps } from "react";
+
+export default function ClipboardIcon(props: Readonly<ComponentProps<"svg">>) {
   return (
     <svg
       className="w-6 h-6 text-gray-800 dark:text-white"
@@ -7,6 +9,7 @@ export default function ClipboardIcon() {
       height="24"
       viewBox="0 0 20 20"
       fill="none"
+      {...props}
     >
       <path
         stroke="currentColor"

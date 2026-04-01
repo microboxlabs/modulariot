@@ -5,6 +5,7 @@ import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 const EMPTY_PARAMS: PgrestParam[] = [];
 
@@ -65,6 +66,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     [config.title, config.value, config.max],
   );
 
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const { resolved, loading, fetchError } = usePgrestResolvedFields({
     dataMode: (config.dataMode as "static" | "pgrest" | "planner") || "static",
     pgrestFunctionName: config.pgrestFunctionName || "",
@@ -73,6 +75,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     plannerVariableName: config.plannerVariableName,
     fields,
     dataSourceId: config.dataSourceId,
+    refreshIntervalMs,
   });
 
   if (loading) {

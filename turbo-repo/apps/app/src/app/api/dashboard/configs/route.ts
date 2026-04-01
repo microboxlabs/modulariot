@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const site = searchParams.get("site")?.trim();
+  const site = searchParams.get("site")?.trim()?.trim();
 
   if (!site) {
     return badRequestResponse("Missing required query parameter: site");
@@ -32,12 +32,14 @@ export async function GET(request: NextRequest) {
 
     // Transform { slug, config } → { slug, name } for the client
     const transformed = {
-      data: (result.data ?? []).map((item) => ({
-        slug: item.slug,
-        name: typeof item.config?.name === "string" && item.config.name.trim() !== ""
-          ? item.config.name.trim()
-          : item.slug,
-      })),
+      data: (result.data ?? []).map((item) => {
+        const rawName = item.config?.name;
+        const name =
+          typeof rawName === "string" && rawName.trim().length > 0
+            ? rawName
+            : item.slug;
+        return { slug: item.slug, name };
+      }),
     };
 
     return NextResponse.json(transformed);

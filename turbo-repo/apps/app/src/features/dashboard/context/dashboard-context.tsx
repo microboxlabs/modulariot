@@ -15,6 +15,7 @@ import {
   type DashboardStorageSchema,
   type DashboardFilterParam,
   type PlannerRequestDefinition,
+  type RefreshInterval,
 } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import { PlannerProvider } from "./planner-context";
@@ -37,6 +38,10 @@ interface DashboardContextValue {
   filters: DashboardFilterParam[];
   /** Update dashboard filter configuration */
   setFilters: (filters: DashboardFilterParam[]) => void;
+  /** Auto-refresh interval in seconds (0 = off) */
+  refreshInterval: RefreshInterval;
+  /** Update auto-refresh interval */
+  setRefreshInterval: (interval: RefreshInterval) => void;
 
   // Widget actions
   createWidget: (
@@ -155,6 +160,7 @@ export function DashboardProvider({
     filters,
     preferences,
     dashboardName,
+    refreshInterval,
     isLoaded,
     addWidget: addWidgetStorage,
     addChildWidget,
@@ -164,6 +170,7 @@ export function DashboardProvider({
     setEditMode: setEditModeStorage,
     setDashboardName: setDashboardNameStorage,
     setFilters,
+    setRefreshInterval,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -360,6 +367,8 @@ export function DashboardProvider({
       siteId,
       filters,
       setFilters,
+      refreshInterval,
+      setRefreshInterval,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -386,6 +395,8 @@ export function DashboardProvider({
       siteId,
       filters,
       setFilters,
+      refreshInterval,
+      setRefreshInterval,
       dashboardName,
       createWidget,
       updateWidgetConfig,

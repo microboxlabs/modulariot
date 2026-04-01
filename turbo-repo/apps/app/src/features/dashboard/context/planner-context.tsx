@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useCallback,
+  useRef,
   useState,
   useEffect,
   useMemo,
@@ -14,6 +15,7 @@ import { useDashboard } from "./dashboard-context";
 import { useDashboardFilters } from "./dashboard-filters-context";
 import { buildPgrestFetch, parseRows } from "../dashlets/common/pgrest-utils";
 import { resolveFilterParams } from "../dashlets/common/resolve-filter-params";
+import { usePollingInterval } from "../hooks/use-polling-interval";
 
 // ============================================================================
 // Types
@@ -45,7 +47,7 @@ const PlannerContext = createContext<PlannerContextValue | null>(null);
 // ============================================================================
 
 export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
-  const { plannerDefinitions, updatePlannerRequest } = useDashboard();
+  const { plannerDefinitions, updatePlannerRequest, refreshInterval: dashboardRefreshInterval, editMode } = useDashboard();
   const { activeFilters } = useDashboardFilters();
   const [results, setResults] = useState<Map<string, PlannerQueryResult>>(
     () => new Map()
@@ -74,57 +76,68 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
     [plannerDefinitions, activeFilters],
   );
 
-  useEffect(() => {
-    if (plannerDefinitions.length === 0) {
+  // Abort controller for cancelling in-flight requests
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Keep latest deps in a ref so the fetch callback reads fresh values
+  const depsRef = useRef({ plannerDefinitions, activeFilters, persistSchema });
+  depsRef.current = { plannerDefinitions, activeFilters, persistSchema };
+
+  const doFetchAll = useCallback((silent: boolean) => {
+    const { plannerDefinitions: defs, activeFilters: filters, persistSchema: persist } = depsRef.current;
+
+    if (defs.length === 0) {
       setResults(new Map());
       return;
     }
 
-    // Mark all as loading
-    setResults((prev) => {
-      const next = new Map(prev);
-      for (const def of plannerDefinitions) {
-        next.set(def.variableName, {
-          rows: next.get(def.variableName)?.rows ?? [],
-          loading: true,
-          error: null,
-        });
-      }
-      return next;
-    });
+    // Cancel any in-flight requests
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-    let cancelled = false;
+    if (!silent) {
+      setResults((prev) => {
+        const next = new Map(prev);
+        for (const def of defs) {
+          next.set(def.variableName, {
+            rows: next.get(def.variableName)?.rows ?? [],
+            loading: true,
+            error: null,
+          });
+        }
+        return next;
+      });
+    }
 
-    // Fetch all definitions in parallel
-    const fetchAll = async () => {
+    const run = async () => {
       const entries: [string, PlannerQueryResult][] = await Promise.all(
-        plannerDefinitions.map(async (def): Promise<[string, PlannerQueryResult]> => {
+        defs.map(async (def): Promise<[string, PlannerQueryResult]> => {
           try {
             if (!def.pgrestFunctionName) {
               return [def.variableName, { rows: [], loading: false, error: null }];
             }
-            const resolvedParams = resolveFilterParams(
-              def.pgrestParams,
-              activeFilters,
-            );
+            const resolvedParams = resolveFilterParams(def.pgrestParams, filters);
             const { url, init } = buildPgrestFetch(
               def.pgrestFunctionName,
               def.pgrestHttpMethod,
               resolvedParams,
               def.dataSourceId
             );
-            const res = await fetch(url, init);
+            const res = await fetch(url, { ...init, signal: controller.signal });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data: unknown = await res.json();
             const rows = parseRows(data, { singleObjectFallback: true });
 
-            // Persist discovered schema into the definition
             if (rows.length > 0) {
-              persistSchema(def.id, Object.keys(rows[0]), def.schema);
+              persist(def.id, Object.keys(rows[0]), def.schema);
             }
 
             return [def.variableName, { rows, loading: false, error: null }];
           } catch (err) {
+            if (controller.signal.aborted) {
+              return [def.variableName, { rows: [], loading: false, error: null }];
+            }
             return [
               def.variableName,
               {
@@ -137,18 +150,27 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
         })
       );
 
-      if (!cancelled) {
+      if (!controller.signal.aborted) {
         setResults(new Map(entries));
       }
     };
 
-    void fetchAll();
+    void run();
+  }, []);
 
+  // Initial + dependency-driven fetch (shows loading state)
+  useEffect(() => {
+    doFetchAll(false);
     return () => {
-      cancelled = true;
+      abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definitionsKey]);
+
+  // Polling (silent — no loading state flash)
+  const pollingIntervalMs = editMode || !dashboardRefreshInterval ? 0 : dashboardRefreshInterval * 1000;
+  const pollCallback = useCallback(() => doFetchAll(true), [doFetchAll]);
+  usePollingInterval(pollCallback, pollingIntervalMs);
 
   // Derive column schemas from the first row of each result,
   // falling back to the persisted schema stored in the definition.

@@ -15,6 +15,7 @@ interface PgrestResolvedFieldsConfig {
   fields: Record<string, string>;
   plannerVariableName?: string;
   dataSourceId?: string;
+  refreshIntervalMs?: number;
 }
 
 export interface PgrestResolvedFieldsResult {
@@ -36,6 +37,7 @@ export function usePgrestResolvedFields({
   fields,
   plannerVariableName,
   dataSourceId,
+  refreshIntervalMs = 0,
 }: PgrestResolvedFieldsConfig): PgrestResolvedFieldsResult {
   const { activeFilters } = useDashboardFilters();
 
@@ -53,6 +55,7 @@ export function usePgrestResolvedFields({
     pgrestHttpMethod,
     stableParams,
     dataSourceId,
+    refreshIntervalMs,
   );
 
   const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(

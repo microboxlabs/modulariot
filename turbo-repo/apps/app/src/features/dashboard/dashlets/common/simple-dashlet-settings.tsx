@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
-import { SettingsModalShell } from "./settings-modal-shell";
+import { SettingsModalShell, useWidgetRefreshSettings } from "./settings-modal-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 
 // ============================================================================
@@ -103,6 +103,8 @@ export function SimpleDashletSettings<C extends object>({
     fields,
   );
 
+  const refresh = useWidgetRefreshSettings(configRecord, dictionary);
+
   const {
     isPgrest,
     activeProviders,
@@ -124,6 +126,7 @@ export function SimpleDashletSettings<C extends object>({
       ...buildSaveValues(),
       ...extraSaveFields,
       ...pgrestSaveFields,
+      ...refresh.savePayload,
     } as unknown as Partial<C>);
     onClose();
   };
@@ -170,6 +173,7 @@ export function SimpleDashletSettings<C extends object>({
       dictionary={dictionary}
       visualizationTab={visualizationTab}
       dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
     />
   );
 }

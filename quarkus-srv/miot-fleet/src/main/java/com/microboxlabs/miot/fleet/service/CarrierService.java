@@ -72,7 +72,7 @@ public class CarrierService {
                     String oldStatus = carrier.status;
                     carrier.status = req.status();
                     carrier.updatedAt = Instant.now();
-                    if ("DEACTIVATED".equals(req.status())) carrier.active = false;
+                    if ("INACTIVE".equals(req.status())) carrier.active = false;
                     return eventService.record(clientId, EntityType.CARRIER, carrier.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,
                                     JsonUtil.toJson(Map.of("old", oldStatus, "new", req.status())))

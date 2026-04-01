@@ -1674,6 +1674,7 @@ export async function updateTaskServiceCategory(
 
 /**
  * Reads a dashboard config from Alfresco via the dashboard config webscript.
+ * The Alfresco webscript uses POST with JSON body for all actions.
  * Returns the parsed config or null if no config exists yet.
  */
 export async function getDashboardConfig(
@@ -1681,11 +1682,15 @@ export async function getDashboardConfig(
   site: string,
   slug: string
 ): Promise<{ data: unknown }> {
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config?site=${encodeURIComponent(site)}&slug=${encodeURIComponent(slug)}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/microboxlabs/dashboards/dashboard-config/get`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
-    method: "GET",
-    headers,
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ site, slug }),
   });
   return result as { data: unknown };
 }
@@ -1699,10 +1704,10 @@ export async function saveDashboardConfig(
   slug: string,
   config: unknown
 ): Promise<{ success: boolean }> {
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/modular/dashboard/config`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/microboxlabs/dashboards/dashboard-config/save`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
-    method: "PUT",
+    method: "POST",
     headers: {
       ...headers,
       "Content-Type": "application/json",
@@ -1710,4 +1715,25 @@ export async function saveDashboardConfig(
     body: JSON.stringify({ site, slug, config }),
   });
   return result as { success: boolean };
+}
+
+/**
+ * Lists all dashboard configs for a site from Alfresco.
+ * Returns { data: Array<{ slug, config }> }.
+ */
+export async function listDashboardConfigs(
+  session: Session,
+  site: string
+): Promise<{ data: Array<{ slug: string; config: Record<string, unknown> }> }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/microboxlabs/dashboards/dashboard-config/list`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ site }),
+  });
+  return result as { data: Array<{ slug: string; config: Record<string, unknown> }> };
 }

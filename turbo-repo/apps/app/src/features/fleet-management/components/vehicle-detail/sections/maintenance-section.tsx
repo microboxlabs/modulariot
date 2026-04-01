@@ -10,30 +10,65 @@ import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { MessageBanner } from "@/features/common/components/message-banner";
 import { KpiStat } from "@/features/common/components/kpi-stat";
+import { CustomBadge } from "@/features/common/components/custom-badge";
+import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
+import { formatDateString }  from "@/features/common/components/formatted-date/formatted-date";
 
 interface MaintenanceSectionProps {
   readonly vehicle: Vehicle;
+  readonly data: VehicleDetailData;
   readonly dict: I18nRecord;
+  readonly status: SectionStatus;
+}
+
+function getMaintenanceBadge(maintenanceStatus: "up_to_date" | "due_soon" | "overdue", dict: I18nRecord) {
+  switch (maintenanceStatus) {
+    case "overdue":
+      return (
+        <CustomBadge 
+          text={tr("vehicleDetail.sections.maintenance.overdue", dict) || "Mantención vencida"}
+          className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        />
+      );
+    case "due_soon":
+      return (
+        <CustomBadge 
+          text={tr("vehicleDetail.sections.maintenance.dueSoon", dict) || "Mantención próxima"}
+          className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+        />
+      );
+    case "up_to_date":
+      return (
+        <CustomBadge 
+          text={tr("vehicleDetail.sections.maintenance.upToDateBadge", dict) || "Al día"}
+          className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+        />
+      );
+  }
 }
 
 export default function MaintenanceSection({
   vehicle,
+  data,
   dict,
+  status,
 }: MaintenanceSectionProps) {
   return (
     <ExpandableSection
       icon={HiOutlineWrenchScrewdriver}
       title={tr("vehicleDetail.sections.maintenance.title", dict)}
       description={tr("vehicleDetail.sections.maintenance.description", dict)}
+      status={status}
+      badge={getMaintenanceBadge(data.maintenance.status, dict)}
     >
-      <div className="grid grid-cols-3 gap-3 pt-4">
+      <div className="grid grid-cols-3 gap-3">
         <KpiStat
           title={{
             text: tr("vehicleDetail.sections.maintenance.totalKm", dict),
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
-            text: vehicle.kmTraveled.toLocaleString() + " km",
+            text: data.maintenance.totalKm.toLocaleString() + " km",
             className: "text-blue-600 dark:text-blue-400 bold",
           }}
           description={{
@@ -53,7 +88,7 @@ export default function MaintenanceSection({
             className: "text-gray-500 dark:text-gray-300",
           }}
           value={{
-            text: "55.000 km",
+            text: data.maintenance.nextMaintenanceKm.toLocaleString() + " km",
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{
@@ -66,20 +101,20 @@ export default function MaintenanceSection({
           title={{
             text: tr("vehicleDetail.sections.maintenance.lastService", dict),
           }}
-          value={{ text: "25 Ene 2026" }}
+          value={{ text: formatDateString(data.maintenance.lastManteinanceDate) }}
           description={{
             text: tr("vehicleDetail.sections.maintenance.atKm", dict, { km: "45,000" }),
           }}
           variant="vertical"
         />
-        <KpiStat
-          title={{
+          <KpiStat
+            title={{
             text: tr(
               "vehicleDetail.sections.maintenance.contractualFrequency",
               dict
             ),
           }}
-          value={{ text: "10,000 km" }}
+          value={{ text: data.maintenance.contractualFrecuency + " km" }}
           description={{
             text: tr(
               "vehicleDetail.sections.maintenance.contractualFrequencyDesc",
@@ -96,7 +131,7 @@ export default function MaintenanceSection({
             ),
           }}
           value={{
-            text: "5",
+            text: data.maintenance.manteinancesCount.toString(),
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{
@@ -109,7 +144,7 @@ export default function MaintenanceSection({
             text: tr("vehicleDetail.sections.maintenance.kmSinceService", dict),
           }}
           value={{
-            text: "2.400 km",
+            text: data.maintenance.kmSinceManteinance.toLocaleString() + " km",
             className: "text-green-500 dark:text-green-400",
           }}
           description={{
@@ -119,12 +154,26 @@ export default function MaintenanceSection({
         />
       </div>
       <div className="mt-3">
-        <MessageBanner
-          icon={HiOutlineCheckCircle}
-          title={tr("vehicleDetail.sections.maintenance.upToDate", dict)}
-          description={tr("vehicleDetail.sections.maintenance.upToDateDesc", dict)}
-          variant="success"
-        />
+        {(() => {
+          switch (data.maintenance.status) {
+            case "up_to_date":
+              return (
+                <MessageBanner
+                  icon={HiOutlineCheckCircle}
+                  title={tr("vehicleDetail.sections.maintenance.upToDate", dict)}
+                  description={tr("vehicleDetail.sections.maintenance.upToDateDesc", dict)}
+                  variant="success"
+                />
+              );
+            case "due_soon":
+              return null; // Add your handling for "due_soon" here if needed
+            case "overdue":
+              // Add your handling for "due_soon" and "overdue" here if needed
+              return null;
+            default:
+              return null;
+          }
+        })()}
       </div>
     </ExpandableSection>
   );

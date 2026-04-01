@@ -47,7 +47,7 @@ export default function FleetManagementPage({
 
   if (selectedVehicle) {
     return (
-      <div className="flex flex-col gap-6 p-4 max-w-screen-2xl mx-auto w-full">
+      <div className="flex flex-col gap-6 w-full mx-auto h-full">
         <VehicleDetailView
           vehicle={selectedVehicle}
           dict={fleetDict}
@@ -58,7 +58,7 @@ export default function FleetManagementPage({
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 max-w-screen-2xl mx-auto w-full">
+    <div className="flex flex-col gap-4 p-4 max-w-screen-2xl mx-auto w-full">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">
           {tr("title", fleetDict)}

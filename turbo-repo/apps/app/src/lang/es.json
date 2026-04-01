@@ -1316,6 +1316,7 @@
         "operativeEvents": "Eventos Operativos",
         "fleetUsage": "Uso de Flota",
         "generalInfo": "Información General",
+        "dashboardOverview": "Inicio",
         "calendar": "Calendario",
         "kanban": "Kanban",
         "tasks": "Mis tareas",
@@ -1349,7 +1350,7 @@
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
-        "fleetManagement": "Gestión de Flotas"
+        "fleetManagement": "Flotas"
       }
     },
     "calendar": {
@@ -1480,11 +1481,41 @@
     "max": "Máx",
     "unit": "Unidad",
     "all": "Todos",
+    "delete": "Eliminar",
     "yes": "Sí",
     "no": "No"
   },
   "dashboard": {
     "editMode": "Modo Edición",
+    "landing": {
+      "title": "Dashboards",
+      "subtitle": "Crea y gestiona dashboards personalizados con widgets, filtros y visualizaciones de datos.",
+      "widgets_title": "Widgets Personalizados",
+      "widgets_description": "Construye dashboards con tarjetas, gráficos, tablas y widgets contenedores.",
+      "filters_title": "Filtros de Datos",
+      "filters_description": "Configura filtros dinámicos para explorar tus datos a través de los widgets.",
+      "import_export_title": "Importar y Exportar",
+      "import_export_description": "Comparte configuraciones de dashboards como archivos JSON entre equipos.",
+      "cta": "Crear Dashboard",
+      "no_dashboards": "Aún no hay dashboards. Crea el primero para comenzar.",
+      "delete_confirm_title": "Eliminar Dashboard",
+      "delete_confirm_message": "¿Estás seguro de que deseas eliminar \"{name}\"? Esta acción no se puede deshacer.",
+      "deleteSuccess": "Dashboard eliminado exitosamente",
+      "deleteError": "Error al eliminar el dashboard"
+    },
+    "create": {
+      "title": "Nuevo Dashboard",
+      "subtitle": "Dale un nombre a tu dashboard para comenzar.",
+      "nameLabel": "Nombre",
+      "submit": "Crear",
+      "successNotification": "Dashboard creado exitosamente",
+      "errorNotification": "Error al crear el dashboard",
+      "namePlaceholder": "Mi Dashboard",
+      "nameRequired": "El nombre es obligatorio",
+      "siteRequired": "No se puede crear el dashboard: sitio no disponible",
+      "nameInvalid": "El nombre debe contener al menos una letra o número",
+      "duplicateSlug": "Ya existe un dashboard con este nombre. Por favor elige un nombre diferente."
+    },
     "settings": {
       "sparklineData": "Datos del gráfico (separados por coma)",
       "subtitle": "Subtítulo",
@@ -1589,7 +1620,29 @@
       "textSearch": "Búsqueda de Texto",
       "dateRange": "Rango de Fechas",
       "addFilterButton": "+ Agregar Filtro",
-      "filtersUpdated": "Filtros actualizados correctamente"
+      "filtersUpdated": "Filtros actualizados correctamente",
+      "filtersValidationError": "Algunos filtros tienen campos vacíos o claves duplicadas. Corríjalos antes de guardar.",
+      "deleteDescription": "Eliminar permanentemente este dashboard",
+      "chartType": "Tipo de Gráfico",
+      "line": "Línea",
+      "bar": "Barras",
+      "pie": "Pastel",
+      "gauge": "Indicador",
+      "scatter": "Dispersión",
+      "xAxisColumn": "Columna Eje X",
+      "categoryColumn": "Columna de Categoría",
+      "valueColumn": "Columna de Valor",
+      "series": "Series",
+      "addSeries": "+ Agregar Serie",
+      "seriesLabel": "Etiqueta",
+      "seriesColumn": "Columna",
+      "removeSeries": "Eliminar",
+      "xAxisLabel": "Etiqueta Eje X",
+      "yAxisLabel": "Etiqueta Eje Y",
+      "showLegend": "Mostrar Leyenda",
+      "colorPalette": "Paleta de Colores",
+      "smooth": "Líneas Suaves",
+      "stacked": "Apilado"
     },
     "filterBar": {
       "search": "Buscar...",
@@ -1622,6 +1675,27 @@
       "clearSearch": "Limpiar búsqueda"
     },
     "dashlets": {
+      "chart": {
+        "name": "Gráfico",
+        "description": "Muestra datos como gráficos de línea, barras, pastel, indicador o dispersión",
+        "noData": "Sin datos disponibles",
+        "typeLine": "Línea",
+        "typeBar": "Barras",
+        "typePie": "Pastel",
+        "typeGauge": "Indicador",
+        "typeScatter": "Dispersión",
+        "palette_default": "Predeterminado",
+        "palette_cool": "Frío",
+        "palette_warm": "Cálido",
+        "palette_monochrome": "Monocromático",
+        "palette_pastel": "Pastel",
+        "palette_vivid": "Vívido",
+        "paletteCustom": "Personalizado",
+        "noColumnsDetected": "No se detectaron columnas",
+        "selectPlaceholder": "Seleccionar...",
+        "labelPlaceholder": "Etiqueta",
+        "seriesNumber": "Serie {n}"
+      },
       "data_list": {
         "name": "Lista de Datos",
         "description": "Muestra datos como una lista de tarjetas con grillas de KPI y metadatos",
@@ -2500,6 +2574,9 @@
     }
   },
   "fleetManagement": {
+    "breadcrumb": {
+      "fleetManagement": "Gestión de Flotas"
+    },
     "title": "Gestión de Flotas",
     "subtitle": "Monitorea y administra todos los vehículos de tu flota en tiempo real",
     "kpi": {
@@ -2513,17 +2590,17 @@
       "title": "Vistas Especiales",
       "badge": "Vista especial",
       "eventsView": "Vista de Eventos",
-      "eventsViewDesc": "Registro de incidentes, alertas y eventos operativos críticos",
+      "eventsViewDesc": "Registro de incidentes, alertas y eventos críticos",
       "usageView": "Vista de Uso",
       "usageViewDesc": "Análisis de kilometraje, consumo y cumplimiento contractual",
       "generalInfoView": "Vista de Información General",
       "generalInfoViewDesc": "Dashboard ejecutivo con indicadores y cumplimiento normativo",
-      "maintenanceStatusView": "Estado de Mantención",
-      "maintenanceStatusViewDesc": "Seguimiento del estado de mantenciones preventivas y correctivas",
-      "technicalHealthView": "Salud Técnica del Vehículo",
-      "technicalHealthViewDesc": "Diagnóstico técnico, estado mecánico y cumplimiento de revisiones",
-      "devicesTelemetryView": "Dispositivos y Telemetría",
-      "devicesTelemetryViewDesc": "Monitoreo de sensores, GPS y dispositivos instalados en la flota",
+      "maintenanceStatusView": "Vista de Mantención",
+      "maintenanceStatusViewDesc": "Calendario y alertas de mantenimiento preventivo y correctivo",
+      "technicalHealthView": "Vista de Salud Técnica",
+      "technicalHealthViewDesc": "Detección temprana de fallas y patrones de comportamiento",
+      "devicesTelemetryView": "Vista de Dispositivos",
+      "devicesTelemetryViewDesc": "Monitoreo de GPS, telemetría y conectividad en tiempo real",
       "goToSlide": "Ir a diapositiva {number}",
       "previous": "Anterior",
       "next": "Siguiente"
@@ -2564,7 +2641,17 @@
           "systemsCheck": "Revisión de Sistemas",
           "stableHealth": "Salud Estable",
           "moderateHealth": "Salud Moderada",
-          "poorHealth": "Salud Deficiente"
+          "poorHealth": "Salud Deficiente",
+          "responseTime": "Tiempo de Respuesta",
+          "resolved30days": "Resuelto (30d)",
+          "activeFailures": "Fallas Activas",
+          "critical": "Crítico",
+          "warnings": "Alertas",
+          "ok": "OK",
+          "criticalIssues": "problema(s) crítico(s)",
+          "warningIssues": "alerta(s)",
+          "allSystemsOk": "Todos los sistemas operando normalmente",
+          "allSystemsOkDesc": "No se detectaron problemas en ninguna sección"
         },
         "maintenance": {
           "title": "Estado de Mantención",
@@ -2581,11 +2668,14 @@
           "maintenanceCountDesc": "Total de servicios completados",
           "kmSinceService": "Km Desde Mantención",
           "kmSinceServiceDesc": "Recorrido desde último servicio",
-          "kmRemaining": "Faltan {{km}} km (proyección: {{days}} días)",
-          "atKm": "A los {{km}} km",
-          "intervalPercent": "{{percent}}% del intervalo ({{interval}})",
+          "kmRemaining": "Faltan {km} km (proyección: {days} días)",
+          "atKm": "A los {km} km",
+          "intervalPercent": "{percent}% del intervalo ({interval})",
           "upToDate": "Mantención al día",
-          "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva."
+          "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva.",
+          "upToDateBadge": "Al día",
+          "dueSoon": "Próxima",
+          "overdue": "Vencida"
         },
         "technicalHealth": {
           "title": "Salud Técnica",
@@ -2595,11 +2685,18 @@
           "brakes": "Frenos",
           "tires": "Neumáticos",
           "noErrorCodes": "Sin códigos de error detectados",
-          "brakePadWear": "Desgaste de pastillas de freno (28%)"
+          "brakePadWear": "Desgaste de pastillas de freno (28%)",
+          "noIssues": "Sin fallas",
+          "criticalIssues": "{count} falla(s) crítica(s)",
+          "warningIssues": "{count} alerta(s)"
         },
         "telemetry": {
           "title": "Dispositivos y Telemetría",
           "description": "Dispositivos conectados y datos de sensores",
+          "connected": "Conectado",
+          "disconnected": "Desconectado",
+          "lastDataReceived": "Último dato recibido",
+          "installedDevices": "Dispositivos instalados",
           "fuelSensor": "Sensor de Combustible",
           "tempSensor": "Sensor de Temp (calibrando)",
           "lastUpdate": "Última Actualización",
@@ -2610,13 +2707,19 @@
           "onRoute": "En ruta",
           "engine": "Motor",
           "running": "En marcha",
+          "notRunning": "Apagado",
           "speed": "Velocidad",
           "rpm": "RPM",
           "battery": "Batería",
           "engineTemp": "Temp. motor",
           "location": "Ubicación",
           "transmissionInterval": "Intervalo de transmisión",
-          "every30Seconds": "Cada 30 segundos"
+          "every30Seconds": "Cada 30 segundos",
+          "acumulatedUptime": "Uptime acumulado",
+          "dataProcesedToday": "Datos procesados hoy",
+          "signalLost": "Pérdidas de señal (30d)",
+          "everySeconds": "Cada {seconds} segundos",
+          "dataProcessedToday": "Datos procesados hoy"
         },
         "events": {
           "title": "Eventos Operativos",
@@ -2633,7 +2736,27 @@
           "avgDailyKm": "Km Promedio Diario",
           "utilizationRate": "Tasa de Utilización",
           "idleTime": "Tiempo Inactivo",
-          "weeklyGoal": "Progreso Meta Semanal"
+          "weeklyGoal": "Progreso Meta Semanal",
+          "totalKilometrage": "Kilometraje Total del vehiculo",
+          "odometerSinceOrigin": "Odómetro acumulado desde origen",
+          "monthlyContractualConsumption": "Consumo contractual mensual",
+          "deviationFromAverage": "Desviación respecto al promedio",
+          "kmTraveledThisMonth": "Km recorridos (mes)", 
+          "kmRemainingThisMonth": "Km restantes (mes)",
+          "avgDaily": "Promedio diario",
+          "operationHours": "Horas de operación",
+          "activeDays": "Días activos",
+          "annualTotalKm": "Km totales anuales",
+          "kmPerDay": "{km} km/día",
+          "projectedDays": "Proyección: {days} días",
+          "limitKmMonthly": "Límite {km} km/mes",
+          "avgDailyOperationHours": "Promedio diario: {hours}",
+          "utilization": "{percentage}% Utilización",
+          "estimatedProjection": "Proyección estimada",
+          "intensityLastDays": "Intensidad últimos 30 días",
+          "exceeded": "Excedido",
+          "nearLimit": "Próximo al límite",
+          "usageLabel": "uso"
         },
         "general": {
           "title": "Información General",

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Button, ToggleSwitch } from "flowbite-react";
-import { HiPlus } from "react-icons/hi2";
+import { HiPlus, HiArrowUturnLeft, HiArrowUturnRight } from "react-icons/hi2";
 import {
   GridLayout,
   verticalCompactor,
@@ -17,7 +17,7 @@ import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
-import { DashboardFilterBar } from "../dashboard-filter-bar";
+import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
 import "react-grid-layout/css/styles.css";
 
@@ -34,6 +34,10 @@ export function DashboardView() {
     dictionary,
     toggleEditMode,
     updateWidgetLayouts,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useDashboard();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -73,6 +77,27 @@ export function DashboardView() {
       window.removeEventListener("resize", updateWidth);
     };
   }, [isLoaded]); // Re-run when isLoaded changes
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!editMode) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== "z") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (target?.isContentEditable) return;
+
+      e.preventDefault();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+    };
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
+  }, [editMode, undo, redo]);
 
   // Convert widgets to react-grid-layout format
   const layout: Layout = useMemo(
@@ -135,16 +160,38 @@ export function DashboardView() {
 
   return (
     <div className="w-full">
+      {/* Portal: renders DashboardFilterBar into the navbar search slot */}
+      <DashboardNavbarPortal />
+
       {/* Header */}
       <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex items-center gap-4 p-4">
+        <div className="flex items-center justify-between gap-4 p-4">
           <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
             {dashboardName}
           </h1>
-          <div className="flex min-w-0 flex-1 justify-center">
-            <DashboardFilterBar />
-          </div>
           <div className="flex shrink-0 items-center gap-4">
+            {editMode && (
+              <div className="flex items-center gap-1">
+                <Button
+                  size="xs"
+                  color="light"
+                  onClick={undo}
+                  disabled={!canUndo()}
+                  title={`${tr("dashboard.undo", dictionary)} (Ctrl+Z)`}
+                >
+                  <HiArrowUturnLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="xs"
+                  color="light"
+                  onClick={redo}
+                  disabled={!canRedo()}
+                  title={`${tr("dashboard.redo", dictionary)} (Ctrl+Shift+Z)`}
+                >
+                  <HiArrowUturnRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
             {hasWidgets && (
               <ToggleSwitch
                 checked={editMode}

@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "../hooks/use-permissions";
+import { Spinner } from "flowbite-react";
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -68,7 +69,7 @@ export function RouteGuard({
   ]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="flex justify-center items-center w-full h-full"><Spinner /></div>;
   }
 
   // If path is provided, use hasRoutePermission for comprehensive check

@@ -3,6 +3,7 @@
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
 // Configuration Types
@@ -56,8 +57,9 @@ const FIELD_DEFAULTS: Record<string, string> = { title: "Traffic Sources", unit:
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const { items, showHeader = true } = config;
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

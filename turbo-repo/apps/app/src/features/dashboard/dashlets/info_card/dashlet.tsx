@@ -18,6 +18,7 @@ import {
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
 // ============================================================================
@@ -134,7 +135,9 @@ export function Dashlet({
     dataProvider = [],
   } = config;
 
-  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider);
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
+
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider, refreshIntervalMs);
 
   const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
   const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);

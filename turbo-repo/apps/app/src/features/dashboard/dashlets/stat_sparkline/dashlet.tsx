@@ -3,6 +3,7 @@
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
 // Configuration Types
@@ -47,8 +48,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     Array.isArray(rawSparkline) && rawSparkline.length >= 2
       ? rawSparkline
       : defaultConfig.sparkline;
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

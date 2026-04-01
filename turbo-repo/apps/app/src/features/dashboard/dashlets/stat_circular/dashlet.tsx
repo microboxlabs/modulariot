@@ -5,6 +5,7 @@ import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } 
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 import { usePgrestRows } from "../common/use-pgrest-rows";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
 // Configuration Types
@@ -80,11 +81,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const unit = String(config.unit ?? defaultConfig.unit);
 
   // ── PGREST data fetching ──────────────────────────────────────────────────
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const {
     rows: pgrestRows,
     loading,
     fetchError,
-  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId);
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId, refreshIntervalMs);
 
   // ── Build template context ────────────────────────────────────────────────
   const templateContext = useMemo(() => {

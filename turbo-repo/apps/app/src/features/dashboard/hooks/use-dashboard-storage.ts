@@ -4,18 +4,22 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useSWR from "swr";
 import fetcher from "@/features/common/providers/fetcher";
 import {
+  GRID_COLS,
   type Widget,
   type DashboardStorageSchema,
   type DashboardFilterParam,
   type PlannerRequestDefinition,
+  type RefreshInterval,
   DEFAULT_STORAGE,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
+import { useUndoRedo } from "./use-undo-redo";
+import { getNextPosition } from "../utils/get-next-position";
 
 /**
  * Ensure widget has all required fields with defaults
  */
-function ensureWidgetDefaults(widget: Widget, index: number): Widget {
+export function ensureWidgetDefaults(widget: Widget, index: number): Widget {
   const dashlet = getDashlet(widget.componentId);
   const defaultConfig = dashlet?.defaultConfig ?? {};
 
@@ -40,7 +44,7 @@ type LayoutItem = { i: string; x: number; y: number; w: number; h: number };
 /**
  * Apply layout update to a single widget if matching layout found
  */
-function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
+export function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
   const layout = layouts.find((l) => l.i === widget.id);
   if (layout) {
     return { ...widget, layout, updatedAt: new Date().toISOString() };
@@ -51,7 +55,7 @@ function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
 /**
  * Update children layouts for a specific parent widget
  */
-function updateChildrenLayouts(
+export function updateChildrenLayouts(
   widget: Widget,
   parentId: string,
   layouts: LayoutItem[]
@@ -77,8 +81,51 @@ function updateChildrenLayouts(
   return widget;
 }
 
+/**
+ * Deep-clone a widget tree, regenerating UUIDs and timestamps.
+ * A single timestamp is shared across the entire cloned subtree.
+ */
+function deepCloneWidget(widget: Widget, now?: string): Widget {
+  const timestamp = now ?? new Date().toISOString();
+  const newId = crypto.randomUUID();
+  return {
+    ...widget,
+    id: newId,
+    layout: { ...widget.layout, i: newId },
+    config: structuredClone(widget.config),
+    children: widget.children?.map((child) => deepCloneWidget(child, timestamp)),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/**
+ * Insert `cloned` widget right after the widget with `sourceId` inside
+ * the subtree rooted at `parentId`.  Returns a new widget array (immutable).
+ */
+function insertClonedAfterSource(
+  widgets: Widget[],
+  parentId: string,
+  sourceId: string,
+  cloned: Widget
+): Widget[] {
+  return widgets.map((w) => {
+    if (w.id === parentId) {
+      const children = w.children ?? [];
+      const sourceIndex = children.findIndex((c) => c.id === sourceId);
+      const newChildren = [...children];
+      newChildren.splice(sourceIndex + 1, 0, cloned);
+      return { ...w, children: newChildren, updatedAt: new Date().toISOString() };
+    }
+    if (w.children) {
+      return { ...w, children: insertClonedAfterSource(w.children, parentId, sourceId, cloned) };
+    }
+    return w;
+  });
+}
+
 /** Strip editMode from config before persisting to Alfresco */
-function stripEphemeralState(
+export function stripEphemeralState(
   data: DashboardStorageSchema
 ): DashboardStorageSchema {
   return {
@@ -236,13 +283,26 @@ export function useDashboardStorage(
     };
   }, [slug]);
 
-  // Save data: optimistic SWR mutate + debounced Alfresco PUT
-  const saveData = useCallback(
+  // Raw save: optimistic SWR mutate + debounced Alfresco PUT (no history)
+  const rawSaveData = useCallback(
     (newData: DashboardStorageSchema) => {
       void mutate({ data: newData }, { revalidate: false });
       scheduleSaveToAlfresco(newData);
     },
     [mutate, scheduleSaveToAlfresco]
+  );
+
+  // Undo/redo history wrapping rawSaveData
+  const {
+    saveDataWithHistory: saveData,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    clearHistory,
+  } = useUndoRedo(
+    () => configRef.current,
+    rawSaveData
   );
 
   // Helper: update config via a transform on the current widgets.
@@ -383,6 +443,47 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  // Duplicate a widget (deep-clone with new UUIDs, place adjacent)
+  const duplicateWidget = useCallback(
+    (widgetId: string): Widget | null => {
+      const source = findWidget(widgetId);
+      if (!source) return null;
+
+      const cloned = deepCloneWidget(source);
+      const parent = findParent(widgetId);
+
+      // Position clone adjacent to the original; containers clamp via react-grid-layout
+      const siblings = parent ? (parent.children ?? []) : configRef.current.widgets;
+      const adjacentX = source.layout.x + source.layout.w;
+
+      if (adjacentX + cloned.layout.w <= GRID_COLS) {
+        cloned.layout.x = adjacentX;
+        cloned.layout.y = source.layout.y;
+      } else {
+        const nextPos = getNextPosition(siblings, cloned.layout.w);
+        cloned.layout.x = nextPos.x;
+        cloned.layout.y = nextPos.y;
+      }
+
+      if (parent) {
+        updateConfig((c) => ({
+          ...c,
+          widgets: insertClonedAfterSource(c.widgets, parent.id, widgetId, cloned),
+        }));
+      } else {
+        updateConfig((c) => {
+          const sourceIndex = c.widgets.findIndex((w) => w.id === widgetId);
+          const newWidgets = [...c.widgets];
+          newWidgets.splice(sourceIndex + 1, 0, cloned);
+          return { ...c, widgets: newWidgets };
+        });
+      }
+
+      return cloned;
+    },
+    [findWidget, findParent, updateConfig]
+  );
+
   // Set dashboard name
   const setDashboardName = useCallback(
     (name: string) => {
@@ -396,6 +497,13 @@ export function useDashboardStorage(
   const setFilters = useCallback(
     (filters: DashboardFilterParam[]) => {
       updateConfig({ filters });
+    },
+    [updateConfig]
+  );
+
+  const setRefreshInterval = useCallback(
+    (refreshInterval: RefreshInterval) => {
+      updateConfig({ refreshInterval });
     },
     [updateConfig]
   );
@@ -496,9 +604,11 @@ export function useDashboardStorage(
           preferences: imported.preferences ?? { editMode: false },
           requestPlanner: imported.requestPlanner,
           filters: imported.filters,
+          refreshInterval: imported.refreshInterval,
         };
 
-        saveData(newData);
+        clearHistory();
+        rawSaveData(newData);
         return { success: true };
       } catch (e) {
         return {
@@ -507,7 +617,7 @@ export function useDashboardStorage(
         };
       }
     },
-    [saveData]
+    [clearHistory, rawSaveData]
   );
 
   return {
@@ -516,15 +626,18 @@ export function useDashboardStorage(
     plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
+    refreshInterval: resolvedConfig.refreshInterval ?? 0,
     isLoaded,
     addWidget,
     addChildWidget,
     updateWidgetConfig,
     updateWidgetLayouts,
     deleteWidget,
+    duplicateWidget,
     setEditMode,
     setDashboardName,
     setFilters,
+    setRefreshInterval,
     findWidget,
     findParent,
     exportDashboard,
@@ -534,5 +647,9 @@ export function useDashboardStorage(
     addPlannerRequest,
     updatePlannerRequest,
     removePlannerRequest,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }

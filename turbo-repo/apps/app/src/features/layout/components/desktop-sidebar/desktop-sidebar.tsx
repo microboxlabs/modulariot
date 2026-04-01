@@ -25,6 +25,11 @@ export default function DesktopSidebar({ dict }: Readonly<PropsWithI18nDict>) {
       <Sidebar
         aria-label="Sidebar with multi-level dropdown example"
         id="sidebar"
+        theme={{
+          root: {
+            inner: "rounded-none dark:border-gray-700"
+          }
+        }}
       >
         <div className="flex h-full flex-col justify-between dark:border-gray-700">
           <div className="">

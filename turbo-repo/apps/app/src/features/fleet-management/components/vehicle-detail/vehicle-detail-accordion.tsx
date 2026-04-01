@@ -10,12 +10,13 @@ import {
   EventsSection,
   UsageSection,
 } from "./sections";
-import { data } from "jquery";
 
 interface VehicleDetailAccordionProps {
   readonly vehicle: Vehicle;
   readonly dict: I18nRecord;
 }
+
+export type SectionStatus = "ok" | "warning" | "critical";
 
 export interface VehicleDetailData {
   general: {
@@ -80,6 +81,71 @@ export interface VehicleDetailData {
     annualTotalKm: number;
     intensityLast30Days: number[];
   };
+}
+
+// Status calculation helpers
+export function getMaintenanceStatus(data: VehicleDetailData): SectionStatus {
+  if (data.maintenance.status === "overdue") return "critical";
+  if (data.maintenance.status === "due_soon") return "warning";
+  return "ok";
+}
+
+export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus {
+  const hasCriticalAlert = data.technicalHealth.alerts.some(alert => alert.type === "critical");
+  if (hasCriticalAlert || data.technicalHealth.activeFailures > 2) return "critical";
+  if (data.technicalHealth.alerts.length > 0 || data.technicalHealth.activeFailures > 0) return "warning";
+  return "ok";
+}
+
+export function getTelemetryStatus(data: VehicleDetailData): SectionStatus {
+  if (data.telemetry.batteryPercentage < 20 || data.telemetry.signalLost30d > 5) return "critical";
+  if (data.telemetry.batteryPercentage < 40 || data.telemetry.signalLost30d > 2) return "warning";
+  return "ok";
+}
+
+export function getEventsStatus(data: VehicleDetailData): SectionStatus {
+  const hasCriticalEvent = data.events.some(event => event.urgency === "critical");
+  const hasWarningEvent = data.events.some(event => event.urgency === "warning");
+  if (hasCriticalEvent) return "critical";
+  if (hasWarningEvent) return "warning";
+  return "ok";
+}
+
+export function getUsageStatus(data: VehicleDetailData): SectionStatus {
+  if (data.usage.monthlyContractualConsumptionPercentage > 100) return "critical";
+  if (data.usage.monthlyContractualConsumptionPercentage > 90) return "warning";
+  return "ok";
+}
+
+export interface SectionStatuses {
+  maintenance: SectionStatus;
+  technicalHealth: SectionStatus;
+  telemetry: SectionStatus;
+  events: SectionStatus;
+  usage: SectionStatus;
+}
+
+export function getAllSectionStatuses(data: VehicleDetailData): SectionStatuses {
+  return {
+    maintenance: getMaintenanceStatus(data),
+    technicalHealth: getTechnicalHealthStatus(data),
+    telemetry: getTelemetryStatus(data),
+    events: getEventsStatus(data),
+    usage: getUsageStatus(data),
+  };
+}
+
+export function getOverallHealthScore(statuses: SectionStatuses): number {
+  const statusValues = Object.values(statuses);
+  const criticalCount = statusValues.filter(s => s === "critical").length;
+  const warningCount = statusValues.filter(s => s === "warning").length;
+  
+  // Base score of 100, subtract for issues
+  let score = 100;
+  score -= criticalCount * 20;
+  score -= warningCount * 10;
+  
+  return Math.max(0, Math.min(100, score));
 }
 
 const vehicleData = {
@@ -188,15 +254,17 @@ export default function VehicleDetailAccordion({
   vehicle,
   dict,
 }: VehicleDetailAccordionProps) {
+  const statuses = getAllSectionStatuses(vehicleData);
+  const healthScore = getOverallHealthScore(statuses);
 
   return (
-    <div className="flex flex-col gap-3">
-      <HealthSection vehicle={vehicle} dict={dict} healthScore={vehicleData.general.health} />
-      <MaintenanceSection vehicle={vehicle} dict={dict} data={vehicleData} />
-      <TechnicalHealthSection dict={dict} data={vehicleData} />
-      <TelemetrySection dict={dict} data={vehicleData} />
-      <EventsSection dict={dict} data={vehicleData} />
-      <UsageSection dict={dict} data={vehicleData} />
+    <div className="flex flex-col gap-3 py-4 overflow-y-auto">
+      <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
+      <MaintenanceSection vehicle={vehicle} dict={dict} data={vehicleData} status={statuses.maintenance} />
+      <TechnicalHealthSection dict={dict} data={vehicleData} status={statuses.technicalHealth} />
+      <TelemetrySection dict={dict} data={vehicleData} status={statuses.telemetry} />
+      <EventsSection dict={dict} data={vehicleData} status={statuses.events} />
+      <UsageSection dict={dict} data={vehicleData} status={statuses.usage} />
     </div>
   );
 }

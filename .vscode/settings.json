@@ -1,0 +1,4 @@
+{
+  "typescript.tsdk": "turbo-repo/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

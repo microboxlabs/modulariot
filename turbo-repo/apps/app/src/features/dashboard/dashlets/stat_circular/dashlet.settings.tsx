@@ -98,6 +98,7 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
+      pgrestPathMode: pg.pgrestPathMode,
       dataSourceId: dataSourceId || undefined,
       dataProvider: dp.getCleanEntries(),
       ...refresh.savePayload,

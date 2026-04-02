@@ -69,6 +69,7 @@ export function DashboardList({ dict }: Readonly<DashboardListProps>) {
             slug={dashboard.slug}
             name={dashboard.name}
             onDelete={() => setDeleteTarget(dashboard)}
+            deleteTitle={tr("dashboard.landing.delete_confirm_title", dict)}
           />
         ))}
       </div>

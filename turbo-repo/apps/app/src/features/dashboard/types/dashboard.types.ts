@@ -86,11 +86,11 @@ export interface PlannerRequestDefinition {
   id: string;
   /** User-assigned variable name (e.g. "fleet_stats") */
   variableName: string;
-  /** PgREST function to call */
+  /** PgREST path (e.g. "rpc/my_function" or "my_table") */
   pgrestFunctionName: string;
   /** HTTP method */
   pgrestHttpMethod: PlannerHttpMethod;
-  /** Parameters to pass to the function */
+  /** Parameters to pass */
   pgrestParams: PlannerParam[];
   /** Optional data source ID */
   dataSourceId?: string;

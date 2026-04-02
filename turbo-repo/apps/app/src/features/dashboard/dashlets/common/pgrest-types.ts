@@ -5,6 +5,7 @@ export interface PgrestParam {
 
 export type PgrestHttpMethod = "POST" | "GET";
 
+
 export interface PgrestParamItem extends PgrestParam {
   _id: string;
 }

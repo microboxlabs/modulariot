@@ -4,11 +4,21 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { fleetKpis, specialViews, vehicles } from "../data/fleet-mock-data";
+import { specialViews, fleetKpis } from "../data/fleet-mock-data";
+import { truckToVehicle } from "../data/fleet-adapters";
+import { useFleetTrucks } from "../hooks/use-fleet-trucks";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
 import SpecialViewsCarousel from "./special-views/special-views-carousel";
 import VehicleGrid from "./vehicle-grid/vehicle-grid";
 import VehicleDetailView from "./vehicle-detail/vehicle-detail-view";
+import type { FleetKpi } from "../types/fleet.types";
+import {
+  HiOutlineTruck,
+  HiOutlineCheckCircle,
+  HiOutlineWrenchScrewdriver,
+  HiOutlineExclamationTriangle,
+  HiOutlineNoSymbol,
+} from "react-icons/hi2";
 
 interface FleetManagementPageProps {
   readonly dict: I18nRecord;
@@ -22,11 +32,61 @@ export default function FleetManagementPage({
   const router = useRouter();
   const pathname = usePathname();
 
+  const { trucks, isLoading } = useFleetTrucks({ size: 100 });
+
+  const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
+
+  const kpis: FleetKpi[] = useMemo(() => {
+    if (isLoading) return fleetKpis;
+    return [
+      {
+        id: "total",
+        labelKey: "totalFleet",
+        value: vehicles.length,
+        icon: HiOutlineTruck,
+        color: "text-blue-600 bg-blue-100",
+        darkColor: "dark:text-blue-400 dark:bg-blue-900/30",
+      },
+      {
+        id: "active",
+        labelKey: "active",
+        value: vehicles.filter((v) => v.status === "active").length,
+        icon: HiOutlineCheckCircle,
+        color: "text-green-600 bg-green-100",
+        darkColor: "dark:text-green-400 dark:bg-green-900/30",
+      },
+      {
+        id: "maintenance",
+        labelKey: "inMaintenance",
+        value: vehicles.filter((v) => v.status === "maintenance").length,
+        icon: HiOutlineWrenchScrewdriver,
+        color: "text-yellow-600 bg-yellow-100",
+        darkColor: "dark:text-yellow-400 dark:bg-yellow-900/30",
+      },
+      {
+        id: "alerts",
+        labelKey: "alerts",
+        value: vehicles.filter((v) => v.status === "alert").length,
+        icon: HiOutlineExclamationTriangle,
+        color: "text-red-600 bg-red-100",
+        darkColor: "dark:text-red-400 dark:bg-red-900/30",
+      },
+      {
+        id: "inactive",
+        labelKey: "inactive",
+        value: vehicles.filter((v) => v.status === "inactive").length,
+        icon: HiOutlineNoSymbol,
+        color: "text-gray-600 bg-gray-100",
+        darkColor: "dark:text-gray-400 dark:bg-gray-700/30",
+      },
+    ];
+  }, [vehicles, isLoading]);
+
   const selectedVehiclePlate = searchParams.get("vehicle");
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.plate === selectedVehiclePlate),
-    [selectedVehiclePlate]
+    [vehicles, selectedVehiclePlate]
   );
 
   const handleSelectVehicle = useCallback(
@@ -68,7 +128,7 @@ export default function FleetManagementPage({
         </p>
       </div>
 
-      <KpiCardsRow kpis={fleetKpis} dict={fleetDict} />
+      <KpiCardsRow kpis={kpis} dict={fleetDict} />
 
       <SpecialViewsCarousel views={specialViews} dict={fleetDict} />
 
@@ -76,6 +136,7 @@ export default function FleetManagementPage({
         vehicles={vehicles}
         dict={fleetDict}
         onSelectVehicle={handleSelectVehicle}
+        fetchLoading={isLoading}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
 import { resolveFilterParams } from "./resolve-filter-params";
@@ -10,7 +10,6 @@ interface DashletDataConfig {
   pgrestFunctionName: string;
   pgrestHttpMethod: PgrestHttpMethod;
   pgrestParams: PgrestParam[];
-  pgrestPathMode?: PgrestPathMode;
   dataSourceId?: string;
   plannerVariableName?: string;
   refreshIntervalMs?: number;
@@ -33,7 +32,6 @@ export function useDashletData(config: DashletDataConfig): DashletDataResult {
     pgrestFunctionName,
     pgrestHttpMethod,
     pgrestParams,
-    pgrestPathMode,
     dataSourceId,
     plannerVariableName,
     refreshIntervalMs = 0,
@@ -54,7 +52,6 @@ export function useDashletData(config: DashletDataConfig): DashletDataResult {
     resolvedParams,
     dataSourceId,
     refreshIntervalMs,
-    pgrestPathMode,
   );
 
   const planner = usePlannerData(

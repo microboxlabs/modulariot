@@ -41,8 +41,10 @@ export async function exchangeOAuthToken(
   return json.access_token;
 }
 
+export type AuthMethod = "TOKEN" | "OAUTH";
+
 export type BearerResult =
-  | { ok: true; token: string }
+  | { ok: true; token: string; authMethod: AuthMethod }
   | { ok: false; error: string };
 
 function errorResult(err: unknown, fallback: string): BearerResult {
@@ -65,7 +67,16 @@ async function resolveOAuthToken(
   }
   const clientSecret = decrypt(encryptedClientSecret);
   const token = await exchangeOAuthToken(tokenUrl, clientId, clientSecret, scope, audience);
-  return { ok: true, token };
+  return { ok: true, token, authMethod: "OAUTH" };
+}
+
+/**
+ * Build the Authorization header value for a resolved token.
+ * TOKEN auth uses "Bearer <token>"; OAUTH sends the raw JWT directly
+ * because PostgREST instances behind OAuth typically expect the raw token.
+ */
+export function buildAuthHeader(token: string, authMethod: AuthMethod): string {
+  return authMethod === "TOKEN" ? `Bearer ${token}` : token;
 }
 
 export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null): Promise<BearerResult> {
@@ -87,7 +98,7 @@ export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null
       return { ok: false, error: "Token is not configured" };
     }
     try {
-      return { ok: true, token: decrypt(config.encryptedToken) };
+      return { ok: true, token: decrypt(config.encryptedToken), authMethod: "TOKEN" };
     } catch (err) {
       return errorResult(err, "Token decryption failed");
     }

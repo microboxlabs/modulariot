@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { createResourceClient } from "../../utils/miot-resource-api-client";
+import { parsePageParams, isPageParamsError } from "../../utils/page-params";
 import { MiotResourceApiError } from "@microboxlabs/miot-resource-client";
 import { logger } from "@/lib/logger";
 
@@ -9,8 +10,9 @@ export async function GET(request: Request) {
   if (!authResult.authenticated) return authResult.response;
 
   const { searchParams } = new URL(request.url);
-  const page = searchParams.get("page") ? Number(searchParams.get("page")) : 0;
-  const size = searchParams.get("size") ? Number(searchParams.get("size")) : 25;
+  const pageParams = parsePageParams(searchParams);
+  if (isPageParamsError(pageParams)) return pageParams.error;
+  const { page, size } = pageParams;
 
   const client = createResourceClient(authResult.session);
 

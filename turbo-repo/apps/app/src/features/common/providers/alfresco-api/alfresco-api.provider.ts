@@ -1738,3 +1738,24 @@ export async function listDashboardConfigs(
   });
   return result as { data: Array<{ slug: string; config: Record<string, unknown> }> };
 }
+
+/**
+ * Deletes a dashboard config from Alfresco via the dashboard config webscript.
+ */
+export async function deleteDashboardConfig(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<{ success: boolean }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/microboxlabs/dashboards/dashboard-config/delete`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ site, slug }),
+  });
+  return result as { success: boolean };
+}

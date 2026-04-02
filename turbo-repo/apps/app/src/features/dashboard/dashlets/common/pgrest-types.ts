@@ -5,6 +5,8 @@ export interface PgrestParam {
 
 export type PgrestHttpMethod = "POST" | "GET";
 
+export type PgrestPathMode = "rpc" | "table";
+
 export interface PgrestParamItem extends PgrestParam {
   _id: string;
 }

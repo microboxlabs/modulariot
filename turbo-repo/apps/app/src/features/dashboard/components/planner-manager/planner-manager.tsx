@@ -44,7 +44,7 @@ async function introspectFunction(
   dataSourceId?: string,
 ): Promise<IntrospectionResult> {
   const fn = functionName.trim();
-  if (!fn) throw new Error("Function name is empty");
+  if (!fn) throw new Error("Path is empty");
 
   const qs = buildDataSourceParams(dataSourceId);
   qs.set("fn", fn);
@@ -238,7 +238,7 @@ function RequestEditor({
             </Select>
           </div>
 
-          {/* Function Name (autocomplete) */}
+          {/* Path (autocomplete) */}
           <div>
             <Label htmlFor={`planner-fn-${def.id}`} className="mb-1 block text-xs font-medium">
               {tr("dashboard.settings.plannerFunctionName", dictionary)}

@@ -9,8 +9,8 @@ import { useDropdown } from "./use-dropdown";
 import { DropdownList } from "./dropdown-list";
 import { buildDataSourceParams } from "./pgrest-utils";
 
-const functionsResponseSchema = z.object({
-  functions: z.array(z.string()),
+const pathsResponseSchema = z.object({
+  paths: z.array(z.string()),
 });
 
 const MIN_CHARACTERS = 3;
@@ -31,12 +31,12 @@ export function PgrestFunctionAutocomplete({
   onChange,
   onSelect,
   dictionary,
-  placeholder = "api_modular_my_function",
+  placeholder = "rpc/my_function",
   id,
   loading = false,
   dataSourceId,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
-  const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
+  const [allPaths, setAllPaths] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -48,10 +48,10 @@ export function PgrestFunctionAutocomplete({
   // Guard against out-of-order responses when dataSourceId changes
   const requestIdRef = useRef(0);
 
-  // Reset cached functions when the data source changes
+  // Reset cached paths when the data source changes
   useEffect(() => {
     requestIdRef.current += 1;
-    setAllFunctions(null);
+    setAllPaths(null);
     setFetchError(null);
   }, [dataSourceId]);
 
@@ -72,13 +72,13 @@ export function PgrestFunctionAutocomplete({
           (body as { error?: string }).error ?? `HTTP ${res.status}`
         );
       }
-      const parsed = functionsResponseSchema.safeParse(await res.json());
+      const parsed = pathsResponseSchema.safeParse(await res.json());
       if (reqId !== requestIdRef.current) return;
       if (!parsed.success)
         throw new Error(
           tr("dashboard.settings.invalidResponseFormat", dictionary)
         );
-      setAllFunctions(parsed.data.functions);
+      setAllPaths(parsed.data.paths);
     } catch (err) {
       if (reqId !== requestIdRef.current) return;
       setFetchError(
@@ -91,22 +91,22 @@ export function PgrestFunctionAutocomplete({
     }
   }, [dictionary, dataSourceId]);
 
-  // Fetch function list on focus – retries automatically after errors
-  const fetchFunctions = useCallback(async () => {
+  // Fetch path list on focus – retries automatically after errors
+  const fetchPaths = useCallback(async () => {
     if (isFetchingRef.current) return;
     // Already have data – nothing to do
-    if (allFunctions !== null) return;
+    if (allPaths !== null) return;
     // Clear stale error so the dropdown can open after a successful retry
     setFetchError(null);
     await doFetch(requestIdRef.current);
-  }, [allFunctions, doFetch]);
+  }, [allPaths, doFetch]);
 
   // Client-side filtering
   const filtered = useMemo(() => {
-    if (!allFunctions || value.length < MIN_CHARACTERS) return [];
+    if (!allPaths || value.length < MIN_CHARACTERS) return [];
     const lower = value.toLowerCase();
-    return allFunctions.filter((fn) => fn.toLowerCase().includes(lower));
-  }, [allFunctions, value]);
+    return allPaths.filter((p) => p.toLowerCase().includes(lower));
+  }, [allPaths, value]);
 
   // Show/hide dropdown
   useEffect(() => {
@@ -119,15 +119,15 @@ export function PgrestFunctionAutocomplete({
 
   const retryFetch = useCallback(async () => {
     requestIdRef.current += 1;
-    setAllFunctions(null);
+    setAllPaths(null);
     await doFetch(requestIdRef.current);
   }, [doFetch]);
 
   const handleSelect = useCallback(
-    (functionName: string) => {
-      onChange(functionName);
+    (path: string) => {
+      onChange(path);
       setIsOpen(false);
-      onSelect(functionName);
+      onSelect(path);
       setTimeout(() => inputRef.current?.focus(), 0);
     },
     [onChange, onSelect]
@@ -152,7 +152,7 @@ export function PgrestFunctionAutocomplete({
         sizing="sm"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={fetchFunctions}
+        onFocus={fetchPaths}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoComplete="off"
@@ -182,8 +182,8 @@ export function PgrestFunctionAutocomplete({
           onSelect={handleSelect}
           onHover={setSelectedIndex}
           dropdownRef={dropdownRef}
-          getKey={(fn) => fn}
-          renderItem={(fn) => fn}
+          getKey={(p) => p}
+          renderItem={(p) => p}
           itemClassName="font-mono"
         />
       )}

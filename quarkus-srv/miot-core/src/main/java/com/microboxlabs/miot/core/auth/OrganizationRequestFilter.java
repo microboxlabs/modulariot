@@ -40,7 +40,6 @@ import org.jboss.resteasy.reactive.server.ServerRequestFilter;
 public class OrganizationRequestFilter {
 
     private static final Logger LOG = Logger.getLogger(OrganizationRequestFilter.class);
-    private static final String ORG_HEADER = "X-Organization-Id";
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;

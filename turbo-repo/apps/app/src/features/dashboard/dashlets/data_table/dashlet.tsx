@@ -26,7 +26,7 @@ export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlet
 export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
-import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "@/features/dashboard/dashlets/common/pgrest-types";
 
 export interface DashletConfig {
   title: string;
@@ -37,6 +37,7 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  pgrestPathMode?: PgrestPathMode;
   filter: FilterConfig;
   sort: SortConfig;
   dataSourceId?: string;
@@ -148,6 +149,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
+    pgrestPathMode,
     sort = defaultSort,
     dataSourceId,
     plannerVariableName,
@@ -165,6 +167,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName,
     pgrestHttpMethod,
     pgrestParams,
+    pgrestPathMode,
     dataSourceId,
     plannerVariableName,
     refreshIntervalMs,

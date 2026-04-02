@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
+import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "../common";
 import { usePgrestResolvedFields } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
@@ -22,6 +22,7 @@ export interface DashletConfig {
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
+  pgrestPathMode?: PgrestPathMode;
   plannerVariableName?: string;
   dataSourceId?: string;
 }

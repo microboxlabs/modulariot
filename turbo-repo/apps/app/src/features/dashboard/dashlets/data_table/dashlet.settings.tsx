@@ -85,7 +85,6 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
-      pgrestPathMode: pg.pgrestPathMode,
       filter,
       sort,
       dataSourceId: dataSourceId || undefined,

@@ -49,7 +49,6 @@ export { usePgrestRows } from "./use-pgrest-rows";
 export {
   type PgrestParam,
   type PgrestHttpMethod,
-  type PgrestPathMode,
   type PgrestParamItem,
   humanizeKey,
   toPgrestParamItems,

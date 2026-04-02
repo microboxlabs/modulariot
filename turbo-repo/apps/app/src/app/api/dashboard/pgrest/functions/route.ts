@@ -6,20 +6,16 @@ export async function GET(req: NextRequest) {
     const result = await fetchPgrestSpec(parseDataSourceParam(req));
     if (result instanceof NextResponse) return result;
 
-    const functions: string[] = [];
-    const tables: string[] = [];
+    const paths: string[] = [];
     for (const path of Object.keys(result.paths ?? {})) {
-      if (path.startsWith("/rpc/")) {
-        functions.push(path.slice("/rpc/".length));
-      } else if (path.startsWith("/") && path.length > 1 && !path.includes("/", 1)) {
-        tables.push(path.slice(1));
+      if (path.startsWith("/") && path.length > 1) {
+        paths.push(path.slice(1));
       }
     }
 
-    functions.sort((a, b) => a.localeCompare(b));
-    tables.sort((a, b) => a.localeCompare(b));
+    paths.sort((a, b) => a.localeCompare(b));
 
-    return NextResponse.json({ functions, tables });
+    return NextResponse.json({ paths });
   } catch (error) {
     console.error("PGREST functions list error:", error);
     return NextResponse.json(

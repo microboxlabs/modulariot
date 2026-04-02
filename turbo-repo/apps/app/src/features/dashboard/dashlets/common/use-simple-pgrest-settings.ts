@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { fromPgrestParamItems } from "./pgrest-types";
 import { usePgrestSettingsState } from "./use-pgrest-settings-state";
 import { buildSimplePgrestConfig } from "./pgrest-settings-helpers";
@@ -19,7 +19,6 @@ interface PgrestConfigFields {
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
-  pgrestPathMode?: PgrestPathMode;
 }
 
 interface UseSimplePgrestSettingsOptions<F extends string> {
@@ -46,7 +45,6 @@ interface UseSimplePgrestSettingsReturn<F extends string> {
     pgrestFunctionName: string;
     pgrestParams: PgrestParam[];
     pgrestHttpMethod: PgrestHttpMethod;
-    pgrestPathMode: PgrestPathMode;
     dataSourceId: string | undefined;
   };
   /** Setter for dataSourceId state */
@@ -117,7 +115,6 @@ export function useSimplePgrestSettings<F extends string>({
     pgrestFunctionName: pg.pgrestFunctionName,
     pgrestParams: fromPgrestParamItems(pg.pgrestParams),
     pgrestHttpMethod: pg.pgrestHttpMethod,
-    pgrestPathMode: pg.pgrestPathMode,
     dataSourceId: dataSourceId || undefined,
   };
 

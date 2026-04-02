@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { buildPgrestFetch, parseRows } from "./pgrest-utils";
 import { usePollingInterval } from "../../hooks/use-polling-interval";
 
@@ -10,7 +10,6 @@ export function usePgrestRows(
   pgrestParams: PgrestParam[],
   dataSourceId?: string,
   refreshIntervalMs: number = 0,
-  pgrestPathMode: PgrestPathMode = "rpc",
 ): {
   rows: Record<string, string>[];
   loading: boolean;
@@ -21,14 +20,14 @@ export function usePgrestRows(
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Keep latest args in a ref so the polling callback reads fresh values
-  const argsRef = useRef({ dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId, pgrestPathMode });
-  argsRef.current = { dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId, pgrestPathMode };
+  const argsRef = useRef({ dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId });
+  argsRef.current = { dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId };
 
   // Abort controller ref for cancelling in-flight requests
   const abortRef = useRef<AbortController | null>(null);
 
   const doFetch = useCallback((silent: boolean) => {
-    const { dataMode: dm, pgrestFunctionName: fn, pgrestHttpMethod: method, pgrestParams: params, dataSourceId: dsId, pgrestPathMode: pathMode } = argsRef.current;
+    const { dataMode: dm, pgrestFunctionName: fn, pgrestHttpMethod: method, pgrestParams: params, dataSourceId: dsId } = argsRef.current;
 
     if (dm !== "pgrest" || !fn) {
       if (!silent) {
@@ -53,7 +52,7 @@ export function usePgrestRows(
       setFetchError(null);
     }
 
-    const { url, init } = buildPgrestFetch(fn, method, params, dsId, pathMode);
+    const { url, init } = buildPgrestFetch(fn, method, params, dsId);
 
     fetch(url, { ...init, signal: controller.signal })
       .then((res) => {
@@ -81,7 +80,7 @@ export function usePgrestRows(
     return () => {
       abortRef.current?.abort();
     };
-  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, pgrestPathMode, doFetch]);
+  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, doFetch]);
 
   // Polling (silent — no loading spinner flash)
   const pollFetch = useCallback(() => doFetch(true), [doFetch]);

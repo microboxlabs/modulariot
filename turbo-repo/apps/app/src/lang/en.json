@@ -1138,6 +1138,8 @@
           "scopeHint": "Space-separated list of scopes (optional)",
           "audience": "Audience",
           "audienceHint": "API identifier for the token (required for Auth0)",
+          "audiencePlaceholder": "https://api.example.com",
+          "urlPlaceholder": "https://api.example.com/api/v1/pgrest",
           "testConnection": "Test Connection",
           "saving": "Saving...",
           "saveButton": "Save",

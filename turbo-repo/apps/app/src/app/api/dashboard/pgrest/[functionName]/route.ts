@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { parseDataSourceParam, resolvePgrestCredentials } from "../shared";
+import { logger } from "@/lib/logger";
 
 const FUNCTION_NAME_REGEX = /^[a-zA-Z_]\w*$/;
 
@@ -97,7 +98,7 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error(error);
+    logger.error({ event: "pgrest.request_error", err: error }, "PgREST request failed");
 
     if (
       error instanceof SyntaxError &&

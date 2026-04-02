@@ -119,24 +119,50 @@ export default function VehicleGrid({
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        {fetchLoading && vehicles.length === 0
-          ? Array.from({ length: 9 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 h-32 animate-pulse"
+      {!fetchLoading && vehicles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <svg
+              className="w-8 h-8 text-gray-400 dark:text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"
               />
-            ))
-          : visibleVehicles.map((vehicle) => (
-              <VehicleCard
-                key={vehicle.id}
-                vehicle={vehicle}
-                dict={dict}
-                isDetailed={isDetailed}
-                onSelect={onSelectVehicle}
-              />
-            ))}
-      </div>
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {tr("vehicleGrid.emptyTitle", dict)}
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 max-w-xs">
+            {tr("vehicleGrid.emptyDescription", dict)}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          {fetchLoading && vehicles.length === 0
+            ? Array.from({ length: 9 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 h-32 animate-pulse"
+                />
+              ))
+            : visibleVehicles.map((vehicle) => (
+                <VehicleCard
+                  key={vehicle.id}
+                  vehicle={vehicle}
+                  dict={dict}
+                  isDetailed={isDetailed}
+                  onSelect={onSelectVehicle}
+                />
+              ))}
+        </div>
+      )}
       {hasMore && (
         <div ref={loaderRef} className="flex justify-center py-4">
           {isLoading && (

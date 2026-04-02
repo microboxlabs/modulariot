@@ -2601,6 +2601,8 @@
       "maintenance": "Next Maint.",
       "kmTraveled": "Total Km",
       "loading": "Loading...",
+      "emptyTitle": "No vehicles in this fleet",
+      "emptyDescription": "When vehicles are assigned to this fleet, they will appear here.",
       "plate": "Plate",
       "lastSignal": "Last signal",
       "status": "Status",

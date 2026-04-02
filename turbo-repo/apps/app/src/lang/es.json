@@ -2634,7 +2634,9 @@
       "loading": "Cargando...",
       "plate": "Patente",
       "lastSignal": "Última señal",
-      "status": "Estado"
+      "status": "Estado",
+      "emptyTitle": "No se encontraron vehículos",
+      "emptyDescription": "No hay vehículos para mostrar en este momento"
     },
     "status": {
       "active": "Activo",

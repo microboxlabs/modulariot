@@ -5,6 +5,8 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import VehicleCard from "./vehicle-card";
+import EmptyAnimation from "@/features/symptoms/components/empty-animation";
+import EmptyTable from "@/features/symptoms/components/empty-table";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -78,7 +80,7 @@ export default function VehicleGrid({
   }, [hasMore, isLoading, loadMore]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -117,17 +119,33 @@ export default function VehicleGrid({
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        {visibleVehicles.map((vehicle) => (
-          <VehicleCard
-            key={vehicle.id}
-            vehicle={vehicle}
-            dict={dict}
-            isDetailed={isDetailed}
-            onSelect={onSelectVehicle}
-          />
-        ))}
-      </div>
+      {
+        visibleVehicles.length === 0 ? (
+          <div className="flex flex-col justify-center items-center ">
+            <EmptyAnimation />
+            <p className="text-lg text-gray-500 mt-5">
+              {tr("vehicleGrid.emptyTitle", dict)}
+            </p>
+            <p className="text-sm font-light text-gray-400">
+              {tr("vehicleGrid.emptyDescription", dict)}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {
+              visibleVehicles.map((vehicle) => (
+                <VehicleCard
+                  key={vehicle.id}
+                  vehicle={vehicle}
+                  dict={dict}
+                  isDetailed={isDetailed}
+                  onSelect={onSelectVehicle}
+                />
+              ))
+            }
+          </div>
+        )
+      }
       {hasMore && (
         <div ref={loaderRef} className="flex justify-center py-4">
           {isLoading && (

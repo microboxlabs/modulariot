@@ -11,8 +11,8 @@ export function parsePageParams(
   const pageRaw = searchParams.get("page");
   const sizeRaw = searchParams.get("size");
 
-  const page = pageRaw !== null ? Number(pageRaw) : 0;
-  const size = sizeRaw !== null ? Number(sizeRaw) : 25;
+  const page = pageRaw === null ? 0 : Number(pageRaw);
+  const size = sizeRaw === null ? 25 : Number(sizeRaw);
 
   if (!Number.isFinite(page) || !Number.isInteger(page) || page < 0) {
     return {

@@ -155,7 +155,7 @@ export function DataSourceModal({
             id="url"
             type="url"
             autoComplete="off"
-            placeholder="https://api.example.com/api/v1/pgrest"
+            placeholder={tr("modal.urlPlaceholder", dict)}
             {...register("url")}
             color={errors.url ? "failure" : undefined}
           />
@@ -268,7 +268,7 @@ export function DataSourceModal({
               <Label htmlFor="audience">{tr("modal.audience", dict)}</Label>
               <TextInput
                 id="audience"
-                placeholder="https://api.example.com"
+                placeholder={tr("modal.audiencePlaceholder", dict)}
                 {...register("audience")}
               />
               <p className="mt-1 text-sm text-gray-500">{tr("modal.audienceHint", dict)}</p>

@@ -73,6 +73,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || EMPTY_PARAMS,
+    pgrestPathMode: config.pgrestPathMode,
     plannerVariableName: config.plannerVariableName,
     fields,
     dataSourceId: config.dataSourceId,

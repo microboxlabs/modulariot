@@ -1,6 +1,6 @@
 import type { ColumnItem } from "./column-helpers";
 import { humanizeKey } from "./pgrest-types";
-import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
 import type { PgrestSettingsStateConfig } from "./use-pgrest-settings-state";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -23,13 +23,14 @@ export function defaultOnColumnsDetected(keys: string[]): ColumnItem[] {
  * (labeled_data, card) that use raw keys and a no-op setColumns.
  */
 export function buildSimplePgrestConfig(
-  config: { pgrestFunctionName?: string; pgrestParams?: PgrestParam[]; pgrestHttpMethod?: PgrestHttpMethod; dataSourceId?: string },
+  config: { pgrestFunctionName?: string; pgrestParams?: PgrestParam[]; pgrestHttpMethod?: PgrestHttpMethod; pgrestPathMode?: PgrestPathMode; dataSourceId?: string },
   onDetectionComplete?: PgrestSettingsStateConfig["onDetectionComplete"],
-): Pick<PgrestSettingsStateConfig, "pgrestFunctionName" | "pgrestParams" | "pgrestHttpMethod" | "dataSourceId" | "onColumnsDetected" | "setColumns" | "onDetectionComplete"> {
+): Pick<PgrestSettingsStateConfig, "pgrestFunctionName" | "pgrestParams" | "pgrestHttpMethod" | "pgrestPathMode" | "dataSourceId" | "onColumnsDetected" | "setColumns" | "onDetectionComplete"> {
   return {
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestParams: config.pgrestParams || [],
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestPathMode: config.pgrestPathMode,
     dataSourceId: config.dataSourceId,
     onColumnsDetected: defaultOnColumnsDetected,
     setColumns: () => {},
@@ -117,5 +118,6 @@ export function buildPgrestContentLabels(dictionary: I18nRecord) {
     key: tr("dashboard.settings.key", dictionary),
     value: tr("common.value", dictionary),
     addParameter: tr("dashboard.settings.addParameter", dictionary),
+    resourceType: tr("dashboard.settings.resourceType", dictionary),
   };
 }

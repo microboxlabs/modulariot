@@ -42,7 +42,7 @@ export default function FleetManagementPage({
       {
         id: "total",
         labelKey: "totalFleet",
-        value: trucks.length,
+        value: vehicles.length,
         icon: HiOutlineTruck,
         color: "text-blue-600 bg-blue-100",
         darkColor: "dark:text-blue-400 dark:bg-blue-900/30",
@@ -50,9 +50,7 @@ export default function FleetManagementPage({
       {
         id: "active",
         labelKey: "active",
-        value: trucks.filter(
-          (t) => t.active && (t.status ?? "").toUpperCase() !== "MAINTENANCE"
-        ).length,
+        value: vehicles.filter((v) => v.status === "active").length,
         icon: HiOutlineCheckCircle,
         color: "text-green-600 bg-green-100",
         darkColor: "dark:text-green-400 dark:bg-green-900/30",
@@ -60,9 +58,7 @@ export default function FleetManagementPage({
       {
         id: "maintenance",
         labelKey: "inMaintenance",
-        value: trucks.filter(
-          (t) => (t.status ?? "").toUpperCase() === "MAINTENANCE"
-        ).length,
+        value: vehicles.filter((v) => v.status === "maintenance").length,
         icon: HiOutlineWrenchScrewdriver,
         color: "text-yellow-600 bg-yellow-100",
         darkColor: "dark:text-yellow-400 dark:bg-yellow-900/30",
@@ -70,9 +66,7 @@ export default function FleetManagementPage({
       {
         id: "alerts",
         labelKey: "alerts",
-        value: trucks.filter(
-          (t) => (t.status ?? "").toUpperCase() === "ALERT"
-        ).length,
+        value: vehicles.filter((v) => v.status === "alert").length,
         icon: HiOutlineExclamationTriangle,
         color: "text-red-600 bg-red-100",
         darkColor: "dark:text-red-400 dark:bg-red-900/30",
@@ -80,13 +74,13 @@ export default function FleetManagementPage({
       {
         id: "inactive",
         labelKey: "inactive",
-        value: trucks.filter((t) => !t.active).length,
+        value: vehicles.filter((v) => v.status === "inactive").length,
         icon: HiOutlineNoSymbol,
         color: "text-gray-600 bg-gray-100",
         darkColor: "dark:text-gray-400 dark:bg-gray-700/30",
       },
     ];
-  }, [trucks, isLoading]);
+  }, [vehicles, isLoading]);
 
   const selectedVehiclePlate = searchParams.get("vehicle");
 

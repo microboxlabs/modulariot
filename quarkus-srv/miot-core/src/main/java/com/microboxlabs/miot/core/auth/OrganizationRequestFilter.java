@@ -7,6 +7,7 @@ import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ import org.jboss.resteasy.reactive.server.ServerRequestFilter;
 
 /**
  * Validates organization membership for all org-scoped endpoints.
- * Intercepts requests to /api/v1/orgs/{organizationId}/... and:
+ * Intercepts requests to {orgPathPrefix}{organizationId}/... and:
  *
  *   Web users (JWT has email claim):
  *     - Validates Alfresco group membership
@@ -34,21 +35,35 @@ import org.jboss.resteasy.reactive.server.ServerRequestFilter;
  * In both cases TenantContext.clientId is set to org.tenantClientId (used for writes)
  * and TenantContext.effectiveClientIds is set for read-scoped queries.
  *
- * Dev fallback: X-Organization-Id header + X-Client-Id header bypass JWT checks.
+ * Dev fallback: X-Organization-Id header bypasses JWT checks.
  */
 public class OrganizationRequestFilter {
 
     private static final Logger LOG = Logger.getLogger(OrganizationRequestFilter.class);
-    private static final String ORG_PATH_PREFIX = "/api/v1/orgs/";
     private static final String ORG_HEADER = "X-Organization-Id";
 
-    @Inject TenantContext tenantContext;
-    @Inject OrganizationContext organizationContext;
-    @Inject SecurityIdentity securityIdentity;
-    @Inject IAlfrescoMembershipClient alfrescoMembership;
+    private final TenantContext tenantContext;
+    private final OrganizationContext organizationContext;
+    private final SecurityIdentity securityIdentity;
+    private final IAlfrescoMembershipClient alfrescoMembership;
+    private final List<String> clientIdClaims;
+    private final String orgPathPrefix;
 
-    @ConfigProperty(name = "miot.auth.client-id-claims", defaultValue = "aud,azp")
-    List<String> clientIdClaims;
+    @Inject
+    public OrganizationRequestFilter(
+            TenantContext tenantContext,
+            OrganizationContext organizationContext,
+            SecurityIdentity securityIdentity,
+            IAlfrescoMembershipClient alfrescoMembership,
+            @ConfigProperty(name = "miot.auth.client-id-claims", defaultValue = "aud,azp") List<String> clientIdClaims,
+            @ConfigProperty(name = "miot.auth.org-path-prefix", defaultValue = "/api/v1/orgs/") String orgPathPrefix) {
+        this.tenantContext = tenantContext;
+        this.organizationContext = organizationContext;
+        this.securityIdentity = securityIdentity;
+        this.alfrescoMembership = alfrescoMembership;
+        this.clientIdClaims = clientIdClaims;
+        this.orgPathPrefix = orgPathPrefix;
+    }
 
     @ServerRequestFilter
     public Uni<Void> filter(ContainerRequestContext requestContext) {
@@ -60,54 +75,51 @@ public class OrganizationRequestFilter {
         }
 
         return Panache.withSession(() ->
-            Organization.<Organization>find("slug = ?1 and active = true", orgSlug).firstResult()
+            Organization.findBySlug(orgSlug)
                 .flatMap(org -> {
                     if (org == null) {
                         requestContext.abortWith(Response.status(Response.Status.NOT_FOUND)
                                 .entity("{\"error\":\"Organization not found: " + orgSlug + "\"}")
-                                .type("application/json")
+                                .type(MediaType.APPLICATION_JSON)
                                 .build());
                         return Uni.createFrom().voidItem();
                     }
-
-                    String email = resolveEmail(requestContext);
-                    String m2mClientId = resolveM2mClientId(requestContext);
-
-                    Uni<String> accessValidation;
-                    if (email != null) {
-                        accessValidation = validateWebUser(requestContext, org, email);
-                    } else if (m2mClientId != null) {
-                        accessValidation = validateM2mClient(requestContext, org, m2mClientId);
-                    } else {
-                        requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
-                                .entity("{\"error\":\"Cannot resolve caller identity for organization request\"}")
-                                .type("application/json")
-                                .build());
-                        return Uni.createFrom().voidItem();
-                    }
-
-                    return accessValidation.flatMap(role ->
-                        resolveEffectiveClientIds(org).invoke(ids -> applyContext(org, email, role, ids))
-                    ).replaceWithVoid();
+                    return validateAndApply(requestContext, org);
                 })
         );
     }
 
-    /**
-     * For parent orgs: collects tenantClientId from all direct children.
-     * For child orgs: returns a single-element list.
-     */
+    private Uni<Void> validateAndApply(ContainerRequestContext requestContext, Organization org) {
+        String email = resolveEmail(requestContext);
+        String m2mClientId = resolveM2mClientId();
+
+        Uni<String> accessValidation;
+        if (email != null) {
+            accessValidation = validateWebUser(requestContext, org, email);
+        } else if (m2mClientId != null) {
+            accessValidation = validateM2mClient(requestContext, org, m2mClientId);
+        } else {
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\":\"Cannot resolve caller identity for organization request\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build());
+            return Uni.createFrom().voidItem();
+        }
+
+        return accessValidation.flatMap(role ->
+            resolveEffectiveClientIds(org).invoke(ids -> applyContext(org, email, role, ids))
+        ).replaceWithVoid();
+    }
+
     private Uni<List<String>> resolveEffectiveClientIds(Organization org) {
         List<String> ids = new ArrayList<>();
         ids.add(org.tenantClientId);
 
         if (org.parent != null) {
-            // This is a child org — no children of its own
             return Uni.createFrom().item(ids);
         }
 
-        // This is a parent org — load direct children
-        return Organization.<Organization>find("parent.id = ?1 and active = true", org.id).list()
+        return Organization.findByParent(org.id)
                 .map(children -> {
                     children.forEach(child -> ids.add(child.tenantClientId));
                     return ids;
@@ -120,10 +132,10 @@ public class OrganizationRequestFilter {
         }
         return alfrescoMembership.isMember(email, org.alfrescoGroupId)
                 .flatMap(isMember -> {
-                    if (!isMember) {
+                    if (!Boolean.TRUE.equals(isMember)) {
                         requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
                                 .entity("{\"error\":\"User is not a member of organization: " + org.slug + "\"}")
-                                .type("application/json")
+                                .type(MediaType.APPLICATION_JSON)
                                 .build());
                         return Uni.createFrom().nullItem();
                     }
@@ -135,9 +147,8 @@ public class OrganizationRequestFilter {
         if (!m2mClientId.equals(org.tenantClientId)) {
             requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
                     .entity("{\"error\":\"M2M client is not authorized for organization: " + org.slug + "\"}")
-                    .type("application/json")
+                    .type(MediaType.APPLICATION_JSON)
                     .build());
-            return Uni.createFrom().nullItem();
         }
         return Uni.createFrom().nullItem();
     }
@@ -154,8 +165,8 @@ public class OrganizationRequestFilter {
     }
 
     private String extractOrgSlug(String path) {
-        if (!path.startsWith(ORG_PATH_PREFIX)) return null;
-        String rest = path.substring(ORG_PATH_PREFIX.length());
+        if (!path.startsWith(orgPathPrefix)) return null;
+        String rest = path.substring(orgPathPrefix.length());
         int slash = rest.indexOf('/');
         String slug = slash == -1 ? rest : rest.substring(0, slash);
         return slug.isBlank() ? null : slug;
@@ -172,17 +183,21 @@ public class OrganizationRequestFilter {
         return requestContext.getHeaderString(ORG_HEADER);
     }
 
-    private String resolveM2mClientId(ContainerRequestContext requestContext) {
+    private String resolveM2mClientId() {
         if (securityIdentity != null && !securityIdentity.isAnonymous()) {
             var principal = securityIdentity.getPrincipal();
             if (principal instanceof JsonWebToken jwt) {
                 for (String claim : clientIdClaims) {
-                    Object val = jwt.getClaim(claim.trim());
-                    if (val instanceof List<?> list && !list.isEmpty()) return list.get(0).toString();
-                    if (val != null) return val.toString();
+                    String value = extractClaimValue(jwt.getClaim(claim.trim()));
+                    if (value != null) return value;
                 }
             }
         }
         return tenantContext.getClientId();
+    }
+
+    private static String extractClaimValue(Object val) {
+        if (val instanceof List<?> list && !list.isEmpty()) return list.get(0).toString();
+        return val != null ? val.toString() : null;
     }
 }

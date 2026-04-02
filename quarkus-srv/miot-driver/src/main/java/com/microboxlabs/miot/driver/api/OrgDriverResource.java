@@ -38,10 +38,19 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @IfBuildProperty(name = "miot.component.driver.enabled", stringValue = "true")
 public class OrgDriverResource {
 
-    @Inject TenantContext tenantContext;
-    @Inject OrganizationContext organizationContext;
-    @Inject DriverService driverService;
-    @Inject EntityEventService eventService;
+    private final TenantContext tenantContext;
+    private final OrganizationContext organizationContext;
+    private final DriverService driverService;
+    private final EntityEventService eventService;
+
+    @Inject
+    public OrgDriverResource(TenantContext tenantContext, OrganizationContext organizationContext,
+            DriverService driverService, EntityEventService eventService) {
+        this.tenantContext = tenantContext;
+        this.organizationContext = organizationContext;
+        this.driverService = driverService;
+        this.eventService = eventService;
+    }
 
     @GET
     @Operation(summary = "List drivers")

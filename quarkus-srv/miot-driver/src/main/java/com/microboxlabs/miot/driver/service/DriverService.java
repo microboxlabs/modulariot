@@ -25,6 +25,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class DriverService {
 
+    private static final String FIND_BY_ID = FIND_BY_ID;
+
     @Inject EntityEventService eventService;
     @Inject IAlfrescoClient alfrescoClient;
 
@@ -41,7 +43,7 @@ public class DriverService {
 
     @WithSession
     public Uni<Driver> findById(List<String> clientIds, Long id) {
-        return Driver.find("id = ?1 and clientId in ?2", id, clientIds).firstResult();
+        return Driver.find(FIND_BY_ID, id, clientIds).firstResult();
     }
 
     @WithSession
@@ -78,7 +80,7 @@ public class DriverService {
 
     @WithTransaction
     public Uni<Driver> update(List<String> clientIds, Long id, UpdateDriverRequest req, String actor) {
-        return Driver.<Driver>find("id = ?1 and clientId in ?2", id, clientIds).firstResult()
+        return Driver.<Driver>find(FIND_BY_ID, id, clientIds).firstResult()
                 .onItem().ifNull().failWith(() -> new IllegalArgumentException("Driver not found: " + id))
                 .flatMap(driver -> {
                     Map<String, Object> changes = new HashMap<>();
@@ -120,7 +122,7 @@ public class DriverService {
 
     @WithTransaction
     public Uni<Driver> changeStatus(List<String> clientIds, Long id, StatusChangeRequest req, String actor) {
-        return Driver.<Driver>find("id = ?1 and clientId in ?2", id, clientIds).firstResult()
+        return Driver.<Driver>find(FIND_BY_ID, id, clientIds).firstResult()
                 .onItem().ifNull().failWith(() -> new IllegalArgumentException("Driver not found: " + id))
                 .flatMap(driver -> {
                     String oldStatus = driver.status;

@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { parseDataSourceParam, resolvePgrestCredentials } from "../shared";
 
-const FUNCTION_NAME_REGEX = /^[a-zA-Z_]\w*$/;
+const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 
 type RouteContext = { params: Promise<{ functionName: string }> };
 
@@ -22,7 +22,6 @@ function buildFetchOptions(req: NextRequest, rpcUrl: string, token: string) {
     const url = new URL(req.url);
     // Strip internal params before forwarding to upstream
     url.searchParams.delete("dataSourceId");
-    url.searchParams.delete("mode");
     const qs = url.searchParams.toString();
     if (qs) fullUrl = `${rpcUrl}?${qs}`;
   }
@@ -69,9 +68,9 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
 
   const { functionName } = await ctx.params;
 
-  if (!FUNCTION_NAME_REGEX.test(functionName)) {
+  if (!PGREST_PATH_REGEX.test(functionName)) {
     return NextResponse.json(
-      { error: "Invalid function name." },
+      { error: "Invalid path." },
       { status: 400 }
     );
   }
@@ -83,9 +82,7 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
     );
     if (creds instanceof NextResponse) return creds;
 
-    const mode = new URL(req.url).searchParams.get("mode") ?? "rpc";
-    const prefix = mode === "table" ? "/" : "/rpc/";
-    const rpcUrl = `${creds.baseUrl}${prefix}${functionName}`;
+    const rpcUrl = `${creds.baseUrl}/${functionName}`;
     const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
 
     if (req.method === "POST") {

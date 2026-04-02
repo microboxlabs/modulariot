@@ -37,7 +37,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Path("/api/v1/orgs/{organizationId}/fleet")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Fleet (org-scoped)", description = "Fleet endpoints scoped to a web organization")
+@Tag(name = "Fleet", description = "Fleet resource directory: vehicles, trucks, trailers, carriers")
 @SecurityRequirement(name = "oidc")
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
 public class OrgFleetResource {

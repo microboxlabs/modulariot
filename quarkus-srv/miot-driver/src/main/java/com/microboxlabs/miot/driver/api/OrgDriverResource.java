@@ -33,7 +33,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Path("/api/v1/orgs/{organizationId}/drivers")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Drivers (org-scoped)", description = "Driver endpoints scoped to a web organization")
+@Tag(name = "Drivers", description = "Driver resource directory: lifecycle, documents, compliance, scoring")
 @SecurityRequirement(name = "oidc")
 @IfBuildProperty(name = "miot.component.driver.enabled", stringValue = "true")
 public class OrgDriverResource {

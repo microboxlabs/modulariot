@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
 import { EMPTY_PGREST_PARAMS } from "./pgrest-types";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
@@ -13,6 +13,7 @@ interface PgrestResolvedFieldsConfig {
   pgrestHttpMethod: PgrestHttpMethod;
   pgrestParams: PgrestParam[];
   fields: Record<string, string>;
+  pgrestPathMode?: PgrestPathMode;
   plannerVariableName?: string;
   dataSourceId?: string;
   refreshIntervalMs?: number;
@@ -35,6 +36,7 @@ export function usePgrestResolvedFields({
   pgrestHttpMethod,
   pgrestParams,
   fields,
+  pgrestPathMode,
   plannerVariableName,
   dataSourceId,
   refreshIntervalMs = 0,
@@ -56,6 +58,7 @@ export function usePgrestResolvedFields({
     stableParams,
     dataSourceId,
     refreshIntervalMs,
+    pgrestPathMode,
   );
 
   const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(

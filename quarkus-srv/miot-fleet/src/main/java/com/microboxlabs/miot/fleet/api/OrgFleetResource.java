@@ -42,12 +42,26 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
 public class OrgFleetResource {
 
-    @Inject TenantContext tenantContext;
-    @Inject OrganizationContext organizationContext;
-    @Inject TruckService truckService;
-    @Inject TrailerService trailerService;
-    @Inject CarrierService carrierService;
-    @Inject EntityEventService eventService;
+    private static final String ERR_JSON_PREFIX = "{\"error\":\"";
+
+    private final TenantContext tenantContext;
+    private final OrganizationContext organizationContext;
+    private final TruckService truckService;
+    private final TrailerService trailerService;
+    private final CarrierService carrierService;
+    private final EntityEventService eventService;
+
+    @Inject
+    public OrgFleetResource(TenantContext tenantContext, OrganizationContext organizationContext,
+            TruckService truckService, TrailerService trailerService,
+            CarrierService carrierService, EntityEventService eventService) {
+        this.tenantContext = tenantContext;
+        this.organizationContext = organizationContext;
+        this.truckService = truckService;
+        this.trailerService = trailerService;
+        this.carrierService = carrierService;
+        this.eventService = eventService;
+    }
 
     // --- Trucks ---
 
@@ -91,7 +105,7 @@ public class OrgFleetResource {
         return truckService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(t -> Response.ok(t).build())
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
+                .recoverWithItem(e -> Response.status(404).entity(ERR_JSON_PREFIX + e.getMessage() + "\"}").build());
     }
 
     @GET
@@ -148,7 +162,7 @@ public class OrgFleetResource {
         return trailerService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(t -> Response.ok(t).build())
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
+                .recoverWithItem(e -> Response.status(404).entity(ERR_JSON_PREFIX + e.getMessage() + "\"}").build());
     }
 
     @GET
@@ -205,7 +219,7 @@ public class OrgFleetResource {
         return carrierService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(c -> Response.ok(c).build())
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
+                .recoverWithItem(e -> Response.status(404).entity(ERR_JSON_PREFIX + e.getMessage() + "\"}").build());
     }
 
     @GET

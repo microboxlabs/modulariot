@@ -13,7 +13,7 @@ export async function GET(
 
   const { id } = await params;
   const numericId = Number(id);
-  if (isNaN(numericId)) {
+  if (Number.isNaN(numericId)) {
     return NextResponse.json({ error: "Invalid truck ID" }, { status: 400 });
   }
 

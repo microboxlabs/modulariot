@@ -15,8 +15,10 @@ export function useFleetTrailers(params?: { page?: number; size?: number }) {
   if (params?.size !== undefined) query.set("size", String(params.size));
   const qs = query.toString();
 
+  const url = qs ? `/app/api/fleet/trailers?${qs}` : `/app/api/fleet/trailers`;
+
   const { data, error, isLoading, mutate } = useSWR<Trailer[]>(
-    `/app/api/fleet/trailers${qs ? `?${qs}` : ""}`,
+    url,
     fetcher,
     { errorRetryCount: 2, dedupingInterval: 30000 }
   );

@@ -132,7 +132,25 @@ export async function resolvePgrestCredentials(
     );
   }
 
-  return { baseUrl: normalizePgrestUrl(envUrl), token, authMethod: "TOKEN" };
+  const baseUrl = normalizePgrestUrl(envUrl);
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return NextResponse.json(
+      { error: "OPENAPI_URL is not a valid URL. It must be the full PostgREST base URL (e.g. https://host.com/api/v1/pgrest)." },
+      { status: 500 }
+    );
+  }
+
+  if (!parsed.pathname || parsed.pathname === "/") {
+    return NextResponse.json(
+      { error: "OPENAPI_URL must include the full PostgREST base path, not just the host (e.g. https://host.com/api/v1/pgrest)." },
+      { status: 500 }
+    );
+  }
+
+  return { baseUrl, token, authMethod: "TOKEN" };
 }
 
 /**

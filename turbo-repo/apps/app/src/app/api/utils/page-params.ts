@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const MAX_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 1000;
 
 export type ParsedPageParams = { page: number; size: number };
 export type PageParamsError = { error: NextResponse };
@@ -12,7 +12,7 @@ export function parsePageParams(
   const sizeRaw = searchParams.get("size");
 
   const page = pageRaw === null ? 0 : Number(pageRaw);
-  const size = sizeRaw === null ? 25 : Number(sizeRaw);
+  const size = sizeRaw === null ? 1000 : Number(sizeRaw);
 
   if (!Number.isFinite(page) || !Number.isInteger(page) || page < 0) {
     return {

@@ -147,13 +147,13 @@ function RequestEditor({
       onUpdate(def.id, {
         dataSourceId: dsId || undefined,
         pgrestFunctionName: "",
-        pgrestHttpMethod: "POST",
+        pgrestHttpMethod: def.pgrestPathMode === "table" ? "GET" : "POST",
         pgrestParams: [],
       });
       setParamHints({});
       setIntrospectionError(null);
     },
-    [def.id, onUpdate],
+    [def.id, def.pgrestPathMode, onUpdate],
   );
 
   return (

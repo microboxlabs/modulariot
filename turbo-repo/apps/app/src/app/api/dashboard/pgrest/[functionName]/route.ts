@@ -1,15 +1,16 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { parseDataSourceParam, resolvePgrestCredentials } from "../shared";
+import { buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 
 const FUNCTION_NAME_REGEX = /^[a-zA-Z_]\w*$/;
 
 type RouteContext = { params: Promise<{ functionName: string }> };
 
-function buildFetchOptions(req: NextRequest, rpcUrl: string, token: string) {
+function buildFetchOptions(req: NextRequest, rpcUrl: string, authHeader: string) {
   const headers: Record<string, string> = {
     accept: "application/json",
-    Authorization: `Bearer ${token}`,
+    Authorization: authHeader,
   };
   const fetchInit: RequestInit = { headers };
   let fullUrl = rpcUrl;
@@ -86,7 +87,8 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
     const mode = new URL(req.url).searchParams.get("mode") ?? "rpc";
     const prefix = mode === "table" ? "/" : "/rpc/";
     const rpcUrl = `${creds.baseUrl}${prefix}${functionName}`;
-    const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
+    const authHeader = buildAuthHeader(creds.token, creds.authMethod);
+    const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, authHeader);
 
     if (req.method === "POST") {
       const body = await req.text();

@@ -9,12 +9,12 @@ import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/reso
 import type { AuthMethod } from "@/app/api/data-sources/resolve-credentials";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
 
-function toPgrestBaseUrl(rawUrl: string): string {
-  let trimmed = rawUrl;
+// The full PostgRest base URL should come from config (env var, data source, etc.)
+// rather than being assembled by convention. Each environment owns its own topology.
+function normalizePgrestUrl(url: string): string {
+  let trimmed = url;
   while (trimmed.endsWith("/")) trimmed = trimmed.slice(0, -1);
-  return trimmed.endsWith("/api/v1/pgrest")
-    ? trimmed
-    : `${trimmed}/api/v1/pgrest`;
+  return trimmed;
 }
 
 interface OpenApiParameter {
@@ -132,7 +132,7 @@ export async function resolvePgrestCredentials(
     );
   }
 
-  return { baseUrl: toPgrestBaseUrl(envUrl), token, authMethod: "TOKEN" };
+  return { baseUrl: normalizePgrestUrl(envUrl), token, authMethod: "TOKEN" };
 }
 
 /**

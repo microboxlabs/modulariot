@@ -9,7 +9,8 @@ import { resolveBearerToken } from "@/app/api/data-sources/resolve-credentials";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
 
 function toPgrestBaseUrl(rawUrl: string): string {
-  const trimmed = rawUrl.replace(/\/+$/, "");
+  let trimmed = rawUrl;
+  while (trimmed.endsWith("/")) trimmed = trimmed.slice(0, -1);
   return trimmed.endsWith("/api/v1/pgrest")
     ? trimmed
     : `${trimmed}/api/v1/pgrest`;

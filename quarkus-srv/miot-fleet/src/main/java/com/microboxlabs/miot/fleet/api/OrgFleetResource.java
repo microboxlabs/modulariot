@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.fleet.dto.CreateCarrierRequest;
 import com.microboxlabs.miot.fleet.dto.CreateTrailerRequest;
@@ -7,7 +8,6 @@ import com.microboxlabs.miot.fleet.dto.CreateTruckRequest;
 import com.microboxlabs.miot.fleet.model.Carrier;
 import com.microboxlabs.miot.fleet.model.Trailer;
 import com.microboxlabs.miot.fleet.model.Truck;
-import com.microboxlabs.miot.fleet.model.Vehicle;
 import com.microboxlabs.miot.fleet.service.CarrierService;
 import com.microboxlabs.miot.fleet.service.TrailerService;
 import com.microboxlabs.miot.fleet.service.TruckService;
@@ -16,7 +16,6 @@ import com.microboxlabs.miot.resource.event.EntityEvent;
 import com.microboxlabs.miot.resource.event.EntityEventService;
 import com.microboxlabs.miot.resource.event.EntityType;
 import io.quarkus.arc.properties.IfBuildProperty;
-import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -35,29 +34,20 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-@Path("/api/v1/fleet")
+@Path("/api/v1/orgs/{organizationId}/fleet")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Fleet", description = "Fleet resource directory: vehicles, trucks, trailers, carriers")
+@Tag(name = "Fleet (org-scoped)", description = "Fleet endpoints scoped to a web organization")
 @SecurityRequirement(name = "oidc")
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
-public class FleetResource {
+public class OrgFleetResource {
 
     @Inject TenantContext tenantContext;
+    @Inject OrganizationContext organizationContext;
     @Inject TruckService truckService;
     @Inject TrailerService trailerService;
     @Inject CarrierService carrierService;
     @Inject EntityEventService eventService;
-
-    // --- Vehicles (legacy, read-only) ---
-
-    @GET
-    @Path("/vehicles")
-    @WithSession
-    @Operation(summary = "List all vehicles")
-    public Uni<List<Vehicle>> listVehicles() {
-        return Vehicle.listAll();
-    }
 
     // --- Trucks ---
 
@@ -65,6 +55,7 @@ public class FleetResource {
     @Path("/trucks")
     @Operation(summary = "List trucks")
     public Uni<List<Truck>> listTrucks(
+            @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
         return truckService.list(tenantContext.getClientId(), page, size);
@@ -73,7 +64,9 @@ public class FleetResource {
     @GET
     @Path("/trucks/{id}")
     @Operation(summary = "Get truck by ID")
-    public Uni<Response> getTruck(@PathParam("id") Long id) {
+    public Uni<Response> getTruck(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") Long id) {
         return truckService.findById(tenantContext.getClientId(), id)
                 .map(t -> t != null ? Response.ok(t).build() : Response.status(404).build());
     }
@@ -81,16 +74,21 @@ public class FleetResource {
     @POST
     @Path("/trucks")
     @Operation(summary = "Create a truck")
-    public Uni<Response> createTruck(CreateTruckRequest req) {
-        return truckService.create(tenantContext.getClientId(), req, "api")
+    public Uni<Response> createTruck(
+            @PathParam("organizationId") String organizationId,
+            CreateTruckRequest req) {
+        return truckService.create(tenantContext.getClientId(), req, organizationContext.getUserEmail())
                 .map(t -> Response.status(201).entity(t).build());
     }
 
     @PATCH
     @Path("/trucks/{id}/status")
     @Operation(summary = "Change truck status")
-    public Uni<Response> changeTruckStatus(@PathParam("id") Long id, StatusChangeRequest req) {
-        return truckService.changeStatus(tenantContext.getClientId(), id, req, "api")
+    public Uni<Response> changeTruckStatus(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") Long id,
+            StatusChangeRequest req) {
+        return truckService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
                 .map(t -> Response.ok(t).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
@@ -100,6 +98,7 @@ public class FleetResource {
     @Path("/trucks/{id}/events")
     @Operation(summary = "Get truck event history")
     public Uni<List<EntityEvent>> getTruckEvents(
+            @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
         return truckService.findById(tenantContext.getClientId(), id)
@@ -113,6 +112,7 @@ public class FleetResource {
     @Path("/trailers")
     @Operation(summary = "List trailers")
     public Uni<List<Trailer>> listTrailers(
+            @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
         return trailerService.list(tenantContext.getClientId(), page, size);
@@ -121,7 +121,9 @@ public class FleetResource {
     @GET
     @Path("/trailers/{id}")
     @Operation(summary = "Get trailer by ID")
-    public Uni<Response> getTrailer(@PathParam("id") Long id) {
+    public Uni<Response> getTrailer(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") Long id) {
         return trailerService.findById(tenantContext.getClientId(), id)
                 .map(t -> t != null ? Response.ok(t).build() : Response.status(404).build());
     }
@@ -129,16 +131,21 @@ public class FleetResource {
     @POST
     @Path("/trailers")
     @Operation(summary = "Create a trailer")
-    public Uni<Response> createTrailer(CreateTrailerRequest req) {
-        return trailerService.create(tenantContext.getClientId(), req, "api")
+    public Uni<Response> createTrailer(
+            @PathParam("organizationId") String organizationId,
+            CreateTrailerRequest req) {
+        return trailerService.create(tenantContext.getClientId(), req, organizationContext.getUserEmail())
                 .map(t -> Response.status(201).entity(t).build());
     }
 
     @PATCH
     @Path("/trailers/{id}/status")
     @Operation(summary = "Change trailer status")
-    public Uni<Response> changeTrailerStatus(@PathParam("id") Long id, StatusChangeRequest req) {
-        return trailerService.changeStatus(tenantContext.getClientId(), id, req, "api")
+    public Uni<Response> changeTrailerStatus(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") Long id,
+            StatusChangeRequest req) {
+        return trailerService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
                 .map(t -> Response.ok(t).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
@@ -148,6 +155,7 @@ public class FleetResource {
     @Path("/trailers/{id}/events")
     @Operation(summary = "Get trailer event history")
     public Uni<List<EntityEvent>> getTrailerEvents(
+            @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
         return trailerService.findById(tenantContext.getClientId(), id)
@@ -161,6 +169,7 @@ public class FleetResource {
     @Path("/carriers")
     @Operation(summary = "List carriers")
     public Uni<List<Carrier>> listCarriers(
+            @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
         return carrierService.list(tenantContext.getClientId(), page, size);
@@ -169,7 +178,9 @@ public class FleetResource {
     @GET
     @Path("/carriers/{id}")
     @Operation(summary = "Get carrier by ID")
-    public Uni<Response> getCarrier(@PathParam("id") Long id) {
+    public Uni<Response> getCarrier(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") Long id) {
         return carrierService.findById(tenantContext.getClientId(), id)
                 .map(c -> c != null ? Response.ok(c).build() : Response.status(404).build());
     }
@@ -177,16 +188,21 @@ public class FleetResource {
     @POST
     @Path("/carriers")
     @Operation(summary = "Create a carrier")
-    public Uni<Response> createCarrier(CreateCarrierRequest req) {
-        return carrierService.create(tenantContext.getClientId(), req, "api")
+    public Uni<Response> createCarrier(
+            @PathParam("organizationId") String organizationId,
+            CreateCarrierRequest req) {
+        return carrierService.create(tenantContext.getClientId(), req, organizationContext.getUserEmail())
                 .map(c -> Response.status(201).entity(c).build());
     }
 
     @PATCH
     @Path("/carriers/{id}/status")
     @Operation(summary = "Change carrier status")
-    public Uni<Response> changeCarrierStatus(@PathParam("id") Long id, StatusChangeRequest req) {
-        return carrierService.changeStatus(tenantContext.getClientId(), id, req, "api")
+    public Uni<Response> changeCarrierStatus(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") Long id,
+            StatusChangeRequest req) {
+        return carrierService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
                 .map(c -> Response.ok(c).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
@@ -196,6 +212,7 @@ public class FleetResource {
     @Path("/carriers/{id}/events")
     @Operation(summary = "Get carrier event history")
     public Uni<List<EntityEvent>> getCarrierEvents(
+            @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
         return carrierService.findById(tenantContext.getClientId(), id)

@@ -1405,6 +1405,24 @@ export async function deleteTimeSlot(id: string): Promise<void> {
   }
 }
 
+/**
+ * Delete a dashboard config (client-side).
+ */
+export async function deleteDashboardConfigClient(
+  site: string,
+  slug: string
+): Promise<void> {
+  const response = await fetch("/app/api/dashboard/config", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ site, slug }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete dashboard (${response.status})`);
+  }
+}
+
 // ============================================================================
 // Calendar Hooks
 // ============================================================================

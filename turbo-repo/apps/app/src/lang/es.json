@@ -1159,6 +1159,8 @@
           "scopeHint": "Lista de alcances separados por espacios (opcional)",
           "audience": "Audiencia",
           "audienceHint": "Identificador de la API para el token (requerido para Auth0)",
+          "audiencePlaceholder": "https://api.example.com",
+          "urlPlaceholder": "https://api.example.com/api/v1/pgrest",
           "testConnection": "Probar Conexión",
           "saving": "Guardando...",
           "saveButton": "Guardar",

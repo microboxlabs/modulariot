@@ -5,6 +5,7 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsSelectField } from "./settings-fields";
+import type { PgrestPathMode } from "./pgrest-types";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import { HbParamValueInput } from "./hb-param-value-input";
 import { useFilterSuggestions } from "./use-filter-suggestions";
@@ -28,6 +29,7 @@ interface PgrestSettingsSectionProps {
     key: string;
     value: string;
     addParameter: string;
+    resourceType?: string;
   };
   dataSourceId?: string;
   onDataSourceIdChange?: (id: string) => void;
@@ -47,6 +49,20 @@ export function PgrestSettingsSection({
 
   return (
     <>
+      <SettingsSelectField
+        id="pgrest-path-mode"
+        label={labels.resourceType ?? tr("dashboard.settings.resourceType", dictionary)}
+        value={pg.pgrestPathMode}
+        onChange={(v) => {
+          pg.setPgrestPathMode(v as PgrestPathMode);
+          pg.setPgrestFunctionName("");
+          if (v === "table") pg.setPgrestHttpMethod("GET");
+        }}
+        options={[
+          { value: "rpc", label: tr("dashboard.settings.pathModeRpc", dictionary) },
+          { value: "table", label: tr("dashboard.settings.pathModeTable", dictionary) },
+        ]}
+      />
       {onDataSourceIdChange && (
         <div>
           <Label
@@ -82,7 +98,9 @@ export function PgrestSettingsSection({
           htmlFor="pgrest-fn"
           className="mb-1 block text-sm font-medium"
         >
-          {labels.functionName}
+          {pg.pgrestPathMode === "table"
+            ? tr("dashboard.settings.tableName", dictionary)
+            : labels.functionName}
         </Label>
         <PgrestFunctionAutocomplete
           id="pgrest-fn"
@@ -92,6 +110,7 @@ export function PgrestSettingsSection({
           dictionary={dictionary}
           loading={pg.introspecting || pg.detecting}
           dataSourceId={dataSourceId}
+          pathMode={pg.pgrestPathMode}
         />
         {(pg.introspectError || pg.detectError) && (
           <p className="mt-1 text-xs text-red-500 dark:text-red-400">

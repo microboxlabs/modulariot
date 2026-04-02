@@ -7,10 +7,12 @@ import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDropdown } from "./use-dropdown";
 import { DropdownList } from "./dropdown-list";
+import type { PgrestPathMode } from "./pgrest-types";
 import { buildDataSourceParams } from "./pgrest-utils";
 
 const functionsResponseSchema = z.object({
   functions: z.array(z.string()),
+  tables: z.array(z.string()).optional(),
 });
 
 const MIN_CHARACTERS = 3;
@@ -24,6 +26,7 @@ interface PgrestFunctionAutocompleteProps {
   id?: string;
   loading?: boolean;
   dataSourceId?: string;
+  pathMode?: PgrestPathMode;
 }
 
 export function PgrestFunctionAutocomplete({
@@ -31,11 +34,14 @@ export function PgrestFunctionAutocomplete({
   onChange,
   onSelect,
   dictionary,
-  placeholder = "api_modular_my_function",
+  placeholder,
   id,
   loading = false,
   dataSourceId,
+  pathMode = "rpc",
 }: Readonly<PgrestFunctionAutocompleteProps>) {
+  const defaultPlaceholder = pathMode === "table" ? "my_table" : "api_modular_my_function";
+  const resolvedPlaceholder = placeholder ?? defaultPlaceholder;
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -48,12 +54,12 @@ export function PgrestFunctionAutocomplete({
   // Guard against out-of-order responses when dataSourceId changes
   const requestIdRef = useRef(0);
 
-  // Reset cached functions when the data source changes
+  // Reset cached functions when the data source or path mode changes
   useEffect(() => {
     requestIdRef.current += 1;
     setAllFunctions(null);
     setFetchError(null);
-  }, [dataSourceId]);
+  }, [dataSourceId, pathMode]);
 
   const doFetch = useCallback(async (reqId: number) => {
     if (isFetchingRef.current) return;
@@ -78,7 +84,11 @@ export function PgrestFunctionAutocomplete({
         throw new Error(
           tr("dashboard.settings.invalidResponseFormat", dictionary)
         );
-      setAllFunctions(parsed.data.functions);
+      setAllFunctions(
+        pathMode === "table"
+          ? (parsed.data.tables ?? [])
+          : parsed.data.functions
+      );
     } catch (err) {
       if (reqId !== requestIdRef.current) return;
       setFetchError(
@@ -89,7 +99,7 @@ export function PgrestFunctionAutocomplete({
     } finally {
       isFetchingRef.current = false;
     }
-  }, [dictionary, dataSourceId]);
+  }, [dictionary, dataSourceId, pathMode]);
 
   // Fetch function list on focus – retries automatically after errors
   const fetchFunctions = useCallback(async () => {
@@ -154,7 +164,7 @@ export function PgrestFunctionAutocomplete({
         onChange={(e) => onChange(e.target.value)}
         onFocus={fetchFunctions}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         autoComplete="off"
         disabled={loading}
       />

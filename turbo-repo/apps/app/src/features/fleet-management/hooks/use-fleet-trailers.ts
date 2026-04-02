@@ -16,7 +16,7 @@ export function useFleetTrailers(params?: { page?: number; size?: number }) {
   const qs = query.toString();
 
   const { data, error, isLoading, mutate } = useSWR<Trailer[]>(
-    `/api/fleet/trailers${qs ? `?${qs}` : ""}`,
+    `/app/api/fleet/trailers${qs ? `?${qs}` : ""}`,
     fetcher,
     { errorRetryCount: 2, dedupingInterval: 30000 }
   );

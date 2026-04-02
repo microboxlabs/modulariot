@@ -7,7 +7,7 @@ import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { DataMode, TableColumn, SortConfig } from "../common/column-types";
 import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
-import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
+import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "../common/pgrest-types";
 import { renderCell } from "../common/cell-renderers";
 import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
@@ -50,6 +50,7 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
+  pgrestPathMode?: PgrestPathMode;
   dataSourceId?: string;
   filter: FilterConfig;
   sort: SortConfig;
@@ -301,6 +302,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
+    pgrestPathMode,
     sort = defaultSort,
     cardLayout = defaultCardLayout,
     plannerVariableName,
@@ -321,6 +323,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName,
     pgrestHttpMethod,
     pgrestParams: pgrestParamsStable,
+    pgrestPathMode,
     plannerVariableName,
     dataSourceId: config.dataSourceId,
     refreshIntervalMs,

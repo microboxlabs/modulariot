@@ -180,7 +180,8 @@ public class OrganizationRequestFilter {
                 if (email != null && !email.isBlank()) return email;
             }
         }
-        return requestContext.getHeaderString(ORG_HEADER);
+        // Dev-only impersonation header — distinct from the org-slug header
+        return requestContext.getHeaderString("X-Dev-User-Email");
     }
 
     private String resolveM2mClientId() {

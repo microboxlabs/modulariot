@@ -2637,6 +2637,8 @@
       "plate": "Patente",
       "lastSignal": "Última señal",
       "status": "Estado",
+      "emptyTitle": "No se encontraron vehículos",
+      "emptyDescription": "No hay vehículos para mostrar en este momento",
       "tabs": {
         "trucks": "Camiones",
         "trailers": "Remolques",

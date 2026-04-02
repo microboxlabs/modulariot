@@ -15,8 +15,10 @@ export function useFleetTrucks(params?: { page?: number; size?: number }) {
   if (params?.size !== undefined) query.set("size", String(params.size));
   const qs = query.toString();
 
+  const url = qs ? `/app/api/fleet/trucks?${qs}` : `/app/api/fleet/trucks`;
+
   const { data, error, isLoading, mutate } = useSWR<Truck[]>(
-    `/app/api/fleet/trucks${qs ? `?${qs}` : ""}`,
+    url,
     fetcher,
     { errorRetryCount: 2, dedupingInterval: 30000 }
   );

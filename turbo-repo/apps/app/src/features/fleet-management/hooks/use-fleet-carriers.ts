@@ -15,8 +15,10 @@ export function useFleetCarriers(params?: { page?: number; size?: number }) {
   if (params?.size !== undefined) query.set("size", String(params.size));
   const qs = query.toString();
 
+  const url = qs ? `/app/api/fleet/carriers?${qs}` : `/app/api/fleet/carriers`;
+
   const { data, error, isLoading, mutate } = useSWR<Carrier[]>(
-    `/app/api/fleet/carriers${qs ? `?${qs}` : ""}`,
+    url,
     fetcher,
     { errorRetryCount: 2, dedupingInterval: 30000 }
   );

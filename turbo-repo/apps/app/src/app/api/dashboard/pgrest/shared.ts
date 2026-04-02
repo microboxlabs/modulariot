@@ -5,7 +5,8 @@ import {
   getDataSource,
   type AlfrescoDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { resolveBearerToken } from "@/app/api/data-sources/resolve-credentials";
+import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
+import type { AuthMethod } from "@/app/api/data-sources/resolve-credentials";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
 
 function toPgrestBaseUrl(rawUrl: string): string {
@@ -50,7 +51,7 @@ export function parseDataSourceParam(req: NextRequest): string | null {
 export async function resolveDataSourceCredentials(
   session: Session,
   dataSourceId: string
-): Promise<{ baseUrl: string; token: string } | NextResponse> {
+): Promise<{ baseUrl: string; token: string; authMethod: AuthMethod } | NextResponse> {
   let ds: AlfrescoDataSource;
   try {
     ds = await getDataSource(session, dataSourceId);
@@ -98,7 +99,7 @@ export async function resolveDataSourceCredentials(
         { status: 400 }
       );
     }
-    return { baseUrl: ds.url, token: bearerResult.token };
+    return { baseUrl: ds.url, token: bearerResult.token, authMethod: bearerResult.authMethod };
   } catch {
     return NextResponse.json(
       { error: "Failed to resolve data source credentials" },
@@ -116,7 +117,7 @@ export async function resolveDataSourceCredentials(
 export async function resolvePgrestCredentials(
   session: Session,
   dataSourceId?: string | null
-): Promise<{ baseUrl: string; token: string } | NextResponse> {
+): Promise<{ baseUrl: string; token: string; authMethod: AuthMethod } | NextResponse> {
   if (dataSourceId) {
     return resolveDataSourceCredentials(session, dataSourceId);
   }
@@ -131,7 +132,7 @@ export async function resolvePgrestCredentials(
     );
   }
 
-  return { baseUrl: toPgrestBaseUrl(envUrl), token };
+  return { baseUrl: toPgrestBaseUrl(envUrl), token, authMethod: "TOKEN" };
 }
 
 /**
@@ -157,7 +158,7 @@ export async function fetchPgrestSpec(
   const res = await fetch(specUrl, {
     headers: {
       Accept: "application/openapi+json",
-      Authorization: `Bearer ${creds.token}`,
+      Authorization: buildAuthHeader(creds.token, creds.authMethod),
     },
     signal: AbortSignal.timeout(10000),
   });

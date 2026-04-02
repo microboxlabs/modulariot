@@ -25,7 +25,7 @@ import java.util.UUID;
 @ApplicationScoped
 public class DriverService {
 
-    private static final String FIND_BY_ID = FIND_BY_ID;
+    private static final String FIND_BY_ID = "id = ?1 and clientId in ?2";
 
     @Inject EntityEventService eventService;
     @Inject IAlfrescoClient alfrescoClient;

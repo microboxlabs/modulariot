@@ -20,8 +20,9 @@ function buildFetchOptions(req: NextRequest, rpcUrl: string, token: string) {
   } else {
     fetchInit.method = "GET";
     const url = new URL(req.url);
-    // Strip internal param before forwarding to upstream
+    // Strip internal params before forwarding to upstream
     url.searchParams.delete("dataSourceId");
+    url.searchParams.delete("mode");
     const qs = url.searchParams.toString();
     if (qs) fullUrl = `${rpcUrl}?${qs}`;
   }
@@ -82,7 +83,9 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
     );
     if (creds instanceof NextResponse) return creds;
 
-    const rpcUrl = `${creds.baseUrl}/rpc/${functionName}`;
+    const mode = new URL(req.url).searchParams.get("mode") ?? "rpc";
+    const prefix = mode === "table" ? "/" : "/rpc/";
+    const rpcUrl = `${creds.baseUrl}${prefix}${functionName}`;
     const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
 
     if (req.method === "POST") {

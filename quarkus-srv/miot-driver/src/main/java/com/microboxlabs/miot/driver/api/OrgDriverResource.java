@@ -49,7 +49,7 @@ public class OrgDriverResource {
             @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
-        return driverService.list(tenantContext.getClientId(), page, size);
+        return driverService.list(tenantContext.getEffectiveClientIds(), page, size);
     }
 
     @GET
@@ -58,7 +58,7 @@ public class OrgDriverResource {
     public Uni<Response> getDriver(
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id) {
-        return driverService.findById(tenantContext.getClientId(), id)
+        return driverService.findById(tenantContext.getEffectiveClientIds(), id)
                 .map(driver -> driver != null
                         ? Response.ok(driver).build()
                         : Response.status(Response.Status.NOT_FOUND).build());
@@ -80,7 +80,7 @@ public class OrgDriverResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             UpdateDriverRequest req) {
-        return driverService.update(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
+        return driverService.update(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(driver -> Response.ok(driver).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(Response.Status.NOT_FOUND)
@@ -94,7 +94,7 @@ public class OrgDriverResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             StatusChangeRequest req) {
-        return driverService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
+        return driverService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(driver -> Response.ok(driver).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(Response.Status.NOT_FOUND)
@@ -108,7 +108,7 @@ public class OrgDriverResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
-        return driverService.findById(tenantContext.getClientId(), id)
+        return driverService.findById(tenantContext.getEffectiveClientIds(), id)
                 .flatMap(driver -> {
                     if (driver == null) return Uni.createFrom().item(List.<EntityEvent>of());
                     return eventService.listByEntity(EntityType.DRIVER, driver.entityId, limit);

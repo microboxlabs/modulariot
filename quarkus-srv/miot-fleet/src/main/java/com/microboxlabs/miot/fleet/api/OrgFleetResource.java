@@ -58,7 +58,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
-        return truckService.list(tenantContext.getClientId(), page, size);
+        return truckService.list(tenantContext.getEffectiveClientIds(), page, size);
     }
 
     @GET
@@ -67,7 +67,7 @@ public class OrgFleetResource {
     public Uni<Response> getTruck(
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id) {
-        return truckService.findById(tenantContext.getClientId(), id)
+        return truckService.findById(tenantContext.getEffectiveClientIds(), id)
                 .map(t -> t != null ? Response.ok(t).build() : Response.status(404).build());
     }
 
@@ -88,7 +88,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             StatusChangeRequest req) {
-        return truckService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
+        return truckService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(t -> Response.ok(t).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
@@ -101,7 +101,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
-        return truckService.findById(tenantContext.getClientId(), id)
+        return truckService.findById(tenantContext.getEffectiveClientIds(), id)
                 .flatMap(t -> t == null ? Uni.createFrom().item(List.<EntityEvent>of())
                         : eventService.listByEntity(EntityType.TRUCK, t.entityId, limit));
     }
@@ -115,7 +115,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
-        return trailerService.list(tenantContext.getClientId(), page, size);
+        return trailerService.list(tenantContext.getEffectiveClientIds(), page, size);
     }
 
     @GET
@@ -124,7 +124,7 @@ public class OrgFleetResource {
     public Uni<Response> getTrailer(
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id) {
-        return trailerService.findById(tenantContext.getClientId(), id)
+        return trailerService.findById(tenantContext.getEffectiveClientIds(), id)
                 .map(t -> t != null ? Response.ok(t).build() : Response.status(404).build());
     }
 
@@ -145,7 +145,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             StatusChangeRequest req) {
-        return trailerService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
+        return trailerService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(t -> Response.ok(t).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
@@ -158,7 +158,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
-        return trailerService.findById(tenantContext.getClientId(), id)
+        return trailerService.findById(tenantContext.getEffectiveClientIds(), id)
                 .flatMap(t -> t == null ? Uni.createFrom().item(List.<EntityEvent>of())
                         : eventService.listByEntity(EntityType.TRAILER, t.entityId, limit));
     }
@@ -172,7 +172,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("25") int size) {
-        return carrierService.list(tenantContext.getClientId(), page, size);
+        return carrierService.list(tenantContext.getEffectiveClientIds(), page, size);
     }
 
     @GET
@@ -181,7 +181,7 @@ public class OrgFleetResource {
     public Uni<Response> getCarrier(
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id) {
-        return carrierService.findById(tenantContext.getClientId(), id)
+        return carrierService.findById(tenantContext.getEffectiveClientIds(), id)
                 .map(c -> c != null ? Response.ok(c).build() : Response.status(404).build());
     }
 
@@ -202,7 +202,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             StatusChangeRequest req) {
-        return carrierService.changeStatus(tenantContext.getClientId(), id, req, organizationContext.getUserEmail())
+        return carrierService.changeStatus(tenantContext.getEffectiveClientIds(), id, req, organizationContext.getUserEmail())
                 .map(c -> Response.ok(c).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> Response.status(404).entity("{\"error\":\"" + e.getMessage() + "\"}").build());
@@ -215,7 +215,7 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id,
             @QueryParam("limit") @DefaultValue("50") int limit) {
-        return carrierService.findById(tenantContext.getClientId(), id)
+        return carrierService.findById(tenantContext.getEffectiveClientIds(), id)
                 .flatMap(c -> c == null ? Uni.createFrom().item(List.<EntityEvent>of())
                         : eventService.listByEntity(EntityType.CARRIER, c.entityId, limit));
     }

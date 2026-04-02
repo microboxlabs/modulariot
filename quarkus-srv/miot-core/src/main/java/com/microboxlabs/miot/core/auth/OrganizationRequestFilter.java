@@ -8,6 +8,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -26,8 +27,12 @@ import org.jboss.resteasy.reactive.server.ServerRequestFilter;
  *     - Validates that JWT aud/azp matches org.tenantClientId
  *     - No Alfresco check — the M2M token itself is proof of authorization
  *
- * In both cases TenantContext.clientId is set to org.tenantClientId so all
- * downstream services work unchanged.
+ * Hierarchy:
+ *   - Parent orgs (parent == null): effectiveClientIds = [own] + [all direct children]
+ *   - Child orgs (parent != null): effectiveClientIds = [own]
+ *
+ * In both cases TenantContext.clientId is set to org.tenantClientId (used for writes)
+ * and TenantContext.effectiveClientIds is set for read-scoped queries.
  *
  * Dev fallback: X-Organization-Id header + X-Client-Id header bypass JWT checks.
  */
@@ -54,7 +59,8 @@ public class OrganizationRequestFilter {
             return Uni.createFrom().voidItem();
         }
 
-        return Panache.withSession(() -> Organization.<Organization>find("slug = ?1 and active = true", orgSlug).firstResult())
+        return Panache.withSession(() ->
+            Organization.<Organization>find("slug = ?1 and active = true", orgSlug).firstResult()
                 .flatMap(org -> {
                     if (org == null) {
                         requestContext.abortWith(Response.status(Response.Status.NOT_FOUND)
@@ -65,27 +71,52 @@ public class OrganizationRequestFilter {
                     }
 
                     String email = resolveEmail(requestContext);
-                    if (email != null) {
-                        return handleWebUser(requestContext, org, email);
-                    }
-
                     String m2mClientId = resolveM2mClientId(requestContext);
-                    if (m2mClientId != null) {
-                        return handleM2mClient(requestContext, org, m2mClientId);
+
+                    Uni<String> accessValidation;
+                    if (email != null) {
+                        accessValidation = validateWebUser(requestContext, org, email);
+                    } else if (m2mClientId != null) {
+                        accessValidation = validateM2mClient(requestContext, org, m2mClientId);
+                    } else {
+                        requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                                .entity("{\"error\":\"Cannot resolve caller identity for organization request\"}")
+                                .type("application/json")
+                                .build());
+                        return Uni.createFrom().voidItem();
                     }
 
-                    requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
-                            .entity("{\"error\":\"Cannot resolve caller identity for organization request\"}")
-                            .type("application/json")
-                            .build());
-                    return Uni.createFrom().voidItem();
+                    return accessValidation.flatMap(role ->
+                        resolveEffectiveClientIds(org).invoke(ids -> applyContext(org, email, role, ids))
+                    ).replaceWithVoid();
+                })
+        );
+    }
+
+    /**
+     * For parent orgs: collects tenantClientId from all direct children.
+     * For child orgs: returns a single-element list.
+     */
+    private Uni<List<String>> resolveEffectiveClientIds(Organization org) {
+        List<String> ids = new ArrayList<>();
+        ids.add(org.tenantClientId);
+
+        if (org.parent != null) {
+            // This is a child org — no children of its own
+            return Uni.createFrom().item(ids);
+        }
+
+        // This is a parent org — load direct children
+        return Organization.<Organization>find("parent.id = ?1 and active = true", org.id).list()
+                .map(children -> {
+                    children.forEach(child -> ids.add(child.tenantClientId));
+                    return ids;
                 });
     }
 
-    private Uni<Void> handleWebUser(ContainerRequestContext requestContext, Organization org, String email) {
+    private Uni<String> validateWebUser(ContainerRequestContext requestContext, Organization org, String email) {
         if (org.alfrescoGroupId == null) {
-            applyContext(org, email, null);
-            return Uni.createFrom().voidItem();
+            return Uni.createFrom().nullItem();
         }
         return alfrescoMembership.isMember(email, org.alfrescoGroupId)
                 .flatMap(isMember -> {
@@ -94,35 +125,32 @@ public class OrganizationRequestFilter {
                                 .entity("{\"error\":\"User is not a member of organization: " + org.slug + "\"}")
                                 .type("application/json")
                                 .build());
-                        return Uni.createFrom().voidItem();
+                        return Uni.createFrom().nullItem();
                     }
-                    return alfrescoMembership.getRole(email, org.alfrescoGroupId)
-                            .invoke(role -> applyContext(org, email, role))
-                            .replaceWithVoid();
+                    return alfrescoMembership.getRole(email, org.alfrescoGroupId);
                 });
     }
 
-    private Uni<Void> handleM2mClient(ContainerRequestContext requestContext, Organization org, String m2mClientId) {
+    private Uni<String> validateM2mClient(ContainerRequestContext requestContext, Organization org, String m2mClientId) {
         if (!m2mClientId.equals(org.tenantClientId)) {
             requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
                     .entity("{\"error\":\"M2M client is not authorized for organization: " + org.slug + "\"}")
                     .type("application/json")
                     .build());
-            return Uni.createFrom().voidItem();
+            return Uni.createFrom().nullItem();
         }
-        applyContext(org, null, null);
-        LOG.debugf("M2M client authorized for org: slug=%s tenant=%s", org.slug, org.tenantClientId);
-        return Uni.createFrom().voidItem();
+        return Uni.createFrom().nullItem();
     }
 
-    private void applyContext(Organization org, String userEmail, String role) {
+    private void applyContext(Organization org, String userEmail, String role, List<String> effectiveClientIds) {
         tenantContext.setClientId(org.tenantClientId);
         tenantContext.setTenantCode(org.tenantClientId);
+        tenantContext.setEffectiveClientIds(effectiveClientIds);
         organizationContext.setOrganizationId(org.slug);
         organizationContext.setUserEmail(userEmail);
         organizationContext.setAlfrescoRole(role);
-        LOG.debugf("Organization resolved: slug=%s tenant=%s user=%s role=%s",
-                org.slug, org.tenantClientId, userEmail, role);
+        LOG.debugf("Organization resolved: slug=%s tenant=%s effectiveIds=%s user=%s role=%s",
+                org.slug, org.tenantClientId, effectiveClientIds, userEmail, role);
     }
 
     private String extractOrgSlug(String path) {

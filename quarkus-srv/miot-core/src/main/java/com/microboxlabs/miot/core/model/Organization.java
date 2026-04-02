@@ -3,9 +3,12 @@ package com.microboxlabs.miot.core.model;
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
@@ -33,6 +36,11 @@ public class Organization extends PanacheEntityBase {
 
     @Column(name = "tenant_client_id", nullable = false)
     public String tenantClientId;
+
+    /** Parent organization. Null means this org is a top-level (parent) org. Max 2 levels deep. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    public Organization parent;
 
     public boolean active = true;
 }

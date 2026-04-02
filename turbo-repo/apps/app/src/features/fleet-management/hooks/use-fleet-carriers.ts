@@ -16,7 +16,7 @@ export function useFleetCarriers(params?: { page?: number; size?: number }) {
   const qs = query.toString();
 
   const { data, error, isLoading, mutate } = useSWR<Carrier[]>(
-    `/api/fleet/carriers${qs ? `?${qs}` : ""}`,
+    `/app/api/fleet/carriers${qs ? `?${qs}` : ""}`,
     fetcher,
     { errorRetryCount: 2, dedupingInterval: 30000 }
   );

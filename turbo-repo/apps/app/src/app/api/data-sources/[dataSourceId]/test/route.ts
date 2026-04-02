@@ -5,7 +5,7 @@ import {
   getDataSource,
   updateDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { resolveBearerToken } from "@/app/api/data-sources/resolve-credentials";
+import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       const res = await fetch(specUrl, {
         headers: {
           Accept: "application/openapi+json",
-          Authorization: `Bearer ${bearerResult.token}`,
+          Authorization: buildAuthHeader(bearerResult.token, bearerResult.authMethod),
         },
         signal: AbortSignal.timeout(10000),
       });

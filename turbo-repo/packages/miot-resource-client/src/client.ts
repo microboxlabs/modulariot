@@ -58,11 +58,12 @@ export function createMiotResourceClient(config: ClientConfig) {
     });
 
     if (!response.ok) {
+      const text = await response.text();
       let body: import("./types.js").ErrorResponse | string;
       try {
-        body = await response.json();
+        body = JSON.parse(text);
       } catch {
-        body = await response.text();
+        body = text;
       }
       throw new MiotResourceApiError(response.status, body);
     }
@@ -75,8 +76,8 @@ export function createMiotResourceClient(config: ClientConfig) {
   };
 
   return {
-    fleet: createFleetApi(fetcher),
-    drivers: createDriversApi(fetcher),
+    fleet: createFleetApi(fetcher, config.organizationId),
+    drivers: createDriversApi(fetcher, config.organizationId),
     sync: createSyncApi(fetcher),
   };
 }

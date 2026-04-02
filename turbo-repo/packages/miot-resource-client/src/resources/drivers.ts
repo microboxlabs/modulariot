@@ -1,7 +1,5 @@
 import type { Fetcher } from "../client.js";
 import type {
-  BulkSyncRequest,
-  BulkSyncResponse,
   CreateDriverRequest,
   Driver,
   EntityEvent,
@@ -10,9 +8,9 @@ import type {
   UpdateDriverRequest,
 } from "../types.js";
 
-const BASE = "/api/v1/drivers";
+export function createDriversApi(fetcher: Fetcher, organizationId: string) {
+  const BASE = `/api/v1/orgs/${organizationId}/drivers`;
 
-export function createDriversApi(fetcher: Fetcher) {
   return {
     list(params?: PageParams): Promise<Driver[]> {
       return fetcher("GET", BASE, { query: params });
@@ -36,10 +34,6 @@ export function createDriversApi(fetcher: Fetcher) {
 
     listEvents(id: number, params?: { limit?: number }): Promise<EntityEvent[]> {
       return fetcher("GET", `${BASE}/${id}/events`, { query: params });
-    },
-
-    bulkSync(body: BulkSyncRequest): Promise<BulkSyncResponse> {
-      return fetcher("POST", `${BASE}/bulk-sync`, { body });
     },
   };
 }

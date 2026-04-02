@@ -1,0 +1,88 @@
+# 🔔 Release Notes v1.29.0 — ModularIoT
+
+### Fecha: 01/04/2026
+
+**Objetivo**: Consolidar el módulo de dashboards con gestión dinámica de múltiples tableros, auto-refresco configurable, barra de filtros y cobertura de pruebas; incorporar la gestión de flota y directorios de recursos multi-tenant con scoring KPI; habilitar la búsqueda de candidatos de asignación de viajes en la CLI; y completar la reestructuración del monorepo unificando el frontend Turborepo con el backend Quarkus en un único workspace con pipeline CI/CD completo.
+
+## 🚀 Evolutivos
+
+- **📊 Gestión de múltiples dashboards, auto-refresco y dashlet de gráficas**
+  - **Gestión dinámica de dashboards**: Los usuarios pueden crear, navegar y gestionar múltiples dashboards desde una página de aterrizaje centralizada, con las entradas reflejadas automáticamente en la navegación lateral. *(Integración OSS — MIOT-0.4.6)*
+  - **Auto-refresco configurable**: Los dashboards soportan polling periódico configurable por el usuario, manteniendo los datos actualizados sin intervención manual.
+  - **Dashlet de gráficas**: Nuevo tipo de dashlet para visualización de series de tiempo y datos numéricos con configuración de ejes, leyendas y fuentes de datos dinámicas.
+  - **CRUD completo**: Crear, renombrar, duplicar y eliminar dashboards desde la interfaz, con landing page que lista todos los tableros del usuario.
+
+- **🔍 Barra de filtros inline para dashboards**
+  - **Filtros a nivel de dashboard**: Una barra de filtros posicionada en la toolbar permite aplicar parámetros de búsqueda y rangos de fechas que se propagan como query params a todos los dashlets del tablero. *(Integración OSS — MIOT-0.4.6)*
+  - **Tipos de filtro**: Soporte para búsqueda de texto libre, selectores de fecha (desde / hasta) y etiquetas de filtros activos como pills.
+  - **Persistencia en URL**: Los valores de filtro se sincronizan con los parámetros de URL, permitiendo compartir vistas filtradas mediante enlace.
+  - **Portado desde embedded-asset**: El componente se basa en el filtro existente de `embedded-asset`, adaptado para el contexto de dashboards.
+
+- **🚛 Gestión de Flotas — vista principal y detalle de vehículos**
+  - **Vista principal**: Módulo `FleetManagementPage` con tres secciones: KPIs generales (totales de flota), tabla de vehículos con búsqueda y filtros, y panel de detalle contextual. *(Integración OSS — MIOT-0.4.6)*
+  - **Detalle de vehículo**: Panel lateral que muestra información del activo, scoring KPI calculado por el motor de síntomas, documentos en Alfresco y estado operativo actual.
+  - **Integración con Resource Client**: Consume el cliente `@microboxlabs/miot-resource-client` para obtener datos de flota con aislamiento por cliente (multi-tenant).
+
+- **🗂️ Directorios de recursos — gestión de flota y conductores multi-tenant**
+  - **Capa unificada de recursos**: Nueva arquitectura de gestión para activos de flota (camiones, remolques, transportistas) y conductores, con aislamiento por cliente y sincronización masiva desde ERP (Alerce). *(Integración OSS — MIOT-0.4.6)*
+  - **Scoring KPI desde motor de síntomas**: Los recursos reciben puntuaciones automáticas basadas en síntomas operativos, visibles tanto en el directorio como en el detalle de cada entidad.
+  - **Gestión documental**: Integración con Alfresco para documentos por recurso (licencias, certificados, contratos).
+  - **Sincronización ERP**: Soporte de importación masiva desde Alerce con trazabilidad de errores y resultados por lote.
+
+- **🔎 Búsqueda de candidatos para asignación de viajes en miot-cli**
+  - **Primera versión de búsqueda de candidatos**: La CLI `miot-cli` incorpora soporte para buscar transportistas candidatos para un viaje, y luego conductores, camiones y remolques disponibles para el transportista seleccionado. *(Integración OSS — MIOT-0.4.6)*
+  - **Enriquecimiento de resultados**: Los candidatos se complementan con datos de experiencia, scoring KPI y disponibilidad operativa.
+  - **Base para el flujo de asignación**: Este comando sienta las bases del flujo interactivo de asignación de recursos a viajes desde la CLI.
+
+- **📍 Ajustes en "¿Dónde está mi carga?"**
+  - **Badges de retraso selectivos**: Los badges de retraso se muestran únicamente en tareas de tipo `delivery_expedition`, eliminándolos de otros tipos de tarea para reducir ruido visual. *(Integración OSS — MIOT-0.4.6)*
+  - **Mejoras de información**: Ajustes en la información mostrada por las tareas de expedición para alinearse con los requerimientos operativos del cliente.
+
+- **🧪 Cobertura de pruebas y refactorización del módulo de dashboard**
+  - **~207 pruebas unitarias**: Cobertura completa de contextos, hooks, registros de dashlets y utilidades comunes del módulo de dashboard. *(Integración OSS — MIOT-0.4.6)*
+  - **Desacoplamiento de lógica**: Las funciones con estado compartido se refactorizan en funciones puras e independientemente testeables, mejorando la mantenibilidad del módulo.
+
+## 🔧 Integraciones
+
+- **🏗️ Reestructuración del monorepo en turbo-repo/ y quarkus-srv/**
+  - **Workspace unificado**: El repositorio se divide en dos workspaces autocontenidos: `turbo-repo/` con el frontend Turborepo y `quarkus-srv/` con el modulito Quarkus importado desde `miot-quarkus-srv`. *(Integración OSS — MIOT-0.4.6)*
+  - **Historial preservado**: La migración preserva el historial de git de ambos workspaces, manteniendo trazabilidad completa de los cambios.
+  - **Scripts y tooling unificados**: Comandos de build, lint y arranque actualizados para operar sobre ambos workspaces desde la raíz del repositorio.
+
+- **🐳 Pipeline CI/CD para imagen Docker de quarkus-srv**
+  - **Build y publicación automáticos**: El workflow de GitHub Actions `quarkus.yml` se extiende con jobs de build y publish de imagen Docker de `quarkus-srv`, activados en cada merge a `trunk` y en tags de versión. *(Integración OSS — MIOT-0.4.6)*
+  - **Registro de contenedores**: Las imágenes se publican en `ghcr.io/microboxlabs/miot-srv` siguiendo el mismo patrón que los servicios existentes.
+
+- **⛵ Helm chart para el modulito Quarkus (miot-modulith)**
+  - **Nuevo chart `miot-modulith`**: Chart de Helm para despliegue del modulito Quarkus (`ghcr.io/microboxlabs/miot-srv`), siguiendo el patrón del chart `miot-calendar`. *(Integración OSS — MIOT-0.4.6)*
+  - **Integración en umbrella chart**: El chart `miot-modulith` se incorpora como dependencia opcional del umbrella chart `modulariot`, habilitando despliegues selectivos por entorno.
+  - **Dual datasource**: Configuración de URLs de datasource JDBC y Reactive para compatibilidad con Flyway y el runtime reactivo de Quarkus.
+
+- **📚 Documentación del esquema de configuración de dashboards**
+  - **Página de referencia**: Nueva página de documentación que describe el sistema de configuración de dashboards con sus tipos, propiedades y relaciones. *(Integración OSS — MIOT-0.4.6)*
+  - **JSON Schema publicado**: Schema validable para archivos de configuración de dashboard (`*.dashboard.json`), permitiendo autocompletado y validación en editores.
+
+## 🐛 Correcciones
+
+- **🐛 Data Provider — input de nombre de función pierde foco y errores opacos**
+  - **Input editable sin interrupción**: El input de nombre de función ya no pierde el foco al disparar la búsqueda de funciones PGREST disponibles; la carga ocurre en segundo plano sin deshabilitar el campo. *(Integración OSS — MIOT-0.4.6)*
+  - **Mensajes de error descriptivos**: Los errores del endpoint de funciones (p. ej. "Data source is not active") se muestran con el texto real del servidor en lugar de códigos HTTP genéricos.
+  - **Reintento automático**: Al volver a enfocar el input tras un error, la búsqueda se reintenta automáticamente limpiando el estado de error anterior.
+
+## 📊 Beneficios
+
+- 📊 **Dashboards personalizables y multi-usuario**: La gestión dinámica de múltiples tableros con CRUD completo permite a cada operador organizar sus vistas de datos de forma independiente, adaptando la plataforma a distintos roles y contextos operativos.
+- 🔍 **Filtrado contextual en tiempo real**: La barra de filtros inline con sincronización por URL mejora la capacidad analítica de los usuarios, permitiendo explorar y compartir vistas filtradas de datos sin configuraciones adicionales.
+- 🚛 **Visibilidad completa de la flota**: El módulo de Gestión de Flotas y los directorios de recursos multi-tenant centralizan la información de activos, conductores y transportistas con scoring KPI, reduciendo el tiempo necesario para evaluar y asignar recursos a viajes.
+- 🔎 **Asignación de viajes desde la CLI**: La búsqueda de candidatos en `miot-cli` acelera los flujos de operación desde terminal, habilitando casos de uso de automatización y scripting para asignación de recursos.
+- 🐳 **Infraestructura como código completa**: Con el pipeline CI/CD para Docker y el Helm chart del modulito Quarkus, todos los componentes de la plataforma tienen despliegue automatizado y reproducible en cualquier entorno.
+- 🧪 **Mayor confiabilidad del módulo de dashboards**: La cobertura de ~207 pruebas unitarias y la refactorización de lógica pura reducen la probabilidad de regresiones y facilitan el mantenimiento futuro del módulo.
+- 🏗️ **Monorepo unificado**: La consolidación de frontend y backend en un único repositorio simplifica el onboarding, la gestión de dependencias y la trazabilidad de cambios entre capas de la plataforma.
+
+## 📌 Conclusión
+
+La versión 1.29.0 es una de las entregas más completas de la plataforma ModularIoT, cubriendo simultáneamente la maduración del sistema de dashboards, la incorporación de un módulo de gestión de flota de primera clase, y la consolidación de la infraestructura de despliegue. El sistema de dashboards evoluciona de un conjunto de tableros estáticos a una plataforma de visualización dinámica donde los usuarios pueden crear y gestionar sus propios tableros con filtros, auto-refresco y múltiples tipos de dashlet, respaldado ahora por una cobertura de pruebas robusta.
+
+La incorporación de los directorios de recursos y el módulo de Gestión de Flotas establece la base para el flujo completo de asignación de viajes, que toma su primera forma tangible con la búsqueda de candidatos en `miot-cli`. Esta funcionalidad, combinada con los ajustes en "¿Dónde está mi carga?", mejora directamente la experiencia de los operadores logísticos que coordinan asignaciones de transporte en tiempo real.
+
+A nivel de plataforma, la reestructuración del monorepo, el pipeline CI/CD para el modulito Quarkus y el nuevo Helm chart cierran el ciclo de despliegue automatizado para todos los componentes del sistema. Con esta versión, ModularIoT consolida una arquitectura donde cada capa —frontend, backend y operaciones— tiene herramientas de desarrollo, prueba y despliegue coherentes y automatizadas.

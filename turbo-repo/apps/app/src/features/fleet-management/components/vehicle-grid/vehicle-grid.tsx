@@ -13,12 +13,14 @@ interface VehicleGridProps {
   readonly vehicles: Vehicle[];
   readonly dict: I18nRecord;
   readonly onSelectVehicle?: (plate: string) => void;
+  readonly fetchLoading?: boolean;
 }
 
 export default function VehicleGrid({
   vehicles,
   dict,
   onSelectVehicle,
+  fetchLoading = false,
 }: VehicleGridProps) {
   const [isDetailed, setIsDetailed] = useState(true);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -118,9 +120,8 @@ export default function VehicleGrid({
           </button>
         </div>
       </div>
-      {
-        visibleVehicles.length === 0 ? (
-          <div className="flex flex-col justify-center items-center ">
+      {!fetchLoading && vehicles.length === 0 ? (
+        <div className="flex flex-col justify-center items-center ">
             <EmptyAnimation />
             <p className="text-lg text-gray-500 mt-5">
               {tr("vehicleGrid.emptyTitle", dict)}
@@ -129,10 +130,16 @@ export default function VehicleGrid({
               {tr("vehicleGrid.emptyDescription", dict)}
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {
-              visibleVehicles.map((vehicle) => (
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          {fetchLoading && vehicles.length === 0
+            ? Array.from({ length: 9 }, (_, i) => `skeleton-${i}`).map((skeletonKey) => (
+                <div
+                  key={skeletonKey}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 h-32 animate-pulse"
+                />
+              ))
+            : visibleVehicles.map((vehicle) => (
                 <VehicleCard
                   key={vehicle.id}
                   vehicle={vehicle}
@@ -140,11 +147,9 @@ export default function VehicleGrid({
                   isDetailed={isDetailed}
                   onSelect={onSelectVehicle}
                 />
-              ))
-            }
-          </div>
-        )
-      }
+              ))}
+        </div>
+      )}
       {hasMore && (
         <div ref={loaderRef} className="flex justify-center py-4">
           {isLoading && (

@@ -6,7 +6,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import VehicleCard from "./vehicle-card";
 import EmptyAnimation from "@/features/symptoms/components/empty-animation";
-import EmptyTable from "@/features/symptoms/components/empty-table";
 
 const ITEMS_PER_PAGE = 9;
 

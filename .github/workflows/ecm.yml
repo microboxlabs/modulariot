@@ -1,0 +1,62 @@
+# =============================================================================
+# ECM CI — ModularIoT Alfresco Extensions
+# =============================================================================
+# Builds and analyzes the Alfresco ECM modules (ecm-srv/).
+# Triggers only on changes within ecm-srv/.
+# Uses sonar-maven-plugin for SonarCloud (same pattern as quarkus.yml).
+# =============================================================================
+
+name: ECM CI
+
+on:
+  push:
+    paths:
+      - 'ecm-srv/**'
+    branches: [trunk, main]
+  pull_request:
+    paths:
+      - 'ecm-srv/**'
+    branches: [trunk, main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: "17"
+
+jobs:
+  build:
+    name: Build & Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: ecm-srv/pom.xml
+
+      - name: Build (skip integration tests)
+        run: mvn clean verify -DskipITs
+        working-directory: ecm-srv
+
+      - name: SonarCloud Scan
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        run: >
+          mvn sonar:sonar
+          -Dsonar.projectKey=microboxlabs_modulariot-ecm
+          -Dsonar.organization=microboxlabs
+          -Dsonar.host.url=https://sonarcloud.io
+        working-directory: ecm-srv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

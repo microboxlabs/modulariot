@@ -32,7 +32,7 @@ export default function DesktopSidebar({ dict }: Readonly<PropsWithI18nDict>) {
         }}
       >
         <div className="flex h-full flex-col justify-between dark:border-gray-700">
-          <div className="py-2">
+          <div className="">
             <SidebarItems>
               <SidebarItemGroup className="mt-0 border-t-0 pb-1 pt-0">
                 {items.map((item) => (

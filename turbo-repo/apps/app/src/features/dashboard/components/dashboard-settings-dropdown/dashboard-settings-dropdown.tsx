@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Button, TextInput, Textarea, FileInput, Label, Select } from "flowbite-react";
 import { FaGear } from "react-icons/fa6";
 import { ChevronLeft } from "flowbite-react-icons/outline";
@@ -8,6 +9,8 @@ import { HiArrowDownTray } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
+import { ConfirmModal } from "../confirm-modal";
+import { deleteDashboardConfigClient } from "@/features/common/providers/client-api.provider";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import type { DashboardFilterParam, RefreshInterval } from "../../types/dashboard.types";
@@ -17,7 +20,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | "refresh" | null;
+type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | "refresh" | "delete" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -640,10 +643,15 @@ export default function DashboardSettingsDropdown() {
     importDashboard,
     downloadDashboard,
     dictionary,
+    siteId,
   } = useDashboard();
+
+  const router = useRouter();
+  const params = useParams<{ lang: string; slug: string }>();
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const togglePanel = () => {
@@ -719,6 +727,30 @@ export default function DashboardSettingsDropdown() {
     },
     [setDashboardName]
   );
+
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteConfirm(true);
+    closePanel();
+  }, [closePanel]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!siteId || !params.slug) return;
+
+    try {
+      await deleteDashboardConfigClient(siteId, params.slug);
+
+      ShowNotification({
+        type: "success",
+        message: tr("dashboard.landing.deleteSuccess", dictionary),
+      });
+      router.push(`/${params.lang}/home`);
+    } catch {
+      ShowNotification({
+        type: "error",
+        message: tr("dashboard.landing.deleteError", dictionary),
+      });
+    }
+  }, [siteId, params.slug, params.lang, dictionary, router]);
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -802,8 +834,37 @@ export default function DashboardSettingsDropdown() {
             <PlannerManagerForm />
           </SettingsSection>
 
+          <SettingsSection
+            option="delete"
+            selected={selected}
+            setSelected={setSelected}
+            title={tr("dashboard.landing.delete_confirm_title", dictionary)}
+            description={tr("dashboard.settings.deleteDescription", dictionary)}
+          >
+            <div className="p-4">
+              <Button
+                color="failure"
+                size="sm"
+                onClick={handleDeleteClick}
+              >
+                {tr("dashboard.landing.delete_confirm_title", dictionary)}
+              </Button>
+            </div>
+          </SettingsSection>
+
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteConfirm}
+        title={tr("dashboard.landing.delete_confirm_title", dictionary)}
+        description={tr("dashboard.landing.delete_confirm_message", dictionary, {
+          name: dashboardName,
+        })}
+        confirmText={tr("dashboard.landing.delete_confirm_title", dictionary)}
+      />
     </div>
   );
 }

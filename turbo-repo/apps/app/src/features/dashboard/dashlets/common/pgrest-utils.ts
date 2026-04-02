@@ -1,4 +1,4 @@
-import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
 
 /** Coerce every value in a row to a string so downstream .localeCompare() is safe. */
 function stringifyValue(v: unknown): string {
@@ -63,17 +63,19 @@ export function buildDataSourceParams(
   return params;
 }
 
-/** Build the fetch URL and RequestInit for a PGREST RPC call. */
+/** Build the fetch URL and RequestInit for a PGREST call. */
 export function buildPgrestFetch(
   functionName: string,
   method: PgrestHttpMethod,
   params: PgrestParam[],
-  dataSourceId?: string
+  dataSourceId?: string,
+  pathMode: PgrestPathMode = "rpc",
 ): { url: string; init?: RequestInit } {
   const validParams = params.filter((p) => p.key && p.value != null);
   const baseUrl = `/app/api/dashboard/pgrest/${encodeURIComponent(functionName.trim())}`;
 
   const dsParams = buildDataSourceParams(dataSourceId);
+  if (pathMode === "table") dsParams.set("mode", "table");
 
   if (method === "POST") {
     const body: Record<string, string> = {};

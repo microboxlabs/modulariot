@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Button, ToggleSwitch } from "flowbite-react";
-import { HiPlus } from "react-icons/hi2";
+import { HiPlus, HiArrowUturnLeft, HiArrowUturnRight } from "react-icons/hi2";
 import {
   GridLayout,
   verticalCompactor,
@@ -34,6 +34,10 @@ export function DashboardView() {
     dictionary,
     toggleEditMode,
     updateWidgetLayouts,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useDashboard();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -73,6 +77,27 @@ export function DashboardView() {
       window.removeEventListener("resize", updateWidth);
     };
   }, [isLoaded]); // Re-run when isLoaded changes
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!editMode) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== "z") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (target?.isContentEditable) return;
+
+      e.preventDefault();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+    };
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
+  }, [editMode, undo, redo]);
 
   // Convert widgets to react-grid-layout format
   const layout: Layout = useMemo(
@@ -145,6 +170,28 @@ export function DashboardView() {
             {dashboardName}
           </h1>
           <div className="flex shrink-0 items-center gap-4">
+            {editMode && (
+              <div className="flex items-center gap-1">
+                <Button
+                  size="xs"
+                  color="light"
+                  onClick={undo}
+                  disabled={!canUndo()}
+                  title={`${tr("dashboard.undo", dictionary)} (Ctrl+Z)`}
+                >
+                  <HiArrowUturnLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="xs"
+                  color="light"
+                  onClick={redo}
+                  disabled={!canRedo()}
+                  title={`${tr("dashboard.redo", dictionary)} (Ctrl+Shift+Z)`}
+                >
+                  <HiArrowUturnRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
             {hasWidgets && (
               <ToggleSwitch
                 checked={editMode}

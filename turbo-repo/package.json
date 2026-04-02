@@ -8,6 +8,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "storm": "turbo run storm",
     "lint": "turbo run lint --filter='!@modulariot/web-admin'",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types --filter='!@modulariot/web-admin'",

@@ -32,12 +32,12 @@ export default function FleetManagementPage({
   const router = useRouter();
   const pathname = usePathname();
 
-  const { trucks, isLoading } = useFleetTrucks({ size: 100 });
+  const { trucks, isLoading } = useFleetTrucks();
 
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
 
   const kpis: FleetKpi[] = useMemo(() => {
-    if (isLoading || trucks.length === 0) return fleetKpis;
+    if (isLoading) return fleetKpis;
     return [
       {
         id: "total",

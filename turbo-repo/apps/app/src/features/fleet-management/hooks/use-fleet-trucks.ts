@@ -1,27 +1,48 @@
-import useSWR from "swr";
+import { useState, useEffect } from "react";
 import type { Truck } from "@microboxlabs/miot-resource-client";
 
-const fetcher = (url: string): Promise<Truck[]> =>
-  fetch(url).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json() as Promise<Truck[]>;
-  });
+const PAGE_SIZE = 100;
 
 const EMPTY: Truck[] = [];
 
-export function useFleetTrucks(params?: { page?: number; size?: number }) {
-  const query = new URLSearchParams();
-  if (params?.page !== undefined) query.set("page", String(params.page));
-  if (params?.size !== undefined) query.set("size", String(params.size));
-  const qs = query.toString();
+export function useFleetTrucks() {
+  const [trucks, setTrucks] = useState<Truck[]>(EMPTY);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const url = qs ? `/app/api/fleet/trucks?${qs}` : `/app/api/fleet/trucks`;
+  useEffect(() => {
+    let cancelled = false;
 
-  const { data, error, isLoading, mutate } = useSWR<Truck[]>(
-    url,
-    fetcher,
-    { errorRetryCount: 2, dedupingInterval: 30000 }
-  );
+    async function fetchAll() {
+      setIsLoading(true);
+      setError(null);
+      const all: Truck[] = [];
+      let page = 0;
+      try {
+        while (true) {
+          const r = await fetch(
+            `/app/api/fleet/trucks?page=${page}&size=${PAGE_SIZE}`
+          );
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const batch = (await r.json()) as Truck[];
+          all.push(...batch);
+          if (batch.length < PAGE_SIZE) break;
+          page++;
+        }
+        if (!cancelled) setTrucks(all);
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
 
-  return { trucks: data ?? EMPTY, error, isLoading, mutate };
+    void fetchAll();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { trucks, isLoading, error, mutate: undefined };
 }

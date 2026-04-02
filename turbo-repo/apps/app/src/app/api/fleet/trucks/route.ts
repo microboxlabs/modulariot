@@ -14,9 +14,8 @@ export async function GET(request: Request) {
   if (isPageParamsError(pageParams)) return pageParams.error;
   const { page, size } = pageParams;
 
-  const client = createResourceClient(authResult.session);
-
   try {
+    const client = createResourceClient(authResult.session);
     const trucks = await client.fleet.listTrucks({ page, size });
     return NextResponse.json(trucks);
   } catch (error) {

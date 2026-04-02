@@ -17,9 +17,8 @@ export async function GET(
     return NextResponse.json({ error: "Invalid truck ID" }, { status: 400 });
   }
 
-  const client = createResourceClient(authResult.session);
-
   try {
+    const client = createResourceClient(authResult.session);
     const truck = await client.fleet.getTruck(numericId);
     return NextResponse.json(truck);
   } catch (error) {

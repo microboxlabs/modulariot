@@ -20,9 +20,8 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const limit = searchParams.get("limit") ? Number(searchParams.get("limit")) : 50;
 
-  const client = createResourceClient(authResult.session);
-
   try {
+    const client = createResourceClient(authResult.session);
     const events = await client.fleet.listTruckEvents(numericId, { limit });
     return NextResponse.json(events);
   } catch (error) {

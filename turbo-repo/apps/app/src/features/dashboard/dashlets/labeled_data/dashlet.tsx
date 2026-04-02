@@ -180,6 +180,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || [],
+    pgrestPathMode: config.pgrestPathMode,
     plannerVariableName: config.plannerVariableName,
     fields: {
       name: config.name || "Metric",

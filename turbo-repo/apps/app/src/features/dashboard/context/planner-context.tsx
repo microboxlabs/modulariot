@@ -122,7 +122,8 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
               def.pgrestFunctionName,
               def.pgrestHttpMethod,
               resolvedParams,
-              def.dataSourceId
+              def.dataSourceId,
+              def.pgrestPathMode,
             );
             const res = await fetch(url, { ...init, signal: controller.signal });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);

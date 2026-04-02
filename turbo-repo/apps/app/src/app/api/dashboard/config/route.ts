@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import {
   getDashboardConfig,
   saveDashboardConfig,
+  deleteDashboardConfig,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
   handleApiError,
@@ -68,5 +69,35 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     return handleApiError(error, "saving dashboard config to Alfresco");
+  }
+}
+
+/**
+ * DELETE /api/dashboard/config
+ *
+ * Proxies to the Alfresco dashboard config webscript (POST /dashboard-config/delete).
+ * Body: { site: string, slug: string }
+ */
+export async function DELETE(request: NextRequest) {
+  const session = await auth();
+  if (!session) {
+    return unauthorizedResponse();
+  }
+
+  try {
+    const body = (await request.json()) as {
+      site?: string;
+      slug?: string;
+    };
+    const { site, slug } = body;
+
+    if (!site || !slug) {
+      return badRequestResponse("Missing required fields: site, slug");
+    }
+
+    const result = await deleteDashboardConfig(session, site, slug);
+    return NextResponse.json(result);
+  } catch (error) {
+    return handleApiError(error, "deleting dashboard config from Alfresco");
   }
 }

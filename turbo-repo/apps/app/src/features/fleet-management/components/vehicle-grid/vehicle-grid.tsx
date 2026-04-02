@@ -5,6 +5,7 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import VehicleCard from "./vehicle-card";
+import EmptyAnimation from "@/features/symptoms/components/empty-animation";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -80,7 +81,7 @@ export default function VehicleGrid({
   }, [hasMore, isLoading, loadMore]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 h-full">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -120,29 +121,15 @@ export default function VehicleGrid({
         </div>
       </div>
       {!fetchLoading && vehicles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-gray-400 dark:text-gray-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"
-              />
-            </svg>
+        <div className="flex flex-col justify-center items-center ">
+            <EmptyAnimation />
+            <p className="text-lg text-gray-500 mt-5">
+              {tr("vehicleGrid.emptyTitle", dict)}
+            </p>
+            <p className="text-sm font-light text-gray-400">
+              {tr("vehicleGrid.emptyDescription", dict)}
+            </p>
           </div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {tr("vehicleGrid.emptyTitle", dict)}
-          </p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 max-w-xs">
-            {tr("vehicleGrid.emptyDescription", dict)}
-          </p>
-        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {fetchLoading && vehicles.length === 0

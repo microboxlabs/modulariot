@@ -2606,6 +2606,8 @@
       "plate": "Plate",
       "lastSignal": "Last signal",
       "status": "Status",
+      "emptyTitle": "No vehicles found",
+      "emptyDescription": "There are no vehicles to display at this time",
       "tabs": {
         "trucks": "Trucks",
         "trailers": "Trailers",

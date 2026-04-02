@@ -12,7 +12,7 @@ interface KpiCardsRowProps {
 
 export default function KpiCardsRow({ kpis, dict }: KpiCardsRowProps) {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
+    <div className="flex gap-3 h-fit">
       {kpis.map((kpi) => (
         <KpiStat
           key={kpi.id}

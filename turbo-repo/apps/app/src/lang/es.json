@@ -2632,6 +2632,8 @@
       "maintenance": "Próx. Mantención",
       "kmTraveled": "Km Totales",
       "loading": "Cargando...",
+      "emptyTitle": "No hay vehículos en esta flota",
+      "emptyDescription": "Cuando se asignen vehículos a esta flota, aparecerán aquí.",
       "plate": "Patente",
       "lastSignal": "Última señal",
       "status": "Estado",

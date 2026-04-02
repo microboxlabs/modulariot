@@ -4,9 +4,9 @@ import { fetchPgrestSpec, parseDataSourceParam, type OpenApiPathItem } from "../
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const fn = url.searchParams.get("fn");
-  if (!fn || !/^[a-zA-Z_]\w*$/.test(fn)) {
+  if (!fn) {
     return NextResponse.json(
-      { error: "Invalid or missing function name." },
+      { error: "Missing path parameter." },
       { status: 400 }
     );
   }
@@ -15,13 +15,12 @@ export async function GET(req: NextRequest) {
     const result = await fetchPgrestSpec(parseDataSourceParam(req));
     if (result instanceof NextResponse) return result;
 
-    const mode = url.searchParams.get("mode") ?? "rpc";
-    const pathKey = mode === "table" ? `/${fn}` : `/rpc/${fn}`;
+    const pathKey = `/${fn}`;
     const pathItem: OpenApiPathItem | undefined = result.paths?.[pathKey];
 
     if (!pathItem) {
       return NextResponse.json(
-        { error: `Resource "${fn}" not found in OpenAPI spec.` },
+        { error: `Path "${fn}" not found in OpenAPI spec.` },
         { status: 404 }
       );
     }

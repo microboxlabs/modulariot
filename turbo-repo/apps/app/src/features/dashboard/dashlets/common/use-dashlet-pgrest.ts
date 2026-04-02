@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "./pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { EMPTY_PGREST_PARAMS } from "./pgrest-types";
 import type { DataProviderEntry } from "../types";
 import { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
@@ -19,7 +19,6 @@ export interface PgrestDashletFields {
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
-  pgrestPathMode?: PgrestPathMode;
   dataSourceId?: string;
   plannerVariableName?: string;
 }
@@ -69,7 +68,6 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
     pgrestFunctionName: config.pgrestFunctionName || "",
     pgrestHttpMethod: config.pgrestHttpMethod || "POST",
     pgrestParams: config.pgrestParams || EMPTY_PGREST_PARAMS,
-    pgrestPathMode: config.pgrestPathMode,
     fields,
     dataSourceId: config.dataSourceId,
     plannerVariableName: config.plannerVariableName,
@@ -106,7 +104,6 @@ export function useHybridPgrestContext(
     resolvedParams,
     config.dataSourceId,
     refreshIntervalMs,
-    config.pgrestPathMode,
   );
 
   const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(

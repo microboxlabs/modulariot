@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
-import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "../common/pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 import { usePgrestRows } from "../common/use-pgrest-rows";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
@@ -20,7 +20,6 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
-  pgrestPathMode?: PgrestPathMode;
   dataSourceId?: string;
   dataProvider?: DataProviderEntry[];
 }
@@ -71,7 +70,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
-    pgrestPathMode,
     dataSourceId,
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
@@ -88,7 +86,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     rows: pgrestRows,
     loading,
     fetchError,
-  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId, refreshIntervalMs, pgrestPathMode);
+  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId, refreshIntervalMs);
 
   // ── Build template context ────────────────────────────────────────────────
   const templateContext = useMemo(() => {

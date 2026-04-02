@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod, PgrestPathMode } from "../common/pgrest-types";
+import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { useDashletData, DashletLoading, DashletError } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
@@ -41,7 +41,6 @@ export interface DashletConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
-  pgrestPathMode?: PgrestPathMode;
   dataSourceId?: string;
   plannerVariableName?: string;
 }
@@ -131,7 +130,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     pgrestParams: config.pgrestParams ?? [],
-    pgrestPathMode: config.pgrestPathMode,
     dataSourceId: config.dataSourceId,
     plannerVariableName: config.plannerVariableName,
     refreshIntervalMs,

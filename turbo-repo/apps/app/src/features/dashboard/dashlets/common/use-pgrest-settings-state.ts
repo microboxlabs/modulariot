@@ -3,7 +3,6 @@ import type {
   PgrestParam,
   PgrestHttpMethod,
   PgrestParamItem,
-  PgrestPathMode,
 } from "./pgrest-types";
 import {
   toPgrestParamItems,
@@ -16,7 +15,6 @@ export interface PgrestSettingsStateConfig {
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
-  pgrestPathMode?: PgrestPathMode;
   dataSourceId?: string;
   /**
    * Called when columns are detected from a PGREST function call.
@@ -48,9 +46,6 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
   const [pgrestHttpMethod, setPgrestHttpMethod] = useState<PgrestHttpMethod>(
     cfg.pgrestHttpMethod ?? "POST",
   );
-  const [pgrestPathMode, setPgrestPathMode] = useState<PgrestPathMode>(
-    cfg.pgrestPathMode ?? "rpc",
-  );
 
   // Detect-columns state
   const [detecting, setDetecting] = useState(false);
@@ -75,7 +70,6 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
         methodOverride ?? pgrestHttpMethod,
         paramsOverride ?? fromPgrestParamItems(pgrestParams),
         cfg.dataSourceId,
-        pgrestPathMode,
       );
 
       const res = await fetch(url, init);
@@ -113,7 +107,6 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
     try {
       const introspectParams = buildDataSourceParams(cfg.dataSourceId);
       introspectParams.set("fn", fn);
-      if (pgrestPathMode === "table") introspectParams.set("mode", "table");
       const res = await fetch(
         `/app/api/dashboard/pgrest/openapi?${introspectParams.toString()}`,
       );
@@ -213,8 +206,6 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
     pgrestParams,
     pgrestHttpMethod,
     setPgrestHttpMethod,
-    pgrestPathMode,
-    setPgrestPathMode,
     detecting,
     detectError,
     introspecting,

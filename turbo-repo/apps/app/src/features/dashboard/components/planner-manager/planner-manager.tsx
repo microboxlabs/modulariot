@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { Button, TextInput, Label, Select } from "flowbite-react";
 import { HiPlus, HiTrash, HiChevronDown, HiChevronRight } from "react-icons/hi2";
-import type { PlannerRequestDefinition, PlannerParam, PlannerPathMode } from "../../types/dashboard.types";
+import type { PlannerRequestDefinition, PlannerParam } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
 import { PgrestFunctionAutocomplete } from "../../dashlets/common/pgrest-function-autocomplete";
 import { SettingsSelectField } from "../../dashlets/common/settings-fields";
@@ -42,14 +42,12 @@ const introspectionSchema = z.object({
 async function introspectFunction(
   functionName: string,
   dataSourceId?: string,
-  pathMode: PlannerPathMode = "rpc",
 ): Promise<IntrospectionResult> {
   const fn = functionName.trim();
-  if (!fn) throw new Error("Function name is empty");
+  if (!fn) throw new Error("Path is empty");
 
   const qs = buildDataSourceParams(dataSourceId);
   qs.set("fn", fn);
-  if (pathMode === "table") qs.set("mode", "table");
   const res = await fetch(`/app/api/dashboard/pgrest/openapi?${qs.toString()}`);
   if (!res.ok) throw new Error(`Introspection failed (${res.status})`);
 
@@ -124,7 +122,7 @@ function RequestEditor({
       setIntrospecting(true);
       setIntrospectionError(null);
       try {
-        const result = await introspectFunction(fn, def.dataSourceId, def.pgrestPathMode);
+        const result = await introspectFunction(fn, def.dataSourceId);
         onUpdate(def.id, {
           pgrestFunctionName: fn,
           pgrestHttpMethod: result.method,
@@ -139,7 +137,7 @@ function RequestEditor({
         setIntrospecting(false);
       }
     },
-    [def.id, def.dataSourceId, def.pgrestPathMode, onUpdate],
+    [def.id, def.dataSourceId, onUpdate],
   );
 
   const handleDataSourceChange = useCallback(
@@ -213,27 +211,6 @@ function RequestEditor({
             )}
           </div>
 
-          {/* Resource Type */}
-          <SettingsSelectField
-            id={`planner-mode-${def.id}`}
-            label={tr("dashboard.settings.resourceType", dictionary)}
-            value={def.pgrestPathMode ?? "rpc"}
-            onChange={(v) => {
-              onUpdate(def.id, {
-                pgrestPathMode: v as PlannerPathMode,
-                pgrestFunctionName: "",
-                pgrestHttpMethod: v === "table" ? "GET" : "POST",
-                pgrestParams: [],
-              });
-              setParamHints({});
-              setIntrospectionError(null);
-            }}
-            options={[
-              { value: "rpc", label: tr("dashboard.settings.pathModeRpc", dictionary) },
-              { value: "table", label: tr("dashboard.settings.pathModeTable", dictionary) },
-            ]}
-          />
-
           {/* Data Source Provider */}
           <div>
             <Label
@@ -261,12 +238,10 @@ function RequestEditor({
             </Select>
           </div>
 
-          {/* Function / Table Name (autocomplete) */}
+          {/* Path (autocomplete) */}
           <div>
             <Label htmlFor={`planner-fn-${def.id}`} className="mb-1 block text-xs font-medium">
-              {def.pgrestPathMode === "table"
-                ? tr("dashboard.settings.tableName", dictionary)
-                : tr("dashboard.settings.plannerFunctionName", dictionary)}
+              {tr("dashboard.settings.plannerFunctionName", dictionary)}
             </Label>
             <PgrestFunctionAutocomplete
               id={`planner-fn-${def.id}`}
@@ -276,7 +251,6 @@ function RequestEditor({
               dictionary={dictionary}
               dataSourceId={def.dataSourceId}
               loading={introspecting}
-              pathMode={def.pgrestPathMode}
             />
             {introspectionError && (
               <p className="mt-1 text-xs text-red-500 dark:text-red-400">

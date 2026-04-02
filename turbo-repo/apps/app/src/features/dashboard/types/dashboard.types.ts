@@ -80,22 +80,17 @@ export interface PlannerParam {
 /** HTTP method for planner requests */
 export type PlannerHttpMethod = "POST" | "GET";
 
-/** Path mode for planner requests (inline to avoid circular deps with pgrest-types) */
-export type PlannerPathMode = "rpc" | "table";
-
 /** A single named request definition in the Request Planner */
 export interface PlannerRequestDefinition {
   /** Unique identifier (UUID) */
   id: string;
   /** User-assigned variable name (e.g. "fleet_stats") */
   variableName: string;
-  /** PgREST function or table name */
+  /** PgREST path (e.g. "rpc/my_function" or "my_table") */
   pgrestFunctionName: string;
   /** HTTP method */
   pgrestHttpMethod: PlannerHttpMethod;
-  /** Path mode: "rpc" calls /rpc/name, "table" calls /name directly */
-  pgrestPathMode?: PlannerPathMode;
-  /** Parameters to pass to the function */
+  /** Parameters to pass */
   pgrestParams: PlannerParam[];
   /** Optional data source ID */
   dataSourceId?: string;

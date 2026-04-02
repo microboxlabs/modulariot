@@ -15,12 +15,13 @@ export async function GET(req: NextRequest) {
     const result = await fetchPgrestSpec(parseDataSourceParam(req));
     if (result instanceof NextResponse) return result;
 
-    const pathKey = `/rpc/${fn}`;
+    const mode = url.searchParams.get("mode") ?? "rpc";
+    const pathKey = mode === "table" ? `/${fn}` : `/rpc/${fn}`;
     const pathItem: OpenApiPathItem | undefined = result.paths?.[pathKey];
 
     if (!pathItem) {
       return NextResponse.json(
-        { error: `Function "${fn}" not found in OpenAPI spec.` },
+        { error: `Resource "${fn}" not found in OpenAPI spec.` },
         { status: 404 }
       );
     }

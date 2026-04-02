@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { parseDataSourceParam, resolvePgrestCredentials } from "../shared";
 import { logger } from "@/lib/logger";
-import { buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 

@@ -68,6 +68,7 @@ Some metrics are computed from raw data:
 | Key | Type | Derivation |
 |-----|------|------------|
 | `idle.state` | boolean | `engine.rpm > 0 AND vehicle.speed ≈ 0` |
+| `fuel.volume` | NUMBER | `fuel.level (%) × tank capacity (L) ÷ 100`, or direct from OEM source |
 
 Drivers can compute these locally or send raw data for platform-side derivation.
 

@@ -37,6 +37,7 @@ Las claves deben coincidir exactamente con una clave canónica registrada:
 ✓ engine.rpm
 ✓ vehicle.speed
 ✓ fuel.level
+✓ fuel.volume
 
 ✗ Engine.RPM       (mayúsculas no coinciden)
 ✗ engineRpm        (formato incorrecto)
@@ -111,6 +112,7 @@ Las métricas numéricas tienen rangos válidos definidos. Los valores fuera de 
 | Clave | Mín | Máx | Unidad | Notas |
 |-------|-----|-----|--------|-------|
 | `fuel.level` | 0 | 100 | % | Porcentaje del tanque |
+| `fuel.volume` | 0 | 1000 | L | Volumen absoluto en el tanque |
 | `fuel.rate` | 0 | 100 | L/h | Tasa instantánea |
 | `fuel.used` | 0 | — | L | Acumulativo (sin límite) |
 | `battery.voltage` | 0 | 30 | V | Cubre sistemas de 12V y 24V |

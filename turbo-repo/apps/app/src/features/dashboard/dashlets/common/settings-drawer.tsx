@@ -41,7 +41,7 @@ export function SettingsDrawer({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   return createPortal(
     <div
@@ -49,6 +49,8 @@ export function SettingsDrawer({
         "fixed inset-0 z-[800] transition-all duration-300",
         open ? "visible opacity-100" : "invisible opacity-0",
       )}
+      role="button"
+      tabIndex={0}
       onMouseDown={(e) => {
         mouseDownOnBackdrop.current = e.target === e.currentTarget;
       }}

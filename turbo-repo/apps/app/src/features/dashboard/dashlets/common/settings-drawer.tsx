@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { HiXMark } from "react-icons/hi2";
@@ -29,6 +29,18 @@ export function SettingsDrawer({
 }: Readonly<SettingsDrawerProps>) {
   const mouseDownOnBackdrop = useRef(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
   if (typeof globalThis.window === "undefined") return null;
 
   return createPortal(
@@ -46,13 +58,6 @@ export function SettingsDrawer({
         }
         mouseDownOnBackdrop.current = false;
       }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-      aria-label="Close settings"
     >
       <div
         className={twMerge(

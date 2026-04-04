@@ -49,8 +49,7 @@ export function SettingsDrawer({
         "fixed inset-0 z-[800] transition-all duration-300",
         open ? "visible opacity-100" : "invisible opacity-0",
       )}
-      role="button"
-      tabIndex={0}
+      aria-hidden="true"
       onMouseDown={(e) => {
         mouseDownOnBackdrop.current = e.target === e.currentTarget;
       }}

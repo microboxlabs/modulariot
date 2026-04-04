@@ -29,7 +29,7 @@ export function SettingsDrawer({
 }: Readonly<SettingsDrawerProps>) {
   const mouseDownOnBackdrop = useRef(false);
 
-  if (typeof window === "undefined") return null;
+  if (typeof globalThis.window === "undefined") return null;
 
   return createPortal(
     <div
@@ -37,7 +37,6 @@ export function SettingsDrawer({
         "fixed inset-0 z-[800] transition-all duration-300",
         open ? "visible opacity-100" : "invisible opacity-0",
       )}
-      role="presentation"
       onMouseDown={(e) => {
         mouseDownOnBackdrop.current = e.target === e.currentTarget;
       }}

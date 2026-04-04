@@ -49,25 +49,28 @@ export function SettingsDrawer({
         "fixed inset-0 z-[800] transition-all duration-300",
         open ? "visible opacity-100" : "invisible opacity-0",
       )}
-      aria-hidden="true"
-      onMouseDown={(e) => {
-        mouseDownOnBackdrop.current = e.target === e.currentTarget;
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
-          onClose();
-        }
-        mouseDownOnBackdrop.current = false;
-      }}
     >
       <div
         className={twMerge(
           "absolute inset-0 bg-black/20 transition-opacity duration-300",
           open ? "opacity-100" : "opacity-0",
         )}
+        aria-hidden="true"
+        onMouseDown={(e) => {
+          mouseDownOnBackdrop.current = e.target === e.currentTarget;
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
+            onClose();
+          }
+          mouseDownOnBackdrop.current = false;
+        }}
       />
 
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
         className={twMerge(
           "no-drag absolute top-0 right-0 h-full max-w-full transform border-l border-gray-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
           open ? "translate-x-0" : "translate-x-full",

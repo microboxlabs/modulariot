@@ -3,10 +3,11 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "flowbite-react";
+import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { SettingsDrawer } from "./settings-drawer";
+import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import type { UseDataProviderReturn } from "./use-data-provider";
 import { DataProviderEntries } from "./data-provider-entries";
 
@@ -71,11 +72,19 @@ export function TabbedSettingsWrapper({
 }: Readonly<TabbedSettingsWrapperProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
+  if (globalThis.window === undefined) return null;
+
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
-  return (
-    <SettingsDrawer open={isOpen} onClose={onClose}>
-      <div className="flex h-full flex-col gap-3">
+  const modalContent = (
+    <AbsoluteModal
+      selected={isOpen}
+      setSelected={(s) => {
+        if (!s) onClose();
+      }}
+      className="no-drag w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+    >
+      <div className="flex w-full flex-col gap-3 max-h-[70vh]">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <TabButton
@@ -124,6 +133,8 @@ export function TabbedSettingsWrapper({
           {tr("common.save", dictionary)}
         </Button>
       </div>
-    </SettingsDrawer>
+    </AbsoluteModal>
   );
+
+  return createPortal(modalContent, document.body);
 }

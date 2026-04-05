@@ -7,7 +7,7 @@ import java.util.concurrent.CompletionStage;
 import org.jboss.logging.Logger;
 
 /**
- * Default (standalone) message publisher that logs messages without sending them.
+ * Standalone message publisher that logs messages without sending them.
  * Used when no external broker is configured ({@code miot.messaging.type=log} or unset).
  */
 @ApplicationScoped

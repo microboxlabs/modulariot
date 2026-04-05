@@ -2,7 +2,7 @@ package com.microboxlabs.miot.tracking.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.messaging.IMessagePublisher;
-import io.quarkus.arc.lookup.LookupIfProperty;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -24,7 +24,7 @@ import org.jboss.logging.Logger;
  * <p>Activated when {@code miot.messaging.type=pulsar}.
  */
 @ApplicationScoped
-@LookupIfProperty(name = "miot.messaging.type", stringValue = "pulsar")
+@IfBuildProperty(name = "miot.messaging.type", stringValue = "pulsar")
 public class PulsarMessagePublisher implements IMessagePublisher {
 
     private static final Logger LOG = Logger.getLogger(PulsarMessagePublisher.class);

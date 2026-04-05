@@ -17,6 +17,7 @@
         <module>miot-resource-core</module>
         <module>miot-fleet</module>
         <module>miot-driver</module>
+        <module>miot-tracking</module>
         <module>miot-cli</module>
     </modules>
 
@@ -62,8 +63,27 @@
                 <artifactId>miot-driver</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-tracking</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cl.streamhub</groupId>
+                <artifactId>gps-model</artifactId>
+                <version>1.4.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>artifact-registry</id>
+            <url>artifactregistry://us-central1-maven.pkg.dev/mainbox-378714/mainbox-maven</url>
+            <releases/>
+            <snapshots/>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>
@@ -107,6 +127,13 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <extensions>
+            <extension>
+                <groupId>com.google.cloud.artifactregistry</groupId>
+                <artifactId>artifactregistry-maven-wagon</artifactId>
+                <version>2.2.0</version>
+            </extension>
+        </extensions>
     </build>
 
     <profiles>

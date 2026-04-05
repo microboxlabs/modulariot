@@ -44,22 +44,20 @@ public class PulsarMessagePublisher implements IMessagePublisher {
     }
 
     private PulsarClient getClient() throws PulsarClientException {
-        if (client == null) {
-            clientLock.lock();
-            try {
-                if (client == null) {
-                    client = PulsarClient.builder()
-                            .serviceUrl(serviceUrl)
-                            .connectionTimeout(5, TimeUnit.SECONDS)
-                            .operationTimeout(10, TimeUnit.SECONDS)
-                            .build();
-                    LOG.infof("Pulsar client connected to %s", serviceUrl);
-                }
-            } finally {
-                clientLock.unlock();
+        clientLock.lock();
+        try {
+            if (client == null) {
+                client = PulsarClient.builder()
+                        .serviceUrl(serviceUrl)
+                        .connectionTimeout(5, TimeUnit.SECONDS)
+                        .operationTimeout(10, TimeUnit.SECONDS)
+                        .build();
+                LOG.infof("Pulsar client connected to %s", serviceUrl);
             }
+            return client;
+        } finally {
+            clientLock.unlock();
         }
-        return client;
     }
 
     private Producer<String> getProducer(String topic) throws PulsarClientException {

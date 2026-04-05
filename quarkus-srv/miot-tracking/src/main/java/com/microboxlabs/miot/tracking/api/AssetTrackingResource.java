@@ -181,8 +181,8 @@ public class AssetTrackingResource {
                         clientId, requestId, metricErrors);
 
                 Map<String, Object> response = new HashMap<>();
-                response.put("status", "validation_error");
-                response.put("message", "Metric validation failed");
+                response.put(KEY_STATUS, "validation_error");
+                response.put(KEY_MESSAGE, "Metric validation failed");
                 response.put("errors", metricErrors);
 
                 return Optional.of(

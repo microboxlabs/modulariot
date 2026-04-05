@@ -13,6 +13,7 @@ import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
+import { KioskShell } from "./kiosk-shell";
 
 export default async function SecuredLayout({
   children,
@@ -26,25 +27,27 @@ export default async function SecuredLayout({
   return (
     <RuntimeConfigProvider>
     <SidebarProvider initialCollapsed={(await sidebarCookie.get()).isCollapsed}>
-      <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
-      <SecuredNavbar
-        messages={navBarMessages}
-        dict={dictionary as I18nRecord}
-        initialOrgLogo={initialOrgLogo}
-      />
-      <div
-        data-testid="content-with-sidebar"
-        className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"
-      >
-        <SecuredSidebar
-          dict={
-            ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
-              ?.sidebar as I18nRecord
-          }
+      <KioskShell>
+        <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
+        <SecuredNavbar
+          messages={navBarMessages}
+          dict={dictionary as I18nRecord}
+          initialOrgLogo={initialOrgLogo}
         />
-        <LayoutContent>{children}</LayoutContent>
-      </div>
-      <FooterSecuredLayout messages={dict} />
+        <div
+          data-testid="content-with-sidebar"
+          className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"
+        >
+          <SecuredSidebar
+            dict={
+              ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
+                ?.sidebar as I18nRecord
+            }
+          />
+          <LayoutContent>{children}</LayoutContent>
+        </div>
+        <FooterSecuredLayout messages={dict} />
+      </KioskShell>
     </SidebarProvider>
     </RuntimeConfigProvider>
   );

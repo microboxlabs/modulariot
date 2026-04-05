@@ -11,6 +11,7 @@ import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jose4j.jwk.HttpsJwks;
@@ -23,13 +24,16 @@ import org.jboss.logging.Logger;
 import io.vertx.ext.web.RoutingContext;
 
 /**
- * Dual-algorithm JWT authentication mechanism for Auth0.
+ * Path-based JWT authentication mechanism for Auth0.
  *
- * <p>Tries HS256 (M2M symmetric key from secret.jwk) first, then falls back
- * to RS256 (Auth0 JWKS endpoint) for web application tokens.
+ * <p>Routes token verification by request path:
+ * <ul>
+ *   <li><b>M2M paths</b> ({@code /api/v1/asset/track}, {@code /api/v1/stream/*}) → HS256 via shared secret</li>
+ *   <li><b>Web paths</b> ({@code /api/v1/orgs/*}, etc.) → RS256 via Auth0 JWKS endpoint</li>
+ * </ul>
  *
- * <p>Replaces SmallRye JWT's built-in mechanism to support both token types
- * from the same Auth0 tenant.
+ * <p>No fallback chain — each path uses exactly one verification strategy.
+ * This avoids wasted verification attempts and makes auth failures unambiguous.
  */
 @ApplicationScoped
 @Alternative
@@ -48,24 +52,26 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     @ConfigProperty(name = "miot.auth.hs256-secret", defaultValue = "not-configured")
     String hs256Secret;
 
+    /** Paths that use HS256 M2M tokens. Matched as prefix. */
+    @ConfigProperty(name = "miot.auth.m2m-paths",
+            defaultValue = "/api/v1/asset/,/api/v1/stream/,/api/v1/tasks/")
+    List<String> m2mPaths;
+
     private JwtConsumer hs256Consumer;
     private JwtConsumer rs256Consumer;
+
     @PostConstruct
     void init() {
-
-        // HS256 consumer (M2M tokens)
         if (!"not-configured".equals(hs256Secret)) {
-            byte[] secretBytes = hs256Secret.getBytes();
             hs256Consumer = new JwtConsumerBuilder()
-                    .setVerificationKey(new HmacKey(secretBytes))
+                    .setVerificationKey(new HmacKey(hs256Secret.getBytes()))
                     .setExpectedIssuer(issuer)
                     .setRequireExpirationTime()
                     .setSkipDefaultAudienceValidation()
                     .build();
-            LOG.info("HS256 JWT verification configured for M2M tokens");
+            LOG.infof("HS256 verification configured for M2M paths: %s", m2mPaths);
         }
 
-        // RS256 consumer (web app tokens via JWKS)
         if (!"not-configured".equals(jwksUrl)) {
             HttpsJwks httpsJwks = new HttpsJwks(jwksUrl);
             rs256Consumer = new JwtConsumerBuilder()
@@ -74,7 +80,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                     .setRequireExpirationTime()
                     .setSkipDefaultAudienceValidation()
                     .build();
-            LOG.info("RS256 JWT verification configured via JWKS: " + jwksUrl);
+            LOG.infof("RS256 verification configured via JWKS for web paths");
         }
     }
 
@@ -87,39 +93,40 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         }
 
         String token = authHeader.substring(BEARER_PREFIX.length()).trim();
+        String path = context.request().path();
+        boolean isM2m = isM2mPath(path);
 
         return Uni.createFrom().item(() -> {
-            // Try HS256 first (M2M — most common for IoT devices)
-            if (hs256Consumer != null) {
-                try {
-                    JwtClaims claims = hs256Consumer.processToClaims(token);
-                    LOG.debugf("Token verified via HS256. sub=%s", claims.getSubject());
-                    return createIdentity(token, claims);
-                } catch (Exception e) {
-                    LOG.warnf("HS256 verification failed, trying RS256: %s", e.getMessage());
-                }
+            JwtConsumer consumer = isM2m ? hs256Consumer : rs256Consumer;
+            String alg = isM2m ? "HS256" : "RS256";
+
+            if (consumer == null) {
+                LOG.warnf("%s verification not configured for path: %s", alg, path);
+                return null;
             }
 
-            // Fall back to RS256 (web app tokens)
-            if (rs256Consumer != null) {
-                try {
-                    JwtClaims claims = rs256Consumer.processToClaims(token);
-                    LOG.debugf("Token verified via RS256. sub=%s", claims.getSubject());
-                    return createIdentity(token, claims);
-                } catch (Exception e) {
-                    LOG.warnf("RS256 verification failed: %s", e.getMessage());
-                }
+            try {
+                JwtClaims claims = consumer.processToClaims(token);
+                LOG.debugf("Token verified via %s for path %s. sub=%s", alg, path, claims.getSubject());
+                return createIdentity(token, claims);
+            } catch (Exception e) {
+                LOG.debugf("%s verification failed for path %s: %s", alg, path, e.getMessage());
+                return null;
             }
-
-            LOG.warn("JWT verification failed for all algorithms");
-            return null;
         });
+    }
+
+    private boolean isM2mPath(String path) {
+        for (String prefix : m2mPaths) {
+            if (path.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private SecurityIdentity createIdentity(String token, JwtClaims claims) {
         try {
-            // Build a DefaultJWTCallerPrincipal directly from the already-verified claims
-            // This avoids re-verification and is compatible with JsonWebToken injection
             DefaultJWTCallerPrincipal principal = new DefaultJWTCallerPrincipal(token, claims);
             return io.quarkus.security.runtime.QuarkusSecurityIdentity.builder()
                     .setPrincipal(principal)
@@ -133,7 +140,6 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
 
     private Set<String> extractRoles(JwtClaims claims) {
         try {
-            // Auth0 puts roles in "scope" (space-separated) or "role" claim
             Object scope = claims.getClaimValue("scope");
             if (scope instanceof String s) {
                 return Set.of(s.split("\\s+"));
@@ -152,5 +158,4 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     public Uni<ChallengeData> getChallenge(RoutingContext context) {
         return Uni.createFrom().item(new ChallengeData(401, "WWW-Authenticate", "Bearer"));
     }
-
 }

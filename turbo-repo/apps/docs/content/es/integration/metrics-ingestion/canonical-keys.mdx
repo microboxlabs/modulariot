@@ -73,6 +73,14 @@ Las claves canónicas proporcionan una capa de abstracción única que normaliza
 | 1213 | 65226 | `dtc.mil_on` | boolean | Estado de lámpara DM1 |
 | DM1 | 65226 | `dtc.codes` | array | Códigos de falla activos |
 
+## Métricas Derivadas
+
+Algunas métricas se calculan a partir de datos sin procesar:
+
+| Clave | Tipo | Derivación |
+|-------|------|------------|
+| `fuel.volume` | NUMBER | `fuel.level (%) × capacidad del tanque (L) ÷ 100`, o directo desde fuente OEM |
+
 ## Convenciones de Unidades
 
 ModularIoT usa unidades métricas SI consistentes:

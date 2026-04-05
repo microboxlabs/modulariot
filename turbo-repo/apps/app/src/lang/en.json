@@ -297,7 +297,7 @@
           "leadTimeLocCount": "{count} LOC",
           "leadTimeLocLines": "{count} LOC lines",
           "serviceCategory": "Service Category",
-          "serviceCategoryLoading": "Loading\u2026",
+          "serviceCategoryLoading": "Loading…",
           "serviceCategoryPlaceholder": "Select category",
           "presentationDate": "Presentation Date",
           "departureDate": "Departure Date",
@@ -2601,9 +2601,32 @@
       "maintenance": "Next Maint.",
       "kmTraveled": "Total Km",
       "loading": "Loading...",
+      "emptyTitle": "No vehicles in this fleet",
+      "emptyDescription": "When vehicles are assigned to this fleet, they will appear here.",
       "plate": "Plate",
       "lastSignal": "Last signal",
-      "status": "Status"
+      "status": "Status",
+      "emptyTitle": "No vehicles found",
+      "emptyDescription": "There are no vehicles to display at this time",
+      "tabs": {
+        "trucks": "Trucks",
+        "trailers": "Trailers",
+        "carriers": "Carriers"
+      },
+      "truckCount": "{count} trucks",
+      "trailerCount": "{count} trailers",
+      "carrierCount": "{count} carriers",
+      "noData": "No data available",
+      "errorLoading": "Failed to load fleet data",
+      "vin": "VIN",
+      "year": "Year",
+      "maxWeight": "Max Weight",
+      "truckType": "Type",
+      "axleCount": "Axles",
+      "externalId": "External ID",
+      "rut": "RUT",
+      "transportLicense": "Transport License",
+      "carrierName": "Carrier Name"
     },
     "status": {
       "active": "Active",
@@ -2723,7 +2746,7 @@
           "odometerSinceOrigin": "Odometer since origin",
           "monthlyContractualConsumption": "Monthly contractual consumption",
           "deviationFromAverage": "Deviation from average",
-          "kmTraveledThisMonth": "Km traveled this month", 
+          "kmTraveledThisMonth": "Km traveled this month",
           "kmRemainingThisMonth": "Km remaining this month",
           "avgDaily": "Average daily",
           "operationHours": "Operation hours",
@@ -2749,7 +2772,11 @@
           "brand": "Brand",
           "carrier": "Carrier",
           "driver": "Driver",
-          "location": "Last Location"
+          "location": "Last Location",
+          "vin": "VIN",
+          "year": "Year",
+          "maxWeight": "Max Weight (kg)",
+          "externalId": "External ID"
         }
       }
     },

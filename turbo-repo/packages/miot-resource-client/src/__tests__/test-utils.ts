@@ -13,6 +13,7 @@ export function createMockFetch<T>(response: T, status = 200) {
       ok: status >= 200 && status < 300,
       status,
       json: async () => response,
+      text: async () => JSON.stringify(response),
     } as Response;
   };
   return { fn, call };

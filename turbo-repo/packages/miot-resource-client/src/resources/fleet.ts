@@ -9,12 +9,11 @@ import type {
   StatusChangeRequest,
   Trailer,
   Truck,
-  Vehicle,
 } from "../types.js";
 
-const BASE = "/api/v1/fleet";
+export function createFleetApi(fetcher: Fetcher, organizationId: string) {
+  const BASE = `/api/v1/orgs/${organizationId}/fleet`;
 
-export function createFleetApi(fetcher: Fetcher) {
   return {
     // --- Trucks ---
 
@@ -80,12 +79,6 @@ export function createFleetApi(fetcher: Fetcher) {
 
     listCarrierEvents(id: number, params?: { limit?: number }): Promise<EntityEvent[]> {
       return fetcher("GET", `${BASE}/carriers/${id}/events`, { query: params });
-    },
-
-    // --- Vehicles (read-only legacy) ---
-
-    listVehicles(): Promise<Vehicle[]> {
-      return fetcher("GET", `${BASE}/vehicles`);
     },
   };
 }

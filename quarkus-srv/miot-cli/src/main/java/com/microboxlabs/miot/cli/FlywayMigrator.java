@@ -43,6 +43,7 @@ public class FlywayMigrator {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
                 .locations(locations.toArray(String[]::new))
+                .outOfOrder(true)
                 .load();
 
         flyway.migrate();

@@ -9,7 +9,6 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.tracking.errors.PublishPulsarError;
 import com.microboxlabs.miot.tracking.service.AssetTrackingService;
 import io.quarkus.arc.properties.IfBuildProperty;
-import jakarta.inject.Inject;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import jakarta.ws.rs.Consumes;
@@ -47,15 +46,19 @@ import org.jboss.logging.Logger;
 public class AssetTrackingResource {
 
     private static final Logger logger = Logger.getLogger(AssetTrackingResource.class);
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_MESSAGE = "message";
 
-    @Inject
-    AssetTrackingService trackingService;
+    private final AssetTrackingService trackingService;
+    private final TenantContext tenantContext;
+    private final Validator validator;
 
-    @Inject
-    TenantContext tenantContext;
-
-    @Inject
-    Validator validator;
+    AssetTrackingResource(AssetTrackingService trackingService, TenantContext tenantContext,
+            Validator validator) {
+        this.trackingService = trackingService;
+        this.tenantContext = tenantContext;
+        this.validator = validator;
+    }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -88,7 +91,7 @@ public class AssetTrackingResource {
             var instant = Instant.ofEpochSecond(requestTimestamp.longValue());
             return trackingService.trackAsset(assetTrackingData, requestId, instant)
                     .thenApply(v -> Response.ok(
-                            Map.of("status", "success", "message", "Message sent successfully"))
+                            Map.of(KEY_STATUS, "success", KEY_MESSAGE, "Message sent successfully"))
                             .build())
                     .exceptionally(ex -> {
                         logger.errorf(ex,
@@ -155,8 +158,8 @@ public class AssetTrackingResource {
                     clientId, requestId, formatViolations(violations));
 
             Map<String, Object> response = new HashMap<>();
-            response.put("status", "validation_error");
-            response.put("message", "Request validation failed");
+            response.put(KEY_STATUS, "validation_error");
+            response.put(KEY_MESSAGE, "Request validation failed");
             response.put(
                     "errors",
                     violations.stream()
@@ -216,8 +219,8 @@ public class AssetTrackingResource {
 
     private Map<String, Object> createErrorResponse(String message, String detail) {
         Map<String, Object> response = new HashMap<>();
-        response.put("status", "error");
-        response.put("message", message);
+        response.put(KEY_STATUS, "error");
+        response.put(KEY_MESSAGE, message);
         if (detail != null && !detail.trim().isEmpty()) {
             response.put("detail", detail);
         }

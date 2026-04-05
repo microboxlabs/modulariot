@@ -11,8 +11,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
-import jakarta.enterprise.inject.Instance;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,8 +30,8 @@ import org.jose4j.keys.resolvers.HttpsJwksVerificationKeyResolver;
  *
  * <p>Routes token verification by resource annotation:
  * <ul>
- *   <li>Resources annotated with {@link M2MAuth} → HS256 (shared secret)</li>
- *   <li>All other {@code /api/*} resources → RS256 (Auth0 JWKS)</li>
+ *   <li>Resources annotated with {@link M2MAuth} -> HS256 (shared secret)</li>
+ *   <li>All other {@code /api/*} resources -> RS256 (Auth0 JWKS)</li>
  * </ul>
  *
  * <p>M2M paths are auto-discovered at startup by scanning CDI beans
@@ -46,28 +44,33 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
 
     private static final Logger LOG = Logger.getLogger(DualJwtAuthMechanism.class);
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String NOT_CONFIGURED = "not-configured";
 
-    @ConfigProperty(name = "mp.jwt.verify.issuer", defaultValue = "https://placeholder.auth0.com/")
-    String issuer;
-
-    @ConfigProperty(name = "miot.auth.jwks-url", defaultValue = "not-configured")
-    String jwksUrl;
-
-    @ConfigProperty(name = "miot.auth.hs256-secret", defaultValue = "not-configured")
-    String hs256Secret;
-
-    @Inject
-    Instance<Object> allBeans;
+    private final String issuer;
+    private final String jwksUrl;
+    private final String hs256Secret;
 
     private JwtConsumer hs256Consumer;
     private JwtConsumer rs256Consumer;
     private List<String> m2mPathPrefixes;
 
+    DualJwtAuthMechanism(
+            @ConfigProperty(name = "mp.jwt.verify.issuer", defaultValue = "https://placeholder.auth0.com/")
+                    String issuer,
+            @ConfigProperty(name = "miot.auth.jwks-url", defaultValue = NOT_CONFIGURED)
+                    String jwksUrl,
+            @ConfigProperty(name = "miot.auth.hs256-secret", defaultValue = NOT_CONFIGURED)
+                    String hs256Secret) {
+        this.issuer = issuer;
+        this.jwksUrl = jwksUrl;
+        this.hs256Secret = hs256Secret;
+    }
+
     @PostConstruct
     void init() {
         m2mPathPrefixes = discoverM2mPaths();
 
-        if (!"not-configured".equals(hs256Secret)) {
+        if (!NOT_CONFIGURED.equals(hs256Secret)) {
             hs256Consumer = new JwtConsumerBuilder()
                     .setVerificationKey(new HmacKey(hs256Secret.getBytes()))
                     .setExpectedIssuer(issuer)
@@ -77,7 +80,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
             LOG.infof("HS256 verification configured for @M2MAuth paths: %s", m2mPathPrefixes);
         }
 
-        if (!"not-configured".equals(jwksUrl)) {
+        if (!NOT_CONFIGURED.equals(jwksUrl)) {
             HttpsJwks httpsJwks = new HttpsJwks(jwksUrl);
             rs256Consumer = new JwtConsumerBuilder()
                     .setVerificationKeyResolver(new HttpsJwksVerificationKeyResolver(httpsJwks))
@@ -89,10 +92,6 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         }
     }
 
-    /**
-     * Scan all CDI beans for @M2MAuth + @Path annotations
-     * to build the M2M path prefix list.
-     */
     private List<String> discoverM2mPaths() {
         List<String> paths = new ArrayList<>();
         for (var bean : io.quarkus.arc.Arc.container().beanManager().getBeans(Object.class)) {

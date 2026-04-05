@@ -5,11 +5,11 @@ import com.microboxlabs.miot.core.messaging.IMessagePublisher;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -29,18 +29,24 @@ public class PulsarMessagePublisher implements IMessagePublisher {
 
     private static final Logger LOG = Logger.getLogger(PulsarMessagePublisher.class);
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "pulsar.client.serviceUrl", defaultValue = "pulsar://localhost:6650")
-    String serviceUrl;
-
-    private volatile PulsarClient client;
+    private final ObjectMapper objectMapper;
+    private final String serviceUrl;
+    private final ReentrantLock clientLock = new ReentrantLock();
     private final ConcurrentHashMap<String, Producer<String>> producers = new ConcurrentHashMap<>();
+    private PulsarClient client;
+
+    PulsarMessagePublisher(
+            ObjectMapper objectMapper,
+            @ConfigProperty(name = "pulsar.client.serviceUrl", defaultValue = "pulsar://localhost:6650")
+                    String serviceUrl) {
+        this.objectMapper = objectMapper;
+        this.serviceUrl = serviceUrl;
+    }
 
     private PulsarClient getClient() throws PulsarClientException {
         if (client == null) {
-            synchronized (this) {
+            clientLock.lock();
+            try {
                 if (client == null) {
                     client = PulsarClient.builder()
                             .serviceUrl(serviceUrl)
@@ -49,6 +55,8 @@ public class PulsarMessagePublisher implements IMessagePublisher {
                             .build();
                     LOG.infof("Pulsar client connected to %s", serviceUrl);
                 }
+            } finally {
+                clientLock.unlock();
             }
         }
         return client;

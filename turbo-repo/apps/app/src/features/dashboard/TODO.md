@@ -3,17 +3,20 @@
 ## P0 - Critical / Blocking
 
 - [x] **Test Coverage** - Add unit tests for `use-dashboard-storage`, `dashboard-context`, `dashboard-filters-context`, `planner-context`, widget tree operations, filter resolution, pgrest utilities
-    # Run all dashboard tests                                                                                                                      
-  cd turbo-repo/apps/app && npx vitest run src/features/dashboard/                                                                             
 
-  # Watch mode (re-runs on file changes)                                                                                                         
+  ```bash
+  # Run all dashboard tests
+  cd turbo-repo/apps/app && npx vitest run src/features/dashboard/
+
+  # Watch mode (re-runs on file changes)
   cd turbo-repo/apps/app && npx vitest src/features/dashboard/
-                                                                                                                                                 
-  # With coverage report                                                                                                                       
-  cd turbo-repo/apps/app && npx vitest run --coverage src/features/dashboard/                                                                    
-                                                            
+
+  # With coverage report
+  cd turbo-repo/apps/app && npx vitest run --coverage src/features/dashboard/
+
   # Run a specific test file
   cd turbo-repo/apps/app && npx vitest run src/features/dashboard/dashlets/common/pgrest-utils.test.ts
+  ```
 - [x] **Chart Widget (echarts)** - Create `chart` dashlet supporting line, bar, pie, gauge, scatter via echarts-for-react. Settings modal with series config, axis labels, legend, colors, data source (pgrest/planner/static)
 - [ ] **Auto-Refresh / Polling** - Configurable `refreshInterval` (10s, 30s, 60s, 5m, off) at dashboard and per-widget level. Implement via SWR `refreshInterval` in `usePgrestRows` and `PlannerProvider`
 - [ ] **Widget Duplication** - "Duplicate" button in `WidgetControls` (edit mode). Deep-clone widget + children with new UUIDs, place adjacent in grid

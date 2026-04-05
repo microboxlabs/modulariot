@@ -13,6 +13,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.HeaderParam;
+import java.util.concurrent.CompletionStage;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -58,7 +59,7 @@ public class AssetTrackingResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @SecurityRequirement(name = "oidc")
-    public Response track(
+    public CompletionStage<Response> track(
             @Parameter(description = "Asset tracking data", required = true)
                     AssetTrackingData assetTrackingData,
             @Parameter(description = "Unique request identifier for tracking", required = true)
@@ -78,14 +79,24 @@ public class AssetTrackingResource {
             Optional<Response> validationError =
                     validateRequest(assetTrackingData, requestTimestamp, clientId, requestId);
             if (validationError.isPresent()) {
-                return validationError.get();
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                        validationError.get());
             }
 
             var instant = Instant.ofEpochSecond(requestTimestamp.longValue());
-            trackingService.trackAsset(assetTrackingData, requestId, instant);
-
-            return Response.ok(Map.of("status", "success", "message", "Message sent successfully"))
-                    .build();
+            return trackingService.trackAsset(assetTrackingData, requestId, instant)
+                    .thenApply(v -> Response.ok(
+                            Map.of("status", "success", "message", "Message sent successfully"))
+                            .build())
+                    .exceptionally(ex -> {
+                        logger.errorf(ex,
+                                "Publishing failed for Client ID: %s, Request ID: %s",
+                                clientId, requestId);
+                        return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                                .entity(createErrorResponse(
+                                        "Failed to publish message", ex.getMessage()))
+                                .build();
+                    });
 
         } catch (PublishPulsarError e) {
             logger.errorf(
@@ -93,17 +104,19 @@ public class AssetTrackingResource {
                     "Pulsar publishing failed for Client ID: %s, Request ID: %s",
                     clientId,
                     requestId);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(createErrorResponse("Failed to publish message", e.getMessage()))
-                    .build();
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                            .entity(createErrorResponse("Failed to publish message", e.getMessage()))
+                            .build());
 
         } catch (IllegalArgumentException e) {
             logger.warnf(
                     "Invalid request data for Client ID: %s, Request ID: %s, Error: %s",
                     clientId, requestId, e.getMessage());
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(createErrorResponse("Invalid request data", e.getMessage()))
-                    .build();
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    Response.status(Response.Status.BAD_REQUEST)
+                            .entity(createErrorResponse("Invalid request data", e.getMessage()))
+                            .build());
 
         } catch (Exception e) {
             logger.errorf(
@@ -111,9 +124,10 @@ public class AssetTrackingResource {
                     "Unexpected error for Client ID: %s, Request ID: %s",
                     clientId,
                     requestId);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(createErrorResponse("Internal server error", "An unexpected error occurred"))
-                    .build();
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                            .entity(createErrorResponse("Internal server error", "An unexpected error occurred"))
+                            .build());
         }
     }
 
@@ -122,6 +136,15 @@ public class AssetTrackingResource {
             Double requestTimestamp,
             String clientId,
             String requestId) {
+
+        if (requestId == null || requestId.trim().isEmpty()) {
+            logger.errorf("Missing X-Request-Id for Client ID: %s", clientId);
+            return Optional.of(
+                    Response.status(Response.Status.BAD_REQUEST)
+                            .entity(createErrorResponse(
+                                    "Missing required header", "X-Request-Id is required"))
+                            .build());
+        }
 
         Set<ConstraintViolation<AssetTrackingData>> violations = validator.validate(data);
         if (!violations.isEmpty()) {

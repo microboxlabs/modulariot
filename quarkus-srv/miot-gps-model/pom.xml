@@ -10,37 +10,26 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>miot-tracking</artifactId>
-    <name>ModularIoT — Tracking</name>
-    <description>Asset tracking component: GPS position ingestion via Pulsar</description>
+    <artifactId>miot-gps-model</artifactId>
+    <name>ModularIoT — GPS Model</name>
+    <description>GPS/asset tracking data models (vendored from cl.streamhub:gps-model:1.4.0)</description>
 
     <dependencies>
         <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-core</artifactId>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-client</artifactId>
-            <version>4.0.4</version>
-        </dependency>
-        <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-gps-model</artifactId>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-openapi</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <scope>test</scope>
+            <artifactId>quarkus-hibernate-validator</artifactId>
         </dependency>
     </dependencies>
 

@@ -10,6 +10,7 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.util.concurrent.CompletionStage;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -30,7 +31,8 @@ public class PulsarAssetTrackingService implements AssetTrackingService {
     String topic;
 
     @Override
-    public void trackAsset(AssetTrackingData message, String requestId, Instant requestTimestamp) {
+    public CompletionStage<Void> trackAsset(AssetTrackingData message, String requestId,
+            Instant requestTimestamp) {
         String clientId = tenantContext.getClientId();
         if (clientId == null || clientId.isBlank()) {
             throw new PublishPulsarError("Client ID is required");
@@ -42,16 +44,9 @@ public class PulsarAssetTrackingService implements AssetTrackingService {
         envelope.setPayload(message);
         envelope.setClientId(clientId);
 
-        publisher.publish(topic, envelope)
-                .whenComplete((result, exception) -> {
-                    if (exception == null) {
-                        logger.debugf("Asset tracking sent. Request ID: %s, Client ID: %s",
-                                requestId, clientId);
-                    } else {
-                        logger.errorf(exception,
-                                "Failed to publish asset tracking. Request ID: %s, Client ID: %s",
-                                requestId, clientId);
-                    }
-                });
+        return publisher.publish(topic, envelope)
+                .thenAccept(v -> logger.debugf(
+                        "Asset tracking sent. Request ID: %s, Client ID: %s",
+                        requestId, clientId));
     }
 }

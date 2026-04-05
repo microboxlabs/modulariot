@@ -10,7 +10,7 @@ Review the current branch's PR against SonarCloud and fix all reported issues us
 ## Prerequisites
 
 - **SONAR_TOKEN** must be set (SonarCloud → Account → Security). The agent cannot fix issues without fetching them.
-- CLI tool: `@microboxlabs/sonarcloud-tools` (built from `turbo-repo/packages/sonarcloud-tools/`). Run from repo root via `node turbo-repo/packages/sonarcloud-tools/dist/cli.js`.
+- CLI tool: `@microboxlabs/sonarcloud-tools` (built from `turbo-repo/packages/sonarcloud-tools/`). Run from repo root via `node turbo-repo/packages/sonarcloud-tools/dist/cli.js`. If `dist/` does not exist, build first: `npm -w turbo-repo/packages/sonarcloud-tools run build`.
 - For `--pr` auto-detect: `gh` CLI or a CI env (e.g. `GITHUB_REF`).
 
 **Loading token from shell config:** The shell used to run commands is often non-login and does not load `~/.zshrc` or `~/.bashrc`. If the user says the token is in their shell rc, source it before running the command, e.g. `source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js ...`.

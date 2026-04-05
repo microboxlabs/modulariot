@@ -4,6 +4,7 @@ import cl.streamhub.gps.model.AssetTrackingData;
 import cl.streamhub.gps.model.metrics.MetricItem;
 import cl.streamhub.gps.model.metrics.MetricRegistry;
 import cl.streamhub.gps.model.metrics.MetricValidationResult;
+import com.microboxlabs.miot.core.auth.M2MAuth;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.tracking.errors.PublishPulsarError;
 import com.microboxlabs.miot.tracking.service.AssetTrackingService;
@@ -35,6 +36,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
 @Path("/api/v1/asset/track")
+@M2MAuth
 @Tag(name = "Asset Tracking", description = "GPS position tracking for mobile assets")
 @SecurityScheme(
         securitySchemeName = "oidc",

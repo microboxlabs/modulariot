@@ -6,34 +6,38 @@ import io.quarkus.vertx.http.runtime.security.ChallengeData;
 import io.quarkus.vertx.http.runtime.security.HttpAuthenticationMechanism;
 import io.smallrye.jwt.auth.principal.DefaultJWTCallerPrincipal;
 import io.smallrye.mutiny.Uni;
+import io.vertx.ext.web.RoutingContext;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 import org.jose4j.jwk.HttpsJwks;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.consumer.JwtConsumer;
 import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.jose4j.keys.HmacKey;
 import org.jose4j.keys.resolvers.HttpsJwksVerificationKeyResolver;
-import org.jboss.logging.Logger;
-import io.vertx.ext.web.RoutingContext;
 
 /**
  * Path-based JWT authentication mechanism for Auth0.
  *
- * <p>Routes token verification by request path:
+ * <p>Routes token verification by resource annotation:
  * <ul>
- *   <li><b>M2M paths</b> ({@code /api/v1/asset/track}, {@code /api/v1/stream/*}) → HS256 via shared secret</li>
- *   <li><b>Web paths</b> ({@code /api/v1/orgs/*}, etc.) → RS256 via Auth0 JWKS endpoint</li>
+ *   <li>Resources annotated with {@link M2MAuth} → HS256 (shared secret)</li>
+ *   <li>All other {@code /api/*} resources → RS256 (Auth0 JWKS)</li>
  * </ul>
  *
- * <p>No fallback chain — each path uses exactly one verification strategy.
- * This avoids wasted verification attempts and makes auth failures unambiguous.
+ * <p>M2M paths are auto-discovered at startup by scanning CDI beans
+ * for the {@code @M2MAuth} + {@code @Path} annotations.
  */
 @ApplicationScoped
 @Alternative
@@ -52,16 +56,17 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     @ConfigProperty(name = "miot.auth.hs256-secret", defaultValue = "not-configured")
     String hs256Secret;
 
-    /** Paths that use HS256 M2M tokens. Matched as prefix. */
-    @ConfigProperty(name = "miot.auth.m2m-paths",
-            defaultValue = "/api/v1/asset/,/api/v1/stream/,/api/v1/tasks/")
-    List<String> m2mPaths;
+    @Inject
+    Instance<Object> allBeans;
 
     private JwtConsumer hs256Consumer;
     private JwtConsumer rs256Consumer;
+    private List<String> m2mPathPrefixes;
 
     @PostConstruct
     void init() {
+        m2mPathPrefixes = discoverM2mPaths();
+
         if (!"not-configured".equals(hs256Secret)) {
             hs256Consumer = new JwtConsumerBuilder()
                     .setVerificationKey(new HmacKey(hs256Secret.getBytes()))
@@ -69,7 +74,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                     .setRequireExpirationTime()
                     .setSkipDefaultAudienceValidation()
                     .build();
-            LOG.infof("HS256 verification configured for M2M paths: %s", m2mPaths);
+            LOG.infof("HS256 verification configured for @M2MAuth paths: %s", m2mPathPrefixes);
         }
 
         if (!"not-configured".equals(jwksUrl)) {
@@ -80,8 +85,30 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                     .setRequireExpirationTime()
                     .setSkipDefaultAudienceValidation()
                     .build();
-            LOG.infof("RS256 verification configured via JWKS for web paths");
+            LOG.info("RS256 verification configured via JWKS for web paths");
         }
+    }
+
+    /**
+     * Scan all CDI beans for @M2MAuth + @Path annotations
+     * to build the M2M path prefix list.
+     */
+    private List<String> discoverM2mPaths() {
+        List<String> paths = new ArrayList<>();
+        for (var bean : io.quarkus.arc.Arc.container().beanManager().getBeans(Object.class)) {
+            Class<?> beanClass = bean.getBeanClass();
+            if (beanClass.isAnnotationPresent(M2MAuth.class)
+                    && beanClass.isAnnotationPresent(Path.class)) {
+                String path = beanClass.getAnnotation(Path.class).value();
+                if (!path.startsWith("/")) {
+                    path = "/" + path;
+                }
+                paths.add(path);
+                LOG.infof("Discovered @M2MAuth resource: %s -> %s",
+                        beanClass.getSimpleName(), path);
+            }
+        }
+        return paths;
     }
 
     @Override
@@ -107,17 +134,19 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
 
             try {
                 JwtClaims claims = consumer.processToClaims(token);
-                LOG.debugf("Token verified via %s for path %s. sub=%s", alg, path, claims.getSubject());
+                LOG.debugf("Token verified via %s for path %s. sub=%s",
+                        alg, path, claims.getSubject());
                 return createIdentity(token, claims);
             } catch (Exception e) {
-                LOG.debugf("%s verification failed for path %s: %s", alg, path, e.getMessage());
+                LOG.debugf("%s verification failed for path %s: %s",
+                        alg, path, e.getMessage());
                 return null;
             }
         });
     }
 
     private boolean isM2mPath(String path) {
-        for (String prefix : m2mPaths) {
+        for (String prefix : m2mPathPrefixes) {
             if (path.startsWith(prefix)) {
                 return true;
             }

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
+import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SettingsDrawer } from "../common/settings-drawer";
+import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 
 /**
  * Settings Modal
@@ -30,9 +31,16 @@ export function DashletSettings({
     e.stopPropagation();
   };
 
-  return (
-    <SettingsDrawer open={isOpen} onClose={onClose}>
-      <div className="flex h-full flex-col gap-3">
+  if (globalThis.window === undefined) return null;
+
+  const modalContent = (
+    <AbsoluteModal
+      selected={isOpen}
+      setSelected={(selected) => {
+        if (!selected) onClose();
+      }}
+    >
+      <div className="space-y-3 p-2">
         {/* Add your form fields here */}
         <div>
           <Label htmlFor="dashlet-title" className="mb-1 block text-sm">
@@ -64,6 +72,8 @@ export function DashletSettings({
           </Button>
         </div>
       </div>
-    </SettingsDrawer>
+    </AbsoluteModal>
   );
+
+  return createPortal(modalContent, document.body);
 }

@@ -14,9 +14,9 @@
 #   - Tags:       ghcr.io/<org>/miot-srv:<version>
 #
 # Required Secrets:
-#   - DOCKERHUB_USERNAME: Docker Hub username
-#   - DOCKERHUB_TOKEN:    Docker Hub access token
-#   - SONAR_TOKEN:        SonarCloud analysis token
+#   - DOCKERHUB_USERNAME:              Docker Hub username
+#   - DOCKERHUB_TOKEN:                 Docker Hub access token
+#   - SONAR_TOKEN:                     SonarCloud analysis token
 # =============================================================================
 
 name: Quarkus CI
@@ -84,7 +84,7 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Build & Test
-        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true
+        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true -Dmiot.component.tracking.enabled=true
         working-directory: quarkus-srv
 
       - name: SonarCloud Scan

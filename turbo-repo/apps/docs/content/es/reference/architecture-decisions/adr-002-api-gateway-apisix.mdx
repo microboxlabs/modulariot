@@ -1,0 +1,139 @@
+# ADR-002: API Gateway — Apache APISIX
+
+| | |
+|---|---|
+| **Estado** | Aceptado |
+| **Fecha** | 2026-04-04 |
+| **Decisores** | Equipo de ingeniería de plataforma |
+| **Relacionado con** | ingress-nginx controller, cert-manager (Jetstack), Kubernetes Gateway API, enrutamiento de tráfico, limitación de tasa |
+
+## Contexto
+
+ModularIoT expone un número creciente de endpoints API a dispositivos IoT, integradores externos y aplicaciones front-end internas. La plataforma utiliza ingress-nginx como su único controlador de ingreso, con cert-manager (Jetstack) gestionando certificados TLS mediante un ClusterIssuer de Let's Encrypt.
+
+A medida que la plataforma maduró, surgieron cinco requisitos operacionales que ingress-nginx no podía abordar:
+
+**1. Enrutamiento basado en payload.** Ciertas solicitudes API necesitan ser enrutadas a diferentes entornos backend basándose en campos dentro del cuerpo JSON de la solicitud (ej. enrutar dispositivos marcados como beta testers a un entorno de desarrollo). ingress-nginx puede enrutar por host, path, headers y cookies, pero nunca lee ni analiza el cuerpo de la solicitud.
+
+**2. Pruebas A/B y enrutamiento de beta testers.** El equipo necesitaba división de tráfico aleatorio ponderado (A/B) y enrutamiento basado en condiciones (beta testers por header o campo del body). ingress-nginx tiene anotaciones canary para enrutamiento por header y por peso, pero el modelo canary está limitado a un único backend canary por recurso Ingress y no puede combinar condiciones.
+
+**3. Gestión de cuotas por endpoint.** Las APIs expuestas a integradores externos requieren límites de cuota (ej. 1 000 solicitudes por hora por consumidor por endpoint). ingress-nginx proporciona solo una anotación global `limit-req` sin granularidad por consumidor o por endpoint.
+
+**4. Spike arrest.** Protección contra ráfagas repentinas de tráfico que excedan los límites de tasa sostenidos. ingress-nginx ofrece `limit-req-rate` pero sin absorción configurable de ráfagas ni semántica de token-bucket.
+
+**5. Gestión dinámica de configuración.** Todos los cambios de configuración en ingress-nginx requieren una actualización de anotación seguida de reconciliación del controlador, o una recarga completa del ConfigMap. No existe API, CLI ni interfaz web para gestionar rutas y políticas en tiempo de ejecución sin modificar manifiestos de Kubernetes.
+
+El equipo utilizó previamente KrakenD Community Edition, pero lo abandonó porque su versión gratuita carecía de configuración dinámica (solo basada en archivos, requería reinicio) y la brecha entre CE y Enterprise había crecido a más de 30 funcionalidades restringidas.
+
+## Decisión
+
+Adoptar Apache APISIX como el API gateway de ModularIoT, desplegado como el controlador de ingreso principal reemplazando a ingress-nginx. APISIX se despliega usando el chart Helm umbrella (`apisix/apisix`) con el sub-chart del Ingress Controller 2.0 habilitado en modo tradicional con una instancia etcd de réplica única. El modo standalone fue planeado inicialmente pero abandonado durante la implementación porque el Ingress Controller requiere la Admin API de APISIX (puerto 9180) para enviar rutas y certificados SSL — una API que solo existe en modo tradicional.
+
+### Arquitectura
+
+APISIX sirve tanto como ingreso edge (terminación TLS, enrutamiento) como API gateway (autenticación, limitación de tasa, división de tráfico, inspección de payload). El ClusterIssuer existente de cert-manager continúa gestionando certificados, ahora anotando recursos Gateway en lugar de recursos Ingress.
+
+### Cómo se aborda cada requisito
+
+**Enrutamiento basado en payload:** El plugin `serverless-pre-function` ejecuta una función Lua inline durante la fase `rewrite` que lee el cuerpo de la solicitud, analiza el JSON, extrae el campo de enrutamiento y establece un header de solicitud interno. El plugin `traffic-split` luego coincide con ese header para enrutar al upstream apropiado. Este patrón de dos pasos evita las limitaciones nativas de coincidencia basada en body manteniendo la lógica de enrutamiento declarativa.
+
+**Pruebas A/B y enrutamiento de beta testers:** El plugin `traffic-split` soporta tanto distribución aleatoria ponderada entre upstreams como coincidencia basada en condiciones sobre headers, parámetros de consulta, cookies y argumentos POST. Múltiples reglas de coincidencia pueden combinarse con lógica AND/OR usando la sintaxis `lua-resty-expr`.
+
+**Gestión de cuotas por endpoint:** El plugin `limit-count` proporciona cumplimiento de cuotas por ruta, por servicio o por consumidor con ventanas de tiempo configurables. Combinado con la identificación de consumidor (mediante plugins `key-auth` o `jwt-auth`), las cuotas pueden ser delimitadas a consumidores individuales de API por endpoint.
+
+**Spike arrest:** El plugin `limit-req` implementa limitación de tasa tipo leaky-bucket con absorción configurable de ráfagas y opciones `nodelay`. El plugin `limit-conn` limita las conexiones concurrentes por ruta.
+
+**Gestión dinámica de configuración:** La Admin API de APISIX (REST, puerto 9180) proporciona CRUD completo para rutas, upstreams, consumidores y plugins. El CLI ADC (`adc sync`, `adc diff`, `adc dump`) habilita flujos GitOps donde la configuración YAML se versiona y aplica mediante pipelines de CI. En Kubernetes, el Ingress Controller 2.0 observa recursos Gateway API y CRDs de APISIX, enviando la configuración al plano de datos sin reinicios.
+
+### Estrategia de migración
+
+La migración sigue un enfoque por fases:
+1. Desplegar APISIX junto a ingress-nginx con su propio servicio LoadBalancer
+2. Migrar un servicio de bajo riesgo, validar TLS e integración con cert-manager
+3. Migrar los servicios restantes uno por uno, cambiando DNS por servicio
+4. Convertir recursos Ingress a recursos Gateway API (Gateway + HTTPRoute + HTTPRoutePolicy)
+5. Descomisionar ingress-nginx
+
+Durante la transición, ambos controladores coexisten. El Ingress Controller de APISIX puede consumir recursos Kubernetes Ingress estándar (`ingressClassName: apisix`), permitiendo que los servicios migren cambiando un solo campo antes de adoptar recursos Gateway API.
+
+### Notas de implementación (descubiertas durante las Fases 1-2)
+
+**Modo de despliegue.** El Ingress Controller 2.0 envía la configuración a APISIX mediante la Admin API. Esto requiere `apisix.deployment.role: traditional` con `config_provider: etcd`. El rol `data_plane` con `mode: standalone` deshabilita completamente la Admin API, haciéndolo incompatible con el Ingress Controller — APISIX lee únicamente de un configmap YAML estático en ese modo.
+
+**Recurso GatewayProxy.** El Ingress Controller 2.0 requiere un recurso personalizado `GatewayProxy` para saber a qué instancia de APISIX conectarse. Sin él, el controlador reconcilia recursos Ingress pero nunca sincroniza rutas (`"no GatewayProxy configs provided"`). El chart Helm crea uno cuando se establece `ingress-controller.gatewayProxy.createDefault: true`, apuntando al servicio Admin API.
+
+**CRDs de Gateway API.** El chart de APISIX incluye CRDs de Gateway API de canal experimental en `crds/gwapi-crds.yaml`. Los clústeres que imponen solo canal estándar mediante `ValidatingAdmissionPolicy` los rechazan. Instalar con `--skip-crds` y gestionar los CRDs de Gateway API por separado. El Ingress Controller aún registra errores no fatales de `GRPCRoute` cuando el CRD está ausente — pueden ignorarse.
+
+**Health checks del LoadBalancer en GCP.** Al reutilizar una IP estática previamente asignada a ingress-nginx, el health check de GCP puede seguir apuntando al puerto 10256 (`/healthz`), que es específico de nginx. Establecer `service.externalTrafficPolicy: Local` fuerza a GKE a crear un nuevo health check en el NodePort real donde APISIX escucha.
+
+**Mapeo de anotaciones (Path A).** Las siguientes anotaciones se traducen de ingress-nginx a APISIX:
+
+| ingress-nginx | APISIX |
+|---|---|
+| `className: "nginx"` | `className: "apisix"` |
+| `kubernetes.io/ingress.class: nginx` | Eliminado (redundante con `className`) |
+| `nginx.ingress.kubernetes.io/ssl-redirect: "true"` | `k8s.apisix.apache.org/http-to-https: "true"` |
+| `nginx.ingress.kubernetes.io/enable-cors: "true"` | `k8s.apisix.apache.org/enable-cors: "true"` |
+| `nginx.ingress.kubernetes.io/proxy-body-size: "10m"` | Sin equivalente por anotación — configurar globalmente via `apisix.nginx.configurationSnippet.httpSrv: "client_max_body_size 10m;"` |
+| `cert-manager.io/cluster-issuer: letsencrypt` | Sin cambios — cert-manager funciona independientemente del controlador de ingreso |
+
+**Terminación SSL.** Se debe establecer `apisix.ssl.enabled: true` para que APISIX exponga el puerto 443 y cargue certificados TLS desde Kubernetes Secrets. Sin esto, el servicio gateway solo escucha en el puerto 80.
+
+### Integración TLS y cert-manager
+
+**Fase 2 (actual — recursos Ingress estándar).** La anotación existente `cert-manager.io/cluster-issuer: letsencrypt` funciona sin cambios en recursos Ingress gestionados por APISIX. cert-manager observa los recursos Ingress independientemente de qué controlador los gestione, provisiona certificados y los almacena en el Secret referenciado por `spec.tls[].secretName`. El Ingress Controller de APISIX lee el Secret TLS y lo envía a APISIX mediante el endpoint `/apisix/admin/ssls` de la Admin API.
+
+**Fase 4 (futuro — recursos Gateway API).** cert-manager requiere `enableGatewayAPI: true` en sus valores Helm y los CRDs de Gateway API instalados en el clúster. La anotación del ClusterIssuer se coloca en el recurso Gateway. cert-manager observa el Gateway, provisiona certificados para cada listener HTTPS y los almacena en el Secret de Kubernetes referenciado.
+
+## Alternativas consideradas
+
+### ingress-nginx (estado actual)
+
+Mantener ingress-nginx como único controlador de ingreso. Enruta por host, path, headers y cookies. Las anotaciones canary proporcionan pruebas A/B limitadas. No puede inspeccionar cuerpos de solicitud. La limitación de tasa es global sin granularidad por consumidor. Toda la configuración se maneja mediante anotaciones sin Admin API. Rechazado porque cuatro de los cinco requisitos son imposibles de implementar nativamente.
+
+### KrakenD Community Edition (usado previamente)
+
+Gateway stateless de alto rendimiento con excelente throughput. Sin embargo, CE carece completamente de Admin API — toda la configuración es basada en archivos y requiere reinicio del proceso. Los niveles de cuota, las plantillas de body de solicitud/respuesta y la limitación de tasa avanzada están restringidos tras la licencia Enterprise. La brecha de funcionalidades CE/EE ha crecido significativamente. Rechazado porque ya fue abandonado por estas razones y la situación no ha mejorado.
+
+### Kong Gateway OSS
+
+Ecosistema rico de plugins con PostgreSQL como backend de estado nativo y una Admin API completa. Sin embargo, Kong descontinuó las imágenes Docker OSS preconstruidas a partir de la versión 3.10 (marzo 2025) y eliminó el modo gratuito de Kong Enterprise. La línea OSS está congelada en la versión 3.9.x sin futuros parches de seguridad. Rechazado debido al riesgo inaceptable a largo plazo por el abandono de la línea OSS.
+
+### Tyk Gateway OSS
+
+Gateway OSS completo (MPL 2.0) con gestión nativa de cuotas, múltiples algoritmos de limitación de tasa y una API REST para configuración. Sin embargo, Tyk requiere Redis como backend de estado (sin opción PostgreSQL), el Kubernetes Operator fue cerrado al código propietario y el dashboard de gestión es exclusivo de Enterprise. Rechazado por la dependencia de Redis y la integración reducida con Kubernetes.
+
+### Envoy Gateway / kgateway
+
+Proyecto CNCF que implementa el estándar Kubernetes Gateway API con Envoy como plano de datos. Soporte nativo para división ponderada de tráfico y limitación de tasa mediante BackendTrafficPolicy. Sin embargo, la inspección de payload requiere desarrollar filtros WASM personalizados (Rust, Go o AssemblyScript), la gestión de cuotas requiere desplegar un servicio externo separado de limitación de tasa, y no existe Admin API ni consola de gestión — la configuración es exclusivamente mediante CRDs. Rechazado por el alto esfuerzo de desarrollo para la inspección de payload y gestión de cuotas.
+
+### Gravitee APIM OSS
+
+Plataforma completa de gestión de APIs con consola web, API de gestión y soporte nativo de PostgreSQL. Incluye políticas de limitación de tasa, cuota y spike arrest de serie. Sin embargo, el footprint de despliegue es pesado (Gateway + Management API + Console + PostgreSQL + Elasticsearch), las pruebas A/B requieren configuración manual y el consumo de recursos es mayor debido a la JVM. Rechazado porque la carga operacional supera el beneficio de una consola integrada.
+
+### Gateway Quarkus propio
+
+Construir un API gateway personalizado sobre Quarkus usando proxy HTTP reactivo de Vert.x, SmallRye Fault Tolerance y PostgreSQL para estado. No existe ningún proyecto OSS maduro de API gateway basado en Quarkus. El esfuerzo estimado es de 3-6 meses para un equipo pequeño para alcanzar paridad de funcionalidades con los cinco requisitos, más mantenimiento permanente de todos los casos extremos (proxy WebSocket, gRPC, streaming, HTTP/2, pooling de conexiones, parches de seguridad). Rechazado porque la inversión en ingeniería excede con creces el costo de adoptar una solución existente.
+
+## Consecuencias
+
+### Positivas
+- Los cinco requisitos operacionales se cumplen con plugins nativos y sin restricción de funcionalidades — APISIX tiene licencia Apache 2.0 sin niveles comerciales
+- El footprint de etcd se minimiza (réplica única en dev, tres en prod) y no requiere autenticación ni TLS — sirve solo como almacén de estado interno de APISIX, no como dependencia de aplicación
+- La integración con cert-manager se preserva — el mismo ClusterIssuer y flujo de Let's Encrypt continúan funcionando, anotando recursos Gateway en lugar de recursos Ingress
+- APISIX está construido sobre NGINX/OpenResty (el mismo core que ingress-nginx), por lo que la terminación TLS, el balanceo de carga y el rendimiento del proxy son comparables — con el beneficio de eliminar el doble salto NGINX que una arquitectura de doble gateway introduciría
+- Más de 80 plugins integrados cubren necesidades futuras: autenticación JWT/OIDC, mTLS, circuit breaking, observabilidad OpenTelemetry, transformación de solicitud/respuesta, inyección de fallos
+- La extensibilidad mediante plugins Lua (nativo), Go, Python, Java y WASM asegura que la lógica personalizada puede agregarse sin hacer fork del gateway
+
+### Restricciones introducidas
+- El código Lua de `serverless-pre-function` para enrutamiento basado en body debe almacenar en buffer el cuerpo completo de la solicitud en memoria, lo que añade latencia y sobrecarga de memoria para payloads grandes. Las rutas que usan este patrón deben imponer límites de `client_max_body_size`.
+- El Dashboard standalone de APISIX está obsoleto. La gestión de configuración depende de la Admin API, el CLI ADC y los CRDs de Kubernetes. No existe una consola web lista para usar.
+- ADC (el CLI declarativo) es mantenido por API7 (la empresa comercial detrás de APISIX), no por la Fundación Apache. Funciona con el gateway de código abierto pero su hoja de ruta está influenciada por prioridades comerciales.
+- La migración requiere actualizar el chart Helm de cada servicio para cambiar `ingressClassName` y traducir las anotaciones de nginx a equivalentes de APISIX. Los servicios migran uno por uno, pero el esfuerzo total escala con el número de servicios.
+
+### Aún abierto
+- La ausencia de una consola web lista para producción puede convertirse en un punto de fricción para equipos no técnicos que gestionen políticas de API. Puede ser necesario construir una UI de administración ligera o evaluar una herramienta alternativa.
+- El patrón `serverless-pre-function` para enrutamiento basado en body, aunque funcional, introduce Lua inline que es más difícil de probar y versionar que la configuración declarativa de plugins. Si el enrutamiento basado en body se convierte en un patrón común a través de muchas rutas, se debería desarrollar un plugin personalizado de APISIX dedicado para encapsular la lógica.
+- La limitación de tasa global a través de múltiples instancias de APISIX (cuotas distribuidas) requiere un Redis o almacén externo. Esto necesita abordarse antes del escalado horizontal del gateway.
+- El Ingress Controller 2.0 intenta observar CRDs de `GRPCRoute` incluso con `disableGatewayAPI: true`. Esto produce logs de error continuos no fatales. Una versión futura del chart puede corregirlo, o los CRDs de Gateway API de canal estándar pueden instalarse por separado para silenciarlo.
+- Los valores de `ingress-controller.gatewayProxy` incluyen el nombre del release (`dev-streamhub-apisix-admin`), haciendo la configuración específica por entorno. Puede necesitarse un enfoque de templating o lookup de Helm para evitar hardcodear nombres de release por entorno.

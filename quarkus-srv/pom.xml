@@ -13,10 +13,12 @@
     <description>ModularIoT modular monorepo: single image, runtime-activated components</description>
 
     <modules>
+        <module>miot-gps-model</module>
         <module>miot-core</module>
         <module>miot-resource-core</module>
         <module>miot-fleet</module>
         <module>miot-driver</module>
+        <module>miot-tracking</module>
         <module>miot-cli</module>
     </modules>
 
@@ -60,6 +62,16 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-driver</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-tracking</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-gps-model</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

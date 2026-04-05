@@ -4,18 +4,19 @@ set -euo pipefail
 # ModularIoT — Dev mode launcher
 #
 # Usage:
-#   ./start.sh                  # no components (bare server)
-#   ./start.sh all              # all components
-#   ./start.sh fleet            # fleet only
-#   ./start.sh driver           # driver only
-#   ./start.sh fleet driver     # fleet + driver
+#   ./start.sh                       # no components (bare server)
+#   ./start.sh all                   # all components
+#   ./start.sh fleet                 # fleet only
+#   ./start.sh fleet driver          # fleet + driver
+#   ./start.sh --profile auth0 tracking  # tracking with Auth0 JWT
 #
 # Extra Maven/Quarkus args can be appended after --:
 #   ./start.sh fleet -- -Dquarkus.http.port=9090
 
-KNOWN_COMPONENTS=(fleet driver)
+KNOWN_COMPONENTS=(fleet driver tracking)
 COMPONENTS=()
 EXTRA_ARGS=()
+PROFILE=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -24,6 +25,10 @@ while [[ $# -gt 0 ]]; do
             shift
             EXTRA_ARGS=("$@")
             break
+            ;;
+        --profile)
+            PROFILE="$2"
+            shift 2
             ;;
         all)
             COMPONENTS=("${KNOWN_COMPONENTS[@]}")
@@ -38,6 +43,13 @@ done
 
 # Build -D flags
 PROPS=()
+
+# Quarkus profile (must be set at build time for build-time properties like oidc.enabled)
+if [[ -n "$PROFILE" ]]; then
+    PROPS+=("-Dquarkus.profile=$PROFILE")
+    echo "Profile: $PROFILE"
+fi
+
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     echo "Starting with no components enabled"
 elif printf '%s\n' "${COMPONENTS[@]}" | grep -qx "all" 2>/dev/null; then

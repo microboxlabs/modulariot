@@ -8,7 +8,6 @@ import com.microboxlabs.miot.tracking.errors.PublishPulsarError;
 import com.microboxlabs.miot.tracking.service.AssetTrackingService;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.concurrent.CompletionStage;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -20,15 +19,20 @@ public class PulsarAssetTrackingService implements AssetTrackingService {
 
     private static final Logger logger = Logger.getLogger(PulsarAssetTrackingService.class);
 
-    @Inject
-    TenantContext tenantContext;
+    private final TenantContext tenantContext;
+    private final IMessagePublisher publisher;
+    private final String topic;
 
-    @Inject
-    IMessagePublisher publisher;
-
-    @ConfigProperty(name = "miot.tracking.pulsar.topic",
-            defaultValue = "persistent://streamhub/tracking/asset-positions")
-    String topic;
+    PulsarAssetTrackingService(
+            TenantContext tenantContext,
+            IMessagePublisher publisher,
+            @ConfigProperty(name = "miot.tracking.pulsar.topic",
+                    defaultValue = "persistent://streamhub/tracking/asset-positions")
+                    String topic) {
+        this.tenantContext = tenantContext;
+        this.publisher = publisher;
+        this.topic = topic;
+    }
 
     @Override
     public CompletionStage<Void> trackAsset(AssetTrackingData message, String requestId,

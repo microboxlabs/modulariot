@@ -5,12 +5,14 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.fleet.dto.CreateCarrierRequest;
 import com.microboxlabs.miot.fleet.dto.CreateTrailerRequest;
 import com.microboxlabs.miot.fleet.dto.CreateTruckRequest;
+import com.microboxlabs.miot.fleet.metrics.LatestMetricsRepository;
 import com.microboxlabs.miot.fleet.model.Carrier;
 import com.microboxlabs.miot.fleet.model.Trailer;
 import com.microboxlabs.miot.fleet.model.Truck;
 import com.microboxlabs.miot.fleet.service.CarrierService;
 import com.microboxlabs.miot.fleet.service.TrailerService;
 import com.microboxlabs.miot.fleet.service.TruckService;
+import io.vertx.core.json.JsonObject;
 import com.microboxlabs.miot.resource.dto.StatusChangeRequest;
 import com.microboxlabs.miot.resource.event.EntityEvent;
 import com.microboxlabs.miot.resource.event.EntityEventService;
@@ -50,17 +52,20 @@ public class OrgFleetResource {
     private final TrailerService trailerService;
     private final CarrierService carrierService;
     private final EntityEventService eventService;
+    private final LatestMetricsRepository metricsRepository;
 
     @Inject
     public OrgFleetResource(TenantContext tenantContext, OrganizationContext organizationContext,
             TruckService truckService, TrailerService trailerService,
-            CarrierService carrierService, EntityEventService eventService) {
+            CarrierService carrierService, EntityEventService eventService,
+            LatestMetricsRepository metricsRepository) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.truckService = truckService;
         this.trailerService = trailerService;
         this.carrierService = carrierService;
         this.eventService = eventService;
+        this.metricsRepository = metricsRepository;
     }
 
     // --- Trucks ---
@@ -82,8 +87,21 @@ public class OrgFleetResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("id") Long id) {
         return truckService.findById(tenantContext.getEffectiveClientIds(), id)
-                .map(t -> t != null ? Response.ok(t).build() : Response.status(404).build());
+                .flatMap(truck -> {
+                    if (truck == null) return Uni.createFrom().item(Response.status(404).build());
+                    // fetch latest metrics in parallel only when asset_id is configured
+                    if (truck.assetId == null) {
+                        return Uni.createFrom().item(Response.ok(truck).build());
+                    }
+                    return metricsRepository
+                            .getLatestMetrics(tenantContext.getClientId(), truck.assetId)
+                            .map(metrics -> Response.ok(new TruckWithMetrics(truck, metrics)).build())
+                            .onFailure().recoverWithItem(e -> Response.ok(truck).build());
+                });
     }
+
+    /** Thin wrapper that adds latest telemetry to the truck response without altering the entity. */
+    public record TruckWithMetrics(Truck truck, JsonObject latestMetrics) {}
 
     @POST
     @Path("/trucks")

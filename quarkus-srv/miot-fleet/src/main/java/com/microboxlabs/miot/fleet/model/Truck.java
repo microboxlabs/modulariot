@@ -28,4 +28,8 @@ public class Truck extends BaseResourceEntity {
 
     @Column(name = "truck_type")
     public String truckType;
+
+    // GPS/metrics system identifier — maps to asset_metric_core.asset_id
+    @Column(name = "asset_id")
+    public String assetId;
 }

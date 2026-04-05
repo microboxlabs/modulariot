@@ -162,7 +162,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
 
     private boolean isM2mPath(String path) {
         for (String prefix : m2mPathPrefixes) {
-            if (path.startsWith(prefix)) {
+            if (path.equals(prefix) || path.startsWith(prefix + "/")) {
                 return true;
             }
         }

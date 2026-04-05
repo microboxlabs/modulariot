@@ -1,8 +1,5 @@
 {
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true
-  },
-  "enabledMcpjsonServers": [
-        "aura-editor"
-   ]
+  }
 }

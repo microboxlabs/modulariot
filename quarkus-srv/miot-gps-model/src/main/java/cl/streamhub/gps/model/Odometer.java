@@ -14,7 +14,7 @@ public class Odometer {
         description = "Total distance traveled in km",
         minimum = "0.0",
         maximum = "1000000.0",
-        example = "150000.5",
+        examples = {"150000.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -25,7 +25,7 @@ public class Odometer {
         description = "Distance traveled in the current trip in km",
         minimum = "0.0",
         maximum = "1000000.0",
-        example = "150000.5",
+        examples = {"150000.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )

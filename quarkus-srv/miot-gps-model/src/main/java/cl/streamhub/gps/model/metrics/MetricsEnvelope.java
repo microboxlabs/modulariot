@@ -33,7 +33,7 @@ public class MetricsEnvelope {
 
     @Schema(
         description = "Schema identifier for the metrics envelope format",
-        example = "miot.metrics@1.0",
+        examples = {"miot.metrics@1.0"},
         pattern = SCHEMA_PATTERN,
         required = true,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)}
@@ -53,7 +53,7 @@ public class MetricsEnvelope {
 
     @Schema(
         description = "Device sequence number for ordering and deduplication",
-        example = "12345",
+        examples = {"12345"},
         minimum = "0",
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)}
     )
@@ -61,7 +61,7 @@ public class MetricsEnvelope {
 
     @Schema(
         description = "Device clock timestamp in RFC3339 format",
-        example = "2026-01-20T14:12:00Z",
+        examples = {"2026-01-20T14:12:00Z"},
         extensions = {@Extension(name = "x-order", value = "4", parseValue = true)}
     )
     @JsonProperty("device_ts")

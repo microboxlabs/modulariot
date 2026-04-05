@@ -16,7 +16,7 @@ public class Event {
 
     @Schema(
         description = "Type of event",
-        example = "speeding",
+        examples = {"speeding"},
         required = true,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -25,7 +25,7 @@ public class Event {
 
     @Schema(
         description = "Timestamp of the event in ISO format",
-        example = "2024-10-22T14:23:45Z",
+        examples = {"2024-10-22T14:23:45Z"},
         required = true,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )
@@ -33,7 +33,7 @@ public class Event {
 
     @Schema(
         description = "Severity of the event",
-        example = "medium",
+        examples = {"medium"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )
@@ -41,7 +41,7 @@ public class Event {
 
     @Schema(
         description = "Description of the event",
-        example = "Speeding over limit",
+        examples = {"Speeding over limit"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "4", parseValue = true)} //
     )

@@ -12,7 +12,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 public class LastRead {
     @Schema(
         description = "Last read RFID tag",
-        example = "RFID12345",
+        examples = {"RFID12345"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -21,7 +21,7 @@ public class LastRead {
 
     @Schema(
         description = "Timestamp of the last read",
-        example = "2024-10-22T14:23:45Z",
+        examples = {"2024-10-22T14:23:45Z"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )

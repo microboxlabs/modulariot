@@ -23,6 +23,8 @@ public final class MetricRegistry {
     /** Extension key prefix for custom vendor metrics */
     public static final String EXTENSION_PREFIX = "x.";
 
+    private static final String METRIC_PREFIX = "Metric '";
+
     private static final Map<String, MetricDefinition> DEFINITIONS;
 
     static {
@@ -427,7 +429,7 @@ public final class MetricRegistry {
         // 2. Validate value type
         if (!def.isValidValueType(value)) {
             return MetricValidationResult.error(MetricValidationResult.TYPE_MISMATCH,
-                "Metric '" + key + "' expects type " + def.getValueType() +
+                METRIC_PREFIX + key + "' expects type " + def.getValueType() +
                 " but got " + (value != null ? value.getClass().getSimpleName() : "null"));
         }
 
@@ -437,7 +439,7 @@ public final class MetricRegistry {
             String actualUnit = item.getU();
             if (actualUnit == null || !expectedUnit.equals(actualUnit)) {
                 return MetricValidationResult.error(MetricValidationResult.UNIT_MISMATCH,
-                    "Metric '" + key + "' requires unit '" + expectedUnit +
+                    METRIC_PREFIX + key + "' requires unit '" + expectedUnit +
                     "' but got '" + actualUnit + "'");
             }
         }
@@ -446,7 +448,7 @@ public final class MetricRegistry {
         if (!def.isInBounds(value)) {
             String boundsDesc = formatBounds(def.getMinValue(), def.getMaxValue());
             return MetricValidationResult.error(MetricValidationResult.OUT_OF_BOUNDS,
-                "Metric '" + key + "' value " + value + " is out of bounds " + boundsDesc);
+                METRIC_PREFIX + key + "' value " + value + " is out of bounds " + boundsDesc);
         }
 
         return MetricValidationResult.ok();

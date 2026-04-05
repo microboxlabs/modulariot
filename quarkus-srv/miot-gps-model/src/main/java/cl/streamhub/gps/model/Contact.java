@@ -11,7 +11,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 public class Contact {
     @Schema(
         description = "Driver's phone number",
-        example = "+1234567890",
+        examples = {"+1234567890"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -19,7 +19,7 @@ public class Contact {
 
     @Schema(
         description = "Driver's email address",
-        example = "johndoe@example.com",
+        examples = {"johndoe@example.com"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )

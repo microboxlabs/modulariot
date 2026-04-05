@@ -57,7 +57,7 @@ public class EnvelopedMessage {
             mapper.registerModule(new JavaTimeModule());
             return mapper.readValue(json, EnvelopedMessage.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize EnvelopedMessage from JSON", e);
+            throw new IllegalStateException("Failed to serialize EnvelopedMessage", e);
         }
     }
 }

@@ -13,7 +13,7 @@ public class Acceleration {
         description = "Acceleration on X-axis",
         minimum = "-3.0",
         maximum = "3.0",
-        example = "1.5",
+        examples = {"1.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -24,7 +24,7 @@ public class Acceleration {
         description = "Acceleration on Y-axis",
         minimum = "-3.0",
         maximum = "3.0",
-        example = "-0.5",
+        examples = {"-0.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )
@@ -35,7 +35,7 @@ public class Acceleration {
         description = "Acceleration on Z-axis",
         minimum = "-3.0",
         maximum = "3.0",
-        example = "2.0",
+        examples = {"2.0"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )
@@ -46,7 +46,7 @@ public class Acceleration {
         description = "Recorded G-force",
         minimum = "0.0",
         maximum = "5.0",
-        example = "1.2",
+        examples = {"1.2"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )

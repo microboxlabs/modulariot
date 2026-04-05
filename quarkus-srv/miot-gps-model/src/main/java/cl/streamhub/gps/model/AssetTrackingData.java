@@ -28,7 +28,7 @@ public class AssetTrackingData {
 
   @Schema( //
       description = "Unique identifier of the asset. E.g.: \"A123456789\"",
-      example = "A123456789",
+      examples = {"A123456789"},
       required = true, //
       extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
   )
@@ -38,7 +38,7 @@ public class AssetTrackingData {
 
   @Schema( //
       description = "Type of asset. E.g.: \"Truck\", \"Container\", \"Pallet\"",
-      example = "Truck",
+      examples = {"Truck"},
       // required = true, //
       extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
   )
@@ -47,14 +47,14 @@ public class AssetTrackingData {
 
   @Schema( //
       description = "Owner of the asset. E.g.: \"Company ABC\"",
-      example = "Company ABC", //
+      examples = {"Company ABC"}, //
       extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
   )
   private String owner;
 
   @Schema( //
       description = "Year of manufacture of the asset. E.g.: 2020",
-      example = "2020", //
+      examples = {"2020"}, //
       extensions = {@Extension(name = "x-order", value = "4", parseValue = true)} //
       )
   @PositiveOrZero(message = "Year must be a positive number")
@@ -62,7 +62,7 @@ public class AssetTrackingData {
 
   @Schema(
       description = "Timestamp of the data in ISO 8601 format. E.g.: \"2024-10-22T14:23:45Z\"",
-      example = "2024-10-22T14:23:45Z",
+      examples = {"2024-10-22T14:23:45Z"},
       required = true, //
       extensions = {@Extension(name = "x-order", value = "5", parseValue = true)} //
       )
@@ -241,10 +241,10 @@ public class AssetTrackingData {
     try {
       ObjectMapper mapper = new ObjectMapper();
       mapper.registerModule(new JavaTimeModule());
-      mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+      mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
       return mapper.writeValueAsString(this);
     } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize AssetTrackingData to JSON", e);
+      throw new IllegalStateException("Failed to serialize AssetTrackingData", e);
     }
   }
 }

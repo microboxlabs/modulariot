@@ -14,7 +14,7 @@ public class AssetLoad {
         description = "Cargo weight in kg",
         minimum = "0.0",
         maximum = "20000.0",
-        example = "5000.0",
+        examples = {"5000.0"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -25,7 +25,7 @@ public class AssetLoad {
         description = "Asset weight in kg",
         minimum = "0.0",
         maximum = "10000.0",
-        example = "3500.0",
+        examples = {"3500.0"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )

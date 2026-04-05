@@ -18,7 +18,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 # Fetch all CodeRabbitAI inline comments (paginated)
 gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments" \
   --paginate \
-  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {id, path, line, start_line, body, diff_hunk, created_at}]'
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {id, path, line, start_line, body, diff_hunk, created_at, pull_request_review_id}]'
 ```
 
 ## API response fields

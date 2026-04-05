@@ -26,7 +26,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments" \
   --paginate \
-  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {id, path, line, start_line, body, diff_hunk, created_at}]'
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {id, path, line, start_line, body, diff_hunk, created_at, pull_request_review_id}]'
 ```
 
 If `gh pr view` fails (no PR for this branch), ask the user for the PR number or use `-p <number>`.

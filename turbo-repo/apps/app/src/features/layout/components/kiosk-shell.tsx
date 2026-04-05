@@ -18,7 +18,7 @@ function KioskShellInner({ children }: Readonly<PropsWithChildren>) {
           margin-top: 0 !important;
           margin-bottom: 0 !important;
         }
-        [data-kiosk] [data-testid="content-with-sidebar"] > aside {
+        [data-kiosk] [data-testid="content-with-sidebar"] aside {
           display: none !important;
         }
         [data-kiosk] footer {

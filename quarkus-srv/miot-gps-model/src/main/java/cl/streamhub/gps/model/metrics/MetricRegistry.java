@@ -146,7 +146,7 @@ public final class MetricRegistry {
             .unit("V")
             .minValue(0.0)
             .maxValue(30.0)
-            .category(MetricCategory.FUEL)
+            .category(MetricCategory.ELECTRICAL)
             .build());
 
         register(defs, MetricDefinition.builder("engine.torque_pct")

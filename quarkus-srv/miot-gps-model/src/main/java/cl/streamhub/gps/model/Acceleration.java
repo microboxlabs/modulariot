@@ -48,7 +48,7 @@ public class Acceleration {
         maximum = "5.0",
         examples = {"1.2"},
         required = false,
-        extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
+        extensions = {@Extension(name = "x-order", value = "4", parseValue = true)} //
     )
     @JsonProperty("g_force")
     private Double gForce;

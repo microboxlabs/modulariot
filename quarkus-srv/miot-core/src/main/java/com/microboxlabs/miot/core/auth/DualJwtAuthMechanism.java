@@ -49,6 +49,8 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private final String issuer;
     private final String jwksUrl;
     private final String hs256Secret;
+    private final String hs256Audience;
+    private final String rs256Audience;
 
     private JwtConsumer hs256Consumer;
     private JwtConsumer rs256Consumer;
@@ -60,10 +62,16 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
             @ConfigProperty(name = "miot.auth.jwks-url", defaultValue = NOT_CONFIGURED)
                     String jwksUrl,
             @ConfigProperty(name = "miot.auth.hs256-secret", defaultValue = NOT_CONFIGURED)
-                    String hs256Secret) {
+                    String hs256Secret,
+            @ConfigProperty(name = "miot.auth.hs256-audience", defaultValue = NOT_CONFIGURED)
+                    String hs256Audience,
+            @ConfigProperty(name = "miot.auth.rs256-audience", defaultValue = NOT_CONFIGURED)
+                    String rs256Audience) {
         this.issuer = issuer;
         this.jwksUrl = jwksUrl;
         this.hs256Secret = hs256Secret;
+        this.hs256Audience = hs256Audience;
+        this.rs256Audience = rs256Audience;
     }
 
     @PostConstruct
@@ -71,23 +79,31 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         m2mPathPrefixes = discoverM2mPaths();
 
         if (!NOT_CONFIGURED.equals(hs256Secret)) {
-            hs256Consumer = new JwtConsumerBuilder()
+            var hs256Builder = new JwtConsumerBuilder()
                     .setVerificationKey(new HmacKey(hs256Secret.getBytes()))
                     .setExpectedIssuer(issuer)
-                    .setRequireExpirationTime()
-                    .setSkipDefaultAudienceValidation()
-                    .build();
+                    .setRequireExpirationTime();
+            if (!NOT_CONFIGURED.equals(hs256Audience)) {
+                hs256Builder.setExpectedAudience(hs256Audience);
+            } else {
+                hs256Builder.setSkipDefaultAudienceValidation();
+            }
+            hs256Consumer = hs256Builder.build();
             LOG.infof("HS256 verification configured for @M2MAuth paths: %s", m2mPathPrefixes);
         }
 
         if (!NOT_CONFIGURED.equals(jwksUrl)) {
             HttpsJwks httpsJwks = new HttpsJwks(jwksUrl);
-            rs256Consumer = new JwtConsumerBuilder()
+            var rs256Builder = new JwtConsumerBuilder()
                     .setVerificationKeyResolver(new HttpsJwksVerificationKeyResolver(httpsJwks))
                     .setExpectedIssuer(issuer)
-                    .setRequireExpirationTime()
-                    .setSkipDefaultAudienceValidation()
-                    .build();
+                    .setRequireExpirationTime();
+            if (!NOT_CONFIGURED.equals(rs256Audience)) {
+                rs256Builder.setExpectedAudience(rs256Audience);
+            } else {
+                rs256Builder.setSkipDefaultAudienceValidation();
+            }
+            rs256Consumer = rs256Builder.build();
             LOG.info("RS256 verification configured via JWKS for web paths");
         }
     }

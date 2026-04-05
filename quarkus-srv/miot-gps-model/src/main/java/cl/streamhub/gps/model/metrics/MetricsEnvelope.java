@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -57,6 +58,7 @@ public class MetricsEnvelope {
         minimum = "0",
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)}
     )
+    @Min(0)
     private Long seq;
 
     @Schema(

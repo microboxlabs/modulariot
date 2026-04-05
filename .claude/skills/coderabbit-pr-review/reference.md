@@ -39,7 +39,7 @@ gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments" \
 
 Typical CodeRabbitAI inline comment:
 
-```
+```markdown
 _⚠️ Potential issue_ | _🟠 Major_
 
 **Title of the issue**

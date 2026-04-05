@@ -13,6 +13,7 @@
     <description>ModularIoT modular monorepo: single image, runtime-activated components</description>
 
     <modules>
+        <module>miot-gps-model</module>
         <module>miot-core</module>
         <module>miot-resource-core</module>
         <module>miot-fleet</module>
@@ -69,21 +70,12 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>cl.streamhub</groupId>
-                <artifactId>gps-model</artifactId>
-                <version>1.4.0</version>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-gps-model</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-        <repository>
-            <id>artifact-registry</id>
-            <url>artifactregistry://us-central1-maven.pkg.dev/mainbox-378714/mainbox-maven</url>
-            <releases/>
-            <snapshots/>
-        </repository>
-    </repositories>
 
     <build>
         <pluginManagement>
@@ -127,13 +119,6 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-        <extensions>
-            <extension>
-                <groupId>com.google.cloud.artifactregistry</groupId>
-                <artifactId>artifactregistry-maven-wagon</artifactId>
-                <version>2.2.0</version>
-            </extension>
-        </extensions>
     </build>
 
     <profiles>

@@ -1,0 +1,115 @@
+# ADR-003: Autenticacion JWT Dual (HS256 + RS256)
+
+| | |
+|---|---|
+| **Estado** | Aceptado |
+| **Fecha** | 2026-04-05 |
+| **Decisores** | Equipo de ingenieria de plataforma |
+| **Relacionado con** | `DualJwtAuthMechanism`, `M2MAuth`, `TenantRequestFilter` |
+
+## Contexto
+
+El modulito de ModularIoT sirve a dos tipos de clientes fundamentalmente diferentes desde el mismo tenant de Auth0 (`auth0.microboxlabs.com`):
+
+**Dispositivos M2M** — Rastreadores GPS, procesadores de stream y gateways IoT se autentican mediante el flujo client_credentials de Auth0. Estos tokens estan firmados con **HS256** (un secreto simetrico compartido configurado en la API de Auth0). Los dispositivos no tienen navegador, ni sesion de usuario, ni login interactivo. Llaman a endpoints como `/api/v1/asset/track` y `/api/v1/stream/frames`.
+
+**Aplicaciones web** — El dashboard de flota y el portal de conductores se autentican mediante social/web login de Auth0. Estos tokens estan firmados con **RS256** (el par de claves RSA de Auth0, verificable a traves del endpoint publico JWKS). Los usuarios interactuan con endpoints como `/api/v1/orgs/{orgId}/fleet/trucks` y `/api/v1/orgs/{orgId}/drivers`.
+
+Ambos tipos de token comparten el mismo emisor (`https://auth0.microboxlabs.com/`) pero usan diferentes algoritmos de firma y diferentes APIs de Auth0 (audiences). Una sola estrategia de verificacion no puede manejar ambos:
+
+- **Quarkus OIDC** verifica tokens RS256 via descubrimiento JWKS pero no puede verificar tokens HS256 (no soporta claves simetricas).
+- **SmallRye JWT** puede verificar HS256 con una clave secreta configurada, pero su propiedad `mp.jwt.verify.publickey.algorithm` acepta solo un algoritmo a la vez.
+- Ejecutar ambas extensiones simultaneamente causa que OIDC intercepte los tokens Bearer antes de que SmallRye JWT pueda procesarlos, rechazando los tokens HS256 directamente.
+
+## Decision
+
+Implementar un `DualJwtAuthMechanism` personalizado (Quarkus `HttpAuthenticationMechanism`) que enruta la verificacion de tokens por ruta de request, determinada al inicio desde anotaciones en los recursos:
+
+1. **Anotacion `@M2MAuth`** — Una anotacion marcadora aplicada a clases de recursos JAX-RS que requieren autenticacion M2M. La anotacion no lleva configuracion; su presencia es suficiente.
+
+2. **Descubrimiento de rutas al inicio** — `DualJwtAuthMechanism` escanea todos los beans CDI via `BeanManager.getBeans(Object.class)` en tiempo de `@PostConstruct`. Para cada clase de bean anotada con `@M2MAuth` y `@Path`, registra el valor del path como prefijo M2M.
+
+3. **Enrutamiento deterministico** — Cuando llega un request:
+   - Si la ruta coincide con algun prefijo M2M descubierto → verificar con **HS256** (secreto compartido desde `miot.auth.hs256-secret`)
+   - En caso contrario → verificar con **RS256** (Auth0 JWKS desde `miot.auth.jwks-url`)
+   - Sin fallback. Cada ruta usa exactamente un algoritmo. Token incorrecto = 401 inmediato.
+
+4. **`DefaultJWTCallerPrincipal`** — Despues de la verificacion, el mecanismo crea un `DefaultJWTCallerPrincipal` a partir de los claims ya verificados. Esto es compatible con la inyeccion de `JsonWebToken` en `TenantRequestFilter`, que extrae `clientId` del claim `azp` o `aud` independientemente de que algoritmo verifico el token.
+
+### Uso
+
+Agregar un nuevo recurso M2M requiere solo la anotacion:
+
+```java
+@Path("/api/v1/stream/frames")
+@M2MAuth
+public class StreamFrameResource { ... }
+```
+
+Los recursos web no necesitan anotacion — RS256 es el default:
+
+```java
+@Path("/api/v1/orgs/{organizationId}/fleet")
+public class OrgFleetResource { ... }
+```
+
+### Configuracion
+
+```properties
+# Emisor Auth0 (mismo para ambos tipos de token)
+mp.jwt.verify.issuer=${AUTH0_ISSUER}
+
+# Secreto de firma HS256 (Auth0 > APIs > Signing Secret)
+miot.auth.hs256-secret=${AUTH0_HS256_SECRET}
+
+# Endpoint JWKS RS256 (descubrimiento OIDC de Auth0)
+miot.auth.jwks-url=${AUTH0_JWKS_URL}
+```
+
+## Alternativas consideradas
+
+### Cambiar todas las APIs de Auth0 a RS256
+
+Reconfigurar la API M2M (`iot.streamhub.cl/v1/asset/track`) para usar RS256 en lugar de HS256. Esto permitiria una sola verificacion basada en JWKS para todos los tokens.
+
+Rechazado porque los dispositivos M2M existentes en produccion estan configurados con las credenciales actuales y firma HS256. Cambiar el algoritmo de firma de la API invalidaria todos los tokens existentes y requeriria re-provisionamiento coordinado de dispositivos en toda la flota.
+
+### Cadena de fallback (intentar HS256, luego RS256)
+
+Configurar el mecanismo para intentar HS256 primero y, en caso de fallo, hacer fallback a RS256. Esto maneja ambos tipos de token sin enrutamiento por ruta.
+
+Rechazado porque desperdicia CPU en intentos con algoritmo incorrecto (cada request web fallaria primero en HS256), produce mensajes de log ambiguos (es un token invalido o simplemente el algoritmo equivocado?), y hace mas dificil depurar problemas de autenticacion ya que el error real queda enmascarado por el fallback.
+
+### Multi-tenancy de Quarkus OIDC
+
+Usar la funcionalidad de tenants nombrados de Quarkus OIDC para configurar tenants OIDC separados para diferentes rutas, con un tenant usando el JWKS de Auth0 y otro usando un secreto local.
+
+Rechazado porque Quarkus OIDC no soporta verificacion de tokens HS256. Los tenants OIDC siempre resuelven claves desde el endpoint JWKS del proveedor, que solo contiene claves RS256. No existe configuracion para proporcionar un secreto simetrico para verificacion de tokens en la extension OIDC.
+
+### Despliegues separados por tipo de autenticacion
+
+Desplegar dos instancias del modulito — una configurada para M2M (HS256) sirviendo endpoints de dispositivos, otra para web (RS256) sirviendo endpoints de usuario.
+
+Rechazado porque contradice el proposito de la arquitectura modulith. El modulito consolida todos los componentes en una sola imagen desplegable con modulos activados en runtime. Dividir por tipo de autenticacion duplicaria infraestructura, complicaria el despliegue y crearia dependencias entre servicios para componentes compartidos.
+
+## Consecuencias
+
+### Positivas
+
+- Nuevos recursos M2M requieren solo `@M2MAuth` — sin cambios en archivos de configuracion, sin mantenimiento de listas de rutas
+- Cada request usa exactamente un algoritmo de verificacion — sin intentos desperdiciados, sin fallos ambiguos
+- Los fallos de autenticacion son deterministicos: un 401 en una ruta M2M significa que el secreto HS256 no coincidio; un 401 en una ruta web significa que la firma RS256 o la verificacion JWKS fallo
+- El `TenantRequestFilter` funciona identicamente para ambos tipos de token — lee `clientId` de los claims JWT independientemente del algoritmo de firma
+- El mecanismo es transparente para el codigo de los recursos — los recursos inyectan `TenantContext` sin saber que algoritmo verifico su token
+
+### Restricciones introducidas
+
+- `@M2MAuth` es solo a nivel de clase. Si una sola clase de recurso necesita servir tanto a clientes M2M como web, debe dividirse en dos clases con valores `@Path` separados
+- El matching de rutas es basado en prefijos. Un recurso en `/api/v1/asset/track` registra el prefijo `/api/v1/asset/track` — sub-rutas como `/api/v1/asset/track/batch` tambien se tratan como M2M
+- El secreto HS256 se almacena como texto plano en el archivo `.env`. En produccion, debe inyectarse via un gestor de secretos (ej., Google Secret Manager, Vault)
+- Tanto `AUTH0_HS256_SECRET` como `AUTH0_JWKS_URL` deben estar configurados para que el mecanismo sea completamente funcional. Si falta alguno, los requests al tipo de ruta correspondiente recibiran 401 con un log de advertencia
+
+### Pendiente
+
+- `@M2MAuth` a nivel de metodo no esta soportado. Si se necesita, el escaneo de descubrimiento podria extenderse para verificar anotaciones de metodo y combinarlas con el `@Path` a nivel de clase
+- El endpoint JWKS se obtiene de forma lazy en el primer request RS256. Si Auth0 no esta accesible en ese momento, el primer request web fallara. Un health check de inicio que pre-obtenga el JWKS podria mitigar esto

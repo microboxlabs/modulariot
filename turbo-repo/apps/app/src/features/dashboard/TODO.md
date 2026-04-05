@@ -18,13 +18,13 @@
   cd turbo-repo/apps/app && npx vitest run src/features/dashboard/dashlets/common/pgrest-utils.test.ts
   ```
 - [x] **Chart Widget (echarts)** - Create `chart` dashlet supporting line, bar, pie, gauge, scatter via echarts-for-react. Settings modal with series config, axis labels, legend, colors, data source (pgrest/planner/static)
-- [ ] **Auto-Refresh / Polling** - Configurable `refreshInterval` (10s, 30s, 60s, 5m, off) at dashboard and per-widget level. Implement via SWR `refreshInterval` in `usePgrestRows` and `PlannerProvider`
-- [ ] **Widget Duplication** - "Duplicate" button in `WidgetControls` (edit mode). Deep-clone widget + children with new UUIDs, place adjacent in grid
+- [x] **Auto-Refresh / Polling** - Configurable `refreshInterval` (10s, 30s, 60s, 5m, off) at dashboard and per-widget level. Implement via SWR `refreshInterval` in `usePgrestRows` and `PlannerProvider`
+- [x] **Widget Duplication** - "Duplicate" button in `WidgetControls` (edit mode). Deep-clone widget + children with new UUIDs, place adjacent in grid
 
 ## P1 - High Value
 
 - [ ] **Schema Migration System** - Migration pipeline in `useDashboardStorage` to transform old schema versions to current. Required before any schema changes
-- [ ] **Undo/Redo** - Command history stack (snapshot-based, max ~50). Keyboard shortcuts Ctrl+Z / Ctrl+Shift+Z. Toolbar buttons in header
+- [x] **Undo/Redo** - Command history stack (snapshot-based, max ~50). Keyboard shortcuts Ctrl+Z / Ctrl+Shift+Z. Toolbar buttons in header
 - [ ] **Threshold / Conditional Formatting** - Stat widgets define threshold rules (value ranges -> colors). Apply to background, text, icon color
 - [ ] **Kiosk / Fullscreen Mode** - Hide header, nav, filter bar, edit controls. Auto-refresh on. URL param `?kiosk=true`. Depends on auto-refresh
 - [ ] **Responsive Breakpoints** - Root grid breakpoints (24 cols desktop, 12 tablet, 6 mobile). Per-breakpoint layouts in schema. Depends on schema migrations

@@ -113,12 +113,14 @@ public class PulsarMessagePublisher implements IMessagePublisher {
                 msgBuilder.key(key);
             }
             return msgBuilder.sendAsync()
-                    .thenAccept(msgId ->
-                            LOG.debugf("Published to %s, msgId=%s", topic, msgId))
-                    .exceptionally(ex -> {
-                        LOG.errorf(ex, "Failed to publish to %s", topic);
-                        return null;
-                    });
+                    .whenComplete((msgId, ex) -> {
+                        if (ex == null) {
+                            LOG.debugf("Published to %s, msgId=%s", topic, msgId);
+                        } else {
+                            LOG.errorf(ex, "Failed to publish to %s", topic);
+                        }
+                    })
+                    .thenAccept(msgId -> {});
         } catch (Exception e) {
             LOG.errorf(e, "Failed to serialize/publish to %s", topic);
             return CompletableFuture.failedFuture(e);

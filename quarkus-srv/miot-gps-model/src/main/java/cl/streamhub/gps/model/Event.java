@@ -95,7 +95,7 @@ public class Event {
     }
 
     public boolean isThresholdExceeded() {
-        return thresholdExceeded;
+        return Boolean.TRUE.equals(thresholdExceeded);
     }
 
     public void setThresholdExceeded(boolean thresholdExceeded) {

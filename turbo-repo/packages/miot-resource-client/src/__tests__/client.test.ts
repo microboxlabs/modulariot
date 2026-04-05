@@ -9,16 +9,16 @@ describe("createMiotResourceClient", () => {
   describe("URL building", () => {
     it("builds a full URL from baseUrl and path", async () => {
       const { fn, call } = createMockFetch([]);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await client.fleet.listTrucks();
 
-      expect(call.url).toBe("https://api.example.com/api/v1/fleet/trucks");
+      expect(call.url).toBe("https://api.example.com/api/v1/orgs/org-1/fleet/trucks");
     });
 
     it("appends query parameters", async () => {
       const { fn, call } = createMockFetch([]);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await client.fleet.listTrucks({ page: 1, size: 10 });
 
@@ -29,7 +29,7 @@ describe("createMiotResourceClient", () => {
 
     it("omits undefined query values", async () => {
       const { fn, call } = createMockFetch([]);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await client.fleet.listTrucks({ page: 0, size: undefined });
 
@@ -44,6 +44,7 @@ describe("createMiotResourceClient", () => {
       const { fn, call } = createMockFetch([]);
       const client = createMiotResourceClient({
         baseUrl,
+        organizationId: "org-1",
         fetch: fn,
         headers: { Authorization: "Bearer token-123" },
       });
@@ -57,7 +58,7 @@ describe("createMiotResourceClient", () => {
 
     it("sets Content-Type when body is present", async () => {
       const { fn, call } = createMockFetch({});
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await client.drivers.create({ firstName: "John", lastName: "Doe" });
 
@@ -68,7 +69,7 @@ describe("createMiotResourceClient", () => {
 
     it("does not set Content-Type for GET requests", async () => {
       const { fn, call } = createMockFetch([]);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await client.fleet.listTrucks();
 
@@ -81,7 +82,7 @@ describe("createMiotResourceClient", () => {
     it("returns parsed JSON for 2xx responses", async () => {
       const mockData = [{ id: 1 }];
       const { fn } = createMockFetch(mockData);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       const result = await client.fleet.listTrucks();
 
@@ -96,7 +97,7 @@ describe("createMiotResourceClient", () => {
         timestamp: "2025-01-01T00:00:00Z",
       };
       const { fn } = createMockFetch(errorBody, 404);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await expect(client.fleet.getTruck(999)).rejects.toThrow(
         MiotResourceApiError,
@@ -111,7 +112,7 @@ describe("createMiotResourceClient", () => {
         timestamp: "2025-01-01T00:00:00Z",
       };
       const { fn } = createMockFetch(errorBody, 400);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       try {
         await client.drivers.get(0);
@@ -129,7 +130,7 @@ describe("createMiotResourceClient", () => {
   describe("request body serialization", () => {
     it("serializes body as JSON string", async () => {
       const { fn, call } = createMockFetch({});
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       const body = { firstName: "John", lastName: "Doe" };
       await client.drivers.create(body);
@@ -139,7 +140,7 @@ describe("createMiotResourceClient", () => {
 
     it("does not send body for GET requests", async () => {
       const { fn, call } = createMockFetch([]);
-      const client = createMiotResourceClient({ baseUrl, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl, organizationId: "org-1", fetch: fn });
 
       await client.fleet.listTrucks();
 

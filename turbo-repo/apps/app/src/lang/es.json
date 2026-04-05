@@ -297,7 +297,7 @@
           "leadTimeLocCount": "{count} LOC",
           "leadTimeLocLines": "{count} líneas LOC",
           "serviceCategory": "Categoría de servicio",
-          "serviceCategoryLoading": "Cargando\u2026",
+          "serviceCategoryLoading": "Cargando…",
           "serviceCategoryPlaceholder": "Seleccionar categoría",
           "presentationDate": "Fecha de presentación",
           "departureDate": "Fecha de salida",
@@ -2632,9 +2632,32 @@
       "maintenance": "Próx. Mantención",
       "kmTraveled": "Km Totales",
       "loading": "Cargando...",
+      "emptyTitle": "No hay vehículos en esta flota",
+      "emptyDescription": "Cuando se asignen vehículos a esta flota, aparecerán aquí.",
       "plate": "Patente",
       "lastSignal": "Última señal",
-      "status": "Estado"
+      "status": "Estado",
+      "emptyTitle": "No se encontraron vehículos",
+      "emptyDescription": "No hay vehículos para mostrar en este momento",
+      "tabs": {
+        "trucks": "Camiones",
+        "trailers": "Remolques",
+        "carriers": "Transportistas"
+      },
+      "truckCount": "{count} camiones",
+      "trailerCount": "{count} remolques",
+      "carrierCount": "{count} transportistas",
+      "noData": "Sin datos disponibles",
+      "errorLoading": "Error al cargar datos de flota",
+      "vin": "VIN",
+      "year": "Año",
+      "maxWeight": "Peso Máximo",
+      "truckType": "Tipo",
+      "axleCount": "Ejes",
+      "externalId": "ID Externo",
+      "rut": "RUT",
+      "transportLicense": "Licencia de Transporte",
+      "carrierName": "Nombre Transportista"
     },
     "status": {
       "active": "Activo",
@@ -2755,7 +2778,7 @@
           "odometerSinceOrigin": "Odómetro acumulado desde origen",
           "monthlyContractualConsumption": "Consumo contractual mensual",
           "deviationFromAverage": "Desviación respecto al promedio",
-          "kmTraveledThisMonth": "Km recorridos (mes)", 
+          "kmTraveledThisMonth": "Km recorridos (mes)",
           "kmRemainingThisMonth": "Km restantes (mes)",
           "avgDaily": "Promedio diario",
           "operationHours": "Horas de operación",
@@ -2781,7 +2804,11 @@
           "brand": "Marca",
           "carrier": "Transportista",
           "driver": "Conductor",
-          "location": "Última Ubicación"
+          "location": "Última Ubicación",
+          "vin": "VIN",
+          "year": "Año",
+          "maxWeight": "Peso Máximo (kg)",
+          "externalId": "ID Externo"
         }
       }
     },

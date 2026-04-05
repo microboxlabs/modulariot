@@ -18,7 +18,7 @@ public class Dashcam {
 
     @Schema(
         description = "URL of the recorded video",
-        example = "http://example.com/recordings/abc123",
+        examples = {"http://example.com/recordings/abc123"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )

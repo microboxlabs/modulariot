@@ -16,7 +16,7 @@ public class Telecom {
 
     @Schema(
         description = "ICCID (Integrated Circuit Card Identifier) of the SIM card",
-        example = "89012345678901234567",
+        examples = {"89012345678901234567"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -24,7 +24,7 @@ public class Telecom {
 
     @Schema(
         description = "IMSI (International Mobile Subscriber Identity) of the SIM card",
-        example = "123456789012345",
+        examples = {"123456789012345"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )
@@ -32,7 +32,7 @@ public class Telecom {
 
     @Schema(
         description = "Name of the mobile network operator",
-        example = "Vodafone",
+        examples = {"Vodafone"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )
@@ -40,7 +40,7 @@ public class Telecom {
 
     @Schema(
         description = "Mobile Country Code",
-        example = "234",
+        examples = {"234"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "4", parseValue = true)} //
     )
@@ -48,7 +48,7 @@ public class Telecom {
 
     @Schema(
         description = "Mobile Network Code",
-        example = "15",
+        examples = {"15"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "5", parseValue = true)} //
     )
@@ -56,7 +56,7 @@ public class Telecom {
 
     @Schema(
         description = "Cell ID of the connected cell tower",
-        example = "12345",
+        examples = {"12345"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "6", parseValue = true)} //
     )
@@ -65,7 +65,7 @@ public class Telecom {
 
     @Schema(
         description = "Location Area Code",
-        example = "1234",
+        examples = {"1234"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "7", parseValue = true)} //
     )
@@ -75,7 +75,7 @@ public class Telecom {
         description = "Signal strength in dBm",
         minimum = "-120",
         maximum = "-30",
-        example = "-85",
+        examples = {"-85"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "8", parseValue = true)} //
     )
@@ -84,7 +84,7 @@ public class Telecom {
 
     @Schema(
         description = "Name of the GPS provider",
-        example = "Garmin",
+        examples = {"Garmin"},
         required = false, //
         extensions = {@Extension(name = "x-order", value = "9", parseValue = true)} //
     )

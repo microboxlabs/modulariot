@@ -12,7 +12,7 @@ public class BatteryLevel {
         description = "Battery percentage remaining",
         minimum = "0",
         maximum = "100",
-        example = "85"
+        examples = {"85"}
     )
     private Double percentage;
 

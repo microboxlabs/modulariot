@@ -107,11 +107,8 @@ public final class MetricDefinition {
         if (minValue != null && numValue < minValue) {
             return false;
         }
-        if (maxValue != null && numValue > maxValue) {
-            return false;
-        }
 
-        return true;
+        return maxValue == null || numValue <= maxValue;
     }
 
     /**

@@ -14,7 +14,7 @@ public class AdditionalInfo {
         description = "G-force during the event",
         minimum = "0.0",
         maximum = "5.0",
-        example = "2.5",
+        examples = {"2.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -25,7 +25,7 @@ public class AdditionalInfo {
         description = "Speed during the event in km/h",
         minimum = "0.0",
         maximum = "250.0",
-        example = "120.5",
+        examples = {"120.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )
@@ -36,7 +36,7 @@ public class AdditionalInfo {
         description = "Cargo weight at the time of the event in kg",
         minimum = "0.0",
         maximum = "20000.0",
-        example = "5000.0",
+        examples = {"5000.0"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )

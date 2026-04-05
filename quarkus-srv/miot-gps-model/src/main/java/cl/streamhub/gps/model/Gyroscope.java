@@ -13,7 +13,7 @@ public class Gyroscope {
         description = "Rotation rate on X-axis",
         minimum = "-10.0",
         maximum = "10.0",
-        example = "5.5",
+        examples = {"5.5"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -24,7 +24,7 @@ public class Gyroscope {
         description = "Rotation rate on Y-axis",
         minimum = "-10.0",
         maximum = "10.0",
-        example = "-3.2",
+        examples = {"-3.2"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )
@@ -35,7 +35,7 @@ public class Gyroscope {
         description = "Rotation rate on Z-axis",
         minimum = "-10.0",
         maximum = "10.0",
-        example = "1.8",
+        examples = {"1.8"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )

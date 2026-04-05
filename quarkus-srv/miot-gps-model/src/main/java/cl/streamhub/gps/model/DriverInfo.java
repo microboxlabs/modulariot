@@ -15,7 +15,7 @@ public class DriverInfo {
 
     @Schema(
         description = "Unique identifier of the driver",
-        example = "D12345",
+        examples = {"D12345"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)} //
     )
@@ -24,7 +24,7 @@ public class DriverInfo {
 
     @Schema(
         description = "Name of the driver",
-        example = "John Doe",
+        examples = {"John Doe"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)} //
     )
@@ -32,7 +32,7 @@ public class DriverInfo {
 
     @Schema(
         description = "Driver's license number",
-        example = "XYZ12345",
+        examples = {"XYZ12345"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)} //
     )
@@ -48,7 +48,7 @@ public class DriverInfo {
 
     @Schema(
         description = "ID Button unique identifier",
-        example = "2100000095CC3B21",
+        examples = {"2100000095CC3B21"},
         required = false,
         extensions = {@Extension(name = "x-order", value = "5", parseValue = true)}
     )

@@ -28,7 +28,7 @@ public class MetricItem {
 
     @Schema(
         description = "Canonical metric key (e.g., engine.rpm, vehicle.speed, battery.voltage)",
-        example = "engine.rpm",
+        examples = {"engine.rpm"},
         pattern = KEY_PATTERN,
         required = true,
         extensions = {@Extension(name = "x-order", value = "1", parseValue = true)}
@@ -39,7 +39,7 @@ public class MetricItem {
 
     @Schema(
         description = "Metric value - can be number, boolean, string, object, or array",
-        example = "2150",
+        examples = {"2150"},
         required = true,
         extensions = {@Extension(name = "x-order", value = "2", parseValue = true)}
     )
@@ -48,21 +48,21 @@ public class MetricItem {
 
     @Schema(
         description = "Canonical unit of measurement (e.g., rpm, km/h, V, %, C)",
-        example = "rpm",
+        examples = {"rpm"},
         extensions = {@Extension(name = "x-order", value = "3", parseValue = true)}
     )
     private String u;
 
     @Schema(
         description = "Timestamp override for this specific metric in RFC3339 format",
-        example = "2026-01-20T14:12:00Z",
+        examples = {"2026-01-20T14:12:00Z"},
         extensions = {@Extension(name = "x-order", value = "4", parseValue = true)}
     )
     private ZonedDateTime ts;
 
     @Schema(
         description = "Data source identifier",
-        example = "obd2",
+        examples = {"obd2"},
         enumeration = {"obd2", "j1939", "can", "oem", "derived", "unknown"},
         extensions = {@Extension(name = "x-order", value = "5", parseValue = true)}
     )
@@ -70,7 +70,7 @@ public class MetricItem {
 
     @Schema(
         description = "Quality indicator for the metric value",
-        example = "ok",
+        examples = {"ok"},
         enumeration = {"ok", "estimated", "stale", "invalid", "missing"},
         extensions = {@Extension(name = "x-order", value = "6", parseValue = true)}
     )

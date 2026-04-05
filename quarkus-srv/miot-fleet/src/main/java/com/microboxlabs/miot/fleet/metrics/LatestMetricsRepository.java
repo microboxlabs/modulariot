@@ -1,12 +1,10 @@
 package com.microboxlabs.miot.fleet.metrics;
 
-import io.agroal.api.AgroalDataSource;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +38,12 @@ public class LatestMetricsRepository {
     private static final String SQL_BATCH =
             "SELECT asset_id, metrics FROM fn_latest_metrics_batch($1, $2)";
 
-    @Inject
-    @io.quarkus.reactive.datasource.ReactiveDataSource("metrics")
-    PgPool metricsClient;
+    private final Pool metricsClient;
+
+    LatestMetricsRepository(
+            @io.quarkus.reactive.datasource.ReactiveDataSource("metrics") Pool metricsClient) {
+        this.metricsClient = metricsClient;
+    }
 
     /**
      * Returns the latest metric snapshot for one asset.

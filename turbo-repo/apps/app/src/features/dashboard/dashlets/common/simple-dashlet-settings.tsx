@@ -111,6 +111,8 @@ export function SimpleDashletSettings<C extends object>({
     dataMode,
     dataSourceId,
     setDataSourceId,
+    plannerVariableName,
+    setPlannerVariableName,
     pg,
     handleDataModeChange,
     pgrestSaveFields,
@@ -159,6 +161,8 @@ export function SimpleDashletSettings<C extends object>({
       onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
       dataSourceId={dataSourceId}
       onDataSourceIdChange={setDataSourceId}
       activeProviders={activeProviders}

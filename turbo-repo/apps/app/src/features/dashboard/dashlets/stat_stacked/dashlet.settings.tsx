@@ -206,7 +206,10 @@ export function DashletSettings({
               placeholder={isPgrest ? "{{row.label}}" : tr("dashboard.settings.label", dictionary)}
               className="flex-1"
               schemaSuggestions={schemaSuggestions}
-              aria-label={`Category ${item.label || "new"} label`}
+              aria-label={tr("dashboard.settings.categoryAriaLabel", dictionary, {
+                name: item.label || tr("dashboard.settings.new", dictionary),
+                field: tr("dashboard.settings.label", dictionary),
+              })}
             />
             <HbInlineInput
               value={item.value}
@@ -214,7 +217,10 @@ export function DashletSettings({
               placeholder={isPgrest ? "{{row.value}}" : "0"}
               className="w-20"
               schemaSuggestions={schemaSuggestions}
-              aria-label={`Category ${item.label || "new"} value`}
+              aria-label={tr("dashboard.settings.categoryAriaLabel", dictionary, {
+                name: item.label || tr("dashboard.settings.new", dictionary),
+                field: tr("common.value", dictionary),
+              })}
             />
             <ColorPickerDropdown
               options={COLOR_OPTIONS}

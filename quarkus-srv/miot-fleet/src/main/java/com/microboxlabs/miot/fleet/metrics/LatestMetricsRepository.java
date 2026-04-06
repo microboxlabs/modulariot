@@ -33,15 +33,14 @@ public class LatestMetricsRepository {
     private static final Logger logger = Logger.getLogger(LatestMetricsRepository.class);
 
     private static final String SQL_SINGLE =
-            "SELECT fn_latest_metrics($1, $2)";
+            "SELECT miot_tracking.fn_latest_metrics($1, $2)";
 
     private static final String SQL_BATCH =
-            "SELECT asset_id, metrics FROM fn_latest_metrics_batch($1, $2)";
+            "SELECT asset_id, metrics FROM miot_tracking.fn_latest_metrics_batch($1, $2)";
 
     private final Pool metricsClient;
 
-    LatestMetricsRepository(
-            @io.quarkus.reactive.datasource.ReactiveDataSource("metrics") Pool metricsClient) {
+    LatestMetricsRepository(Pool metricsClient) {
         this.metricsClient = metricsClient;
     }
 

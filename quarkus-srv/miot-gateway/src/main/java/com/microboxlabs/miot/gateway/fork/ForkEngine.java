@@ -73,6 +73,7 @@ public class ForkEngine {
 
     // Pre-built meters keyed by "ruleId" or "ruleId:targetId"
     private final Map<String, Counter> discardedCounters = new HashMap<>();
+    private final Map<String, Counter> parseErrorCounters = new HashMap<>();
     private final Map<String, Counter> forwardedCounters = new HashMap<>();
     private final Map<String, Counter> errorCounters = new HashMap<>();
     private final Map<String, Timer> forwardTimers = new HashMap<>();
@@ -125,6 +126,9 @@ public class ForkEngine {
             discardedCounters.put(rule.id(),
                     meterRegistry.counter(METRIC_FORK_REQUESTS,
                             "rule", rule.id(), TAG_TARGET, "-", TAG_OUTCOME, "discarded"));
+            parseErrorCounters.put(rule.id(),
+                    meterRegistry.counter(METRIC_FORK_REQUESTS,
+                            "rule", rule.id(), TAG_TARGET, "-", TAG_OUTCOME, "error"));
 
             for (ForkTarget target : rule.targets()) {
                 String key = rule.id() + ":" + target.id();
@@ -170,8 +174,8 @@ public class ForkEngine {
         try {
             key = extractKey(rule, body);
         } catch (IOException e) {
-            LOG.warnf(e, "Rule '%s': failed to extract key field '%s' — discarding", rule.id(), rule.keyField());
-            discardedCounters.get(rule.id()).increment();
+            LOG.warnf(e, "Rule '%s': failed to extract key field '%s' — parse error", rule.id(), rule.keyField());
+            parseErrorCounters.get(rule.id()).increment();
             return ForkResult.error(rule.id(), null);
         }
 
@@ -315,6 +319,7 @@ public class ForkEngine {
                 targets);
     }
 
+    @SuppressWarnings("java:S1075") // path delimiter normalization, not a hardcoded URI
     private ForkTarget buildTarget(String ruleId, ForkConfig.RuleConfig.TargetConfig tc) {
         String host = tc.mirrorHost().replaceAll("/+$", "");
         String path = tc.mirrorPath().startsWith("/") ? tc.mirrorPath() : "/" + tc.mirrorPath();

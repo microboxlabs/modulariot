@@ -19,6 +19,7 @@ interface PgrestConfigFields {
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
+  plannerVariableName?: string;
 }
 
 interface UseSimplePgrestSettingsOptions<F extends string> {
@@ -35,6 +36,8 @@ interface UseSimplePgrestSettingsOptions<F extends string> {
 interface UseSimplePgrestSettingsReturn<F extends string> {
   dataMode: SimpleDataMode;
   dataSourceId: string;
+  plannerVariableName: string;
+  setPlannerVariableName: (name: string) => void;
   isPgrest: boolean;
   activeProviders: { id: string; name: string }[];
   pg: ReturnType<typeof usePgrestSettingsState>;
@@ -46,6 +49,7 @@ interface UseSimplePgrestSettingsReturn<F extends string> {
     pgrestParams: PgrestParam[];
     pgrestHttpMethod: PgrestHttpMethod;
     dataSourceId: string | undefined;
+    plannerVariableName: string | undefined;
   };
   /** Setter for dataSourceId state */
   setDataSourceId: (id: string) => void;
@@ -79,6 +83,9 @@ export function useSimplePgrestSettings<F extends string>({
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? "",
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState<string>(
+    config.plannerVariableName ?? "",
   );
 
   // Snapshot of field values when entering pgrest mode
@@ -116,12 +123,15 @@ export function useSimplePgrestSettings<F extends string>({
     pgrestParams: fromPgrestParamItems(pg.pgrestParams),
     pgrestHttpMethod: pg.pgrestHttpMethod,
     dataSourceId: dataSourceId || undefined,
+    plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
   };
 
   return {
     dataMode,
     dataSourceId,
     setDataSourceId,
+    plannerVariableName,
+    setPlannerVariableName,
     isPgrest,
     activeProviders,
     pg,

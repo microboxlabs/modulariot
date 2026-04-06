@@ -24,6 +24,7 @@ import {
   type SimpleDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
@@ -48,6 +49,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const [title, setTitle] = useState(config.title || "Metric");
   const [icon, setIcon] = useState<InfoCardIcon>(config.icon || "chart");
@@ -100,6 +102,11 @@ export function DashletSettings({
     }),
   });
 
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
   const handleSave = () => {
     onSave({
       title,
@@ -128,6 +135,7 @@ export function DashletSettings({
         value={title}
         onChange={setTitle}
         placeholder={tr("dashboard.settings.titlePlaceholder", dictionary)}
+        schemaSuggestions={schemaSuggestions}
       />
 
       <SettingsPickerRow>
@@ -147,6 +155,7 @@ export function DashletSettings({
         value={value}
         onChange={setValue}
         placeholder={tr("dashboard.settings.valuePlaceholder", dictionary)}
+        schemaSuggestions={schemaSuggestions}
       />
 
       <HbTextareaField
@@ -170,6 +179,7 @@ export function DashletSettings({
       <HbTextField
         id="viewMoreUrl"
         label={tr("dashboard.settings.viewMoreUrl", dictionary)}
+        schemaSuggestions={schemaSuggestions}
         value={viewMoreUrl}
         onChange={setViewMoreUrl}
         placeholder="https://example.com/details"

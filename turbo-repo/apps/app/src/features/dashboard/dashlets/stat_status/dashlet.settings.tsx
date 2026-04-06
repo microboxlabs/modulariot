@@ -22,6 +22,7 @@ import {
   type SimpleDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
 export function DashletSettings({
   isOpen,
@@ -32,6 +33,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
@@ -74,6 +76,11 @@ export function DashletSettings({
     }),
   });
 
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
   const handleSave = () => {
     onSave({
       title,
@@ -101,6 +108,7 @@ export function DashletSettings({
         value={title}
         onChange={setTitle}
         placeholder="Status"
+        schemaSuggestions={schemaSuggestions}
       />
       <HbTextField
         id="ss-value"
@@ -108,6 +116,7 @@ export function DashletSettings({
         value={value}
         onChange={setValue}
         placeholder="0"
+        schemaSuggestions={schemaSuggestions}
       />
       <HbTextField
         id="ss-subtitle"
@@ -115,6 +124,7 @@ export function DashletSettings({
         value={subtitle}
         onChange={setSubtitle}
         placeholder="e.g. 204 de 230 dispositivos"
+        schemaSuggestions={schemaSuggestions}
       />
       <SettingsSelectField
         id="ss-color"

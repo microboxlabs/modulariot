@@ -16,6 +16,7 @@ import {
   DataProviderEntries,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -27,6 +28,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const [title, setTitle] = useState(String(config.title ?? defaultConfig.title));
   const [value, setValue] = useState(String(config.value ?? defaultConfig.value));
@@ -50,6 +52,11 @@ export function DashletSettings({
       if (detected.length >= 2) setMaxValue(`{{row.${detected[1].key}}}`);
     }),
   });
+
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
 
   const handleSave = () => {
     onSave({
@@ -82,6 +89,7 @@ export function DashletSettings({
         value={title}
         onChange={setTitle}
         placeholder="Storage Used"
+        schemaSuggestions={schemaSuggestions}
       />
       <SettingsFieldGrid cols={3}>
         <HbTextField
@@ -90,6 +98,7 @@ export function DashletSettings({
           value={value}
           onChange={setValue}
           placeholder="67"
+          schemaSuggestions={schemaSuggestions}
         />
         <HbTextField
           id="sc-max"
@@ -97,6 +106,7 @@ export function DashletSettings({
           value={maxValue}
           onChange={setMaxValue}
           placeholder="100"
+          schemaSuggestions={schemaSuggestions}
         />
         <HbTextField
           id="sc-unit"
@@ -104,6 +114,7 @@ export function DashletSettings({
           value={unit}
           onChange={setUnit}
           placeholder="GB"
+          schemaSuggestions={schemaSuggestions}
         />
       </SettingsFieldGrid>
     </>

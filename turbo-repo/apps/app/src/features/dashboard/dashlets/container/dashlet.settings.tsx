@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button, Label } from "flowbite-react";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import {
   type DashletConfig,
@@ -14,7 +13,7 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import { SettingsDrawer } from "../common/settings-drawer";
 import {
   SettingsTextField,
   SettingsTextareaField,
@@ -92,17 +91,9 @@ export function DashletSettings({
     e.stopPropagation();
   };
 
-  if (globalThis.window === undefined) return null;
-
-  const modalContent = (
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(selected) => {
-        if (!selected) onClose();
-      }}
-      className="no-drag w-72 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-    >
-      <div className="flex w-full flex-col gap-3">
+  return (
+    <SettingsDrawer open={isOpen} onClose={onClose}>
+      <div className="flex h-full flex-col gap-3">
         {/* Variant Toggle */}
         <div>
           <Label className="mb-1 block text-sm">
@@ -196,8 +187,6 @@ export function DashletSettings({
           {tr("common.save", dictionary)}
         </Button>
       </div>
-    </AbsoluteModal>
+    </SettingsDrawer>
   );
-
-  return createPortal(modalContent, document.body);
 }

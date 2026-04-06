@@ -37,6 +37,7 @@ Keys must exactly match a registered canonical key:
 ✓ engine.rpm
 ✓ vehicle.speed
 ✓ fuel.level
+✓ fuel.volume
 
 ✗ Engine.RPM       (case mismatch)
 ✗ engineRpm        (wrong format)
@@ -111,6 +112,7 @@ Numeric metrics have defined valid ranges. Values outside these bounds are rejec
 | Key | Min | Max | Unit | Notes |
 |-----|-----|-----|------|-------|
 | `fuel.level` | 0 | 100 | % | Tank percentage |
+| `fuel.volume` | 0 | 1000 | L | Absolute volume in tank |
 | `fuel.rate` | 0 | 100 | L/h | Instantaneous rate |
 | `fuel.used` | 0 | — | L | Cumulative (unbounded) |
 | `battery.voltage` | 0 | 30 | V | Covers 12V and 24V systems |

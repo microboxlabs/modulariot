@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse, NextRequest } from "next/server";
 import { SymptomsDashboardResponse, SymptomsDashboard } from "./route.type";
 
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_symptoms_dashboard`;
+const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_symptoms_dashboard`;
 
 import {
   AuthToken,

@@ -9,6 +9,8 @@ miot-core/            Shared foundation (config, models, auth, messaging, persis
 miot-resource-core/   Shared SDK (entity events, KPI interfaces, resolution, Alfresco client, metrics)
 miot-fleet/           Fleet directory (vehicles, trucks, trailers, carriers)
 miot-driver/          Driver directory (lifecycle, documents, compliance, scoring)
+miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
+miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
 miot-cli/             Application entrypoint
 ```
 
@@ -35,6 +37,7 @@ miot-cli/             Application entrypoint
 ./start.sh fleet            # fleet only
 ./start.sh driver           # driver only
 ./start.sh fleet driver     # fleet + driver
+./start.sh gateway          # gateway only (no DB required)
 
 # Pass extra Maven/Quarkus args after --
 ./start.sh fleet -- -Dquarkus.http.port=9090
@@ -57,6 +60,8 @@ miot.component.all.enabled=true
 # Individual overrides — defaults to master switch value
 miot.component.fleet.enabled=true
 miot.component.driver.enabled=true
+miot.component.tracking.enabled=true
+miot.component.gateway.enabled=true
 ```
 
 Override at runtime via env vars:
@@ -67,9 +72,10 @@ MIOT_COMPONENT_ALL_ENABLED=true
 
 # Single component
 MIOT_COMPONENT_FLEET_ENABLED=true
+MIOT_COMPONENT_GATEWAY_ENABLED=true
 ```
 
-Only the schemas for enabled components are created by Flyway. Starting with `./start.sh fleet` will create `miot_core`, `miot_resource`, and `miot_fleet` schemas — but not `miot_driver`.
+Only the schemas for enabled components are created by Flyway. Starting with `./start.sh fleet` will create `miot_core`, `miot_resource`, and `miot_fleet` schemas — but not `miot_driver`. The gateway component requires no database.
 
 ## Database
 
@@ -100,6 +106,12 @@ Endpoints are grouped by component tag (Fleet, Drivers). Only enabled components
 | Fleet | `GET /api/v1/fleet/trailers[/{id}]` | List/get trailers |
 | Fleet | `GET /api/v1/fleet/carriers[/{id}]` | List/get carriers |
 | Driver | `GET /api/v1/drivers[/{id}]` | List/get drivers |
+| Tracking | `POST /api/v1/asset/track` | Ingest GPS position |
+| Gateway | `POST /{path}` | APISIX mirror receiver (any path) |
+| Gateway | `GET /internal/fork/rules` | List fork rules and filter sizes |
+| Gateway | `POST /internal/fork/rules/{id}/filter` | Add routing keys to in-memory filter |
+| Gateway | `DELETE /internal/fork/rules/{id}/filter/{key}` | Remove a routing key |
+| Gateway | `POST /internal/fork/rules/{id}/filter/reload` | Reload filter from ConfigMap file |
 | Health | `GET /q/health` | Health check (component status) |
 | Metrics | `GET /q/metrics` | Prometheus metrics |
 

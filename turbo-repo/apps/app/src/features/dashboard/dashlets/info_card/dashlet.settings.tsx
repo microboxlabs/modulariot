@@ -22,8 +22,10 @@ import {
   useActiveProviders,
   DataProviderEntries,
   type SimpleDataMode,
+  isRemoteDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
@@ -48,6 +50,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const [title, setTitle] = useState(config.title || "Metric");
   const [icon, setIcon] = useState<InfoCardIcon>(config.icon || "chart");
@@ -60,12 +63,15 @@ export function DashletSettings({
   );
   const [viewMoreUrl, setViewMoreUrl] = useState(config.viewMoreUrl || "");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
+    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
       ? config.dataMode
       : "static",
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
   );
 
   const dp = useDataProvider(
@@ -76,9 +82,9 @@ export function DashletSettings({
   const staticSnapshot = useRef({ title, value, descriptor, aiPlaceholder, viewMoreUrl });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
+    if (isRemoteDataMode(mode) && dataMode === "static") {
       staticSnapshot.current = { title, value, descriptor, aiPlaceholder, viewMoreUrl };
-    } else if (mode === "static" && dataMode === "pgrest") {
+    } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
       setDescriptor(staticSnapshot.current.descriptor);
@@ -96,6 +102,11 @@ export function DashletSettings({
     }),
   });
 
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
   const handleSave = () => {
     onSave({
       title,
@@ -110,6 +121,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     } as DashletConfig);
     onClose();
@@ -123,6 +135,7 @@ export function DashletSettings({
         value={title}
         onChange={setTitle}
         placeholder={tr("dashboard.settings.titlePlaceholder", dictionary)}
+        schemaSuggestions={schemaSuggestions}
       />
 
       <SettingsPickerRow>
@@ -142,6 +155,7 @@ export function DashletSettings({
         value={value}
         onChange={setValue}
         placeholder={tr("dashboard.settings.valuePlaceholder", dictionary)}
+        schemaSuggestions={schemaSuggestions}
       />
 
       <HbTextareaField
@@ -165,6 +179,7 @@ export function DashletSettings({
       <HbTextField
         id="viewMoreUrl"
         label={tr("dashboard.settings.viewMoreUrl", dictionary)}
+        schemaSuggestions={schemaSuggestions}
         value={viewMoreUrl}
         onChange={setViewMoreUrl}
         placeholder="https://example.com/details"
@@ -180,6 +195,8 @@ export function DashletSettings({
         onDataModeChange={handleDataModeChange}
         pgrest={pg}
         dictionary={dictionary}
+        plannerVariableName={plannerVariableName}
+        onPlannerVariableNameChange={setPlannerVariableName}
         dataSourceId={dataSourceId}
         onDataSourceIdChange={setDataSourceId}
         activeProviders={activeProviders}

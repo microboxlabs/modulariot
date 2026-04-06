@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { createMiotResourceClient } from "../index.js";
-import type { Carrier, EntityEvent, Trailer, Truck, Vehicle } from "../types.js";
+import type { Carrier, EntityEvent, Trailer, Truck } from "../types.js";
 import { createMockFetch } from "./test-utils.js";
 
 const BASE_URL = "https://api.example.com";
-const FLEET = "/api/v1/fleet";
+const ORG_ID = "org-1";
+const FLEET = `/api/v1/orgs/${ORG_ID}/fleet`;
 
 const tenant = { id: 1, code: "t-1", name: "Tenant 1", active: true };
 
@@ -31,11 +32,6 @@ const sampleCarrier: Carrier = {
   transportLicenseExpires: "2026-12-31T00:00:00Z",
 };
 
-const sampleVehicle: Vehicle = {
-  id: 4, tenant, plate: "DEF789", vin: "VIN456",
-  brand: "Mercedes", model: "Actros", year: 2021, active: true,
-};
-
 const sampleEvent: EntityEvent = {
   id: 10, clientId: "c-1", entityType: "TRUCK", entityId: "uuid-truck-1",
   eventType: "STATUS_CHANGED", eventSource: "api", actor: "user-1",
@@ -46,7 +42,7 @@ describe("fleet", () => {
   describe("trucks", () => {
     it("listTrucks sends GET to /fleet/trucks", async () => {
       const { fn, call } = createMockFetch([sampleTruck]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.listTrucks();
 
@@ -56,7 +52,7 @@ describe("fleet", () => {
 
     it("listTrucks passes pagination params", async () => {
       const { fn, call } = createMockFetch([]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.listTrucks({ page: 2, size: 10 });
 
@@ -67,7 +63,7 @@ describe("fleet", () => {
 
     it("getTruck sends GET to /fleet/trucks/:id", async () => {
       const { fn, call } = createMockFetch(sampleTruck);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       const result = await client.fleet.getTruck(1);
 
@@ -78,7 +74,7 @@ describe("fleet", () => {
 
     it("createTruck sends POST with body", async () => {
       const { fn, call } = createMockFetch(sampleTruck);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
       const body = { licensePlate: "ABC123", brand: "Volvo" };
 
       await client.fleet.createTruck(body);
@@ -90,7 +86,7 @@ describe("fleet", () => {
 
     it("changeTruckStatus sends PATCH to /fleet/trucks/:id/status", async () => {
       const { fn, call } = createMockFetch(sampleTruck);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.changeTruckStatus(1, { status: "INACTIVE", reason: "Maintenance" });
 
@@ -100,7 +96,7 @@ describe("fleet", () => {
 
     it("listTruckEvents sends GET to /fleet/trucks/:id/events", async () => {
       const { fn, call } = createMockFetch([sampleEvent]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       const result = await client.fleet.listTruckEvents(1, { limit: 20 });
 
@@ -114,7 +110,7 @@ describe("fleet", () => {
   describe("trailers", () => {
     it("listTrailers sends GET to /fleet/trailers", async () => {
       const { fn, call } = createMockFetch([sampleTrailer]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       const result = await client.fleet.listTrailers();
 
@@ -125,7 +121,7 @@ describe("fleet", () => {
 
     it("getTrailer sends GET to /fleet/trailers/:id", async () => {
       const { fn, call } = createMockFetch(sampleTrailer);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       const result = await client.fleet.getTrailer(2);
 
@@ -135,7 +131,7 @@ describe("fleet", () => {
 
     it("createTrailer sends POST with body", async () => {
       const { fn, call } = createMockFetch(sampleTrailer);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
       const body = { licensePlate: "XYZ456", trailerType: "FLATBED" };
 
       await client.fleet.createTrailer(body);
@@ -146,7 +142,7 @@ describe("fleet", () => {
 
     it("changeTrailerStatus sends PATCH to /fleet/trailers/:id/status", async () => {
       const { fn, call } = createMockFetch(sampleTrailer);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.changeTrailerStatus(2, { status: "INACTIVE" });
 
@@ -156,7 +152,7 @@ describe("fleet", () => {
 
     it("listTrailerEvents sends GET to /fleet/trailers/:id/events", async () => {
       const { fn, call } = createMockFetch([sampleEvent]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.listTrailerEvents(2);
 
@@ -167,7 +163,7 @@ describe("fleet", () => {
   describe("carriers", () => {
     it("listCarriers sends GET to /fleet/carriers", async () => {
       const { fn, call } = createMockFetch([sampleCarrier]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       const result = await client.fleet.listCarriers();
 
@@ -178,7 +174,7 @@ describe("fleet", () => {
 
     it("getCarrier sends GET to /fleet/carriers/:id", async () => {
       const { fn, call } = createMockFetch(sampleCarrier);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       const result = await client.fleet.getCarrier(3);
 
@@ -188,7 +184,7 @@ describe("fleet", () => {
 
     it("createCarrier sends POST with body", async () => {
       const { fn, call } = createMockFetch(sampleCarrier);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
       const body = { name: "Acme Transport", rut: "76543210-1" };
 
       await client.fleet.createCarrier(body);
@@ -199,7 +195,7 @@ describe("fleet", () => {
 
     it("changeCarrierStatus sends PATCH to /fleet/carriers/:id/status", async () => {
       const { fn, call } = createMockFetch(sampleCarrier);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.changeCarrierStatus(3, { status: "SUSPENDED" });
 
@@ -209,25 +205,12 @@ describe("fleet", () => {
 
     it("listCarrierEvents sends GET to /fleet/carriers/:id/events", async () => {
       const { fn, call } = createMockFetch([sampleEvent]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
 
       await client.fleet.listCarrierEvents(3, { limit: 5 });
 
       expect(call.url).toContain(`${FLEET}/carriers/3/events`);
       expect(new URL(call.url).searchParams.get("limit")).toBe("5");
-    });
-  });
-
-  describe("vehicles", () => {
-    it("listVehicles sends GET to /fleet/vehicles", async () => {
-      const { fn, call } = createMockFetch([sampleVehicle]);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
-
-      const result = await client.fleet.listVehicles();
-
-      expect(call.init.method).toBe("GET");
-      expect(call.url).toBe(`${BASE_URL}${FLEET}/vehicles`);
-      expect(result).toEqual([sampleVehicle]);
     });
   });
 });

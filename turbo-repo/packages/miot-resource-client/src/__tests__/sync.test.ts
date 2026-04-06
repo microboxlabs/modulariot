@@ -18,7 +18,7 @@ describe("sync", () => {
   describe("getCursor", () => {
     it("sends GET to /sync/cursor/:sourceSystem/:entityType", async () => {
       const { fn, call } = createMockFetch(sampleCursor);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: "org-1", fetch: fn });
 
       const result = await client.sync.getCursor("erp", "DRIVER");
 
@@ -29,7 +29,7 @@ describe("sync", () => {
 
     it("encodes path segments correctly", async () => {
       const { fn, call } = createMockFetch(sampleCursor);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: "org-1", fetch: fn });
 
       await client.sync.getCursor("my-system", "TRUCK");
 
@@ -40,7 +40,7 @@ describe("sync", () => {
   describe("advanceCursor", () => {
     it("sends PUT with body to /sync/cursor/:sourceSystem/:entityType", async () => {
       const { fn, call } = createMockFetch(sampleCursor);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: "org-1", fetch: fn });
       const body = {
         cursorType: "timestamp",
         cursorValue: "2025-06-01T00:00:00Z",
@@ -58,7 +58,7 @@ describe("sync", () => {
 
     it("sends partial body when only some fields are provided", async () => {
       const { fn, call } = createMockFetch(sampleCursor);
-      const client = createMiotResourceClient({ baseUrl: BASE_URL, fetch: fn });
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: "org-1", fetch: fn });
       const body = { cursorValue: "2025-06-01T00:00:00Z" };
 
       await client.sync.advanceCursor("erp", "TRUCK", body);

@@ -33,6 +33,14 @@
             <artifactId>miot-driver</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-tracking</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-gateway</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>

@@ -25,23 +25,23 @@ public class TruckService {
     @Inject IAlfrescoClient alfrescoClient;
 
     @WithSession
-    public Uni<List<Truck>> list(String clientId, int page, int size) {
-        return Truck.find("clientId = ?1 and active = true", clientId).page(Page.of(page, size)).list();
+    public Uni<List<Truck>> list(List<String> clientIds, int page, int size) {
+        return Truck.find("clientId in ?1 and active = true", clientIds).page(Page.of(page, size)).list();
     }
 
     @WithSession
-    public Uni<Long> count(String clientId) {
-        return Truck.count("clientId = ?1 and active = true", clientId);
+    public Uni<Long> count(List<String> clientIds) {
+        return Truck.count("clientId in ?1 and active = true", clientIds);
     }
 
     @WithSession
-    public Uni<Truck> findById(String clientId, Long id) {
-        return Truck.find("id = ?1 and clientId = ?2", id, clientId).firstResult();
+    public Uni<Truck> findById(List<String> clientIds, Long id) {
+        return Truck.find("id = ?1 and clientId in ?2", id, clientIds).firstResult();
     }
 
     @WithSession
-    public Uni<Truck> findByExternalId(String clientId, String externalId) {
-        return Truck.find("clientId = ?1 and externalId = ?2", clientId, externalId).firstResult();
+    public Uni<Truck> findByExternalId(List<String> clientIds, String externalId) {
+        return Truck.find("clientId in ?1 and externalId = ?2", clientIds, externalId).firstResult();
     }
 
     @WithTransaction
@@ -69,15 +69,15 @@ public class TruckService {
     }
 
     @WithTransaction
-    public Uni<Truck> changeStatus(String clientId, Long id, StatusChangeRequest req, String actor) {
-        return Truck.<Truck>find("id = ?1 and clientId = ?2", id, clientId).firstResult()
+    public Uni<Truck> changeStatus(List<String> clientIds, Long id, StatusChangeRequest req, String actor) {
+        return Truck.<Truck>find("id = ?1 and clientId in ?2", id, clientIds).firstResult()
                 .onItem().ifNull().failWith(() -> new IllegalArgumentException("Truck not found: " + id))
                 .flatMap(truck -> {
                     String oldStatus = truck.status;
                     truck.status = req.status();
                     truck.updatedAt = Instant.now();
                     if ("INACTIVE".equals(req.status())) truck.active = false;
-                    return eventService.record(clientId, EntityType.TRUCK, truck.entityId,
+                    return eventService.record(truck.clientId, EntityType.TRUCK, truck.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,
                                     JsonUtil.toJson(Map.of("old", oldStatus, "new", req.status())))
                             .replaceWith(truck);

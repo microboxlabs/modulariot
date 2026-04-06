@@ -25,28 +25,30 @@ import java.util.UUID;
 @ApplicationScoped
 public class DriverService {
 
+    private static final String FIND_BY_ID = "id = ?1 and clientId in ?2";
+
     @Inject EntityEventService eventService;
     @Inject IAlfrescoClient alfrescoClient;
 
     @WithSession
-    public Uni<List<Driver>> list(String clientId, int page, int size) {
-        return Driver.find("clientId = ?1 and active = true order by lastName, firstName", clientId)
+    public Uni<List<Driver>> list(List<String> clientIds, int page, int size) {
+        return Driver.find("clientId in ?1 and active = true order by lastName, firstName", clientIds)
                 .page(Page.of(page, size)).list();
     }
 
     @WithSession
-    public Uni<Long> count(String clientId) {
-        return Driver.count("clientId = ?1 and active = true", clientId);
+    public Uni<Long> count(List<String> clientIds) {
+        return Driver.count("clientId in ?1 and active = true", clientIds);
     }
 
     @WithSession
-    public Uni<Driver> findById(String clientId, Long id) {
-        return Driver.find("id = ?1 and clientId = ?2", id, clientId).firstResult();
+    public Uni<Driver> findById(List<String> clientIds, Long id) {
+        return Driver.find(FIND_BY_ID, id, clientIds).firstResult();
     }
 
     @WithSession
-    public Uni<Driver> findByExternalId(String clientId, String externalId) {
-        return Driver.find("clientId = ?1 and externalId = ?2", clientId, externalId).firstResult();
+    public Uni<Driver> findByExternalId(List<String> clientIds, String externalId) {
+        return Driver.find("clientId in ?1 and externalId = ?2", clientIds, externalId).firstResult();
     }
 
     @WithTransaction
@@ -77,8 +79,8 @@ public class DriverService {
     }
 
     @WithTransaction
-    public Uni<Driver> update(String clientId, Long id, UpdateDriverRequest req, String actor) {
-        return Driver.<Driver>find("id = ?1 and clientId = ?2", id, clientId).firstResult()
+    public Uni<Driver> update(List<String> clientIds, Long id, UpdateDriverRequest req, String actor) {
+        return Driver.<Driver>find(FIND_BY_ID, id, clientIds).firstResult()
                 .onItem().ifNull().failWith(() -> new IllegalArgumentException("Driver not found: " + id))
                 .flatMap(driver -> {
                     Map<String, Object> changes = new HashMap<>();
@@ -111,7 +113,7 @@ public class DriverService {
                             : Uni.createFrom().voidItem();
 
                     return alfrescoUpdate
-                            .flatMap(v -> eventService.record(clientId, EntityType.DRIVER, driver.entityId,
+                            .flatMap(v -> eventService.record(driver.clientId, EntityType.DRIVER, driver.entityId,
                                     EventTypes.ENTITY_UPDATED, "api", actor,
                                     JsonUtil.toJson(Map.of("changes", changes))))
                             .replaceWith(driver);
@@ -119,8 +121,8 @@ public class DriverService {
     }
 
     @WithTransaction
-    public Uni<Driver> changeStatus(String clientId, Long id, StatusChangeRequest req, String actor) {
-        return Driver.<Driver>find("id = ?1 and clientId = ?2", id, clientId).firstResult()
+    public Uni<Driver> changeStatus(List<String> clientIds, Long id, StatusChangeRequest req, String actor) {
+        return Driver.<Driver>find(FIND_BY_ID, id, clientIds).firstResult()
                 .onItem().ifNull().failWith(() -> new IllegalArgumentException("Driver not found: " + id))
                 .flatMap(driver -> {
                     String oldStatus = driver.status;
@@ -131,7 +133,7 @@ public class DriverService {
                         driver.deactivatedAt = Instant.now();
                     }
 
-                    return eventService.record(clientId, EntityType.DRIVER, driver.entityId,
+                    return eventService.record(driver.clientId, EntityType.DRIVER, driver.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,
                                     JsonUtil.toJson(Map.of("old", oldStatus, "new", req.status(),
                                             "reason", JsonUtil.nvl(req.reason()))))

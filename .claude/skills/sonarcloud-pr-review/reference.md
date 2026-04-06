@@ -4,8 +4,8 @@
 
 | Command | Purpose |
 |---------|---------|
-| `node packages/sonarcloud-tools/dist/cli.js issues` | Fetch open issues for project, optionally by branch or PR, in list or context format. |
-| `node packages/sonarcloud-tools/dist/cli.js rule-doc <rule-key>` | Fetch rule documentation by rule key (e.g. `typescript:S1192`). |
+| `node turbo-repo/packages/sonarcloud-tools/dist/cli.js issues` | Fetch open issues for project, optionally by branch or PR, in list or context format. |
+| `node turbo-repo/packages/sonarcloud-tools/dist/cli.js rule-doc <rule-key>` | Fetch rule documentation by rule key (e.g. `typescript:S1192`). |
 
 ## issues subcommand
 
@@ -24,7 +24,7 @@
 
 **Example (used by the skill):**
 ```bash
-source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context --with-docs
+source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context --with-docs
 ```
 
 ## rule-doc subcommand
@@ -32,8 +32,8 @@ source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -
 **When to use:** To get documentation for a single rule key (e.g. from the "Rule" line in context output).
 
 ```bash
-source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js rule-doc typescript:S1192
-source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js rule-doc -o url typescript:S1192   # print rule URL only
+source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js rule-doc typescript:S1192
+source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js rule-doc -o url typescript:S1192   # print rule URL only
 ```
 
 ## Context output shape

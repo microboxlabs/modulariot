@@ -6,6 +6,7 @@ import com.microboxlabs.miot.resource.util.JsonUtil;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.Map;
@@ -18,13 +19,16 @@ public class DeferredFkReconciliationJob {
     private static final Logger LOG = Logger.getLogger(DeferredFkReconciliationJob.class);
 
     @Inject
-    Mutiny.SessionFactory sessionFactory;
+    Instance<Mutiny.SessionFactory> sessionFactoryInstance;
 
     @Scheduled(cron = "{miot.reconciliation.cron}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     public Uni<Void> reconcile() {
+        if (!sessionFactoryInstance.isResolvable()) {
+            return Uni.createFrom().voidItem();
+        }
         LOG.info("Running deferred FK reconciliation...");
 
-        return sessionFactory.withTransaction(session ->
+        return sessionFactoryInstance.get().withTransaction(session ->
             // Find DEFERRED_FK events that have no matching FK_RESOLVED event for the same entity
             session.createNativeQuery(
                 "SELECT e.* FROM miot_resource.rd_entity_events e " +

@@ -10,10 +10,10 @@ Review the current branch's PR against SonarCloud and fix all reported issues us
 ## Prerequisites
 
 - **SONAR_TOKEN** must be set (SonarCloud → Account → Security). The agent cannot fix issues without fetching them.
-- CLI tool: `@microboxlabs/sonarcloud-tools` (built from `packages/sonarcloud-tools/`). Run from repo root via `node packages/sonarcloud-tools/dist/cli.js`.
+- CLI tool: `@microboxlabs/sonarcloud-tools` (built from `turbo-repo/packages/sonarcloud-tools/`). Run from repo root via `node turbo-repo/packages/sonarcloud-tools/dist/cli.js`. If `dist/` is missing, build first: `cd turbo-repo/packages/sonarcloud-tools && npm run build`.
 - For `--pr` auto-detect: `gh` CLI or a CI env (e.g. `GITHUB_REF`).
 
-**Loading token from shell config:** The shell used to run commands is often non-login and does not load `~/.zshrc` or `~/.bashrc`. If the user says the token is in their shell rc, source it before running the command, e.g. `source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js ...`.
+**Loading token from shell config:** The shell used to run commands is often non-login and does not load `~/.zshrc` or `~/.bashrc`. If the user says the token is in their shell rc, source it before running the command, e.g. `source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js ...`.
 
 ## Workflow
 
@@ -22,7 +22,7 @@ Review the current branch's PR against SonarCloud and fix all reported issues us
 From the repository root, run (source shell rc if SONAR_TOKEN is set there, e.g. in `.zshrc`):
 
 ```bash
-source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context --with-docs
+source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context --with-docs
 ```
 
 - Use `--branch-current` instead of `--pr` if PR detection fails (e.g. no `gh` or CI env).
@@ -48,7 +48,7 @@ If the command fails (e.g. missing token or no PR), stop and ask the user to set
 - Run the issues command again and confirm the fixed issues no longer appear:
 
 ```bash
-source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context
+source ~/.zshrc 2>/dev/null; node turbo-repo/packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context
 ```
 
 - If the build is available, run tests (e.g. `npm test` or `npx vitest` for changed modules).

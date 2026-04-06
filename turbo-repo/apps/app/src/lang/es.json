@@ -1535,6 +1535,8 @@
       "backgroundColor": "Fondo",
       "variant": "Variante",
       "label": "Etiqueta",
+      "categoryAriaLabel": "Categoría {name} {field}",
+      "new": "nueva",
       "borderColor": "Color del Borde",
       "seeMoreUrl": "URL \"Ver más\"",
       "items": "Elementos",

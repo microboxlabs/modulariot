@@ -1510,6 +1510,8 @@
       "backgroundColor": "Background",
       "variant": "Variant",
       "label": "Label",
+      "categoryAriaLabel": "Category {name} {field}",
+      "new": "new",
       "borderColor": "Border Color",
       "seeMoreUrl": "\"See more\" Link URL",
       "items": "Items",

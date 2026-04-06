@@ -124,19 +124,6 @@ export interface CreateCarrierRequest {
   transportLicenseExpires?: string;
 }
 
-// --- Fleet: Vehicles (read-only legacy) ---
-
-export interface Vehicle {
-  id: number;
-  tenant: Tenant;
-  plate: string;
-  vin: string;
-  brand: string;
-  model: string;
-  year: number;
-  active: boolean;
-}
-
 // --- Drivers ---
 
 export interface Driver {
@@ -201,27 +188,6 @@ export interface UpdateDriverRequest {
   operationBlocked?: boolean;
 }
 
-// --- Bulk sync ---
-
-export interface BulkSyncEntity {
-  externalId: string;
-  fields?: Record<string, unknown>;
-  sourceMetadata?: Record<string, unknown>;
-  aspectProperties?: Record<string, unknown>;
-}
-
-export interface BulkSyncRequest {
-  sourceSystem: string;
-  entities: BulkSyncEntity[];
-}
-
-export interface BulkSyncResponse {
-  created: number;
-  updated: number;
-  skipped: number;
-  errors: Array<{ externalId: string; message: string }>;
-}
-
 // --- Sync cursors ---
 
 export interface SyncCursor {
@@ -252,6 +218,7 @@ export interface ErrorResponse {
 
 export interface ClientConfig {
   baseUrl: string;
+  organizationId: string;
   headers?: Record<string, string>;
   fetch?: typeof fetch;
 }

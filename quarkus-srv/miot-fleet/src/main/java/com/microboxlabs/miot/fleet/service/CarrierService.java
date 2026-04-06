@@ -25,23 +25,23 @@ public class CarrierService {
     @Inject IAlfrescoClient alfrescoClient;
 
     @WithSession
-    public Uni<List<Carrier>> list(String clientId, int page, int size) {
-        return Carrier.find("clientId = ?1 and active = true", clientId).page(Page.of(page, size)).list();
+    public Uni<List<Carrier>> list(List<String> clientIds, int page, int size) {
+        return Carrier.find("clientId in ?1 and active = true", clientIds).page(Page.of(page, size)).list();
     }
 
     @WithSession
-    public Uni<Long> count(String clientId) {
-        return Carrier.count("clientId = ?1 and active = true", clientId);
+    public Uni<Long> count(List<String> clientIds) {
+        return Carrier.count("clientId in ?1 and active = true", clientIds);
     }
 
     @WithSession
-    public Uni<Carrier> findById(String clientId, Long id) {
-        return Carrier.find("id = ?1 and clientId = ?2", id, clientId).firstResult();
+    public Uni<Carrier> findById(List<String> clientIds, Long id) {
+        return Carrier.find("id = ?1 and clientId in ?2", id, clientIds).firstResult();
     }
 
     @WithSession
-    public Uni<Carrier> findByExternalId(String clientId, String externalId) {
-        return Carrier.find("clientId = ?1 and externalId = ?2", clientId, externalId).firstResult();
+    public Uni<Carrier> findByExternalId(List<String> clientIds, String externalId) {
+        return Carrier.find("clientId in ?1 and externalId = ?2", clientIds, externalId).firstResult();
     }
 
     @WithTransaction
@@ -65,15 +65,15 @@ public class CarrierService {
     }
 
     @WithTransaction
-    public Uni<Carrier> changeStatus(String clientId, Long id, StatusChangeRequest req, String actor) {
-        return Carrier.<Carrier>find("id = ?1 and clientId = ?2", id, clientId).firstResult()
+    public Uni<Carrier> changeStatus(List<String> clientIds, Long id, StatusChangeRequest req, String actor) {
+        return Carrier.<Carrier>find("id = ?1 and clientId in ?2", id, clientIds).firstResult()
                 .onItem().ifNull().failWith(() -> new IllegalArgumentException("Carrier not found: " + id))
                 .flatMap(carrier -> {
                     String oldStatus = carrier.status;
                     carrier.status = req.status();
                     carrier.updatedAt = Instant.now();
                     if ("INACTIVE".equals(req.status())) carrier.active = false;
-                    return eventService.record(clientId, EntityType.CARRIER, carrier.entityId,
+                    return eventService.record(carrier.clientId, EntityType.CARRIER, carrier.entityId,
                                     EventTypes.STATUS_CHANGED, "api", actor,
                                     JsonUtil.toJson(Map.of("old", oldStatus, "new", req.status())))
                             .replaceWith(carrier);

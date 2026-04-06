@@ -7,6 +7,7 @@ ModularIoT provides official Helm charts for deploying the platform on Kubernete
 | Chart | Description | Version |
 |-------|-------------|---------|
 | **modulariot** | Umbrella chart that deploys all components | 0.1.0 |
+| **miot-modulith** | Quarkus backend modulith (fleet, driver, tracking, gateway) | 0.4.0 |
 | **miot-app** | Main ModularIoT application | 0.1.0 |
 | **miot-docs** | Documentation site | 0.1.0 |
 | **miot-web-site** | Marketing website | 0.1.0 |
@@ -55,15 +56,19 @@ All charts include:
                     │         modulariot (umbrella)       │
                     └─────────────────────────────────────┘
                                       │
-              ┌───────────────────────┼───────────────────────┐
-              │                       │                       │
-              ▼                       ▼                       ▼
-    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-    │    miot-app     │     │    miot-docs    │     │  miot-web-site  │
-    │   (Next.js)     │     │    (Nextra)     │     │   (Next.js)     │
-    │   Port: 3000    │     │   Port: 3000    │     │   Port: 3000    │
-    └─────────────────┘     └─────────────────┘     └─────────────────┘
+      ┌──────────────┬────────────────┼───────────────┬──────────────┐
+      │              │                │               │              │
+      ▼              ▼                ▼               ▼              ▼
+┌───────────┐ ┌───────────┐  ┌──────────────┐ ┌───────────┐ ┌────────────┐
+│ miot-app  │ │ miot-docs │  │miot-modulith │ │miot-web-  │ │miot-gateway│
+│ (Next.js) │ │ (Nextra)  │  │  (Quarkus)   │ │   site    │ │ (Quarkus)  │
+│ Port:3000 │ │ Port:3000 │  │  Port:8180   │ │ Port:3000 │ │ Port:8180  │
+└───────────┘ └───────────┘  └──────────────┘ └───────────┘ └────────────┘
+                               fleet+driver     (Next.js)    gateway only
+                               +tracking                     (same image)
 ```
+
+The modulith and gateway deployments use the same `miot-modulith` chart and `miot-srv` image with different component flags.
 
 ## Prerequisites
 

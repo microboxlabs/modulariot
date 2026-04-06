@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useCallback,
+  useEffect,
   useMemo,
   type PropsWithChildren,
 } from "react";
@@ -21,6 +22,7 @@ import { getNextPosition } from "../utils/get-next-position";
 import { PlannerProvider } from "./planner-context";
 import { DashboardFiltersProvider } from "./dashboard-filters-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useKioskMode } from "@/features/layout/hooks/use-kiosk-mode";
 
 /** Context value type */
 interface DashboardContextValue {
@@ -28,6 +30,8 @@ interface DashboardContextValue {
   widgets: Widget[];
   /** Whether edit mode is active */
   editMode: boolean;
+  /** Whether kiosk (fullscreen) mode is active via ?kiosk=true */
+  isKiosk: boolean;
   /** Whether data has loaded from storage */
   isLoaded: boolean;
   /** Dictionary for internationalization */
@@ -148,6 +152,18 @@ export function DashboardProvider({
     canUndo,
     canRedo,
   } = useDashboardStorage(slug, defaultConfig, siteId);
+
+  const isKiosk = useKioskMode();
+
+  // Force edit mode off in kiosk mode
+  useEffect(() => {
+    if (isKiosk && preferences.editMode) {
+      setEditModeStorage(false);
+    }
+  }, [isKiosk, preferences.editMode, setEditModeStorage]);
+
+  // In kiosk mode, default to 30s refresh without persisting the change
+  const effectiveRefreshInterval = isKiosk && refreshInterval === 0 ? 30 : refreshInterval;
 
   const createWidget = useCallback(
     (
@@ -316,14 +332,16 @@ export function DashboardProvider({
   );
 
   const toggleEditMode = useCallback(() => {
+    if (isKiosk) return;
     setEditModeStorage(!preferences.editMode);
-  }, [preferences.editMode, setEditModeStorage]);
+  }, [isKiosk, preferences.editMode, setEditModeStorage]);
 
   const setEditMode = useCallback(
     (value: boolean) => {
+      if (isKiosk && value) return;
       setEditModeStorage(value);
     },
-    [setEditModeStorage]
+    [isKiosk, setEditModeStorage]
   );
 
   const setDashboardName = useCallback(
@@ -337,12 +355,13 @@ export function DashboardProvider({
     () => ({
       widgets,
       editMode: preferences.editMode,
+      isKiosk,
       isLoaded,
       dictionary,
       siteId,
       filters,
       setFilters,
-      refreshInterval,
+      refreshInterval: effectiveRefreshInterval,
       setRefreshInterval,
       dashboardName,
       createWidget,
@@ -370,12 +389,13 @@ export function DashboardProvider({
     [
       widgets,
       preferences.editMode,
+      isKiosk,
       isLoaded,
       dictionary,
       siteId,
       filters,
       setFilters,
-      refreshInterval,
+      effectiveRefreshInterval,
       setRefreshInterval,
       dashboardName,
       createWidget,

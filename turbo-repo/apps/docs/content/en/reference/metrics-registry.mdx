@@ -67,6 +67,7 @@ Fuel system and energy consumption.
 | Key | Type | Unit | Range | Description |
 |-----|------|------|-------|-------------|
 | `fuel.level` | NUMBER | % | 0–100 | Fuel tank level percentage |
+| `fuel.volume` | NUMBER | L | 0–1000 | Absolute fuel volume in tank |
 | `fuel.rate` | NUMBER | L/h | 0–100 | Instantaneous fuel consumption rate |
 | `fuel.used` | NUMBER | L | 0–∞ | Cumulative fuel consumed (trip or lifetime) |
 | `battery.voltage` | NUMBER | V | 0–30 | ECU/system battery voltage |
@@ -77,6 +78,7 @@ Fuel system and energy consumption.
 | Metric | OBD-II PID | J1939 SPN | Notes |
 |--------|------------|-----------|-------|
 | `fuel.level` | 0x2F | 96 | PID: A×100/255 |
+| `fuel.volume` | — | — | Derived or OEM-specific |
 | `fuel.rate` | 0x5E | 183 | PID: (A×256+B)/20 (L/h) |
 | `fuel.used` | — | 250 | J1939: cumulative |
 | `battery.voltage` | 0x42 | 168 | PID: (A×256+B)/1000 |

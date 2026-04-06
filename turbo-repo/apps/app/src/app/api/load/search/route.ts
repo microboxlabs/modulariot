@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const SYMPTOMS_API_URL = `${process.env.OPENAPI_URL}/api/v1/pgrest/rpc/get_expedition_route`;
+const SYMPTOMS_API_URL = `${process.env.OPENAPI_URL}/rpc/get_expedition_route`;
 const TOKEN = process.env.OPENAPI_TOKEN;
 import { LoadSearchResponse } from "@/types/load.types";
 

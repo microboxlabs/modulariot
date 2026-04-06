@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Label } from "flowbite-react";
+import { Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import {
   type DashletConfig,
@@ -13,13 +13,21 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-import { SettingsDrawer } from "../common/settings-drawer";
 import {
   SettingsTextField,
   SettingsTextareaField,
   SettingsPickerItem,
+  usePgrestSettingsState,
+  PgrestDataTab,
+  fromPgrestParamItems,
+  buildSimplePgrestConfig,
+  useActiveProviders,
 } from "../common";
+import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
+
+type ContainerDataMode = "static" | "pgrest" | "planner";
 
 /** Color options for labeled-group border using ColorPickerDropdown */
 const BORDER_COLOR_OPTIONS: ColorOption<LabelBorderColor>[] = [
@@ -37,7 +45,7 @@ const BORDER_COLOR_OPTIONS: ColorOption<LabelBorderColor>[] = [
 
 /**
  * Settings modal for Container dashlet
- * Supports both bento-box and labeled-group variants with variant toggle
+ * Uses SettingsModalShell with visualization + data provider tabs
  */
 export function DashletSettings({
   isOpen,
@@ -46,7 +54,10 @@ export function DashletSettings({
   onSave,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  // Initialize state with current config or defaults
+  const activeProviders = useActiveProviders();
+  const refresh = useWidgetRefreshSettings(config, dictionary);
+
+  // Visual settings state
   const [variant, setVariant] = useState<ContainerVariant>(
     config.variant ?? defaultConfig.variant
   );
@@ -62,7 +73,28 @@ export function DashletSettings({
     config.borderColor ?? defaultConfig.borderColor ?? "gray"
   );
 
-  // Sync state when config changes or modal opens (reset unsaved changes)
+  // Data settings state
+  const [dataMode, setDataMode] = useState<ContainerDataMode>(
+    config.dataMode || "static"
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
+  );
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
+
+  const { schemas } = usePlannerContext();
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
+  const pg = usePgrestSettingsState({
+    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }),
+  });
+
+  // Sync state when config changes or modal opens
   useEffect(() => {
     if (!isOpen) return;
     setVariant(config.variant ?? defaultConfig.variant);
@@ -71,19 +103,30 @@ export function DashletSettings({
     setVerMasUrl(config.verMasUrl ?? defaultConfig.verMasUrl);
     setLabel(config.label ?? defaultConfig.label);
     setBorderColor(config.borderColor ?? defaultConfig.borderColor ?? "gray");
+    setDataMode(config.dataMode || "static");
+    setPlannerVariableName(config.plannerVariableName ?? "");
+    setDataSourceId(config.dataSourceId ?? "");
   }, [config, isOpen]);
 
   const handleSave = () => {
-    // Save ALL fields regardless of current variant (silent preservation)
-    const newConfig: DashletConfig = {
+    const newConfig: Record<string, unknown> = {
+      // Visual fields (preserve all regardless of variant)
       variant,
       name: name?.trim() || tr("dashboard.defaults.untitled", dictionary),
       description: description?.trim() || "",
       verMasUrl: verMasUrl?.trim() || "",
       label: label?.trim() || tr("dashboard.defaults.group", dictionary),
       borderColor,
+      // Data fields
+      dataMode,
+      pgrestFunctionName: pg.pgrestFunctionName,
+      pgrestParams: fromPgrestParamItems(pg.pgrestParams),
+      pgrestHttpMethod: pg.pgrestHttpMethod,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      dataSourceId: dataSourceId || undefined,
+      ...refresh.savePayload,
     };
-    onSave(newConfig as unknown as Record<string, unknown>);
+    onSave(newConfig);
     onClose();
   };
 
@@ -91,102 +134,145 @@ export function DashletSettings({
     e.stopPropagation();
   };
 
-  return (
-    <SettingsDrawer open={isOpen} onClose={onClose}>
-      <div className="flex h-full flex-col gap-3">
-        {/* Variant Toggle */}
-        <div>
-          <Label className="mb-1 block text-sm">
-            {tr("dashboard.settings.containerType", dictionary)}
-          </Label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setVariant("bento-box")}
-              onMouseDown={handleMouseDown}
-              className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
-                variant === "bento-box"
-                  ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              }`}
-            >
-              <div className="font-medium">
-                {tr("dashboard.settings.bentoBox", dictionary)}
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setVariant("labeled-group")}
-              onMouseDown={handleMouseDown}
-              className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
-                variant === "labeled-group"
-                  ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              }`}
-            >
-              <div className="font-medium">
-                {tr("dashboard.settings.labeledGroup", dictionary)}
-              </div>
-            </button>
-          </div>
+  const isPgrest = dataMode !== "static";
+
+  // Visualization tab: variant toggle + conditional visual fields
+  const visualizationTab = (
+    <div className="flex w-full flex-col gap-3">
+      {/* Variant Toggle */}
+      <div>
+        <Label className="mb-1 block text-sm">
+          {tr("dashboard.settings.containerType", dictionary)}
+        </Label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setVariant("bento-box")}
+            onMouseDown={handleMouseDown}
+            className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
+              variant === "bento-box"
+                ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
+                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+            }`}
+          >
+            <div className="font-medium">
+              {tr("dashboard.settings.bentoBox", dictionary)}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setVariant("labeled-group")}
+            onMouseDown={handleMouseDown}
+            className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
+              variant === "labeled-group"
+                ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
+                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+            }`}
+          >
+            <div className="font-medium">
+              {tr("dashboard.settings.labeledGroup", dictionary)}
+            </div>
+          </button>
         </div>
-
-        {/* Conditional Fields based on variant */}
-        {variant === "bento-box" ? (
-          <>
-            <SettingsTextField
-              id="name"
-              label={tr("dashboard.settings.name", dictionary)}
-              value={name ?? ""}
-              onChange={setName}
-              placeholder={tr("dashboard.settings.enterName", dictionary)}
-            />
-            <SettingsTextareaField
-              id="description"
-              label={tr("dashboard.settings.description", dictionary)}
-              value={description ?? ""}
-              onChange={setDescription}
-              placeholder={tr(
-                "dashboard.settings.enterDescription",
-                dictionary
-              )}
-              rows={2}
-            />
-            <SettingsTextField
-              id="verMasUrl"
-              label={tr("dashboard.settings.seeMoreUrl", dictionary)}
-              value={verMasUrl ?? ""}
-              onChange={setVerMasUrl}
-              placeholder="https://example.com"
-            />
-          </>
-        ) : (
-          <>
-            <SettingsTextField
-              id="label"
-              label={tr("dashboard.settings.label", dictionary)}
-              value={label ?? ""}
-              onChange={setLabel}
-              placeholder={tr("dashboard.settings.enterLabel", dictionary)}
-            />
-            <SettingsPickerItem
-              label={tr("dashboard.settings.borderColor", dictionary)}
-            >
-              <ColorPickerDropdown
-                value={borderColor}
-                onChange={setBorderColor}
-                options={BORDER_COLOR_OPTIONS}
-                title={tr("dashboard.settings.selectBorderColor", dictionary)}
-              />
-            </SettingsPickerItem>
-          </>
-        )}
-
-        {/* Save Button */}
-        <Button onClick={handleSave} size="sm" className="w-full">
-          {tr("common.save", dictionary)}
-        </Button>
       </div>
-    </SettingsDrawer>
+
+      {/* Conditional Fields based on variant */}
+      {variant === "bento-box" ? (
+        <>
+          <SettingsTextField
+            id="name"
+            label={tr("dashboard.settings.name", dictionary)}
+            value={name ?? ""}
+            onChange={setName}
+            placeholder={isPgrest ? "{{row.title}}" : tr("dashboard.settings.enterName", dictionary)}
+          />
+          <SettingsTextareaField
+            id="description"
+            label={tr("dashboard.settings.description", dictionary)}
+            value={description ?? ""}
+            onChange={setDescription}
+            placeholder={isPgrest ? "{{row.description}}" : tr("dashboard.settings.enterDescription", dictionary)}
+            rows={2}
+          />
+          <SettingsTextField
+            id="verMasUrl"
+            label={tr("dashboard.settings.seeMoreUrl", dictionary)}
+            value={verMasUrl ?? ""}
+            onChange={setVerMasUrl}
+            placeholder="https://example.com"
+          />
+        </>
+      ) : (
+        <>
+          <SettingsTextField
+            id="label"
+            label={tr("dashboard.settings.label", dictionary)}
+            value={label ?? ""}
+            onChange={setLabel}
+            placeholder={isPgrest ? "{{row.label}}" : tr("dashboard.settings.enterLabel", dictionary)}
+          />
+          <SettingsPickerItem
+            label={tr("dashboard.settings.borderColor", dictionary)}
+          >
+            <ColorPickerDropdown
+              value={borderColor}
+              onChange={setBorderColor}
+              options={BORDER_COLOR_OPTIONS}
+              title={tr("dashboard.settings.selectBorderColor", dictionary)}
+            />
+          </SettingsPickerItem>
+        </>
+      )}
+
+      {/* Schema hints when using planner/pgrest */}
+      {isPgrest && schemaSuggestions && schemaSuggestions.length > 0 && (
+        <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+          <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+            {tr("dashboard.settings.availableColumns", dictionary)}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {schemaSuggestions.map((key) => (
+              <span
+                key={key}
+                className="inline-block rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+              >
+                {key}
+              </span>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+            {tr("dashboard.settings.useRowColumnInFields", dictionary, { code: "{{row.<column>}}" })}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  // Data provider tab
+  const dataTab = (
+    <PgrestDataTab
+      id="container-data-mode"
+      dataMode={dataMode}
+      onDataModeChange={(v) => setDataMode(v as ContainerDataMode)}
+      pgrest={pg}
+      dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
+      dataSourceId={dataSourceId}
+      onDataSourceIdChange={(v) => { setDataSourceId(v); }}
+      activeProviders={activeProviders}
+    />
+  );
+
+  return (
+    <SettingsModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      visualizationTab={visualizationTab}
+      dataTab={dataTab}
+      refreshSelect={refresh.selectNode}
+    />
   );
 }

@@ -37,5 +37,8 @@
     "@luma.gl/shadertools": "9.2.6",
     "@luma.gl/webgl": "9.2.6"
   },
-  "packageManager": "npm@10.2.4"
+  "packageManager": "npm@10.2.4",
+  "dependencies": {
+    "handlebars": "^4.7.9"
+  }
 }

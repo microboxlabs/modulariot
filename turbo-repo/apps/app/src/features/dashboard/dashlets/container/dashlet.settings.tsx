@@ -228,7 +228,7 @@ export function DashletSettings({
       {isPgrest && schemaSuggestions && schemaSuggestions.length > 0 && (
         <div className="rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
           <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-            Available columns:
+            {tr("dashboard.settings.availableColumns", dictionary)}
           </p>
           <div className="flex flex-wrap gap-1">
             {schemaSuggestions.map((key) => (
@@ -241,7 +241,7 @@ export function DashletSettings({
             ))}
           </div>
           <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-            Use <code className="rounded bg-gray-200 px-1 dark:bg-gray-600">{"{{row.<column>}}"}</code> in fields
+            {tr("dashboard.settings.useRowColumnInFields", dictionary, { code: "{{row.<column>}}" })}
           </p>
         </div>
       )}

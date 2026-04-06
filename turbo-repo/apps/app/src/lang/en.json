@@ -1578,6 +1578,8 @@
       "plannerValue": "Value",
       "plannerAddParameter": "Add Parameter",
       "plannerAddRequest": "Add Request",
+      "availableColumns": "Available columns:",
+      "useRowColumnInFields": "Use {code} in fields",
       "plannerResponseColumns": "Response columns:",
       "plannerSchemaHint": "Use {{row.<column>}} in dashlet fields",
       "plannerIntrospectionFailed": "Introspection failed:",

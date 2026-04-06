@@ -83,15 +83,18 @@ public class ForkFilterRegistry {
     // Management API support
     // -------------------------------------------------------------------------
 
-    /** Add one or more keys to the in-memory filter for a rule. */
+    /** Add one or more keys to the in-memory filter for a rule. Returns count of newly added keys. */
     public int add(String ruleId, Collection<String> keys) {
         Set<String> ids = filters.computeIfAbsent(ruleId, k -> ConcurrentHashMap.newKeySet());
-        Set<String> normalized = keys.stream()
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .collect(Collectors.toSet());
-        ids.addAll(normalized);
-        return normalized.size();
+        int added = 0;
+        for (String key : keys) {
+            if (key == null) continue;
+            String trimmed = key.trim();
+            if (!trimmed.isBlank() && ids.add(trimmed)) {
+                added++;
+            }
+        }
+        return added;
     }
 
     /** Remove a single key. Returns true if the key was present. */

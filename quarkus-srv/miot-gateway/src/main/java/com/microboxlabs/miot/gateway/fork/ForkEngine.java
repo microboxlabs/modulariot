@@ -302,10 +302,7 @@ public class ForkEngine {
 
     private ForkRule buildRule(ForkConfig.RuleConfig rc) {
         List<ForkTarget> targets = rc.targets().stream()
-                .map(tc -> new ForkTarget(
-                        tc.id(),
-                        tc.mirrorHost().replaceAll("/+$", "") + tc.mirrorPath(),
-                        tc.timeout()))
+                .map(tc -> buildTarget(rc.id(), tc))
                 .toList();
 
         return new ForkRule(
@@ -316,5 +313,27 @@ public class ForkEngine {
                 rc.keyField(),
                 rc.filterFile(),
                 targets);
+    }
+
+    private ForkTarget buildTarget(String ruleId, ForkConfig.RuleConfig.TargetConfig tc) {
+        String host = tc.mirrorHost().replaceAll("/+$", "");
+        String path = tc.mirrorPath().startsWith("/") ? tc.mirrorPath() : "/" + tc.mirrorPath();
+        String url = host + path;
+
+        try {
+            URI.create(url);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Rule '%s' target '%s': malformed URL '%s' — %s"
+                            .formatted(ruleId, tc.id(), url, e.getMessage()));
+        }
+
+        if (tc.timeout() <= 0) {
+            throw new IllegalArgumentException(
+                    "Rule '%s' target '%s': timeout must be positive, got %d"
+                            .formatted(ruleId, tc.id(), tc.timeout()));
+        }
+
+        return new ForkTarget(tc.id(), url, tc.timeout());
     }
 }

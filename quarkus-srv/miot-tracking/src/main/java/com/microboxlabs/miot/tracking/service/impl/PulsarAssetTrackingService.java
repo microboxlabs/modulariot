@@ -3,6 +3,7 @@ package com.microboxlabs.miot.tracking.service.impl;
 import cl.streamhub.gps.model.AssetTrackingData;
 import cl.streamhub.gps.model.EnvelopedMessage;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.messaging.IComponentBus;
 import com.microboxlabs.miot.core.messaging.IMessagePublisher;
 import com.microboxlabs.miot.tracking.errors.PublishPulsarError;
 import com.microboxlabs.miot.tracking.service.AssetTrackingService;
@@ -19,18 +20,23 @@ public class PulsarAssetTrackingService implements AssetTrackingService {
 
     private static final Logger logger = Logger.getLogger(PulsarAssetTrackingService.class);
 
+    public static final String BUS_CHANNEL = "tracking.asset-positions";
+
     private final TenantContext tenantContext;
     private final IMessagePublisher publisher;
+    private final IComponentBus componentBus;
     private final String topic;
 
     PulsarAssetTrackingService(
             TenantContext tenantContext,
             IMessagePublisher publisher,
+            IComponentBus componentBus,
             @ConfigProperty(name = "miot.tracking.pulsar.topic",
                     defaultValue = "persistent://streamhub/tracking/asset-positions")
                     String topic) {
         this.tenantContext = tenantContext;
         this.publisher = publisher;
+        this.componentBus = componentBus;
         this.topic = topic;
     }
 
@@ -49,8 +55,10 @@ public class PulsarAssetTrackingService implements AssetTrackingService {
         envelope.setClientId(clientId);
 
         return publisher.publish(topic, envelope)
-                .thenAccept(v -> logger.debugf(
-                        "Asset tracking sent. Request ID: %s, Client ID: %s",
-                        requestId, clientId));
+                .thenAccept(v -> {
+                    logger.debugf("Asset tracking sent. Request ID: %s, Client ID: %s",
+                            requestId, clientId);
+                    componentBus.publish(BUS_CHANNEL, envelope);
+                });
     }
 }

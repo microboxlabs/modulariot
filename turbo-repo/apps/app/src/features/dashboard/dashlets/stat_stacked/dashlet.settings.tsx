@@ -13,6 +13,7 @@ import {
 } from "../common";
 import { usePlannerContext } from "../../context/planner-context";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { tr } from "@/features/i18n/tr.service";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -202,7 +203,7 @@ export function DashletSettings({
             <HbInlineInput
               value={item.label}
               onChange={(v) => updateItem(item.id, "label", v)}
-              placeholder={isPgrest ? "{{row.label}}" : "Label"}
+              placeholder={isPgrest ? "{{row.label}}" : tr("dashboard.settings.label", dictionary)}
               className="flex-1"
               schemaSuggestions={schemaSuggestions}
               aria-label={`Category ${item.label || "new"} label`}

@@ -7,6 +7,7 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import java.util.ArrayList;
 import java.util.List;
 import org.jboss.logging.Logger;
@@ -29,10 +30,14 @@ public class AssetDataClientRepository {
             VALUES ($1, $2, $3, $4)
             """;
 
-    private final Pool client;
+    private final Instance<Pool> clientInstance;
 
-    AssetDataClientRepository(Pool client) {
-        this.client = client;
+    AssetDataClientRepository(Instance<Pool> clientInstance) {
+        this.clientInstance = clientInstance;
+    }
+
+    private Pool client() {
+        return clientInstance.get();
     }
 
     public Uni<CrossReferenceResult> crossReferenceAndSave(EnvelopedMessage message, Long assetDataId) {
@@ -44,7 +49,7 @@ public class AssetDataClientRepository {
     }
 
     public Uni<List<String>> getClientMappings(String assetId) {
-        return client.preparedQuery(GET_CLIENT_MAPPINGS_QUERY)
+        return client().preparedQuery(GET_CLIENT_MAPPINGS_QUERY)
                 .execute(Tuple.of(assetId))
                 .onFailure()
                 .invoke(failure -> logger.errorf(failure,
@@ -68,7 +73,7 @@ public class AssetDataClientRepository {
             return Uni.createFrom().item(assetId);
         }
 
-        return client.withTransaction((SqlConnection conn) -> {
+        return client().withTransaction((SqlConnection conn) -> {
             Uni<Void> chain = Uni.createFrom().voidItem();
 
             for (String clientId : clientMappings) {

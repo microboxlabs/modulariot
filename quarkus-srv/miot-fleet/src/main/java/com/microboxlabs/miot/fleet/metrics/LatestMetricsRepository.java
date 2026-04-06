@@ -5,6 +5,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,10 +39,14 @@ public class LatestMetricsRepository {
     private static final String SQL_BATCH =
             "SELECT asset_id, metrics FROM miot_tracking.fn_latest_metrics_batch($1, $2)";
 
-    private final Pool metricsClient;
+    private final Instance<Pool> metricsClientInstance;
 
-    LatestMetricsRepository(Pool metricsClient) {
-        this.metricsClient = metricsClient;
+    LatestMetricsRepository(Instance<Pool> metricsClientInstance) {
+        this.metricsClientInstance = metricsClientInstance;
+    }
+
+    private Pool metricsClient() {
+        return metricsClientInstance.get();
     }
 
     /**
@@ -53,7 +58,7 @@ public class LatestMetricsRepository {
      */
     public Uni<JsonObject> getLatestMetrics(String sharedClientId, String assetId) {
         long start = System.currentTimeMillis();
-        return metricsClient.preparedQuery(SQL_SINGLE)
+        return metricsClient().preparedQuery(SQL_SINGLE)
                 .execute(Tuple.of(sharedClientId, assetId))
                 .map(rows -> {
                     logger.infof("LATEST_METRICS_QUERY: %d ms - assetId: %s",
@@ -83,7 +88,7 @@ public class LatestMetricsRepository {
             return Uni.createFrom().item(Map.of());
         }
         long start = System.currentTimeMillis();
-        return metricsClient.preparedQuery(SQL_BATCH)
+        return metricsClient().preparedQuery(SQL_BATCH)
                 .execute(Tuple.of(sharedClientId, assetIds.toArray(new String[0])))
                 .map(rows -> {
                     logger.infof("LATEST_METRICS_BATCH_QUERY: %d ms - %d assets",

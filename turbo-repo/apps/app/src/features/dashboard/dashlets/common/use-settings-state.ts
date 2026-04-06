@@ -26,6 +26,31 @@ export interface SettingsStateConfig {
   rowColorRules?: ColorRulesConfig;
 }
 
+// ── Pure helpers for colorMap mutations (kept flat to avoid nesting) ────────
+
+function appendColorMapping(col: ColumnItem, targetId: string): ColumnItem {
+  if (col._id !== targetId) return col;
+  return { ...col, colorMap: [...(col.colorMap ?? []), { operator: "equals", value: "", color: "gray" }] };
+}
+
+function dropColorMapping(col: ColumnItem, targetId: string, index: number): ColumnItem {
+  if (col._id !== targetId) return col;
+  return { ...col, colorMap: (col.colorMap ?? []).filter((_, i) => i !== index) };
+}
+
+function patchColorMapping(
+  col: ColumnItem,
+  targetId: string,
+  index: number,
+  field: string,
+  val: string,
+): ColumnItem {
+  if (col._id !== targetId) return col;
+  return { ...col, colorMap: (col.colorMap ?? []).map((m, i) => (i === index ? { ...m, [field]: val } : m)) };
+}
+
+// ============================================================================
+
 export function useSettingsState(cfg: SettingsStateConfig) {
   const [dataMode, setDataMode] = useState<DataMode>(
     cfg.dataMode ?? "static",
@@ -99,38 +124,15 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   // ── Column colorMap helpers (for badge columns) ────────────────────────
 
   const addColorMapping = (colId: string) => {
-    setColumns((prev) =>
-      prev.map((c): ColumnItem =>
-        c._id === colId
-          ? { ...c, colorMap: [...(c.colorMap ?? []), { operator: "equals", value: "", color: "gray" }] }
-          : c,
-      ),
-    );
+    setColumns((prev) => prev.map((c) => appendColorMapping(c, colId)));
   };
 
   const removeColorMapping = (colId: string, index: number) => {
-    setColumns((prev) =>
-      prev.map((c) =>
-        c._id === colId
-          ? { ...c, colorMap: (c.colorMap ?? []).filter((_, i) => i !== index) }
-          : c,
-      ),
-    );
+    setColumns((prev) => prev.map((c) => dropColorMapping(c, colId, index)));
   };
 
   const updateColorMapping = (colId: string, index: number, field: "operator" | "value" | "color", val: string) => {
-    setColumns((prev) =>
-      prev.map((c) =>
-        c._id === colId
-          ? {
-              ...c,
-              colorMap: (c.colorMap ?? []).map((m, i) =>
-                i === index ? { ...m, [field]: val } : m,
-              ),
-            }
-          : c,
-      ),
-    );
+    setColumns((prev) => prev.map((c) => patchColorMapping(c, colId, index, field, val)));
   };
 
   // ── Filter item helpers ─────────────────────────────────────────────────
@@ -167,26 +169,21 @@ export function useSettingsState(cfg: SettingsStateConfig) {
 
   // ── Color rule helpers ────────────────────────────────────────────────────
 
-  const makeColorRuleCrud = (
-    setItems: React.Dispatch<React.SetStateAction<ColorRuleItem[]>>,
-  ) => {
-    const firstCol = () => columns.find((c) => c.key)?.key ?? "";
-    return {
-      add: () =>
-        setItems((prev) => [
-          ...prev,
-          { _id: `cr-${Date.now()}`, column: firstCol(), operator: "equals" as const, value: "", color: "red" as const },
-        ]),
-      remove: (id: string) =>
-        setItems((prev) => prev.filter((r) => r._id !== id)),
-      update: (id: string, field: keyof ColorRule, value: string) =>
-        setItems((prev) =>
-          prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)),
-        ),
-    };
+  const addRowColorRule = () => {
+    const firstCol = columns.find((c) => c.key)?.key ?? "";
+    setRowColorRuleItems((prev) => [
+      ...prev,
+      { _id: `cr-${Date.now()}`, column: firstCol, operator: "equals" as const, value: "", color: "red" as const },
+    ]);
   };
 
-  const rowColorRuleCrud = makeColorRuleCrud(setRowColorRuleItems);
+  const removeRowColorRule = (id: string) => {
+    setRowColorRuleItems((prev) => prev.filter((r) => r._id !== id));
+  };
+
+  const updateRowColorRule = (id: string, field: keyof ColorRule, value: string) => {
+    setRowColorRuleItems((prev) => prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)));
+  };
 
   // ── Rows JSON parse ──────────────────────────────────────────────────────
 
@@ -263,9 +260,9 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     rowColorRulesEnabled,
     setRowColorRulesEnabled,
     rowColorRuleItems,
-    addRowColorRule: rowColorRuleCrud.add,
-    removeRowColorRule: rowColorRuleCrud.remove,
-    updateRowColorRule: rowColorRuleCrud.update,
+    addRowColorRule,
+    removeRowColorRule,
+    updateRowColorRule,
     // Helpers
     addColumn,
     removeColumn,

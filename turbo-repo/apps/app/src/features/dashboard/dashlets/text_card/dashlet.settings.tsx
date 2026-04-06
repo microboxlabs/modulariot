@@ -16,6 +16,7 @@ import {
   useActiveProviders,
   DataProviderEntries,
   type SimpleDataMode,
+  isRemoteDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 
@@ -33,12 +34,15 @@ export function DashletSettings({
   const [italic, setItalic] = useState(config.italic ?? true);
   const [align, setAlign] = useState<TextAlign>(config.align ?? "left");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
+    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
       ? config.dataMode
       : "static",
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
   );
 
   const dp = useDataProvider(config.dataProvider ?? []);
@@ -46,9 +50,9 @@ export function DashletSettings({
   const staticSnapshot = useRef({ text });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
+    if (isRemoteDataMode(mode) && dataMode === "static") {
       staticSnapshot.current = { text };
-    } else if (mode === "static" && dataMode === "pgrest") {
+    } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setText(staticSnapshot.current.text);
     }
     setDataMode(mode);
@@ -71,6 +75,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     } as DashletConfig);
     onClose();
@@ -124,6 +129,8 @@ export function DashletSettings({
         onDataModeChange={handleDataModeChange}
         pgrest={pg}
         dictionary={dictionary}
+        plannerVariableName={plannerVariableName}
+        onPlannerVariableNameChange={setPlannerVariableName}
         dataSourceId={dataSourceId}
         onDataSourceIdChange={setDataSourceId}
         activeProviders={activeProviders}

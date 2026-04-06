@@ -5,6 +5,9 @@ import type { ColumnItem } from "./column-helpers";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
 import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "./filter-helpers";
+import type { ColorRulesConfig, ColorRule } from "./color-rule-types";
+import type { ColorRuleItem } from "./color-rule-helpers";
+import { toColorRuleItems, fromColorRuleItems, normalizeColorRulesConfig } from "./color-rule-helpers";
 
 export interface SettingsStateConfig {
   title: string;
@@ -20,6 +23,7 @@ export interface SettingsStateConfig {
   defaultSort: SortConfig;
   dataMode: DataMode;
   apiUrl: string;
+  rowColorRules?: ColorRulesConfig;
 }
 
 export function useSettingsState(cfg: SettingsStateConfig) {
@@ -45,6 +49,15 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   );
   const [sortColumns, setSortColumns] = useState<string[]>(
     cfg.sort?.columns ?? cfg.defaultSort.columns,
+  );
+
+  // Color rules
+  const defaultColorRules: ColorRulesConfig = { enabled: false, rules: [] };
+  const normalizedRowColorRules = normalizeColorRulesConfig(cfg.rowColorRules, defaultColorRules);
+
+  const [rowColorRulesEnabled, setRowColorRulesEnabled] = useState(normalizedRowColorRules.enabled);
+  const [rowColorRuleItems, setRowColorRuleItems] = useState<ColorRuleItem[]>(
+    toColorRuleItems(normalizedRowColorRules.rules),
   );
 
   // Data provider fields
@@ -83,6 +96,43 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     );
   };
 
+  // ── Column colorMap helpers (for badge columns) ────────────────────────
+
+  const addColorMapping = (colId: string) => {
+    setColumns((prev) =>
+      prev.map((c): ColumnItem =>
+        c._id === colId
+          ? { ...c, colorMap: [...(c.colorMap ?? []), { operator: "equals", value: "", color: "gray" }] }
+          : c,
+      ),
+    );
+  };
+
+  const removeColorMapping = (colId: string, index: number) => {
+    setColumns((prev) =>
+      prev.map((c) =>
+        c._id === colId
+          ? { ...c, colorMap: (c.colorMap ?? []).filter((_, i) => i !== index) }
+          : c,
+      ),
+    );
+  };
+
+  const updateColorMapping = (colId: string, index: number, field: "operator" | "value" | "color", val: string) => {
+    setColumns((prev) =>
+      prev.map((c) =>
+        c._id === colId
+          ? {
+              ...c,
+              colorMap: (c.colorMap ?? []).map((m, i) =>
+                i === index ? { ...m, [field]: val } : m,
+              ),
+            }
+          : c,
+      ),
+    );
+  };
+
   // ── Filter item helpers ─────────────────────────────────────────────────
 
   const addFilterItem = () => {
@@ -114,6 +164,29 @@ export function useSettingsState(cfg: SettingsStateConfig) {
       checked ? [...prev, key] : prev.filter((k) => k !== key),
     );
   };
+
+  // ── Color rule helpers ────────────────────────────────────────────────────
+
+  const makeColorRuleCrud = (
+    setItems: React.Dispatch<React.SetStateAction<ColorRuleItem[]>>,
+  ) => {
+    const firstCol = () => columns.find((c) => c.key)?.key ?? "";
+    return {
+      add: () =>
+        setItems((prev) => [
+          ...prev,
+          { _id: `cr-${Date.now()}`, column: firstCol(), operator: "equals" as const, value: "", color: "red" as const },
+        ]),
+      remove: (id: string) =>
+        setItems((prev) => prev.filter((r) => r._id !== id)),
+      update: (id: string, field: keyof ColorRule, value: string) =>
+        setItems((prev) =>
+          prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)),
+        ),
+    };
+  };
+
+  const rowColorRuleCrud = makeColorRuleCrud(setRowColorRuleItems);
 
   // ── Rows JSON parse ──────────────────────────────────────────────────────
 
@@ -153,7 +226,12 @@ export function useSettingsState(cfg: SettingsStateConfig) {
       columns: sortColumns.filter((k) => validKeys.has(k)),
     };
 
-    return { filter, sort, savedColumns, validKeys };
+    const rowColorRules: ColorRulesConfig = {
+      enabled: rowColorRulesEnabled,
+      rules: fromColorRuleItems(rowColorRuleItems),
+    };
+
+    return { filter, sort, savedColumns, validKeys, rowColorRules };
   };
 
   return {
@@ -181,10 +259,20 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setRowsJsonError,
     apiUrl,
     setApiUrl,
+    // Color rules — row
+    rowColorRulesEnabled,
+    setRowColorRulesEnabled,
+    rowColorRuleItems,
+    addRowColorRule: rowColorRuleCrud.add,
+    removeRowColorRule: rowColorRuleCrud.remove,
+    updateRowColorRule: rowColorRuleCrud.update,
     // Helpers
     addColumn,
     removeColumn,
     updateColumn,
+    addColorMapping,
+    removeColorMapping,
+    updateColorMapping,
     addFilterItem,
     removeFilterItem,
     updateFilterItem,

@@ -27,6 +27,8 @@ export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filt
 export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
 import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-types";
+import { findMatchingColor, getRowColorClasses } from "@/features/dashboard/dashlets/common/color-rule-engine";
 
 export interface DashletConfig {
   title: string;
@@ -41,6 +43,7 @@ export interface DashletConfig {
   sort: SortConfig;
   dataSourceId?: string;
   plannerVariableName?: string;
+  rowColorRules?: ColorRulesConfig;
 }
 
 // ============================================================================
@@ -151,6 +154,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sort = defaultSort,
     dataSourceId,
     plannerVariableName,
+    rowColorRules,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
@@ -292,24 +296,34 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row, rowIdx) => (
-                  <tr
-                    key={row.id ?? row._id ?? rowIdx}
-                    className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
-                  >
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        className="px-4 py-4 text-gray-700 dark:text-gray-300"
-                      >
-                        {renderCell(
-                          resolveValue(col.key, row, rowIdx, displayRows.length),
-                          resolveType(col.key, row, rowIdx, displayRows.length)
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                displayRows.map((row, rowIdx) => {
+                  const rowColor = rowColorRules?.enabled
+                    ? findMatchingColor(rowColorRules.rules, row, resolveValue, rowIdx, displayRows.length)
+                    : null;
+                  const trClass = rowColor
+                    ? `border-t border-gray-100 ${getRowColorClasses(rowColor)} dark:border-gray-700`
+                    : "border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800";
+
+                  return (
+                    <tr
+                      key={row.id ?? row._id ?? rowIdx}
+                      className={trClass}
+                    >
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className="px-4 py-4 text-gray-700 dark:text-gray-300"
+                        >
+                          {renderCell(
+                            resolveValue(col.key, row, rowIdx, displayRows.length),
+                            resolveType(col.key, row, rowIdx, displayRows.length),
+                            col.colorMap,
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

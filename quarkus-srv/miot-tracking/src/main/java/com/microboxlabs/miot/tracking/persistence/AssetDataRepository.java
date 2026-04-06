@@ -10,6 +10,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import java.time.ZoneOffset;
 import java.util.Locale;
 import org.jboss.logging.Logger;
@@ -45,12 +46,16 @@ public class AssetDataRepository {
             RETURNING id
             """;
 
-    private final Pool client;
+    private final Instance<Pool> clientInstance;
     private final ObjectMapper objectMapper;
 
-    AssetDataRepository(Pool client, ObjectMapper objectMapper) {
-        this.client = client;
+    AssetDataRepository(Instance<Pool> clientInstance, ObjectMapper objectMapper) {
+        this.clientInstance = clientInstance;
         this.objectMapper = objectMapper;
+    }
+
+    private Pool client() {
+        return clientInstance.get();
     }
 
     public Uni<Long> save(EnvelopedMessage message) {
@@ -62,7 +67,7 @@ public class AssetDataRepository {
         try {
             Object[] params = buildInsertParams(message, asset, clientId, pointWkt);
 
-            return client.preparedQuery(INSERT_QUERY)
+            return client().preparedQuery(INSERT_QUERY)
                     .execute(Tuple.from(params))
                     .onFailure()
                     .invoke(failure -> logger.errorf(failure,

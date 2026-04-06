@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -30,12 +31,16 @@ public class MetricsRepository {
 
     private final Map<String, BiConsumer<Object, Map<String, Object>>> metricMappers = buildMetricMappers();
 
-    private final Pool client;
+    private final Instance<Pool> clientInstance;
     private final ObjectMapper objectMapper;
 
-    MetricsRepository(Pool client, ObjectMapper objectMapper) {
-        this.client = client;
+    MetricsRepository(Instance<Pool> clientInstance, ObjectMapper objectMapper) {
+        this.clientInstance = clientInstance;
         this.objectMapper = objectMapper;
+    }
+
+    private Pool client() {
+        return clientInstance.get();
     }
 
     private Map<String, BiConsumer<Object, Map<String, Object>>> buildMetricMappers() {
@@ -275,7 +280,7 @@ public class MetricsRepository {
         tuple.addString(envelopedMessage.getRequestId());                    // $37
         tuple.addOffsetDateTime(envelopedMessage.getTimestamp().atOffset(ZoneOffset.UTC)); // $38
 
-        return client.preparedQuery(INSERT_METRICS_CORE_QUERY)
+        return client().preparedQuery(INSERT_METRICS_CORE_QUERY)
                 .execute(tuple)
                 .onFailure()
                 .invoke(failure -> logger.errorf(failure,
@@ -315,7 +320,7 @@ public class MetricsRepository {
                             .addString(envelopedMessage.getRequestId())
                             .addOffsetDateTime(envelopedMessage.getTimestamp().atOffset(ZoneOffset.UTC));
 
-                    return client.preparedQuery(INSERT_METRICS_EXT_QUERY)
+                    return client().preparedQuery(INSERT_METRICS_EXT_QUERY)
                             .execute(tuple)
                             .onFailure()
                             .invoke(failure -> logger.errorf(failure,
@@ -373,7 +378,7 @@ public class MetricsRepository {
                 .addString(envelopedMessage.getRequestId())
                 .addOffsetDateTime(envelopedMessage.getTimestamp().atOffset(ZoneOffset.UTC));
 
-        return client.preparedQuery(INSERT_METRICS_DTC_QUERY)
+        return client().preparedQuery(INSERT_METRICS_DTC_QUERY)
                 .execute(tuple)
                 .onFailure()
                 .invoke(failure -> logger.errorf(failure,
@@ -406,7 +411,7 @@ public class MetricsRepository {
                 .addString(requestId)
                 .addOffsetDateTime(requestTs);
 
-        return client.preparedQuery(INSERT_INDEMP_LEDGER)
+        return client().preparedQuery(INSERT_INDEMP_LEDGER)
                 .execute(tuple)
                 .onFailure()
                 .invoke(failure -> logger.errorf(failure,

@@ -28,6 +28,9 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.driver.enabled", defaultValue = "false")
     boolean driverEnabled;
 
+    @ConfigProperty(name = "miot.component.tracking.enabled", defaultValue = "false")
+    boolean trackingEnabled;
+
     void onStart(@Observes StartupEvent ev) {
         List<String> locations = new ArrayList<>(baseLocations);
 
@@ -37,6 +40,9 @@ public class FlywayMigrator {
         if (driverEnabled) {
             locations.add("db/migration/driver");
         }
+        if (trackingEnabled) {
+            locations.add("db/migration/tracking");
+        }
 
         LOG.infof("Flyway locations: %s", locations);
 
@@ -44,6 +50,7 @@ public class FlywayMigrator {
                 .dataSource(dataSource)
                 .locations(locations.toArray(String[]::new))
                 .outOfOrder(true)
+                .ignoreMigrationPatterns("*:missing")
                 .load();
 
         flyway.migrate();

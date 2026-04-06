@@ -106,9 +106,9 @@ public class AssetDataRepository {
                 asset.getGps().getLatitude(), asset.getGps().getLongitude(), 12);
         JsonObject s2Json = new JsonObject().put("level_12", s2Token);
 
-        var t = asset.getTelecom();
-        var d = asset.getDriverInfo();
-        var cd = asset.getCoDriverInfo();
+        Object[] telecomParams = telecomParams(asset.getTelecom());
+        Object[] driverParams = driverInfoParams(asset.getDriverInfo());
+        Object[] coDriverParams = driverInfoParams(asset.getCoDriverInfo());
 
         return new Object[]{
                 message.getRequestId(),
@@ -118,24 +118,30 @@ public class AssetDataRepository {
                 asset.getTimestamp().toOffsetDateTime(),
                 pointWkt,
                 asset.getGps().getAltitude(), asset.getGps().getSpeed(), asset.getGps().getHeading(),
-                // telecom
-                t != null ? t.getIccid() : null, t != null ? t.getImsi() : null,
-                t != null ? t.getOperator() : null, t != null ? t.getMcc() : null,
-                t != null ? t.getMnc() : null, t != null ? t.getCellId() : null,
-                t != null ? t.getLac() : null, t != null ? t.getSignalStrength() : null,
-                t != null ? t.getGpsProvider() : null,
-                // driver
-                d != null ? d.getDriverId() : null, d != null ? d.getName() : null,
-                d != null ? d.getLicenseNumber() : null,
-                d != null ? getPhone(d.getContact()) : null,
-                d != null ? getEmail(d.getContact()) : null,
-                d != null ? d.getIdButton() : null,
-                // co-driver
-                cd != null ? cd.getDriverId() : null, cd != null ? cd.getName() : null,
-                cd != null ? cd.getLicenseNumber() : null,
-                cd != null ? getPhone(cd.getContact()) : null,
-                cd != null ? getEmail(cd.getContact()) : null,
+                telecomParams[0], telecomParams[1], telecomParams[2], telecomParams[3],
+                telecomParams[4], telecomParams[5], telecomParams[6], telecomParams[7],
+                telecomParams[8],
+                driverParams[0], driverParams[1], driverParams[2],       // $22-$24
+                driverParams[3], driverParams[4], driverParams[5],       // $25-$27
+                coDriverParams[0], coDriverParams[1], coDriverParams[2], // $28-$30
+                coDriverParams[3], coDriverParams[4],                    // $31-$32
                 sensorsJson, peripheralsJson, eventsJson, s2Json
+        };
+    }
+
+    private static Object[] telecomParams(cl.streamhub.gps.model.Telecom t) {
+        if (t == null) return new Object[9];
+        return new Object[]{
+                t.getIccid(), t.getImsi(), t.getOperator(), t.getMcc(), t.getMnc(),
+                t.getCellId(), t.getLac(), t.getSignalStrength(), t.getGpsProvider()
+        };
+    }
+
+    private static Object[] driverInfoParams(cl.streamhub.gps.model.DriverInfo d) {
+        if (d == null) return new Object[6];
+        return new Object[]{
+                d.getDriverId(), d.getName(), d.getLicenseNumber(),
+                getPhone(d.getContact()), getEmail(d.getContact()), d.getIdButton()
         };
     }
 

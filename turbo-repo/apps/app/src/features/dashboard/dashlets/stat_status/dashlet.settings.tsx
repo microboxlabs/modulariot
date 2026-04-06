@@ -20,6 +20,7 @@ import {
   useActiveProviders,
   DataProviderEntries,
   type SimpleDataMode,
+  isRemoteDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
@@ -56,11 +57,10 @@ export function DashletSettings({
 
   const staticSnapshot = useRef({ title, value, subtitle });
 
-  const isRemoteMode = (m: SimpleDataMode) => m === "pgrest" || m === "planner";
   const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (isRemoteMode(mode) && dataMode === "static") {
+    if (isRemoteDataMode(mode) && dataMode === "static") {
       staticSnapshot.current = { title, value, subtitle };
-    } else if (mode === "static" && isRemoteMode(dataMode)) {
+    } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
       setSubtitle(staticSnapshot.current.subtitle);

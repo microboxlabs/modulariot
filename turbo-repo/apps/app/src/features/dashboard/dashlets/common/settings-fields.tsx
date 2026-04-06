@@ -473,6 +473,12 @@ interface HbInlineInputProps {
   className?: string;
   /** Column keys for Handlebars autocomplete */
   schemaSuggestions?: string[];
+  /** HTML id for the input element */
+  id?: string;
+  /** Accessible label for assistive technology (use when no visible label exists) */
+  "aria-label"?: string;
+  /** ID of the element that labels this input */
+  "aria-labelledby"?: string;
 }
 
 /**
@@ -486,6 +492,9 @@ export function HbInlineInput({
   placeholder,
   className,
   schemaSuggestions,
+  id,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledby,
 }: Readonly<HbInlineInputProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
 
@@ -500,6 +509,9 @@ export function HbInlineInput({
     <div ref={ac.containerRef} className={`relative ${className ?? ""}`}>
       <TextInput
         ref={ac.inputRef}
+        id={id}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledby}
         value={value}
         onChange={ac.handleChange}
         onClick={ac.handleClick}

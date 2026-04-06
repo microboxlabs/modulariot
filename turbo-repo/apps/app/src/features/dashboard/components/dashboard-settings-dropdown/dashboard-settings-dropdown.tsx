@@ -79,9 +79,11 @@ function SectionLayout({
     classes;
   const [animationDone, setAnimationDone] = useState(false);
 
-  if (!active && animationDone) {
-    setAnimationDone(false);
-  }
+  useEffect(() => {
+    if (!active && animationDone) {
+      setAnimationDone(false);
+    }
+  }, [active, animationDone]);
   const backButtonClass = active
     ? "opacity-100 w-10"
     : "opacity-0 w-0 pointer-events-none";

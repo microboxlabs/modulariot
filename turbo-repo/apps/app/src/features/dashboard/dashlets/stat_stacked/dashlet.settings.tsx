@@ -205,6 +205,7 @@ export function DashletSettings({
               placeholder={isPgrest ? "{{row.label}}" : "Label"}
               className="flex-1"
               schemaSuggestions={schemaSuggestions}
+              aria-label={`Category ${item.label || "new"} label`}
             />
             <HbInlineInput
               value={item.value}
@@ -212,6 +213,7 @@ export function DashletSettings({
               placeholder={isPgrest ? "{{row.value}}" : "0"}
               className="w-20"
               schemaSuggestions={schemaSuggestions}
+              aria-label={`Category ${item.label || "new"} value`}
             />
             <ColorPickerDropdown
               options={COLOR_OPTIONS}

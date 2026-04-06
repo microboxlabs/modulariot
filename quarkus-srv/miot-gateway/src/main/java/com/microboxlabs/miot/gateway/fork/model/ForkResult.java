@@ -12,17 +12,17 @@ public record ForkResult(
         String key,
         List<String> dispatchedTargets
 ) {
-    public enum Outcome { forwarded, discarded, error }
+    public enum Outcome { FORWARDED, DISCARDED, ERROR }
 
     public static ForkResult forwarded(String ruleId, String key, List<String> targets) {
-        return new ForkResult(ruleId, Outcome.forwarded, key, List.copyOf(targets));
+        return new ForkResult(ruleId, Outcome.FORWARDED, key, List.copyOf(targets));
     }
 
     public static ForkResult discarded(String ruleId, String key) {
-        return new ForkResult(ruleId, Outcome.discarded, key, List.of());
+        return new ForkResult(ruleId, Outcome.DISCARDED, key, List.of());
     }
 
     public static ForkResult error(String ruleId, String key) {
-        return new ForkResult(ruleId, Outcome.error, key, List.of());
+        return new ForkResult(ruleId, Outcome.ERROR, key, List.of());
     }
 }

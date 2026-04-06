@@ -12,8 +12,8 @@ import io.micrometer.core.instrument.Timer;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -49,6 +49,10 @@ public class ForkEngine {
 
     private static final Logger LOG = Logger.getLogger(ForkEngine.class);
 
+    private static final String METRIC_FORK_REQUESTS = "fork_requests_total";
+    private static final String TAG_OUTCOME = "outcome";
+    private static final String TAG_TARGET = "target";
+
     /**
      * HTTP headers that must not be forwarded to upstream targets.
      * Covers hop-by-hop headers and Java HttpClient restricted headers.
@@ -58,17 +62,10 @@ public class ForkEngine {
             "upgrade", "keep-alive", "proxy-connection", "te", "trailer",
             "date", "expect", "from", "via", "warning");
 
-    @Inject
-    ForkConfig config;
-
-    @Inject
-    ForkFilterRegistry filterRegistry;
-
-    @Inject
-    MeterRegistry meterRegistry;
-
-    @Inject
-    ObjectMapper objectMapper;
+    private final ForkConfig config;
+    private final ForkFilterRegistry filterRegistry;
+    private final MeterRegistry meterRegistry;
+    private final ObjectMapper objectMapper;
 
     private List<ForkRule> rules = List.of();
     private Map<String, List<ForkRule>> pathIndex = Map.of();
@@ -79,6 +76,14 @@ public class ForkEngine {
     private final Map<String, Counter> forwardedCounters = new HashMap<>();
     private final Map<String, Counter> errorCounters = new HashMap<>();
     private final Map<String, Timer> forwardTimers = new HashMap<>();
+
+    ForkEngine(ForkConfig config, ForkFilterRegistry filterRegistry,
+            MeterRegistry meterRegistry, ObjectMapper objectMapper) {
+        this.config = config;
+        this.filterRegistry = filterRegistry;
+        this.meterRegistry = meterRegistry;
+        this.objectMapper = objectMapper;
+    }
 
     @PostConstruct
     void init() {
@@ -96,7 +101,7 @@ public class ForkEngine {
         rules = ruleConfigs.stream()
                 .filter(ForkConfig.RuleConfig::enabled)
                 .map(this::buildRule)
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
 
         // Build path index: path → [rules that match it]
         Map<String, List<ForkRule>> index = new HashMap<>();
@@ -118,20 +123,20 @@ public class ForkEngine {
         // Pre-build all Micrometer meters (avoids lookup overhead on hot path)
         for (ForkRule rule : rules) {
             discardedCounters.put(rule.id(),
-                    meterRegistry.counter("fork_requests_total",
-                            "rule", rule.id(), "target", "-", "outcome", "discarded"));
+                    meterRegistry.counter(METRIC_FORK_REQUESTS,
+                            "rule", rule.id(), TAG_TARGET, "-", TAG_OUTCOME, "discarded"));
 
             for (ForkTarget target : rule.targets()) {
                 String key = rule.id() + ":" + target.id();
                 forwardedCounters.put(key,
-                        meterRegistry.counter("fork_requests_total",
-                                "rule", rule.id(), "target", target.id(), "outcome", "forwarded"));
+                        meterRegistry.counter(METRIC_FORK_REQUESTS,
+                                "rule", rule.id(), TAG_TARGET, target.id(), TAG_OUTCOME, "forwarded"));
                 errorCounters.put(key,
-                        meterRegistry.counter("fork_requests_total",
-                                "rule", rule.id(), "target", target.id(), "outcome", "error"));
+                        meterRegistry.counter(METRIC_FORK_REQUESTS,
+                                "rule", rule.id(), TAG_TARGET, target.id(), TAG_OUTCOME, "error"));
                 forwardTimers.put(key,
                         meterRegistry.timer("fork_forward_duration_seconds",
-                                "rule", rule.id(), "target", target.id()));
+                                "rule", rule.id(), TAG_TARGET, target.id()));
             }
         }
 
@@ -164,7 +169,7 @@ public class ForkEngine {
         String key;
         try {
             key = extractKey(rule, body);
-        } catch (Exception e) {
+        } catch (IOException e) {
             LOG.warnf(e, "Rule '%s': failed to extract key field '%s' — discarding", rule.id(), rule.keyField());
             discardedCounters.get(rule.id()).increment();
             return ForkResult.error(rule.id(), null);
@@ -241,14 +246,14 @@ public class ForkEngine {
                 });
     }
 
-    private String extractKey(ForkRule rule, String body) throws Exception {
+    private String extractKey(ForkRule rule, String body) throws IOException {
         return switch (rule.bodyParser()) {
             case JSON -> extractJsonKey(body, rule.keyField());
             case CSV -> extractCsvKey(body, rule.keyField());
         };
     }
 
-    private String extractJsonKey(String body, String keyField) throws Exception {
+    private String extractJsonKey(String body, String keyField) throws IOException {
         return objectMapper.readTree(body).path(keyField).asText(null);
     }
 
@@ -278,10 +283,10 @@ public class ForkEngine {
 
         if (lines.length < 2) return null;
 
-        String[] headers = lines[0].split(",", -1);
+        String[] csvHeaders = lines[0].split(",", -1);
         String[] values = lines[1].split(",", -1);
-        for (int i = 0; i < headers.length; i++) {
-            if (headers[i].trim().equalsIgnoreCase(keyField) && i < values.length) {
+        for (int i = 0; i < csvHeaders.length; i++) {
+            if (csvHeaders[i].trim().equalsIgnoreCase(keyField) && i < values.length) {
                 return values[i].trim();
             }
         }
@@ -301,7 +306,7 @@ public class ForkEngine {
                         tc.id(),
                         tc.mirrorHost().replaceAll("/+$", "") + tc.mirrorPath(),
                         tc.timeout()))
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
 
         return new ForkRule(
                 rc.id(),

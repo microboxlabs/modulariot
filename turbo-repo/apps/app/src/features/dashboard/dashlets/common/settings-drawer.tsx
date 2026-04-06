@@ -72,7 +72,7 @@ export function SettingsDrawer({
         aria-modal="true"
         aria-label="Settings"
         className={twMerge(
-          "no-drag absolute top-0 right-0 m-0 h-full max-h-full max-w-full transform border-l border-gray-200 bg-white p-0 shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
+          "no-drag absolute top-0 right-0 left-auto m-0 h-full max-h-full max-w-full transform border-l border-gray-200 bg-white p-0 shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
           open ? "translate-x-0" : "translate-x-full",
           className ?? "w-[28rem]",
         )}

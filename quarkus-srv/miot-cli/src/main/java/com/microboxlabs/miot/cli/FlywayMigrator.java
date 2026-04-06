@@ -3,6 +3,7 @@ package com.microboxlabs.miot.cli;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,7 @@ public class FlywayMigrator {
     private static final Logger LOG = Logger.getLogger(FlywayMigrator.class);
 
     @Inject
-    DataSource dataSource;
+    Instance<DataSource> dataSourceInstance;
 
     @ConfigProperty(name = "miot.flyway.base-locations")
     List<String> baseLocations;
@@ -55,7 +56,7 @@ public class FlywayMigrator {
         LOG.infof("Flyway locations: %s", locations);
 
         Flyway flyway = Flyway.configure()
-                .dataSource(dataSource)
+                .dataSource(dataSourceInstance.get())
                 .locations(locations.toArray(String[]::new))
                 .outOfOrder(true)
                 .ignoreMigrationPatterns("*:missing")

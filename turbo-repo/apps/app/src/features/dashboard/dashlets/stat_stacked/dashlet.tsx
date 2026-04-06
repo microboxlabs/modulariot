@@ -63,15 +63,23 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
-  // Resolve Handlebars templates in item labels and values
+  // Resolve Handlebars templates in item labels and values (only in remote modes)
+  const isStatic = !config.dataMode || config.dataMode === "static";
   const resolvedItems = useMemo(() => {
-    const context = firstRow ? { ...firstRow, row: firstRow } : {};
+    if (isStatic || !firstRow) {
+      return items.map((item) => ({
+        label: item.label,
+        value: Number(item.value) || 0,
+        color: item.color,
+      }));
+    }
+    const context = { ...firstRow, row: firstRow };
     return items.map((item) => ({
       label: resolveHandlebarsField(item.label, context),
       value: Number(resolveHandlebarsField(String(item.value), context)) || 0,
       color: item.color,
     }));
-  }, [items, firstRow]);
+  }, [items, firstRow, isStatic]);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

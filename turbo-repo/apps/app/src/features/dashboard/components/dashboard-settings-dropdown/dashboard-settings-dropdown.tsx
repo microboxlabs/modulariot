@@ -77,6 +77,11 @@ function SectionLayout({
 }: Readonly<SectionLayoutProps>) {
   const { headerHeightClass, headerInteractiveClass, contentMaxHeightClass } =
     classes;
+  const [animationDone, setAnimationDone] = useState(false);
+
+  if (!active && animationDone) {
+    setAnimationDone(false);
+  }
   const backButtonClass = active
     ? "opacity-100 w-10"
     : "opacity-0 w-0 pointer-events-none";
@@ -130,7 +135,8 @@ function SectionLayout({
         </Button>
       </div>
       <div
-        className={`${contentMaxHeightClass} transition-all duration-300 overflow-hidden`}
+        className={`${contentMaxHeightClass} transition-all duration-300 ${animationDone ? "overflow-y-auto" : "overflow-hidden"}`}
+        onTransitionEnd={() => { if (active) setAnimationDone(true); }}
       >
         {children}
       </div>
@@ -764,7 +770,7 @@ export default function DashboardSettingsDropdown() {
       </Button>
 
       {open && (
-        <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
+        <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
           <SettingsSection
             option="rename"
             selected={selected}
@@ -829,7 +835,7 @@ export default function DashboardSettingsDropdown() {
             setSelected={setSelected}
             title="Request Planner"
             description="Define shared data queries"
-            maxHeight="max-h-[600px]"
+            maxHeight="max-h-[60vh]"
           >
             <PlannerManagerForm />
           </SettingsSection>

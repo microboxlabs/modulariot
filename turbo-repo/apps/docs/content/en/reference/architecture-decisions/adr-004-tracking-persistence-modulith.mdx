@@ -1,0 +1,104 @@
+# ADR-004: Tracking Persistence Inside the Modulith
+
+| | |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-04-06 |
+| **Deciders** | Platform engineering team |
+| **Relates to** | `AssetTrackingProcessor`, `PulsarAssetTrackingConsumer`, `TrackingComponent` |
+
+## Context
+
+The `quarkus-subscriber-db-writer` microservice receives asset tracking messages from a Pulsar topic and persists them into PostgreSQL tables: `asset_data` (raw positions), `asset_data_client` (multi-tenant cross-references), `asset_metric_core/dtc/ext` (OBD2/J1939 telemetry), and an idempotency ledger. It also owns the `fn_latest_metrics` PostgreSQL functions used by the fleet dashboard.
+
+This service was the only consumer of the tracking module's Pulsar topic. It shares the same `gps-model` library and `EnvelopedMessage` contract. Its deployment as a separate service added operational overhead (separate container, separate Flyway history, separate database) without providing independent scaling or fault-isolation benefits in practice.
+
+Meanwhile, the ModularIoT modulith (`quarkus-srv`) already contained the tracking module (`miot-tracking`) which handles ingestion via `/api/v1/asset/track` and publishes to Pulsar. The modulith supports component-level activation via runtime configuration, enabling selective deployment of fleet, driver, and tracking capabilities.
+
+The question was: where should the persistence layer live?
+
+## Decision
+
+Consolidate the db-writer persistence into the existing `miot-tracking` module rather than creating a separate `miot-db-writer` module or keeping the standalone microservice.
+
+### Rationale
+
+1. **Tracking owns the full data lifecycle.** Receiving, publishing, and persisting asset positions are steps in the same domain pipeline. Splitting persistence into a separate module creates an artificial boundary where the deployment mode (standalone vs. distributed) is the only differentiator, not domain ownership.
+
+2. **Deployment mode is configuration, not module structure.** The modulith already distinguishes standalone (`miot.messaging.type=log`) from distributed (`miot.messaging.type=pulsar`) via build-time properties. Adding a write path is an implementation detail within that configuration axis, not a reason for a new Maven module.
+
+3. **Single database simplifies operations.** Writing to the primary `miot` database (under a `miot_tracking` schema) eliminates the need for a second datasource, a second Flyway history, and cross-database query concerns. The `LatestMetricsRepository` in `miot-fleet` reads from the same database via schema-qualified functions.
+
+### Dual-mode consumer architecture
+
+The persistence layer activates through mutually exclusive paths:
+
+**Standalone mode** (`miot.messaging.type=log`):
+- `PulsarAssetTrackingService` publishes the `EnvelopedMessage` to `IComponentBus` after logging
+- `TrackingComponent.onStart()` subscribes to the bus channel and delegates to `AssetTrackingProcessor`
+- Data is persisted synchronously in the same JVM, no external broker needed
+
+**Distributed mode** (`miot.messaging.type=pulsar`):
+- `PulsarAssetTrackingService` publishes to Pulsar via `PulsarMessagePublisher`
+- `PulsarAssetTrackingConsumer` (activated by `@IfBuildProperty`) receives from the topic on a daemon thread
+- The bus subscriber is not registered, preventing duplicate processing
+
+Both paths converge on `AssetTrackingProcessor`, which executes the same 3-step pipeline:
+1. Insert into `miot_tracking.asset_data`
+2. Cross-reference `asset_client_map` and insert into `asset_data_client` (within a transaction)
+3. Check idempotency via `ingest_ledger_metrics`, then insert metrics into `asset_metric_core/dtc/ext`
+
+### Repository design: raw PgPool, not Panache
+
+The persistence repositories use Vert.x `Pool` with prepared queries instead of Hibernate Reactive Panache. This was driven by the table characteristics:
+
+- **Composite primary keys** (`shared_client_id, asset_id, ts`) which Panache does not support natively
+- **PostGIS geography columns** requiring `ST_GeographyFromText()` in SQL
+- **Monthly partitioned tables** managed by pg_partman
+- **36-parameter insert statements** with type-specific tuple building (Short, Integer, Long, Boolean, OffsetDateTime, JsonObject)
+- **Write-only, append-only access patterns** with no update/find/delete operations
+
+### Database schema
+
+All tables live under the `miot_tracking` schema in the primary `miot` database, created by consolidated Flyway migrations V0.5.0 through V0.5.4:
+
+| Table | Purpose | Partitioning |
+|---|---|---|
+| `asset_data` | Raw position/telemetry (one row per message) | None |
+| `asset_data_client` | Multi-tenant cross-reference | Monthly by timestamp |
+| `asset_client_map` | Asset-to-client mapping configuration | None |
+| `asset_metric_core` | Core OBD2/J1939 metrics | Monthly by ts |
+| `asset_metric_dtc` | Diagnostic trouble codes | Monthly by ts |
+| `asset_metric_ext` | Extension metrics (x.* keys, bounded JSONB) | Monthly by ts |
+| `ingest_ledger_metrics` | Idempotency ledger | None |
+
+`fn_latest_metrics` and `fn_latest_metrics_batch` provide efficient latest-snapshot lookups for fleet dashboard views.
+
+### Flyway for subset deployments
+
+The `FlywayMigrator` conditionally includes migration locations based on active components. When running a subset (e.g., only tracking), previously applied migrations from other modules (fleet V0.2.x, driver V0.4.x) are missing from the classpath. The migrator uses `ignoreMigrationPatterns("*:missing")` to tolerate this without failing validation.
+
+## Consequences
+
+**Positive:**
+- One fewer service to deploy, monitor, and maintain
+- Single database with schema isolation (`miot_tracking`) instead of a separate `prod_iot_gps` database
+- `LatestMetricsRepository` reads from the same datasource as all other modulith queries
+- The dual-mode pattern (bus vs. Pulsar) is reusable for future consumer workloads
+
+**Negative:**
+- The tracking module is now larger (persistence + consumer + 5 migrations)
+- Cannot independently scale the write path without deploying the full modulith image
+- pg_partman and PostGIS become hard dependencies of the modulith database
+
+**Risks:**
+- High write throughput on `asset_metric_core` could pressure the shared primary database; mitigation is the pg_partman monthly partitioning and the `ON CONFLICT DO NOTHING` idempotency on all inserts
+- The `quarkus-subscriber-db-writer` must remain operational until all production traffic is migrated
+
+## Alternatives considered
+
+1. **New `miot-db-writer` module** in the modulith — Rejected because it creates a module boundary where the only differentiator is deployment mode, not domain ownership.
+
+2. **Keep standalone microservice** — Rejected because it adds operational overhead without scaling or isolation benefits that justify the cost.
+
+3. **Panache entities for the tracking tables** — Rejected due to composite primary keys, PostGIS types, partitioned tables, and write-only access patterns that don't benefit from an ORM abstraction.

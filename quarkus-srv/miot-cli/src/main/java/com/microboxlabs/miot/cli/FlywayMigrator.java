@@ -32,6 +32,14 @@ public class FlywayMigrator {
     boolean trackingEnabled;
 
     void onStart(@Observes StartupEvent ev) {
+        // Gateway and other stateless components have no DB schema.
+        // Skip migration entirely when no DB-dependent component is active
+        // to avoid connecting to (or validating against) a database that isn't needed.
+        if (!fleetEnabled && !driverEnabled && !trackingEnabled) {
+            LOG.debug("No DB-dependent components enabled — skipping Flyway");
+            return;
+        }
+
         List<String> locations = new ArrayList<>(baseLocations);
 
         if (fleetEnabled) {

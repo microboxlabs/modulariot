@@ -1492,6 +1492,7 @@
   },
   "dashboard": {
     "editMode": "Modo Edición",
+    "kioskMode": "Modo Kiosco",
     "landing": {
       "title": "Dashboards",
       "subtitle": "Crea y gestiona dashboards personalizados con widgets, filtros y visualizaciones de datos.",

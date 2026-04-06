@@ -30,7 +30,7 @@ export function SettingsDrawer({
   const mouseDownOnBackdrop = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (globalThis.window === undefined || !open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();

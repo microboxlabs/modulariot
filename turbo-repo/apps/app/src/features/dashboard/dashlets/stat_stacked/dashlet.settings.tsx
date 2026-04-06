@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Label, ToggleSwitch, TextInput } from "flowbite-react";
+import { Button, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
 import {
   HbTextFieldList,
+  HbInlineInput,
   PgrestDataTab,
   useSimplePgrestSettings,
-  getHandlebarsStatus,
-  getFlowbiteColor,
 } from "../common";
+import { usePlannerContext } from "../../context/planner-context";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import {
   ColorPickerDropdown,
@@ -69,6 +69,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit ?? "%");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
@@ -108,6 +109,11 @@ export function DashletSettings({
     fieldValues,
     fieldSetters,
   });
+
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
 
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
@@ -171,6 +177,7 @@ export function DashletSettings({
         fieldSetters={fieldSetters}
         isPgrest={isPgrest}
         dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
       />
 
       <div className="space-y-2">
@@ -192,23 +199,19 @@ export function DashletSettings({
             key={item.id}
             className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
           >
-            <TextInput
+            <HbInlineInput
               value={item.label}
-              onChange={(e) => updateItem(item.id, "label", e.target.value)}
+              onChange={(v) => updateItem(item.id, "label", v)}
               placeholder={isPgrest ? "{{row.label}}" : "Label"}
-              sizing="sm"
               className="flex-1"
-              color={getFlowbiteColor(getHandlebarsStatus(item.label))}
+              schemaSuggestions={schemaSuggestions}
             />
-            <TextInput
+            <HbInlineInput
               value={item.value}
-              onChange={(e) =>
-                updateItem(item.id, "value", e.target.value)
-              }
+              onChange={(v) => updateItem(item.id, "value", v)}
               placeholder={isPgrest ? "{{row.value}}" : "0"}
-              sizing="sm"
               className="w-20"
-              color={getFlowbiteColor(getHandlebarsStatus(item.value))}
+              schemaSuggestions={schemaSuggestions}
             />
             <ColorPickerDropdown
               options={COLOR_OPTIONS}

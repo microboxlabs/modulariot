@@ -3,7 +3,7 @@ package com.microboxlabs.miot.tracking.persistence;
 import cl.streamhub.gps.model.EnvelopedMessage;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -31,9 +31,9 @@ public class AssetDataClientRepository {
             VALUES ($1, $2, $3, $4)
             """;
 
-    private final PgPool client;
+    private final Pool client;
 
-    AssetDataClientRepository(PgPool client) {
+    AssetDataClientRepository(Pool client) {
         this.client = client;
     }
 
@@ -88,8 +88,8 @@ public class AssetDataClientRepository {
                                     assetDataId, assetId, clientId, failure.getMessage())));
         }
 
-        return Uni.combine().all().unis(insertOperations)
-                .combinedWith(results -> assetId);
+        return Uni.join().all(insertOperations).andCollectFailures()
+                .map(results -> assetId);
     }
 
     public static class CrossReferenceResult {

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
@@ -32,10 +32,10 @@ public class MetricsRepository {
 
     private final Map<String, BiConsumer<Object, Map<String, Object>>> metricMappers = buildMetricMappers();
 
-    private final PgPool client;
+    private final Pool client;
     private final ObjectMapper objectMapper;
 
-    MetricsRepository(PgPool client, ObjectMapper objectMapper) {
+    MetricsRepository(Pool client, ObjectMapper objectMapper) {
         this.client = client;
         this.objectMapper = objectMapper;
     }
@@ -420,38 +420,38 @@ public class MetricsRepository {
     // --- Value conversion helpers ---
 
     private static Integer getIntegerValue(Object value) {
+        if (value instanceof Number number) return number.intValue();
         if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).intValue();
         try { return Integer.parseInt(value.toString()); } catch (NumberFormatException e) { return null; }
     }
 
     private static Short getShortValue(Object value) {
+        if (value instanceof Number number) return number.shortValue();
         if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).shortValue();
         try { return Short.parseShort(value.toString()); } catch (NumberFormatException e) { return null; }
     }
 
     private static Long getLongValue(Object value) {
+        if (value instanceof Number number) return number.longValue();
         if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).longValue();
         try { return Long.parseLong(value.toString()); } catch (NumberFormatException e) { return null; }
     }
 
     private static Boolean getBooleanValue(Object value) {
-        if (value == null) return null;
-        if (value instanceof Boolean) return (Boolean) value;
+        if (value instanceof Boolean bool) return bool;
+        if (value == null) return Boolean.FALSE;
         return Boolean.parseBoolean(value.toString());
     }
 
     private static Integer getBatteryVoltageMillivolts(Object value) {
+        if (value instanceof Number number) return (int) (number.doubleValue() * 1000);
         if (value == null) return null;
-        if (value instanceof Number) return (int) (((Number) value).doubleValue() * 1000);
         try { return (int) (Double.parseDouble(value.toString()) * 1000); } catch (NumberFormatException e) { return null; }
     }
 
     private static Integer getFuelVolumeMilliliters(Object value) {
+        if (value instanceof Number number) return (int) Math.round(number.doubleValue() * 1000);
         if (value == null) return null;
-        if (value instanceof Number) return (int) Math.round(((Number) value).doubleValue() * 1000);
         try { return (int) Math.round(Double.parseDouble(value.toString()) * 1000); } catch (NumberFormatException e) { return null; }
     }
 }

@@ -8,7 +8,7 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.ZoneOffset;
@@ -47,10 +47,10 @@ public class AssetDataRepository {
             RETURNING id
             """;
 
-    private final PgPool client;
+    private final Pool client;
     private final ObjectMapper objectMapper;
 
-    AssetDataRepository(PgPool client, ObjectMapper objectMapper) {
+    AssetDataRepository(Pool client, ObjectMapper objectMapper) {
         this.client = client;
         this.objectMapper = objectMapper;
     }
@@ -58,79 +58,14 @@ public class AssetDataRepository {
     public Uni<Long> save(EnvelopedMessage message) {
         var asset = message.getPayload();
 
-        final String clientId = message.getClientId() != null
-                ? message.getClientId().replace("@clients", "")
-                : null;
-        if (clientId == null) {
-            throw new IllegalArgumentException("ClientId cannot be null");
-        }
-
-        String pointWkt = null;
-        if (asset.getGps() != null) {
-            pointWkt = String.format(Locale.US, "SRID=4326;POINT(%f %f)",
-                    asset.getGps().getLongitude(),
-                    asset.getGps().getLatitude());
-        }
+        final String clientId = extractClientId(message);
+        String pointWkt = buildPointWkt(asset);
 
         try {
-            JsonObject sensorsJson = asset.getSensors() != null
-                    ? new JsonObject(objectMapper.writeValueAsString(asset.getSensors()))
-                    : null;
-            JsonObject peripheralsJson = asset.getPeripherals() != null
-                    ? new JsonObject(objectMapper.writeValueAsString(asset.getPeripherals()))
-                    : null;
-            JsonArray eventsJson = asset.getEvents() != null
-                    ? new JsonArray(objectMapper.writeValueAsString(asset.getEvents()))
-                    : null;
-
-            String s2Token = S2Util.tokenAtLevel(
-                    asset.getGps().getLatitude(),
-                    asset.getGps().getLongitude(), 12);
-            JsonObject s2Json = new JsonObject();
-            s2Json.put("level_12", s2Token);
+            Object[] params = buildInsertParams(message, asset, clientId, pointWkt);
 
             return client.preparedQuery(INSERT_QUERY)
-                    .execute(Tuple.from(new Object[]{
-                            message.getRequestId(),
-                            message.getTimestamp().atOffset(ZoneOffset.UTC),
-                            clientId,
-                            asset.getAssetId(),
-                            asset.getType(),
-                            asset.getOwner(),
-                            asset.getYear(),
-                            asset.getTimestamp().toOffsetDateTime(),
-                            pointWkt,
-                            asset.getGps().getAltitude(),
-                            asset.getGps().getSpeed(),
-                            asset.getGps().getHeading(),
-
-                            asset.getTelecom() != null ? asset.getTelecom().getIccid() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getImsi() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getOperator() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getMcc() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getMnc() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getCellId() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getLac() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getSignalStrength() : null,
-                            asset.getTelecom() != null ? asset.getTelecom().getGpsProvider() : null,
-
-                            asset.getDriverInfo() != null ? asset.getDriverInfo().getDriverId() : null,
-                            asset.getDriverInfo() != null ? asset.getDriverInfo().getName() : null,
-                            asset.getDriverInfo() != null ? asset.getDriverInfo().getLicenseNumber() : null,
-                            asset.getDriverInfo() != null ? getPhone(asset.getDriverInfo().getContact()) : null,
-                            asset.getDriverInfo() != null ? getEmail(asset.getDriverInfo().getContact()) : null,
-                            asset.getDriverInfo() != null ? asset.getDriverInfo().getIdButton() : null,
-
-                            asset.getCoDriverInfo() != null ? asset.getCoDriverInfo().getDriverId() : null,
-                            asset.getCoDriverInfo() != null ? asset.getCoDriverInfo().getName() : null,
-                            asset.getCoDriverInfo() != null ? asset.getCoDriverInfo().getLicenseNumber() : null,
-                            asset.getCoDriverInfo() != null ? getPhone(asset.getCoDriverInfo().getContact()) : null,
-                            asset.getCoDriverInfo() != null ? getEmail(asset.getCoDriverInfo().getContact()) : null,
-                            sensorsJson,
-                            peripheralsJson,
-                            eventsJson,
-                            s2Json
-                    }))
+                    .execute(Tuple.from(params))
                     .onFailure()
                     .invoke(failure -> logger.errorf(failure,
                             "Failed to insert into asset_data - assetId: %s, requestId: %s, clientId: %s. Error: %s",
@@ -140,6 +75,72 @@ public class AssetDataRepository {
         } catch (JsonProcessingException e) {
             return Uni.createFrom().failure(e);
         }
+    }
+
+    private static String extractClientId(EnvelopedMessage message) {
+        String raw = message.getClientId();
+        String clientId = raw != null ? raw.replace("@clients", "") : null;
+        if (clientId == null) {
+            throw new IllegalArgumentException("ClientId cannot be null");
+        }
+        return clientId;
+    }
+
+    private static String buildPointWkt(cl.streamhub.gps.model.AssetTrackingData asset) {
+        if (asset.getGps() == null) return null;
+        return String.format(Locale.US, "SRID=4326;POINT(%f %f)",
+                asset.getGps().getLongitude(), asset.getGps().getLatitude());
+    }
+
+    private Object[] buildInsertParams(EnvelopedMessage message,
+            cl.streamhub.gps.model.AssetTrackingData asset,
+            String clientId, String pointWkt) throws JsonProcessingException {
+
+        JsonObject sensorsJson = toJsonObject(asset.getSensors());
+        JsonObject peripheralsJson = toJsonObject(asset.getPeripherals());
+        JsonArray eventsJson = asset.getEvents() != null
+                ? new JsonArray(objectMapper.writeValueAsString(asset.getEvents()))
+                : null;
+
+        String s2Token = S2Util.tokenAtLevel(
+                asset.getGps().getLatitude(), asset.getGps().getLongitude(), 12);
+        JsonObject s2Json = new JsonObject().put("level_12", s2Token);
+
+        var t = asset.getTelecom();
+        var d = asset.getDriverInfo();
+        var cd = asset.getCoDriverInfo();
+
+        return new Object[]{
+                message.getRequestId(),
+                message.getTimestamp().atOffset(ZoneOffset.UTC),
+                clientId,
+                asset.getAssetId(), asset.getType(), asset.getOwner(), asset.getYear(),
+                asset.getTimestamp().toOffsetDateTime(),
+                pointWkt,
+                asset.getGps().getAltitude(), asset.getGps().getSpeed(), asset.getGps().getHeading(),
+                // telecom
+                t != null ? t.getIccid() : null, t != null ? t.getImsi() : null,
+                t != null ? t.getOperator() : null, t != null ? t.getMcc() : null,
+                t != null ? t.getMnc() : null, t != null ? t.getCellId() : null,
+                t != null ? t.getLac() : null, t != null ? t.getSignalStrength() : null,
+                t != null ? t.getGpsProvider() : null,
+                // driver
+                d != null ? d.getDriverId() : null, d != null ? d.getName() : null,
+                d != null ? d.getLicenseNumber() : null,
+                d != null ? getPhone(d.getContact()) : null,
+                d != null ? getEmail(d.getContact()) : null,
+                d != null ? d.getIdButton() : null,
+                // co-driver
+                cd != null ? cd.getDriverId() : null, cd != null ? cd.getName() : null,
+                cd != null ? cd.getLicenseNumber() : null,
+                cd != null ? getPhone(cd.getContact()) : null,
+                cd != null ? getEmail(cd.getContact()) : null,
+                sensorsJson, peripheralsJson, eventsJson, s2Json
+        };
+    }
+
+    private JsonObject toJsonObject(Object value) throws JsonProcessingException {
+        return value != null ? new JsonObject(objectMapper.writeValueAsString(value)) : null;
     }
 
     private static String getEmail(Contact contact) {

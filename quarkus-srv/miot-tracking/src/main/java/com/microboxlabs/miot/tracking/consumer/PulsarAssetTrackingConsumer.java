@@ -75,24 +75,35 @@ public class PulsarAssetTrackingConsumer {
     }
 
     private void consumeLoop() {
-        try {
-            Consumer<String> c = getConsumer();
-            while (running.get()) {
-                try {
-                    Message<String> msg = c.receive(1, TimeUnit.SECONDS);
-                    if (msg == null) continue;
+        Consumer<String> c = initConsumer();
+        if (c == null) return;
 
-                    long startTime = System.currentTimeMillis();
-                    processMessage(c, msg, startTime);
-                } catch (PulsarClientException e) {
-                    if (running.get()) {
-                        LOG.errorf(e, "Pulsar receive error, retrying in 5s");
-                        sleep(5000);
-                    }
-                }
-            }
+        while (running.get()) {
+            receiveAndProcess(c);
+        }
+    }
+
+    private Consumer<String> initConsumer() {
+        try {
+            return getConsumer();
         } catch (PulsarClientException e) {
             LOG.errorf(e, "Failed to create Pulsar consumer");
+            return null;
+        }
+    }
+
+    private void receiveAndProcess(Consumer<String> c) {
+        try {
+            Message<String> msg = c.receive(1, TimeUnit.SECONDS);
+            if (msg == null) return;
+
+            long startTime = System.currentTimeMillis();
+            processMessage(c, msg, startTime);
+        } catch (PulsarClientException e) {
+            if (running.get()) {
+                LOG.errorf(e, "Pulsar receive error, retrying in 5s");
+                sleep(5000);
+            }
         }
     }
 
@@ -102,32 +113,37 @@ public class PulsarAssetTrackingConsumer {
 
             processor.process(envelope)
                     .subscribe().with(
-                            v -> {
-                                try {
-                                    c.acknowledge(msg);
-                                    long ackTime = System.currentTimeMillis();
-                                    LOG.infof("TOTAL_ACK_TIME: %d ms", ackTime - startTime);
-                                } catch (PulsarClientException e) {
-                                    LOG.errorf(e, "Failed to ACK message");
-                                }
-                            },
-                            e -> {
-                                long errorTime = System.currentTimeMillis();
-                                LOG.errorf(e, "PROCESSING_ERROR after %d ms. Error: %s",
-                                        errorTime - startTime, e.getMessage());
-                                try {
-                                    c.reconsumeLater(msg, 30, TimeUnit.SECONDS);
-                                } catch (PulsarClientException nackEx) {
-                                    LOG.errorf(nackEx, "Failed to NACK message");
-                                }
-                            });
+                            v -> acknowledgeMessage(c, msg, startTime),
+                            e -> nackOnProcessingError(c, msg, startTime, e));
         } catch (Exception e) {
             LOG.errorf(e, "MESSAGE_PARSE_ERROR");
-            try {
-                c.reconsumeLater(msg, 30, TimeUnit.SECONDS);
-            } catch (PulsarClientException nackEx) {
-                LOG.errorf(nackEx, "Failed to NACK unparseable message");
-            }
+            nackMessage(c, msg);
+        }
+    }
+
+    private void acknowledgeMessage(Consumer<String> c, Message<String> msg, long startTime) {
+        try {
+            c.acknowledge(msg);
+            long ackTime = System.currentTimeMillis();
+            LOG.infof("TOTAL_ACK_TIME: %d ms", ackTime - startTime);
+        } catch (PulsarClientException e) {
+            LOG.errorf(e, "Failed to ACK message");
+        }
+    }
+
+    private void nackOnProcessingError(Consumer<String> c, Message<String> msg,
+            long startTime, Throwable e) {
+        long errorTime = System.currentTimeMillis();
+        LOG.errorf(e, "PROCESSING_ERROR after %d ms. Error: %s",
+                errorTime - startTime, e.getMessage());
+        nackMessage(c, msg);
+    }
+
+    private void nackMessage(Consumer<String> c, Message<String> msg) {
+        try {
+            c.reconsumeLater(msg, 30, TimeUnit.SECONDS);
+        } catch (PulsarClientException nackEx) {
+            LOG.errorf(nackEx, "Failed to NACK message");
         }
     }
 

@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label, ToggleSwitch } from "flowbite-react";
+import { Button, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
 import {
   HbTextFieldList,
+  HbInlineInput,
   PgrestDataTab,
   useSimplePgrestSettings,
 } from "../common";
+import { usePlannerContext } from "../../context/planner-context";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { tr } from "@/features/i18n/tr.service";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -48,7 +51,7 @@ const COLOR_OPTIONS: ColorOption<BarColor>[] = [
 interface StackItem {
   id: string;
   label: string;
-  value: number;
+  value: string;
   color: BarColor;
 }
 
@@ -67,6 +70,7 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit ?? "%");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
@@ -74,11 +78,12 @@ export function DashletSettings({
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
     const defaultItems: Omit<StackItem, "id">[] = [
-      { label: "Direct", value: 45, color: "bg-blue-500 dark:bg-blue-400" },
-      { label: "Organic", value: 30, color: "bg-green-500 dark:bg-green-400" },
+      { label: "Direct", value: "45", color: "bg-blue-500 dark:bg-blue-400" },
+      { label: "Organic", value: "30", color: "bg-green-500 dark:bg-green-400" },
     ];
     return (config.items || defaultItems).map((item, i) => ({
       ...item,
+      value: String(item.value),
       id: `item-${Date.now()}-${i}`,
     }));
   };
@@ -94,6 +99,8 @@ export function DashletSettings({
     dataMode,
     dataSourceId,
     setDataSourceId,
+    plannerVariableName,
+    setPlannerVariableName,
     pg,
     handleDataModeChange,
     pgrestSaveFields,
@@ -104,10 +111,15 @@ export function DashletSettings({
     fieldSetters,
   });
 
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
-      label,
-      value,
+      label: label.trim(),
+      value: value.trim(),
       color,
     }));
     onSave({
@@ -129,7 +141,7 @@ export function DashletSettings({
       {
         id: `item-${Date.now()}`,
         label: "",
-        value: 0,
+        value: "0",
         color: "bg-blue-500 dark:bg-blue-400",
       },
     ]);
@@ -166,6 +178,7 @@ export function DashletSettings({
         fieldSetters={fieldSetters}
         isPgrest={isPgrest}
         dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
       />
 
       <div className="space-y-2">
@@ -187,21 +200,27 @@ export function DashletSettings({
             key={item.id}
             className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
           >
-            <TextInput
+            <HbInlineInput
               value={item.label}
-              onChange={(e) => updateItem(item.id, "label", e.target.value)}
-              placeholder="Label"
-              sizing="sm"
+              onChange={(v) => updateItem(item.id, "label", v)}
+              placeholder={isPgrest ? "{{row.label}}" : tr("dashboard.settings.label", dictionary)}
               className="flex-1"
+              schemaSuggestions={schemaSuggestions}
+              aria-label={tr("dashboard.settings.categoryAriaLabel", dictionary, {
+                name: item.label || tr("dashboard.settings.new", dictionary),
+                field: tr("dashboard.settings.label", dictionary),
+              })}
             />
-            <TextInput
-              type="number"
+            <HbInlineInput
               value={item.value}
-              onChange={(e) =>
-                updateItem(item.id, "value", Number(e.target.value))
-              }
-              sizing="sm"
-              className="w-16"
+              onChange={(v) => updateItem(item.id, "value", v)}
+              placeholder={isPgrest ? "{{row.value}}" : "0"}
+              className="w-20"
+              schemaSuggestions={schemaSuggestions}
+              aria-label={tr("dashboard.settings.categoryAriaLabel", dictionary, {
+                name: item.label || tr("dashboard.settings.new", dictionary),
+                field: tr("common.value", dictionary),
+              })}
             />
             <ColorPickerDropdown
               options={COLOR_OPTIONS}
@@ -231,6 +250,8 @@ export function DashletSettings({
       onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
       dataSourceId={dataSourceId}
       onDataSourceIdChange={setDataSourceId}
       activeProviders={activeProviders}

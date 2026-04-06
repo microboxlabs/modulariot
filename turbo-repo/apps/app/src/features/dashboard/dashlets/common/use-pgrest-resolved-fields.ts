@@ -22,6 +22,8 @@ export interface PgrestResolvedFieldsResult {
   resolved: Record<string, string>;
   loading: boolean;
   fetchError: string | null;
+  /** First row of raw data (for resolving dynamic content beyond simple fields) */
+  firstRow: Record<string, string> | undefined;
 }
 
 /**
@@ -79,5 +81,5 @@ export function usePgrestResolvedFields({
     return out;
   }, [firstRow, fields, activeFilters]);
 
-  return { resolved, loading, fetchError };
+  return { resolved, loading, fetchError, firstRow };
 }

@@ -7,6 +7,7 @@ import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
 import { SettingsModalShell, useWidgetRefreshSettings } from "./settings-modal-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
+import { usePlannerContext } from "../../context/planner-context";
 
 // ============================================================================
 // Types
@@ -104,6 +105,7 @@ export function SimpleDashletSettings<C extends object>({
   );
 
   const refresh = useWidgetRefreshSettings(configRecord, dictionary);
+  const { schemas } = usePlannerContext();
 
   const {
     isPgrest,
@@ -111,6 +113,8 @@ export function SimpleDashletSettings<C extends object>({
     dataMode,
     dataSourceId,
     setDataSourceId,
+    plannerVariableName,
+    setPlannerVariableName,
     pg,
     handleDataModeChange,
     pgrestSaveFields,
@@ -120,6 +124,11 @@ export function SimpleDashletSettings<C extends object>({
     fieldValues: values,
     fieldSetters: setters,
   });
+
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
 
   const handleSave = () => {
     onSave({
@@ -139,6 +148,7 @@ export function SimpleDashletSettings<C extends object>({
         fieldSetters={setters}
         isPgrest={isPgrest}
         dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
       />
       {extraVisualization}
     </>
@@ -149,6 +159,7 @@ export function SimpleDashletSettings<C extends object>({
       fieldSetters={setters}
       isPgrest={isPgrest}
       dictionary={dictionary}
+      schemaSuggestions={schemaSuggestions}
     />
   );
 
@@ -159,6 +170,8 @@ export function SimpleDashletSettings<C extends object>({
       onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
       dataSourceId={dataSourceId}
       onDataSourceIdChange={setDataSourceId}
       activeProviders={activeProviders}

@@ -3,9 +3,7 @@ package com.microboxlabs.miot.gateway.fork.api;
 import com.microboxlabs.miot.gateway.fork.ForkEngine;
 import com.microboxlabs.miot.gateway.fork.ForkFilterRegistry;
 import com.microboxlabs.miot.gateway.fork.model.ForkRule;
-import com.microboxlabs.miot.gateway.fork.model.ForkTarget;
 import io.quarkus.arc.properties.IfBuildProperty;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -20,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
 
 /**
@@ -44,11 +41,16 @@ public class ForkManagementResource {
 
     private static final Logger LOG = Logger.getLogger(ForkManagementResource.class);
 
-    @Inject
-    ForkEngine engine;
+    private static final String FIELD_ERROR = "error";
+    private static final String FIELD_TOTAL = "total";
 
-    @Inject
-    ForkFilterRegistry filterRegistry;
+    private final ForkEngine engine;
+    private final ForkFilterRegistry filterRegistry;
+
+    ForkManagementResource(ForkEngine engine, ForkFilterRegistry filterRegistry) {
+        this.engine = engine;
+        this.filterRegistry = filterRegistry;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Rules
@@ -79,7 +81,7 @@ public class ForkManagementResource {
     public Response listRules() {
         List<Map<String, Object>> rules = engine.rules().stream()
                 .map(this::summarize)
-                .collect(Collectors.toList());
+                .toList();
         return Response.ok(rules).build();
     }
 
@@ -123,13 +125,13 @@ public class ForkManagementResource {
         }
         if (keys == null || keys.isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(Map.of("error", "Request body must be a non-empty JSON array of strings"))
+                    .entity(Map.of(FIELD_ERROR, "Request body must be a non-empty JSON array of strings"))
                     .build();
         }
         int added = filterRegistry.add(id, keys);
         int total = filterRegistry.inspect(id).map(Set::size).orElse(0);
         LOG.infof("Filter add — rule=%s added=%d total=%d", id, added, total);
-        return Response.ok(Map.of("added", added, "total", total)).build();
+        return Response.ok(Map.of("added", added, FIELD_TOTAL, total)).build();
     }
 
     /**
@@ -146,7 +148,7 @@ public class ForkManagementResource {
         boolean removed = filterRegistry.remove(id, key);
         int total = filterRegistry.inspect(id).map(Set::size).orElse(0);
         LOG.infof("Filter remove — rule=%s key=%s removed=%b total=%d", id, key, removed, total);
-        return Response.ok(Map.of("removed", removed, "total", total)).build();
+        return Response.ok(Map.of("removed", removed, FIELD_TOTAL, total)).build();
     }
 
     /**
@@ -165,18 +167,18 @@ public class ForkManagementResource {
         }
         if (!filterRegistry.hasFilterFile(id)) {
             return Response.status(Response.Status.CONFLICT)
-                    .entity(Map.of("error", "Rule '" + id + "' has no filter file configured"))
+                    .entity(Map.of(FIELD_ERROR, "Rule '" + id + "' has no filter file configured"))
                     .build();
         }
         try {
             int loaded = filterRegistry.reload(id);
             int total = filterRegistry.inspect(id).map(Set::size).orElse(0);
             LOG.infof("Filter reload — rule=%s loaded=%d", id, loaded);
-            return Response.ok(Map.of("loaded", loaded, "total", total)).build();
-        } catch (Exception e) {
+            return Response.ok(Map.of("loaded", loaded, FIELD_TOTAL, total)).build();
+        } catch (IllegalStateException e) {
             LOG.errorf(e, "Filter reload failed — rule=%s", id);
             return Response.serverError()
-                    .entity(Map.of("error", e.getMessage()))
+                    .entity(Map.of(FIELD_ERROR, e.getMessage()))
                     .build();
         }
     }
@@ -194,7 +196,7 @@ public class ForkManagementResource {
                     m.put("timeout", t.timeout());
                     return m;
                 })
-                .collect(Collectors.toList());
+                .toList();
 
         int filterSize = filterRegistry.inspect(rule.id()).map(Set::size).orElse(0);
 
@@ -211,7 +213,7 @@ public class ForkManagementResource {
 
     private Response ruleNotFound(String id) {
         return Response.status(Response.Status.NOT_FOUND)
-                .entity(Map.of("error", "Rule not found: " + id))
+                .entity(Map.of(FIELD_ERROR, "Rule not found: " + id))
                 .build();
     }
 }

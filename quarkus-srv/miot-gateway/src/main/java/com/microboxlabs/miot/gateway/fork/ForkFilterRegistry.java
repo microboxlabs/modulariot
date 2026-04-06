@@ -5,16 +5,15 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.jboss.logging.Logger;
 
 /**
@@ -32,14 +31,17 @@ public class ForkFilterRegistry {
 
     private static final Logger LOG = Logger.getLogger(ForkFilterRegistry.class);
 
-    @Inject
-    MeterRegistry meterRegistry;
+    private final MeterRegistry meterRegistry;
 
     /** rule-id → Set of routing keys (e.g. asset IDs). */
     private final ConcurrentHashMap<String, Set<String>> filters = new ConcurrentHashMap<>();
 
     /** rule-id → file path (for reload). */
     private final ConcurrentHashMap<String, Path> filePaths = new ConcurrentHashMap<>();
+
+    ForkFilterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
 
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -138,12 +140,11 @@ public class ForkFilterRegistry {
      * and atomically replaces the filter set for the given rule.
      */
     private int readFile(String ruleId, Path path) {
-        try {
-            Set<String> loaded = Files.lines(path)
+        try (Stream<String> lines = Files.lines(path)) {
+            Set<String> loaded = lines
                     .map(String::trim)
                     .filter(line -> !line.isBlank() && !line.startsWith("#"))
-                    .collect(Collectors.toCollection(() -> ConcurrentHashMap.newKeySet()));
-
+                    .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
             // Atomic swap — readers see old or new, never an empty intermediate state
             filters.put(ruleId, loaded);
             return loaded.size();

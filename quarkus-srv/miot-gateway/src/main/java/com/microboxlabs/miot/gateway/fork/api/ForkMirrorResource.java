@@ -4,7 +4,6 @@ import com.microboxlabs.miot.gateway.fork.ForkEngine;
 import com.microboxlabs.miot.gateway.fork.model.ForkResult;
 import com.microboxlabs.miot.gateway.fork.model.ForkRule;
 import io.quarkus.arc.properties.IfBuildProperty;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -42,9 +41,13 @@ import org.jboss.logging.Logger;
 public class ForkMirrorResource {
 
     private static final Logger LOG = Logger.getLogger(ForkMirrorResource.class);
+    private static final String PATH_SEPARATOR = "/";
 
-    @Inject
-    ForkEngine engine;
+    private final ForkEngine engine;
+
+    ForkMirrorResource(ForkEngine engine) {
+        this.engine = engine;
+    }
 
     @POST
     @Consumes(MediaType.WILDCARD)
@@ -54,7 +57,7 @@ public class ForkMirrorResource {
             String body,
             @Context HttpHeaders headers) {
 
-        String fullPath = "/" + path;
+        String fullPath = PATH_SEPARATOR + path;
         List<ForkRule> matchingRules = engine.findRulesForPath(fullPath);
 
         if (matchingRules.isEmpty()) {

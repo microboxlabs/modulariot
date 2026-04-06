@@ -7,6 +7,6 @@ const paramMapping = [
 ];
 
 export const GET = createStreamHubApiHandler(
-  "/api/v1/pgrest/rpc/api_modular_overview_historic_timeline",
+  "/rpc/api_modular_overview_historic_timeline",
   paramMapping
 );

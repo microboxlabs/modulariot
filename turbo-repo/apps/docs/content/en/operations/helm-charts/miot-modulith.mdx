@@ -1,0 +1,276 @@
+# Modulith Chart
+
+The `miot-modulith` chart deploys the ModularIoT Quarkus backend — a modulith server that hosts fleet, driver, tracking, and gateway components. Each component can be independently enabled via values, allowing the same chart and image to serve different deployment roles.
+
+## Install
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+
+helm install miot-modulith microboxlabs/miot-modulith \
+  -f values-prod.yaml \
+  --namespace default
+```
+
+## Component Activation
+
+The modulith image contains all components. Enable only what each deployment needs:
+
+```yaml
+components:
+  fleet:
+    enabled: true
+  driver:
+    enabled: true
+  tracking:
+    enabled: false
+  gateway:
+    enabled: false
+```
+
+Each flag maps to `MIOT_COMPONENT_*_ENABLED` environment variables injected by the chart.
+
+### Deployment Topology Examples
+
+| Deployment | Components | Purpose |
+|---|---|---|
+| `prod-miot-modulith` | fleet + driver | REST API for fleet dashboard |
+| `dev-miot-modulith` | fleet + driver + tracking | All-in-one dev server |
+| `prod-miot-gateway` | gateway | Request forking/mirroring |
+
+All use the same image (`ghcr.io/microboxlabs/miot-srv`) and chart (`miot-modulith`).
+
+## Database
+
+The chart injects both JDBC (Flyway) and reactive (Hibernate) datasource URLs:
+
+```yaml
+postgresql:
+  external:
+    host: "pgbouncer-service"
+    port: 6432
+    database: "miot"
+    username: "miot"
+    password: ""
+    existingSecret: "miot-db-credentials"
+    existingSecretUsernameKey: "db_username"
+    existingSecretPasswordKey: "db_password"
+```
+
+For gateway-only deployments (no database), disable the datasource:
+
+```yaml
+postgresql:
+  external:
+    host: ""
+    database: ""
+    username: ""
+    password: ""
+
+env:
+  - name: QUARKUS_DATASOURCE_ACTIVE
+    value: "false"
+  - name: QUARKUS_HIBERNATE_ORM_ACTIVE
+    value: "false"
+```
+
+## Authentication
+
+### Auth0 Dual JWT (HS256 + RS256)
+
+```yaml
+auth:
+  issuer: "https://auth0.example.com/"
+  hs256Secret: ""                      # use existingSecret in prod
+  jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
+  hs256Audience: "https://api.example.com/v1/asset/track"
+  rs256Audience: "https://api.example.com/v1"
+  existingSecret: "miot-auth-credentials"
+  existingSecretHs256Key: "hs256-secret"
+```
+
+### OIDC (Legacy)
+
+```yaml
+oidc:
+  authServerUrl: "https://auth0.example.com"
+  clientId: "my-client-id"
+  existingSecret: "miot-oidc-credentials"
+  existingSecretKey: "client-secret"
+```
+
+## Messaging
+
+```yaml
+messaging:
+  type: "log"           # log = standalone (no broker), pulsar = Apache Pulsar
+  pulsarUrl: ""         # e.g., pulsar://pulsar-proxy:6650
+  trackingTopic: ""     # e.g., persistent://streamhub/tracking/asset-positions
+```
+
+## Flyway Migrations
+
+```yaml
+flyway:
+  migrateAtStart: false   # true for dev, false for prod
+```
+
+The `FlywayMigrator` conditionally includes migration locations based on active components and tolerates previously applied migrations from inactive components.
+
+## APISIX Route
+
+The chart can create an `ApisixRoute` CRD for APISIX-based ingress:
+
+```yaml
+apisixRoute:
+  enabled: true
+  ingressClassName: apisix
+  hosts:
+    - host: api.modulariot.com
+      paths:
+        - /miot
+        - /miot/*
+  tls:
+    - hosts:
+        - api.modulariot.com
+      secretName: api-tls
+  plugins:
+    - name: redirect
+      enable: true
+      config:
+        http_to_https: true
+    - name: cors
+      enable: true
+```
+
+## Fork Engine (Gateway)
+
+When the gateway component is enabled, the fork engine provides body-aware request mirroring. Configure rules declaratively in values — the chart generates all environment variables and manages the filter ConfigMap automatically.
+
+### Configuration
+
+```yaml
+components:
+  gateway:
+    enabled: true
+
+fork:
+  enabled: true
+  rules:
+    - id: asset-track-canary
+      enabled: true
+      paths:
+        - /v1/asset/track
+      bodyParser: json           # json or csv
+      keyField: asset_id         # field to extract as routing key
+      filterFile: /config/fork/asset-ids.txt
+      targets:
+        - id: storm
+          mirrorHost: https://storm.modulariot.com
+          mirrorPath: /api/v1/asset/track
+          timeout: 5000          # milliseconds
+
+  # Filter files — mounted as ConfigMap at /config/fork/
+  filters:
+    asset-ids.txt: |
+      # One routing key per line. Lines starting with # are ignored.
+      SVSX88
+      TRUCK-001
+```
+
+### How It Works
+
+```
+Client -> APISIX -> primary backend (e.g., pulsar-publisher)
+                 |
+                 +-> proxy-mirror -> miot-gateway (ClusterIP)
+                                       |
+                                       +-> ForkEngine checks body for key
+                                             |
+                                             +-- key in filter -> forward to target(s)
+                                             +-- key not in filter -> discard (200 OK)
+```
+
+1. APISIX's `proxy-mirror` plugin sends a copy of each request to the gateway service
+2. The gateway's `ForkEngine` parses the request body, extracts the routing key
+3. If the key is in the in-memory filter, the request is forwarded to all configured targets
+4. If not, the request is silently discarded (returns 200 to APISIX)
+
+### Filter Management
+
+Filters can be managed two ways:
+
+**Via ConfigMap (persistent, survives restarts):**
+
+Update `fork.filters` in values and re-deploy, or edit the ConfigMap directly:
+
+```bash
+kubectl edit configmap <release>-miot-modulith-fork-filters
+```
+
+Then reload via the management API:
+
+```bash
+kubectl exec <pod> -- curl -X POST http://localhost:8180/internal/fork/rules/asset-track-canary/filter/reload
+```
+
+**Via Management API (immediate, in-memory only):**
+
+```bash
+# List current filter keys
+kubectl exec <pod> -- curl http://localhost:8180/internal/fork/rules/asset-track-canary/filter
+
+# Add keys
+kubectl exec <pod> -- curl -X POST http://localhost:8180/internal/fork/rules/asset-track-canary/filter \
+  -H 'Content-Type: application/json' -d '["NEW-ASSET-1", "NEW-ASSET-2"]'
+
+# Remove a key
+kubectl exec <pod> -- curl -X DELETE http://localhost:8180/internal/fork/rules/asset-track-canary/filter/NEW-ASSET-1
+```
+
+### APISIX Proxy Mirror Setup
+
+Add the `proxy-mirror` plugin to the upstream service's APISIX route:
+
+```yaml
+# On the quarkus-http-pulsar-publisher route
+plugins:
+  - name: proxy-mirror
+    enable: true
+    config:
+      host: "http://<gateway-release>-miot-modulith:8180"
+      sample_ratio: 1    # 1.0 = mirror all traffic, 0.5 = 50%
+```
+
+### Metrics
+
+The fork engine exposes Prometheus metrics at `/q/metrics`:
+
+| Metric | Labels | Description |
+|---|---|---|
+| `fork_requests_total` | rule, target, outcome | Requests processed (forwarded/discarded/error) |
+| `fork_forward_duration_seconds` | rule, target | Forwarding latency histogram |
+| `fork_filter_size` | rule | Current filter size per rule |
+
+## Values Reference
+
+| Key | Default | Description |
+|---|---|---|
+| `replicaCount` | `1` | Number of pod replicas |
+| `image.repository` | `ghcr.io/microboxlabs/miot-srv` | Container image |
+| `image.tag` | `latest` | Image tag |
+| `service.port` | `8180` | HTTP port |
+| `components.fleet.enabled` | `true` | Enable fleet management |
+| `components.driver.enabled` | `false` | Enable driver management |
+| `components.tracking.enabled` | `false` | Enable asset tracking |
+| `components.gateway.enabled` | `false` | Enable gateway/fork engine |
+| `postgresql.external.host` | `postgresql` | Database host |
+| `postgresql.external.port` | `5432` | Database port |
+| `postgresql.external.database` | `miot` | Database name |
+| `messaging.type` | `log` | Messaging backend (log/pulsar) |
+| `flyway.migrateAtStart` | `false` | Run migrations on startup |
+| `fork.enabled` | `false` | Enable fork engine |
+| `fork.rules` | `[]` | Fork rule definitions |
+| `fork.filters` | `{}` | Filter file contents (ConfigMap) |
+| `apisixRoute.enabled` | `false` | Create ApisixRoute CRD |

@@ -463,6 +463,74 @@ export function HbTextFieldList({
 }
 
 // ============================================================================
+// HbInlineInput — Compact Handlebars-aware input without label (for lists)
+// ============================================================================
+
+interface HbInlineInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+  /** Column keys for Handlebars autocomplete */
+  schemaSuggestions?: string[];
+}
+
+/**
+ * Compact Handlebars-aware TextInput without a label.
+ * Designed for use in list rows (e.g. category items, detail rows).
+ * Shows autocomplete when typing `{{row.` and color-codes Handlebars syntax.
+ */
+export function HbInlineInput({
+  value,
+  onChange,
+  placeholder,
+  className,
+  schemaSuggestions,
+}: Readonly<HbInlineInputProps>) {
+  const status = useMemo(() => getHandlebarsStatus(value), [value]);
+
+  const ac = useHbAutocomplete({
+    value,
+    onChange,
+    prefix: "row",
+    suggestions: schemaSuggestions,
+  });
+
+  return (
+    <div ref={ac.containerRef} className={`relative ${className ?? ""}`}>
+      <TextInput
+        ref={ac.inputRef}
+        value={value}
+        onChange={ac.handleChange}
+        onClick={ac.handleClick}
+        onKeyDown={ac.handleKeyDownCombined}
+        placeholder={placeholder}
+        sizing="sm"
+        color={getFlowbiteColor(status)}
+        autoComplete="off"
+      />
+      {ac.isOpen && (
+        <DropdownList
+          items={ac.filtered}
+          selectedIndex={ac.selectedIndex}
+          onSelect={ac.handleSelect}
+          onHover={ac.setSelectedIndex}
+          dropdownRef={ac.dropdownRef}
+          getKey={(s) => s}
+          renderItem={(s) => (
+            <span className="font-mono text-xs">
+              {"{{row."}
+              <span className="font-semibold">{s}</span>
+              {"}}"}
+            </span>
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // HbTextareaField — Handlebars-aware Textarea
 // ============================================================================
 

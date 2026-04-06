@@ -16,6 +16,7 @@ export {
   SettingsTitleValueUnit,
   HbTextField,
   HbTextFieldList,
+  HbInlineInput,
   HbTextareaField,
 } from "./settings-fields";
 export {

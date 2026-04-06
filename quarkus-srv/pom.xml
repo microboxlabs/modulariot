@@ -19,6 +19,7 @@
         <module>miot-fleet</module>
         <module>miot-driver</module>
         <module>miot-tracking</module>
+        <module>miot-gateway</module>
         <module>miot-cli</module>
     </modules>
 
@@ -67,6 +68,11 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-tracking</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-gateway</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

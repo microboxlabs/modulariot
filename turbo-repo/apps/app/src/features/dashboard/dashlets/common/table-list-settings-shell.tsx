@@ -9,6 +9,7 @@ import {
   ColumnEditor,
   FilterEditor,
   SortEditor,
+  ColorRuleEditor,
   DataProviderTab,
 } from "./settings-sections";
 import { SettingsModalShell } from "./settings-modal-shell";
@@ -79,12 +80,16 @@ export function TableListSettingsShell({
         onAdd={s.addColumn}
         onRemove={s.removeColumn}
         onUpdate={s.updateColumn}
+        onAddColorMapping={s.addColorMapping}
+        onRemoveColorMapping={s.removeColorMapping}
+        onUpdateColorMapping={s.updateColorMapping}
         handlebarsColorKeys={handlebarsColorKeys}
         labels={{
           columns: tr("dashboard.settings.columns", dictionary),
           key: tr("dashboard.settings.key", dictionary),
           label: tr("dashboard.settings.label", dictionary),
           addColumn: tr("dashboard.settings.addColumn", dictionary),
+          addMapping: tr("dashboard.settings.addRule", dictionary),
         }}
       />
 
@@ -117,6 +122,19 @@ export function TableListSettingsShell({
           sortableColumns: tr("dashboard.settings.sortableColumns", dictionary),
         }}
       />
+
+      <ColorRuleEditor
+        title={tr("dashboard.settings.rowColorRules", dictionary)}
+        enabled={s.rowColorRulesEnabled}
+        onToggle={s.setRowColorRulesEnabled}
+        rules={s.rowColorRuleItems}
+        columnsWithKeys={s.columnsWithKeys}
+        onAdd={s.addRowColorRule}
+        onRemove={s.removeRowColorRule}
+        onUpdate={s.updateRowColorRule}
+        labels={{ addRule: tr("dashboard.settings.addRule", dictionary) }}
+      />
+
     </>
   );
 

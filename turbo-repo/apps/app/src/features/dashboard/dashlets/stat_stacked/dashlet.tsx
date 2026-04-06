@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
@@ -19,7 +21,7 @@ export type BarColor =
 
 export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  items: { label: string; value: number; color: BarColor }[];
+  items: { label: string; value: string; color: BarColor }[];
   unit: string;
   showHeader: boolean;
 }
@@ -27,10 +29,10 @@ export interface DashletConfig extends PgrestDashletFields {
 export const defaultConfig: DashletConfig = {
   title: "Traffic Sources",
   items: [
-    { label: "Direct", value: 45, color: "bg-blue-500 dark:bg-blue-400" },
-    { label: "Organic", value: 30, color: "bg-green-500 dark:bg-green-400" },
-    { label: "Referral", value: 15, color: "bg-yellow-500 dark:bg-yellow-400" },
-    { label: "Social", value: 10, color: "bg-purple-500 dark:bg-purple-400" },
+    { label: "Direct", value: "45", color: "bg-blue-500 dark:bg-blue-400" },
+    { label: "Organic", value: "30", color: "bg-green-500 dark:bg-green-400" },
+    { label: "Referral", value: "15", color: "bg-yellow-500 dark:bg-yellow-400" },
+    { label: "Social", value: "10", color: "bg-purple-500 dark:bg-purple-400" },
   ],
   unit: "%",
   showHeader: true,
@@ -59,14 +61,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const { items, showHeader = true } = config;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  // Resolve Handlebars templates in item labels and values
+  const resolvedItems = useMemo(() => {
+    const context = firstRow ? { ...firstRow, row: firstRow } : {};
+    return items.map((item) => ({
+      label: resolveHandlebarsField(item.label, context),
+      value: Number(resolveHandlebarsField(String(item.value), context)) || 0,
+      color: item.color,
+    }));
+  }, [items, firstRow]);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
   const title = resolved.title || "Traffic Sources";
   const unit = resolved.unit ?? "%";
-  const total = items.reduce((sum, item) => sum + item.value, 0);
+  const total = resolvedItems.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div
@@ -91,18 +103,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <div
         className={`flex h-3 overflow-hidden rounded-full ${showHeader ? "mt-3" : ""}`}
       >
-        {items.map((item) => (
+        {resolvedItems.map((item) => (
           <div
             key={item.label}
             className={`${item.color} first:rounded-l-full last:rounded-r-full`}
-            style={{ width: `${(item.value / total) * 100}%` }}
+            style={{ width: `${total > 0 ? (item.value / total) * 100 : 0}%` }}
           />
         ))}
       </div>
 
       {/* Legend */}
       <div className="mt-3 flex flex-wrap gap-3">
-        {items.map((item) => (
+        {resolvedItems.map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
             <span className="text-xs text-gray-600 dark:text-gray-400">

@@ -342,32 +342,34 @@ export function SettingsTitleValueUnit({
 }
 
 // ============================================================================
-// HbTextField — Handlebars-aware TextInput with optional suggestions
+// HbAutoInput — Shared Handlebars-aware TextInput with autocomplete dropdown
 // ============================================================================
 
-interface HbTextFieldProps {
-  id: string;
-  label: string;
+interface HbAutoInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  /** Column keys for Handlebars autocomplete (e.g. ["total", "status"]) */
   schemaSuggestions?: string[];
+  id?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
+  className?: string;
 }
 
 /**
- * Text input that shows Handlebars validation status via Flowbite color.
- * When `schemaSuggestions` are provided, shows a dropdown when typing `{{row.`
- * with matching column key suggestions.
+ * Core Handlebars-aware TextInput with autocomplete dropdown.
+ * Shared by HbTextField (with label) and HbInlineInput (without label).
  */
-export function HbTextField({
-  id,
-  label,
+function HbAutoInput({
   value,
   onChange,
   placeholder,
   schemaSuggestions,
-}: Readonly<HbTextFieldProps>) {
+  id,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledby,
+  className,
+}: Readonly<HbAutoInputProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
 
   const ac = useHbAutocomplete({
@@ -378,13 +380,12 @@ export function HbTextField({
   });
 
   return (
-    <div ref={ac.containerRef} className="relative">
-      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {label}
-      </Label>
+    <div ref={ac.containerRef} className={`relative ${className ?? ""}`}>
       <TextInput
         ref={ac.inputRef}
         id={id}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledby}
         value={value}
         onChange={ac.handleChange}
         onClick={ac.handleClick}
@@ -411,6 +412,49 @@ export function HbTextField({
           )}
         />
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// HbTextField — Handlebars-aware TextInput with label
+// ============================================================================
+
+interface HbTextFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  /** Column keys for Handlebars autocomplete (e.g. ["total", "status"]) */
+  schemaSuggestions?: string[];
+}
+
+/**
+ * Text input that shows Handlebars validation status via Flowbite color.
+ * When `schemaSuggestions` are provided, shows a dropdown when typing `{{row.`
+ * with matching column key suggestions.
+ */
+export function HbTextField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  schemaSuggestions,
+}: Readonly<HbTextFieldProps>) {
+  return (
+    <div>
+      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
+        {label}
+      </Label>
+      <HbAutoInput
+        id={id}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        schemaSuggestions={schemaSuggestions}
+      />
     </div>
   );
 }
@@ -486,60 +530,8 @@ interface HbInlineInputProps {
  * Designed for use in list rows (e.g. category items, detail rows).
  * Shows autocomplete when typing `{{row.` and color-codes Handlebars syntax.
  */
-export function HbInlineInput({
-  value,
-  onChange,
-  placeholder,
-  className,
-  schemaSuggestions,
-  id,
-  "aria-label": ariaLabel,
-  "aria-labelledby": ariaLabelledby,
-}: Readonly<HbInlineInputProps>) {
-  const status = useMemo(() => getHandlebarsStatus(value), [value]);
-
-  const ac = useHbAutocomplete({
-    value,
-    onChange,
-    prefix: "row",
-    suggestions: schemaSuggestions,
-  });
-
-  return (
-    <div ref={ac.containerRef} className={`relative ${className ?? ""}`}>
-      <TextInput
-        ref={ac.inputRef}
-        id={id}
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledby}
-        value={value}
-        onChange={ac.handleChange}
-        onClick={ac.handleClick}
-        onKeyDown={ac.handleKeyDownCombined}
-        placeholder={placeholder}
-        sizing="sm"
-        color={getFlowbiteColor(status)}
-        autoComplete="off"
-      />
-      {ac.isOpen && (
-        <DropdownList
-          items={ac.filtered}
-          selectedIndex={ac.selectedIndex}
-          onSelect={ac.handleSelect}
-          onHover={ac.setSelectedIndex}
-          dropdownRef={ac.dropdownRef}
-          getKey={(s) => s}
-          renderItem={(s) => (
-            <span className="font-mono text-xs">
-              {"{{row."}
-              <span className="font-semibold">{s}</span>
-              {"}}"}
-            </span>
-          )}
-        />
-      )}
-    </div>
-  );
+export function HbInlineInput(props: Readonly<HbInlineInputProps>) {
+  return <HbAutoInput {...props} />;
 }
 
 // ============================================================================

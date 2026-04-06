@@ -94,6 +94,7 @@ jobs:
           -Dsonar.projectKey=microboxlabs_modulariot-quarkus
           -Dsonar.organization=microboxlabs
           -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.coverage.exclusions=**/*
         working-directory: quarkus-srv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -9,12 +9,12 @@ import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/reso
 import type { AuthMethod } from "@/app/api/data-sources/resolve-credentials";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
 
-function toPgrestBaseUrl(rawUrl: string): string {
-  let trimmed = rawUrl;
+// The full PostgRest base URL should come from config (env var, data source, etc.)
+// rather than being assembled by convention. Each environment owns its own topology.
+function normalizePgrestUrl(url: string): string {
+  let trimmed = url;
   while (trimmed.endsWith("/")) trimmed = trimmed.slice(0, -1);
-  return trimmed.endsWith("/api/v1/pgrest")
-    ? trimmed
-    : `${trimmed}/api/v1/pgrest`;
+  return trimmed;
 }
 
 interface OpenApiParameter {
@@ -132,7 +132,25 @@ export async function resolvePgrestCredentials(
     );
   }
 
-  return { baseUrl: toPgrestBaseUrl(envUrl), token, authMethod: "TOKEN" };
+  const baseUrl = normalizePgrestUrl(envUrl);
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return NextResponse.json(
+      { error: "OPENAPI_URL is not a valid URL. It must be the full PostgREST base URL (e.g. https://host.com/api/v1/pgrest)." },
+      { status: 500 }
+    );
+  }
+
+  if (!parsed.pathname || parsed.pathname === "/") {
+    return NextResponse.json(
+      { error: "OPENAPI_URL must include the full PostgREST base path, not just the host (e.g. https://host.com/api/v1/pgrest)." },
+      { status: 500 }
+    );
+  }
+
+  return { baseUrl, token, authMethod: "TOKEN" };
 }
 
 /**

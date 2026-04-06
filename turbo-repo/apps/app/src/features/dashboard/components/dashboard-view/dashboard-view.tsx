@@ -2,13 +2,21 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Button, ToggleSwitch } from "flowbite-react";
-import { HiPlus, HiArrowUturnLeft, HiArrowUturnRight } from "react-icons/hi2";
+import {
+  HiPlus,
+  HiArrowUturnLeft,
+  HiArrowUturnRight,
+  HiArrowsPointingOut,
+} from "react-icons/hi2";
 import {
   GridLayout,
   verticalCompactor,
   type Layout,
   type LayoutItem,
 } from "react-grid-layout";
+import Link from "next/link";
+import { useSearchParams, usePathname } from "next/navigation";
+import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { EmptyState } from "../empty-state";
@@ -29,6 +37,7 @@ export function DashboardView() {
   const {
     widgets,
     editMode,
+    isKiosk,
     isLoaded,
     dashboardName,
     dictionary,
@@ -39,6 +48,15 @@ export function DashboardView() {
     canUndo,
     canRedo,
   } = useDashboard();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const kioskUrl = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(KIOSK_PARAM, "true");
+    return `${pathname}?${params.toString()}`;
+  }, [searchParams, pathname]);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -161,48 +179,58 @@ export function DashboardView() {
   return (
     <div className="w-full">
       {/* Portal: renders DashboardFilterBar into the navbar search slot */}
-      <DashboardNavbarPortal />
+      {!isKiosk && <DashboardNavbarPortal />}
 
-      {/* Header */}
-      <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex items-center justify-between gap-4 p-4">
-          <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
-            {dashboardName}
-          </h1>
-          <div className="flex shrink-0 items-center gap-4">
-            {editMode && (
-              <div className="flex items-center gap-1">
-                <Button
-                  size="xs"
-                  color="light"
-                  onClick={undo}
-                  disabled={!canUndo()}
-                  title={`${tr("dashboard.undo", dictionary)} (Ctrl+Z)`}
-                >
-                  <HiArrowUturnLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="xs"
-                  color="light"
-                  onClick={redo}
-                  disabled={!canRedo()}
-                  title={`${tr("dashboard.redo", dictionary)} (Ctrl+Shift+Z)`}
-                >
-                  <HiArrowUturnRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {hasWidgets && (
-              <ToggleSwitch
-                checked={editMode}
-                onChange={toggleEditMode}
-                label={tr("dashboard.editMode", dictionary)}
-              />
-            )}
-            <DashboardSettingsDropdown />
+      {/* Header (hidden in kiosk mode) */}
+      {!isKiosk && (
+        <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center justify-between gap-4 p-4">
+            <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
+              {dashboardName}
+            </h1>
+            <div className="flex shrink-0 items-center gap-4">
+              {editMode && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="xs"
+                    color="light"
+                    onClick={undo}
+                    disabled={!canUndo()}
+                    title={`${tr("dashboard.undo", dictionary)} (Ctrl+Z)`}
+                  >
+                    <HiArrowUturnLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="xs"
+                    color="light"
+                    onClick={redo}
+                    disabled={!canRedo()}
+                    title={`${tr("dashboard.redo", dictionary)} (Ctrl+Shift+Z)`}
+                  >
+                    <HiArrowUturnRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {hasWidgets && (
+                <ToggleSwitch
+                  checked={editMode}
+                  onChange={toggleEditMode}
+                  label={tr("dashboard.editMode", dictionary)}
+                />
+              )}
+              <DashboardSettingsDropdown />
+              <Link
+                href={kioskUrl}
+                target="_blank"
+                title={tr("dashboard.kioskMode", dictionary)}
+                className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-2.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+              >
+                <HiArrowsPointingOut className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
       <div ref={containerRef} className="w-full min-h-[200px] max-w-screen-2xl mx-auto">

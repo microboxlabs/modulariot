@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label, ToggleSwitch } from "flowbite-react";
+import { Button, Label, ToggleSwitch, TextInput } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
@@ -9,6 +9,8 @@ import {
   HbTextFieldList,
   PgrestDataTab,
   useSimplePgrestSettings,
+  getHandlebarsStatus,
+  getFlowbiteColor,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import {
@@ -48,7 +50,7 @@ const COLOR_OPTIONS: ColorOption<BarColor>[] = [
 interface StackItem {
   id: string;
   label: string;
-  value: number;
+  value: string;
   color: BarColor;
 }
 
@@ -74,11 +76,12 @@ export function DashletSettings({
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
     const defaultItems: Omit<StackItem, "id">[] = [
-      { label: "Direct", value: 45, color: "bg-blue-500 dark:bg-blue-400" },
-      { label: "Organic", value: 30, color: "bg-green-500 dark:bg-green-400" },
+      { label: "Direct", value: "45", color: "bg-blue-500 dark:bg-blue-400" },
+      { label: "Organic", value: "30", color: "bg-green-500 dark:bg-green-400" },
     ];
     return (config.items || defaultItems).map((item, i) => ({
       ...item,
+      value: String(item.value),
       id: `item-${Date.now()}-${i}`,
     }));
   };
@@ -94,6 +97,8 @@ export function DashletSettings({
     dataMode,
     dataSourceId,
     setDataSourceId,
+    plannerVariableName,
+    setPlannerVariableName,
     pg,
     handleDataModeChange,
     pgrestSaveFields,
@@ -106,8 +111,8 @@ export function DashletSettings({
 
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
-      label,
-      value,
+      label: label.trim(),
+      value: value.trim(),
       color,
     }));
     onSave({
@@ -129,7 +134,7 @@ export function DashletSettings({
       {
         id: `item-${Date.now()}`,
         label: "",
-        value: 0,
+        value: "0",
         color: "bg-blue-500 dark:bg-blue-400",
       },
     ]);
@@ -190,18 +195,20 @@ export function DashletSettings({
             <TextInput
               value={item.label}
               onChange={(e) => updateItem(item.id, "label", e.target.value)}
-              placeholder="Label"
+              placeholder={isPgrest ? "{{row.label}}" : "Label"}
               sizing="sm"
               className="flex-1"
+              color={getFlowbiteColor(getHandlebarsStatus(item.label))}
             />
             <TextInput
-              type="number"
               value={item.value}
               onChange={(e) =>
-                updateItem(item.id, "value", Number(e.target.value))
+                updateItem(item.id, "value", e.target.value)
               }
+              placeholder={isPgrest ? "{{row.value}}" : "0"}
               sizing="sm"
-              className="w-16"
+              className="w-20"
+              color={getFlowbiteColor(getHandlebarsStatus(item.value))}
             />
             <ColorPickerDropdown
               options={COLOR_OPTIONS}
@@ -231,6 +238,8 @@ export function DashletSettings({
       onDataModeChange={handleDataModeChange}
       pgrest={pg}
       dictionary={dictionary}
+      plannerVariableName={plannerVariableName}
+      onPlannerVariableNameChange={setPlannerVariableName}
       dataSourceId={dataSourceId}
       onDataSourceIdChange={setDataSourceId}
       activeProviders={activeProviders}

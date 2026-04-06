@@ -10,6 +10,7 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.Map;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.hibernate.reactive.mutiny.Mutiny;
 import org.jboss.logging.Logger;
 
@@ -21,9 +22,12 @@ public class DeferredFkReconciliationJob {
     @Inject
     Instance<Mutiny.SessionFactory> sessionFactoryInstance;
 
+    @ConfigProperty(name = "quarkus.hibernate-orm.active", defaultValue = "true")
+    boolean hibernateActive;
+
     @Scheduled(cron = "{miot.reconciliation.cron}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     public Uni<Void> reconcile() {
-        if (!sessionFactoryInstance.isResolvable()) {
+        if (!hibernateActive) {
             return Uni.createFrom().voidItem();
         }
         LOG.info("Running deferred FK reconciliation...");

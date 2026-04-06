@@ -5,7 +5,7 @@ import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SimpleDashletSettings } from "../common";
+import { SimpleDashletSettings, getHandlebarsStatus, getFlowbiteColor } from "../common";
 
 interface DetailWithId {
   id: string;
@@ -77,16 +77,18 @@ export function DashletSettings(
               <TextInput
                 value={d.label}
                 onChange={(e) => updateDetail(d.id, "label", e.target.value)}
-                placeholder="Label"
+                placeholder="{{row.label}}"
                 sizing="sm"
                 className="flex-1"
+                color={getFlowbiteColor(getHandlebarsStatus(d.label))}
               />
               <TextInput
                 value={d.value}
                 onChange={(e) => updateDetail(d.id, "value", e.target.value)}
-                placeholder="Value"
+                placeholder="{{row.value}}"
                 sizing="sm"
                 className="flex-1"
+                color={getFlowbiteColor(getHandlebarsStatus(d.value))}
               />
               <Button
                 size="xs"

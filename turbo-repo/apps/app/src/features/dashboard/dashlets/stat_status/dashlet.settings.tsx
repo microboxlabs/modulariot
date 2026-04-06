@@ -20,8 +20,10 @@ import {
   useActiveProviders,
   DataProviderEntries,
   type SimpleDataMode,
+  isRemoteDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { usePlannerContext } from "../../context/planner-context";
 
 export function DashletSettings({
   isOpen,
@@ -32,6 +34,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
@@ -39,12 +42,15 @@ export function DashletSettings({
   const [color, setColor] = useState<StatusColor>(config.color ?? "gray");
   const [icon, setIcon] = useState<StatusIcon>(config.icon ?? "check");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest"
+    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
       ? config.dataMode
       : "static",
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
+  );
+  const [plannerVariableName, setPlannerVariableName] = useState(
+    config.plannerVariableName ?? ""
   );
 
   const dp = useDataProvider(config.dataProvider ?? []);
@@ -52,9 +58,9 @@ export function DashletSettings({
   const staticSnapshot = useRef({ title, value, subtitle });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
-    if (mode === "pgrest" && dataMode === "static") {
+    if (isRemoteDataMode(mode) && dataMode === "static") {
       staticSnapshot.current = { title, value, subtitle };
-    } else if (mode === "static" && dataMode === "pgrest") {
+    } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
       setSubtitle(staticSnapshot.current.subtitle);
@@ -70,6 +76,11 @@ export function DashletSettings({
     }),
   });
 
+  const schemaSuggestions =
+    dataMode === "planner" && plannerVariableName
+      ? schemas.get(plannerVariableName)
+      : undefined;
+
   const handleSave = () => {
     onSave({
       title,
@@ -83,6 +94,7 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
+      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     } as DashletConfig);
     onClose();
@@ -96,6 +108,7 @@ export function DashletSettings({
         value={title}
         onChange={setTitle}
         placeholder="Status"
+        schemaSuggestions={schemaSuggestions}
       />
       <HbTextField
         id="ss-value"
@@ -103,6 +116,7 @@ export function DashletSettings({
         value={value}
         onChange={setValue}
         placeholder="0"
+        schemaSuggestions={schemaSuggestions}
       />
       <HbTextField
         id="ss-subtitle"
@@ -110,6 +124,7 @@ export function DashletSettings({
         value={subtitle}
         onChange={setSubtitle}
         placeholder="e.g. 204 de 230 dispositivos"
+        schemaSuggestions={schemaSuggestions}
       />
       <SettingsSelectField
         id="ss-color"
@@ -136,6 +151,8 @@ export function DashletSettings({
         onDataModeChange={handleDataModeChange}
         pgrest={pg}
         dictionary={dictionary}
+        plannerVariableName={plannerVariableName}
+        onPlannerVariableNameChange={setPlannerVariableName}
         dataSourceId={dataSourceId}
         onDataSourceIdChange={setDataSourceId}
         activeProviders={activeProviders}

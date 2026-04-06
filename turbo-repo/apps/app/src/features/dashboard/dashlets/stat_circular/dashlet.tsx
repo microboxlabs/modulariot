@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
-import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
-import { usePgrestRows } from "../common/use-pgrest-rows";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
+import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 
 // ============================================================================
@@ -16,11 +16,12 @@ export interface DashletConfig {
   value: string;
   maxValue: string;
   unit: string;
-  dataMode: "static" | "pgrest";
+  dataMode: "static" | "pgrest" | "planner";
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
   dataSourceId?: string;
+  plannerVariableName?: string;
   dataProvider?: DataProviderEntry[];
 }
 
@@ -65,14 +66,7 @@ const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const {
-    dataMode = defaultConfig.dataMode,
-    pgrestFunctionName = "",
-    pgrestParams = [],
-    pgrestHttpMethod = "POST",
-    dataSourceId,
-    dataProvider = EMPTY_DATA_PROVIDER,
-  } = config;
+  const { dataProvider = EMPTY_DATA_PROVIDER } = config;
 
   // Coerce to string for backwards compatibility with old numeric configs
   const title = String(config.title ?? defaultConfig.title);
@@ -80,23 +74,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const maxValue = String(config.maxValue ?? defaultConfig.maxValue);
   const unit = String(config.unit ?? defaultConfig.unit);
 
-  // ── PGREST data fetching ──────────────────────────────────────────────────
+  // ── Data fetching (supports static, pgrest, and planner) ─────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
-  const {
-    rows: pgrestRows,
-    loading,
-    fetchError,
-  } = usePgrestRows(dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId, refreshIntervalMs);
-
-  // ── Build template context ────────────────────────────────────────────────
-  const templateContext = useMemo(() => {
-    const dpContext = buildDataProviderContext(dataProvider);
-    if (dataMode === "pgrest" && pgrestRows.length > 0) {
-      const firstRow = pgrestRows[0];
-      return { ...dpContext, row: firstRow, ...firstRow };
-    }
-    return dpContext;
-  }, [dataProvider, dataMode, pgrestRows]);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(
+    config,
+    dataProvider,
+    refreshIntervalMs,
+  );
 
   // ── Resolve handlebars templates ──────────────────────────────────────────
   const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);

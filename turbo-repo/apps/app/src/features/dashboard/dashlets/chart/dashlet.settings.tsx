@@ -18,6 +18,8 @@ import {
   buildSimplePgrestConfig,
   PgrestDataTab,
   useActiveProviders,
+  getHandlebarsStatus,
+  getFlowbiteColor,
   type SimpleDataMode,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
@@ -350,6 +352,7 @@ export function DashletSettings({
                   }
                   placeholder={tr("dashboard.dashlets.chart.labelPlaceholder", dictionary)}
                   sizing="sm"
+                  color={getFlowbiteColor(getHandlebarsStatus(s.label))}
                 />
               </div>
               {series.length > 1 && (

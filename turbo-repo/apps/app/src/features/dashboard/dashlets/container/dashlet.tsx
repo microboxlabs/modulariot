@@ -9,6 +9,9 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { PgrestParam, PgrestHttpMethod } from "../common";
+import { usePgrestResolvedFields } from "../common";
+import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { GridLayoutItem } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
 
@@ -80,6 +83,15 @@ export interface DashletConfig {
   label?: string;
   /** Border color for labeled-group variant */
   borderColor?: LabelBorderColor;
+
+  // Data source fields (for resolving display fields via Handlebars templates)
+  dataMode?: "static" | "pgrest" | "planner";
+  pgrestFunctionName?: string;
+  pgrestParams?: PgrestParam[];
+  pgrestHttpMethod?: PgrestHttpMethod;
+  plannerVariableName?: string;
+  dataSourceId?: string;
+  refreshInterval?: number;
 }
 
 /** Default configuration for a new container */
@@ -90,6 +102,7 @@ export const defaultConfig: DashletConfig = {
   verMasUrl: "",
   label: "Group",
   borderColor: "gray",
+  dataMode: "static",
 };
 
 const CONTAINER_VARIANT_LAYOUT_DEFAULTS: Record<
@@ -177,6 +190,23 @@ export function Dashlet({
   const variant = config.variant ?? "bento-box";
   const widgetChildren = widget.children ?? [];
   const hasChildren = widgetChildren.length > 0;
+
+  // Resolve display fields via Handlebars templates when data mode is pgrest/planner
+  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
+  const { resolved } = usePgrestResolvedFields({
+    dataMode: config.dataMode || "static",
+    pgrestFunctionName: config.pgrestFunctionName || "",
+    pgrestHttpMethod: config.pgrestHttpMethod || "POST",
+    pgrestParams: config.pgrestParams || [],
+    plannerVariableName: config.plannerVariableName,
+    fields: {
+      name: config.name || "Untitled",
+      description: config.description || "",
+      label: config.label || "Group",
+    },
+    dataSourceId: config.dataSourceId,
+    refreshIntervalMs,
+  });
   const nestedGridRef = useRef<HTMLDivElement>(null);
 
   // Stop propagation on nested grid to prevent parent grid from capturing drag events
@@ -332,13 +362,13 @@ export function Dashlet({
           <div className="min-w-0 flex-1">
             {/* Name */}
             <h3 className="truncate text-lg font-semibold text-gray-900 dark:text-white">
-              {config.name || "Untitled"}
+              {resolved.name || "Untitled"}
             </h3>
 
             {/* Description */}
-            {config.description && (
+            {resolved.description && (
               <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-                {config.description}
+                {resolved.description}
               </p>
             )}
           </div>
@@ -414,7 +444,7 @@ export function Dashlet({
       <span
         className={`absolute -top-3 left-3 z-10 px-2 text-sm font-medium text-gray-500 dark:text-gray-400 ${labelBgClass}`}
       >
-        {config.label || "Group"}
+        {resolved.label || "Group"}
       </span>
 
       {/* Children content with grid layout */}

@@ -5,7 +5,12 @@ import { HiOutlineClock, HiMapPin, HiTruck } from "react-icons/hi2";
 import { CustomBadge } from "@/features/common/components/custom-badge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import type { BehaviorEvent, BehaviorCategory, EventUrgency, FilterType } from "../../types/colaborators.types";
+import type {
+  BehaviorEvent,
+  BehaviorCategory,
+  EventUrgency,
+  FilterType,
+} from "../../types/colaborators.types";
 
 export type { FilterType } from "../../types/colaborators.types";
 
@@ -52,7 +57,11 @@ interface BehaviorTimelineEventProps {
   readonly dict: I18nRecord;
 }
 
-function BehaviorTimelineEvent({ event, isLast, dict }: BehaviorTimelineEventProps) {
+function BehaviorTimelineEvent({
+  event,
+  isLast,
+  dict,
+}: BehaviorTimelineEventProps) {
   const urgencyData = urgencyConfig[event.urgency];
 
   return (

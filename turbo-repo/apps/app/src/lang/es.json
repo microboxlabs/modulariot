@@ -2838,7 +2838,8 @@
     },
     "employmentStatus": {
       "activo": "Activo",
-      "suspendido": "Suspendido"
+      "suspendido": "Suspendido",
+      "vacaciones": "En Vacaciones"
     },
     "performanceStatus": {
       "excelente": "Excelente",
@@ -2863,7 +2864,26 @@
       "withIncidents": "Con incidentes"
     },
     "detail": {
-      "back": "Volver"
+      "back": "Volver",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "name": "Nombre",
+      "role": "Rol",
+      "status": "Estado",
+      "vehicle": "Vehículo"
+    },
+    "achievement": {
+      "mejora-sostenida": "Mejora Sostenida",
+      "puntualidad-excepcional": "Puntualidad Excepcional"
+    },
+    "alert": {
+      "conducta-critica-reciente": "Conducta Crítica Reciente"
+    },
+    "colaboratorGrid": {
+      "name": "Nombre"
+    },
+    "breadcrumb": {
+      "colaboratorsManagement": "Gestión de Colaboradores"
     }
   },
   "ext_tasks": {

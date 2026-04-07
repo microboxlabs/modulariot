@@ -19,7 +19,7 @@ export default function VehicleDetailView({
   return (
     <div className="flex flex-col h-full items-center w-full">
       <VehicleDetailHeader vehicle={vehicle} dict={dict} onBack={onBack} />
-      <div className="flex-1 min-h-0 overflow-y-auto max-w-screen-2xl">
+      <div className="flex-1 min-h-0 overflow-y-auto w-[70vw] max-w-screen-2xl">
         <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
       </div>
     </div>

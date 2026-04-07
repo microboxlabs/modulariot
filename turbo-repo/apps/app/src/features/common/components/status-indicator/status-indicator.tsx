@@ -1,40 +1,39 @@
-"use client";
+import type { IconType } from "react-icons";
 
-import {
-  HiOutlineExclamationTriangle,
-  HiOutlineCheckCircle,
-  HiOutlineXCircle,
-} from "react-icons/hi2";
-
-export type StatusIndicatorStatus = "good" | "warning" | "critical";
-
-interface StatusIndicatorProps {
-  readonly status: StatusIndicatorStatus;
+export interface StatusOption<T extends string> {
+  /** The value that identifies this status */
+  readonly value: T;
+  /** Display label */
   readonly label: string;
+  /** Tailwind color class (e.g. "text-green-500") */
+  readonly colorClass: string;
+  /** Icon component to render */
+  readonly icon: IconType;
 }
 
-const colors: Record<StatusIndicatorStatus, string> = {
-  good: "text-green-600 dark:text-green-400",
-  warning: "text-yellow-600 dark:text-yellow-400",
-  critical: "text-red-600 dark:text-red-400",
-};
+interface StatusIndicatorProps<T extends string> {
+  /** Current active value */
+  readonly value: T;
+  /** Array of possible status options */
+  readonly options: ReadonlyArray<StatusOption<T>>;
+  /** Whether to hide the label and show only the icon */
+  readonly iconOnly?: boolean;
+}
 
-const icons = {
-  good: HiOutlineCheckCircle,
-  warning: HiOutlineExclamationTriangle,
-  critical: HiOutlineXCircle,
-};
+export default function StatusIndicator<T extends string>({
+  value,
+  options,
+  iconOnly = false,
+}: Readonly<StatusIndicatorProps<T>>) {
+  const match = options.find((opt) => opt.value === value);
 
-export default function StatusIndicator({
-  status,
-  label,
-}: StatusIndicatorProps) {
-  const Icon = icons[status];
+  if (!match) return null;
+
+  const Icon = match.icon;
 
   return (
-    <div className="flex items-center gap-2">
-      <Icon className={`w-4 h-4 ${colors[status]}`} />
-      <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-    </div>
+    <span className={`flex items-center gap-1 ${match.colorClass}`}>
+      {!iconOnly && match.label} <Icon className="w-4 h-4" />
+    </span>
   );
 }

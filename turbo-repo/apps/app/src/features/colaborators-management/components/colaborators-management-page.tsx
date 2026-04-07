@@ -4,7 +4,11 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { colaboratorsKpis, colaborators } from "../data/colaborators-mock-data";
+import {
+  getColaboratorsSync,
+  getColaboratorsKpisSync,
+  getColaboratorNavigation,
+} from "../data/colaborators-data-service";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
 import ColaboratorGrid from "./colaborator-grid/colaborator-grid";
 import ColaboratorDetailView from "./colaborator-detail/colaborator-detail-view";
@@ -21,12 +25,20 @@ export default function ColaboratorsManagementPage({
   const router = useRouter();
   const pathname = usePathname();
 
+  const colaborators = getColaboratorsSync();
+  const colaboratorsKpis = getColaboratorsKpisSync();
+
   const selectedColaboratorId = searchParams.get("colaborator");
 
   const selectedColaborator = useMemo(
     () => colaborators.find((c) => c.id === selectedColaboratorId),
-    [selectedColaboratorId]
+    [selectedColaboratorId, colaborators]
   );
+
+  const navigation = useMemo(() => {
+    if (!selectedColaboratorId) return null;
+    return getColaboratorNavigation(selectedColaboratorId, colaborators);
+  }, [selectedColaboratorId, colaborators]);
 
   const handleSelectColaborator = useCallback(
     (id: string) => {
@@ -44,13 +56,33 @@ export default function ColaboratorsManagementPage({
     router.push(queryString ? `${pathname}?${queryString}` : pathname);
   }, [searchParams, router, pathname]);
 
-  if (selectedColaborator) {
+  const handlePrevious = useCallback(() => {
+    if (navigation?.previousId) {
+      handleSelectColaborator(navigation.previousId);
+    }
+  }, [navigation, handleSelectColaborator]);
+
+  const handleNext = useCallback(() => {
+    if (navigation?.nextId) {
+      handleSelectColaborator(navigation.nextId);
+    }
+  }, [navigation, handleSelectColaborator]);
+
+  if (selectedColaborator && navigation) {
     return (
-      <div className="flex flex-col gap-6 p-4 max-w-screen-2xl mx-auto w-full">
+      <div className="flex flex-col gap-6 w-full">
         <ColaboratorDetailView
           colaborator={selectedColaborator}
           dict={colaboratorsDict}
           onBack={handleBack}
+          previous={{
+            hasPrevious: navigation.previousId !== null,
+            onPrevious: handlePrevious,
+          }}
+          next={{
+            hasNext: navigation.nextId !== null,
+            onNext: handleNext,
+          }}
         />
       </div>
     );

@@ -15,9 +15,13 @@ export type ColaboratorRank =
   | "conductor"
   | "operador-logistico";
 
-export type ColaboratorEmploymentStatus = "activo" | "suspendido";
+export type ColaboratorEmploymentStatus = "activo" | "suspendido" | "vacaciones";
 
 export type ColaboratorPerformanceStatus = "excelente" | "bueno" | "en-observacion";
+
+export type ColaboratorAchievement = "mejora-sostenida" | "puntualidad-excepcional";
+
+export type ColaboratorAlert = "conducta-critica-reciente";
 
 export interface Colaborator {
   id: string;
@@ -31,6 +35,9 @@ export interface Colaborator {
   safety: number; // percentage
   incidentsCount: number;
   avatar?: string;
+  assignedVehiclePlate?: string; // License plate if using a vehicle
+  achievements?: ColaboratorAchievement[];
+  alerts?: ColaboratorAlert[];
 }
 
 export type ColaboratorStatus = "active" | "at-risk" | "outstanding" | "inactive";

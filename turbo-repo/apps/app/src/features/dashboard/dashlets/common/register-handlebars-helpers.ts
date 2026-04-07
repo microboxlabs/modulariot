@@ -76,7 +76,8 @@ export function toFixedHelper(value: unknown, decimals: unknown): string {
   const n = toNumber(value);
   if (n === null) return FALLBACK;
   const d = toNumber(decimals);
-  return n.toFixed(d ?? 0);
+  if (d === null || !Number.isFinite(d) || d < 0 || d > 100) return n.toFixed(0);
+  return n.toFixed(Math.trunc(d));
 }
 
 export function roundHelper(value: unknown): string {

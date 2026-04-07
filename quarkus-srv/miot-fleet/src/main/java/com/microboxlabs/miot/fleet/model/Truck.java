@@ -1,9 +1,11 @@
 package com.microboxlabs.miot.fleet.model;
 
 import com.microboxlabs.miot.resource.model.BaseResourceEntity;
+import io.vertx.core.json.JsonObject;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 
 @Entity
@@ -32,4 +34,7 @@ public class Truck extends BaseResourceEntity {
     // GPS/metrics system identifier — maps to asset_metric_core.asset_id
     @Column(name = "asset_id")
     public String assetId;
+
+    @Transient
+    public JsonObject latestMetrics;
 }

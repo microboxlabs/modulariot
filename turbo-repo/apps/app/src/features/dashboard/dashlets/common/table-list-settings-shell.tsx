@@ -13,6 +13,7 @@ import {
   DataProviderTab,
 } from "./settings-sections";
 import { SettingsModalShell } from "./settings-modal-shell";
+import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
 
 // ============================================================================
 // Types
@@ -54,6 +55,29 @@ export function TableListSettingsShell({
   handlebarsColorKeys = false,
   refreshSelect,
 }: Readonly<TableListSettingsShellProps>) {
+  const operatorLabels: Record<ColorRuleOperator, string> = {
+    equals: tr("dashboard.settings.operatorEquals", dictionary),
+    not_equals: tr("dashboard.settings.operatorNotEquals", dictionary),
+    contains: tr("dashboard.settings.operatorContains", dictionary),
+    not_contains: tr("dashboard.settings.operatorNotContains", dictionary),
+    greater_than: tr("dashboard.settings.operatorGreaterThan", dictionary),
+    less_than: tr("dashboard.settings.operatorLessThan", dictionary),
+    greater_than_or_equal: tr("dashboard.settings.operatorGreaterThanOrEqual", dictionary),
+    less_than_or_equal: tr("dashboard.settings.operatorLessThanOrEqual", dictionary),
+  };
+
+  const colorLabels: Record<RuleColor, string> = {
+    red: tr("dashboard.settings.colorRed", dictionary),
+    yellow: tr("dashboard.settings.colorYellow", dictionary),
+    green: tr("dashboard.settings.colorGreen", dictionary),
+    blue: tr("dashboard.settings.colorBlue", dictionary),
+    gray: tr("dashboard.settings.colorGray", dictionary),
+    orange: tr("dashboard.settings.colorOrange", dictionary),
+    purple: tr("dashboard.settings.colorPurple", dictionary),
+  };
+
+  const valuePlaceholder = tr("dashboard.settings.value", dictionary);
+
   const visualizationTab = (
     <>
       <SettingsTextField
@@ -90,6 +114,9 @@ export function TableListSettingsShell({
           label: tr("dashboard.settings.label", dictionary),
           addColumn: tr("dashboard.settings.addColumn", dictionary),
           addMapping: tr("dashboard.settings.addRule", dictionary),
+          valuePlaceholder,
+          operatorLabels,
+          colorLabels,
         }}
       />
 
@@ -132,7 +159,12 @@ export function TableListSettingsShell({
         onAdd={s.addRowColorRule}
         onRemove={s.removeRowColorRule}
         onUpdate={s.updateRowColorRule}
-        labels={{ addRule: tr("dashboard.settings.addRule", dictionary) }}
+        labels={{
+          addRule: tr("dashboard.settings.addRule", dictionary),
+          valuePlaceholder,
+          operatorLabels,
+          colorLabels,
+        }}
       />
 
     </>

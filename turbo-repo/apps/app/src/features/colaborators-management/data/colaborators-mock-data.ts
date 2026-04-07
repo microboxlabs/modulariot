@@ -71,6 +71,8 @@ export const colaborators: Colaborator[] = [
     punctuality: 98,
     safety: 96,
     incidentsCount: 0,
+    assignedVehiclePlate: "BJKL-42",
+    achievements: ["mejora-sostenida", "puntualidad-excepcional"],
   },
   {
     id: "2",
@@ -83,6 +85,8 @@ export const colaborators: Colaborator[] = [
     punctuality: 91,
     safety: 89,
     incidentsCount: 1,
+    assignedVehiclePlate: "XRTY-15",
+    achievements: ["puntualidad-excepcional"],
   },
   {
     id: "3",
@@ -95,6 +99,8 @@ export const colaborators: Colaborator[] = [
     punctuality: 72,
     safety: 65,
     incidentsCount: 4,
+    assignedVehiclePlate: "GHFJ-88",
+    alerts: ["conducta-critica-reciente"],
   },
   {
     id: "4",
@@ -103,10 +109,11 @@ export const colaborators: Colaborator[] = [
     rank: "conductor-senior",
     department: "Operaciones",
     score: 92,
-    employmentStatus: "activo",
+    employmentStatus: "vacaciones",
     punctuality: 95,
     safety: 94,
     incidentsCount: 0,
+    achievements: ["mejora-sostenida"],
   },
   {
     id: "5",
@@ -119,6 +126,7 @@ export const colaborators: Colaborator[] = [
     punctuality: 88,
     safety: 75,
     incidentsCount: 2,
+    assignedVehiclePlate: "PLMN-33",
   },
   {
     id: "6",

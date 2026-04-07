@@ -659,6 +659,11 @@ function OrderForm() {
         type: "success",
         message: tr("dashboard.settings.orderUpdated", dictionary),
       });
+    } else {
+      ShowNotification({
+        type: "error",
+        message: tr("dashboard.settings.orderInvalid", dictionary),
+      });
     }
   };
 

@@ -1663,6 +1663,7 @@
       "orderTitle": "Orden de Visualización",
       "orderDescription": "Establece la posición en la barra lateral. Los números menores aparecen primero.",
       "orderUpdated": "Orden de visualización actualizado",
+      "orderInvalid": "Ingrese un número válido no negativo",
       "deleteDescription": "Eliminar permanentemente este dashboard",
       "chartType": "Tipo de Gráfico",
       "line": "Línea",

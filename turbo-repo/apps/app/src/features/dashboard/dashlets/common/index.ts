@@ -97,6 +97,7 @@ export {
   resolveHandlebarsField,
   buildDataProviderContext,
 } from "./use-handlebars-templates";
+export { registerHandlebarsHelpers } from "./register-handlebars-helpers";
 export { SuggestionInput } from "./suggestion-input";
 export { useCompiledColumns } from "./use-compiled-columns";
 export {

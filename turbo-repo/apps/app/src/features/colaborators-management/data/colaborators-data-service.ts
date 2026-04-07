@@ -16,7 +16,6 @@ import {
  * @returns Array of colaborators
  */
 export function getColaborators(): Colaborator[] {
-  // TODO: replace with fetch('/api/colaborators') when API is ready
   return mockColaborators;
 }
 
@@ -26,7 +25,6 @@ export function getColaborators(): Colaborator[] {
  * @returns Colaborator or undefined
  */
 export function getColaboratorById(id: string): Colaborator | undefined {
-  // TODO: replace with fetch(`/api/colaborators/${id}`) when API is ready
   return mockColaborators.find((c) => c.id === id);
 }
 
@@ -35,7 +33,6 @@ export function getColaboratorById(id: string): Colaborator | undefined {
  * @returns Array of KPIs
  */
 export function getColaboratorsKpis(): ColaboratorKpi[] {
-  // TODO: replace with API call when ready
   return mockKpis;
 }
 

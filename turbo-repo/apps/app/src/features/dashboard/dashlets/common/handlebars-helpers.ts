@@ -8,7 +8,7 @@ export type HandlebarsStatus = "valid" | "invalid" | "none";
 
 /** Allowed characters inside a Handlebars expression. */
 const ALLOWED_INNER_CHARS = new Set(
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ \t.#/^>@!-"
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ \t.#/^>@!-\"'()=,"
 );
 
 /** Extract `{{…}}` expressions from text without regex. */

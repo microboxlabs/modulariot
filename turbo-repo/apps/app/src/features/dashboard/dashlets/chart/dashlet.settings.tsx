@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Label, TextInput, Select, ToggleSwitch, Button } from "flowbite-react";
+import { useState, useMemo, useEffect } from "react";
+import { Label, Select, ToggleSwitch, Button } from "flowbite-react";
 import { HiXMark } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType, SeriesConfig } from "./dashlet";
@@ -9,19 +9,19 @@ import type { ColorPalette } from "./chart-palettes";
 import { COLOR_PALETTES } from "./chart-palettes";
 import { tr } from "@/features/i18n/tr.service";
 import {
-  SettingsTextField,
   SettingsSelectField,
   SettingsTextareaField,
   SettingsFieldGrid,
+  HbTextField,
+  HbInlineInput,
   usePgrestSettingsState,
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
   useActiveProviders,
-  getHandlebarsStatus,
-  getFlowbiteColor,
   type SimpleDataMode,
 } from "../common";
+import { usePlannerContext } from "../../context/planner-context";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 
 // ============================================================================
@@ -66,6 +66,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const chartTypeOptions = useMemo(
     () => CHART_TYPE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
@@ -117,6 +118,15 @@ export function DashletSettings({
     return [];
   });
 
+  // Schema suggestions for Handlebars autocomplete
+  const schemaSuggestions = useMemo(() => {
+    if (dataMode === "planner" && plannerVariableName) {
+      return schemas.get(plannerVariableName);
+    }
+    if (detectedColumns.length > 0) return detectedColumns;
+    return undefined;
+  }, [dataMode, plannerVariableName, schemas, detectedColumns]);
+
   // Reconcile xAxisColumn and series against a new set of valid column keys
   const reconcileColumns = (keys: string[]) => {
     setDetectedColumns(keys);
@@ -149,6 +159,17 @@ export function DashletSettings({
       },
     ),
   });
+
+  // Auto-detect columns on mount when pgrest/planner is already configured
+  useEffect(() => {
+    if (dataMode === "pgrest" && pg.pgrestFunctionName) {
+      pg.detectColumns();
+    } else if (dataMode === "planner" && plannerVariableName) {
+      const keys = schemas.get(plannerVariableName);
+      if (keys?.length) reconcileColumns(keys);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update detected columns when static JSON changes
   const handleRowsJsonChange = (val: string) => {
@@ -268,11 +289,12 @@ export function DashletSettings({
   const visualizationTab = (
     <>
       {/* Title */}
-      <SettingsTextField
+      <HbTextField
         id="ch-title"
         label={tr("common.title", dictionary)}
         value={title}
         onChange={setTitle}
+        schemaSuggestions={schemaSuggestions}
       />
 
       {/* Chart Type */}
@@ -345,14 +367,11 @@ export function DashletSettings({
                     {tr("dashboard.settings.seriesLabel", dictionary)}
                   </Label>
                 )}
-                <TextInput
+                <HbInlineInput
                   value={s.label}
-                  onChange={(e) =>
-                    updateSeries(s._id, { label: e.target.value })
-                  }
+                  onChange={(v) => updateSeries(s._id, { label: v })}
                   placeholder={tr("dashboard.dashlets.chart.labelPlaceholder", dictionary)}
-                  sizing="sm"
-                  color={getFlowbiteColor(getHandlebarsStatus(s.label))}
+                  schemaSuggestions={schemaSuggestions}
                 />
               </div>
               {series.length > 1 && (
@@ -384,17 +403,19 @@ export function DashletSettings({
       {/* Axis Labels (cartesian only) */}
       {isCartesian(chartType) && (
         <SettingsFieldGrid cols={2}>
-          <SettingsTextField
+          <HbTextField
             id="ch-x-label"
             label={tr("dashboard.settings.xAxisLabel", dictionary)}
             value={xAxisLabel}
             onChange={setXAxisLabel}
+            schemaSuggestions={schemaSuggestions}
           />
-          <SettingsTextField
+          <HbTextField
             id="ch-y-label"
             label={tr("dashboard.settings.yAxisLabel", dictionary)}
             value={yAxisLabel}
             onChange={setYAxisLabel}
+            schemaSuggestions={schemaSuggestions}
           />
         </SettingsFieldGrid>
       )}
@@ -470,6 +491,7 @@ export function DashletSettings({
         dictionary={dictionary}
         plannerVariableName={plannerVariableName}
         onPlannerVariableNameChange={setPlannerVariableName}
+        onPlannerSchemaDetected={reconcileColumns}
         dataSourceId={dataSourceId}
         onDataSourceIdChange={setDataSourceId}
         activeProviders={activeProviders}

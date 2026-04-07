@@ -3,48 +3,39 @@
 import { useState, useMemo } from "react";
 import { HiOutlineClock, HiMapPin, HiTruck } from "react-icons/hi2";
 import { CustomBadge } from "@/features/common/components/custom-badge";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import type { BehaviorEvent, BehaviorCategory, EventUrgency, FilterType } from "../../types/colaborators.types";
 
-type EventUrgency = "critical" | "warning" | "info";
-type BehaviorCategory = "seguridad" | "uso" | "normativo";
-type FilterType = "todos" | "seguridad" | "uso" | "normativo" | "criticos";
-
-interface BehaviorEvent {
-  readonly title: string;
-  readonly licensePlate: string;
-  readonly route: string;
-  readonly location: string;
-  readonly date: string;
-  readonly urgency: EventUrgency;
-  readonly category: BehaviorCategory;
-}
+export type { FilterType } from "../../types/colaborators.types";
 
 const urgencyConfig: Record<
   EventUrgency,
-  { className: string; label: string; dotColor: string }
+  { className: string; labelKey: string; dotColor: string }
 > = {
   critical: {
     className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    label: "Crítico",
+    labelKey: "behaviorHistory.urgency.critical",
     dotColor: "bg-red-500 dark:bg-red-400",
   },
   warning: {
     className:
       "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-    label: "Alerta",
+    labelKey: "behaviorHistory.urgency.warning",
     dotColor: "bg-yellow-500 dark:bg-yellow-400",
   },
   info: {
     className:
       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    label: "Info",
+    labelKey: "behaviorHistory.urgency.info",
     dotColor: "bg-blue-500 dark:bg-blue-400",
   },
 };
 
-const categoryLabels: Record<BehaviorCategory, string> = {
-  seguridad: "Seguridad",
-  uso: "Uso",
-  normativo: "Normativo",
+const categoryLabelKeys: Record<BehaviorCategory, string> = {
+  seguridad: "behaviorHistory.category.safety",
+  uso: "behaviorHistory.category.usage",
+  normativo: "behaviorHistory.category.regulatory",
 };
 
 const categoryBadgeClasses: Record<BehaviorCategory, string> = {
@@ -58,9 +49,10 @@ const categoryBadgeClasses: Record<BehaviorCategory, string> = {
 interface BehaviorTimelineEventProps {
   readonly event: BehaviorEvent;
   readonly isLast: boolean;
+  readonly dict: I18nRecord;
 }
 
-function BehaviorTimelineEvent({ event, isLast }: BehaviorTimelineEventProps) {
+function BehaviorTimelineEvent({ event, isLast, dict }: BehaviorTimelineEventProps) {
   const urgencyData = urgencyConfig[event.urgency];
 
   return (
@@ -84,11 +76,11 @@ function BehaviorTimelineEvent({ event, isLast }: BehaviorTimelineEventProps) {
             {event.title}
           </h4>
           <CustomBadge
-            text={urgencyData.label}
+            text={tr(urgencyData.labelKey, dict)}
             className={urgencyData.className}
           />
           <CustomBadge
-            text={categoryLabels[event.category]}
+            text={tr(categoryLabelKeys[event.category], dict)}
             className={categoryBadgeClasses[event.category]}
           />
         </div>
@@ -115,90 +107,41 @@ function BehaviorTimelineEvent({ event, isLast }: BehaviorTimelineEventProps) {
   );
 }
 
-// Mock data for demonstration
-const mockEvents: BehaviorEvent[] = [
-  {
-    title: "Exceso de velocidad moderado detectado (85 km/h en zona 60 km/h)",
-    licensePlate: "AB-1234",
-    route: "Ruta Santiago - Valparaíso",
-    location: "Km 78, Casablanca",
-    date: "05/04/2026, 14:32",
-    urgency: "warning",
-    category: "seguridad",
-  },
-  {
-    title: "Frenada brusca en intersección",
-    licensePlate: "AB-1234",
-    route: "Ruta Santiago - Valparaíso",
-    location: "Km 45, Curacaví",
-    date: "05/04/2026, 11:15",
-    urgency: "critical",
-    category: "seguridad",
-  },
-  {
-    title: "Uso de vehículo fuera de horario laboral",
-    licensePlate: "CD-5678",
-    route: "Ruta urbana Santiago Centro",
-    location: "Av. Libertador Bernardo O'Higgins",
-    date: "04/04/2026, 22:45",
-    urgency: "warning",
-    category: "uso",
-  },
-  {
-    title: "Certificación de manejo defensivo próxima a vencer",
-    licensePlate: "—",
-    route: "—",
-    location: "—",
-    date: "03/04/2026, 09:00",
-    urgency: "info",
-    category: "normativo",
-  },
-  {
-    title: "Exceso de velocidad grave (120 km/h en zona 80 km/h)",
-    licensePlate: "AB-1234",
-    route: "Autopista del Sol",
-    location: "Km 32, Peaje Lo Prado",
-    date: "02/04/2026, 16:50",
-    urgency: "critical",
-    category: "seguridad",
-  },
-  {
-    title: "Desvío de ruta no autorizado",
-    licensePlate: "CD-5678",
-    route: "Ruta Santiago - Rancagua",
-    location: "Salida Buin",
-    date: "01/04/2026, 13:20",
-    urgency: "warning",
-    category: "uso",
-  },
-  {
-    title: "Licencia de conducir renovada exitosamente",
-    licensePlate: "—",
-    route: "—",
-    location: "Municipalidad de Santiago",
-    date: "30/03/2026, 10:00",
-    urgency: "info",
-    category: "normativo",
-  },
-];
+interface BehaviorHistoryProps {
+  readonly activeFilter?: FilterType;
+  readonly onFilterChange?: (filter: FilterType) => void;
+  readonly dict: I18nRecord;
+  readonly events: readonly BehaviorEvent[];
+}
 
-export default function BehaviorHistory() {
-  const [filter, setFilter] = useState<FilterType>("todos");
+export default function BehaviorHistory({
+  activeFilter,
+  onFilterChange,
+  dict,
+  events,
+}: BehaviorHistoryProps) {
+  const [internalFilter, setInternalFilter] = useState<FilterType>("todos");
+
+  const filter = activeFilter ?? internalFilter;
+  const handleFilterChange = (f: FilterType) => {
+    setInternalFilter(f);
+    onFilterChange?.(f);
+  };
 
   const filteredEvents = useMemo(() => {
     switch (filter) {
       case "seguridad":
-        return mockEvents.filter((e) => e.category === "seguridad");
+        return events.filter((e) => e.category === "seguridad");
       case "uso":
-        return mockEvents.filter((e) => e.category === "uso");
+        return events.filter((e) => e.category === "uso");
       case "normativo":
-        return mockEvents.filter((e) => e.category === "normativo");
+        return events.filter((e) => e.category === "normativo");
       case "criticos":
-        return mockEvents.filter((e) => e.urgency === "critical");
+        return events.filter((e) => e.urgency === "critical");
       default:
-        return mockEvents;
+        return [...events];
     }
-  }, [filter]);
+  }, [filter, events]);
 
   const getFilterButtonClass = (filterType: FilterType) => {
     const isActive = filter === filterType;
@@ -213,43 +156,43 @@ export default function BehaviorHistory() {
     <div className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Historial de Comportamiento
+          {tr("behaviorHistory.title", dict)}
         </h3>
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-0.5">
           <button
             type="button"
-            onClick={() => setFilter("todos")}
+            onClick={() => handleFilterChange("todos")}
             className={getFilterButtonClass("todos")}
           >
-            Todos
+            {tr("behaviorHistory.filter.all", dict)}
           </button>
           <button
             type="button"
-            onClick={() => setFilter("seguridad")}
+            onClick={() => handleFilterChange("seguridad")}
             className={getFilterButtonClass("seguridad")}
           >
-            Seguridad
+            {tr("behaviorHistory.filter.safety", dict)}
           </button>
           <button
             type="button"
-            onClick={() => setFilter("uso")}
+            onClick={() => handleFilterChange("uso")}
             className={getFilterButtonClass("uso")}
           >
-            Uso
+            {tr("behaviorHistory.filter.usage", dict)}
           </button>
           <button
             type="button"
-            onClick={() => setFilter("normativo")}
+            onClick={() => handleFilterChange("normativo")}
             className={getFilterButtonClass("normativo")}
           >
-            Normativo
+            {tr("behaviorHistory.filter.regulatory", dict)}
           </button>
           <button
             type="button"
-            onClick={() => setFilter("criticos")}
+            onClick={() => handleFilterChange("criticos")}
             className={getFilterButtonClass("criticos")}
           >
-            Críticos
+            {tr("behaviorHistory.filter.critical", dict)}
           </button>
         </div>
       </div>
@@ -257,7 +200,7 @@ export default function BehaviorHistory() {
       <div className="max-h-125 overflow-y-auto">
         {filteredEvents.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-            No hay eventos para mostrar
+            {tr("behaviorHistory.noEvents", dict)}
           </p>
         ) : (
           filteredEvents.map((event, index) => (
@@ -265,6 +208,7 @@ export default function BehaviorHistory() {
               key={`${event.title}-${event.date}`}
               event={event}
               isLast={index === filteredEvents.length - 1}
+              dict={dict}
             />
           ))
         )}

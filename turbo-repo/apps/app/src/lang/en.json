@@ -2838,7 +2838,58 @@
       "name": "Name",
       "role": "Role",
       "status": "Status",
-      "vehicle": "Vehicle"
+      "vehicle": "Vehicle",
+      "performanceHistory": "Performance History",
+      "quickSummary": "Quick Summary",
+      "vsLastMonth": "vs prev month",
+      "incidents": "incidents",
+      "activeIncidents": "active incidents",
+      "punctuality": "punctuality",
+      "safety": "safety",
+      "points": "pts",
+      "scoreCards": {
+        "security": "Safety",
+        "punctuality": "Punctuality",
+        "operationalEfficiency": "Operational Efficiency",
+        "regulatoryCompliance": "Regulatory Compliance",
+        "vehicleUsage": "Vehicle Usage",
+        "operationalEvents": "Operational Events"
+      }
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "behaviorHistory": {
+      "title": "Behavior History",
+      "noEvents": "No events to show",
+      "filter": {
+        "all": "All",
+        "safety": "Safety",
+        "usage": "Usage",
+        "regulatory": "Regulatory",
+        "critical": "Critical"
+      },
+      "urgency": {
+        "critical": "Critical",
+        "warning": "Warning",
+        "info": "Info"
+      },
+      "category": {
+        "safety": "Safety",
+        "usage": "Usage",
+        "regulatory": "Regulatory"
+      }
     },
     "achievement": {
       "mejora-sostenida": "Sustained Improvement",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Label } from "flowbite-react";
+import { Label, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import {
   type DashletConfig,
@@ -68,6 +68,7 @@ export function DashletSettings({
   const [verMasUrl, setVerMasUrl] = useState(
     config.verMasUrl ?? defaultConfig.verMasUrl
   );
+  const [openInSameTab, setOpenInSameTab] = useState(config.openInSameTab ?? false);
   const [label, setLabel] = useState(config.label ?? defaultConfig.label);
   const [borderColor, setBorderColor] = useState<LabelBorderColor>(
     config.borderColor ?? defaultConfig.borderColor ?? "gray"
@@ -101,6 +102,7 @@ export function DashletSettings({
     setName(config.name ?? defaultConfig.name);
     setDescription(config.description ?? defaultConfig.description);
     setVerMasUrl(config.verMasUrl ?? defaultConfig.verMasUrl);
+    setOpenInSameTab(config.openInSameTab ?? false);
     setLabel(config.label ?? defaultConfig.label);
     setBorderColor(config.borderColor ?? defaultConfig.borderColor ?? "gray");
     setDataMode(config.dataMode || "static");
@@ -115,6 +117,7 @@ export function DashletSettings({
       name: name?.trim() || tr("dashboard.defaults.untitled", dictionary),
       description: description?.trim() || "",
       verMasUrl: verMasUrl?.trim() || "",
+      openInSameTab,
       label: label?.trim() || tr("dashboard.defaults.group", dictionary),
       borderColor,
       // Data fields
@@ -201,6 +204,14 @@ export function DashletSettings({
             onChange={setVerMasUrl}
             placeholder="https://example.com"
           />
+          {verMasUrl && (
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">
+                {tr("dashboard.settings.openInSameTab", dictionary)}
+              </Label>
+              <ToggleSwitch checked={openInSameTab} onChange={setOpenInSameTab} />
+            </div>
+          )}
         </>
       ) : (
         <>

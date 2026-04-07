@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Label, Select, ToggleSwitch, Button } from "flowbite-react";
 import { HiXMark } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
@@ -159,6 +159,17 @@ export function DashletSettings({
       },
     ),
   });
+
+  // Auto-detect columns on mount when pgrest/planner is already configured
+  useEffect(() => {
+    if (dataMode === "pgrest" && pg.pgrestFunctionName) {
+      pg.detectColumns();
+    } else if (dataMode === "planner" && plannerVariableName) {
+      const keys = schemas.get(plannerVariableName);
+      if (keys?.length) reconcileColumns(keys);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update detected columns when static JSON changes
   const handleRowsJsonChange = (val: string) => {
@@ -480,6 +491,7 @@ export function DashletSettings({
         dictionary={dictionary}
         plannerVariableName={plannerVariableName}
         onPlannerVariableNameChange={setPlannerVariableName}
+        onPlannerSchemaDetected={reconcileColumns}
         dataSourceId={dataSourceId}
         onDataSourceIdChange={setDataSourceId}
         activeProviders={activeProviders}

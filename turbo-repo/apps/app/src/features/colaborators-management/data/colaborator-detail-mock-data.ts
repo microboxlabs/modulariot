@@ -103,19 +103,20 @@ export const defaultColaboratorDetailData: ColaboratorDetailData = {
 // Uses the colaborator ID as key. Every colaborator gets the same default
 // data for now; the backend will provide real per-user data later.
 
-export const colaboratorDetailDataMap: Record<string, ColaboratorDetailData> = Object.fromEntries(
-  Array.from({ length: 20 }, (_, i) => {
-    const id = String(i + 1);
-    return [id, { ...defaultColaboratorDetailData, colaboratorId: id }];
-  })
-);
+export const colaboratorDetailDataMap: Record<string, ColaboratorDetailData> =
+  Object.fromEntries(
+    Array.from({ length: 20 }, (_, i) => {
+      const id = String(i + 1);
+      return [id, { ...defaultColaboratorDetailData, colaboratorId: id }];
+    })
+  );
 
 /**
  * Get detail/expedient data for a single colaborator.
  * Returns undefined when the ID is not found.
  */
 export function getColaboratorDetailData(
-  colaboratorId: string,
+  colaboratorId: string
 ): ColaboratorDetailData | undefined {
   return colaboratorDetailDataMap[colaboratorId];
 }

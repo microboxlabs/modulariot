@@ -15,11 +15,19 @@ export type ColaboratorRank =
   | "conductor"
   | "operador-logistico";
 
-export type ColaboratorEmploymentStatus = "activo" | "suspendido" | "vacaciones";
+export type ColaboratorEmploymentStatus =
+  | "activo"
+  | "suspendido"
+  | "vacaciones";
 
-export type ColaboratorPerformanceStatus = "excelente" | "bueno" | "en-observacion";
+export type ColaboratorPerformanceStatus =
+  | "excelente"
+  | "bueno"
+  | "en-observacion";
 
-export type ColaboratorAchievement = "mejora-sostenida" | "puntualidad-excepcional";
+export type ColaboratorAchievement =
+  | "mejora-sostenida"
+  | "puntualidad-excepcional";
 
 export type ColaboratorAlert = "conducta-critica-reciente";
 
@@ -40,9 +48,15 @@ export interface Colaborator {
   alerts?: ColaboratorAlert[];
 }
 
-export type ColaboratorStatus = "active" | "at-risk" | "outstanding" | "inactive";
+export type ColaboratorStatus =
+  | "active"
+  | "at-risk"
+  | "outstanding"
+  | "inactive";
 
-export function getPerformanceStatus(score: number): ColaboratorPerformanceStatus {
+export function getPerformanceStatus(
+  score: number
+): ColaboratorPerformanceStatus {
   if (score >= 80) return "excelente";
   if (score >= 50) return "bueno";
   return "en-observacion";
@@ -52,7 +66,12 @@ export function getPerformanceStatus(score: number): ColaboratorPerformanceStatu
 
 export type EventUrgency = "critical" | "warning" | "info";
 export type BehaviorCategory = "seguridad" | "uso" | "normativo";
-export type FilterType = "todos" | "seguridad" | "uso" | "normativo" | "criticos";
+export type FilterType =
+  | "todos"
+  | "seguridad"
+  | "uso"
+  | "normativo"
+  | "criticos";
 
 export interface BehaviorEvent {
   title: string;
@@ -72,7 +91,13 @@ export interface MonthlyDataPoint {
   incidents: number;
 }
 
-export type ScoreCardIconId = "shield" | "clock" | "bolt" | "document" | "truck" | "pulse";
+export type ScoreCardIconId =
+  | "shield"
+  | "clock"
+  | "bolt"
+  | "document"
+  | "truck"
+  | "pulse";
 
 /** Dynamic score for a single KPI card (comes from backend) */
 export interface ScoreCardValue {

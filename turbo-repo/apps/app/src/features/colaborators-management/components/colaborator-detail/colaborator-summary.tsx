@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { Colaborator, MonthlyDataPoint, ScoreCardValue } from "../../types/colaborators.types";
+import type {
+  Colaborator,
+  MonthlyDataPoint,
+  ScoreCardValue,
+} from "../../types/colaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { IoShieldOutline } from "react-icons/io5";
-import {
-  HiClock,
-  HiTruck,
-  HiExclamationTriangle,
-} from "react-icons/hi2";
+import { HiClock, HiTruck, HiExclamationTriangle } from "react-icons/hi2";
 import ReactECharts from "echarts-for-react";
 
 function getOverallScoreRing(score: number): string {
@@ -18,7 +18,10 @@ function getOverallScoreRing(score: number): string {
   return "text-red-500";
 }
 
-function getOverallLabel(score: number): { labelKey: string; className: string } {
+function getOverallLabel(score: number): {
+  labelKey: string;
+  className: string;
+} {
   if (score >= 80)
     return {
       labelKey: "performanceStatus.excelente",
@@ -63,7 +66,10 @@ function EvolutionChart({
     [dict, monthKeys]
   );
 
-  const scoreValues = useMemo(() => monthlyData.map((d) => d.score), [monthlyData]);
+  const scoreValues = useMemo(
+    () => monthlyData.map((d) => d.score),
+    [monthlyData]
+  );
 
   const onEvents = useMemo(
     () => ({
@@ -242,7 +248,10 @@ function QuickSummaryPanel({
         <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <HiExclamationTriangle className="w-4 h-4 text-red-500 shrink-0" />
           <span>
-            {incidentsCount} {hoveredMonth !== undefined ? tr("detail.incidents", dict) : tr("detail.activeIncidents", dict)}
+            {incidentsCount}{" "}
+            {hoveredMonth !== undefined
+              ? tr("detail.incidents", dict)
+              : tr("detail.activeIncidents", dict)}
           </span>
           {deltas && deltas.incidents !== 0 && (
             <span
@@ -254,7 +263,9 @@ function QuickSummaryPanel({
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <HiClock className="w-4 h-4 text-blue-500 shrink-0" />
-          <span>{punctualityScore}% {tr("detail.punctuality", dict)}</span>
+          <span>
+            {punctualityScore}% {tr("detail.punctuality", dict)}
+          </span>
           {deltas && deltas.punctuality !== 0 && (
             <span
               className={`text-xs ${getDeltaColor(deltas.punctuality, true)}`}
@@ -265,7 +276,9 @@ function QuickSummaryPanel({
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <IoShieldOutline className="w-4 h-4 text-green-500 shrink-0" />
-          <span>{safetyScore}% {tr("detail.safety", dict)}</span>
+          <span>
+            {safetyScore}% {tr("detail.safety", dict)}
+          </span>
           {deltas && deltas.safety !== 0 && (
             <span className={`text-xs ${getDeltaColor(deltas.safety, true)}`}>
               {formatDelta(deltas.safety)}

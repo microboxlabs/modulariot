@@ -1,18 +1,17 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import type { Colaborator, ColaboratorDetailData, ScoreCardIconId } from "../../types/colaborators.types";
+import type {
+  Colaborator,
+  ColaboratorDetailData,
+  ScoreCardIconId,
+} from "../../types/colaborators.types";
 import type { FilterType } from "../../types/colaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { IconType } from "react-icons";
 import ColaboratorDetailHeader from "./colaborator-detail-header";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
-import {
-  HiClock,
-  HiBolt,
-  HiDocumentText,
-  HiTruck,
-} from "react-icons/hi2";
+import { HiClock, HiBolt, HiDocumentText, HiTruck } from "react-icons/hi2";
 import { IoShieldOutline, IoPulseOutline } from "react-icons/io5";
 import { tr } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
@@ -41,46 +40,61 @@ const SCORE_CARD_CONFIG: readonly ScoreCardConfig[] = [
   {
     titleKey: "detail.scoreCards.security",
     iconId: "shield",
-    iconClass: "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
+    iconClass:
+      "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
     valueClass: "text-2xl text-green-600 dark:text-green-400 font-bold",
   },
   {
     titleKey: "detail.scoreCards.punctuality",
     iconId: "clock",
-    iconClass: "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30",
+    iconClass:
+      "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30",
     valueClass: "text-2xl text-blue-600 dark:text-blue-400 font-bold",
   },
   {
     titleKey: "detail.scoreCards.operationalEfficiency",
     iconId: "bolt",
-    iconClass: "text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30",
+    iconClass:
+      "text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30",
     valueClass: "text-2xl text-amber-600 dark:text-amber-400 font-bold",
   },
   {
     titleKey: "detail.scoreCards.regulatoryCompliance",
     iconId: "document",
-    iconClass: "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30",
+    iconClass:
+      "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30",
     valueClass: "text-2xl text-purple-600 dark:text-purple-400 font-bold",
   },
   {
     titleKey: "detail.scoreCards.vehicleUsage",
     iconId: "truck",
-    iconClass: "text-teal-600 bg-teal-100 dark:text-teal-400 dark:bg-teal-900/30",
+    iconClass:
+      "text-teal-600 bg-teal-100 dark:text-teal-400 dark:bg-teal-900/30",
     valueClass: "text-2xl text-teal-600 dark:text-teal-400 font-bold",
   },
   {
     titleKey: "detail.scoreCards.operationalEvents",
     iconId: "pulse",
-    iconClass: "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30",
+    iconClass:
+      "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30",
     valueClass: "text-2xl text-orange-600 dark:text-orange-400 font-bold",
   },
 ];
 
 /** Static month translation keys — order matches the 12-element monthly array */
 export const MONTH_KEYS: readonly string[] = [
-  "months.may", "months.jun", "months.jul", "months.aug",
-  "months.sep", "months.oct", "months.nov", "months.dec",
-  "months.jan", "months.feb", "months.mar", "months.apr",
+  "months.may",
+  "months.jun",
+  "months.jul",
+  "months.aug",
+  "months.sep",
+  "months.oct",
+  "months.nov",
+  "months.dec",
+  "months.jan",
+  "months.feb",
+  "months.mar",
+  "months.apr",
 ];
 
 // ─── Component ───────────────────────────────────────────────────────

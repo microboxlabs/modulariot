@@ -12,7 +12,6 @@ import {
 } from "@/features/common/providers/fetcher.types";
 import { InfoError } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
-
 /**
  * Attempts to extract error message from string info
  */
@@ -25,10 +24,9 @@ function parseErrorMessageFromString(info: string): string | null {
   }
 }
 
-
 /**
  * Extracts the best error message from a FetcherError
- * 
+ *
  * NOTE: Simplified for testing centralized error handling in fetcher.ts
  */
 function extractErrorMessage(fetcherError: FetcherError): string {
@@ -71,7 +69,10 @@ function formDataToObject(formData: FormData): Record<string, unknown> {
 
   for (const [key, value] of formData.entries()) {
     // Try to parse JSON strings (like "reasons" field)
-    if (typeof value === "string" && (value.startsWith("[") || value.startsWith("{"))) {
+    if (
+      typeof value === "string" &&
+      (value.startsWith("[") || value.startsWith("{"))
+    ) {
       try {
         obj[key] = JSON.parse(value);
       } catch {
@@ -184,15 +185,10 @@ export function calcGpsValidationType(
   return "error";
 }
 
-export function toLatLngLiteral(
-  // eslint-disable-next-line no-undef
-  coordinates: {
-    type: string;
-    coordinates: [number, number];
-  }
-  // eslint-disable-next-line no-undef
-): google.maps.LatLngLiteral {
-  // eslint-disable-next-line no-undef
+export function toLatLngLiteral(coordinates: {
+  type: string;
+  coordinates: [number, number];
+}): google.maps.LatLngLiteral {
   return {
     lat: coordinates.coordinates[1],
     lng: coordinates.coordinates[0],

@@ -1329,8 +1329,8 @@
         "facilitySCL": "Facility SCL",
         "truckBeds": "Truck Beds",
         "allDevices": "All Devices",
-        "fleetManagement": "Fleet Management",
-        "colaboratorsManagement": "Collaborators Management"
+        "fleetManagement": "Fleet",
+        "colaboratorsManagement": "Collaborators"
       }
     },
     "calendar": {
@@ -2723,7 +2723,7 @@
           "odometerSinceOrigin": "Odometer since origin",
           "monthlyContractualConsumption": "Monthly contractual consumption",
           "deviationFromAverage": "Deviation from average",
-          "kmTraveledThisMonth": "Km traveled this month", 
+          "kmTraveledThisMonth": "Km traveled this month",
           "kmRemainingThisMonth": "Km remaining this month",
           "avgDaily": "Average daily",
           "operationHours": "Operation hours",

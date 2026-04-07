@@ -65,49 +65,50 @@ public class OrganizationRequestFilter {
     }
 
     @ServerRequestFilter
-    public Uni<Void> filter(ContainerRequestContext requestContext) {
+    public Uni<Response> filter(ContainerRequestContext requestContext) {
         String path = requestContext.getUriInfo().getPath();
         String orgSlug = extractOrgSlug(path);
 
         if (orgSlug == null) {
-            return Uni.createFrom().voidItem();
+            return Uni.createFrom().nullItem();
         }
 
         return Panache.withSession(() ->
             Organization.findBySlug(orgSlug)
                 .flatMap(org -> {
                     if (org == null) {
-                        requestContext.abortWith(Response.status(Response.Status.NOT_FOUND)
-                                .entity("{\"error\":\"Organization not found: " + orgSlug + "\"}")
-                                .type(MediaType.APPLICATION_JSON)
-                                .build());
-                        return Uni.createFrom().voidItem();
+                        return Uni.createFrom().item(jsonResponse(
+                                Response.Status.FORBIDDEN,
+                                "Access denied"));
                     }
                     return validateAndApply(requestContext, org);
                 })
         );
     }
 
-    private Uni<Void> validateAndApply(ContainerRequestContext requestContext, Organization org) {
+    private Uni<Response> validateAndApply(ContainerRequestContext requestContext, Organization org) {
         String email = resolveEmail(requestContext);
         String m2mClientId = resolveM2mClientId();
 
-        Uni<String> accessValidation;
+        Uni<ValidationResult> accessValidation;
         if (email != null) {
             accessValidation = validateWebUser(requestContext, org, email);
         } else if (m2mClientId != null) {
             accessValidation = validateM2mClient(requestContext, org, m2mClientId);
         } else {
-            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
-                    .entity("{\"error\":\"Cannot resolve caller identity for organization request\"}")
-                    .type(MediaType.APPLICATION_JSON)
-                    .build());
-            return Uni.createFrom().voidItem();
+            return Uni.createFrom().item(jsonResponse(
+                    Response.Status.UNAUTHORIZED,
+                    "Cannot resolve caller identity for organization request"));
         }
 
-        return accessValidation.flatMap(role ->
-            resolveEffectiveClientIds(org).invoke(ids -> applyContext(org, email, role, ids))
-        ).replaceWithVoid();
+        return accessValidation.flatMap(result -> {
+            if (result.response() != null) {
+                return Uni.createFrom().item(result.response());
+            }
+            return resolveEffectiveClientIds(org)
+                    .invoke(ids -> applyContext(org, email, result.role(), ids))
+                    .replaceWith((Response) null);
+        });
     }
 
     private Uni<List<String>> resolveEffectiveClientIds(Organization org) {
@@ -125,31 +126,36 @@ public class OrganizationRequestFilter {
                 });
     }
 
-    private Uni<String> validateWebUser(ContainerRequestContext requestContext, Organization org, String email) {
+    private Uni<ValidationResult> validateWebUser(ContainerRequestContext requestContext, Organization org, String email) {
         if (org.alfrescoGroupId == null) {
-            return Uni.createFrom().nullItem();
+            return Uni.createFrom().item(ValidationResult.allow(null));
         }
         return alfrescoMembership.isMember(email, org.alfrescoGroupId)
                 .flatMap(isMember -> {
                     if (!Boolean.TRUE.equals(isMember)) {
-                        requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
-                                .entity("{\"error\":\"User is not a member of organization: " + org.slug + "\"}")
-                                .type(MediaType.APPLICATION_JSON)
-                                .build());
-                        return Uni.createFrom().nullItem();
+                        return Uni.createFrom().item(ValidationResult.deny(jsonResponse(
+                                Response.Status.FORBIDDEN,
+                                "User is not a member of organization: " + org.slug)));
                     }
-                    return alfrescoMembership.getRole(email, org.alfrescoGroupId);
+                    return alfrescoMembership.getRole(email, org.alfrescoGroupId)
+                            .map(ValidationResult::allow);
                 });
     }
 
-    private Uni<String> validateM2mClient(ContainerRequestContext requestContext, Organization org, String m2mClientId) {
+    private Uni<ValidationResult> validateM2mClient(ContainerRequestContext requestContext, Organization org, String m2mClientId) {
         if (!m2mClientId.equals(org.tenantClientId)) {
-            requestContext.abortWith(Response.status(Response.Status.FORBIDDEN)
-                    .entity("{\"error\":\"M2M client is not authorized for organization: " + org.slug + "\"}")
-                    .type(MediaType.APPLICATION_JSON)
-                    .build());
+            return Uni.createFrom().item(ValidationResult.deny(jsonResponse(
+                    Response.Status.FORBIDDEN,
+                    "M2M client is not authorized for organization: " + org.slug)));
         }
-        return Uni.createFrom().nullItem();
+        return Uni.createFrom().item(ValidationResult.allow(null));
+    }
+
+    private Response jsonResponse(Response.Status status, String error) {
+        return Response.status(status)
+                .entity("{\"error\":\"" + error + "\"}")
+                .type(MediaType.APPLICATION_JSON)
+                .build();
     }
 
     private void applyContext(Organization org, String userEmail, String role, List<String> effectiveClientIds) {
@@ -199,5 +205,15 @@ public class OrganizationRequestFilter {
     private static String extractClaimValue(Object val) {
         if (val instanceof List<?> list && !list.isEmpty()) return list.get(0).toString();
         return val != null ? val.toString() : null;
+    }
+
+    private record ValidationResult(String role, Response response) {
+        private static ValidationResult allow(String role) {
+            return new ValidationResult(role, null);
+        }
+
+        private static ValidationResult deny(Response response) {
+            return new ValidationResult(null, response);
+        }
     }
 }

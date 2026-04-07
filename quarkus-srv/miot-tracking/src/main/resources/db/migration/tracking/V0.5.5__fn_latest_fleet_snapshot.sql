@@ -25,7 +25,7 @@ AS $$
         JOIN miot_tracking.asset_data_client adc
             ON adc.asset_id = i.asset_id
         WHERE adc.shared_client_id = p_shared_client_id
-        ORDER BY adc.asset_id, adc.timestamp DESC
+        ORDER BY adc.asset_id, adc.timestamp DESC, adc.asset_data_id DESC
     ),
     latest_tracking AS (
         SELECT
@@ -66,7 +66,7 @@ AS $$
         JOIN miot_tracking.asset_metric_core m
             ON m.asset_id = i.asset_id
         WHERE m.shared_client_id = p_shared_client_id
-        ORDER BY m.asset_id, m.ts DESC
+        ORDER BY m.asset_id, m.ts DESC, m.id DESC
     ),
     latest_dtc AS (
         SELECT DISTINCT ON (d.asset_id)
@@ -83,7 +83,7 @@ AS $$
         JOIN miot_tracking.asset_metric_dtc d
             ON d.asset_id = i.asset_id
         WHERE d.shared_client_id = p_shared_client_id
-        ORDER BY d.asset_id, d.ts DESC
+        ORDER BY d.asset_id, d.ts DESC, d.id DESC
     ),
     latest_ext AS (
         SELECT DISTINCT ON (e.asset_id)
@@ -93,7 +93,7 @@ AS $$
         JOIN miot_tracking.asset_metric_ext e
             ON e.asset_id = i.asset_id
         WHERE e.shared_client_id = p_shared_client_id
-        ORDER BY e.asset_id, e.ts DESC
+        ORDER BY e.asset_id, e.ts DESC, e.id DESC
     )
     SELECT
         i.asset_id,

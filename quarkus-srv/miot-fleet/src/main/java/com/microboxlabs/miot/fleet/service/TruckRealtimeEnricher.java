@@ -44,6 +44,7 @@ public class TruckRealtimeEnricher {
                         List::copyOf));
 
         if (assetIds.isEmpty()) {
+            trucks.forEach(truck -> truck.latestMetrics = null);
             return Uni.createFrom().item(trucks);
         }
 
@@ -54,7 +55,10 @@ public class TruckRealtimeEnricher {
                     trucks.forEach(truck -> applySnapshot(truck, snapshots.get(truck.assetId), selection));
                     return trucks;
                 })
-                .onFailure().recoverWithItem(trucks);
+                .onFailure().recoverWithItem(() -> {
+                    trucks.forEach(truck -> truck.latestMetrics = null);
+                    return trucks;
+                });
     }
 
     public Uni<Truck> enrichTruck(String sharedClientId, Truck truck, TruckMetricSelection selection) {
@@ -65,6 +69,9 @@ public class TruckRealtimeEnricher {
             return Uni.createFrom().item(truck);
         }
         if (truck == null || truck.assetId == null || truck.assetId.isBlank()) {
+            if (truck != null) {
+                truck.latestMetrics = null;
+            }
             return Uni.createFrom().item(truck);
         }
 
@@ -76,11 +83,17 @@ public class TruckRealtimeEnricher {
                     applySnapshot(truck, snapshots.get(truck.assetId), selection);
                     return truck;
                 })
-                .onFailure().recoverWithItem(truck);
+                .onFailure().recoverWithItem(() -> {
+                    truck.latestMetrics = null;
+                    return truck;
+                });
     }
 
     private void applySnapshot(Truck truck, SnapshotBundle snapshot, TruckMetricSelection selection) {
         if (truck == null || snapshot == null) {
+            if (truck != null) {
+                truck.latestMetrics = null;
+            }
             return;
         }
         JsonObject latestMetrics = new JsonObject();

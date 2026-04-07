@@ -508,6 +508,13 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  const setOrder = useCallback(
+    (order: number) => {
+      updateConfig({ order });
+    },
+    [updateConfig]
+  );
+
   // ── Planner CRUD ──────────────────────────────────────────────────────────
 
   const getPlannerDefinitions = useCallback(
@@ -605,6 +612,7 @@ export function useDashboardStorage(
           requestPlanner: imported.requestPlanner,
           filters: imported.filters,
           refreshInterval: imported.refreshInterval,
+          order: imported.order,
         };
 
         clearHistory();
@@ -627,6 +635,7 @@ export function useDashboardStorage(
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
     refreshInterval: resolvedConfig.refreshInterval ?? 0,
+    order: resolvedConfig.order,
     isLoaded,
     addWidget,
     addChildWidget,
@@ -638,6 +647,7 @@ export function useDashboardStorage(
     setDashboardName,
     setFilters,
     setRefreshInterval,
+    setOrder,
     findWidget,
     findParent,
     exportDashboard,

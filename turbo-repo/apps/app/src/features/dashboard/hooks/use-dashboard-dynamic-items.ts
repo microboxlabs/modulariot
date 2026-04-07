@@ -8,6 +8,7 @@ import type { SidebarItem } from "@/features/layout/types/common.types";
 interface DashboardConfigSummary {
   slug: string;
   name: string;
+  order?: number;
 }
 
 interface DashboardConfigsResponse {
@@ -50,10 +51,13 @@ export function useDashboardDynamicItems(): SidebarItem[] {
   return useMemo(() => {
     if (dashboards.length === 0) return [];
 
-    return dashboards.map((dashboard) => ({
-      href: `/home/${dashboard.slug}`,
-      label: dashboard.name,
-      requiredGroups: ["GROUP_DASHBOARD"],
-    }));
+    return dashboards
+      .slice()
+      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+      .map((dashboard) => ({
+        href: `/home/${dashboard.slug}`,
+        label: dashboard.name,
+        requiredGroups: ["GROUP_DASHBOARD"],
+      }));
   }, [dashboards]);
 }

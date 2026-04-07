@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Label, TextInput, Select, ToggleSwitch, Button } from "flowbite-react";
+import { Label, Select, ToggleSwitch, Button } from "flowbite-react";
 import { HiXMark } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType, SeriesConfig } from "./dashlet";
@@ -9,19 +9,19 @@ import type { ColorPalette } from "./chart-palettes";
 import { COLOR_PALETTES } from "./chart-palettes";
 import { tr } from "@/features/i18n/tr.service";
 import {
-  SettingsTextField,
   SettingsSelectField,
   SettingsTextareaField,
   SettingsFieldGrid,
+  HbTextField,
+  HbInlineInput,
   usePgrestSettingsState,
   fromPgrestParamItems,
   buildSimplePgrestConfig,
   PgrestDataTab,
   useActiveProviders,
-  getHandlebarsStatus,
-  getFlowbiteColor,
   type SimpleDataMode,
 } from "../common";
+import { usePlannerContext } from "../../context/planner-context";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 
 // ============================================================================

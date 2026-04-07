@@ -73,7 +73,23 @@ export default function ColaboratorsManagementPage({
 
   if (selectedColaborator && navigation) {
     const detailData = getColaboratorDetailData(selectedColaborator.id);
-    if (!detailData) return null;
+
+    if (!detailData) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 p-8 w-full h-full">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {tr("detail.noData", colaboratorsDict)}
+          </p>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {tr("detail.backToList", colaboratorsDict)}
+          </button>
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col gap-6 w-full">

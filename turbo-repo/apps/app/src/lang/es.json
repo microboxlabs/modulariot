@@ -2886,7 +2886,9 @@
         "regulatoryCompliance": "Cumplimiento normativo",
         "vehicleUsage": "Uso del vehículo",
         "operationalEvents": "Eventos operativos"
-      }
+      },
+      "noData": "No se pudieron cargar los datos de detalle para este colaborador.",
+      "backToList": "Volver al listado"
     },
     "behaviorHistory": {
       "title": "Historial de Comportamiento",

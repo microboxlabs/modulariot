@@ -1638,6 +1638,7 @@
       "orderTitle": "Display Order",
       "orderDescription": "Set the sidebar position. Lower numbers appear first.",
       "orderUpdated": "Display order updated",
+      "orderInvalid": "Please enter a valid non-negative number",
       "deleteDescription": "Permanently remove this dashboard",
       "chartType": "Chart Type",
       "line": "Line",

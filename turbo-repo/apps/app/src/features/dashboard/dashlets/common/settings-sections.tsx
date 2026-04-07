@@ -17,6 +17,10 @@ import { SettingsTextField, SettingsSelectField } from "./settings-fields";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
+import type { ColorRuleItem } from "./color-rule-helpers";
+import type { ColorRule, ColorRuleOperator, RuleColor } from "./color-rule-types";
+import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
+import { getColorDotClass } from "./color-rule-engine";
 
 // ============================================================================
 // Shared mouse-down handler (prevents drag on settings modals)
@@ -33,7 +37,19 @@ interface ColumnEditorProps {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: "key" | "label" | "type", value: string) => void;
-  labels: { columns: string; key: string; label: string; addColumn: string };
+  onAddColorMapping?: (colId: string) => void;
+  onRemoveColorMapping?: (colId: string, index: number) => void;
+  onUpdateColorMapping?: (colId: string, index: number, field: "operator" | "value" | "color", val: string) => void;
+  labels: {
+    columns: string;
+    key: string;
+    label: string;
+    addColumn: string;
+    addMapping: string;
+    valuePlaceholder: string;
+    operatorLabels: Record<ColorRuleOperator, string>;
+    colorLabels: Record<RuleColor, string>;
+  };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
 }
@@ -43,6 +59,9 @@ export function ColumnEditor({
   onAdd,
   onRemove,
   onUpdate,
+  onAddColorMapping,
+  onRemoveColorMapping,
+  onUpdateColorMapping,
   labels,
   handlebarsColorKeys = false,
 }: Readonly<ColumnEditorProps>) {
@@ -53,43 +72,108 @@ export function ColumnEditor({
       </Label>
       <div className="space-y-1.5">
         {columns.map((col) => (
-          <div key={col._id} className="flex items-center gap-1">
-            <div className="min-w-0 flex-1">
-              <TextInput
-                sizing="sm"
-                placeholder={labels.key}
-                value={col.key}
-                onChange={(e) => onUpdate(col._id, "key", e.target.value)}
-                color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
-              />
+          <div key={col._id} className="space-y-1">
+            <div className="flex items-center gap-1">
+              <div className="min-w-0 flex-1">
+                <TextInput
+                  sizing="sm"
+                  placeholder={labels.key}
+                  value={col.key}
+                  onChange={(e) => onUpdate(col._id, "key", e.target.value)}
+                  color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <TextInput
+                  sizing="sm"
+                  placeholder={labels.label}
+                  value={col.label}
+                  onChange={(e) => onUpdate(col._id, "label", e.target.value)}
+                  color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.label)) : undefined}
+                />
+              </div>
+              <div className="w-28 shrink-0">
+                <SuggestionInput
+                  sizing="sm"
+                  placeholder="text"
+                  value={col.type}
+                  onChange={(v) => onUpdate(col._id, "type", v)}
+                  suggestions={COLUMN_TYPES}
+                  color={getFlowbiteColor(getHandlebarsStatus(col.type))}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(col._id)}
+                onMouseDown={stopPropagation}
+                className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+              >
+                <HiTrash className="h-4 w-4" />
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <TextInput
-                sizing="sm"
-                placeholder={labels.label}
-                value={col.label}
-                onChange={(e) => onUpdate(col._id, "label", e.target.value)}
-                color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.label)) : undefined}
-              />
-            </div>
-            <div className="w-28 shrink-0">
-              <SuggestionInput
-                sizing="sm"
-                placeholder="text"
-                value={col.type}
-                onChange={(v) => onUpdate(col._id, "type", v)}
-                suggestions={COLUMN_TYPES}
-                color={getFlowbiteColor(getHandlebarsStatus(col.type))}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => onRemove(col._id)}
-              onMouseDown={stopPropagation}
-              className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-            >
-              <HiTrash className="h-4 w-4" />
-            </button>
+
+            {/* Inline badge color map */}
+            {col.type === "badge" && onAddColorMapping && onRemoveColorMapping && onUpdateColorMapping && (
+              <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
+                {(col.colorMap ?? []).map((mapping, idx) => (
+                  <div key={`${col._id}-cm-${mapping.operator}-${mapping.value}-${mapping.color}`} className="flex items-center gap-1">
+                    <div className="w-24 shrink-0">
+                      <Select
+                        sizing="sm"
+                        value={mapping.operator}
+                        onChange={(e) => onUpdateColorMapping(col._id, idx, "operator", e.target.value)}
+                      >
+                        {COLOR_RULE_OPERATORS.map((op) => (
+                          <option key={op} value={op}>
+                            {labels.operatorLabels[op]}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <TextInput
+                        sizing="sm"
+                        placeholder={labels.valuePlaceholder}
+                        value={mapping.value}
+                        onChange={(e) => onUpdateColorMapping(col._id, idx, "value", e.target.value)}
+                      />
+                    </div>
+                    <div className="w-24 shrink-0">
+                      <Select
+                        sizing="sm"
+                        value={mapping.color}
+                        onChange={(e) => onUpdateColorMapping(col._id, idx, "color", e.target.value)}
+                      >
+                        {RULE_COLORS.map((c) => (
+                          <option key={c} value={c}>
+                            {labels.colorLabels[c]}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <span className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`} />
+                    <button
+                      type="button"
+                      onClick={() => onRemoveColorMapping(col._id, idx)}
+                      onMouseDown={stopPropagation}
+                      className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                    >
+                      <HiTrash className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  color="light"
+                  size="xs"
+                  onClick={() => onAddColorMapping(col._id)}
+                  onMouseDown={stopPropagation}
+                  className="no-drag"
+                >
+                  <HiPlus className="mr-1 h-3 w-3" />
+                  {labels.addMapping}
+                </Button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -366,6 +450,134 @@ export function DataProviderTab({
       {dataMode === "pgrest" && pgrestContent}
 
       {dataMode === "planner" && plannerContent}
+    </>
+  );
+}
+
+// ============================================================================
+// ColorRuleEditor
+// ============================================================================
+
+interface ColorRuleEditorProps {
+  title: string;
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  rules: ColorRuleItem[];
+  columnsWithKeys: ColumnItem[];
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, field: keyof ColorRule, value: string) => void;
+  labels: {
+    addRule: string;
+    valuePlaceholder: string;
+    operatorLabels: Record<ColorRuleOperator, string>;
+    colorLabels: Record<RuleColor, string>;
+  };
+}
+
+export function ColorRuleEditor({
+  title,
+  enabled,
+  onToggle,
+  rules,
+  columnsWithKeys,
+  onAdd,
+  onRemove,
+  onUpdate,
+  labels,
+}: Readonly<ColorRuleEditorProps>) {
+  return (
+    <>
+      <hr className="border-gray-200 dark:border-gray-700" />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">{title}</Label>
+          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
+        </div>
+
+        {enabled && (
+          <div>
+            <div className="space-y-2">
+              {rules.map((rule) => (
+                <div key={rule._id} className="flex items-center gap-1">
+                  {/* Column select */}
+                  <div className="min-w-0 flex-1">
+                    <Select
+                      sizing="sm"
+                      value={rule.column}
+                      onChange={(e) => onUpdate(rule._id, "column", e.target.value)}
+                    >
+                      {columnsWithKeys.map((c) => (
+                        <option key={c._id} value={c.key}>
+                          {c.label || c.key}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  {/* Operator select */}
+                  <div className="w-24 shrink-0">
+                    <Select
+                      sizing="sm"
+                      value={rule.operator}
+                      onChange={(e) => onUpdate(rule._id, "operator", e.target.value)}
+                    >
+                      {COLOR_RULE_OPERATORS.map((op) => (
+                        <option key={op} value={op}>
+                          {labels.operatorLabels[op]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  {/* Value input */}
+                  <div className="min-w-0 flex-1">
+                    <TextInput
+                      sizing="sm"
+                      placeholder={labels.valuePlaceholder}
+                      value={rule.value}
+                      onChange={(e) => onUpdate(rule._id, "value", e.target.value)}
+                    />
+                  </div>
+                  {/* Color select */}
+                  <div className="w-24 shrink-0">
+                    <Select
+                      sizing="sm"
+                      value={rule.color}
+                      onChange={(e) => onUpdate(rule._id, "color", e.target.value)}
+                    >
+                      {RULE_COLORS.map((c) => (
+                        <option key={c} value={c}>
+                          {labels.colorLabels[c]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  {/* Color dot preview */}
+                  <span className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(rule.color)}`} />
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(rule._id)}
+                    onMouseDown={stopPropagation}
+                    className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                  >
+                    <HiTrash className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <Button
+              color="light"
+              size="xs"
+              onClick={onAdd}
+              onMouseDown={stopPropagation}
+              className="no-drag mt-2"
+            >
+              <HiPlus className="mr-1 h-3 w-3" />
+              {labels.addRule}
+            </Button>
+          </div>
+        )}
+      </div>
     </>
   );
 }

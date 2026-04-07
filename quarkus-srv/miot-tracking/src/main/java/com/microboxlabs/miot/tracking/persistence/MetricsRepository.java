@@ -132,13 +132,12 @@ public class MetricsRepository {
             """;
 
     public boolean hasMetrics(EnvelopedMessage message) {
-        try {
-            List<MetricItem> metrics = message.getPayload().getMetrics().getItems();
-            return metrics != null && !metrics.isEmpty();
-        } catch (Exception e) {
-            logger.debug("Failed to check for metrics", e);
+        if (message == null || message.getPayload() == null || message.getPayload().getMetrics() == null) {
             return false;
         }
+
+        List<MetricItem> metrics = message.getPayload().getMetrics().getItems();
+        return metrics != null && !metrics.isEmpty();
     }
 
     public Uni<String> saveMetrics(MetricsEnvelope metrics, List<String> sharedClientIds,

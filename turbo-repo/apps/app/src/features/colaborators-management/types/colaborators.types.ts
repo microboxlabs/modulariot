@@ -64,7 +64,9 @@ export function getPerformanceStatus(
 
 // ─── Colaborator Detail / Expedient types ────────────────────────────
 
-export type EventUrgency = "critical" | "warning" | "info";
+import type { EventUrgency } from "@/features/common/components/timeline-event";
+
+export type { EventUrgency } from "@/features/common/components/timeline-event";
 export type BehaviorCategory = "seguridad" | "uso" | "normativo";
 export type FilterType =
   | "todos"

@@ -108,5 +108,5 @@ AS $$
     LEFT JOIN latest_ext e ON e.asset_id = i.asset_id
 $$;
 
-COMMENT ON FUNCTION miot_tracking.fn_latest_fleet_snapshot_batch IS
+COMMENT ON FUNCTION miot_tracking.fn_latest_fleet_snapshot_batch(TEXT, TEXT[]) IS
     'Latest fleet card snapshot for multiple assets. Uses asset_data_client for tracking lookup and batch DISTINCT ON for core/dtc/ext metrics.';

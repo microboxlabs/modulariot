@@ -235,6 +235,49 @@ Las claves de extensión son útiles para:
 - Valores crudos específicos del protocolo
 - Métricas experimentales durante desarrollo
 
+### Claves de Extensión Recomendadas: Vehículos Pesados / Emisiones
+
+Para vehículos pesados (camiones, buses) con ECUs J1939, se recomiendan las siguientes claves de extensión para sistemas de post-tratamiento de escape. No forman parte del registro canónico porque son específicas de equipos de emisiones diésel, pero siguen una convención de nombres consistente para interoperabilidad.
+
+#### AdBlue / DEF (Fluido de Escape Diésel)
+
+| Clave | Tipo | Unidad | Rango Típico | J1939 SPN | Descripción |
+|-------|------|--------|--------------|-----------|-------------|
+| `x.adblue.level` | NUMBER | % | 0–100 | 1761 | Nivel del estanque de DEF |
+| `x.adblue.rate` | NUMBER | L/h | 0–50 | 3031 | Tasa de consumo de DEF |
+| `x.adblue.temp` | NUMBER | °C | -40–100 | 3532 | Temperatura del estanque de DEF |
+| `x.adblue.quality` | NUMBER | % | 0–100 | 1762 | Concentración / calidad del DEF |
+
+#### DPF / FAP (Filtro de Partículas Diésel)
+
+| Clave | Tipo | Unidad | Rango Típico | J1939 SPN | Descripción |
+|-------|------|--------|--------------|-----------|-------------|
+| `x.dpf.differential_pressure` | NUMBER | kPa | 0–100 | 3251 | Caída de presión a través del filtro |
+| `x.dpf.inlet_temp` | NUMBER | °C | 0–800 | 3242 | Temperatura de escape antes del filtro |
+| `x.dpf.outlet_temp` | NUMBER | °C | 0–800 | 3246 | Temperatura de escape después del filtro |
+| `x.dpf.soot_load` | NUMBER | % | 0–100 | 3720 | Nivel de acumulación de hollín |
+| `x.dpf.regen_state` | BOOLEAN | — | true/false | 3695 | Regeneración activa en curso |
+| `x.dpf.regen_count` | NUMBER | count | 0–∞ | 3700 | Ciclos de regeneración acumulados |
+
+#### Ejemplo de Uso
+
+```json
+{
+  "schema": "miot.metrics@1.0",
+  "items": [
+    { "k": "engine.rpm", "v": 1850, "u": "rpm", "src": "j1939", "q": "ok" },
+    { "k": "x.adblue.level", "v": 72.5, "u": "%", "src": "j1939", "q": "ok" },
+    { "k": "x.adblue.rate", "v": 1.2, "u": "L/h", "src": "j1939", "q": "ok" },
+    { "k": "x.dpf.differential_pressure", "v": 12.3, "u": "kPa", "src": "j1939", "q": "ok" },
+    { "k": "x.dpf.soot_load", "v": 45, "u": "%", "src": "j1939", "q": "ok" },
+    { "k": "x.dpf.regen_state", "v": false, "src": "j1939", "q": "ok" }
+  ]
+}
+```
+
+> **Nota:** Dado que las claves de extensión omiten la validación de límites, los integradores son responsables de
+> asegurar que los valores estén dentro de los rangos esperados documentados arriba.
+
 ---
 
 ## API de Búsqueda de Métricas

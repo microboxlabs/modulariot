@@ -9,6 +9,7 @@ import {
   getColaboratorsKpisSync,
   getColaboratorNavigation,
 } from "../data/colaborators-data-service";
+import { getColaboratorDetailData } from "../data/colaborator-detail-mock-data";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
 import ColaboratorGrid from "./colaborator-grid/colaborator-grid";
 import ColaboratorDetailView from "./colaborator-detail/colaborator-detail-view";
@@ -69,10 +70,14 @@ export default function ColaboratorsManagementPage({
   }, [navigation, handleSelectColaborator]);
 
   if (selectedColaborator && navigation) {
+    const detailData = getColaboratorDetailData(selectedColaborator.id);
+    if (!detailData) return null;
+
     return (
       <div className="flex flex-col gap-6 w-full">
         <ColaboratorDetailView
           colaborator={selectedColaborator}
+          detailData={detailData}
           dict={colaboratorsDict}
           onBack={handleBack}
           previous={{

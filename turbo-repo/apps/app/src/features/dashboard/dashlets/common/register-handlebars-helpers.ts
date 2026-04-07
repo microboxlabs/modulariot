@@ -38,8 +38,15 @@ export function formatNumberHelper(
 
   const hash = options?.hash ?? {};
   const locale: string = hash.locale ?? DEFAULT_LOCALE;
-  const decimals: number | undefined =
+  const rawDecimals =
     hash.decimals === undefined ? undefined : Number(hash.decimals);
+  const decimals: number | undefined =
+    rawDecimals !== undefined &&
+    Number.isFinite(rawDecimals) &&
+    rawDecimals >= 0 &&
+    rawDecimals <= 20
+      ? Math.trunc(rawDecimals)
+      : undefined;
   const prefix: string = hash.prefix ?? "";
   const suffix: string = hash.suffix ?? "";
 
@@ -49,8 +56,12 @@ export function formatNumberHelper(
     formatOptions.maximumFractionDigits = decimals;
   }
 
-  const formatted = new Intl.NumberFormat(locale, formatOptions).format(n);
-  return `${prefix}${formatted}${suffix}`;
+  try {
+    const formatted = new Intl.NumberFormat(locale, formatOptions).format(n);
+    return `${prefix}${formatted}${suffix}`;
+  } catch {
+    return FALLBACK;
+  }
 }
 
 export function extractNumberHelper(value: unknown): string {

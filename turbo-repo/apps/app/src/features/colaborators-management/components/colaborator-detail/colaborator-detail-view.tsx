@@ -144,6 +144,7 @@ export default function ColaboratorDetailView({
           dict={dict}
           monthlyData={detailData.monthlyEvolution}
           monthKeys={MONTH_KEYS}
+          scores={detailData.scores}
         />
         <div className="grid grid-cols-3 gap-3">
           {resolvedCards.map((card) => (

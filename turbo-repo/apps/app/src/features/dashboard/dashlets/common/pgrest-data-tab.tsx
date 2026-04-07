@@ -22,6 +22,7 @@ interface PgrestDataTabProps {
   dictionary: I18nRecord;
   plannerVariableName?: string;
   onPlannerVariableNameChange?: (name: string) => void;
+  onPlannerSchemaDetected?: (keys: string[]) => void;
   dataSourceId?: string;
   onDataSourceIdChange?: (id: string) => void;
   activeProviders?: DataSourceOption[];
@@ -40,6 +41,7 @@ export function PgrestDataTab({
   dictionary,
   plannerVariableName,
   onPlannerVariableNameChange,
+  onPlannerSchemaDetected,
   dataSourceId,
   onDataSourceIdChange,
   activeProviders,
@@ -83,6 +85,7 @@ export function PgrestDataTab({
           label={tr("dashboard.settings.plannerVariable", dictionary)}
           value={plannerVariableName ?? ""}
           onChange={onPlannerVariableNameChange}
+          onSchemaDetected={onPlannerSchemaDetected}
         />
       )}
     </>

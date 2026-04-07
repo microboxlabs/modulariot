@@ -207,6 +207,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
     pgrestHttpMethod,
     setPgrestHttpMethod,
     detecting,
+    detectColumns,
     detectError,
     introspecting,
     introspectError,

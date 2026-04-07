@@ -644,16 +644,16 @@ function RefreshForm() {
 function OrderForm() {
   const { order, setOrder, dictionary } = useDashboard();
   const [localOrder, setLocalOrder] = useState<string>(
-    order !== undefined ? String(order) : ""
+    order === undefined ? "" : String(order)
   );
 
   useEffect(() => {
-    setLocalOrder(order !== undefined ? String(order) : "");
+    setLocalOrder(order === undefined ? "" : String(order));
   }, [order]);
 
   const handleSave = () => {
-    const parsed = parseInt(localOrder, 10);
-    if (!isNaN(parsed) && parsed >= 0) {
+    const parsed = Number.parseInt(localOrder, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
       setOrder(parsed);
       ShowNotification({
         type: "success",

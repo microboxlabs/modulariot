@@ -9,5 +9,9 @@ export function toColumnItems(columns: TableColumn[]): ColumnItem[] {
 }
 
 export function fromColumnItems(items: ColumnItem[]): TableColumn[] {
-  return items.map(({ key, label, type }) => ({ key, label, type }));
+  return items.map(({ key, label, type, colorMap }) => {
+    const col: TableColumn = { key, label, type };
+    if (colorMap && colorMap.length > 0) col.colorMap = colorMap;
+    return col;
+  });
 }

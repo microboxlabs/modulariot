@@ -1,4 +1,6 @@
 import { isColumnType } from "./column-types";
+import type { BadgeColorMapping } from "./column-types";
+import { getBadgeColorClassesByRule, evaluateRule } from "./color-rule-engine";
 
 export function getBadgeClasses(value: string): string {
   const lower = value.toLowerCase();
@@ -71,7 +73,7 @@ export function getSignedClasses(value: string): string {
   return "font-semibold text-green-600 dark:text-green-400";
 }
 
-export function renderCell(value: string, type: string) {
+export function renderCell(value: string, type: string, colorMap?: BadgeColorMapping[]) {
   const resolved = isColumnType(type) ? type : "text";
   if (resolved === "text") {
     // text — multiline: first line bold, rest as muted subtitle
@@ -91,9 +93,17 @@ export function renderCell(value: string, type: string) {
     return <span>{value}</span>;
   }
   if (resolved === "badge") {
+    const match = Array.isArray(colorMap)
+      ? colorMap.find((m) =>
+          evaluateRule({ column: "", operator: m.operator, value: m.value, color: m.color }, value),
+        )
+      : undefined;
+    const badgeClasses = match
+      ? getBadgeColorClassesByRule(match.color)
+      : getBadgeClasses(value);
     return (
       <span
-        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClasses(value)}`}
+        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badgeClasses}`}
       >
         {value}
       </span>

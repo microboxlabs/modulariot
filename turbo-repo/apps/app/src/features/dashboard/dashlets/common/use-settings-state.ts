@@ -5,6 +5,9 @@ import type { ColumnItem } from "./column-helpers";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
 import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "./filter-helpers";
+import type { ColorRulesConfig, ColorRule } from "./color-rule-types";
+import type { ColorRuleItem } from "./color-rule-helpers";
+import { toColorRuleItems, fromColorRuleItems, normalizeColorRulesConfig } from "./color-rule-helpers";
 
 export interface SettingsStateConfig {
   title: string;
@@ -20,7 +23,33 @@ export interface SettingsStateConfig {
   defaultSort: SortConfig;
   dataMode: DataMode;
   apiUrl: string;
+  rowColorRules?: ColorRulesConfig;
 }
+
+// ── Pure helpers for colorMap mutations (kept flat to avoid nesting) ────────
+
+function appendColorMapping(col: ColumnItem, targetId: string): ColumnItem {
+  if (col._id !== targetId) return col;
+  return { ...col, colorMap: [...(col.colorMap ?? []), { operator: "equals", value: "", color: "gray" }] };
+}
+
+function dropColorMapping(col: ColumnItem, targetId: string, index: number): ColumnItem {
+  if (col._id !== targetId) return col;
+  return { ...col, colorMap: (col.colorMap ?? []).filter((_, i) => i !== index) };
+}
+
+function patchColorMapping(
+  col: ColumnItem,
+  targetId: string,
+  index: number,
+  field: string,
+  val: string,
+): ColumnItem {
+  if (col._id !== targetId) return col;
+  return { ...col, colorMap: (col.colorMap ?? []).map((m, i) => (i === index ? { ...m, [field]: val } : m)) };
+}
+
+// ============================================================================
 
 export function useSettingsState(cfg: SettingsStateConfig) {
   const [dataMode, setDataMode] = useState<DataMode>(
@@ -45,6 +74,15 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   );
   const [sortColumns, setSortColumns] = useState<string[]>(
     cfg.sort?.columns ?? cfg.defaultSort.columns,
+  );
+
+  // Color rules
+  const defaultColorRules: ColorRulesConfig = { enabled: false, rules: [] };
+  const normalizedRowColorRules = normalizeColorRulesConfig(cfg.rowColorRules, defaultColorRules);
+
+  const [rowColorRulesEnabled, setRowColorRulesEnabled] = useState(normalizedRowColorRules.enabled);
+  const [rowColorRuleItems, setRowColorRuleItems] = useState<ColorRuleItem[]>(
+    toColorRuleItems(normalizedRowColorRules.rules),
   );
 
   // Data provider fields
@@ -83,6 +121,20 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     );
   };
 
+  // ── Column colorMap helpers (for badge columns) ────────────────────────
+
+  const addColorMapping = (colId: string) => {
+    setColumns((prev) => prev.map((c) => appendColorMapping(c, colId)));
+  };
+
+  const removeColorMapping = (colId: string, index: number) => {
+    setColumns((prev) => prev.map((c) => dropColorMapping(c, colId, index)));
+  };
+
+  const updateColorMapping = (colId: string, index: number, field: "operator" | "value" | "color", val: string) => {
+    setColumns((prev) => prev.map((c) => patchColorMapping(c, colId, index, field, val)));
+  };
+
   // ── Filter item helpers ─────────────────────────────────────────────────
 
   const addFilterItem = () => {
@@ -113,6 +165,24 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setSortColumns((prev) =>
       checked ? [...prev, key] : prev.filter((k) => k !== key),
     );
+  };
+
+  // ── Color rule helpers ────────────────────────────────────────────────────
+
+  const addRowColorRule = () => {
+    const firstCol = columns.find((c) => c.key)?.key ?? "";
+    setRowColorRuleItems((prev) => [
+      ...prev,
+      { _id: `cr-${Date.now()}`, column: firstCol, operator: "equals" as const, value: "", color: "red" as const },
+    ]);
+  };
+
+  const removeRowColorRule = (id: string) => {
+    setRowColorRuleItems((prev) => prev.filter((r) => r._id !== id));
+  };
+
+  const updateRowColorRule = (id: string, field: keyof ColorRule, value: string) => {
+    setRowColorRuleItems((prev) => prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)));
   };
 
   // ── Rows JSON parse ──────────────────────────────────────────────────────
@@ -153,7 +223,14 @@ export function useSettingsState(cfg: SettingsStateConfig) {
       columns: sortColumns.filter((k) => validKeys.has(k)),
     };
 
-    return { filter, sort, savedColumns, validKeys };
+    const rowColorRules: ColorRulesConfig = {
+      enabled: rowColorRulesEnabled,
+      rules: fromColorRuleItems(rowColorRuleItems).filter((r) =>
+        validKeys.has(r.column),
+      ),
+    };
+
+    return { filter, sort, savedColumns, validKeys, rowColorRules };
   };
 
   return {
@@ -181,10 +258,20 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setRowsJsonError,
     apiUrl,
     setApiUrl,
+    // Color rules — row
+    rowColorRulesEnabled,
+    setRowColorRulesEnabled,
+    rowColorRuleItems,
+    addRowColorRule,
+    removeRowColorRule,
+    updateRowColorRule,
     // Helpers
     addColumn,
     removeColumn,
     updateColumn,
+    addColorMapping,
+    removeColorMapping,
+    updateColorMapping,
     addFilterItem,
     removeFilterItem,
     updateFilterItem,

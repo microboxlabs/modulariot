@@ -46,6 +46,10 @@ interface DashboardContextValue {
   refreshInterval: RefreshInterval;
   /** Update auto-refresh interval */
   setRefreshInterval: (interval: RefreshInterval) => void;
+  /** Sidebar display order (lower = first) */
+  order: number | undefined;
+  /** Update sidebar display order */
+  setOrder: (order: number) => void;
 
   // Widget actions
   createWidget: (
@@ -139,6 +143,8 @@ export function DashboardProvider({
     setDashboardName: setDashboardNameStorage,
     setFilters,
     setRefreshInterval,
+    order,
+    setOrder: setOrderStorage,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -351,6 +357,13 @@ export function DashboardProvider({
     [setDashboardNameStorage]
   );
 
+  const setOrder = useCallback(
+    (value: number) => {
+      setOrderStorage(value);
+    },
+    [setOrderStorage]
+  );
+
   const value: DashboardContextValue = useMemo(
     () => ({
       widgets,
@@ -363,6 +376,8 @@ export function DashboardProvider({
       setFilters,
       refreshInterval: effectiveRefreshInterval,
       setRefreshInterval,
+      order,
+      setOrder,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -397,6 +412,8 @@ export function DashboardProvider({
       setFilters,
       effectiveRefreshInterval,
       setRefreshInterval,
+      order,
+      setOrder,
       dashboardName,
       createWidget,
       updateWidgetConfig,

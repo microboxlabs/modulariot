@@ -126,6 +126,8 @@ export interface DashboardStorageSchema {
   filters?: DashboardFilterParam[];
   /** Auto-refresh interval in seconds (0 = off, default off) */
   refreshInterval?: RefreshInterval;
+  /** Sidebar display order (lower numbers appear first; unset = last) */
+  order?: number;
 }
 
 /** Default storage state */

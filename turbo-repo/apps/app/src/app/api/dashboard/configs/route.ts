@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
           typeof rawName === "string" && rawName.trim().length > 0
             ? rawName
             : item.slug;
-        return { slug: item.slug, name };
+        const order = typeof item.config?.order === "number" ? item.config.order : undefined;
+        return { slug: item.slug, name, order };
       }),
     };
 

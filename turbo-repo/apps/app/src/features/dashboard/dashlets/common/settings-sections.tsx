@@ -18,8 +18,8 @@ import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
-import type { ColorRule } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, OPERATOR_LABELS, RULE_COLORS } from "./color-rule-types";
+import type { ColorRule, ColorRuleOperator, RuleColor } from "./color-rule-types";
+import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
 import { getColorDotClass } from "./color-rule-engine";
 
 // ============================================================================
@@ -40,7 +40,16 @@ interface ColumnEditorProps {
   onAddColorMapping?: (colId: string) => void;
   onRemoveColorMapping?: (colId: string, index: number) => void;
   onUpdateColorMapping?: (colId: string, index: number, field: "operator" | "value" | "color", val: string) => void;
-  labels: { columns: string; key: string; label: string; addColumn: string; addMapping?: string };
+  labels: {
+    columns: string;
+    key: string;
+    label: string;
+    addColumn: string;
+    addMapping: string;
+    valuePlaceholder: string;
+    operatorLabels: Record<ColorRuleOperator, string>;
+    colorLabels: Record<RuleColor, string>;
+  };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
 }
@@ -116,7 +125,7 @@ export function ColumnEditor({
                       >
                         {COLOR_RULE_OPERATORS.map((op) => (
                           <option key={op} value={op}>
-                            {OPERATOR_LABELS[op]}
+                            {labels.operatorLabels[op]}
                           </option>
                         ))}
                       </Select>
@@ -124,7 +133,7 @@ export function ColumnEditor({
                     <div className="min-w-0 flex-1">
                       <TextInput
                         sizing="sm"
-                        placeholder="value"
+                        placeholder={labels.valuePlaceholder}
                         value={mapping.value}
                         onChange={(e) => onUpdateColorMapping(col._id, idx, "value", e.target.value)}
                       />
@@ -137,7 +146,7 @@ export function ColumnEditor({
                       >
                         {RULE_COLORS.map((c) => (
                           <option key={c} value={c}>
-                            {c}
+                            {labels.colorLabels[c]}
                           </option>
                         ))}
                       </Select>
@@ -161,7 +170,7 @@ export function ColumnEditor({
                   className="no-drag"
                 >
                   <HiPlus className="mr-1 h-3 w-3" />
-                  {labels.addMapping ?? "Add mapping"}
+                  {labels.addMapping}
                 </Button>
               </div>
             )}
@@ -458,7 +467,12 @@ interface ColorRuleEditorProps {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: keyof ColorRule, value: string) => void;
-  labels: { addRule: string };
+  labels: {
+    addRule: string;
+    valuePlaceholder: string;
+    operatorLabels: Record<ColorRuleOperator, string>;
+    colorLabels: Record<RuleColor, string>;
+  };
 }
 
 export function ColorRuleEditor({
@@ -509,7 +523,7 @@ export function ColorRuleEditor({
                     >
                       {COLOR_RULE_OPERATORS.map((op) => (
                         <option key={op} value={op}>
-                          {OPERATOR_LABELS[op]}
+                          {labels.operatorLabels[op]}
                         </option>
                       ))}
                     </Select>
@@ -518,7 +532,7 @@ export function ColorRuleEditor({
                   <div className="min-w-0 flex-1">
                     <TextInput
                       sizing="sm"
-                      placeholder="value"
+                      placeholder={labels.valuePlaceholder}
                       value={rule.value}
                       onChange={(e) => onUpdate(rule._id, "value", e.target.value)}
                     />
@@ -532,7 +546,7 @@ export function ColorRuleEditor({
                     >
                       {RULE_COLORS.map((c) => (
                         <option key={c} value={c}>
-                          {c}
+                          {labels.colorLabels[c]}
                         </option>
                       ))}
                     </Select>

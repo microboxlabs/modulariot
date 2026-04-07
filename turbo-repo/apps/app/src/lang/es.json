@@ -2741,7 +2741,19 @@
           "hardBraking": "Frenado brusco detectado",
           "routeCompleted": "Ruta completada exitosamente",
           "incidentsThisMonth": "Incidentes Este Mes",
-          "hoursAgo": "Hace {count}h"
+          "hoursAgo": "Hace {count}h",
+          "urgency": {
+            "critical": "Crítico",
+            "warning": "Alerta",
+            "info": "Info"
+          },
+          "category": {
+            "falla_tecnica": "Falla técnica",
+            "evento": "Evento",
+            "uso": "Uso",
+            "cambio_datos": "Cambio de datos",
+            "mantencion": "Mantención"
+          }
         },
         "usage": {
           "title": "Uso de Flota",

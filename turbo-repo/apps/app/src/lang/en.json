@@ -2709,7 +2709,19 @@
           "hardBraking": "Hard braking event detected",
           "routeCompleted": "Route completed successfully",
           "incidentsThisMonth": "Incidents This Month",
-          "hoursAgo": "{count}h ago"
+          "hoursAgo": "{count}h ago",
+          "urgency": {
+            "critical": "Critical",
+            "warning": "Warning",
+            "info": "Info"
+          },
+          "category": {
+            "falla_tecnica": "Technical Failure",
+            "evento": "Event",
+            "uso": "Usage",
+            "cambio_datos": "Data Change",
+            "mantencion": "Maintenance"
+          }
         },
         "usage": {
           "title": "Fleet Usage",

@@ -3,38 +3,22 @@
 import { useState, useMemo } from "react";
 import { HiOutlineClock, HiMapPin, HiTruck } from "react-icons/hi2";
 import { CustomBadge } from "@/features/common/components/custom-badge";
+import { TimelineEvent } from "@/features/common/components/timeline-event";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type {
   BehaviorEvent,
   BehaviorCategory,
-  EventUrgency,
   FilterType,
 } from "../../types/colaborators.types";
 
 export type { FilterType } from "../../types/colaborators.types";
 
-const urgencyConfig: Record<
-  EventUrgency,
-  { className: string; labelKey: string; dotColor: string }
-> = {
-  critical: {
-    className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    labelKey: "behaviorHistory.urgency.critical",
-    dotColor: "bg-red-500 dark:bg-red-400",
-  },
-  warning: {
-    className:
-      "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-    labelKey: "behaviorHistory.urgency.warning",
-    dotColor: "bg-yellow-500 dark:bg-yellow-400",
-  },
-  info: {
-    className:
-      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-    labelKey: "behaviorHistory.urgency.info",
-    dotColor: "bg-blue-500 dark:bg-blue-400",
-  },
+/** Maps each urgency level to its i18n key within the colaborators dict */
+const urgencyLabelKeys: Record<string, string> = {
+  critical: "behaviorHistory.urgency.critical",
+  warning: "behaviorHistory.urgency.warning",
+  info: "behaviorHistory.urgency.info",
 };
 
 const categoryLabelKeys: Record<BehaviorCategory, string> = {
@@ -62,57 +46,36 @@ function BehaviorTimelineEvent({
   isLast,
   dict,
 }: BehaviorTimelineEventProps) {
-  const urgencyData = urgencyConfig[event.urgency];
-
   return (
-    <div className="relative flex gap-4">
-      {/* Timeline line and dot */}
-      <div className="flex flex-col items-center">
-        <div
-          className={`w-3 h-3 rounded-full ${urgencyData.dotColor} ring-4 ring-white dark:ring-gray-800 z-10`}
+    <TimelineEvent
+      title={event.title}
+      urgency={event.urgency}
+      urgencyLabel={tr(urgencyLabelKeys[event.urgency], dict)}
+      isLast={isLast}
+      extraBadges={
+        <CustomBadge
+          text={tr(categoryLabelKeys[event.category], dict)}
+          className={categoryBadgeClasses[event.category]}
         />
-        {!isLast && (
-          <div className="w-0.5 flex-1 bg-gray-200 dark:bg-gray-700" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div
-        className={`flex-1 ${isLast ? "" : "pb-4 mb-4 border-b border-gray-100 dark:border-gray-700"}`}
-      >
-        <div className="flex items-start gap-2 mb-1 flex-wrap">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-            {event.title}
-          </h4>
-          <CustomBadge
-            text={tr(urgencyData.labelKey, dict)}
-            className={urgencyData.className}
-          />
-          <CustomBadge
-            text={tr(categoryLabelKeys[event.category], dict)}
-            className={categoryBadgeClasses[event.category]}
-          />
-        </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-2 flex-wrap">
-          <span className="flex items-center gap-1">
-            <HiTruck className="w-3.5 h-3.5" />
-            {event.licensePlate}
-          </span>
-          <span>•</span>
-          <span>{event.route}</span>
-          <span>•</span>
-          <span className="flex items-center gap-1">
-            <HiMapPin className="w-3.5 h-3.5" />
-            {event.location}
-          </span>
-          <span>•</span>
-          <span className="flex items-center gap-1">
-            <HiOutlineClock className="w-3.5 h-3.5" />
-            {event.date}
-          </span>
-        </div>
-      </div>
-    </div>
+      }
+    >
+      <span className="flex items-center gap-1">
+        <HiTruck className="w-3.5 h-3.5" />
+        {event.licensePlate}
+      </span>
+      <span>•</span>
+      <span>{event.route}</span>
+      <span>•</span>
+      <span className="flex items-center gap-1">
+        <HiMapPin className="w-3.5 h-3.5" />
+        {event.location}
+      </span>
+      <span>•</span>
+      <span className="flex items-center gap-1">
+        <HiOutlineClock className="w-3.5 h-3.5" />
+        {event.date}
+      </span>
+    </TimelineEvent>
   );
 }
 
@@ -206,7 +169,7 @@ export default function BehaviorHistory({
         </div>
       </div>
 
-      <div className="max-h-[500px] overflow-y-auto">
+      <div className="max-h-125 overflow-y-auto">
         {filteredEvents.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
             {tr("behaviorHistory.noEvents", dict)}

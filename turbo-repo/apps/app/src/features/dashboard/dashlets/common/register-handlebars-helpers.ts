@@ -38,8 +38,15 @@ export function formatNumberHelper(
 
   const hash = options?.hash ?? {};
   const locale: string = hash.locale ?? DEFAULT_LOCALE;
-  const decimals: number | undefined =
+  const rawDecimals =
     hash.decimals === undefined ? undefined : Number(hash.decimals);
+  const decimals: number | undefined =
+    rawDecimals !== undefined &&
+    Number.isFinite(rawDecimals) &&
+    rawDecimals >= 0 &&
+    rawDecimals <= 20
+      ? Math.trunc(rawDecimals)
+      : undefined;
   const prefix: string = hash.prefix ?? "";
   const suffix: string = hash.suffix ?? "";
 
@@ -49,8 +56,12 @@ export function formatNumberHelper(
     formatOptions.maximumFractionDigits = decimals;
   }
 
-  const formatted = new Intl.NumberFormat(locale, formatOptions).format(n);
-  return `${prefix}${formatted}${suffix}`;
+  try {
+    const formatted = new Intl.NumberFormat(locale, formatOptions).format(n);
+    return `${prefix}${formatted}${suffix}`;
+  } catch {
+    return FALLBACK;
+  }
 }
 
 export function extractNumberHelper(value: unknown): string {
@@ -65,7 +76,8 @@ export function toFixedHelper(value: unknown, decimals: unknown): string {
   const n = toNumber(value);
   if (n === null) return FALLBACK;
   const d = toNumber(decimals);
-  return n.toFixed(d ?? 0);
+  if (d === null || !Number.isFinite(d) || d < 0 || d > 100) return n.toFixed(0);
+  return n.toFixed(Math.trunc(d));
 }
 
 export function roundHelper(value: unknown): string {
@@ -105,50 +117,54 @@ export function formatDateHelper(
   const locale: string = hash.locale ?? DEFAULT_LOCALE;
   const timeZone: string = hash.timezone ?? DEFAULT_TIMEZONE;
 
-  switch (format) {
-    case "date":
-      return d.toLocaleDateString(locale, {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
+  try {
+    switch (format) {
+      case "date":
+        return d.toLocaleDateString(locale, {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
 
-    case "time":
-      return d.toLocaleTimeString(locale, {
-        timeZone,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      case "time":
+        return d.toLocaleTimeString(locale, {
+          timeZone,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
 
-    case "relative": {
-      const diffMs = Date.now() - d.getTime();
-      const diffMin = Math.floor(Math.abs(diffMs) / 60_000);
-      if (diffMin < 1) return "now";
-      if (diffMin < 60) return `${diffMin}m`;
-      const diffH = Math.floor(diffMin / 60);
-      if (diffH < 24) return `${diffH}h`;
-      const diffD = Math.floor(diffH / 24);
-      if (diffD < 7) return `${diffD}d`;
-      return d.toLocaleDateString(locale, {
-        timeZone,
-        month: "short",
-        day: "numeric",
-      });
+      case "relative": {
+        const diffMs = Date.now() - d.getTime();
+        const diffMin = Math.floor(Math.abs(diffMs) / 60_000);
+        if (diffMin < 1) return "now";
+        if (diffMin < 60) return `${diffMin}m`;
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return `${diffH}h`;
+        const diffD = Math.floor(diffH / 24);
+        if (diffD < 7) return `${diffD}d`;
+        return d.toLocaleDateString(locale, {
+          timeZone,
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      case "datetime":
+      default:
+        return d.toLocaleString(locale, {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
     }
-
-    case "datetime":
-    default:
-      return d.toLocaleString(locale, {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+  } catch {
+    return FALLBACK;
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { Colaborator, MonthlyDataPoint } from "../../types/colaborators.types";
+import type { Colaborator, MonthlyDataPoint, ScoreCardValue } from "../../types/colaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { IoShieldOutline } from "react-icons/io5";
@@ -288,6 +288,7 @@ interface ColaboratorSummaryProps {
   readonly dict: I18nRecord;
   readonly monthlyData: MonthlyDataPoint[];
   readonly monthKeys: readonly string[];
+  readonly scores: readonly ScoreCardValue[];
 }
 
 export default function ColaboratorSummary({
@@ -295,10 +296,15 @@ export default function ColaboratorSummary({
   dict,
   monthlyData,
   monthKeys,
+  scores,
 }: ColaboratorSummaryProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const overallScore = colaborator.score;
+  const overallScore = useMemo(() => {
+    if (scores.length === 0) return 0;
+    const sum = scores.reduce((acc, s) => acc + s.score, 0);
+    return Math.round(sum / scores.length);
+  }, [scores]);
   const safetyScore = colaborator.safety;
   const punctualityScore = colaborator.punctuality;
 

@@ -29,6 +29,7 @@ export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handle
 import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
 import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-types";
 import { findMatchingColor, getRowColorClasses } from "@/features/dashboard/dashlets/common/color-rule-engine";
+import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
 
 export interface DashletConfig {
   title: string;
@@ -154,9 +155,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sort = defaultSort,
     dataSourceId,
     plannerVariableName,
-    rowColorRules,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
+  const safeRowColorRules = useMemo(
+    () => normalizeColorRulesConfig(config.rowColorRules, { enabled: false, rules: [] }),
+    [config.rowColorRules],
+  );
 
   // ── Data fetching (pgrest or planner) ───────────────────────────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -297,8 +301,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                 </tr>
               ) : (
                 displayRows.map((row, rowIdx) => {
-                  const rowColor = rowColorRules?.enabled
-                    ? findMatchingColor(rowColorRules.rules, row, resolveValue, rowIdx, displayRows.length)
+                  const rowColor = safeRowColorRules.enabled
+                    ? findMatchingColor(safeRowColorRules.rules, row, resolveValue, rowIdx, displayRows.length)
                     : null;
                   const trClass = rowColor
                     ? `border-t border-gray-100 ${getRowColorClasses(rowColor)} dark:border-gray-700`

@@ -20,7 +20,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "export" | "import" | "planner" | "filters" | "refresh" | "delete" | null;
+type SettingOption = "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "delete" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -638,6 +638,59 @@ function RefreshForm() {
 }
 
 // ============================================================================
+// Order Form
+// ============================================================================
+
+function OrderForm() {
+  const { order, setOrder, dictionary } = useDashboard();
+  const [localOrder, setLocalOrder] = useState<string>(
+    order === undefined ? "" : String(order)
+  );
+
+  useEffect(() => {
+    setLocalOrder(order === undefined ? "" : String(order));
+  }, [order]);
+
+  const handleSave = () => {
+    const parsed = Number.parseInt(localOrder, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      setOrder(parsed);
+      ShowNotification({
+        type: "success",
+        message: tr("dashboard.settings.orderUpdated", dictionary),
+      });
+    } else {
+      ShowNotification({
+        type: "error",
+        message: tr("dashboard.settings.orderInvalid", dictionary),
+      });
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {tr("dashboard.settings.orderDescription", dictionary)}
+      </p>
+      <div className="flex items-center gap-2">
+        <TextInput
+          type="number"
+          sizing="sm"
+          min={0}
+          value={localOrder}
+          onChange={(e) => setLocalOrder(e.target.value)}
+          placeholder="0"
+          className="w-24"
+        />
+        <Button size="sm" onClick={handleSave}>
+          {tr("common.save", dictionary)}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -785,6 +838,16 @@ export default function DashboardSettingsDropdown() {
               onSave={handleSaveName}
               onClose={closePanel}
             />
+          </SettingsSection>
+
+          <SettingsSection
+            option="order"
+            selected={selected}
+            setSelected={setSelected}
+            title={tr("dashboard.settings.orderTitle", dictionary)}
+            description={tr("dashboard.settings.orderDescription", dictionary)}
+          >
+            <OrderForm />
           </SettingsSection>
 
           <SettingsSection

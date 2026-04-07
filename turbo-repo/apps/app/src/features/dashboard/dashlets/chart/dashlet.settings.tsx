@@ -66,6 +66,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
+  const { schemas } = usePlannerContext();
 
   const chartTypeOptions = useMemo(
     () => CHART_TYPE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
@@ -116,6 +117,15 @@ export function DashletSettings({
     if (rows?.length > 0) return Object.keys(rows[0]);
     return [];
   });
+
+  // Schema suggestions for Handlebars autocomplete
+  const schemaSuggestions = useMemo(() => {
+    if (dataMode === "planner" && plannerVariableName) {
+      return schemas.get(plannerVariableName);
+    }
+    if (detectedColumns.length > 0) return detectedColumns;
+    return undefined;
+  }, [dataMode, plannerVariableName, schemas, detectedColumns]);
 
   // Reconcile xAxisColumn and series against a new set of valid column keys
   const reconcileColumns = (keys: string[]) => {
@@ -268,11 +278,12 @@ export function DashletSettings({
   const visualizationTab = (
     <>
       {/* Title */}
-      <SettingsTextField
+      <HbTextField
         id="ch-title"
         label={tr("common.title", dictionary)}
         value={title}
         onChange={setTitle}
+        schemaSuggestions={schemaSuggestions}
       />
 
       {/* Chart Type */}
@@ -345,14 +356,11 @@ export function DashletSettings({
                     {tr("dashboard.settings.seriesLabel", dictionary)}
                   </Label>
                 )}
-                <TextInput
+                <HbInlineInput
                   value={s.label}
-                  onChange={(e) =>
-                    updateSeries(s._id, { label: e.target.value })
-                  }
+                  onChange={(v) => updateSeries(s._id, { label: v })}
                   placeholder={tr("dashboard.dashlets.chart.labelPlaceholder", dictionary)}
-                  sizing="sm"
-                  color={getFlowbiteColor(getHandlebarsStatus(s.label))}
+                  schemaSuggestions={schemaSuggestions}
                 />
               </div>
               {series.length > 1 && (
@@ -384,17 +392,19 @@ export function DashletSettings({
       {/* Axis Labels (cartesian only) */}
       {isCartesian(chartType) && (
         <SettingsFieldGrid cols={2}>
-          <SettingsTextField
+          <HbTextField
             id="ch-x-label"
             label={tr("dashboard.settings.xAxisLabel", dictionary)}
             value={xAxisLabel}
             onChange={setXAxisLabel}
+            schemaSuggestions={schemaSuggestions}
           />
-          <SettingsTextField
+          <HbTextField
             id="ch-y-label"
             label={tr("dashboard.settings.yAxisLabel", dictionary)}
             value={yAxisLabel}
             onChange={setYAxisLabel}
+            schemaSuggestions={schemaSuggestions}
           />
         </SettingsFieldGrid>
       )}

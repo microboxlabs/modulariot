@@ -46,8 +46,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String NOT_CONFIGURED = "not-configured";
 
-    private final String hs256Issuer;
-    private final String rs256Issuer;
+    private final String issuer;
     private final String jwksUrl;
     private final String hs256Secret;
     private final String hs256Audience;
@@ -58,10 +57,8 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private List<String> m2mPathPrefixes;
 
     DualJwtAuthMechanism(
-            @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
-                    String hs256Issuer,
-            @ConfigProperty(name = "miot.auth.rs256-issuer", defaultValue = "https://placeholder.auth0.com/")
-                    String rs256Issuer,
+            @ConfigProperty(name = "mp.jwt.verify.issuer", defaultValue = "https://placeholder.auth0.com/")
+                    String issuer,
             @ConfigProperty(name = "miot.auth.jwks-url", defaultValue = NOT_CONFIGURED)
                     String jwksUrl,
             @ConfigProperty(name = "miot.auth.hs256-secret", defaultValue = NOT_CONFIGURED)
@@ -70,8 +67,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                     String hs256Audience,
             @ConfigProperty(name = "miot.auth.rs256-audience", defaultValue = NOT_CONFIGURED)
                     String rs256Audience) {
-        this.hs256Issuer = hs256Issuer;
-        this.rs256Issuer = rs256Issuer;
+        this.issuer = issuer;
         this.jwksUrl = jwksUrl;
         this.hs256Secret = hs256Secret;
         this.hs256Audience = hs256Audience;
@@ -85,7 +81,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         if (!NOT_CONFIGURED.equals(hs256Secret)) {
             var hs256Builder = new JwtConsumerBuilder()
                     .setVerificationKey(new HmacKey(hs256Secret.getBytes()))
-                    .setExpectedIssuer(hs256Issuer)
+                    .setExpectedIssuer(issuer)
                     .setRequireExpirationTime();
             if (!NOT_CONFIGURED.equals(hs256Audience)) {
                 hs256Builder.setExpectedAudience(hs256Audience);
@@ -93,15 +89,14 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                 hs256Builder.setSkipDefaultAudienceValidation();
             }
             hs256Consumer = hs256Builder.build();
-            LOG.infof("HS256 verification configured for @M2MAuth paths: %s issuer=%s",
-                    m2mPathPrefixes, hs256Issuer);
+            LOG.infof("HS256 verification configured for @M2MAuth paths: %s", m2mPathPrefixes);
         }
 
         if (!NOT_CONFIGURED.equals(jwksUrl)) {
             HttpsJwks httpsJwks = new HttpsJwks(jwksUrl);
             var rs256Builder = new JwtConsumerBuilder()
                     .setVerificationKeyResolver(new HttpsJwksVerificationKeyResolver(httpsJwks))
-                    .setExpectedIssuer(rs256Issuer)
+                    .setExpectedIssuer(issuer)
                     .setRequireExpirationTime();
             if (!NOT_CONFIGURED.equals(rs256Audience)) {
                 rs256Builder.setExpectedAudience(rs256Audience);
@@ -109,8 +104,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                 rs256Builder.setSkipDefaultAudienceValidation();
             }
             rs256Consumer = rs256Builder.build();
-            LOG.infof("RS256 verification configured via JWKS for web paths issuer=%s jwks=%s",
-                    rs256Issuer, jwksUrl);
+            LOG.info("RS256 verification configured via JWKS for web paths");
         }
     }
 

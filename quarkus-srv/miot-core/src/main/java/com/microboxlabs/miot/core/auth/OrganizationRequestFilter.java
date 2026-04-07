@@ -92,9 +92,9 @@ public class OrganizationRequestFilter {
 
         Uni<ValidationResult> accessValidation;
         if (email != null) {
-            accessValidation = validateWebUser(requestContext, org, email);
+            accessValidation = validateWebUser(org, email);
         } else if (m2mClientId != null) {
-            accessValidation = validateM2mClient(requestContext, org, m2mClientId);
+            accessValidation = validateM2mClient(org, m2mClientId);
         } else {
             return Uni.createFrom().item(jsonResponse(
                     Response.Status.UNAUTHORIZED,
@@ -126,7 +126,7 @@ public class OrganizationRequestFilter {
                 });
     }
 
-    private Uni<ValidationResult> validateWebUser(ContainerRequestContext requestContext, Organization org, String email) {
+    private Uni<ValidationResult> validateWebUser(Organization org, String email) {
         if (org.alfrescoGroupId == null) {
             return Uni.createFrom().item(ValidationResult.allow(null));
         }
@@ -142,7 +142,7 @@ public class OrganizationRequestFilter {
                 });
     }
 
-    private Uni<ValidationResult> validateM2mClient(ContainerRequestContext requestContext, Organization org, String m2mClientId) {
+    private Uni<ValidationResult> validateM2mClient(Organization org, String m2mClientId) {
         if (!m2mClientId.equals(org.tenantClientId)) {
             return Uni.createFrom().item(ValidationResult.deny(jsonResponse(
                     Response.Status.FORBIDDEN,

@@ -1,24 +1,17 @@
 "use client";
 
 import { Button } from "flowbite-react";
-import { createPortal } from "react-dom";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-
-type ModalWidth = "w-72" | "w-80" | "w-96";
+import { SettingsDrawer } from "./settings-drawer";
 
 interface DashletSettingsWrapperProps {
-  /** Whether the modal is open */
+  /** Whether the drawer is open */
   isOpen: boolean;
-  /** Callback when modal should close */
+  /** Callback when drawer should close */
   onClose: () => void;
   /** Callback when save button is clicked */
   onSave: () => void;
-  /** Modal width class */
-  width?: ModalWidth;
-  /** Whether content should be scrollable */
-  scrollable?: boolean;
   /** Whether to show the cancel button */
   showCancelButton?: boolean;
   /** Child form content */
@@ -28,37 +21,25 @@ interface DashletSettingsWrapperProps {
 }
 
 /**
- * Wrapper component for dashlet settings modals.
- * Provides consistent modal styling, portal rendering, and Cancel/Save buttons.
+ * Wrapper component for dashlet settings drawers.
+ * Provides consistent drawer styling, portal rendering, and Cancel/Save buttons.
  */
 export function DashletSettingsWrapper({
   isOpen,
   onClose,
   onSave,
-  width = "w-72",
-  scrollable = false,
   showCancelButton = true,
   children,
   dictionary,
 }: Readonly<DashletSettingsWrapperProps>) {
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
-  if (globalThis.window === undefined) return null;
-
-  const contentClass = scrollable
-    ? "flex max-h-[70vh] flex-col gap-3 overflow-y-auto"
-    : "flex flex-col gap-3";
-
   const cancelLabel = tr("common.cancel", dictionary);
   const saveLabel = tr("common.save", dictionary);
 
-  return createPortal(
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(s) => !s && onClose()}
-      className={`no-drag ${width} rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800`}
-    >
-      <div className={contentClass}>
+  return (
+    <SettingsDrawer open={isOpen} onClose={onClose}>
+      <div className="flex h-full flex-col gap-3">
         {children}
         <div className="flex gap-2 pt-2">
           {showCancelButton && (
@@ -83,7 +64,6 @@ export function DashletSettingsWrapper({
           </Button>
         </div>
       </div>
-    </AbsoluteModal>,
-    document.body
+    </SettingsDrawer>
   );
 }

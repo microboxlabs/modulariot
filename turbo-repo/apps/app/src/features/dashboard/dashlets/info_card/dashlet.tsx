@@ -83,6 +83,8 @@ export interface DashletConfig extends PgrestDashletFields {
   aiPlaceholder: string;
   /** Optional URL for "View more" button */
   viewMoreUrl: string;
+  /** Whether to open the "View more" link in the same tab instead of a new one */
+  openInSameTab?: boolean;
   /** Data provider entries for dynamic values */
   dataProvider?: DataProviderEntry[];
 }
@@ -156,7 +158,11 @@ export function Dashlet({
       try {
         const url = new URL(compiledViewMoreUrl, globalThis.location.href);
         if (url.protocol === "http:" || url.protocol === "https:") {
-          globalThis.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+          if (config.openInSameTab) {
+            globalThis.location.href = url.href;
+          } else {
+            globalThis.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+          }
         }
       } catch {
         // Invalid URL, do nothing

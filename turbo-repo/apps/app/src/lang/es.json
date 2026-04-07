@@ -1557,6 +1557,7 @@
       "descriptor": "Descriptor",
       "aiPlaceholder": "Texto IA",
       "viewMoreUrl": "URL Ver Más (opcional)",
+      "openInSameTab": "Abrir en la misma pestaña",
       "key": "Clave",
       "addEntry": "+ Agregar Entrada",
       "dynamicValuesHint": "Usa la sintaxis {code} para valores dinámicos",

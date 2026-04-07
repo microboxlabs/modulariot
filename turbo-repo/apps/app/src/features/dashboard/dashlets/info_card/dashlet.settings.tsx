@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Label, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, InfoCardIcon } from "./dashlet";
 import { ICON_OPTIONS } from "./dashlet";
@@ -62,6 +63,7 @@ export function DashletSettings({
     config.aiPlaceholder || "AI summary will appear here"
   );
   const [viewMoreUrl, setViewMoreUrl] = useState(config.viewMoreUrl || "");
+  const [openInSameTab, setOpenInSameTab] = useState(config.openInSameTab ?? false);
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
     config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
       ? config.dataMode
@@ -79,17 +81,18 @@ export function DashletSettings({
       .dataProvider || DEFAULT_DATA_ENTRIES
   );
 
-  const staticSnapshot = useRef({ title, value, descriptor, aiPlaceholder, viewMoreUrl });
+  const staticSnapshot = useRef({ title, value, descriptor, aiPlaceholder, viewMoreUrl, openInSameTab });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
     if (isRemoteDataMode(mode) && dataMode === "static") {
-      staticSnapshot.current = { title, value, descriptor, aiPlaceholder, viewMoreUrl };
+      staticSnapshot.current = { title, value, descriptor, aiPlaceholder, viewMoreUrl, openInSameTab };
     } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
       setDescriptor(staticSnapshot.current.descriptor);
       setAiPlaceholder(staticSnapshot.current.aiPlaceholder);
       setViewMoreUrl(staticSnapshot.current.viewMoreUrl);
+      setOpenInSameTab(staticSnapshot.current.openInSameTab);
     }
     setDataMode(mode);
   };
@@ -115,6 +118,7 @@ export function DashletSettings({
       descriptor,
       aiPlaceholder,
       viewMoreUrl,
+      openInSameTab,
       dataProvider: dp.getCleanEntries(),
       dataMode,
       pgrestFunctionName: pg.pgrestFunctionName,
@@ -184,6 +188,14 @@ export function DashletSettings({
         onChange={setViewMoreUrl}
         placeholder="https://example.com/details"
       />
+      {viewMoreUrl && (
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">
+            {tr("dashboard.settings.openInSameTab", dictionary)}
+          </Label>
+          <ToggleSwitch checked={openInSameTab} onChange={setOpenInSameTab} />
+        </div>
+      )}
     </>
   );
 

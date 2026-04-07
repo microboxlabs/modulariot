@@ -77,6 +77,8 @@ export interface DashletConfig {
   description?: string;
   /** URL for "Ver más" button in bento-box variant */
   verMasUrl?: string;
+  /** Whether to open the "Ver más" link in the same tab instead of a new one */
+  openInSameTab?: boolean;
 
   // Labeled Group specific fields
   /** Label text for labeled-group variant */
@@ -312,7 +314,11 @@ export function Dashlet({
 
   const handleVerMasClick = () => {
     if (config.verMasUrl) {
-      window.open(config.verMasUrl, "_blank", "noopener,noreferrer");
+      if (config.openInSameTab) {
+        globalThis.location.href = config.verMasUrl;
+      } else {
+        globalThis.open(config.verMasUrl, "_blank", "noopener,noreferrer");
+      }
     }
   };
 

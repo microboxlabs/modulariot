@@ -117,50 +117,54 @@ export function formatDateHelper(
   const locale: string = hash.locale ?? DEFAULT_LOCALE;
   const timeZone: string = hash.timezone ?? DEFAULT_TIMEZONE;
 
-  switch (format) {
-    case "date":
-      return d.toLocaleDateString(locale, {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
+  try {
+    switch (format) {
+      case "date":
+        return d.toLocaleDateString(locale, {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
 
-    case "time":
-      return d.toLocaleTimeString(locale, {
-        timeZone,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      case "time":
+        return d.toLocaleTimeString(locale, {
+          timeZone,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
 
-    case "relative": {
-      const diffMs = Date.now() - d.getTime();
-      const diffMin = Math.floor(Math.abs(diffMs) / 60_000);
-      if (diffMin < 1) return "now";
-      if (diffMin < 60) return `${diffMin}m`;
-      const diffH = Math.floor(diffMin / 60);
-      if (diffH < 24) return `${diffH}h`;
-      const diffD = Math.floor(diffH / 24);
-      if (diffD < 7) return `${diffD}d`;
-      return d.toLocaleDateString(locale, {
-        timeZone,
-        month: "short",
-        day: "numeric",
-      });
+      case "relative": {
+        const diffMs = Date.now() - d.getTime();
+        const diffMin = Math.floor(Math.abs(diffMs) / 60_000);
+        if (diffMin < 1) return "now";
+        if (diffMin < 60) return `${diffMin}m`;
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return `${diffH}h`;
+        const diffD = Math.floor(diffH / 24);
+        if (diffD < 7) return `${diffD}d`;
+        return d.toLocaleDateString(locale, {
+          timeZone,
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      case "datetime":
+      default:
+        return d.toLocaleString(locale, {
+          timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
     }
-
-    case "datetime":
-    default:
-      return d.toLocaleString(locale, {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+  } catch {
+    return FALLBACK;
   }
 }
 

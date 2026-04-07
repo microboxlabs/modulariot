@@ -5,8 +5,8 @@ import { useCallback, useMemo } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
-  getColaboratorsSync,
-  getColaboratorsKpisSync,
+  getColaborators,
+  getColaboratorsKpis,
   getColaboratorNavigation,
 } from "../data/colaborators-data-service";
 import { getColaboratorDetailData } from "../data/colaborator-detail-mock-data";
@@ -16,18 +16,20 @@ import ColaboratorDetailView from "./colaborator-detail/colaborator-detail-view"
 
 interface ColaboratorsManagementPageProps {
   readonly dict: I18nRecord;
+  readonly locale: string;
 }
 
 export default function ColaboratorsManagementPage({
   dict,
+  locale,
 }: ColaboratorsManagementPageProps) {
   const colaboratorsDict = dict["colaboratorsManagement"] as I18nRecord;
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const colaborators = getColaboratorsSync();
-  const colaboratorsKpis = getColaboratorsKpisSync();
+  const colaborators = getColaborators();
+  const colaboratorsKpis = getColaboratorsKpis();
 
   const selectedColaboratorId = searchParams.get("colaborator");
 
@@ -79,6 +81,7 @@ export default function ColaboratorsManagementPage({
           colaborator={selectedColaborator}
           detailData={detailData}
           dict={colaboratorsDict}
+          locale={locale}
           onBack={handleBack}
           previous={{
             hasPrevious: navigation.previousId !== null,

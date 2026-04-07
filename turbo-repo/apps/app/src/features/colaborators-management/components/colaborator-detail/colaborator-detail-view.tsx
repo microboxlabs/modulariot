@@ -5,8 +5,8 @@ import type {
   Colaborator,
   ColaboratorDetailData,
   ScoreCardIconId,
+  FilterType,
 } from "../../types/colaborators.types";
-import type { FilterType } from "../../types/colaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { IconType } from "react-icons";
 import ColaboratorDetailHeader from "./colaborator-detail-header";
@@ -81,28 +81,13 @@ const SCORE_CARD_CONFIG: readonly ScoreCardConfig[] = [
   },
 ];
 
-/** Static month translation keys — order matches the 12-element monthly array */
-export const MONTH_KEYS: readonly string[] = [
-  "months.may",
-  "months.jun",
-  "months.jul",
-  "months.aug",
-  "months.sep",
-  "months.oct",
-  "months.nov",
-  "months.dec",
-  "months.jan",
-  "months.feb",
-  "months.mar",
-  "months.apr",
-];
-
 // ─── Component ───────────────────────────────────────────────────────
 
 interface ColaboratorDetailViewProps {
   readonly colaborator: Colaborator;
   readonly detailData: ColaboratorDetailData;
   readonly dict: I18nRecord;
+  readonly locale: string;
   readonly onBack: () => void;
   readonly previous: {
     hasPrevious: boolean;
@@ -118,6 +103,7 @@ export default function ColaboratorDetailView({
   colaborator,
   detailData,
   dict,
+  locale,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onBack,
   previous,
@@ -156,8 +142,8 @@ export default function ColaboratorDetailView({
         <ColaboratorSummary
           colaborator={colaborator}
           dict={dict}
+          locale={locale}
           monthlyData={detailData.monthlyEvolution}
-          monthKeys={MONTH_KEYS}
           scores={detailData.scores}
         />
         <div className="grid grid-cols-3 gap-3">

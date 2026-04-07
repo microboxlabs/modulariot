@@ -1,10 +1,7 @@
 export {
   getColaborators,
-  getColaboratorsSync,
   getColaboratorById,
-  getColaboratorByIdSync,
   getColaboratorsKpis,
-  getColaboratorsKpisSync,
   getColaboratorNavigation,
 } from "./colaborators-data-service";
 

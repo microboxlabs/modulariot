@@ -93,9 +93,11 @@ export function renderCell(value: string, type: string, colorMap?: BadgeColorMap
     return <span>{value}</span>;
   }
   if (resolved === "badge") {
-    const match = colorMap?.find((m) =>
-      evaluateRule({ column: "", operator: m.operator, value: m.value, color: m.color }, value),
-    );
+    const match = Array.isArray(colorMap)
+      ? colorMap.find((m) =>
+          evaluateRule({ column: "", operator: m.operator, value: m.value, color: m.color }, value),
+        )
+      : undefined;
     const badgeClasses = match
       ? getBadgeColorClassesByRule(match.color)
       : getBadgeClasses(value);

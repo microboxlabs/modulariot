@@ -4,10 +4,11 @@ import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
-import { useDashletData, DashletLoading, DashletError } from "../common";
+import { useDashletData, DashletLoading, DashletError, resolveHandlebarsField } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
 import { useDashboard } from "../../context/dashboard-context";
+import { useDashboardFilters } from "../../context/dashboard-filters-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { ColorPalette } from "./chart-palettes";
 
@@ -137,10 +138,48 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const rows = config.dataMode === "static" ? (config.rows ?? []) : fetchedRows;
 
+  // Build template context from first row + active filters (Pattern B)
+  const { activeFilters } = useDashboardFilters();
+  const templateContext = useMemo(() => {
+    if (rows.length > 0) {
+      const firstRow = rows[0];
+      return { ...firstRow, row: firstRow, filter: activeFilters };
+    }
+    return { filter: activeFilters } as Record<string, unknown>;
+  }, [rows, activeFilters]);
+
+  // Resolve Handlebars templates in scalar fields
+  const resolvedTitle = useMemo(
+    () => resolveHandlebarsField(config.title ?? "", templateContext),
+    [config.title, templateContext],
+  );
+  const resolvedXAxisLabel = useMemo(
+    () => resolveHandlebarsField(config.xAxisLabel ?? "", templateContext),
+    [config.xAxisLabel, templateContext],
+  );
+  const resolvedYAxisLabel = useMemo(
+    () => resolveHandlebarsField(config.yAxisLabel ?? "", templateContext),
+    [config.yAxisLabel, templateContext],
+  );
+  const resolvedSeries = useMemo(
+    () => config.series.map((s) => ({
+      ...s,
+      label: resolveHandlebarsField(s.label, templateContext),
+    })),
+    [config.series, templateContext],
+  );
+
+  const resolvedConfig = useMemo(() => ({
+    ...config,
+    xAxisLabel: resolvedXAxisLabel,
+    yAxisLabel: resolvedYAxisLabel,
+    series: resolvedSeries,
+  }), [config, resolvedXAxisLabel, resolvedYAxisLabel, resolvedSeries]);
+
   const noDataLabel = tr("dashboard.dashlets.chart.noData", dictionary);
   const option = useMemo(
-    () => buildEChartsOption(config, rows, darkMode, noDataLabel),
-    [config, rows, darkMode, noDataLabel],
+    () => buildEChartsOption(resolvedConfig, rows, darkMode, noDataLabel),
+    [resolvedConfig, rows, darkMode, noDataLabel],
   );
 
   // Resize chart when container size changes (react-grid-layout doesn't trigger echarts auto-resize)
@@ -178,10 +217,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       ref={attachContainerRef}
       className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
     >
-      {config.title && (
+      {resolvedTitle && (
         <div className="shrink-0 px-3 pt-2">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            {config.title}
+            {resolvedTitle}
           </h3>
         </div>
       )}

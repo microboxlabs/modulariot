@@ -72,7 +72,15 @@ export function useFilterAndSort(
       const sortProp = resolveDataProperty(sortKey);
       if (sortProp) {
         result = [...result].sort((a, b) => {
-          const cmp = (a[sortProp] ?? "").localeCompare(b[sortProp] ?? "");
+          const aVal = a[sortProp];
+          const bVal = b[sortProp];
+          const aEmpty = aVal == null || aVal === "";
+          const bEmpty = bVal == null || bVal === "";
+
+          if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+          if (aEmpty && bEmpty) return 0;
+
+          const cmp = aVal.localeCompare(bVal);
           return sortDir === "asc" ? cmp : -cmp;
         });
       }
@@ -95,7 +103,12 @@ export function useFilterAndSort(
 
   const handleSortClick = (key: string) => {
     if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      if (sortDir === "asc") {
+        setSortDir("desc");
+      } else {
+        setSortKey(null);
+        setSortDir("asc");
+      }
     } else {
       setSortKey(key);
       setSortDir("asc");

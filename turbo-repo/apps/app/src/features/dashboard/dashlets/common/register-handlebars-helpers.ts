@@ -15,13 +15,13 @@ const FALLBACK = "-";
 function toNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
-  return isNaN(n) ? null : n;
+  return Number.isNaN(n) ? null : n;
 }
 
 function toDate(value: unknown): Date | null {
   if (value === null || value === undefined || value === "") return null;
   const d = new Date(value as string | number);
-  return isNaN(d.getTime()) ? null : d;
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 // ============================================================================
@@ -39,7 +39,7 @@ export function formatNumberHelper(
   const hash = options?.hash ?? {};
   const locale: string = hash.locale ?? DEFAULT_LOCALE;
   const decimals: number | undefined =
-    hash.decimals !== undefined ? Number(hash.decimals) : undefined;
+    hash.decimals === undefined ? undefined : Number(hash.decimals);
   const prefix: string = hash.prefix ?? "";
   const suffix: string = hash.suffix ?? "";
 
@@ -55,7 +55,8 @@ export function formatNumberHelper(
 
 export function extractNumberHelper(value: unknown): string {
   if (value === null || value === undefined) return FALLBACK;
-  const str = String(value);
+  if (typeof value === "object") return FALLBACK;
+  const str = `${value as string | number | boolean}`;
   const match = /[-+]?\d+([.,]\d+)?/.exec(str);
   return match ? match[0] : FALLBACK;
 }
@@ -64,7 +65,7 @@ export function toFixedHelper(value: unknown, decimals: unknown): string {
   const n = toNumber(value);
   if (n === null) return FALLBACK;
   const d = toNumber(decimals);
-  return n.toFixed(d !== null ? d : 0);
+  return n.toFixed(d ?? 0);
 }
 
 export function roundHelper(value: unknown): string {

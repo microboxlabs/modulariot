@@ -2888,20 +2888,6 @@
         "operationalEvents": "Eventos operativos"
       }
     },
-    "months": {
-      "jan": "Ene",
-      "feb": "Feb",
-      "mar": "Mar",
-      "apr": "Abr",
-      "may": "May",
-      "jun": "Jun",
-      "jul": "Jul",
-      "aug": "Ago",
-      "sep": "Sep",
-      "oct": "Oct",
-      "nov": "Nov",
-      "dec": "Dic"
-    },
     "behaviorHistory": {
       "title": "Historial de Comportamiento",
       "noEvents": "No hay eventos para mostrar",

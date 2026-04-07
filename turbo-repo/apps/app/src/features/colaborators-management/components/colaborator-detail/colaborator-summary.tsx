@@ -50,20 +50,35 @@ function formatDelta(delta: number): string {
   return delta > 0 ? `+${delta}` : `${delta}`;
 }
 
+function formatMonthLabel(date: string, locale: string): string {
+  const [year, month] = date.split("-");
+  const d = new Date(Number(year), Number(month) - 1);
+  const short = new Intl.DateTimeFormat(locale, { month: "short" }).format(d);
+  return short.charAt(0).toUpperCase() + short.slice(1);
+}
+
+function formatMonthWithYear(date: string, locale: string): string {
+  const [year, month] = date.split("-");
+  const d = new Date(Number(year), Number(month) - 1);
+  const short = new Intl.DateTimeFormat(locale, { month: "short" }).format(d);
+  const label = short.charAt(0).toUpperCase() + short.slice(1);
+  return `${label} ${year}`;
+}
+
 function EvolutionChart({
   onHoverIndex,
   dict,
   monthlyData,
-  monthKeys,
+  locale,
 }: {
   readonly onHoverIndex: (index: number | null) => void;
   readonly dict: I18nRecord;
   readonly monthlyData: MonthlyDataPoint[];
-  readonly monthKeys: readonly string[];
+  readonly locale: string;
 }) {
   const monthLabels = useMemo(
-    () => monthKeys.map((key) => tr(key, dict)),
-    [dict, monthKeys]
+    () => monthlyData.map((d) => formatMonthLabel(d.date, locale)),
+    [locale, monthlyData]
   );
 
   const scoreValues = useMemo(
@@ -249,9 +264,9 @@ function QuickSummaryPanel({
           <HiExclamationTriangle className="w-4 h-4 text-red-500 shrink-0" />
           <span>
             {incidentsCount}{" "}
-            {hoveredMonth !== undefined
-              ? tr("detail.incidents", dict)
-              : tr("detail.activeIncidents", dict)}
+            {hoveredMonth === undefined
+              ? tr("detail.activeIncidents", dict)
+              : tr("detail.incidents", dict)}
           </span>
           {deltas && deltas.incidents !== 0 && (
             <span
@@ -299,16 +314,16 @@ function QuickSummaryPanel({
 interface ColaboratorSummaryProps {
   readonly colaborator: Colaborator;
   readonly dict: I18nRecord;
+  readonly locale: string;
   readonly monthlyData: MonthlyDataPoint[];
-  readonly monthKeys: readonly string[];
   readonly scores: readonly ScoreCardValue[];
 }
 
 export default function ColaboratorSummary({
   colaborator,
   dict,
+  locale,
   monthlyData,
-  monthKeys,
   scores,
 }: ColaboratorSummaryProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -321,16 +336,11 @@ export default function ColaboratorSummary({
   const safetyScore = colaborator.safety;
   const punctualityScore = colaborator.punctuality;
 
-  const monthLabels = useMemo(
-    () => monthKeys.map((key) => tr(key, dict)),
-    [dict, monthKeys]
-  );
-
-  const hovered = hoveredIndex !== null ? monthlyData[hoveredIndex] : null;
+  const hovered = hoveredIndex === null ? null : monthlyData[hoveredIndex];
   const prevHovered =
-    hoveredIndex !== null && hoveredIndex > 0
-      ? monthlyData[hoveredIndex - 1]
-      : null;
+    hoveredIndex === null || hoveredIndex <= 0
+      ? null
+      : monthlyData[hoveredIndex - 1];
 
   return (
     <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -339,7 +349,7 @@ export default function ColaboratorSummary({
           onHoverIndex={setHoveredIndex}
           dict={dict}
           monthlyData={monthlyData}
-          monthKeys={monthKeys}
+          locale={locale}
         />
 
         {/* Quick summary with hover data */}
@@ -355,9 +365,9 @@ export default function ColaboratorSummary({
               : undefined
           }
           hoveredMonth={
-            hoveredIndex !== null
-              ? `${monthLabels[hoveredIndex]} ${hoveredIndex < 8 ? "2025" : "2026"}`
-              : undefined
+            hoveredIndex === null
+              ? undefined
+              : formatMonthWithYear(monthlyData[hoveredIndex].date, locale)
           }
           dict={dict}
           deltas={

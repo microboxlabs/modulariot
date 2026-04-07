@@ -85,6 +85,8 @@ export interface BehaviorEvent {
 
 /** One month of evolution data (dynamic — comes from backend) */
 export interface MonthlyDataPoint {
+  /** ISO month string, e.g. "2025-05" */
+  date: string;
   score: number;
   safety: number;
   punctuality: number;

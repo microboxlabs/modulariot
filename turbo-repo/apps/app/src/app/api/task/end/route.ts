@@ -55,9 +55,7 @@ function mapFieldToPropertyKey(key: string): string | null {
 /**
  * Builds dynamic properties from form fields
  */
-function buildDynamicProperties(
-  json: EndTaskRequest
-): Record<string, unknown> {
+function buildDynamicProperties(json: EndTaskRequest): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(json)) {
@@ -176,22 +174,34 @@ function handlePostError(error: unknown): NextResponse {
 
   if (isFetcherError(error)) {
     const status = getErrorStatus(error);
-    const message = getErrorMessage(error, "Failed to complete task. Please try again.");
+    const message = getErrorMessage(
+      error,
+      "Failed to complete task. Please try again."
+    );
     return NextResponse.json(
-      { success: false, error: { code: error.code ?? "UNKNOWN_ERROR", message } },
+      {
+        success: false,
+        error: { code: error.code ?? "UNKNOWN_ERROR", message },
+      },
       { status }
     );
   }
 
   if (error instanceof Error) {
     const parsedError = parseErrorAsJson(error);
-    return NextResponse.json({ success: false, error: parsedError }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: parsedError },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
     success: false,
     status: 500,
-    error: { code: "UNKNOWN_ERROR", message: "An unexpected error occurred. Please try again." },
+    error: {
+      code: "UNKNOWN_ERROR",
+      message: "An unexpected error occurred. Please try again.",
+    },
   });
 }
 
@@ -228,7 +238,8 @@ function isHtmlContent(content: string): boolean {
  */
 function isJsonParsingError(message: string): boolean {
   return (
-    message.includes("Unexpected token") || message.includes("is not valid JSON")
+    message.includes("Unexpected token") ||
+    message.includes("is not valid JSON")
   );
 }
 
@@ -455,7 +466,9 @@ function tryParseErrorInfo(errorInfo: string): AlfrescoErrorResponse {
 /**
  * Attempts to parse error.message and return an appropriate response
  */
-function tryParseErrorMessage(errorMessage: string): AlfrescoErrorResponse | null {
+function tryParseErrorMessage(
+  errorMessage: string
+): AlfrescoErrorResponse | null {
   if (isHtmlContent(errorMessage) || isJsonParsingError(errorMessage)) {
     return createServiceErrorResponse();
   }
@@ -468,7 +481,9 @@ function tryParseErrorMessage(errorMessage: string): AlfrescoErrorResponse | nul
 function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
   try {
     const errorInfoStr =
-      typeof error.info === "string" ? truncateErrorString(error.info) : undefined;
+      typeof error.info === "string"
+        ? truncateErrorString(error.info)
+        : undefined;
     const errorMessageStr = truncateErrorString(error.message);
 
     if (errorInfoStr) {

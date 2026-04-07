@@ -2710,6 +2710,7 @@
           "routeCompleted": "Route completed successfully",
           "incidentsThisMonth": "Incidents This Month",
           "hoursAgo": "{count}h ago",
+          "noIssues": "No issues",
           "urgency": {
             "critical": "Critical",
             "warning": "Warning",
@@ -2867,7 +2868,7 @@
         "vehicleUsage": "Vehicle Usage",
         "operationalEvents": "Operational Events"
       },
-      "noData": "Could not load detail data for this colaborator.",
+      "noData": "Could not load detail data for this collaborator.",
       "backToList": "Back to list"
     },
     "behaviorHistory": {

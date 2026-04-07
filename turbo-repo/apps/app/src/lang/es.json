@@ -2742,6 +2742,7 @@
           "routeCompleted": "Ruta completada exitosamente",
           "incidentsThisMonth": "Incidentes Este Mes",
           "hoursAgo": "Hace {count}h",
+          "noIssues": "Sin alertas",
           "urgency": {
             "critical": "Crítico",
             "warning": "Alerta",

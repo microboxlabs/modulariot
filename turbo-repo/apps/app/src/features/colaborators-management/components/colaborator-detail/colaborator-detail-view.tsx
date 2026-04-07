@@ -118,15 +118,18 @@ export default function ColaboratorDetailView({
   /** Merge static card config with dynamic scores */
   const resolvedCards = useMemo(
     () =>
-      detailData.scores.map((scoreData, i) => {
-        const config = SCORE_CARD_CONFIG[i];
-        return {
-          ...config,
-          id: scoreData.id,
-          score: scoreData.score,
-          icon: iconMap[config.iconId],
-        };
-      }),
+      detailData.scores
+        .map((scoreData, i) => {
+          const config = SCORE_CARD_CONFIG[i];
+          if (!config) return null;
+          return {
+            ...config,
+            id: scoreData.id,
+            score: scoreData.score,
+            icon: iconMap[config.iconId],
+          };
+        })
+        .filter((card) => card !== null),
     [detailData.scores]
   );
 

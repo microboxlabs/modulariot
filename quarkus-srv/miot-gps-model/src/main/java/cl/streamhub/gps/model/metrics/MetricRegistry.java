@@ -426,6 +426,8 @@ public final class MetricRegistry {
         MetricDefinition def = DEFINITIONS.get(key);
         Object value = item.getV();
 
+        applyCanonicalUnitIfMissing(item, def);
+
         // 2. Validate value type
         if (!def.isValidValueType(value)) {
             return MetricValidationResult.error(MetricValidationResult.TYPE_MISMATCH,
@@ -452,6 +454,12 @@ public final class MetricRegistry {
         }
 
         return MetricValidationResult.ok();
+    }
+
+    private static void applyCanonicalUnitIfMissing(MetricItem item, MetricDefinition def) {
+        if (def.requiresUnit() && item.getU() == null) {
+            item.setU(def.getUnit());
+        }
     }
 
     private static String formatBounds(Double min, Double max) {

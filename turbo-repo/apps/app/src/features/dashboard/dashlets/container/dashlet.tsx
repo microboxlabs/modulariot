@@ -315,9 +315,9 @@ export function Dashlet({
   const handleVerMasClick = () => {
     if (config.verMasUrl) {
       if (config.openInSameTab) {
-        window.location.href = config.verMasUrl;
+        globalThis.location.href = config.verMasUrl;
       } else {
-        window.open(config.verMasUrl, "_blank", "noopener,noreferrer");
+        globalThis.open(config.verMasUrl, "_blank", "noopener,noreferrer");
       }
     }
   };

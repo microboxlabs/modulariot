@@ -16,6 +16,10 @@ public class TruckMetricCatalog {
     private static final int MAX_METRIC_FIELDS = 16;
     private static final String DEFAULT_VIEW = "card";
     private static final String TIMESTAMP = "timestamp";
+    private static final String FUEL_LEVEL_PCT = "fuel_level_pct";
+    private static final String ODOMETER_KM = "odometer_km";
+    private static final String BATTERY_VOLTAGE_MV = "battery_voltage_mv";
+    private static final String VEHICLE_SPEED_KPH = "vehicle_speed_kph";
 
     private final Map<String, MetricSource> supportedFields;
     private final Map<String, List<String>> presetViews;
@@ -23,10 +27,10 @@ public class TruckMetricCatalog {
     public TruckMetricCatalog() {
         Map<String, MetricSource> fields = new LinkedHashMap<>();
         fields.put(TIMESTAMP, MetricSource.CORE_TIMESTAMP);
-        fields.put("fuel_level_pct", MetricSource.CORE);
-        fields.put("odometer_km", MetricSource.CORE);
-        fields.put("battery_voltage_mv", MetricSource.CORE);
-        fields.put("vehicle_speed_kph", MetricSource.CORE);
+        fields.put(FUEL_LEVEL_PCT, MetricSource.CORE);
+        fields.put(ODOMETER_KM, MetricSource.CORE);
+        fields.put(BATTERY_VOLTAGE_MV, MetricSource.CORE);
+        fields.put(VEHICLE_SPEED_KPH, MetricSource.CORE);
         fields.put("engine_rpm", MetricSource.CORE);
         fields.put("engine_load_pct", MetricSource.CORE);
         fields.put("coolant_temp_c", MetricSource.CORE);
@@ -36,9 +40,9 @@ public class TruckMetricCatalog {
         this.supportedFields = Map.copyOf(fields);
 
         Map<String, List<String>> views = new LinkedHashMap<>();
-        views.put("card", List.of(TIMESTAMP, "fuel_level_pct", "odometer_km", "battery_voltage_mv", "vehicle_speed_kph"));
-        views.put("detail", List.of(TIMESTAMP, "fuel_level_pct", "odometer_km", "battery_voltage_mv",
-                "vehicle_speed_kph", "engine_rpm", "engine_load_pct", "coolant_temp_c", "idle_state"));
+        views.put("card", List.of(TIMESTAMP, FUEL_LEVEL_PCT, ODOMETER_KM, BATTERY_VOLTAGE_MV, VEHICLE_SPEED_KPH));
+        views.put("detail", List.of(TIMESTAMP, FUEL_LEVEL_PCT, ODOMETER_KM, BATTERY_VOLTAGE_MV,
+                VEHICLE_SPEED_KPH, "engine_rpm", "engine_load_pct", "coolant_temp_c", "idle_state"));
         views.put("diagnostics", List.of(TIMESTAMP, "mil_on", "dtc_count"));
         this.presetViews = Map.copyOf(views);
     }
@@ -84,13 +88,12 @@ public class TruckMetricCatalog {
         for (String rawField : rawFields) {
             String field = rawField.trim().toLowerCase(Locale.ROOT);
             if (field.isEmpty()) {
-                continue;
-            }
-            if (!supportedFields.containsKey(field)) {
+                // Ignore empty entries from malformed comma-separated input.
+            } else if (!supportedFields.containsKey(field)) {
                 unsupported.add(field);
-                continue;
+            } else {
+                deduped.add(field);
             }
-            deduped.add(field);
         }
 
         if (!unsupported.isEmpty()) {

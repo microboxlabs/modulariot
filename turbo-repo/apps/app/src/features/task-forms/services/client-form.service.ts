@@ -62,21 +62,26 @@ async function fetcherClient<T>(
 }
 
 /**
+ * Keys whose string values "true"/"false" should be coerced to booleans.
+ */
+const BOOLEAN_KEYS: ReadonlySet<string> = new Set(["isMultiReason"]);
+
+/**
  * Converts FormData to a plain object, handling special cases for JSON strings
  */
-function formDataToObject(formData: FormData): Record<string, unknown> {
+export function formDataToObject(formData: FormData): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
 
   for (const [key, value] of formData.entries()) {
-    // Try to parse JSON strings (like "reasons" field)
-    if (
+    if (typeof value === "string" && BOOLEAN_KEYS.has(key)) {
+      obj[key] = value === "true";
+    } else if (
       typeof value === "string" &&
       (value.startsWith("[") || value.startsWith("{"))
     ) {
       try {
         obj[key] = JSON.parse(value);
       } catch {
-        // If parsing fails, keep as string
         obj[key] = value;
       }
     } else {

@@ -206,7 +206,7 @@ export default function BehaviorHistory({
         </div>
       </div>
 
-      <div className="max-h-125 overflow-y-auto">
+      <div className="max-h-[500px] overflow-y-auto">
         {filteredEvents.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
             {tr("behaviorHistory.noEvents", dict)}

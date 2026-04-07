@@ -1,4 +1,5 @@
 import type { ColaboratorDetailData } from "../types/colaborators.types";
+import { colaborators } from "./colaborators-mock-data";
 
 /**
  * Default detail/expedient data shared by all colaborators.
@@ -105,10 +106,10 @@ export const defaultColaboratorDetailData: ColaboratorDetailData = {
 
 export const colaboratorDetailDataMap: Record<string, ColaboratorDetailData> =
   Object.fromEntries(
-    Array.from({ length: 20 }, (_, i) => {
-      const id = String(i + 1);
-      return [id, { ...defaultColaboratorDetailData, colaboratorId: id }];
-    })
+    colaborators.map((c) => [
+      c.id,
+      { ...defaultColaboratorDetailData, colaboratorId: c.id },
+    ])
   );
 
 /**

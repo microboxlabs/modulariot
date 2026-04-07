@@ -2854,7 +2854,9 @@
         "regulatoryCompliance": "Regulatory Compliance",
         "vehicleUsage": "Vehicle Usage",
         "operationalEvents": "Operational Events"
-      }
+      },
+      "noData": "Could not load detail data for this colaborator.",
+      "backToList": "Back to list"
     },
     "behaviorHistory": {
       "title": "Behavior History",

@@ -225,7 +225,9 @@ export function useSettingsState(cfg: SettingsStateConfig) {
 
     const rowColorRules: ColorRulesConfig = {
       enabled: rowColorRulesEnabled,
-      rules: fromColorRuleItems(rowColorRuleItems),
+      rules: fromColorRuleItems(rowColorRuleItems).filter((r) =>
+        validKeys.has(r.column),
+      ),
     };
 
     return { filter, sort, savedColumns, validKeys, rowColorRules };

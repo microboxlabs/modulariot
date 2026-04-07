@@ -5,14 +5,15 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.fleet.dto.CreateCarrierRequest;
 import com.microboxlabs.miot.fleet.dto.CreateTrailerRequest;
 import com.microboxlabs.miot.fleet.dto.CreateTruckRequest;
-import com.microboxlabs.miot.fleet.metrics.LatestMetricsRepository;
 import com.microboxlabs.miot.fleet.model.Carrier;
 import com.microboxlabs.miot.fleet.model.Trailer;
 import com.microboxlabs.miot.fleet.model.Truck;
 import com.microboxlabs.miot.fleet.service.CarrierService;
+import com.microboxlabs.miot.fleet.service.TruckMetricCatalog;
+import com.microboxlabs.miot.fleet.service.TruckMetricSelection;
 import com.microboxlabs.miot.fleet.service.TrailerService;
 import com.microboxlabs.miot.fleet.service.TruckService;
-import io.vertx.core.json.JsonObject;
+import com.microboxlabs.miot.fleet.service.TruckRealtimeEnricher;
 import com.microboxlabs.miot.resource.dto.StatusChangeRequest;
 import com.microboxlabs.miot.resource.event.EntityEvent;
 import com.microboxlabs.miot.resource.event.EntityEventService;
@@ -52,20 +53,23 @@ public class OrgFleetResource {
     private final TrailerService trailerService;
     private final CarrierService carrierService;
     private final EntityEventService eventService;
-    private final LatestMetricsRepository metricsRepository;
+    private final TruckRealtimeEnricher truckRealtimeEnricher;
+    private final TruckMetricCatalog truckMetricCatalog;
 
     @Inject
     public OrgFleetResource(TenantContext tenantContext, OrganizationContext organizationContext,
             TruckService truckService, TrailerService trailerService,
             CarrierService carrierService, EntityEventService eventService,
-            LatestMetricsRepository metricsRepository) {
+            TruckRealtimeEnricher truckRealtimeEnricher,
+            TruckMetricCatalog truckMetricCatalog) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.truckService = truckService;
         this.trailerService = trailerService;
         this.carrierService = carrierService;
         this.eventService = eventService;
-        this.metricsRepository = metricsRepository;
+        this.truckRealtimeEnricher = truckRealtimeEnricher;
+        this.truckMetricCatalog = truckMetricCatalog;
     }
 
     // --- Trucks ---
@@ -76,8 +80,13 @@ public class OrgFleetResource {
     public Uni<List<Truck>> listTrucks(
             @PathParam("organizationId") String organizationId,
             @QueryParam("page") @DefaultValue("0") int page,
-            @QueryParam("size") @DefaultValue("25") int size) {
-        return truckService.list(tenantContext.getEffectiveClientIds(), page, size);
+            @QueryParam("size") @DefaultValue("25") int size,
+            @QueryParam("includeMetrics") @DefaultValue("false") boolean includeMetrics,
+            @QueryParam("metricView") String metricView,
+            @QueryParam("metricFields") String metricFields) {
+        TruckMetricSelection selection = truckMetricCatalog.resolve(includeMetrics, metricView, metricFields);
+        return truckService.list(tenantContext.getEffectiveClientIds(), page, size)
+                .flatMap(trucks -> truckRealtimeEnricher.enrichList(tenantContext.getClientId(), trucks, selection));
     }
 
     @GET
@@ -85,23 +94,18 @@ public class OrgFleetResource {
     @Operation(summary = "Get truck by ID")
     public Uni<Response> getTruck(
             @PathParam("organizationId") String organizationId,
-            @PathParam("id") Long id) {
+            @PathParam("id") Long id,
+            @QueryParam("includeMetrics") @DefaultValue("false") boolean includeMetrics,
+            @QueryParam("metricView") String metricView,
+            @QueryParam("metricFields") String metricFields) {
+        TruckMetricSelection selection = truckMetricCatalog.resolve(includeMetrics, metricView, metricFields);
         return truckService.findById(tenantContext.getEffectiveClientIds(), id)
                 .flatMap(truck -> {
                     if (truck == null) return Uni.createFrom().item(Response.status(404).build());
-                    // fetch latest metrics in parallel only when asset_id is configured
-                    if (truck.assetId == null) {
-                        return Uni.createFrom().item(Response.ok(truck).build());
-                    }
-                    return metricsRepository
-                            .getLatestMetrics(tenantContext.getClientId(), truck.assetId)
-                            .map(metrics -> Response.ok(new TruckWithMetrics(truck, metrics)).build())
-                            .onFailure().recoverWithItem(e -> Response.ok(truck).build());
+                    return truckRealtimeEnricher.enrichTruck(tenantContext.getClientId(), truck, selection)
+                            .map(enriched -> Response.ok(enriched).build());
                 });
     }
-
-    /** Thin wrapper that adds latest telemetry to the truck response without altering the entity. */
-    public record TruckWithMetrics(Truck truck, JsonObject latestMetrics) {}
 
     @POST
     @Path("/trucks")

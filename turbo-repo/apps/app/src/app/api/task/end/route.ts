@@ -103,13 +103,12 @@ function addNativeGenerationProperty(
  */
 function addMultiReasonProperties(
   payload: UpdateTaskRequest,
-  reasons: string
+  reasons: string[]
 ): boolean {
   try {
-    const reasonArray = JSON.parse(reasons) as string[];
-    if (reasonArray.length > 0) {
-      payload.prop_mintral_commentReasons = reasonArray;
-      payload.prop_mintral_commentPostTitle = `Multiple reasons: ${reasonArray.length} items`;
+    if (reasons.length > 0) {
+      payload.prop_mintral_commentReasons = reasons;
+      payload.prop_mintral_commentPostTitle = `Multiple reasons: ${reasons.length} items`;
       return true;
     }
   } catch {
@@ -124,16 +123,16 @@ function addMultiReasonProperties(
 function addReasonProperties(
   payload: UpdateTaskRequest,
   reason: string | undefined,
-  reasons: string | undefined,
+  reasons: string | string[] | undefined,
   isMultiReason: boolean
 ): void {
   if (isMultiReason && reasons) {
-    const success = addMultiReasonProperties(payload, reasons);
+    const success = addMultiReasonProperties(payload, Array.isArray(reasons) ? reasons : [reasons]);
     if (success) {
       return;
     }
     // Fallback to single reason
-    if (reasons.trim() !== "") {
+    if (typeof reasons === "string" && reasons.trim() !== "") {
       payload.prop_mintral_commentPostTitle = reasons;
     }
     return;

@@ -71,6 +71,24 @@ describe("getHandlebarsStatus", () => {
   it('returns "invalid" for disallowed characters', () => {
     expect(getHandlebarsStatus("{{na$me}}")).toBe("invalid");
   });
+
+  it('returns "valid" for helper with hash arguments', () => {
+    expect(
+      getHandlebarsStatus("{{formatNumber row.temp decimals=2}}")
+    ).toBe("valid");
+  });
+
+  it('returns "valid" for helper with quoted string argument', () => {
+    expect(
+      getHandlebarsStatus('{{formatDate row.created_at format="date"}}')
+    ).toBe("valid");
+  });
+
+  it('returns "valid" for helper with positional string argument', () => {
+    expect(
+      getHandlebarsStatus('{{datePart row.created_at "year"}}')
+    ).toBe("valid");
+  });
 });
 
 describe("getFlowbiteColor", () => {

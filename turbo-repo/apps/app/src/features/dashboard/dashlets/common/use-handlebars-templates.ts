@@ -1,4 +1,5 @@
 import Handlebars from "handlebars";
+import "./register-handlebars-helpers";
 import type { DataProviderEntry } from "../types";
 
 // ============================================================================

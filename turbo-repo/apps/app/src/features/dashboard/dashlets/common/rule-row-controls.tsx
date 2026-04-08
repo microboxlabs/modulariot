@@ -75,6 +75,7 @@ export function RuleRowControls({
       {/* Delete button */}
       <button
         type="button"
+        aria-label="Delete rule"
         onClick={() => onRemove(ruleId)}
         onMouseDown={stopPropagation}
         className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"

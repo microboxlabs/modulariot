@@ -2,8 +2,7 @@
 
 import { Button, Label, Select, TextInput, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
-import type { RuleColor } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, RULE_COLORS, OPERATOR_LABELS } from "./color-rule-types";
+import { type RuleColor, COLOR_RULE_OPERATORS, RULE_COLORS, OPERATOR_LABELS } from "./color-rule-types";
 import { getColorDotClass } from "./color-rule-engine";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";

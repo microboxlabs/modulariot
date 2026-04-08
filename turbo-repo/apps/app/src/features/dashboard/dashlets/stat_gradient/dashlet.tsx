@@ -1,9 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useThreshold } from "../common/use-threshold";
+import { getThresholdGradientClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -16,6 +20,7 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   color: GradientColor;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -55,7 +60,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  const templateContext = useMemo(
+    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
+    [firstRow],
+  );
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -65,9 +76,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const color = config.color || "blue";
   const value = parseResolvedNumber(resolved.value);
 
+  const gradientClasses = thresholdColor && appliesTo("background")
+    ? `${getThresholdGradientClasses(thresholdColor).from} ${getThresholdGradientClasses(thresholdColor).to}`
+    : COLORS[color];
+
   return (
     <div
-      className={`flex h-full flex-col justify-center rounded-lg bg-gradient-to-br ${COLORS[color]} p-4 text-white shadow-lg`}
+      className={`flex h-full flex-col justify-center rounded-lg bg-gradient-to-br ${gradientClasses} p-4 text-white shadow-lg`}
     >
       <p className="text-sm font-medium text-white/80">{title}</p>
       <p className="mt-1 text-4xl font-bold">

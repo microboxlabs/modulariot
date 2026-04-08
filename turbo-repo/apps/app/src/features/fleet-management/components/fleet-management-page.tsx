@@ -4,7 +4,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { specialViews, fleetKpis } from "../data/fleet-mock-data";
+import { specialViews } from "../data/fleet-mock-data";
 import { truckToVehicle } from "../data/fleet-adapters";
 import { useFleetTrucks } from "../hooks/use-fleet-trucks";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
@@ -33,7 +33,7 @@ export default function FleetManagementPage({
   const pathname = usePathname();
 
   const { trucks, isLoading } = useFleetTrucks({
-    size: 100,
+    size: 9999,
     includeMetrics: true,
     metricFields: "timestamp,odometer_km,fuel_volume_ml,fuel_level_pct",
   });
@@ -41,7 +41,6 @@ export default function FleetManagementPage({
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
 
   const kpis: FleetKpi[] = useMemo(() => {
-    if (isLoading) return fleetKpis;
     return [
       {
         id: "total",
@@ -84,7 +83,7 @@ export default function FleetManagementPage({
         darkColor: "dark:text-gray-400 dark:bg-gray-700/30",
       },
     ];
-  }, [vehicles, isLoading]);
+  }, [vehicles]);
 
   const selectedVehiclePlate = searchParams.get("vehicle");
 

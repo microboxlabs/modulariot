@@ -84,7 +84,7 @@ export default function SpecialViewsCarousel({
   }
 
   return (
-    <button
+    <div
       className="flex flex-col gap-2"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -190,6 +190,6 @@ export default function SpecialViewsCarousel({
           ))}
         </div>
       )}
-    </button>
+    </div>
   );
 }

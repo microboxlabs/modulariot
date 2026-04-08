@@ -2625,7 +2625,7 @@
       "driver": "Driver",
       "location": "Location",
       "model": "Model",
-      "transportist": "Carrier",
+      "transportist": "Client",
       "fuel": "Fuel",
       "maintenance": "Next Maint.",
       "kmTraveled": "Total Km",

@@ -19,6 +19,33 @@ function metricString(truck: Truck, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function formatLastLocation(truck: Truck): string {
+  // Prefer a human-readable label (e.g. "SANTIAGO" from pgrest `ubicacion`)
+  // over raw coordinates when the upstream source provides one.
+  const label = metricString(truck, "location_label");
+  if (label && label.trim() !== "") return label;
+  const latitude = metricNumber(truck, "latitude");
+  const longitude = metricNumber(truck, "longitude");
+  if (latitude === undefined || longitude === undefined) return "—";
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
+/**
+ * When both current odometer and maintenance interval are known, format the
+ * remaining kilometres until the next scheduled service. Falls back to "—"
+ * when either metric is absent.
+ */
+function formatNextMaintenance(truck: Truck): string {
+  const odometerKm = metricNumber(truck, "odometer_km");
+  const frequencyKm = metricNumber(truck, "maintenance_frequency_km");
+  if (odometerKm === undefined || frequencyKm === undefined || frequencyKm <= 0) {
+    return "—";
+  }
+  const remainder = odometerKm % frequencyKm;
+  const remainingKm = remainder === 0 ? frequencyKm : frequencyKm - remainder;
+  return `${remainingKm.toLocaleString()} km`;
+}
+
 export function truckToVehicle(truck: Truck): Vehicle {
   const fuelLevel = metricNumber(truck, "fuel_level_pct") ?? 0;
   const fuelVolumeMl = metricNumber(truck, "fuel_volume_ml");
@@ -34,11 +61,11 @@ export function truckToVehicle(truck: Truck): Vehicle {
     status: statusToVehicleStatus(truck.status ?? "", truck.active ?? true),
     brand: truck.brand ?? "—",
     driver: "—",
-    lastLocation: "—",
+    lastLocation: formatLastLocation(truck),
     transportist: "—",
     fuelLevel,
     fuelVolumeLiters,
-    nextMaintenance: "—",
+    nextMaintenance: formatNextMaintenance(truck),
     kmTraveled,
     lastSignal,
     assetId: truck.assetId,

@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -16,6 +19,7 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   isSensitive: boolean;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -49,7 +53,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [isHidden, setIsHidden] = useState(isSensitive);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  const templateContext = useMemo(
+    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
+    [firstRow],
+  );
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -90,7 +100,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         className={`mt-2 text-3xl font-bold transition-all ${
           isHidden
             ? "text-gray-400 dark:text-gray-500"
-            : "text-gray-900 dark:text-white"
+            : thresholdColor && appliesTo("text")
+              ? getThresholdTextClasses(thresholdColor)
+              : "text-gray-900 dark:text-white"
         }`}
       >
         {displayValue}

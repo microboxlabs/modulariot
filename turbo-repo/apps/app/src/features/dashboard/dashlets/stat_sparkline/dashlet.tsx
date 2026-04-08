@@ -1,9 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -14,6 +18,7 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   sparkline: number[];
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -50,7 +55,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       : defaultConfig.sparkline;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  const templateContext = useMemo(
+    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
+    [firstRow],
+  );
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -106,7 +117,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {title}
         </p>
-        <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
+        <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
           {value.toLocaleString()}
           {unit && <span className="ml-1 text-lg font-normal">{unit}</span>}
         </p>

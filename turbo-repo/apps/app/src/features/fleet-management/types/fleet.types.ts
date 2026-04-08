@@ -50,6 +50,7 @@ export interface Vehicle {
   nextMaintenance: string;
   kmTraveled: number;
   lastSignal?: string;
+  assetId?: string;
   gamification?: VehicleGamification;
 }
 

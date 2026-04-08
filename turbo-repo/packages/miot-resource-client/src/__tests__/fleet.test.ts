@@ -15,6 +15,8 @@ const sampleTruck: Truck = {
   active: true, createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z",
   licensePlate: "ABC123", vin: "VIN123", brand: "Volvo", model: "FH16",
   year: 2022, maxWeight: 25000, volume: 100, truckType: "RIGID",
+  assetId: "TRUCK-1",
+  latestMetrics: { timestamp: "2025-01-01T00:00:00Z", fuel_level_pct: 97, odometer_km: 10550 },
 };
 
 const sampleTrailer: Trailer = {
@@ -61,6 +63,24 @@ describe("fleet", () => {
       expect(url.searchParams.get("size")).toBe("10");
     });
 
+    it("listTrucks passes metrics query params", async () => {
+      const { fn, call } = createMockFetch([]);
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
+
+      await client.fleet.listTrucks({
+        page: 0,
+        size: 25,
+        includeMetrics: true,
+        metricView: "card",
+        metricFields: "fuel_level_pct,odometer_km",
+      });
+
+      const url = new URL(call.url);
+      expect(url.searchParams.get("includeMetrics")).toBe("true");
+      expect(url.searchParams.get("metricView")).toBe("card");
+      expect(url.searchParams.get("metricFields")).toBe("fuel_level_pct,odometer_km");
+    });
+
     it("getTruck sends GET to /fleet/trucks/:id", async () => {
       const { fn, call } = createMockFetch(sampleTruck);
       const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
@@ -70,6 +90,20 @@ describe("fleet", () => {
       expect(call.init.method).toBe("GET");
       expect(call.url).toBe(`${BASE_URL}${FLEET}/trucks/1`);
       expect(result).toEqual(sampleTruck);
+    });
+
+    it("getTruck passes metrics query params", async () => {
+      const { fn, call } = createMockFetch(sampleTruck);
+      const client = createMiotResourceClient({ baseUrl: BASE_URL, organizationId: ORG_ID, fetch: fn });
+
+      await client.fleet.getTruck(1, {
+        includeMetrics: true,
+        metricFields: "fuel_level_pct,engine_rpm",
+      });
+
+      const url = new URL(call.url);
+      expect(url.searchParams.get("includeMetrics")).toBe("true");
+      expect(url.searchParams.get("metricFields")).toBe("fuel_level_pct,engine_rpm");
     });
 
     it("createTruck sends POST with body", async () => {

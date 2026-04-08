@@ -1,16 +1,16 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { specialViews } from "../data/fleet-mock-data";
 import { truckToVehicle } from "../data/fleet-adapters";
+import { pgrestRowToSpecialView } from "../data/fleet-special-views-adapter";
 import { useFleetTrucks } from "../hooks/use-fleet-trucks";
+import { useSpecialViews } from "../hooks/use-special-views";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
 import SpecialViewsCarousel from "./special-views/special-views-carousel";
 import VehicleGrid from "./vehicle-grid/vehicle-grid";
-import VehicleDetailView from "./vehicle-detail/vehicle-detail-view";
 import type { FleetKpi } from "../types/fleet.types";
 import {
   HiOutlineTruck,
@@ -28,9 +28,9 @@ export default function FleetManagementPage({
   dict,
 }: FleetManagementPageProps) {
   const fleetDict = dict["fleetManagement"] as I18nRecord;
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { lang } = useParams<{ lang: string }>();
 
   const { trucks, isLoading } = useFleetTrucks({
     size: 9999,
@@ -39,6 +39,12 @@ export default function FleetManagementPage({
   });
 
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
+
+  const { rows: specialViewRows } = useSpecialViews();
+  const specialViews = useMemo(() => {
+    const locale = lang === "es" ? "es" : "en";
+    return specialViewRows.map((row) => pgrestRowToSpecialView(row, locale));
+  }, [specialViewRows, lang]);
 
   const kpis: FleetKpi[] = useMemo(() => {
     return [
@@ -85,40 +91,12 @@ export default function FleetManagementPage({
     ];
   }, [vehicles]);
 
-  const selectedVehiclePlate = searchParams.get("vehicle");
-
-  const selectedVehicle = useMemo(
-    () => vehicles.find((v) => v.plate === selectedVehiclePlate),
-    [vehicles, selectedVehiclePlate]
-  );
-
   const handleSelectVehicle = useCallback(
     (plate: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("vehicle", plate);
-      router.push(`${pathname}?${params.toString()}`);
+      router.push(`${pathname}/${encodeURIComponent(plate)}`);
     },
-    [searchParams, router, pathname]
+    [router, pathname]
   );
-
-  const handleBack = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("vehicle");
-    const queryString = params.toString();
-    router.push(queryString ? `${pathname}?${queryString}` : pathname);
-  }, [searchParams, router, pathname]);
-
-  if (selectedVehicle) {
-    return (
-      <div className="flex flex-col gap-6 w-full mx-auto h-full">
-        <VehicleDetailView
-          vehicle={selectedVehicle}
-          dict={fleetDict}
-          onBack={handleBack}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-4 p-4 max-w-screen-2xl mx-auto w-full">

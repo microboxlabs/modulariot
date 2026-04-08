@@ -2,9 +2,8 @@
 
 import { Button, Label, Select, TextInput, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
-import { OPERATOR_LABELS } from "./color-rule-types";
+import type { RuleColor } from "./color-rule-types";
+import { COLOR_RULE_OPERATORS, RULE_COLORS, OPERATOR_LABELS } from "./color-rule-types";
 import { getColorDotClass } from "./color-rule-engine";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
@@ -49,14 +48,14 @@ export function ThresholdEditor({
   onUpdate,
   schemaSuggestions,
 }: Readonly<ThresholdEditorProps>) {
-  const handleTargetToggle = (target: ThresholdTarget, checked: boolean) => {
-    if (checked) {
-      onApplyToChange([...applyTo, target]);
-    } else {
-      const next = applyTo.filter((t) => t !== target);
-      // Keep at least one target
-      if (next.length > 0) onApplyToChange(next);
-    }
+  const addTarget = (target: ThresholdTarget) => {
+    onApplyToChange([...applyTo, target]);
+  };
+
+  const removeTarget = (target: ThresholdTarget) => {
+    const next = applyTo.filter((t) => t !== target);
+    // Keep at least one target
+    if (next.length > 0) onApplyToChange(next);
   };
 
   return (
@@ -89,7 +88,7 @@ export function ThresholdEditor({
                     <input
                       type="checkbox"
                       checked={applyTo.includes(target)}
-                      onChange={(e) => handleTargetToggle(target, e.target.checked)}
+                      onChange={(e) => e.target.checked ? addTarget(target) : removeTarget(target)}
                       className="no-drag h-3.5 w-3.5 rounded border-gray-300 text-blue-600 dark:border-gray-600"
                     />
                     <span className="text-xs text-gray-700 dark:text-gray-300">
@@ -113,7 +112,7 @@ export function ThresholdEditor({
                     >
                       {COLOR_RULE_OPERATORS.map((op) => (
                         <option key={op} value={op}>
-                          {OPERATOR_LABELS[op as ColorRuleOperator]}
+                          {OPERATOR_LABELS[op]}
                         </option>
                       ))}
                     </Select>

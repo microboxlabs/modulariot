@@ -40,6 +40,14 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 const FIELD_DEFAULTS: Record<string, string> = { title: "Account Balance", value: "125847.32", unit: "$" };
 
+function getValueTextClasses(
+  thresholdColor: import("../common/color-rule-types").RuleColor | null,
+  appliesTo: (target: import("../common/threshold-types").ThresholdTarget) => boolean,
+): string {
+  if (thresholdColor && appliesTo("text")) return getThresholdTextClasses(thresholdColor);
+  return "text-gray-900 dark:text-white";
+}
+
 // ============================================================================
 // Component - Style 10: Sensitive Data (Hidden by default)
 // ============================================================================
@@ -100,9 +108,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         className={`mt-2 text-3xl font-bold transition-all ${
           isHidden
             ? "text-gray-400 dark:text-gray-500"
-            : thresholdColor && appliesTo("text")
-              ? getThresholdTextClasses(thresholdColor)
-              : "text-gray-900 dark:text-white"
+            : getValueTextClasses(thresholdColor, appliesTo)
         }`}
       >
         {displayValue}

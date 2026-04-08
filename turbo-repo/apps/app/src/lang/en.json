@@ -2414,6 +2414,8 @@
   "searchbar": {
     "service": "Service",
     "licensePlate": "License Plate",
+    "client": "Client",
+    "state": "State",
     "driverId": "Driver RUT",
     "carrierId": "Carrier RUT",
     "carrierName": "Carrier Name",

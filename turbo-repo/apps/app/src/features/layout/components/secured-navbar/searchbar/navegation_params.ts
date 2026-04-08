@@ -41,6 +41,18 @@ const where_is_my_load_params: ParamType[] = [
   setParam("expeditionNumber", "text"),
 ];
 
+const fleet_params: ParamType[] = [
+  setParam("licensePlate", "text"),
+  setParam("client", "text"),
+  setParam("state", "selector", [
+    { value: "", label: "-" },
+    { value: "active", label: "Activo" },
+    { value: "maintenance", label: "En mantención" },
+    { value: "alert", label: "Alerta" },
+    { value: "inactive", label: "Inactivo" },
+  ]),
+];
+
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
   setParam("trip_id", "text"),
@@ -80,6 +92,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       true
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
+    "fleet-management": getParamsFixed(fleet_params, dict),
   };
 }
 

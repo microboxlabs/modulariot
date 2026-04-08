@@ -6,6 +6,13 @@ import type { PgrestDashletFields } from "../common";
 import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
+import { useThreshold } from "../common/use-threshold";
+import type { ThresholdConfig } from "../common/threshold-types";
+import {
+  getThresholdBorderClasses,
+  getThresholdTextClasses,
+  getThresholdIconClasses,
+} from "../common/threshold-engine";
 import {
   HiWrench,
   HiCalendarDays,
@@ -90,6 +97,7 @@ export interface DashletConfig extends PgrestDashletFields {
   color: StatusColor;
   icon: StatusIcon;
   dataProvider?: DataProviderEntry[];
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -182,10 +190,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return resolveHandlebarsField(subtitle, templateContext);
   }, [subtitle, templateContext]);
 
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
+
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
-  const colors = COLOR_MAP[color] ?? COLOR_MAP.gray;
+  const baseColors = COLOR_MAP[color] ?? COLOR_MAP.gray;
+  const colors = thresholdColor
+    ? {
+        border: appliesTo("background") ? getThresholdBorderClasses(thresholdColor) : baseColors.border,
+        iconBg: appliesTo("icon") ? getThresholdIconClasses(thresholdColor).bg : baseColors.iconBg,
+        iconText: appliesTo("icon") ? getThresholdIconClasses(thresholdColor).text : baseColors.iconText,
+        valueText: appliesTo("text") ? getThresholdTextClasses(thresholdColor) : baseColors.valueText,
+      }
+    : baseColors;
   const IconComponent = ICONS[icon] ?? ICONS.check;
 
   return (

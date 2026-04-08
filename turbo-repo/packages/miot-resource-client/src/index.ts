@@ -6,6 +6,8 @@ export type {
   EntityEvent,
   StatusChangeRequest,
   PageParams,
+  TruckMetricView,
+  TruckQueryParams,
   Truck,
   CreateTruckRequest,
   Trailer,

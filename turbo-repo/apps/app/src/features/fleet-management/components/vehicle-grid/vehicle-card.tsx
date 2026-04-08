@@ -110,23 +110,23 @@ export default function VehicleCard({
     </>
   );
 
-  if (isInteractive) {
+  if (!isInteractive) {
     return (
-      <button
-        type="button"
-        tabIndex={0}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        className={`${baseClasses} ${interactiveClasses}`}
-      >
+      <div className={baseClasses}>
         {cardContent}
-      </button>
+      </div>
     );
   }
 
   return (
-    <div className={baseClasses}>
+    <button
+      type="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`${baseClasses} ${interactiveClasses}`}
+    >
       {cardContent}
-    </div>
+    </button>
   );
 }

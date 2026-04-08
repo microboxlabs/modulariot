@@ -22,7 +22,7 @@ function metricString(truck: Truck, key: string): string | undefined {
 export function truckToVehicle(truck: Truck): Vehicle {
   const fuelLevel = metricNumber(truck, "fuel_level_pct") ?? 0;
   const fuelVolumeMl = metricNumber(truck, "fuel_volume_ml");
-  const fuelVolumeLiters = fuelVolumeMl !== undefined ? fuelVolumeMl / 1000 : undefined;
+  const fuelVolumeLiters = fuelVolumeMl === undefined ? undefined : fuelVolumeMl / 1000;
   const kmTraveled = metricNumber(truck, "odometer_km") ?? 0;
   const lastSignal = metricString(truck, "timestamp");
 

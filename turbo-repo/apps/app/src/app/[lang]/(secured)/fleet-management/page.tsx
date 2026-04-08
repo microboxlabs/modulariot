@@ -4,9 +4,7 @@ import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import FleetManagementPage from "@/features/fleet-management/components/fleet-management-page";
 
-export default async function FleetManagementRoute({
-  params,
-}: ParamsWithLang) {
+export default async function FleetManagementRoute({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 

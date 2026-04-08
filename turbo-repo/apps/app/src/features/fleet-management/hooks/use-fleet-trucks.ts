@@ -31,11 +31,10 @@ export function useFleetTrucks(params?: {
 
   const url = qs ? `/app/api/fleet/trucks?${qs}` : `/app/api/fleet/trucks`;
 
-  const { data, error, isLoading, mutate } = useSWR<Truck[]>(
-    url,
-    fetcher,
-    { errorRetryCount: 2, dedupingInterval: 30000 }
-  );
+  const { data, error, isLoading, mutate } = useSWR<Truck[]>(url, fetcher, {
+    errorRetryCount: 2,
+    dedupingInterval: 30000,
+  });
 
   return { trucks: data ?? EMPTY, error, isLoading, mutate };
 }

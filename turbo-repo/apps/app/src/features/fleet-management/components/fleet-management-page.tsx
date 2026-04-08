@@ -93,6 +93,8 @@ export default function FleetManagementPage({
     [vehicles, selectedVehiclePlate]
   );
 
+  console.log(selectedVehicle);
+
   const handleSelectVehicle = useCallback(
     (plate: string) => {
       const params = new URLSearchParams(searchParams.toString());

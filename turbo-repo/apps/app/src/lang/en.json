@@ -1584,6 +1584,7 @@
       "actionTarget": "Open in",
       "actionTargetSelf": "Same tab",
       "actionTargetBlank": "New tab",
+      "moreActions": "More actions",
       "dataSource": "Data Source",
       "functionName": "Function name",
       "introspect": "Introspect",

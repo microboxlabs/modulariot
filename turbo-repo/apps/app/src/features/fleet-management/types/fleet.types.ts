@@ -66,10 +66,13 @@ export interface FleetKpi {
 
 export interface SpecialView {
   id: string;
-  titleKey: string;
-  descriptionKey: string;
+  title: string;
+  description: string;
   icon: IconType;
   iconColor: string;
   iconDarkColor: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeColorDark?: string;
   route: string;
 }

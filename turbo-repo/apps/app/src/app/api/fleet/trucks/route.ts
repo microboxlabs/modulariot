@@ -3,16 +3,14 @@ import { requireAuth } from "../../utils/alfresco-crud-client";
 import { createResourceClient } from "../../utils/miot-resource-api-client";
 import { parsePageParams, isPageParamsError } from "../../utils/page-params";
 import {
-  decodeEwkbPoint,
   fetchLastPositions,
   fetchTrucksCatalog,
   getPgrestClientId,
+  pgrestRowToTruck,
   type PgrestMapPositionRow,
-  type PgrestTruckCatalogRow,
 } from "../../utils/pgrest-client";
 import {
   MiotResourceApiError,
-  type Tenant,
   type Truck,
   type TruckMetricView,
   type TruckQueryParams,
@@ -48,89 +46,6 @@ function buildJsonResponse(
       "X-Cache-Status": cacheStatus,
     },
   });
-}
-
-function mapStatus(row: PgrestTruckCatalogRow): string {
-  if (!row.is_active) return "INACTIVE";
-  const s = (row.status ?? "").toUpperCase();
-  if (s.includes("MAINTEN")) return "MAINTENANCE";
-  if (s.includes("ALERT") || s.includes("WARNING")) return "ALERT";
-  return "ACTIVE";
-}
-
-function buildLatestMetricsFromPgrest(
-  row: PgrestTruckCatalogRow,
-  position: PgrestMapPositionRow | undefined
-): Record<string, string | number | boolean | null> {
-  const metrics: Record<string, string | number | boolean | null> = {};
-
-  if (row.device_usage_qty != null) {
-    metrics.odometer_km = row.device_usage_qty;
-  }
-  if (row.maintenance_frequency != null) {
-    metrics.maintenance_frequency_km = row.maintenance_frequency;
-  }
-  // Human-readable city/location label from the pgrest catalog, used by the
-  // fleet card instead of raw lat/lon when present.
-  if (row.ubicacion && row.ubicacion.trim() !== "") {
-    metrics.location_label = row.ubicacion.trim();
-  }
-  // Customer account (RUT) from the pgrest catalog — surfaced as the
-  // transportist/client on the card until a proper name field is exposed.
-  if (row.cust_account && row.cust_account.trim() !== "") {
-    metrics.customer_account = row.cust_account.trim();
-  }
-
-  if (position) {
-    if (position.timestamp) metrics.timestamp = position.timestamp;
-    if (position.speed != null) metrics.vehicle_speed_kph = position.speed;
-    if (position.heading != null) metrics.heading = position.heading;
-    if (position.gps_provider != null) metrics.gps_provider = position.gps_provider;
-    const point = decodeEwkbPoint(position.location);
-    if (point) {
-      metrics.latitude = point.latitude;
-      metrics.longitude = point.longitude;
-    }
-  }
-
-  return metrics;
-}
-
-/** Stubbed Tenant — pgrest does not expose tenant metadata; unused downstream. */
-const PGREST_TENANT_STUB: Tenant = {
-  id: 0,
-  code: "pgrest",
-  name: "pgrest",
-  active: true,
-};
-
-function pgrestRowToTruck(
-  row: PgrestTruckCatalogRow,
-  position: PgrestMapPositionRow | undefined,
-  clientId: string
-): Truck {
-  return {
-    id: row.mbl_id,
-    tenant: PGREST_TENANT_STUB,
-    clientId,
-    entityId: String(row.mbl_id),
-    externalId: row.patente,
-    status: mapStatus(row),
-    alfrescoNodeId: "",
-    active: row.is_active,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    licensePlate: row.patente,
-    vin: row.chassis_number ?? "",
-    brand: row.brand_id ?? "",
-    model: row.description ?? "",
-    year: row.model_year ?? 0,
-    maxWeight: 0,
-    volume: 0,
-    truckType: row.type_id ?? row.group_id ?? "",
-    assetId: row.patente,
-    latestMetrics: buildLatestMetricsFromPgrest(row, position),
-  };
 }
 
 async function fetchTrucksFromPgrest(

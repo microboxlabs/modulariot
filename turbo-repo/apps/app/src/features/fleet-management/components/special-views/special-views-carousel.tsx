@@ -120,7 +120,7 @@ export default function SpecialViewsCarousel({
                   width: itemWidth,
                 }}
               >
-                <SpecialViewCard view={view} dict={dict} />
+                <SpecialViewCard view={view} />
               </div>
             ))}
           </div>

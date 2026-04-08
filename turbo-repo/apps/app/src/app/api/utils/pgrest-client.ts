@@ -15,6 +15,7 @@
  */
 
 import "server-only";
+import type { Tenant, Truck } from "@microboxlabs/miot-resource-client";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -48,6 +49,26 @@ export interface PgrestMapPositionRow {
   speed: number | null;
   heading: number | null;
   gps_provider: string | null;
+}
+
+/** Row shape for ams.fleet_special_views — see db-scripts migration. */
+export interface PgrestFleetSpecialViewRow {
+  id: number;
+  client_id: string;
+  position: number;
+  active: boolean;
+  icon: string;
+  icon_color: string;
+  icon_color_dark: string;
+  title_es: string;
+  title_en: string;
+  description_es: string | null;
+  description_en: string | null;
+  badge_text_es: string | null;
+  badge_text_en: string | null;
+  badge_color: string | null;
+  badge_color_dark: string | null;
+  route: string;
 }
 
 /** Lat/lon decoded from a PostGIS EWKB hex POINT string. */
@@ -136,6 +157,65 @@ export async function fetchTrucksCatalog(): Promise<PgrestTruckCatalogRow[]> {
 }
 
 /**
+ * Fetch a single truck catalog row by its numeric `mbl_id` or license plate
+ * (`patente`). Returns `null` when no row matches. The caller decides which
+ * column to query based on whether the identifier parses as an integer.
+ */
+export async function fetchTruckCatalogByIdOrPlate(
+  idOrPlate: string
+): Promise<PgrestTruckCatalogRow | null> {
+  const token = await bearerToken();
+  const numeric = Number(idOrPlate);
+  const filter = Number.isInteger(numeric)
+    ? `mbl_id=eq.${numeric}`
+    : `patente=eq.${encodeURIComponent(idOrPlate)}`;
+  const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp?${filter}&limit=1`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "Range-Unit": "items",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET v_modulariot_trucks_tmp (${filter}) failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const rows = (await response.json()) as PgrestTruckCatalogRow[];
+  return rows[0] ?? null;
+}
+
+/**
+ * Fetch the active special-view cards for the current tenant from
+ * `ams.fleet_special_views`. Tenant filtering is enforced server-side via
+ * the table's RLS policy on the JWT `azp` claim, so no client_id is sent.
+ *
+ * Uses the `Accept-Profile: ams` header (PostgREST schema selection) since
+ * this table lives outside the default `public` schema.
+ */
+export async function fetchSpecialViews(): Promise<PgrestFleetSpecialViewRow[]> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/fleet_special_views?active=eq.true&order=position`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "Accept-Profile": "ams",
+      "Range-Unit": "items",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET ams.fleet_special_views failed: ${response.status} ${response.statusText}`
+    );
+  }
+  return (await response.json()) as PgrestFleetSpecialViewRow[];
+}
+
+/**
  * Fetch the last-known position per asset for the given tenant via the
  * `api_modular_map_positions` stored function. `p_is_dev=true` makes the
  * function LEFT JOIN the trip table, so it returns assets even without an
@@ -166,4 +246,97 @@ export async function fetchLastPositions(
     | { data: PgrestMapPositionRow[]; status?: number; message?: string };
   if (Array.isArray(body)) return body;
   return body?.data ?? [];
+}
+
+// --- pgrest row → resource-client `Truck` transformation helpers. ---
+// Shared between the list route and the single-truck route so both sources
+// produce identical shapes. Kept here because they are tightly coupled to
+// the pgrest row types above.
+
+/** Stubbed Tenant — pgrest does not expose tenant metadata; unused downstream. */
+const PGREST_TENANT_STUB: Tenant = {
+  id: 0,
+  code: "pgrest",
+  name: "pgrest",
+  active: true,
+};
+
+function mapPgrestStatus(row: PgrestTruckCatalogRow): string {
+  if (!row.is_active) return "INACTIVE";
+  const s = (row.status ?? "").toUpperCase();
+  if (s.includes("MAINTEN")) return "MAINTENANCE";
+  if (s.includes("ALERT") || s.includes("WARNING")) return "ALERT";
+  return "ACTIVE";
+}
+
+function buildLatestMetricsFromPgrest(
+  row: PgrestTruckCatalogRow,
+  position: PgrestMapPositionRow | undefined
+): Record<string, string | number | boolean | null> {
+  const metrics: Record<string, string | number | boolean | null> = {};
+
+  if (row.device_usage_qty != null) {
+    metrics.odometer_km = row.device_usage_qty;
+  }
+  if (row.maintenance_frequency != null) {
+    metrics.maintenance_frequency_km = row.maintenance_frequency;
+  }
+  // Human-readable city/location label from the pgrest catalog, used by the
+  // fleet card instead of raw lat/lon when present.
+  if (row.ubicacion && row.ubicacion.trim() !== "") {
+    metrics.location_label = row.ubicacion.trim();
+  }
+  // Customer account (RUT) from the pgrest catalog — surfaced as the
+  // transportist/client on the card until a proper name field is exposed.
+  if (row.cust_account && row.cust_account.trim() !== "") {
+    metrics.customer_account = row.cust_account.trim();
+  }
+
+  if (position) {
+    if (position.timestamp) metrics.timestamp = position.timestamp;
+    if (position.speed != null) metrics.vehicle_speed_kph = position.speed;
+    if (position.heading != null) metrics.heading = position.heading;
+    if (position.gps_provider != null) metrics.gps_provider = position.gps_provider;
+    const point = decodeEwkbPoint(position.location);
+    if (point) {
+      metrics.latitude = point.latitude;
+      metrics.longitude = point.longitude;
+    }
+  }
+
+  return metrics;
+}
+
+/**
+ * Convert a pgrest truck catalog row (plus optional last-known position)
+ * into the `Truck` shape emitted by the resource client. Both fleet routes
+ * call this so their responses stay identical regardless of the source.
+ */
+export function pgrestRowToTruck(
+  row: PgrestTruckCatalogRow,
+  position: PgrestMapPositionRow | undefined,
+  clientId: string
+): Truck {
+  return {
+    id: row.mbl_id,
+    tenant: PGREST_TENANT_STUB,
+    clientId,
+    entityId: String(row.mbl_id),
+    externalId: row.patente,
+    status: mapPgrestStatus(row),
+    alfrescoNodeId: "",
+    active: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    licensePlate: row.patente,
+    vin: row.chassis_number ?? "",
+    brand: row.brand_id ?? "",
+    model: row.description ?? "",
+    year: row.model_year ?? 0,
+    maxWeight: 0,
+    volume: 0,
+    truckType: row.type_id ?? row.group_id ?? "",
+    assetId: row.patente,
+    latestMetrics: buildLatestMetricsFromPgrest(row, position),
+  };
 }

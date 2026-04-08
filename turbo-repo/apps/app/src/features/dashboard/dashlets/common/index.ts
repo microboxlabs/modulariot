@@ -148,6 +148,6 @@ export {
   toThresholdRuleItems,
   fromThresholdRuleItems,
 } from "./threshold-helpers";
-export { type ThresholdResult, useThreshold } from "./use-threshold";
+export { type ThresholdResult, useThreshold, useRowThreshold } from "./use-threshold";
 export { ThresholdEditor } from "./threshold-editor";
 export { useThresholdSettings } from "./use-threshold-settings";

@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useThreshold } from "../common/use-threshold";
+import { useRowThreshold } from "../common/use-threshold";
 import { getThresholdTextClasses } from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
@@ -60,11 +60,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
-  const templateContext = useMemo(
-    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
-    [firstRow],
-  );
-  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
+  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

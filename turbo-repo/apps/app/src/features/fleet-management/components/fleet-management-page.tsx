@@ -35,7 +35,7 @@ export default function FleetManagementPage({
   const { trucks, isLoading } = useFleetTrucks({
     size: 100,
     includeMetrics: true,
-    metricView: "card",
+    metricFields: "timestamp,odometer_km,fuel_volume_ml,fuel_level_pct",
   });
 
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);

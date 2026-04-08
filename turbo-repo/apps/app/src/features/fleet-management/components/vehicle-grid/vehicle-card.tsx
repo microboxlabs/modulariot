@@ -29,6 +29,10 @@ export default function VehicleCard({
   isDetailed,
   onSelect,
 }: VehicleCardProps) {
+  const fuelValue = vehicle.fuelVolumeLiters !== undefined
+    ? `${vehicle.fuelVolumeLiters.toFixed(1)} L`
+    : `${vehicle.fuelLevel}%`;
+
   const handleClick = () => {
     onSelect?.(vehicle.plate);
   };
@@ -88,7 +92,7 @@ export default function VehicleCard({
             <VehicleStatItem
               icon={HiOutlineFire}
               label={tr("vehicleGrid.fuel", dict)}
-              value={`${vehicle.fuelLevel}%`}
+              value={fuelValue}
             />
             <VehicleStatItem
               icon={HiOutlineCalendarDays}

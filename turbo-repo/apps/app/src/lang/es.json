@@ -2656,7 +2656,7 @@
       "driver": "Conductor",
       "location": "Ubicación",
       "model": "Modelo",
-      "transportist": "Transportista",
+      "transportist": "Client",
       "fuel": "Combustible",
       "maintenance": "Próx. Mantención",
       "kmTraveled": "Km Totales",

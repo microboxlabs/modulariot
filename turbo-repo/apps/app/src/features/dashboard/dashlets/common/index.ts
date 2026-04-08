@@ -124,3 +124,30 @@ export {
   createSimpleDashletSettings,
   useFieldState,
 } from "./simple-dashlet-settings";
+export {
+  type ThresholdTarget,
+  type ThresholdRule,
+  type ThresholdConfig,
+  type ThresholdRuleItem,
+  THRESHOLD_TARGETS,
+  THRESHOLD_TARGET_LABELS,
+} from "./threshold-types";
+export {
+  evaluateThreshold,
+  getThresholdBgClasses,
+  getThresholdTextClasses,
+  getThresholdIconClasses,
+  getThresholdBorderClasses,
+  getThresholdStrokeClass,
+  getThresholdBarClass,
+  getThresholdGradientClasses,
+} from "./threshold-engine";
+export {
+  DEFAULT_THRESHOLD_CONFIG,
+  normalizeThresholdConfig,
+  toThresholdRuleItems,
+  fromThresholdRuleItems,
+} from "./threshold-helpers";
+export { type ThresholdResult, useThreshold } from "./use-threshold";
+export { ThresholdEditor } from "./threshold-editor";
+export { useThresholdSettings } from "./use-threshold-settings";

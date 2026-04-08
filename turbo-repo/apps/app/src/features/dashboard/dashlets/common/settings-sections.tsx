@@ -641,6 +641,7 @@ export function ActionsEditor({
                     <div className="w-28 shrink-0">
                       <Select
                         sizing="sm"
+                        aria-label={labels.actionTarget}
                         value={item.target}
                         onChange={(e) => onUpdate(item._id, "target", e.target.value as ActionTarget)}
                       >

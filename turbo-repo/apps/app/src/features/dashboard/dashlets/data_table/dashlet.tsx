@@ -342,13 +342,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                       {hasActions && (
                         <td className={`sticky right-0 border-l border-gray-200 px-4 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}>
                           <div className="flex flex-wrap gap-1">
-                            {safeActions.items.map((action) => {
+                            {safeActions.items.map((action, actionIdx) => {
                               const ctx = { ...row, row };
                               const href = resolveHandlebarsField(action.link, ctx);
                               if (!isSafeActionUrl(href)) return null;
                               return (
                                 <a
-                                  key={action.name}
+                                  key={`${actionIdx}-${action.name}`}
                                   href={href}
                                   target={action.target}
                                   rel={action.target === "_blank" ? "noopener noreferrer" : undefined}

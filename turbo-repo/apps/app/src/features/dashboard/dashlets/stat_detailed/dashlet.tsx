@@ -44,6 +44,18 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 const FIELD_DEFAULTS: Record<string, string> = { title: "Monthly Revenue", value: "84500", previousValue: "72000", unit: "$", description: "Total monthly revenue across all products", target: "100000" };
 
+function getChangeBadgeClasses(
+  thresholdColor: import("../common/color-rule-types").RuleColor | null,
+  appliesTo: (target: import("../common/threshold-types").ThresholdTarget) => boolean,
+  isPositive: boolean,
+): string {
+  if (thresholdColor && appliesTo("icon")) {
+    return `${getThresholdBgClasses(thresholdColor)} ${getThresholdTextClasses(thresholdColor)}`;
+  }
+  if (isPositive) return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+  return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+}
+
 // ============================================================================
 // Component - Style 2: Full Details Card
 // ============================================================================
@@ -93,13 +105,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           </p>
         </div>
         <div
-          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-            thresholdColor && appliesTo("icon")
-              ? `${getThresholdBgClasses(thresholdColor)} ${getThresholdTextClasses(thresholdColor)}`
-              : isPositive
-                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-          }`}
+          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${getChangeBadgeClasses(thresholdColor, appliesTo, isPositive)}`}
         >
           <HiArrowTrendingUp
             className={`h-3 w-3 ${!isPositive && "rotate-180"}`}

@@ -102,11 +102,11 @@ public class TruckMetricCatalog {
         if (deduped.isEmpty()) {
             throw new BadRequestException("metricFields must include at least one supported field");
         }
-        if (deduped.size() > MAX_METRIC_FIELDS) {
-            throw new BadRequestException("metricFields exceeds max allowed fields: " + MAX_METRIC_FIELDS);
-        }
         if (!deduped.contains(TIMESTAMP)) {
             deduped.add(TIMESTAMP);
+        }
+        if (deduped.size() > MAX_METRIC_FIELDS) {
+            throw new BadRequestException("metricFields exceeds max allowed fields: " + MAX_METRIC_FIELDS);
         }
         return List.copyOf(deduped);
     }

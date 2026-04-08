@@ -29,7 +29,7 @@ export const pages: SidebarItem[] = [
     icon: PeopleIcon,
     label: "colaboratorsManagement",
     totals: {},
-    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
+    requiredGroups: ["GROUP_COLABORATORS_MANAGEMENT"],
     blockedGroups: [],
   },
   {

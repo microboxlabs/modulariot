@@ -2793,7 +2793,20 @@
           "hardBraking": "Frenado brusco detectado",
           "routeCompleted": "Ruta completada exitosamente",
           "incidentsThisMonth": "Incidentes Este Mes",
-          "hoursAgo": "Hace {count}h"
+          "hoursAgo": "Hace {count}h",
+          "noIssues": "Sin alertas",
+          "urgency": {
+            "critical": "Crítico",
+            "warning": "Alerta",
+            "info": "Info"
+          },
+          "category": {
+            "falla_tecnica": "Falla técnica",
+            "evento": "Evento",
+            "uso": "Uso",
+            "cambio_datos": "Cambio de datos",
+            "mantencion": "Mantención"
+          }
         },
         "usage": {
           "title": "Uso de Flota",
@@ -2894,7 +2907,8 @@
     },
     "employmentStatus": {
       "activo": "Activo",
-      "suspendido": "Suspendido"
+      "suspendido": "Suspendido",
+      "vacaciones": "En Vacaciones"
     },
     "performanceStatus": {
       "excelente": "Excelente",
@@ -2919,7 +2933,65 @@
       "withIncidents": "Con incidentes"
     },
     "detail": {
-      "back": "Volver"
+      "back": "Volver",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "name": "Nombre",
+      "role": "Rol",
+      "status": "Estado",
+      "vehicle": "Vehículo",
+      "performanceHistory": "Historial de desempeño",
+      "quickSummary": "Resumen rápido",
+      "vsLastMonth": "vs mes ant.",
+      "incidents": "incidentes",
+      "activeIncidents": "incidentes activos",
+      "punctuality": "puntualidad",
+      "safety": "seguridad",
+      "points": "pts",
+      "scoreCards": {
+        "security": "Seguridad",
+        "punctuality": "Puntualidad",
+        "operationalEfficiency": "Eficiencia operativa",
+        "regulatoryCompliance": "Cumplimiento normativo",
+        "vehicleUsage": "Uso del vehículo",
+        "operationalEvents": "Eventos operativos"
+      },
+      "noData": "No se pudieron cargar los datos de detalle para este colaborador.",
+      "backToList": "Volver al listado"
+    },
+    "behaviorHistory": {
+      "title": "Historial de Comportamiento",
+      "noEvents": "No hay eventos para mostrar",
+      "filter": {
+        "all": "Todos",
+        "safety": "Seguridad",
+        "usage": "Uso",
+        "regulatory": "Normativo",
+        "critical": "Críticos"
+      },
+      "urgency": {
+        "critical": "Crítico",
+        "warning": "Alerta",
+        "info": "Info"
+      },
+      "category": {
+        "safety": "Seguridad",
+        "usage": "Uso",
+        "regulatory": "Normativo"
+      }
+    },
+    "achievement": {
+      "mejora-sostenida": "Mejora Sostenida",
+      "puntualidad-excepcional": "Puntualidad Excepcional"
+    },
+    "alert": {
+      "conducta-critica-reciente": "Conducta Crítica Reciente"
+    },
+    "colaboratorGrid": {
+      "name": "Nombre"
+    },
+    "breadcrumb": {
+      "colaboratorsManagement": "Gestión de Colaboradores"
     }
   },
   "ext_tasks": {

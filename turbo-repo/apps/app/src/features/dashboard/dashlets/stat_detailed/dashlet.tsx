@@ -1,10 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { HiArrowTrendingUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses, getThresholdBgClasses, getThresholdBarClass } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -17,6 +21,7 @@ export interface DashletConfig extends PgrestDashletFields {
   unit: string;
   description: string;
   target: string;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -50,7 +55,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  const templateContext = useMemo(
+    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
+    [firstRow],
+  );
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -76,16 +87,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {title}
           </p>
-          <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
+          <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
             {unit}
             {value.toLocaleString()}
           </p>
         </div>
         <div
           className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-            isPositive
-              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+            thresholdColor && appliesTo("icon")
+              ? `${getThresholdBgClasses(thresholdColor)} ${getThresholdTextClasses(thresholdColor)}`
+              : isPositive
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
           }`}
         >
           <HiArrowTrendingUp
@@ -112,7 +125,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </div>
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
           <div
-            className="h-full rounded-full bg-blue-500 transition-all"
+            className={`h-full rounded-full ${thresholdColor && appliesTo("background") ? getThresholdBarClass(thresholdColor) : "bg-blue-500"} transition-all`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>

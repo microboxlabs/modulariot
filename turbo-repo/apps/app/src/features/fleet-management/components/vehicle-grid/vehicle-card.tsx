@@ -29,9 +29,9 @@ export default function VehicleCard({
   isDetailed,
   onSelect,
 }: VehicleCardProps) {
-  const fuelValue = vehicle.fuelVolumeLiters !== undefined
-    ? `${vehicle.fuelVolumeLiters.toFixed(1)} L`
-    : `${vehicle.fuelLevel}%`;
+  const fuelValue = vehicle.fuelVolumeLiters === undefined
+    ? `${vehicle.fuelLevel}%`
+    : `${vehicle.fuelVolumeLiters.toFixed(1)} L`;
 
   const handleClick = () => {
     onSelect?.(vehicle.plate);

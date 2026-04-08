@@ -1609,6 +1609,7 @@
       "actionTarget": "Abrir en",
       "actionTargetSelf": "Misma pestaña",
       "actionTargetBlank": "Nueva pestaña",
+      "moreActions": "Más acciones",
       "dataSource": "Fuente de Datos",
       "functionName": "Nombre de función",
       "introspect": "Inspeccionar",

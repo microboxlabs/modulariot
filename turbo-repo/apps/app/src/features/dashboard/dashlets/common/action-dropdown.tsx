@@ -15,7 +15,7 @@ interface ActionDropdownProps {
   ariaLabel: string;
 }
 
-export function ActionDropdown({ items }: Readonly<ActionDropdownProps>) {
+export function ActionDropdown({ items, ariaLabel }: Readonly<ActionDropdownProps>) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -74,6 +74,9 @@ export function ActionDropdown({ items }: Readonly<ActionDropdownProps>) {
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
+        aria-label={ariaLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
       >
         <HiEllipsisVertical className="h-5 w-5" />

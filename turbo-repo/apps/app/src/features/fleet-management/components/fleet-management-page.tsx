@@ -32,7 +32,11 @@ export default function FleetManagementPage({
   const router = useRouter();
   const pathname = usePathname();
 
-  const { trucks, isLoading } = useFleetTrucks({ size: 100 });
+  const { trucks, isLoading } = useFleetTrucks({
+    size: 100,
+    includeMetrics: true,
+    metricFields: "timestamp,odometer_km,fuel_volume_ml,fuel_level_pct",
+  });
 
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
 

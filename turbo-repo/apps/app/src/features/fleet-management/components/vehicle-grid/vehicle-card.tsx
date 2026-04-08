@@ -29,6 +29,10 @@ export default function VehicleCard({
   isDetailed,
   onSelect,
 }: VehicleCardProps) {
+  const fuelValue = vehicle.fuelVolumeLiters === undefined
+    ? `${vehicle.fuelLevel}%`
+    : `${vehicle.fuelVolumeLiters.toFixed(1)} L`;
+
   const handleClick = () => {
     onSelect?.(vehicle.plate);
   };
@@ -88,7 +92,7 @@ export default function VehicleCard({
             <VehicleStatItem
               icon={HiOutlineFire}
               label={tr("vehicleGrid.fuel", dict)}
-              value={`${vehicle.fuelLevel}%`}
+              value={fuelValue}
             />
             <VehicleStatItem
               icon={HiOutlineCalendarDays}
@@ -106,23 +110,23 @@ export default function VehicleCard({
     </>
   );
 
-  if (isInteractive) {
+  if (!isInteractive) {
     return (
-      <button
-        type="button"
-        tabIndex={0}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        className={`${baseClasses} ${interactiveClasses}`}
-      >
+      <div className={baseClasses}>
         {cardContent}
-      </button>
+      </div>
     );
   }
 
   return (
-    <div className={baseClasses}>
+    <button
+      type="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`${baseClasses} ${interactiveClasses}`}
+    >
       {cardContent}
-    </div>
+    </button>
   );
 }

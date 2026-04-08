@@ -4,7 +4,7 @@ import { normalizeThresholdConfig, toThresholdRuleItems, fromThresholdRuleItems 
 
 let nextId = 0;
 
-export function useThresholdSettings(config: Record<string, unknown>) {
+export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
   const normalized = normalizeThresholdConfig(config.thresholds);
 
   const [enabled, setEnabled] = useState(normalized.enabled);

@@ -47,7 +47,7 @@ export function DashletSettings({
   );
 
   const dp = useDataProvider(config.dataProvider ?? []);
-  const threshold = useThresholdSettings(config as unknown as Record<string, unknown>);
+  const threshold = useThresholdSettings(config);
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {

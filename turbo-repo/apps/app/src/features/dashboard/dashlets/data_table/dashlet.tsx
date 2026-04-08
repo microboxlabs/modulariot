@@ -30,6 +30,9 @@ import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlet
 import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-types";
 import { findMatchingColor, getRowColorClasses } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
+import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
+import { normalizeActionsConfig } from "@/features/dashboard/dashlets/common/action-helpers";
+import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 
 export interface DashletConfig {
   title: string;
@@ -45,6 +48,7 @@ export interface DashletConfig {
   dataSourceId?: string;
   plannerVariableName?: string;
   rowColorRules?: ColorRulesConfig;
+  actions?: ActionsConfig;
 }
 
 // ============================================================================
@@ -161,6 +165,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     () => normalizeColorRulesConfig(config.rowColorRules, { enabled: false, rules: [] }),
     [config.rowColorRules],
   );
+  const safeActions = useMemo(
+    () => normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
+    [config.actions],
+  );
+  const hasActions = safeActions.enabled && safeActions.items.length > 0;
 
   // ── Data fetching (pgrest or planner) ───────────────────────────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -287,13 +296,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     {resolveLabel(col.key)}
                   </th>
                 ))}
+                {hasActions && (
+                  <th className="sticky right-0 whitespace-nowrap border-l border-gray-200 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-400">
+                    {tr("dashboard.settings.actions", dictionary)}
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {displayRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length || 1}
+                    colSpan={(columns.length || 1) + (hasActions ? 1 : 0)}
                     className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500"
                   >
                     No data
@@ -325,6 +339,27 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                           )}
                         </td>
                       ))}
+                      {hasActions && (
+                        <td className={`sticky right-0 border-l border-gray-200 px-4 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}>
+                          <div className="flex flex-wrap gap-1">
+                            {safeActions.items.map((action) => {
+                              const ctx = { ...row, row };
+                              const href = resolveHandlebarsField(action.link, ctx);
+                              return (
+                                <a
+                                  key={action.name}
+                                  href={href}
+                                  target={action.target}
+                                  rel={action.target === "_blank" ? "noopener noreferrer" : undefined}
+                                  className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                                >
+                                  {action.name}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

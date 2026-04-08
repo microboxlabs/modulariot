@@ -58,6 +58,7 @@ export function DashletSettings({
     dataMode: config.dataMode === "pgrest" ? "pgrest" : (config.dataMode ?? "static"),
     apiUrl: "",
     rowColorRules: config.rowColorRules,
+    actions: config.actions,
   });
 
   const pg = usePgrestSettingsState({
@@ -75,7 +76,7 @@ export function DashletSettings({
     );
     if (!rows) return;
 
-    const { filter, sort, savedColumns, rowColorRules } = s.buildFilterSort();
+    const { filter, sort, savedColumns, rowColorRules, actions } = s.buildFilterSort();
 
     onSave({
       title: s.title,
@@ -91,6 +92,7 @@ export function DashletSettings({
       dataSourceId: dataSourceId || undefined,
       plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
       rowColorRules,
+      actions,
       ...refresh.savePayload,
     });
     onClose();

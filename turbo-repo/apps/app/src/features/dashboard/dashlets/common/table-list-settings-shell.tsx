@@ -10,6 +10,7 @@ import {
   FilterEditor,
   SortEditor,
   ColorRuleEditor,
+  ActionsEditor,
   DataProviderTab,
 } from "./settings-sections";
 import { SettingsModalShell } from "./settings-modal-shell";
@@ -164,6 +165,24 @@ export function TableListSettingsShell({
           valuePlaceholder,
           operatorLabels,
           colorLabels,
+        }}
+      />
+
+      <ActionsEditor
+        enabled={s.actionsEnabled}
+        onToggle={s.setActionsEnabled}
+        items={s.actionItems}
+        onAdd={s.addAction}
+        onRemove={s.removeAction}
+        onUpdate={s.updateAction}
+        labels={{
+          actions: tr("dashboard.settings.actions", dictionary),
+          addAction: tr("dashboard.settings.addAction", dictionary),
+          actionName: tr("dashboard.settings.actionName", dictionary),
+          actionLink: tr("dashboard.settings.actionLink", dictionary),
+          actionTarget: tr("dashboard.settings.actionTarget", dictionary),
+          actionTargetSelf: tr("dashboard.settings.actionTargetSelf", dictionary),
+          actionTargetBlank: tr("dashboard.settings.actionTargetBlank", dictionary),
         }}
       />
 

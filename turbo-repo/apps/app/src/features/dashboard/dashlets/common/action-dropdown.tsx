@@ -12,6 +12,7 @@ interface ResolvedAction {
 
 interface ActionDropdownProps {
   items: ResolvedAction[];
+  ariaLabel: string;
 }
 
 export function ActionDropdown({ items }: Readonly<ActionDropdownProps>) {

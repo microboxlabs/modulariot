@@ -13,12 +13,20 @@ export function fromActionItems(items: ActionItemWithId[]): ActionItem[] {
   return items.map(({ name, link, target }) => ({ name, link, target }));
 }
 
+const UNSAFE_SCHEME_RE = /^\s*(javascript|data|vbscript)\s*:/i;
+
+/** Reject URLs with executable schemes (javascript:, data:, vbscript:). */
+export function isSafeActionUrl(url: string): boolean {
+  return !UNSAFE_SCHEME_RE.test(url);
+}
+
 function isValidActionItem(item: unknown): item is ActionItem {
   if (item == null || typeof item !== "object") return false;
   const obj = item as Record<string, unknown>;
   return (
     typeof obj.name === "string" &&
     typeof obj.link === "string" &&
+    isSafeActionUrl(obj.link) &&
     typeof obj.target === "string" &&
     (ACTION_TARGETS as string[]).includes(obj.target)
   );

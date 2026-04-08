@@ -31,7 +31,7 @@ import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/colo
 import { findMatchingColor, getRowColorClasses } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
 import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
-import { normalizeActionsConfig } from "@/features/dashboard/dashlets/common/action-helpers";
+import { normalizeActionsConfig, isSafeActionUrl } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 
 export interface DashletConfig {
@@ -345,6 +345,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                             {safeActions.items.map((action) => {
                               const ctx = { ...row, row };
                               const href = resolveHandlebarsField(action.link, ctx);
+                              if (!isSafeActionUrl(href)) return null;
                               return (
                                 <a
                                   key={action.name}

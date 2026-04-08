@@ -1,4 +1,4 @@
-import { COLOR_RULE_OPERATORS } from "./color-rule-types";
+import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
 import type { ThresholdConfig, ThresholdRule, ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS } from "./threshold-types";
 
@@ -28,7 +28,7 @@ function isValidThresholdRule(r: unknown): r is ThresholdRule {
     (COLOR_RULE_OPERATORS as string[]).includes(rule.operator) &&
     typeof rule.value === "string" &&
     typeof rule.color === "string" &&
-    rule.color.length > 0
+    (RULE_COLORS as string[]).includes(rule.color)
   );
 }
 

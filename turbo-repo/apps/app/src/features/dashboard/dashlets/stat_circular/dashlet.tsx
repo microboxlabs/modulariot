@@ -6,6 +6,9 @@ import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useThreshold } from "../common/use-threshold";
+import { getThresholdStrokeClass, getThresholdTextClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -23,6 +26,7 @@ export interface DashletConfig {
   dataSourceId?: string;
   plannerVariableName?: string;
   dataProvider?: DataProviderEntry[];
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -88,6 +92,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const compiledMaxValue = useMemo(() => resolveHandlebarsField(maxValue, templateContext), [maxValue, templateContext]);
   const compiledUnit = useMemo(() => resolveHandlebarsField(unit, templateContext), [unit, templateContext]);
 
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
+
   const numericValue = Number(compiledValue) || 0;
   const numericMaxValue = Number(compiledMaxValue) || 0;
 
@@ -98,7 +104,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
-  const color = getStrokeColor(percentage);
+  const color = thresholdColor && appliesTo("background") ? getThresholdStrokeClass(thresholdColor) : getStrokeColor(percentage);
 
   if (loading) {
     return (
@@ -147,7 +153,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
+          <span className={`text-xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
             {compiledValue}
           </span>
           <span className="text-xs text-gray-500">{compiledUnit}</span>

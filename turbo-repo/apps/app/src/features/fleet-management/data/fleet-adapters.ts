@@ -52,6 +52,7 @@ export function truckToVehicle(truck: Truck): Vehicle {
   const fuelVolumeLiters = fuelVolumeMl === undefined ? undefined : fuelVolumeMl / 1000;
   const kmTraveled = metricNumber(truck, "odometer_km") ?? 0;
   const lastSignal = metricString(truck, "timestamp");
+  const transportist = metricString(truck, "customer_account") ?? "—";
 
   return {
     id: String(truck.id),
@@ -62,7 +63,7 @@ export function truckToVehicle(truck: Truck): Vehicle {
     brand: truck.brand ?? "—",
     driver: "—",
     lastLocation: formatLastLocation(truck),
-    transportist: "—",
+    transportist,
     fuelLevel,
     fuelVolumeLiters,
     nextMaintenance: formatNextMaintenance(truck),

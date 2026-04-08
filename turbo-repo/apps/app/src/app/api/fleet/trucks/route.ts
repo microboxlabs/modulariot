@@ -75,6 +75,11 @@ function buildLatestMetricsFromPgrest(
   if (row.ubicacion && row.ubicacion.trim() !== "") {
     metrics.location_label = row.ubicacion.trim();
   }
+  // Customer account (RUT) from the pgrest catalog — surfaced as the
+  // transportist/client on the card until a proper name field is exposed.
+  if (row.cust_account && row.cust_account.trim() !== "") {
+    metrics.customer_account = row.cust_account.trim();
+  }
 
   if (position) {
     if (position.timestamp) metrics.timestamp = position.timestamp;

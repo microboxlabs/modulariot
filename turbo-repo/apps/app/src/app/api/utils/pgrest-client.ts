@@ -38,6 +38,7 @@ export interface PgrestTruckCatalogRow {
   maintenance_frequency: number | null;
   device_usage_qty: number | null;
   ubicacion: string | null;
+  cust_account: string | null;
 }
 
 export interface PgrestMapPositionRow {

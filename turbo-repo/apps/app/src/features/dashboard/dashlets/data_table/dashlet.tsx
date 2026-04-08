@@ -33,6 +33,7 @@ import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/
 import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
 import { normalizeActionsConfig, isSafeActionUrl } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
+import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
 
 export interface DashletConfig {
   title: string;
@@ -297,8 +298,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </th>
                 ))}
                 {hasActions && (
-                  <th className="sticky right-0 whitespace-nowrap border-l border-gray-200 bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-400">
-                    {tr("dashboard.settings.actions", dictionary)}
+                  <th className="sticky right-0 w-10 border-l border-gray-200 bg-gray-50 px-2 py-3 dark:border-gray-600 dark:bg-gray-700/50">
+                    <span className="sr-only">{tr("dashboard.settings.actions", dictionary)}</span>
                   </th>
                 )}
               </tr>
@@ -340,25 +341,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         </td>
                       ))}
                       {hasActions && (
-                        <td className={`sticky right-0 border-l border-gray-200 px-4 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}>
-                          <div className="flex flex-wrap gap-1">
-                            {safeActions.items.map((action, actionIdx) => {
-                              const ctx = { ...row, row };
-                              const href = resolveHandlebarsField(action.link, ctx);
-                              if (!isSafeActionUrl(href)) return null;
-                              return (
-                                <a
-                                  key={`${actionIdx}-${action.name}`}
-                                  href={href}
-                                  target={action.target}
-                                  rel={action.target === "_blank" ? "noopener noreferrer" : undefined}
-                                  className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                                >
-                                  {action.name}
-                                </a>
-                              );
-                            })}
-                          </div>
+                        <td className={`sticky right-0 border-l border-gray-200 px-2 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}>
+                          <ActionDropdown
+                            items={safeActions.items
+                              .map((action) => {
+                                const ctx = { ...row, row };
+                                const href = resolveHandlebarsField(action.link, ctx);
+                                return isSafeActionUrl(href) ? { action, href } : null;
+                              })
+                              .filter((item): item is NonNullable<typeof item> => item !== null)}
+                          />
                         </td>
                       )}
                     </tr>

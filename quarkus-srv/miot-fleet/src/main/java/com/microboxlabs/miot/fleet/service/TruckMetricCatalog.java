@@ -17,6 +17,7 @@ public class TruckMetricCatalog {
     private static final String DEFAULT_VIEW = "card";
     private static final String TIMESTAMP = "timestamp";
     private static final String FUEL_LEVEL_PCT = "fuel_level_pct";
+    private static final String FUEL_VOLUME_ML = "fuel_volume_ml";
     private static final String ODOMETER_KM = "odometer_km";
     private static final String BATTERY_VOLTAGE_MV = "battery_voltage_mv";
     private static final String VEHICLE_SPEED_KPH = "vehicle_speed_kph";
@@ -28,6 +29,7 @@ public class TruckMetricCatalog {
         Map<String, MetricSource> fields = new LinkedHashMap<>();
         fields.put(TIMESTAMP, MetricSource.CORE_TIMESTAMP);
         fields.put(FUEL_LEVEL_PCT, MetricSource.CORE);
+        fields.put(FUEL_VOLUME_ML, MetricSource.CORE);
         fields.put(ODOMETER_KM, MetricSource.CORE);
         fields.put(BATTERY_VOLTAGE_MV, MetricSource.CORE);
         fields.put(VEHICLE_SPEED_KPH, MetricSource.CORE);

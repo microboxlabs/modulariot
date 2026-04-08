@@ -47,9 +47,11 @@ export interface Vehicle {
   brand: string;
   transportist: string;
   fuelLevel: number;
+  fuelVolumeLiters?: number;
   nextMaintenance: string;
   kmTraveled: number;
   lastSignal?: string;
+  assetId?: string;
   gamification?: VehicleGamification;
 }
 

@@ -9,6 +9,7 @@ import type {
   StatusChangeRequest,
   Trailer,
   Truck,
+  TruckQueryParams,
 } from "../types.js";
 
 export function createFleetApi(fetcher: Fetcher, organizationId: string) {
@@ -17,12 +18,12 @@ export function createFleetApi(fetcher: Fetcher, organizationId: string) {
   return {
     // --- Trucks ---
 
-    listTrucks(params?: PageParams): Promise<Truck[]> {
+    listTrucks(params?: TruckQueryParams): Promise<Truck[]> {
       return fetcher("GET", `${BASE}/trucks`, { query: params });
     },
 
-    getTruck(id: number): Promise<Truck> {
-      return fetcher("GET", `${BASE}/trucks/${id}`);
+    getTruck(id: number, params?: Omit<TruckQueryParams, "page" | "size">): Promise<Truck> {
+      return fetcher("GET", `${BASE}/trucks/${id}`, { query: params });
     },
 
     createTruck(body: CreateTruckRequest): Promise<Truck> {

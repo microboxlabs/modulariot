@@ -9,7 +9,23 @@ function statusToVehicleStatus(status: string, active: boolean): VehicleStatus {
   return "active";
 }
 
+function metricNumber(truck: Truck, key: string): number | undefined {
+  const value = truck.latestMetrics?.[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+function metricString(truck: Truck, key: string): string | undefined {
+  const value = truck.latestMetrics?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 export function truckToVehicle(truck: Truck): Vehicle {
+  const fuelLevel = metricNumber(truck, "fuel_level_pct") ?? 0;
+  const fuelVolumeMl = metricNumber(truck, "fuel_volume_ml");
+  const fuelVolumeLiters = fuelVolumeMl === undefined ? undefined : fuelVolumeMl / 1000;
+  const kmTraveled = metricNumber(truck, "odometer_km") ?? 0;
+  const lastSignal = metricString(truck, "timestamp");
+
   return {
     id: String(truck.id),
     plate: truck.licensePlate ?? truck.externalId ?? String(truck.id),
@@ -20,8 +36,11 @@ export function truckToVehicle(truck: Truck): Vehicle {
     driver: "—",
     lastLocation: "—",
     transportist: "—",
-    fuelLevel: 0,
+    fuelLevel,
+    fuelVolumeLiters,
     nextMaintenance: "—",
-    kmTraveled: 0,
+    kmTraveled,
+    lastSignal,
+    assetId: truck.assetId,
   };
 }

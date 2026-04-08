@@ -35,6 +35,14 @@ export interface PageParams {
   [key: string]: string | number | boolean | undefined;
 }
 
+export type TruckMetricView = "card" | "detail" | "diagnostics";
+
+export interface TruckQueryParams extends PageParams {
+  includeMetrics?: boolean;
+  metricView?: TruckMetricView;
+  metricFields?: string;
+}
+
 // --- Fleet: Trucks ---
 
 export interface Truck {
@@ -56,6 +64,8 @@ export interface Truck {
   maxWeight: number;
   volume: number;
   truckType: string;
+  assetId?: string;
+  latestMetrics?: Record<string, string | number | boolean | null>;
 }
 
 export interface CreateTruckRequest {

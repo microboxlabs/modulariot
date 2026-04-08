@@ -1,12 +1,13 @@
 "use client";
 
-import { Button, Label, Select, TextInput, ToggleSwitch } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
-import { type RuleColor, COLOR_RULE_OPERATORS, RULE_COLORS, OPERATOR_LABELS } from "./color-rule-types";
-import { getColorDotClass } from "./color-rule-engine";
+import { Button, Label, ToggleSwitch } from "flowbite-react";
+import { HiPlus } from "react-icons/hi2";
+import type { RuleColor } from "./color-rule-types";
+import { OPERATOR_LABELS } from "./color-rule-types";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
 import { HbTextField } from "./settings-fields";
+import { RuleRowControls } from "./rule-row-controls";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -30,7 +31,7 @@ interface ThresholdEditorProps {
   rules: ThresholdRuleItem[];
   onAdd: () => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, field: "operator" | "value" | "color", value: string) => void;
+  onUpdate: (id: string, field: string, value: string) => void;
   schemaSuggestions?: string[];
 }
 
@@ -102,54 +103,17 @@ export function ThresholdEditor({
             <div className="space-y-2">
               {rules.map((rule) => (
                 <div key={rule._id} className="flex items-center gap-1">
-                  {/* Operator select */}
-                  <div className="w-24 shrink-0">
-                    <Select
-                      sizing="sm"
-                      value={rule.operator}
-                      onChange={(e) => onUpdate(rule._id, "operator", e.target.value)}
-                    >
-                      {COLOR_RULE_OPERATORS.map((op) => (
-                        <option key={op} value={op}>
-                          {OPERATOR_LABELS[op]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  {/* Value input */}
-                  <div className="min-w-0 flex-1">
-                    <TextInput
-                      sizing="sm"
-                      placeholder="Value"
-                      value={rule.value}
-                      onChange={(e) => onUpdate(rule._id, "value", e.target.value)}
-                    />
-                  </div>
-                  {/* Color select */}
-                  <div className="w-24 shrink-0">
-                    <Select
-                      sizing="sm"
-                      value={rule.color}
-                      onChange={(e) => onUpdate(rule._id, "color", e.target.value)}
-                    >
-                      {RULE_COLORS.map((c) => (
-                        <option key={c} value={c}>
-                          {RULE_COLOR_LABELS[c]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  {/* Color dot preview */}
-                  <span className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(rule.color)}`} />
-                  {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => onRemove(rule._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                  >
-                    <HiTrash className="h-4 w-4" />
-                  </button>
+                  <RuleRowControls
+                    ruleId={rule._id}
+                    operator={rule.operator}
+                    value={rule.value}
+                    color={rule.color}
+                    onUpdate={onUpdate}
+                    onRemove={onRemove}
+                    operatorLabels={OPERATOR_LABELS}
+                    colorLabels={RULE_COLOR_LABELS}
+                    valuePlaceholder="Value"
+                  />
                 </div>
               ))}
             </div>

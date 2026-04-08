@@ -6,7 +6,7 @@ import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useThreshold } from "../common/use-threshold";
+import { useRowThreshold } from "../common/use-threshold";
 import { getThresholdTextClasses, getThresholdBgClasses } from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
@@ -67,11 +67,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
-  const templateContext = useMemo(
-    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
-    [firstRow],
-  );
-  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
+  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
 
   // Resolve Handlebars templates in item labels and values (only in remote modes)
   const isStatic = !config.dataMode || config.dataMode === "static";

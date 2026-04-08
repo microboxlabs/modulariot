@@ -13,6 +13,21 @@ export interface ThresholdResult {
 }
 
 /**
+ * Convenience hook for Pattern A dashlets that use useDashletPgrest.
+ * Builds the template context from firstRow and evaluates thresholds.
+ */
+export function useRowThreshold(
+  thresholds: ThresholdConfig | undefined,
+  firstRow: Record<string, unknown> | undefined,
+): ThresholdResult {
+  const templateContext = useMemo(
+    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
+    [firstRow],
+  );
+  return useThreshold(thresholds, templateContext);
+}
+
+/**
  * Evaluate threshold config against a template context.
  * Returns the matched color and a helper to check apply targets.
  */

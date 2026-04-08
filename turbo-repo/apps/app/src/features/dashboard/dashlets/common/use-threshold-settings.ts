@@ -26,7 +26,7 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
   }, []);
 
   const updateRule = useCallback(
-    (id: string, ruleField: "operator" | "value" | "color", value: string) => {
+    (id: string, ruleField: string, value: string) => {
       setRules((prev) =>
         prev.map((r) => (r._id === id ? { ...r, [ruleField]: value } : r)),
       );

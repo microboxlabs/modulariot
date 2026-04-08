@@ -6,6 +6,9 @@ import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses, getThresholdBgClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -24,6 +27,7 @@ export interface DashletConfig extends PgrestDashletFields {
   items: { label: string; value: string; color: BarColor }[];
   unit: string;
   showHeader: boolean;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -63,6 +67,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
+  const templateContext = useMemo(
+    () => (firstRow ? { ...firstRow, row: firstRow } : {}),
+    [firstRow],
+  );
+  const { color: thresholdColor, appliesTo } = useThreshold(config.thresholds, templateContext);
+
   // Resolve Handlebars templates in item labels and values (only in remote modes)
   const isStatic = !config.dataMode || config.dataMode === "static";
   const resolvedItems = useMemo(() => {
@@ -90,7 +100,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${showHeader ? "" : "justify-center"}`}
+      className={`flex h-full flex-col rounded-lg border border-gray-200 p-4 dark:border-gray-700 ${thresholdColor && appliesTo("background") ? getThresholdBgClasses(thresholdColor) : "bg-white dark:bg-gray-800"} ${showHeader ? "" : "justify-center"}`}
     >
       {/* Header */}
       {showHeader && (
@@ -98,7 +108,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {title}
           </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <p className={`text-2xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
             {total}
             <span className="ml-1 text-sm font-normal text-gray-500">
               {unit}

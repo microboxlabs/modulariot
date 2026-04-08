@@ -10,6 +10,7 @@ import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useThresholdSettings } from "./use-threshold-settings";
 import { ThresholdEditor } from "./threshold-editor";
+import type { ThresholdConfig } from "./threshold-types";
 
 // ============================================================================
 // Types
@@ -112,7 +113,7 @@ export function SimpleDashletSettings<C extends object>({
   const refresh = useWidgetRefreshSettings(configRecord, dictionary);
   const { schemas } = usePlannerContext();
 
-  const threshold = useThresholdSettings(configRecord);
+  const threshold = useThresholdSettings({ thresholds: configRecord.thresholds as ThresholdConfig | undefined });
 
   const {
     isPgrest,

@@ -91,7 +91,7 @@ export function DashletSettings({
   };
 
   const [items, setItems] = useState(initializeItems);
-  const threshold = useThresholdSettings(config as unknown as Record<string, unknown>);
+  const threshold = useThresholdSettings(config);
 
   const fieldValues = { title, unit };
   const fieldSetters = { title: setTitle, unit: setUnit };

@@ -350,6 +350,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                                 return isSafeActionUrl(href) ? { action, href } : null;
                               })
                               .filter((item): item is NonNullable<typeof item> => item !== null)}
+                            ariaLabel={tr("dashboard.settings.moreActions", dictionary)}
                           />
                         </td>
                       )}

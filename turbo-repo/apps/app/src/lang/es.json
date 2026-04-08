@@ -2445,6 +2445,8 @@
   "searchbar": {
     "service": "Servicio",
     "licensePlate": "Patente",
+    "client": "Cliente",
+    "state": "Estado",
     "driverId": "RUT conductor",
     "carrierId": "RUT transportista",
     "carrierName": "Nombre de transportista",

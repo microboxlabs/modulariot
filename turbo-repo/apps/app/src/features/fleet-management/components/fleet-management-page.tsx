@@ -1,6 +1,11 @@
 "use client";
 
-import { useParams, useRouter, usePathname } from "next/navigation";
+import {
+  useParams,
+  useRouter,
+  usePathname,
+  useSearchParams,
+} from "next/navigation";
 import { useCallback, useMemo } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -30,6 +35,7 @@ export default function FleetManagementPage({
   const fleetDict = dict["fleetManagement"] as I18nRecord;
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { lang } = useParams<{ lang: string }>();
 
   const { trucks, isLoading } = useFleetTrucks({
@@ -39,6 +45,33 @@ export default function FleetManagementPage({
   });
 
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
+
+  // URL-driven filters from the navbar searchbar (see navegation_params.ts
+  // entry for `fleet-management`). KPIs stay based on the unfiltered fleet so
+  // they always show totals; only the grid below reflects the filter.
+  const filteredVehicles = useMemo(() => {
+    const plateFilter = (searchParams.get("licensePlate") ?? "")
+      .trim()
+      .toLowerCase();
+    const clientFilter = (searchParams.get("client") ?? "").trim().toLowerCase();
+    const stateFilter = (searchParams.get("state") ?? "").trim().toLowerCase();
+
+    if (!plateFilter && !clientFilter && !stateFilter) return vehicles;
+
+    return vehicles.filter((v) => {
+      if (plateFilter && !v.plate.toLowerCase().includes(plateFilter)) {
+        return false;
+      }
+      if (
+        clientFilter &&
+        !v.transportist.toLowerCase().includes(clientFilter)
+      ) {
+        return false;
+      }
+      if (stateFilter && v.status !== stateFilter) return false;
+      return true;
+    });
+  }, [vehicles, searchParams]);
 
   const { rows: specialViewRows } = useSpecialViews();
   const specialViews = useMemo(() => {
@@ -114,7 +147,7 @@ export default function FleetManagementPage({
       <SpecialViewsCarousel views={specialViews} dict={fleetDict} />
 
       <VehicleGrid
-        vehicles={vehicles}
+        vehicles={filteredVehicles}
         dict={fleetDict}
         onSelectVehicle={handleSelectVehicle}
         fetchLoading={isLoading}

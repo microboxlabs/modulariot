@@ -40,6 +40,8 @@ export interface PgrestTruckCatalogRow {
   device_usage_qty: number | null;
   ubicacion: string | null;
   cust_account: string | null;
+  /** 0/1 flag from the catalog: 1 means the vehicle is currently in service. */
+  en_mantencion: number | null;
 }
 
 export interface PgrestMapPositionRow {
@@ -263,6 +265,9 @@ const PGREST_TENANT_STUB: Tenant = {
 
 function mapPgrestStatus(row: PgrestTruckCatalogRow): string {
   if (!row.is_active) return "INACTIVE";
+  // The catalog's en_mantencion flag is the authoritative maintenance signal;
+  // it overrides whatever the free-form `status` text says.
+  if (row.en_mantencion === 1) return "MAINTENANCE";
   const s = (row.status ?? "").toUpperCase();
   if (s.includes("MAINTEN")) return "MAINTENANCE";
   if (s.includes("ALERT") || s.includes("WARNING")) return "ALERT";

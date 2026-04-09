@@ -105,10 +105,13 @@ export function getEventsSectionStatus(
 }
 
 /**
- * Collapse the `(desviacion_contrato × pct_contrato)` signal from
- * `fn_dx_uso_flota_detalle` into the accordion's three-state section
- * status. Shared with UsageSection so the header badge and the overall
- * health overview always agree.
+ * Collapse the `(contract.status × contract.pct_consumed)` signal from
+ * the usage DTO into the accordion's three-state section status. Shared
+ * with UsageSection so the header badge and the overall health overview
+ * always agree.
+ *
+ * `contract.status` is derived client-side after the 18→11 column
+ * shrink (see `deriveContractStatus` in `pgrest-client.ts`).
  *
  * Only `SOBREUSO` is treated as critical — `SUBUTILIZADO` is the majority
  * case (~76% of the fleet) and `SIN_DATOS` is a no-signal baseline. The

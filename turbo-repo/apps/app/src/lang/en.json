@@ -2783,7 +2783,11 @@
           "brakePadWear": "Brake pad wear detected (28%)",
           "noIssues": "No failures",
           "criticalIssues": "{count} critical failure(s)",
-          "warningIssues": "{count} warning(s)"
+          "warningIssues": "{count} warning(s)",
+          "adBlue": "AdBlue",
+          "dpf": "DPF",
+          "engineFailure": "Engine Failure",
+          "ok": "OK"
         },
         "telemetry": {
           "title": "Devices & Telemetry",

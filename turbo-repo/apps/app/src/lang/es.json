@@ -2814,7 +2814,11 @@
           "brakePadWear": "Desgaste de pastillas de freno (28%)",
           "noIssues": "Sin fallas",
           "criticalIssues": "{count} falla(s) crítica(s)",
-          "warningIssues": "{count} alerta(s)"
+          "warningIssues": "{count} alerta(s)",
+          "adBlue": "AdBlue",
+          "dpf": "DPF",
+          "engineFailure": "Falla Motor",
+          "ok": "OK"
         },
         "telemetry": {
           "title": "Dispositivos y Telemetría",

@@ -62,6 +62,11 @@ export interface FleetKpi {
   icon: IconType;
   color: string;
   darkColor: string;
+  /**
+   * The vehicle status this KPI represents as a filter. Undefined on the
+   * "total" card, which clears any active state filter when clicked.
+   */
+  state?: VehicleStatus;
 }
 
 export interface SpecialView {

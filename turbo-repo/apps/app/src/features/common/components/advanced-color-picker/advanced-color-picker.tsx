@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { TextInput } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
@@ -42,7 +42,7 @@ interface AdvancedColorPickerProps {
 /** Parse hex to RGB */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const clean = hex.replace("#", "");
-  const bigint = parseInt(clean, 16);
+  const bigint = Number.parseInt(clean, 16);
   return {
     r: (bigint >> 16) & 255,
     g: (bigint >> 8) & 255,
@@ -154,6 +154,7 @@ export function AdvancedColorPicker({
   const hueRef = useRef<HTMLDivElement>(null);
   const isDraggingSquare = useRef(false);
   const isDraggingHue = useRef(false);
+  const inputIdPrefix = useId();
 
   // Sync local state when external value changes (but not while dragging square)
   useEffect(() => {
@@ -228,8 +229,8 @@ export function AdvancedColorPicker({
   }, [isOpen, handleSquareInteraction, handleHueInteraction]);
 
   const handleRgbChange = (channel: "r" | "g" | "b", val: string) => {
-    const num = parseInt(val, 10);
-    if (isNaN(num)) return;
+    const num = Number.parseInt(val, 10);
+    if (Number.isNaN(num)) return;
     const clamped = Math.max(0, Math.min(255, num));
     const newRgb = { ...localRgb, [channel]: clamped };
     setLocalRgb(newRgb);
@@ -331,10 +332,14 @@ export function AdvancedColorPicker({
             {/* RGB inputs */}
             <div className="flex gap-1 mb-3">
               <div className="flex-1">
-                <label className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">
+                <label
+                  htmlFor={`${inputIdPrefix}-r`}
+                  className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5"
+                >
                   R
                 </label>
                 <TextInput
+                  id={`${inputIdPrefix}-r`}
                   type="number"
                   sizing="sm"
                   min={0}
@@ -345,10 +350,14 @@ export function AdvancedColorPicker({
                 />
               </div>
               <div className="flex-1">
-                <label className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">
+                <label
+                  htmlFor={`${inputIdPrefix}-g`}
+                  className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5"
+                >
                   G
                 </label>
                 <TextInput
+                  id={`${inputIdPrefix}-g`}
                   type="number"
                   sizing="sm"
                   min={0}
@@ -359,10 +368,14 @@ export function AdvancedColorPicker({
                 />
               </div>
               <div className="flex-1">
-                <label className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">
+                <label
+                  htmlFor={`${inputIdPrefix}-b`}
+                  className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5"
+                >
                   B
                 </label>
                 <TextInput
+                  id={`${inputIdPrefix}-b`}
                   type="number"
                   sizing="sm"
                   min={0}
@@ -373,10 +386,14 @@ export function AdvancedColorPicker({
                 />
               </div>
               <div className="flex-1">
-                <label className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">
+                <label
+                  htmlFor={`${inputIdPrefix}-hex`}
+                  className="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5"
+                >
                   HEX
                 </label>
                 <TextInput
+                  id={`${inputIdPrefix}-hex`}
                   type="text"
                   sizing="sm"
                   value={value.toUpperCase()}

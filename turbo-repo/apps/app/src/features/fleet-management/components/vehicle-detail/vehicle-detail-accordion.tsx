@@ -3,7 +3,12 @@
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { MaintenanceCriticality } from "../../types/truck-maintenance.types";
+import type {
+  GpsHealth,
+  SignalFreshness,
+} from "../../types/truck-telemetry.types";
 import { useFleetTruckMaintenance } from "../../hooks/use-fleet-truck-maintenance";
+import { useFleetTruckTelemetry } from "../../hooks/use-fleet-truck-telemetry";
 import {
   HealthSection,
   MaintenanceSection,
@@ -33,27 +38,6 @@ export interface VehicleDetailData {
     activeFailures: number;
     resolved: number;
     responseTimeHour: number;
-  };
-  telemetry: {
-    odometer: number;
-    dateLastUpdate: string;
-    status: string;
-    engineRunning: boolean;
-    speed: number;
-    rpm: number;
-    batteryPercentage: number;
-    engineTempC: number;
-    location: string;
-    locationCoords: { lat: number, lng: number },
-    transmissionIntervalSecs: number;
-    installedDevices: Array<{
-      name: string;
-      description: string;
-      icon: "location" | "odometer" | "live";
-    }>;
-    accumulatedUptimePercentage: number;
-    dataProcessedToday: number;
-    signalLost30d: number;
   };
   events: Array<{
     title: string;
@@ -100,16 +84,29 @@ export function getMaintenanceSectionStatus(
   }
 }
 
+/**
+ * Collapse the `(frescura × salud_gps)` cross product from
+ * `fn_dx_senal_detalle` into the accordion's three-state section status.
+ * Shared with TelemetrySection so the header badge and the overall
+ * health overview always agree.
+ *
+ * SIN_SENAL is intentionally `ok` (baseline): ~89% of the fleet is in
+ * that bucket today, and treating it as warning or critical would paint
+ * the dashboard red on a data-availability gap, not a vehicle problem.
+ */
+export function getTelemetrySectionStatus(
+  freshness: SignalFreshness,
+  health: GpsHealth
+): SectionStatus {
+  if (freshness === "SIN_SENAL") return "ok";
+  if (freshness === "REZAGADO" || health === "DEGRADADO") return "warning";
+  return "ok";
+}
+
 export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus {
   const hasCriticalAlert = data.technicalHealth.alerts.some(alert => alert.type === "critical");
   if (hasCriticalAlert || data.technicalHealth.activeFailures > 2) return "critical";
   if (data.technicalHealth.alerts.length > 0 || data.technicalHealth.activeFailures > 0) return "warning";
-  return "ok";
-}
-
-export function getTelemetryStatus(data: VehicleDetailData): SectionStatus {
-  if (data.telemetry.batteryPercentage < 20 || data.telemetry.signalLost30d > 5) return "critical";
-  if (data.telemetry.batteryPercentage < 40 || data.telemetry.signalLost30d > 2) return "warning";
   return "ok";
 }
 
@@ -137,15 +134,15 @@ export interface SectionStatuses {
 
 /**
  * Computes statuses for the mock-backed sections only. The maintenance
- * status comes from the async hook and is merged in at the component level
- * — keeping this function pure so the other sections stay testable.
+ * and telemetry statuses come from async hooks and are merged in at the
+ * component level — keeping this function pure so the other sections
+ * stay testable.
  */
 export function getMockSectionStatuses(
   data: VehicleDetailData
-): Omit<SectionStatuses, "maintenance"> {
+): Omit<SectionStatuses, "maintenance" | "telemetry"> {
   return {
     technicalHealth: getTechnicalHealthStatus(data),
-    telemetry: getTelemetryStatus(data),
     events: getEventsStatus(data),
     usage: getUsageStatus(data),
   };
@@ -184,39 +181,6 @@ const vehicleData = {
     "activeFailures": 3,
     "resolved": 5,
     "responseTimeHour": 18
-  },
-  telemetry: {
-    odometer: 47000,
-    dateLastUpdate: "2026-02-10T14:45:00Z",
-    status: "On Route",
-    engineRunning: true,
-    speed: 65,
-    rpm: 3000,
-    batteryPercentage: 80,
-    engineTempC: 90,
-    location: "Av Kennedy 5000, Las Condes",
-    locationCoords: { lat: -33.393, lng: -70.567 },
-    transmissionIntervalSecs: 30,
-    installedDevices: [
-      {
-        name: "GPS Tracker",
-        description: "S/N: GT-2341-A8F2",
-        icon: "location"
-      } as const,
-      {
-        name: "Sensor OBD-II",
-        description: "Diagnóstico motor",
-        icon: "odometer"
-      } as const,
-      {
-        name: "Acelerómetro 3-Ejes",
-        description: "Detección de eventos",
-        icon: "live"
-      } as const,
-    ],
-    accumulatedUptimePercentage: 99.7,
-    dataProcessedToday: 708,
-    signalLost30d: 1,
   },
   events: [
     {
@@ -261,18 +225,27 @@ export default function VehicleDetailAccordion({
   vehicle,
   dict,
 }: VehicleDetailAccordionProps) {
-  // MaintenanceSection subscribes to the same SWR key, so this extra call
-  // here dedups to a single network fetch. While loading or on 404/error
-  // we fall back to "ok" so the health overview doesn't flicker or go red
-  // on transient states.
+  // MaintenanceSection and TelemetrySection both subscribe to the same SWR
+  // keys below, so these extra calls here dedup to a single network fetch
+  // each. While loading or on 404/error we fall back to "ok" so the
+  // health overview doesn't flicker or go red on transient states.
   const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
+  const { telemetry } = useFleetTruckTelemetry(vehicle.plate);
+
   const maintenanceStatus: SectionStatus = maintenance
     ? getMaintenanceSectionStatus(maintenance.status.criticality)
+    : "ok";
+  const telemetryStatus: SectionStatus = telemetry
+    ? getTelemetrySectionStatus(
+        telemetry.signal.freshness,
+        telemetry.gps.health
+      )
     : "ok";
 
   const statuses: SectionStatuses = {
     ...getMockSectionStatuses(vehicleData),
     maintenance: maintenanceStatus,
+    telemetry: telemetryStatus,
   };
   const healthScore = getOverallHealthScore(statuses);
 
@@ -281,7 +254,7 @@ export default function VehicleDetailAccordion({
       <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
       <MaintenanceSection vehicle={vehicle} dict={dict} />
       <TechnicalHealthSection dict={dict} data={vehicleData} status={statuses.technicalHealth} />
-      <TelemetrySection dict={dict} data={vehicleData} status={statuses.telemetry} />
+      <TelemetrySection vehicle={vehicle} dict={dict} />
       <EventsSection dict={dict} data={vehicleData} status={statuses.events} />
       <UsageSection dict={dict} data={vehicleData} status={statuses.usage} />
     </div>

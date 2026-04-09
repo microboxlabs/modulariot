@@ -17,6 +17,10 @@
 import "server-only";
 import type { Tenant, Truck } from "@microboxlabs/miot-resource-client";
 import type { TruckMaintenanceDetail } from "@/features/fleet-management/types/truck-maintenance.types";
+import type {
+  TelemetryCapabilities,
+  TruckTelemetryDetail,
+} from "@/features/fleet-management/types/truck-telemetry.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -107,6 +111,61 @@ export interface PgrestMaintenanceRow {
   last_seen_at: string | null;
   /** `freq + km_os` — the next scheduled service odometer. */
   km_next_maintance: number | null;
+}
+
+/**
+ * Row shape returned by `public.fn_dx_senal_detalle` in prod-iot-gps.
+ * Mirrors the 33 columns of the function's RETURNS TABLE definition.
+ * Sourced from `asset_data_client` signal rollups plus the pgrest
+ * catalog for identity columns. The 7-day lookback window is fixed by
+ * `p_lookback_days` (default 7). `last_*` fields are only populated
+ * when the matching `has_*` capability flag is true.
+ */
+export interface PgrestSignalRow {
+  rent_id: string | null;
+  patente: string;
+  vehiculo: string | null;
+  brand_id: string | null;
+  model_year: number | null;
+  /** Timestamp of the most recent signal; null when SIN_SENAL. */
+  ultima_senal: string | null;
+  /** Hours since last signal; large numbers or null when SIN_SENAL. */
+  horas_sin_senal: number | null;
+  total_senales_7d: number | null;
+  senales_por_dia: number | null;
+  // Per-metric capability flags — true when the device reports this metric.
+  has_vehicle_speed: boolean;
+  has_odometer: boolean;
+  has_engine_rpm: boolean;
+  has_fuel_level: boolean;
+  has_coolant_temp: boolean;
+  has_battery_v: boolean;
+  has_engine_load: boolean;
+  has_throttle: boolean;
+  has_engine_runtime: boolean;
+  /** Count of CAN metrics with has_*=true. */
+  metricas_can: number | null;
+  /** Overall telemetry score in [0,100]. */
+  score_telemetria: number | null;
+  /** 3-value enum: 'ACTIVO' | 'REZAGADO' | 'SIN_SENAL'. */
+  frescura: "ACTIVO" | "REZAGADO" | "SIN_SENAL";
+  /** 4-value enum: 'OPTIMO' | 'ACEPTABLE' | 'DEGRADADO' | 'SIN_SENAL'. */
+  salud_gps: "OPTIMO" | "ACEPTABLE" | "DEGRADADO" | "SIN_SENAL";
+  /** GPS provider display name — upstream is dirty ('Redd' vs 'REDD GPS'). */
+  proveedor_gps: string | null;
+  /** Signal stability percentage [0,100]. */
+  pct_estabilidad: number | null;
+  // Last-known sensor values. Null when the matching has_* flag is false.
+  last_vehicle_speed_kph: number | null;
+  last_engine_rpm: number | null;
+  last_coolant_temp_c: number | null;
+  last_fuel_level_pct: number | null;
+  /** Battery voltage in millivolts — the adapter converts to volts. */
+  last_battery_voltage_mv: number | null;
+  last_engine_load_pct: number | null;
+  last_throttle_pos_pct: number | null;
+  last_engine_runtime_h: number | null;
+  last_odometer_km: number | null;
 }
 
 /** Row shape for ams.fleet_special_views — see db-scripts migration. */
@@ -341,6 +400,39 @@ export async function fetchTruckMaintenanceDetailByPlate(
   return body[0] ?? null;
 }
 
+/**
+ * Call `public.fn_dx_senal_detalle(p_asset_id => <plate>)` via pgrest RPC
+ * and return the single matching row, or `null` when no signal row exists
+ * for the plate in the 7-day lookback window.
+ *
+ * Same parameter handling as the maintenance fetcher — `p_shared_client_id`
+ * keeps its default (RLS is enforced upstream), `p_lookback_days` keeps
+ * its default (7), and we only pass the plate filter.
+ */
+export async function fetchTruckSignalDetailByPlate(
+  plate: string
+): Promise<PgrestSignalRow | null> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/rpc/fn_dx_senal_detalle`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ p_asset_id: plate }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest POST rpc/fn_dx_senal_detalle failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const body = (await response.json()) as PgrestSignalRow[];
+  return body[0] ?? null;
+}
+
 // --- pgrest row → resource-client `Truck` transformation helpers. ---
 // Shared between the list route and the single-truck route so both sources
 // produce identical shapes. Kept here because they are tightly coupled to
@@ -508,5 +600,96 @@ export function maintenanceRowToDto(
     status: {
       criticality: row.criticidad,
     },
+  };
+}
+
+// --- pgrest signal row → DTO adapter. ---
+// Shared by the /telemetry route; see truck-telemetry.types.ts for the
+// DTO contract.
+
+/**
+ * Build the `capabilities` object by checking each `has_<metric>` flag and
+ * pulling the matching `last_<metric>` value. Only non-null values are
+ * added — a key that is absent means the device doesn't report that
+ * metric, distinct from "we have a capability but the latest value is
+ * zero". Battery voltage is converted from millivolts to volts here so
+ * the UI never has to deal with raw mV.
+ */
+function buildTelemetryCapabilities(row: PgrestSignalRow): TelemetryCapabilities {
+  const caps: TelemetryCapabilities = {};
+  if (row.has_vehicle_speed && row.last_vehicle_speed_kph !== null) {
+    caps.vehicle_speed_kph = row.last_vehicle_speed_kph;
+  }
+  if (row.has_odometer && row.last_odometer_km !== null) {
+    caps.odometer_km = row.last_odometer_km;
+  }
+  if (row.has_engine_rpm && row.last_engine_rpm !== null) {
+    caps.engine_rpm = row.last_engine_rpm;
+  }
+  if (row.has_fuel_level && row.last_fuel_level_pct !== null) {
+    caps.fuel_level_pct = Number(row.last_fuel_level_pct);
+  }
+  if (row.has_coolant_temp && row.last_coolant_temp_c !== null) {
+    caps.coolant_temp_c = row.last_coolant_temp_c;
+  }
+  if (row.has_battery_v && row.last_battery_voltage_mv !== null) {
+    caps.battery_voltage_v = row.last_battery_voltage_mv / 1000;
+  }
+  if (row.has_engine_load && row.last_engine_load_pct !== null) {
+    caps.engine_load_pct = row.last_engine_load_pct;
+  }
+  if (row.has_throttle && row.last_throttle_pos_pct !== null) {
+    caps.throttle_pos_pct = row.last_throttle_pos_pct;
+  }
+  if (row.has_engine_runtime && row.last_engine_runtime_h !== null) {
+    caps.engine_runtime_h = row.last_engine_runtime_h;
+  }
+  return caps;
+}
+
+/**
+ * Transform a raw `fn_dx_senal_detalle` row into the DTO consumed by the
+ * telemetry card. Null-handling rules:
+ *
+ * - `SIN_SENAL` rows typically have null `ultima_senal`, `horas_sin_senal`,
+ *   and `pct_estabilidad`; these pass through as null and the UI renders
+ *   the empty-state banner.
+ * - `proveedor_gps === "Sin proveedor"` collapses to null so the UI can
+ *   show a localized placeholder instead of echoing the literal string.
+ * - `capabilities` only contains keys whose `has_*` flag is true and whose
+ *   `last_*` value is non-null. Missing keys are semantically "this device
+ *   doesn't report that metric".
+ * - Battery voltage is converted from the source's millivolts to volts
+ *   here (see `buildTelemetryCapabilities`) so the frontend never touches
+ *   raw mV.
+ */
+export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
+  const provider = row.proveedor_gps?.trim();
+  return {
+    plate: row.patente,
+    signal: {
+      last_at: row.ultima_senal,
+      hours_since_last:
+        row.horas_sin_senal !== null ? Number(row.horas_sin_senal) : null,
+      total_last_7d: row.total_senales_7d ?? 0,
+      signals_per_day:
+        row.senales_por_dia !== null ? Number(row.senales_por_dia) : 0,
+      stability_pct:
+        row.pct_estabilidad !== null ? Number(row.pct_estabilidad) : null,
+      freshness: row.frescura,
+    },
+    gps: {
+      provider:
+        provider && provider.length > 0 && provider !== "Sin proveedor"
+          ? provider
+          : null,
+      health: row.salud_gps,
+    },
+    score: {
+      telemetry:
+        row.score_telemetria !== null ? Number(row.score_telemetria) : 0,
+      can_metrics: row.metricas_can ?? 0,
+    },
+    capabilities: buildTelemetryCapabilities(row),
   };
 }

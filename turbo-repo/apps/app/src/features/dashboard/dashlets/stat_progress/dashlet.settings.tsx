@@ -10,4 +10,5 @@ export const DashletSettings = createSimpleDashletSettings(
     { id: "sp-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
   ],
   "sp",
+  { thresholds: true },
 );

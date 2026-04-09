@@ -23,7 +23,10 @@ import {
   type SimpleDataMode,
   isRemoteDataMode,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 
@@ -60,17 +63,25 @@ export function DashletSettings({
   const [descriptor, setDescriptor] = useState(
     config.descriptor || "Percentage of tasks completed"
   );
-  const [descriptorColor, setDescriptorColor] = useState(config.descriptorColor || "");
+  const [descriptorColor, setDescriptorColor] = useState(
+    config.descriptorColor || ""
+  );
   const [aiPlaceholder, setAiPlaceholder] = useState(
     config.aiPlaceholder || "AI summary will appear here"
   );
   const [viewMoreUrl, setViewMoreUrl] = useState(config.viewMoreUrl || "");
-  const [viewMoreLabel, setViewMoreLabel] = useState(config.viewMoreLabel || "View more");
-  const [openInSameTab, setOpenInSameTab] = useState(config.openInSameTab ?? false);
+  const [viewMoreLabel, setViewMoreLabel] = useState(
+    config.viewMoreLabel || "View more"
+  );
+  const [openInSameTab, setOpenInSameTab] = useState(
+    config.openInSameTab ?? false
+  );
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
@@ -80,15 +91,40 @@ export function DashletSettings({
   );
 
   const dp = useDataProvider(
-    (config as DashletConfig & { dataProvider?: import("../types").DataProviderEntry[] })
-      .dataProvider || DEFAULT_DATA_ENTRIES
+    (
+      config as DashletConfig & {
+        dataProvider?: import("../types").DataProviderEntry[];
+      }
+    ).dataProvider || DEFAULT_DATA_ENTRIES
   );
 
-  const staticSnapshot = useRef({ title, value, valueColor, iconColor, descriptor, descriptorColor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab });
+  const staticSnapshot = useRef({
+    title,
+    value,
+    valueColor,
+    iconColor,
+    descriptor,
+    descriptorColor,
+    aiPlaceholder,
+    viewMoreUrl,
+    viewMoreLabel,
+    openInSameTab,
+  });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
     if (isRemoteDataMode(mode) && dataMode === "static") {
-      staticSnapshot.current = { title, value, valueColor, iconColor, descriptor, descriptorColor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab };
+      staticSnapshot.current = {
+        title,
+        value,
+        valueColor,
+        iconColor,
+        descriptor,
+        descriptorColor,
+        aiPlaceholder,
+        viewMoreUrl,
+        viewMoreLabel,
+        openInSameTab,
+      };
     } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
@@ -105,11 +141,14 @@ export function DashletSettings({
   };
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
-      if (detected.length >= 3) setDescriptor(`{{row.${detected[2].key}}}`);
-    }),
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
+        if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
+        if (detected.length >= 3) setDescriptor(`{{row.${detected[2].key}}}`);
+      }
+    ),
   });
 
   const schemaSuggestions =
@@ -136,7 +175,8 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     } as DashletConfig);
     onClose();
@@ -176,7 +216,10 @@ export function DashletSettings({
         label={tr("dashboard.settings.aiPlaceholder", dictionary)}
         value={aiPlaceholder}
         onChange={setAiPlaceholder}
-        placeholder={tr("dashboard.settings.aiPlaceholderPlaceholder", dictionary)}
+        placeholder={tr(
+          "dashboard.settings.aiPlaceholderPlaceholder",
+          dictionary
+        )}
         rows={2}
       />
 
@@ -196,7 +239,10 @@ export function DashletSettings({
           schemaSuggestions={schemaSuggestions}
           value={viewMoreLabel}
           onChange={setViewMoreLabel}
-          placeholder={tr("dashboard.settings.viewMoreLabelPlaceholder", dictionary)}
+          placeholder={tr(
+            "dashboard.settings.viewMoreLabelPlaceholder",
+            dictionary
+          )}
         />
       )}
       {viewMoreUrl.trim() && (

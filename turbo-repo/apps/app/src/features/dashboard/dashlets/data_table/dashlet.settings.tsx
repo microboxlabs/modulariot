@@ -48,7 +48,7 @@ export function DashletSettings({
     config.plannerVariableName ?? ""
   );
   const [showColumnDividers, setShowColumnDividers] = useState(
-    config.showColumnDividers ?? false
+    config.showColumnDividers ?? true
   );
 
   const s = useSettingsState({

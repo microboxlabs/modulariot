@@ -66,6 +66,8 @@ import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-drop
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
+  /** Show dim vertical dividers between table columns */
+  showColumnDividers?: boolean;
   dataMode: "static" | "pgrest" | "planner";
   columns: TableColumn[];
   rows: Record<string, string>[];
@@ -146,6 +148,7 @@ export const defaultSort: SortConfig = {
 export const defaultConfig: DashletConfig = {
   title: "Data Table",
   showRowCount: true,
+  showColumnDividers: true,
   dataMode: "static",
   columns: defaultColumns,
   rows: defaultRows,
@@ -179,6 +182,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const {
     title = defaultConfig.title,
     showRowCount = defaultConfig.showRowCount,
+    showColumnDividers = defaultConfig.showColumnDividers,
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
     rows: staticRows = defaultRows,
@@ -367,15 +371,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                       )
                     : null;
                   const trClass = rowColor
-                    ? `border-t border-gray-100 ${getRowColorClasses(rowColor)} dark:border-gray-700`
-                    : "border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800";
+                    ? `border-t border-gray-200 ${getRowColorClasses(rowColor)} dark:border-gray-600`
+                    : "border-t border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800";
 
                   return (
                     <tr key={row.id ?? row._id ?? rowIdx} className={trClass}>
-                      {columns.map((col) => (
+                      {columns.map((col, colIdx) => (
                         <td
                           key={col.key}
-                          className="px-4 py-4 text-gray-700 dark:text-gray-300"
+                          className={`px-4 py-4 text-gray-700 dark:text-gray-300${showColumnDividers && colIdx < columns.length - 1 ? " relative after:absolute after:right-0 after:top-3 after:bottom-3 after:w-px after:bg-gray-200/30 dark:after:bg-gray-600/25" : ""}`}
                         >
                           {renderCell(
                             resolveValue(

@@ -74,7 +74,8 @@ export default function Filters({
   originalPositions: MapPosition[];
   setPositions: (positions: MapPosition[]) => void;
 }) {
-  const { getInitialActivated, syncFiltersToUrl, hasUrlParam } = useMapFilters();
+  const { getInitialActivated, syncFiltersToUrl, hasUrlParam } =
+    useMapFilters();
   const runtimeConfig = useRuntimeConfig();
 
   // Determine default trip filter from runtime config
@@ -98,7 +99,11 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: getInitialActivated("conditions", icu_codes.code_black, false),
+        activated: getInitialActivated(
+          "conditions",
+          icu_codes.code_black,
+          false
+        ),
       },
       {
         text: "Alerta Critica",
@@ -112,7 +117,11 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: getInitialActivated("conditions", icu_codes.critical_condition, false),
+        activated: getInitialActivated(
+          "conditions",
+          icu_codes.critical_condition,
+          false
+        ),
       },
       {
         text: "En Observacion",
@@ -126,7 +135,11 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: getInitialActivated("conditions", icu_codes.under_observation, false),
+        activated: getInitialActivated(
+          "conditions",
+          icu_codes.under_observation,
+          false
+        ),
       },
       {
         text: "Comprometida",
@@ -140,7 +153,11 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: getInitialActivated("conditions", icu_codes.compromised_condition, false),
+        activated: getInitialActivated(
+          "conditions",
+          icu_codes.compromised_condition,
+          false
+        ),
       },
       {
         text: "En Tratamiento",
@@ -154,7 +171,11 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: getInitialActivated("conditions", icu_codes.under_treatment, false),
+        activated: getInitialActivated(
+          "conditions",
+          icu_codes.under_treatment,
+          false
+        ),
       },
       {
         text: "Estable",

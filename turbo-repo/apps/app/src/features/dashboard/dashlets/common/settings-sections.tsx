@@ -116,7 +116,7 @@ export function ColumnEditor({
             {col.type === "badge" && onAddColorMapping && onRemoveColorMapping && onUpdateColorMapping && (
               <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
                 {(col.colorMap ?? []).map((mapping, idx) => (
-                  <div key={`${col._id}-cm-${mapping.operator}-${mapping.value}-${mapping.color}`} className="flex items-center gap-1">
+                  <div key={`${col._id}-cm-${idx}`} className="flex items-center gap-1">
                     <div className="w-24 shrink-0">
                       <Select
                         sizing="sm"

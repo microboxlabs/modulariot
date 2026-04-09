@@ -68,6 +68,7 @@ export function HbParamValueInput({
       {ac.isOpen &&
         createPortal(
           <div
+            role="listbox"
             onMouseDown={(e) => e.preventDefault()}
             style={{
               position: "fixed",

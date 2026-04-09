@@ -1,9 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type {
+  DashletComponentProps,
+  DashletLayoutDefaults,
+  DataProviderEntry,
+} from "../types";
 import type { PgrestDashletFields } from "../common";
-import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import {
+  useHybridPgrestContext,
+  DashletLoading,
+  DashletError,
+} from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
@@ -33,7 +41,7 @@ export const defaultConfig: DashletConfig = {
 
 export const layoutDefaults: DashletLayoutDefaults = {
   minW: 4,
-  minH: 2,
+  minH: 1,
 };
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
@@ -63,9 +71,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider, refreshIntervalMs);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(
+    config,
+    dataProvider,
+    refreshIntervalMs
+  );
 
-  const compiledText = useMemo(() => resolveHandlebarsField(text, templateContext), [text, templateContext]);
+  const compiledText = useMemo(
+    () => resolveHandlebarsField(text, templateContext),
+    [text, templateContext]
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

@@ -5,9 +5,8 @@ import { Label, Select, ToggleSwitch, Button } from "flowbite-react";
 import { HiXMark } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType, SeriesConfig } from "./dashlet";
-import type { ColorPalette } from "./chart-palettes";
-import { COLOR_PALETTES } from "./chart-palettes";
 import { tr } from "@/features/i18n/tr.service";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
   SettingsSelectField,
   SettingsTextareaField,
@@ -22,7 +21,10 @@ import {
   type SimpleDataMode,
 } from "../common";
 import { usePlannerContext } from "../../context/planner-context";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 
 // ============================================================================
 // Chart type options
@@ -36,15 +38,8 @@ const CHART_TYPE_KEYS: { value: ChartType; i18nKey: string }[] = [
   { value: "scatter", i18nKey: "dashboard.dashlets.chart.typeScatter" },
 ];
 
-const PALETTE_KEYS: { value: string; i18nKey: string }[] = [
-  ...Object.keys(COLOR_PALETTES).map((k) => ({
-    value: k,
-    i18nKey: `dashboard.dashlets.chart.palette_${k}`,
-  })),
-  { value: "custom", i18nKey: "dashboard.dashlets.chart.paletteCustom" },
-];
-
-const isCartesian = (t: ChartType) => t === "line" || t === "bar" || t === "scatter";
+const isCartesian = (t: ChartType) =>
+  t === "line" || t === "bar" || t === "scatter";
 const isSingleSeries = (t: ChartType) => t === "pie" || t === "gauge";
 
 type SeriesItem = SeriesConfig & { _id: string };
@@ -69,46 +64,46 @@ export function DashletSettings({
   const { schemas } = usePlannerContext();
 
   const chartTypeOptions = useMemo(
-    () => CHART_TYPE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
-    [dictionary],
-  );
-
-  const paletteOptions = useMemo(
-    () => PALETTE_KEYS.map((o) => ({ value: o.value, label: tr(o.i18nKey, dictionary) })),
-    [dictionary],
+    () =>
+      CHART_TYPE_KEYS.map((o) => ({
+        value: o.value,
+        label: tr(o.i18nKey, dictionary),
+      })),
+    [dictionary]
   );
 
   // Visualization state
   const [title, setTitle] = useState(config.title ?? "Chart");
-  const [chartType, setChartType] = useState<ChartType>(config.chartType ?? "bar");
+  const [chartType, setChartType] = useState<ChartType>(
+    config.chartType ?? "bar"
+  );
   const [xAxisColumn, setXAxisColumn] = useState(config.xAxisColumn ?? "");
   const [series, setSeries] = useState<SeriesItem[]>(
-    toSeriesItems(config.series?.length ? config.series : [{ columnKey: "", label: "" }]),
+    toSeriesItems(
+      config.series?.length ? config.series : [{ columnKey: "", label: "" }]
+    )
   );
   const [xAxisLabel, setXAxisLabel] = useState(config.xAxisLabel ?? "");
   const [yAxisLabel, setYAxisLabel] = useState(config.yAxisLabel ?? "");
   const [showLegend, setShowLegend] = useState(config.showLegend ?? true);
-  const [colorPalette, setColorPalette] = useState<ColorPalette>(
-    config.colorPalette ?? "default",
-  );
   const [customColors, setCustomColors] = useState<string[]>(
-    config.customColors ?? [],
+    config.customColors ?? []
   );
   const [smooth, setSmooth] = useState(config.smooth ?? false);
   const [stacked, setStacked] = useState(config.stacked ?? false);
 
   // Data state
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    (config.dataMode as SimpleDataMode) ?? "static",
+    (config.dataMode as SimpleDataMode) ?? "static"
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
-    config.dataSourceId ?? "",
+    config.dataSourceId ?? ""
   );
   const [plannerVariableName, setPlannerVariableName] = useState(
-    config.plannerVariableName ?? "",
+    config.plannerVariableName ?? ""
   );
   const [rowsJson, setRowsJson] = useState(
-    JSON.stringify(config.rows ?? [], null, 2),
+    JSON.stringify(config.rows ?? [], null, 2)
   );
 
   // Detected columns (from static rows or pgrest introspection)
@@ -133,7 +128,9 @@ export function DashletSettings({
     const keySet = new Set(keys);
 
     // Reset xAxisColumn if it's no longer valid
-    setXAxisColumn((prev) => (prev && keySet.has(prev) ? prev : keys[0] ?? ""));
+    setXAxisColumn((prev) =>
+      prev && keySet.has(prev) ? prev : (keys[0] ?? "")
+    );
 
     setSeries((prev) => {
       const reconciled = prev.map((s) => {
@@ -156,7 +153,7 @@ export function DashletSettings({
       { ...config, dataSourceId: dataSourceId || undefined },
       (detected) => {
         reconcileColumns(detected.map((d) => d.key));
-      },
+      }
     ),
   });
 
@@ -178,7 +175,8 @@ export function DashletSettings({
       const parsed = JSON.parse(val);
       if (!Array.isArray(parsed)) return;
       const isObjectArray = parsed.every(
-        (item) => item !== null && typeof item === "object" && !Array.isArray(item),
+        (item) =>
+          item !== null && typeof item === "object" && !Array.isArray(item)
       );
       if (isObjectArray && parsed.length > 0) {
         reconcileColumns(Object.keys(parsed[0]));
@@ -193,7 +191,7 @@ export function DashletSettings({
   // Column options for dropdowns
   const columnOptions = useMemo(
     () => detectedColumns.map((k) => ({ value: k, label: k })),
-    [detectedColumns],
+    [detectedColumns]
   );
 
   // Handle chart type change
@@ -209,12 +207,15 @@ export function DashletSettings({
   // Series CRUD
   const updateSeries = (id: string, patch: Partial<SeriesConfig>) => {
     setSeries((prev) =>
-      prev.map((s) => (s._id === id ? { ...s, ...patch } : s)),
+      prev.map((s) => (s._id === id ? { ...s, ...patch } : s))
     );
   };
 
   const addSeries = () => {
-    setSeries((prev) => [...prev, ...toSeriesItems([{ columnKey: "", label: "" }])]);
+    setSeries((prev) => [
+      ...prev,
+      ...toSeriesItems([{ columnKey: "", label: "" }]),
+    ]);
   };
 
   const removeSeries = (id: string) => {
@@ -242,7 +243,8 @@ export function DashletSettings({
         const parsed = JSON.parse(rowsJson);
         if (!Array.isArray(parsed)) return;
         const isObjectArray = parsed.every(
-          (item) => item !== null && typeof item === "object" && !Array.isArray(item),
+          (item) =>
+            item !== null && typeof item === "object" && !Array.isArray(item)
         );
         if (!isObjectArray) return;
         parsedRows = parsed;
@@ -261,7 +263,7 @@ export function DashletSettings({
       xAxisLabel,
       yAxisLabel,
       showLegend,
-      colorPalette,
+      colorPalette: "custom",
       customColors,
       smooth,
       stacked,
@@ -334,53 +336,63 @@ export function DashletSettings({
 
       {/* Series Configuration */}
       <div>
-        <Label className="mb-1 block text-sm">
-          {tr("dashboard.settings.series", dictionary)}
-        </Label>
+        <div className="flex items-center justify-between mb-2">
+          <Label className="text-sm">
+            {tr("dashboard.settings.series", dictionary)}
+          </Label>
+          {!isSingleSeries(chartType) && (
+            <Button size="xs" color="light" onClick={addSeries}>
+              {tr("dashboard.settings.addSeries", dictionary)}
+            </Button>
+          )}
+        </div>
         <div className="space-y-2">
           {series.map((s, i) => (
-            <div key={s._id} className="flex items-end gap-1.5">
-              <div className="flex-1">
-                {i === 0 && (
-                  <Label className="mb-0.5 block text-xs text-gray-500">
-                    {tr("dashboard.settings.seriesColumn", dictionary)}
-                  </Label>
-                )}
-                <Select
-                  value={s.columnKey}
-                  onChange={(e) =>
-                    updateSeries(s._id, { columnKey: e.target.value })
-                  }
-                  sizing="sm"
-                >
-                  <option value="">{tr("dashboard.dashlets.chart.selectPlaceholder", dictionary)}</option>
-                  {columnOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex-1">
-                {i === 0 && (
-                  <Label className="mb-0.5 block text-xs text-gray-500">
-                    {tr("dashboard.settings.seriesLabel", dictionary)}
-                  </Label>
-                )}
-                <HbInlineInput
-                  value={s.label}
-                  onChange={(v) => updateSeries(s._id, { label: v })}
-                  placeholder={tr("dashboard.dashlets.chart.labelPlaceholder", dictionary)}
-                  schemaSuggestions={schemaSuggestions}
-                />
-              </div>
+            <div
+              key={s._id}
+              className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
+            >
+              <Select
+                value={s.columnKey}
+                onChange={(e) =>
+                  updateSeries(s._id, { columnKey: e.target.value })
+                }
+                sizing="sm"
+                className="flex-1"
+              >
+                <option value="">
+                  {tr("dashboard.settings.seriesColumn", dictionary)}
+                </option>
+                {columnOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+              <HbInlineInput
+                value={s.label}
+                onChange={(v) => updateSeries(s._id, { label: v })}
+                placeholder={tr("dashboard.settings.seriesLabel", dictionary)}
+                className="flex-1"
+                schemaSuggestions={schemaSuggestions}
+              />
+              <AdvancedColorPicker
+                value={(customColors[i] ?? "5470c6").replace(/^#/, "")}
+                onChange={(c) => updateCustomColor(i, `#${c}`)}
+                title={
+                  s.label ||
+                  tr("dashboard.dashlets.chart.seriesNumber", dictionary, {
+                    n: String(i + 1),
+                  })
+                }
+              />
               {series.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeSeries(s._id)}
                   aria-label={tr("dashboard.settings.removeSeries", dictionary)}
                   title={tr("dashboard.settings.removeSeries", dictionary)}
-                  className="mb-0.5 rounded p-1 text-gray-400 hover:text-red-500"
+                  className="cursor-pointer rounded p-1.5 text-gray-400 hover:text-red-500 transition-colors"
                 >
                   <HiXMark className="h-4 w-4" />
                 </button>
@@ -388,16 +400,6 @@ export function DashletSettings({
             </div>
           ))}
         </div>
-        {!isSingleSeries(chartType) && (
-          <Button
-            size="xs"
-            color="light"
-            onClick={addSeries}
-            className="mt-1.5"
-          >
-            {tr("dashboard.settings.addSeries", dictionary)}
-          </Button>
-        )}
       </div>
 
       {/* Axis Labels (cartesian only) */}
@@ -427,34 +429,6 @@ export function DashletSettings({
         </Label>
         <ToggleSwitch checked={showLegend} onChange={setShowLegend} />
       </div>
-
-      {/* Color Palette */}
-      <SettingsSelectField
-        id="ch-palette"
-        label={tr("dashboard.settings.colorPalette", dictionary)}
-        value={colorPalette}
-        onChange={(v) => setColorPalette(v as ColorPalette)}
-        options={paletteOptions}
-      />
-
-      {/* Custom colors per series */}
-      {colorPalette === "custom" && (
-        <div className="space-y-1.5">
-          {series.map((s, i) => (
-            <div key={s._id} className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400 min-w-[60px] truncate">
-                {s.label || tr("dashboard.dashlets.chart.seriesNumber", dictionary).replace("{n}", String(i + 1))}
-              </span>
-              <input
-                type="color"
-                value={customColors[i] ?? "#5470c6"}
-                onChange={(e) => updateCustomColor(i, e.target.value)}
-                className="h-7 w-7 cursor-pointer rounded border border-gray-300 p-0 dark:border-gray-600"
-              />
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Chart-specific options */}
       {chartType === "line" && (

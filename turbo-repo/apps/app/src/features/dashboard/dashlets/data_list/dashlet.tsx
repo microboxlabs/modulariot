@@ -18,7 +18,12 @@ import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
 import { useCompiledColumns } from "../common/use-compiled-columns";
 
-export type { DataMode, ColumnType, TableColumn, SortConfig } from "../common/column-types";
+export type {
+  DataMode,
+  ColumnType,
+  TableColumn,
+  SortConfig,
+} from "../common/column-types";
 export type { FilterItemConfig, FilterConfig } from "../common/filter-types";
 export type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 export { normalizeFilterConfig } from "../common/filter-helpers";
@@ -144,7 +149,14 @@ export const defaultCardLayout: CardLayoutConfig = {
   titleColumn: "{{row.vehicleId}}",
   subtitleColumn: "{{row.vehicleDesc}}",
   headerBadgeColumns: ["{{row.exposure}}"],
-  kpiColumns: ["{{row.km}}", "{{row.events}}", "{{row.speed}}", "{{row.signal}}", "{{row.schedule}}", "{{row.stops}}"],
+  kpiColumns: [
+    "{{row.km}}",
+    "{{row.events}}",
+    "{{row.speed}}",
+    "{{row.signal}}",
+    "{{row.schedule}}",
+    "{{row.stops}}",
+  ],
   footerColumns: ["{{row.lastDetection}}", "{{row.severity}}"],
 };
 
@@ -168,8 +180,8 @@ export const defaultConfig: DashletConfig = {
 // ============================================================================
 
 export const layoutDefaults: DashletLayoutDefaults = {
-  minW: 4,
-  minH: 4,
+  minW: 7,
+  minH: 6,
 };
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
@@ -186,9 +198,19 @@ interface ListCardProps {
   totalRows: number;
   columns: TableColumn[];
   cardLayout: CardLayoutConfig;
-  resolveValue: (key: string, row: Record<string, string>, rowIdx: number, totalRows: number) => string;
+  resolveValue: (
+    key: string,
+    row: Record<string, string>,
+    rowIdx: number,
+    totalRows: number
+  ) => string;
   resolveLabel: (key: string) => string;
-  resolveType: (key: string, row: Record<string, string>, rowIdx: number, totalRows: number) => string;
+  resolveType: (
+    key: string,
+    row: Record<string, string>,
+    rowIdx: number,
+    totalRows: number
+  ) => string;
 }
 
 function ListCard({
@@ -201,8 +223,18 @@ function ListCard({
   resolveLabel,
   resolveType,
 }: Readonly<ListCardProps>) {
-  const titleValue = resolveValue(cardLayout.titleColumn, row, rowIdx, totalRows);
-  const subtitleValue = resolveValue(cardLayout.subtitleColumn, row, rowIdx, totalRows);
+  const titleValue = resolveValue(
+    cardLayout.titleColumn,
+    row,
+    rowIdx,
+    totalRows
+  );
+  const subtitleValue = resolveValue(
+    cardLayout.subtitleColumn,
+    row,
+    rowIdx,
+    totalRows
+  );
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -218,9 +250,7 @@ function ListCard({
               if (!val) return null;
               const colType = resolveType(key, row, rowIdx, totalRows);
               return (
-                <span key={key}>
-                  {renderCell(val, colType || "badge")}
-                </span>
+                <span key={key}>{renderCell(val, colType || "badge")}</span>
               );
             })}
           </div>
@@ -311,12 +341,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   );
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const { rows: dynamicRows, loading: dynamicLoading, fetchError: dynamicError } = useDynamicRows(dataMode, apiUrl);
+  const {
+    rows: dynamicRows,
+    loading: dynamicLoading,
+    fetchError: dynamicError,
+  } = useDynamicRows(dataMode, apiUrl);
 
   // ── PGREST / Planner data fetching ──────────────────────────────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const pgrestParamsStable = useMemo(() => pgrestParams, [pgrestParams]);
-  const { rows: fetchedRows, loading: fetchedLoading, fetchError: fetchedError } = useDashletData({
+  const {
+    rows: fetchedRows,
+    loading: fetchedLoading,
+    fetchError: fetchedError,
+  } = useDashletData({
     dataMode,
     pgrestFunctionName,
     pgrestHttpMethod,
@@ -358,7 +396,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     );
 
   // ── Handlebars template compilation ────────────────────────────────────────
-  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(columns, displayRows.length);
+  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(
+    columns,
+    displayRows.length
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -426,7 +467,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
         {fetchError && (
           <div className="flex h-20 items-center justify-center text-sm text-red-500 dark:text-red-400">
-            {tr("dashboard.dashlets.data_list.error", dictionary, { message: fetchError ?? "" })}
+            {tr("dashboard.dashlets.data_list.error", dictionary, {
+              message: fetchError ?? "",
+            })}
           </div>
         )}
         {!loading && !fetchError && displayRows.length === 0 && (
@@ -437,19 +480,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         {!loading &&
           !fetchError &&
           displayRows.map((row, idx) => {
-            const titleKey = resolveValue(cardLayout.titleColumn, row, idx, displayRows.length);
+            const titleKey = resolveValue(
+              cardLayout.titleColumn,
+              row,
+              idx,
+              displayRows.length
+            );
             return (
-            <ListCard
-              key={titleKey ? `${titleKey}-${idx}` : `row-${idx}`}
-              row={row}
-              rowIdx={idx}
-              totalRows={displayRows.length}
-              columns={columns}
-              cardLayout={cardLayout}
-              resolveValue={resolveValue}
-              resolveLabel={resolveLabel}
-              resolveType={resolveType}
-            />
+              <ListCard
+                key={titleKey ? `${titleKey}-${idx}` : `row-${idx}`}
+                row={row}
+                rowIdx={idx}
+                totalRows={displayRows.length}
+                columns={columns}
+                cardLayout={cardLayout}
+                resolveValue={resolveValue}
+                resolveLabel={resolveLabel}
+                resolveType={resolveType}
+              />
             );
           })}
       </div>

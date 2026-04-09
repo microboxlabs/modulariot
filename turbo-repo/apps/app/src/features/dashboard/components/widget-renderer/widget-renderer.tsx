@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { HiCog6Tooth, HiDocumentDuplicate, HiPlus, HiTrash } from "react-icons/hi2";
+import {
+  HiCog6Tooth,
+  HiDocumentDuplicate,
+  HiPlus,
+  HiTrash,
+} from "react-icons/hi2";
 import type { Widget } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
 import { getDashlet } from "../../dashlets";
@@ -42,7 +47,7 @@ function WidgetControls({
           type="button"
           onClick={onAddChild}
           onMouseDown={(e) => e.stopPropagation()}
-          className="no-drag rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
+          className="no-drag cursor-pointer rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
           title="Add widget"
         >
           <HiPlus className="h-4 w-4" />
@@ -53,7 +58,7 @@ function WidgetControls({
           type="button"
           onClick={onOpenSettings}
           onMouseDown={(e) => e.stopPropagation()}
-          className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+          className="no-drag cursor-pointer rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
           title="Settings"
         >
           <HiCog6Tooth className="h-4 w-4" />
@@ -63,7 +68,7 @@ function WidgetControls({
         type="button"
         onClick={onDuplicate}
         onMouseDown={(e) => e.stopPropagation()}
-        className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+        className="no-drag cursor-pointer rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
         title={duplicateLabel}
         aria-label={duplicateLabel}
       >
@@ -73,7 +78,7 @@ function WidgetControls({
         type="button"
         onClick={onDelete}
         onMouseDown={(e) => e.stopPropagation()}
-        className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+        className="no-drag cursor-pointer rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
         title="Delete"
       >
         <HiTrash className="h-4 w-4" />
@@ -101,8 +106,13 @@ export function WidgetRenderer({
   widget,
   isRoot = false,
 }: Readonly<WidgetRendererProps>) {
-  const { editMode, updateWidgetConfig, deleteWidget, duplicateWidget, dictionary } =
-    useDashboard();
+  const {
+    editMode,
+    updateWidgetConfig,
+    deleteWidget,
+    duplicateWidget,
+    dictionary,
+  } = useDashboard();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
@@ -124,7 +134,7 @@ export function WidgetRenderer({
             type="button"
             onClick={handleDelete}
             onMouseDown={(e) => e.stopPropagation()}
-            className="no-drag absolute right-2 top-2 rounded bg-red-100 p-1.5 text-red-500 hover:bg-red-200 hover:text-red-700 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800 dark:hover:text-red-300"
+            className="no-drag cursor-pointer absolute right-2 top-2 rounded bg-red-100 p-1.5 text-red-500 hover:bg-red-200 hover:text-red-700 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800 dark:hover:text-red-300"
             title="Delete"
           >
             <HiTrash className="h-4 w-4" />
@@ -207,6 +217,7 @@ export function WidgetRenderer({
           config={widget.config}
           onSave={handleSaveSettings}
           dictionary={dictionary}
+          dashletName={meta.name}
         />
       )}
 

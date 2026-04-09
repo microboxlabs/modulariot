@@ -18,7 +18,11 @@ import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
-import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
+import {
+  buildPgrestSettingsConfig,
+  buildPgrestContentLabels,
+  syncColumnsFromKeys,
+} from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { useActiveProviders } from "../common";
 import { tr } from "@/features/i18n/tr.service";
@@ -57,9 +61,13 @@ export function DashletSettings({
   const cl = config.cardLayout ?? defaultCardLayout;
   const [titleColumn, setTitleColumn] = useState(cl.titleColumn);
   const [subtitleColumn, setSubtitleColumn] = useState(cl.subtitleColumn);
-  const [headerBadgeColumns, setHeaderBadgeColumns] = useState<string[]>(cl.headerBadgeColumns);
+  const [headerBadgeColumns, setHeaderBadgeColumns] = useState<string[]>(
+    cl.headerBadgeColumns
+  );
   const [kpiColumns, setKpiColumns] = useState<string[]>(cl.kpiColumns);
-  const [footerColumns, setFooterColumns] = useState<string[]>(cl.footerColumns);
+  const [footerColumns, setFooterColumns] = useState<string[]>(
+    cl.footerColumns
+  );
 
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
@@ -86,15 +94,17 @@ export function DashletSettings({
   const toggleList = (
     setter: React.Dispatch<React.SetStateAction<string[]>>,
     checked: boolean,
-    key: string,
+    key: string
   ) => {
-    setter((prev) => (checked ? [...prev, key] : prev.filter((k) => k !== key)));
+    setter((prev) =>
+      checked ? [...prev, key] : prev.filter((k) => k !== key)
+    );
   };
 
   const handleSave = () => {
     const rows = s.parseRows(
       tr("dashboard.settings.mustBeJsonArray", dictionary),
-      tr("dashboard.settings.invalidJson", dictionary),
+      tr("dashboard.settings.invalidJson", dictionary)
     );
     if (!rows) return;
 
@@ -122,7 +132,8 @@ export function DashletSettings({
       filter,
       sort,
       cardLayout,
-      plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        s.dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     });
     onClose();
@@ -144,7 +155,9 @@ export function DashletSettings({
       label={tr("dashboard.settings.plannerVariable", dictionary)}
       value={plannerVariableName}
       onChange={setPlannerVariableName}
-      onSchemaDetected={(keys) => syncColumnsFromKeys(keys, s, autoPopulateCardLayout)}
+      onSchemaDetected={(keys) =>
+        syncColumnsFromKeys(keys, s, autoPopulateCardLayout)
+      }
     />
   );
 
@@ -158,25 +171,49 @@ export function DashletSettings({
         </Label>
 
         <div>
-          <Label htmlFor="dl-title-col" className="mb-1 block text-sm font-medium">
+          <Label
+            htmlFor="dl-title-col"
+            className="mb-1 block text-sm font-medium"
+          >
             {tr("dashboard.settings.titleColumn", dictionary)}
           </Label>
-          <Select id="dl-title-col" sizing="sm" value={titleColumn} onChange={(e) => setTitleColumn(e.target.value)}>
-            <option value="">{tr("dashboard.settings.none", dictionary)}</option>
+          <Select
+            id="dl-title-col"
+            sizing="sm"
+            value={titleColumn}
+            onChange={(e) => setTitleColumn(e.target.value)}
+          >
+            <option value="">
+              {tr("dashboard.settings.none", dictionary)}
+            </option>
             {s.columnsWithKeys.map((c) => (
-              <option key={c._id} value={c.key}>{c.label || c.key}</option>
+              <option key={c._id} value={c.key}>
+                {c.label || c.key}
+              </option>
             ))}
           </Select>
         </div>
 
         <div>
-          <Label htmlFor="dl-subtitle-col" className="mb-1 block text-sm font-medium">
+          <Label
+            htmlFor="dl-subtitle-col"
+            className="mb-1 block text-sm font-medium"
+          >
             {tr("dashboard.settings.subtitleColumn", dictionary)}
           </Label>
-          <Select id="dl-subtitle-col" sizing="sm" value={subtitleColumn} onChange={(e) => setSubtitleColumn(e.target.value)}>
-            <option value="">{tr("dashboard.settings.none", dictionary)}</option>
+          <Select
+            id="dl-subtitle-col"
+            sizing="sm"
+            value={subtitleColumn}
+            onChange={(e) => setSubtitleColumn(e.target.value)}
+          >
+            <option value="">
+              {tr("dashboard.settings.none", dictionary)}
+            </option>
             {s.columnsWithKeys.map((c) => (
-              <option key={c._id} value={c.key}>{c.label || c.key}</option>
+              <option key={c._id} value={c.key}>
+                {c.label || c.key}
+              </option>
             ))}
           </Select>
         </div>
@@ -185,7 +222,9 @@ export function DashletSettings({
           label={tr("dashboard.settings.headerBadgeColumns", dictionary)}
           columnsWithKeys={s.columnsWithKeys}
           selected={headerBadgeColumns}
-          onToggle={(checked, key) => toggleList(setHeaderBadgeColumns, checked, key)}
+          onToggle={(checked, key) =>
+            toggleList(setHeaderBadgeColumns, checked, key)
+          }
         />
         <CheckboxColumnList
           label={tr("dashboard.settings.kpiGridColumns", dictionary)}
@@ -197,7 +236,9 @@ export function DashletSettings({
           label={tr("dashboard.settings.footerColumns", dictionary)}
           columnsWithKeys={s.columnsWithKeys}
           selected={footerColumns}
-          onToggle={(checked, key) => toggleList(setFooterColumns, checked, key)}
+          onToggle={(checked, key) =>
+            toggleList(setFooterColumns, checked, key)
+          }
         />
       </div>
     </>

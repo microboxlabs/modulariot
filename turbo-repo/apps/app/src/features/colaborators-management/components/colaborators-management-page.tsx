@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams, useRouter, useParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {
   HiOutlineExclamationTriangle,
@@ -12,13 +12,10 @@ import { MessageBanner } from "@/features/common/components/message-banner";
 import {
   computeColaboratorsKpis,
   getColaborators,
-  getColaboratorNavigation,
 } from "../data/colaborators-data-service";
-import { getColaboratorDetailData } from "../data/colaborator-detail-mock-data";
 import { useCollaborators } from "../hooks/use-collaborators";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
 import ColaboratorGrid from "./colaborator-grid/colaborator-grid";
-import ColaboratorDetailView from "./colaborator-detail/colaborator-detail-view";
 
 /** Grid-shaped skeleton that mirrors the ColaboratorGrid card layout
  * (9 cards × 3 cols on lg). Shown during the initial load so the page
@@ -46,13 +43,12 @@ interface ColaboratorsManagementPageProps {
 
 export default function ColaboratorsManagementPage({
   dict,
-  locale,
 }: ColaboratorsManagementPageProps) {
   const colaboratorsDict = dict["colaboratorsManagement"] as I18nRecord;
   const gridDict = colaboratorsDict["grid"] as I18nRecord;
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
+  const { lang } = useParams<{ lang: string }>();
 
   const {
     colaborators: backendColaborators,
@@ -105,89 +101,22 @@ export default function ColaboratorsManagementPage({
     [colaborators]
   );
 
-  const selectedColaboratorId = searchParams.get("colaborator");
-
-  const selectedColaborator = useMemo(
-    () => colaborators.find((c) => c.id === selectedColaboratorId),
-    [selectedColaboratorId, colaborators]
-  );
-
-  const navigation = useMemo(() => {
-    if (!selectedColaboratorId) return null;
-    return getColaboratorNavigation(selectedColaboratorId, colaborators);
-  }, [selectedColaboratorId, colaborators]);
-
+  // Card click → full page navigation to the driver detail route. Prefer
+  // `externalId` (the backend cod_driver) so the detail page hits the
+  // real pgrest RPC; fall back to the numeric list `id` for mock rows
+  // that don't carry a cod_driver. Mirrors fleet-management's per-vehicle
+  // full-page navigation pattern.
   const handleSelectColaborator = useCallback(
     (id: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("colaborator", id);
-      router.push(`${pathname}?${params.toString()}`);
+      const target = colaborators.find((c) => c.id === id);
+      const segment = target?.externalId ?? id;
+      router.push(
+        `/${lang}/colaborators-management/${encodeURIComponent(segment)}`
+      );
     },
-    [searchParams, router, pathname]
+    [colaborators, router, lang]
   );
 
-  const handleBack = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("colaborator");
-    const queryString = params.toString();
-    router.push(queryString ? `${pathname}?${queryString}` : pathname);
-  }, [searchParams, router, pathname]);
-
-  const handlePrevious = useCallback(() => {
-    if (navigation?.previousId) {
-      handleSelectColaborator(navigation.previousId);
-    }
-  }, [navigation, handleSelectColaborator]);
-
-  const handleNext = useCallback(() => {
-    if (navigation?.nextId) {
-      handleSelectColaborator(navigation.nextId);
-    }
-  }, [navigation, handleSelectColaborator]);
-
-  if (selectedColaborator && navigation) {
-    const detailData = getColaboratorDetailData(selectedColaborator.id);
-
-    if (!detailData) {
-      return (
-        <div className="flex flex-col items-center justify-center gap-4 p-8 w-full h-full">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {tr("detail.noData", colaboratorsDict)}
-          </p>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {tr("detail.backToList", colaboratorsDict)}
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col gap-6 w-full">
-        <ColaboratorDetailView
-          colaborator={selectedColaborator}
-          detailData={detailData}
-          dict={colaboratorsDict}
-          locale={locale}
-          onBack={handleBack}
-          previous={{
-            hasPrevious: navigation.previousId !== null,
-            onPrevious: handlePrevious,
-          }}
-          next={{
-            hasNext: navigation.nextId !== null,
-            onNext: handleNext,
-          }}
-        />
-      </div>
-    );
-  }
-
-  // The skeleton only shows on the *initial* load (SWR has no cached
-  // data yet). Subsequent refetches keep the prior rows visible.
   const showSkeleton =
     !backendDisabled && isLoading && colaborators.length === 0;
   const showError = !backendDisabled && error && colaborators.length === 0;

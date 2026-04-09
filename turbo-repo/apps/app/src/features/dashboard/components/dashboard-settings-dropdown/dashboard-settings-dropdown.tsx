@@ -668,7 +668,7 @@ function AllowedGroupsForm() {
   if (isLoading) {
     return (
       <div className="p-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Loading groups…</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{t("loadingGroups")}</p>
       </div>
     );
   }
@@ -679,7 +679,7 @@ function AllowedGroupsForm() {
     <div className="p-4 space-y-3">
       {availableGroups.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          No groups available.
+          {t("noGroupsAvailable")}
         </p>
       ) : (
         <div className="space-y-2 max-h-48 overflow-y-auto">

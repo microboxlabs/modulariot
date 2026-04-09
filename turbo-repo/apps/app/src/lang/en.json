@@ -1666,6 +1666,8 @@
       "accessControlDescription": "Restrict this dashboard to specific user groups",
       "noGroupRestrictions": "No group restrictions — visible to all dashboard users",
       "allowedGroupsUpdated": "Allowed groups updated",
+      "loadingGroups": "Loading groups…",
+      "noGroupsAvailable": "No groups available.",
       "deleteDescription": "Permanently remove this dashboard",
       "chartType": "Chart Type",
       "line": "Line",

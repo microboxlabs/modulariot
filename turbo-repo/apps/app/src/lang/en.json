@@ -2774,33 +2774,48 @@
         },
         "telemetry": {
           "title": "Devices & Telemetry",
-          "description": "Connected devices and sensor data",
-          "connected": "Connected",
-          "disconnected": "Disconnected",
+          "description": "Devices, telemetry, and GPS connection",
+          "headerSubtitle": "Score: {score}/100 · Provider: {provider}",
+          "headerSubtitleNoProvider": "Score: {score}/100",
           "lastDataReceived": "Last data received",
-          "installedDevices": "Installed devices",
-          "fuelSensor": "Fuel Sensor",
-          "tempSensor": "Temp Sensor (calibrating)",
-          "lastUpdate": "Last Update",
-          "signalStrength": "Signal Strength",
           "odometer": "Odometer",
-          "dateTime": "Date and time",
-          "status": "Status",
-          "onRoute": "On route",
-          "engine": "Engine",
-          "running": "Running",
-          "notRunning": "Off",
+          "dateTime": "Date & time",
+          "statusLabel": "Status",
+          "statusMoving": "Moving",
+          "statusStopped": "Stopped",
+          "motor": "Engine",
+          "motorRunning": "Running",
+          "motorOff": "Off",
           "speed": "Speed",
           "rpm": "RPM",
           "battery": "Battery",
           "engineTemp": "Engine temp",
           "location": "Location",
           "transmissionInterval": "Transmission interval",
-          "every30Seconds": "Every 30 seconds",
-          "acumulatedUptime": "Accumulated Uptime",
-          "dataProcessedToday": "Data Processed Today",
-          "signalLost": "Signal Lost (30d)",
-          "everySeconds": "Every {seconds} seconds"
+          "everySeconds": "Every {seconds} s",
+          "hoursSinceSignal": "Hours since signal",
+          "signalsPerDay": "Signals / day",
+          "stability": "Stability",
+          "errorTitle": "Couldn't load telemetry data",
+          "errorDesc": "Something went wrong fetching the signal detail. Try again in a moment.",
+          "retry": "Retry",
+          "freshness": {
+            "connected": {
+              "label": "Connected",
+              "bannerTitle": "GPS signal active",
+              "bannerDesc": "The device is reporting recent signals. Telemetry data is up to date."
+            },
+            "unstable": {
+              "label": "Unstable",
+              "bannerTitle": "Signal unstable",
+              "bannerDesc": "The device is reporting but the signal is stale or the GPS health is degraded. Check the installation or the provider."
+            },
+            "noSignal": {
+              "label": "No signal",
+              "bannerTitle": "No recent signal",
+              "bannerDesc": "We haven't received any signal from this vehicle in the last 7 days. Check that the GPS device is installed and powered on."
+            }
+          }
         },
         "events": {
           "title": "Operational Events",

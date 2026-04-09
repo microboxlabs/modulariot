@@ -2805,34 +2805,48 @@
         },
         "telemetry": {
           "title": "Dispositivos y Telemetría",
-          "description": "Dispositivos conectados y datos de sensores",
-          "connected": "Conectado",
-          "disconnected": "Desconectado",
+          "description": "Dispositivos, telemetría y conexión GPS",
+          "headerSubtitle": "Score: {score}/100 · Proveedor: {provider}",
+          "headerSubtitleNoProvider": "Score: {score}/100",
           "lastDataReceived": "Último dato recibido",
-          "installedDevices": "Dispositivos instalados",
-          "fuelSensor": "Sensor de Combustible",
-          "tempSensor": "Sensor de Temp (calibrando)",
-          "lastUpdate": "Última Actualización",
-          "signalStrength": "Intensidad de Señal",
           "odometer": "Odómetro",
           "dateTime": "Fecha y hora",
-          "status": "Estado",
-          "onRoute": "En ruta",
-          "engine": "Motor",
-          "running": "En marcha",
-          "notRunning": "Apagado",
+          "statusLabel": "Estado",
+          "statusMoving": "En movimiento",
+          "statusStopped": "Detenido",
+          "motor": "Motor",
+          "motorRunning": "En marcha",
+          "motorOff": "Apagado",
           "speed": "Velocidad",
           "rpm": "RPM",
           "battery": "Batería",
           "engineTemp": "Temp. motor",
           "location": "Ubicación",
           "transmissionInterval": "Intervalo de transmisión",
-          "every30Seconds": "Cada 30 segundos",
-          "acumulatedUptime": "Uptime acumulado",
-          "dataProcesedToday": "Datos procesados hoy",
-          "signalLost": "Pérdidas de señal (30d)",
-          "everySeconds": "Cada {seconds} segundos",
-          "dataProcessedToday": "Datos procesados hoy"
+          "everySeconds": "Cada {seconds} s",
+          "hoursSinceSignal": "Horas sin señal",
+          "signalsPerDay": "Señales / día",
+          "stability": "Estabilidad",
+          "errorTitle": "No pudimos cargar los datos de telemetría",
+          "errorDesc": "Algo salió mal al obtener el detalle de la señal. Intenta nuevamente en unos segundos.",
+          "retry": "Reintentar",
+          "freshness": {
+            "connected": {
+              "label": "Conectado",
+              "bannerTitle": "Señal GPS activa",
+              "bannerDesc": "El dispositivo está reportando señales recientes. Los datos de telemetría están al día."
+            },
+            "unstable": {
+              "label": "Inestable",
+              "bannerTitle": "Señal inestable",
+              "bannerDesc": "El dispositivo está reportando, pero la señal es antigua o la salud del GPS está degradada. Revisa la instalación o el proveedor."
+            },
+            "noSignal": {
+              "label": "Sin señal",
+              "bannerTitle": "Sin señal reciente",
+              "bannerDesc": "No hemos recibido ninguna señal de este vehículo en los últimos 7 días. Verifica que el dispositivo GPS esté instalado y encendido."
+            }
+          }
         },
         "events": {
           "title": "Eventos Operativos",

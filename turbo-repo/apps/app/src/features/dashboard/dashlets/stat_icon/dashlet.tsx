@@ -46,6 +46,8 @@ export interface DashletConfig extends PgrestDashletFields {
   showSecondaryColor?: boolean;
   /** Secondary text color for title/description (hex without #) */
   secondaryColor?: string;
+  /** Whether to scale text and icons based on container size */
+  expandable?: boolean;
   thresholds?: ThresholdConfig;
 }
 
@@ -64,6 +66,7 @@ export const defaultConfig: DashletConfig = {
   valueColor: "1f2937",
   showSecondaryColor: false,
   secondaryColor: "6b7280",
+  expandable: false,
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -133,6 +136,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const valueColorHex = config.valueColor ?? "1f2937";
   const showSecondaryColor = config.showSecondaryColor === true;
   const secondaryColorHex = config.secondaryColor ?? "6b7280";
+  const expandable = config.expandable === true;
   const IconComponent = getIconFromKey(iconKey);
 
   // Build icon config: show icon with selected color, or undefined if hidden
@@ -163,6 +167,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const descriptionStyle = showSecondaryColor
     ? { color: `#${secondaryColorHex}`, opacity: 0.7 }
     : { opacity: 0.7 };
+
+  if (expandable) {
+    return (
+      <div className="h-full w-full" style={{ containerType: "size" }}>
+        <KpiStat
+          icon={iconConfig}
+          title={{ text: title, style: titleStyle }}
+          value={{ text: value, style: valueStyle }}
+          unit={unit}
+          description={{ text: subtitle, style: descriptionStyle }}
+          variant={cardVariant}
+          className="h-full"
+          containerStyle={bgStyle}
+          scalable
+        />
+      </div>
+    );
+  }
 
   return (
     <KpiStat

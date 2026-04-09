@@ -22,7 +22,6 @@ import { dashletDefinition as statDetailedDefinition } from "./stat_detailed";
 import { dashletDefinition as statIconDefinition } from "./stat_icon";
 import { dashletDefinition as statCircularDefinition } from "./stat_circular";
 import { dashletDefinition as statExpandableDefinition } from "./stat_expandable";
-import { dashletDefinition as statProgressDefinition } from "./stat_progress";
 import { dashletDefinition as statStackedDefinition } from "./stat_stacked";
 import { dashletDefinition as statSparklineDefinition } from "./stat_sparkline";
 import { dashletDefinition as statSensitiveDefinition } from "./stat_sensitive";
@@ -43,7 +42,6 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   statIconDefinition,
   statCircularDefinition,
   statExpandableDefinition,
-  statProgressDefinition,
   statStackedDefinition,
   statSparklineDefinition,
   statSensitiveDefinition,

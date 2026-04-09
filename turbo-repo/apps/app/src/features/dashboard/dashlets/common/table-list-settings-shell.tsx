@@ -37,6 +37,8 @@ interface TableListSettingsShellProps {
   handlebarsColorKeys?: boolean;
   /** Optional refresh interval select rendered above the save button */
   refreshSelect?: ReactNode;
+  /** Optional title shown in the modal header */
+  title?: string;
 }
 
 // ============================================================================
@@ -55,6 +57,7 @@ export function TableListSettingsShell({
   plannerContent,
   handlebarsColorKeys = false,
   refreshSelect,
+  title,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -63,8 +66,14 @@ export function TableListSettingsShell({
     not_contains: tr("dashboard.settings.operatorNotContains", dictionary),
     greater_than: tr("dashboard.settings.operatorGreaterThan", dictionary),
     less_than: tr("dashboard.settings.operatorLessThan", dictionary),
-    greater_than_or_equal: tr("dashboard.settings.operatorGreaterThanOrEqual", dictionary),
-    less_than_or_equal: tr("dashboard.settings.operatorLessThanOrEqual", dictionary),
+    greater_than_or_equal: tr(
+      "dashboard.settings.operatorGreaterThanOrEqual",
+      dictionary
+    ),
+    less_than_or_equal: tr(
+      "dashboard.settings.operatorLessThanOrEqual",
+      dictionary
+    ),
   };
 
   const colorLabels: Record<RuleColor, string> = {
@@ -181,11 +190,16 @@ export function TableListSettingsShell({
           actionName: tr("dashboard.settings.actionName", dictionary),
           actionLink: tr("dashboard.settings.actionLink", dictionary),
           actionTarget: tr("dashboard.settings.actionTarget", dictionary),
-          actionTargetSelf: tr("dashboard.settings.actionTargetSelf", dictionary),
-          actionTargetBlank: tr("dashboard.settings.actionTargetBlank", dictionary),
+          actionTargetSelf: tr(
+            "dashboard.settings.actionTargetSelf",
+            dictionary
+          ),
+          actionTargetBlank: tr(
+            "dashboard.settings.actionTargetBlank",
+            dictionary
+          ),
         }}
       />
-
     </>
   );
 
@@ -224,6 +238,7 @@ export function TableListSettingsShell({
       dataTab={dataTab}
       className="w-[28rem]"
       refreshSelect={refreshSelect}
+      title={title}
     />
   );
 }

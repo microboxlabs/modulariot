@@ -2483,7 +2483,9 @@
     "driver_id": "RUT conductor",
     "carrier_id": "RUT transportista",
     "date": "Fecha",
-    "symptom_name": "Nombre del síntoma"
+    "symptom_name": "Nombre del síntoma",
+    "name": "Nombre",
+    "rut": "RUT"
   },
   "comments": {
     "title": "Comentarios",

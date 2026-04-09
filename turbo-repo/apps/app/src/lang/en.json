@@ -2452,7 +2452,9 @@
     "driver_id": "Driver ID",
     "carrier_id": "Carrier ID",
     "date": "Date",
-    "symptom_name": "Symptom Name"
+    "symptom_name": "Symptom Name",
+    "name": "Name",
+    "rut": "RUT"
   },
   "comments": {
     "title": "Comments",

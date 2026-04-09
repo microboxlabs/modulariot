@@ -3081,7 +3081,12 @@
         "operationalEvents": "Eventos operativos"
       },
       "noData": "No se pudieron cargar los datos de detalle para este colaborador.",
-      "backToList": "Volver al listado"
+      "backToList": "Volver al listado",
+      "notFoundTitle": "Colaborador no encontrado",
+      "notFoundDesc": "No existe un expediente asociado al identificador proporcionado.",
+      "errorTitle": "No se pudo cargar el expediente",
+      "errorDesc": "Hubo un problema al consultar la fuente de datos. Intenta nuevamente.",
+      "retry": "Reintentar"
     },
     "behaviorHistory": {
       "title": "Historial de Comportamiento",

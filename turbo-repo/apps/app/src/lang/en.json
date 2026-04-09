@@ -3050,7 +3050,12 @@
         "operationalEvents": "Operational Events"
       },
       "noData": "Could not load detail data for this collaborator.",
-      "backToList": "Back to list"
+      "backToList": "Back to list",
+      "notFoundTitle": "Collaborator not found",
+      "notFoundDesc": "No expediente is associated with the provided identifier.",
+      "errorTitle": "Failed to load expediente",
+      "errorDesc": "Something went wrong while querying the data source. Please try again.",
+      "retry": "Retry"
     },
     "behaviorHistory": {
       "title": "Behavior History",

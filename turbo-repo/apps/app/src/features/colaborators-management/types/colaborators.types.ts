@@ -33,6 +33,14 @@ export type ColaboratorAlert = "conducta-critica-reciente";
 
 export interface Colaborator {
   id: string;
+  /**
+   * Stable external identifier the backend uses to look up the expediente
+   * (currently `cod_driver` from `v_modulariot_drivers_tmp`, shaped as
+   * `{id}-{patente}`). Surfaced here so the list page can route straight
+   * to `/colaborators-management/{externalId}` without a second lookup.
+   * Optional because the mock data service doesn't produce it.
+   */
+  externalId?: string;
   name: string;
   email: string;
   rank: ColaboratorRank;
@@ -115,4 +123,16 @@ export interface ColaboratorDetailData {
   scores: ScoreCardValue[];
   monthlyEvolution: MonthlyDataPoint[];
   behaviorEvents: BehaviorEvent[];
+}
+
+/**
+ * Combined detail response shape — bundles the list-shaped `Colaborator`
+ * (for the header) and the `ColaboratorDetailData` (for the score cards,
+ * chart, and timeline) so the detail page can feed `ColaboratorDetailView`
+ * from a single hook call. Matches what `/api/collaborators/[codDriver]`
+ * returns.
+ */
+export interface ColaboratorDetailDto {
+  colaborator: Colaborator;
+  detailData: ColaboratorDetailData;
 }

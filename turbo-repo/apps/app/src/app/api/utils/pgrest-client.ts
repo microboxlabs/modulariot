@@ -30,7 +30,11 @@ import type {
   TruckUsageDetail,
   UsageIntensity,
 } from "@/features/fleet-management/types/truck-usage.types";
-import type { Colaborator } from "@/features/colaborators-management/types/colaborators.types";
+import type {
+  Colaborator,
+  ColaboratorDetailData,
+  ColaboratorDetailDto,
+} from "@/features/colaborators-management/types/colaborators.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -1150,6 +1154,11 @@ export async function fetchDriverById(
 export function driverRowToColaborator(row: PgrestDriverRow): Colaborator {
   return {
     id: String(row.id),
+    // `externalId` carries the cod_driver (`{id}-{patente}`) so the list
+    // page can route straight to `/colaborators-management/{externalId}`
+    // without a second lookup. See `api_detalle_expediente_colaborador`
+    // which takes `p_cod_driver` verbatim.
+    externalId: row.cod_driver,
     name: row.name_driver,
     email: "",
     rank: "conductor",
@@ -1160,5 +1169,94 @@ export function driverRowToColaborator(row: PgrestDriverRow): Colaborator {
     safety: 0,
     incidentsCount: 0,
     assignedVehiclePlate: row.patente_actual,
+  };
+}
+
+/**
+ * Response shape returned by `public.api_detalle_expediente_colaborador`
+ * in prod-iot-gps. One JSON object (not an array) containing the driver
+ * header plus three pre-shaped sub-payloads that map 1:1 onto the
+ * frontend's `ColaboratorDetailData` type.
+ *
+ * Caveats (see .cursor/plans/collaborator_detail_page_integration.plan.md):
+ *
+ * - `scores` contains 6 entries in positional order matching the
+ *   frontend's `SCORE_CARD_CONFIG`, but the `FilterType` enum only has 5
+ *   values, so positions 1 and 2 (punctuality + operational efficiency)
+ *   both carry `id: "todos"` as a placeholder. The `ColaboratorDetailView`
+ *   merges by array index, so rendering is unaffected — the duplicate id
+ *   only matters if the score card ever becomes a click-through to a
+ *   behavior-history filter.
+ * - `behaviorEvents.date` is a pre-formatted Spanish-locale string
+ *   ("05/04/2026, 14:32"), not ISO. Pass-through today; negotiate an ISO
+ *   field server-side when the UI needs locale-aware formatting.
+ */
+export interface PgrestDriverDetailResponse {
+  driver: PgrestDriverRow;
+  scores: ColaboratorDetailData["scores"];
+  behaviorEvents: ColaboratorDetailData["behaviorEvents"];
+  monthlyEvolution: ColaboratorDetailData["monthlyEvolution"];
+}
+
+/**
+ * Call `public.api_detalle_expediente_colaborador(p_cod_driver => <cod>)`
+ * via pgrest RPC and return the full expediente payload, or `null` when
+ * the function returns nothing (non-existent cod_driver). Unlike the
+ * other `rpc/*` helpers the response is a single JSON object — not an
+ * array — so we don't `[0] ?? null` the body.
+ *
+ * pgrest exposes this RPC over GET with the arg as a query string, so
+ * we use GET to make the response cache-friendly. The other RPCs are
+ * POSTed, but GET works for read-only SECURITY DEFINER functions with
+ * primitive args like this one.
+ */
+export async function fetchDriverDetailByCodDriver(
+  codDriver: string
+): Promise<PgrestDriverDetailResponse | null> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/rpc/api_detalle_expediente_colaborador?p_cod_driver=${encodeURIComponent(
+    codDriver
+  )}`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET rpc/api_detalle_expediente_colaborador (${codDriver}) failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const body = (await response.json()) as PgrestDriverDetailResponse | null;
+  // Defensive: some pgrest RPC errors return 200 + null body.
+  if (!body || !body.driver) return null;
+  return body;
+}
+
+/**
+ * Transform the raw expediente response into the `ColaboratorDetailDto`
+ * consumed by the detail page. The header rides on `driverRowToColaborator`
+ * (same adapter the list uses, so the header stays consistent with the
+ * list card), and the three sub-arrays pass through unchanged because the
+ * backend already shapes them to match the frontend types.
+ *
+ * `colaboratorId` is the list-shaped numeric id (stringified), matching
+ * how the mock data service identifies drivers internally.
+ */
+export function driverDetailResponseToDto(
+  resp: PgrestDriverDetailResponse
+): ColaboratorDetailDto {
+  const colaborator = driverRowToColaborator(resp.driver);
+  return {
+    colaborator,
+    detailData: {
+      colaboratorId: colaborator.id,
+      scores: resp.scores ?? [],
+      monthlyEvolution: resp.monthlyEvolution ?? [],
+      behaviorEvents: resp.behaviorEvents ?? [],
+    },
   };
 }

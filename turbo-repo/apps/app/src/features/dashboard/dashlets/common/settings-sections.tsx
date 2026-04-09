@@ -45,10 +45,10 @@ interface ColumnEditorProps {
     value: string
   ) => void;
   onAddColorMapping?: (colId: string) => void;
-  onRemoveColorMapping?: (colId: string, index: number) => void;
+  onRemoveColorMapping?: (colId: string, mappingId: string) => void;
   onUpdateColorMapping?: (
     colId: string,
-    index: number,
+    mappingId: string,
     field: "operator" | "value" | "color",
     val: string
   ) => void;
@@ -138,9 +138,9 @@ export function ColumnEditor({
               onRemoveColorMapping &&
               onUpdateColorMapping && (
                 <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
-                  {(col.colorMap ?? []).map((mapping, idx) => (
+                  {(col.colorMap ?? []).map((mapping) => (
                     <div
-                      key={`${col._id}-cm-${mapping.operator}-${mapping.value}-${mapping.color}`}
+                      key={`${col._id}-cm-${mapping._id}`}
                       className="flex items-center gap-1"
                     >
                       <div className="w-24 shrink-0">
@@ -150,7 +150,7 @@ export function ColumnEditor({
                           onChange={(e) =>
                             onUpdateColorMapping(
                               col._id,
-                              idx,
+                              mapping._id!,
                               "operator",
                               e.target.value
                             )
@@ -171,7 +171,7 @@ export function ColumnEditor({
                           onChange={(e) =>
                             onUpdateColorMapping(
                               col._id,
-                              idx,
+                              mapping._id!,
                               "value",
                               e.target.value
                             )
@@ -185,7 +185,7 @@ export function ColumnEditor({
                           onChange={(e) =>
                             onUpdateColorMapping(
                               col._id,
-                              idx,
+                              mapping._id!,
                               "color",
                               e.target.value
                             )
@@ -203,7 +203,7 @@ export function ColumnEditor({
                       />
                       <button
                         type="button"
-                        onClick={() => onRemoveColorMapping(col._id, idx)}
+                        onClick={() => onRemoveColorMapping(col._id, mapping._id!)}
                         onMouseDown={stopPropagation}
                         className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
                       >

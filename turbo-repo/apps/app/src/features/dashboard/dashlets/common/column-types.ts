@@ -11,6 +11,7 @@ export function isColumnType(value: string): value is ColumnType {
 }
 
 export interface BadgeColorMapping {
+  _id?: string;
   operator: ColorRuleOperator;
   value: string;
   color: RuleColor;

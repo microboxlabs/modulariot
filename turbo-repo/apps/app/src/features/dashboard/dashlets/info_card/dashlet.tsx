@@ -83,6 +83,8 @@ export interface DashletConfig extends PgrestDashletFields {
   aiPlaceholder: string;
   /** Optional URL for "View more" button */
   viewMoreUrl: string;
+  /** Configurable label for "View more" button */
+  viewMoreLabel: string;
   /** Whether to open the "View more" link in the same tab instead of a new one */
   openInSameTab?: boolean;
   /** Data provider entries for dynamic values */
@@ -97,6 +99,7 @@ export const defaultConfig: DashletConfig = {
   descriptor: "Percentage of tasks completed",
   aiPlaceholder: "AI summary will appear here",
   viewMoreUrl: "",
+  viewMoreLabel: "View more",
   dataProvider: [],
 };
 
@@ -134,6 +137,7 @@ export function Dashlet({
     descriptor = defaultConfig.descriptor,
     aiPlaceholder = defaultConfig.aiPlaceholder,
     viewMoreUrl = defaultConfig.viewMoreUrl,
+    viewMoreLabel = defaultConfig.viewMoreLabel,
     dataProvider = [],
   } = config;
 
@@ -146,6 +150,7 @@ export function Dashlet({
   const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
   const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
   const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
+  const compiledViewMoreLabel = useMemo(() => resolveHandlebarsField(viewMoreLabel, templateContext), [viewMoreLabel, templateContext]);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -222,7 +227,7 @@ export function Dashlet({
             onClick={handleViewMore}
             className="no-drag shrink-0"
           >
-            View more
+            {compiledViewMoreLabel?.trim() || defaultConfig.viewMoreLabel}
           </Button>
         )}
       </div>

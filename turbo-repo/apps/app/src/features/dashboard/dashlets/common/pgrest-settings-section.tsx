@@ -78,10 +78,7 @@ export function PgrestSettingsSection({
         </div>
       )}
       <div>
-        <Label
-          htmlFor="pgrest-fn"
-          className="mb-1 block text-sm font-medium"
-        >
+        <Label htmlFor="pgrest-fn" className="mb-1 block text-sm font-medium">
           {labels.functionName}
         </Label>
         <PgrestFunctionAutocomplete
@@ -131,9 +128,7 @@ export function PgrestSettingsSection({
                 <HbParamValueInput
                   placeholder={pg.paramHints[p.key] ?? labels.value}
                   value={p.value}
-                  onChange={(v) =>
-                    pg.updatePgrestParam(p._id, "value", v)
-                  }
+                  onChange={(v) => pg.updatePgrestParam(p._id, "value", v)}
                   filterSuggestions={filterSuggestions}
                 />
               </div>

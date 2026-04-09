@@ -23,7 +23,10 @@ import {
   buildSimplePgrestConfig,
   useActiveProviders,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -68,7 +71,9 @@ export function DashletSettings({
   const [verMasUrl, setVerMasUrl] = useState(
     config.verMasUrl ?? defaultConfig.verMasUrl
   );
-  const [openInSameTab, setOpenInSameTab] = useState(config.openInSameTab ?? false);
+  const [openInSameTab, setOpenInSameTab] = useState(
+    config.openInSameTab ?? false
+  );
   const [label, setLabel] = useState(config.label ?? defaultConfig.label);
   const [borderColor, setBorderColor] = useState<LabelBorderColor>(
     config.borderColor ?? defaultConfig.borderColor ?? "gray"
@@ -92,7 +97,10 @@ export function DashletSettings({
       : undefined;
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }),
+    ...buildSimplePgrestConfig({
+      ...config,
+      dataSourceId: dataSourceId || undefined,
+    }),
   });
 
   // Sync state when config changes or modal opens
@@ -125,7 +133,8 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
       ...refresh.savePayload,
     };
@@ -187,14 +196,22 @@ export function DashletSettings({
             label={tr("dashboard.settings.name", dictionary)}
             value={name ?? ""}
             onChange={setName}
-            placeholder={isPgrest ? "{{row.title}}" : tr("dashboard.settings.enterName", dictionary)}
+            placeholder={
+              isPgrest
+                ? "{{row.title}}"
+                : tr("dashboard.settings.enterName", dictionary)
+            }
           />
           <SettingsTextareaField
             id="description"
             label={tr("dashboard.settings.description", dictionary)}
             value={description ?? ""}
             onChange={setDescription}
-            placeholder={isPgrest ? "{{row.description}}" : tr("dashboard.settings.enterDescription", dictionary)}
+            placeholder={
+              isPgrest
+                ? "{{row.description}}"
+                : tr("dashboard.settings.enterDescription", dictionary)
+            }
             rows={2}
           />
           <SettingsTextField
@@ -209,7 +226,10 @@ export function DashletSettings({
               <Label className="text-sm">
                 {tr("dashboard.settings.openInSameTab", dictionary)}
               </Label>
-              <ToggleSwitch checked={openInSameTab} onChange={setOpenInSameTab} />
+              <ToggleSwitch
+                checked={openInSameTab}
+                onChange={setOpenInSameTab}
+              />
             </div>
           )}
         </>
@@ -220,7 +240,11 @@ export function DashletSettings({
             label={tr("dashboard.settings.label", dictionary)}
             value={label ?? ""}
             onChange={setLabel}
-            placeholder={isPgrest ? "{{row.label}}" : tr("dashboard.settings.enterLabel", dictionary)}
+            placeholder={
+              isPgrest
+                ? "{{row.label}}"
+                : tr("dashboard.settings.enterLabel", dictionary)
+            }
           />
           <SettingsPickerItem
             label={tr("dashboard.settings.borderColor", dictionary)}
@@ -252,7 +276,9 @@ export function DashletSettings({
             ))}
           </div>
           <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-            {tr("dashboard.settings.useRowColumnInFields", dictionary, { code: "{{row.<column>}}" })}
+            {tr("dashboard.settings.useRowColumnInFields", dictionary, {
+              code: "{{row.<column>}}",
+            })}
           </p>
         </div>
       )}
@@ -270,7 +296,9 @@ export function DashletSettings({
       plannerVariableName={plannerVariableName}
       onPlannerVariableNameChange={setPlannerVariableName}
       dataSourceId={dataSourceId}
-      onDataSourceIdChange={(v) => { setDataSourceId(v); }}
+      onDataSourceIdChange={(v) => {
+        setDataSourceId(v);
+      }}
       activeProviders={activeProviders}
     />
   );

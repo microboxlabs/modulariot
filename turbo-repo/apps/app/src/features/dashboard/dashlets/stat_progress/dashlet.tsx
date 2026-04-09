@@ -2,10 +2,18 @@
 
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
-import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
+import {
+  useDashletPgrest,
+  DashletLoading,
+  DashletError,
+  parseResolvedNumber,
+} from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useRowThreshold } from "../common/use-threshold";
-import { getThresholdBarClass, getThresholdTextClasses } from "../common/threshold-engine";
+import {
+  getThresholdBarClass,
+  getThresholdTextClasses,
+} from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
@@ -36,7 +44,12 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
-const FIELD_DEFAULTS: Record<string, string> = { title: "Quarterly Goal", value: "78", target: "100", unit: "%" };
+const FIELD_DEFAULTS: Record<string, string> = {
+  title: "Quarterly Goal",
+  value: "78",
+  target: "100",
+  unit: "%",
+};
 
 // ============================================================================
 // Component - Style 7: Progress Bar
@@ -59,9 +72,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
+    config,
+    FIELD_DEFAULTS,
+    refreshIntervalMs
+  );
 
-  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
+  const { color: thresholdColor, appliesTo } = useRowThreshold(
+    config.thresholds,
+    firstRow
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -71,8 +91,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const value = parseResolvedNumber(resolved.value);
   const target = parseResolvedNumber(resolved.target, 100);
 
-  const percentage = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
-  const barColor = thresholdColor && appliesTo("background") ? getThresholdBarClass(thresholdColor) : getBarColor(percentage);
+  const percentage =
+    target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
+  const barColor =
+    thresholdColor && appliesTo("background")
+      ? getThresholdBarClass(thresholdColor)
+      : getBarColor(percentage);
 
   return (
     <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -81,7 +105,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {title}
         </p>
-        <p className={`text-2xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
+        <p
+          className={`text-2xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}
+        >
           {value}
           <span className="ml-1 text-sm font-normal text-gray-500">{unit}</span>
         </p>

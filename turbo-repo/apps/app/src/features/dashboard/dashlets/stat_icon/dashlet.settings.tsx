@@ -95,6 +95,9 @@ export function DashletSettings(
   const [showSecondaryColor, setShowSecondaryColor] = useState(
     props.config.showSecondaryColor === true
   );
+  const [expandable, setExpandable] = useState(
+    props.config.expandable === true
+  );
 
   return (
     <SimpleDashletSettings
@@ -112,6 +115,7 @@ export function DashletSettings(
         showValueColor,
         secondaryColor,
         showSecondaryColor,
+        expandable,
       }}
       extraVisualization={
         <div className="space-y-3">
@@ -141,6 +145,23 @@ export function DashletSettings(
 
           {/* Separator */}
           <hr className="border-gray-200 dark:border-gray-700" />
+
+          {/* Expandable toggle */}
+          <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="si-expandable"
+                checked={expandable}
+                onChange={(e) => setExpandable(e.target.checked)}
+              />
+              <Label
+                htmlFor="si-expandable"
+                className="text-sm font-medium cursor-pointer"
+              >
+                {tr("dashboard.settings.expandable", dictionary)}
+              </Label>
+            </div>
+          </div>
 
           {/* Icon settings row: checkbox + icon picker + color picker */}
           <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">

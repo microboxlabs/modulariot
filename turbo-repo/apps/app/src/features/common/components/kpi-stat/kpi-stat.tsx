@@ -62,6 +62,8 @@ interface KpiStatProps {
   readonly containerStyle?: React.CSSProperties;
   /** Custom content to render below the value */
   readonly children?: ReactNode;
+  /** Whether to scale text and icons based on container size */
+  readonly scalable?: boolean;
 }
 
 /** Get container classes based on style and variant */
@@ -128,6 +130,7 @@ export default function KpiStat({
   className = "",
   containerStyle,
   children,
+  scalable = false,
 }: Readonly<KpiStatProps>) {
   const Icon = icon?.icon;
   const customIcon = icon?.custom;
@@ -143,12 +146,33 @@ export default function KpiStat({
     <div
       className={twMerge(
         "flex items-center justify-center rounded-lg shrink-0",
-        variant === "vertical" ? "w-12 h-12" : "w-10 h-10",
+        scalable ? "" : variant === "vertical" ? "w-12 h-12" : "w-10 h-10",
         iconClassName
       )}
-      style={icon?.style}
+      style={{
+        ...icon?.style,
+        ...(scalable
+          ? {
+              width: "clamp(2rem, 30cqh, 8rem)",
+              height: "clamp(2rem, 30cqh, 8rem)",
+            }
+          : {}),
+      }}
     >
-      {customIcon ?? (Icon && <Icon className="w-6 h-6" />)}
+      {customIcon ??
+        (Icon && (
+          <Icon
+            className={scalable ? "" : "w-6 h-6"}
+            style={
+              scalable
+                ? {
+                    width: "clamp(1rem, 18cqh, 5rem)",
+                    height: "clamp(1rem, 18cqh, 5rem)",
+                  }
+                : undefined
+            }
+          />
+        ))}
     </div>
   );
 
@@ -160,11 +184,15 @@ export default function KpiStat({
       {title && (
         <span
           className={twMerge(
-            "text-sm truncate",
+            scalable ? "" : "text-sm",
+            "truncate",
             textClasses.title,
             title.className
           )}
-          style={title.style}
+          style={{
+            ...title.style,
+            ...(scalable ? { fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" } : {}),
+          }}
         >
           {title.text}
         </span>
@@ -175,12 +203,22 @@ export default function KpiStat({
           textClasses.value,
           value.className
         )}
-        style={value.style}
+        style={{
+          ...value.style,
+          ...(scalable ? { fontSize: "clamp(1.25rem, 40cqh, 6rem)" } : {}),
+        }}
       >
         {displayValue}
         {unit && (
           <span
-            className={twMerge("ml-1 text-base font-normal", textClasses.unit)}
+            className={twMerge(
+              scalable ? "" : "text-base",
+              "ml-1 font-normal",
+              textClasses.unit
+            )}
+            style={
+              scalable ? { fontSize: "clamp(0.75rem, 20cqh, 3rem)" } : undefined
+            }
           >
             {unit}
           </span>
@@ -189,11 +227,15 @@ export default function KpiStat({
       {description && (
         <span
           className={twMerge(
-            "text-xs truncate",
+            scalable ? "" : "text-xs",
+            "truncate",
             textClasses.description,
             description.className
           )}
-          style={description.style}
+          style={{
+            ...description.style,
+            ...(scalable ? { fontSize: "clamp(0.625rem, 12cqh, 2rem)" } : {}),
+          }}
         >
           {description.text}
         </span>
@@ -229,11 +271,17 @@ export default function KpiStat({
           {title && (
             <span
               className={twMerge(
-                "text-sm truncate",
+                scalable ? "" : "text-sm",
+                "truncate",
                 textClasses.title,
                 title.className
               )}
-              style={title.style}
+              style={{
+                ...title.style,
+                ...(scalable
+                  ? { fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" }
+                  : {}),
+              }}
             >
               {title.text}
             </span>
@@ -241,11 +289,17 @@ export default function KpiStat({
           {description && (
             <span
               className={twMerge(
-                "text-xs truncate",
+                scalable ? "" : "text-xs",
+                "truncate",
                 textClasses.description,
                 description.className
               )}
-              style={description.style}
+              style={{
+                ...description.style,
+                ...(scalable
+                  ? { fontSize: "clamp(0.625rem, 12cqh, 2rem)" }
+                  : {}),
+              }}
             >
               {description.text}
             </span>
@@ -255,16 +309,29 @@ export default function KpiStat({
       <div className="flex items-baseline gap-1 shrink-0">
         <span
           className={twMerge(
-            "font-bold text-2xl",
+            "font-bold",
+            scalable ? "" : "text-2xl",
             textClasses.value,
             value.className
           )}
-          style={value.style}
+          style={{
+            ...value.style,
+            ...(scalable ? { fontSize: "clamp(1.25rem, 40cqh, 6rem)" } : {}),
+          }}
         >
           {displayValue}
         </span>
         {unit && (
-          <span className={twMerge("text-base font-normal", textClasses.unit)}>
+          <span
+            className={twMerge(
+              scalable ? "" : "text-base",
+              "font-normal",
+              textClasses.unit
+            )}
+            style={
+              scalable ? { fontSize: "clamp(0.75rem, 20cqh, 3rem)" } : undefined
+            }
+          >
             {unit}
           </span>
         )}

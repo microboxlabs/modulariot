@@ -1513,6 +1513,7 @@
       "valueColor": "Value Color",
       "secondaryColor": "Secondary Color",
       "secondaryTextColor": "Secondary Text",
+      "expandable": "Expandable",
       "variant": "Variant",
       "label": "Label",
       "categoryAriaLabel": "Category {name} {field}",

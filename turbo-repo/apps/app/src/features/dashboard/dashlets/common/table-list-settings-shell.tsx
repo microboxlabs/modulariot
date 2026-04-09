@@ -39,6 +39,8 @@ interface TableListSettingsShellProps {
   refreshSelect?: ReactNode;
   /** Optional title shown in the modal header */
   title?: string;
+  /** Additional display options rendered next to "Row count" toggle */
+  displayOptionsChildren?: ReactNode;
 }
 
 // ============================================================================
@@ -58,6 +60,7 @@ export function TableListSettingsShell({
   handlebarsColorKeys = false,
   refreshSelect,
   title,
+  displayOptionsChildren,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -98,7 +101,7 @@ export function TableListSettingsShell({
       />
 
       <div className="flex items-center justify-between py-0.5">
-        <label className="text-sm font-medium">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
           {tr("dashboard.settings.showRowCount", dictionary)}
         </label>
         <input
@@ -108,6 +111,8 @@ export function TableListSettingsShell({
           className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
         />
       </div>
+
+      {displayOptionsChildren}
 
       <ColumnEditor
         columns={s.columns}

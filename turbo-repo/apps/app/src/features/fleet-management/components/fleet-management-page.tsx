@@ -16,7 +16,7 @@ import { useSpecialViews } from "../hooks/use-special-views";
 import KpiCardsRow from "./kpi-cards/kpi-cards-row";
 import SpecialViewsCarousel from "./special-views/special-views-carousel";
 import VehicleGrid from "./vehicle-grid/vehicle-grid";
-import type { FleetKpi } from "../types/fleet.types";
+import type { FleetKpi, VehicleStatus } from "../types/fleet.types";
 import {
   HiOutlineTruck,
   HiOutlineCheckCircle,
@@ -96,6 +96,7 @@ export default function FleetManagementPage({
         icon: HiOutlineCheckCircle,
         color: "text-green-600 bg-green-100",
         darkColor: "dark:text-green-400 dark:bg-green-900/30",
+        state: "active",
       },
       {
         id: "maintenance",
@@ -104,6 +105,7 @@ export default function FleetManagementPage({
         icon: HiOutlineWrenchScrewdriver,
         color: "text-yellow-600 bg-yellow-100",
         darkColor: "dark:text-yellow-400 dark:bg-yellow-900/30",
+        state: "maintenance",
       },
       {
         id: "alerts",
@@ -112,6 +114,7 @@ export default function FleetManagementPage({
         icon: HiOutlineExclamationTriangle,
         color: "text-red-600 bg-red-100",
         darkColor: "dark:text-red-400 dark:bg-red-900/30",
+        state: "alert",
       },
       {
         id: "inactive",
@@ -120,9 +123,37 @@ export default function FleetManagementPage({
         icon: HiOutlineNoSymbol,
         color: "text-gray-600 bg-gray-100",
         darkColor: "dark:text-gray-400 dark:bg-gray-700/30",
+        state: "inactive",
       },
     ];
   }, [vehicles]);
+
+  const selectedState: VehicleStatus | undefined = useMemo(() => {
+    const raw = (searchParams.get("state") ?? "").trim().toLowerCase();
+    if (
+      raw === "active" ||
+      raw === "maintenance" ||
+      raw === "alert" ||
+      raw === "inactive"
+    ) {
+      return raw;
+    }
+    return undefined;
+  }, [searchParams]);
+
+  const handleSelectState = useCallback(
+    (state: VehicleStatus | undefined) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (state) {
+        params.set("state", state);
+      } else {
+        params.delete("state");
+      }
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    },
+    [router, pathname, searchParams]
+  );
 
   const handleSelectVehicle = useCallback(
     (plate: string) => {
@@ -142,7 +173,12 @@ export default function FleetManagementPage({
         </p>
       </div>
 
-      <KpiCardsRow kpis={kpis} dict={fleetDict} />
+      <KpiCardsRow
+        kpis={kpis}
+        dict={fleetDict}
+        selectedState={selectedState}
+        onSelect={handleSelectState}
+      />
 
       <SpecialViewsCarousel views={specialViews} dict={fleetDict} />
 

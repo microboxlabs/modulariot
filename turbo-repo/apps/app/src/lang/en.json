@@ -2706,13 +2706,50 @@
           "kmSinceService": "Km Since Maintenance",
           "kmSinceServiceDesc": "Distance since last service",
           "kmRemaining": "{km} km remaining (est: {days} days)",
+          "kmRemainingNoDays": "{km} km remaining",
           "atKm": "At {km} km",
           "intervalPercent": "{percent}% of interval ({interval})",
-          "upToDate": "Maintenance up to date",
-          "upToDateDesc": "The vehicle complies with the preventive maintenance plan.",
-          "upToDateBadge": "Up to date",
-          "dueSoon": "Due soon",
-          "overdue": "Overdue"
+          "neverServiced": "Never serviced",
+          "errorTitle": "Couldn't load maintenance data",
+          "errorDesc": "Something went wrong fetching the maintenance detail. Try again in a moment.",
+          "retry": "Retry",
+          "criticality": {
+            "AL_DIA": {
+              "label": "Up to date",
+              "bannerTitle": "Maintenance up to date",
+              "bannerDesc": "The vehicle complies with the preventive maintenance plan."
+            },
+            "POR_VENCER": {
+              "label": "Due soon",
+              "bannerTitle": "Maintenance due soon",
+              "bannerDesc": "Less than 2,000 km remaining until the next scheduled service. Plan a workshop visit."
+            },
+            "CRITICO": {
+              "label": "Critical",
+              "bannerTitle": "Critical maintenance window",
+              "bannerDesc": "Less than 500 km remaining. Schedule the service immediately to avoid overrun."
+            },
+            "VENCIDO": {
+              "label": "Overdue",
+              "bannerTitle": "Maintenance overdue",
+              "bannerDesc": "The vehicle has passed the scheduled service odometer. Take it out of service until the maintenance is completed."
+            },
+            "EN_TALLER": {
+              "label": "In workshop",
+              "bannerTitle": "Vehicle in workshop",
+              "bannerDesc": "A maintenance work order is currently in progress for this vehicle."
+            },
+            "AGENDADO": {
+              "label": "Scheduled",
+              "bannerTitle": "Maintenance scheduled",
+              "bannerDesc": "A maintenance work order has been created and is waiting to start."
+            },
+            "SIN_INFO": {
+              "label": "No data",
+              "bannerTitle": "No odometer signal",
+              "bannerDesc": "We don't have enough recent odometer data for this vehicle to compute its maintenance state. Check that the GPS device is reporting."
+            }
+          }
         },
         "technicalHealth": {
           "title": "Technical Health",

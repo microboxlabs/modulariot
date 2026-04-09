@@ -16,6 +16,7 @@
 
 import "server-only";
 import type { Tenant, Truck } from "@microboxlabs/miot-resource-client";
+import type { TruckMaintenanceDetail } from "@/features/fleet-management/types/truck-maintenance.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -51,6 +52,61 @@ export interface PgrestMapPositionRow {
   speed: number | null;
   heading: number | null;
   gps_provider: string | null;
+}
+
+/**
+ * Row shape returned by `public.fn_dx_mantenimiento_detalle` in prod-iot-gps.
+ * Mirrors the 22 columns of the function's RETURNS TABLE definition verbatim.
+ * The backing data comes from `ams.gama_temp_datos_preliminar` plus the
+ * `dx_vehicle_current` rollup — see `db-scripts/plans/fleet-maintenance-state.md`
+ * for the underlying tables and derivation rules.
+ */
+export interface PgrestMaintenanceRow {
+  rent_id: string | null;
+  patente: string;
+  /** Display label (e.g. "SWJK62 — Citroen BERLINGO ... · 2023"). Unused by the UI. */
+  vehiculo: string | null;
+  description: string | null;
+  brand_id: string | null;
+  model_year: number | null;
+  /** Current odometer in km. NULL means the upstream has no signal (SIN_INFO). */
+  km_actual: number | null;
+  /** Odometer at the last closed work order; 0 means the vehicle has never been serviced. */
+  km_os: number | null;
+  /** Contractual maintenance interval in km. */
+  freq: number | null;
+  /** Remaining km vs manufacturer interval. */
+  km_rest_fab: number | null;
+  /** Remaining km since last service. */
+  km_rest_os: number | null;
+  /** Effective remaining km — `LEAST(km_rest_fab, km_rest_os)` when serviced, else `km_rest_fab`. */
+  km_rest_peor: number | null;
+  /** ABS of `km_rest_peor` when it goes negative; NULL when not overdue. */
+  km_excedido: number | null;
+  /** 7-day rolling average km/day. May be 0 or NULL. */
+  km_por_dia: number | null;
+  /** Projected days remaining; NULL when `km_por_dia` is 0/NULL. */
+  dias_est: number | null;
+  /** Projected service date in ISO (`YYYY-MM-DD`); NULL when `dias_est` is NULL. */
+  fecha_est: string | null;
+  /** Current open work order state: 'EN_TALLER' / 'AGENDADO' / NULL. */
+  estado_os: string | null;
+  dias_en_status: number | null;
+  /** 7-value enum — see README below. */
+  criticidad:
+    | "AL_DIA"
+    | "POR_VENCER"
+    | "CRITICO"
+    | "VENCIDO"
+    | "EN_TALLER"
+    | "AGENDADO"
+    | "SIN_INFO";
+  /** Distinct completed work orders count. */
+  num_maintance: number | null;
+  /** Most recent closed-WO timestamp (ISO 8601). */
+  last_seen_at: string | null;
+  /** `freq + km_os` — the next scheduled service odometer. */
+  km_next_maintance: number | null;
 }
 
 /** Row shape for ams.fleet_special_views — see db-scripts migration. */
@@ -250,6 +306,41 @@ export async function fetchLastPositions(
   return body?.data ?? [];
 }
 
+/**
+ * Call `public.fn_dx_mantenimiento_detalle(p_asset_id => <plate>)` via pgrest
+ * RPC and return the single matching row, or `null` when the plate has no
+ * entry in the upstream `ams.gama_temp_datos_preliminar`.
+ *
+ * The function accepts several parameters but we only filter by plate —
+ * `p_shared_client_id` defaults to the Gama tenant (row-level security is
+ * enforced upstream on the underlying tables), `p_lookback_days` is accepted
+ * but unused by the function body, and `p_solo_piloto` stays `false` so all
+ * ~334 trucks are covered, not just the 54-plate pilot list.
+ */
+export async function fetchTruckMaintenanceDetailByPlate(
+  plate: string
+): Promise<PgrestMaintenanceRow | null> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/rpc/fn_dx_mantenimiento_detalle`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ p_asset_id: plate }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest POST rpc/fn_dx_mantenimiento_detalle failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const body = (await response.json()) as PgrestMaintenanceRow[];
+  return body[0] ?? null;
+}
+
 // --- pgrest row → resource-client `Truck` transformation helpers. ---
 // Shared between the list route and the single-truck route so both sources
 // produce identical shapes. Kept here because they are tightly coupled to
@@ -343,5 +434,79 @@ export function pgrestRowToTruck(
     truckType: row.type_id ?? row.group_id ?? "",
     assetId: row.patente,
     latestMetrics: buildLatestMetricsFromPgrest(row, position),
+  };
+}
+
+// --- pgrest maintenance row → DTO adapter. ---
+// Lives here alongside the row type so null-handling rules stay in one place.
+// The DTO shape is the public contract shared with the frontend hook and the
+// future Java endpoint — see truck-maintenance.types.ts.
+
+/**
+ * Transform a raw `fn_dx_mantenimiento_detalle` row into the DTO consumed by
+ * the UI. Null-handling rules (the reason this is not a trivial field copy):
+ *
+ * - `km_actual IS NULL` → `SIN_INFO` upstream; we echo that by leaving
+ *   `odometer.current_km` null and making every odometer-dependent derivation
+ *   also null (`km_since_last_service`, `pct_of_interval`).
+ * - `km_os = 0` → never serviced; the source still returns zero but the UI
+ *   must treat this as "no prior service", so `last_service_km` and
+ *   `last_service_at` both become null even though the row may carry a value.
+ * - `km_por_dia = 0 OR NULL` → the source returns null `dias_est`/`fecha_est`
+ *   already; we pass those through untouched.
+ */
+export function maintenanceRowToDto(
+  row: PgrestMaintenanceRow
+): TruckMaintenanceDetail {
+  const intervalKm = row.freq ?? 0;
+  const lastServiceKm = row.km_os && row.km_os > 0 ? row.km_os : null;
+  const lastServiceAt = lastServiceKm !== null ? row.last_seen_at : null;
+
+  const kmSinceLastService =
+    row.km_actual !== null && lastServiceKm !== null
+      ? row.km_actual - lastServiceKm
+      : null;
+
+  const pctOfInterval =
+    kmSinceLastService !== null && intervalKm > 0
+      ? Math.round((kmSinceLastService / intervalKm) * 100)
+      : null;
+
+  return {
+    plate: row.patente,
+    contract_external_id: row.rent_id,
+    odometer: {
+      current_km: row.km_actual,
+      km_per_day_7d:
+        row.km_por_dia !== null && row.km_por_dia > 0 ? Number(row.km_por_dia) : null,
+    },
+    plan: {
+      interval_km: intervalKm,
+      last_service_km: lastServiceKm,
+      last_service_at: lastServiceAt,
+      next_service_target_km: row.km_next_maintance ?? intervalKm,
+      completed_services: row.num_maintance ?? 0,
+      km_since_last_service: kmSinceLastService,
+      pct_of_interval: pctOfInterval,
+    },
+    remaining: {
+      km_effective: row.km_rest_peor,
+      km_overdue: row.km_excedido,
+    },
+    forecast: {
+      estimated_days_remaining:
+        row.dias_est !== null ? Math.round(Number(row.dias_est)) : null,
+      estimated_service_date: row.fecha_est,
+    },
+    work_order: {
+      status:
+        row.estado_os === "EN_TALLER" || row.estado_os === "AGENDADO"
+          ? row.estado_os
+          : null,
+      days_in_status: row.dias_en_status,
+    },
+    status: {
+      criticality: row.criticidad,
+    },
   };
 }

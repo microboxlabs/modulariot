@@ -22,15 +22,6 @@ export interface VehicleDetailData {
   general: {
     health: number;
   };
-  maintenance: {
-    status: "up_to_date" | "due_soon" | "overdue";
-    totalKm: number;
-    nextMaintenanceKm: number;
-    lastManteinanceDate: string;
-    contractualFrecuency: number;
-    manteinancesCount: number;
-    kmSinceManteinance: number;
-  };
   technicalHealth: {
     alerts: Array<{
       title: string;
@@ -84,12 +75,6 @@ export interface VehicleDetailData {
 }
 
 // Status calculation helpers
-export function getMaintenanceStatus(data: VehicleDetailData): SectionStatus {
-  if (data.maintenance.status === "overdue") return "critical";
-  if (data.maintenance.status === "due_soon") return "warning";
-  return "ok";
-}
-
 export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus {
   const hasCriticalAlert = data.technicalHealth.alerts.some(alert => alert.type === "critical");
   if (hasCriticalAlert || data.technicalHealth.activeFailures > 2) return "critical";
@@ -118,7 +103,6 @@ export function getUsageStatus(data: VehicleDetailData): SectionStatus {
 }
 
 export interface SectionStatuses {
-  maintenance: SectionStatus;
   technicalHealth: SectionStatus;
   telemetry: SectionStatus;
   events: SectionStatus;
@@ -127,7 +111,9 @@ export interface SectionStatuses {
 
 export function getAllSectionStatuses(data: VehicleDetailData): SectionStatuses {
   return {
-    maintenance: getMaintenanceStatus(data),
+    // TODO: re-include maintenance status once the section's own hook exposes
+    // it up here — currently MaintenanceSection fetches its own data and
+    // computes status locally, so it's not in the shared health score.
     technicalHealth: getTechnicalHealthStatus(data),
     telemetry: getTelemetryStatus(data),
     events: getEventsStatus(data),
@@ -151,15 +137,6 @@ export function getOverallHealthScore(statuses: SectionStatuses): number {
 const vehicleData = {
   general: {
     health: 50,
-  },
-  maintenance: {
-    status: "up_to_date" as const, // up_to_date | due_soon | overdue
-    totalKm: 12450,
-    nextMaintenanceKm: 55000,
-    lastManteinanceDate: "2026-01-25", 
-    contractualFrecuency: 10000,
-    manteinancesCount: 5,
-    kmSinceManteinance: 2400,
   },
   technicalHealth: {
     "alerts": [
@@ -260,7 +237,7 @@ export default function VehicleDetailAccordion({
   return (
     <div className="flex flex-col gap-3 py-4 overflow-y-auto">
       <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
-      <MaintenanceSection vehicle={vehicle} dict={dict} data={vehicleData} status={statuses.maintenance} />
+      <MaintenanceSection vehicle={vehicle} dict={dict} />
       <TechnicalHealthSection dict={dict} data={vehicleData} status={statuses.technicalHealth} />
       <TelemetrySection dict={dict} data={vehicleData} status={statuses.telemetry} />
       <EventsSection dict={dict} data={vehicleData} status={statuses.events} />

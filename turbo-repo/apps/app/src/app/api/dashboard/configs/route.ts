@@ -39,7 +39,10 @@ export async function GET(request: NextRequest) {
     // Filter out dashboards the user is not allowed to access
     const accessible = (result.data ?? []).filter((item) => {
       const allowed = item.config?.allowedGroups;
-      if (!Array.isArray(allowed) || allowed.length === 0) return true;
+      // No restriction: field is absent or empty array
+      if (allowed === undefined || allowed === null) return true;
+      if (!Array.isArray(allowed)) return false; // malformed — deny
+      if (allowed.length === 0) return true;
       return allowed.some((g: string) => userGroups.includes(g));
     });
 

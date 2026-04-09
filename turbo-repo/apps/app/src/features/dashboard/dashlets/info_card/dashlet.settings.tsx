@@ -199,7 +199,7 @@ export function DashletSettings({
           schemaSuggestions={schemaSuggestions}
           value={viewMoreLabel}
           onChange={setViewMoreLabel}
-          placeholder="View more"
+          placeholder={tr("dashboard.settings.viewMoreLabelPlaceholder", dictionary)}
         />
       )}
       {viewMoreUrl && (

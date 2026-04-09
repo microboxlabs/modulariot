@@ -1533,6 +1533,7 @@
       "aiPlaceholder": "AI Placeholder",
       "viewMoreUrl": "View More URL (optional)",
       "viewMoreLabel": "View More Button Label",
+      "viewMoreLabelPlaceholder": "View more",
       "openInSameTab": "Open in same tab",
       "key": "Key",
       "addEntry": "+ Add Entry",

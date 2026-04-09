@@ -12,11 +12,6 @@ import {
   type DashletIconKey,
 } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
-import {
-  getThresholdTextClasses,
-  getThresholdIconClasses,
-} from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 
@@ -107,16 +102,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
+  const { resolved, loading, fetchError } = useDashletPgrest(
     config,
     FIELD_DEFAULTS,
     refreshIntervalMs
   );
 
-  const { color: thresholdColor, appliesTo } = useRowThreshold(
-    config.thresholds,
-    firstRow
-  );
+  /*
+    const { color: thresholdColor, appliesTo } = useRowThreshold(
+      config.thresholds,
+      firstRow
+    );
+  */
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

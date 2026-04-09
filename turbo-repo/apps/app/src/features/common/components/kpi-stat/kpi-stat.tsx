@@ -90,7 +90,7 @@ function getContainerClasses(
   // Horizontal variant uses justify-between to push value to the right
   const variantClasses = variant === "horizontal" ? "justify-between" : "";
 
-  return `${base} ${styleClasses[style]} ${variantClasses}`;
+  return twMerge(base, styleClasses[style], variantClasses);
 }
 
 /** Get text classes based on style for proper contrast */

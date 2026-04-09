@@ -278,14 +278,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       return items.map((item) => ({
         label: item.label,
         value: Number(item.value) || 0,
-        color: item.color,
+        color: (item.color ?? "").replace(/^#/, ""),
       }));
     }
     const context = { ...firstRow, row: firstRow };
     return items.map((item) => ({
       label: resolveHandlebarsField(item.label, context),
       value: Number(resolveHandlebarsField(String(item.value), context)) || 0,
-      color: item.color,
+      color: (item.color ?? "").replace(/^#/, ""),
     }));
   }, [items, firstRow, isStatic]);
 

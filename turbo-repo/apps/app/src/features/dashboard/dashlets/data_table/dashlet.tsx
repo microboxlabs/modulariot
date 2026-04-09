@@ -56,7 +56,10 @@ import {
 } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
 import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
-import { normalizeActionsConfig, isSafeActionUrl } from "@/features/dashboard/dashlets/common/action-helpers";
+import {
+  normalizeActionsConfig,
+  isSafeActionUrl,
+} from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
 
@@ -200,7 +203,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   );
   const safeActions = useMemo(
     () => normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
-    [config.actions],
+    [config.actions]
   );
   const hasActions = safeActions.enabled && safeActions.items.length > 0;
 
@@ -310,7 +313,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       )}
 
       {/* Table card */}
-      <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex-1 overflow-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         {loading && (
           <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
             Loading...
@@ -335,7 +338,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                 ))}
                 {hasActions && (
                   <th className="sticky right-0 w-10 border-l border-gray-200 bg-gray-50 px-2 py-3 dark:border-gray-600 dark:bg-gray-700/50">
-                    <span className="sr-only">{tr("dashboard.settings.actions", dictionary)}</span>
+                    <span className="sr-only">
+                      {tr("dashboard.settings.actions", dictionary)}
+                    </span>
                   </th>
                 )}
               </tr>
@@ -390,16 +395,29 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         </td>
                       ))}
                       {hasActions && (
-                        <td className={`sticky right-0 border-l border-gray-200 px-2 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}>
+                        <td
+                          className={`sticky right-0 border-l border-gray-200 px-2 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}
+                        >
                           <ActionDropdown
                             items={safeActions.items
                               .map((action) => {
                                 const ctx = { ...row, row };
-                                const href = resolveHandlebarsField(action.link, ctx);
-                                return isSafeActionUrl(href) ? { action, href } : null;
+                                const href = resolveHandlebarsField(
+                                  action.link,
+                                  ctx
+                                );
+                                return isSafeActionUrl(href)
+                                  ? { action, href }
+                                  : null;
                               })
-                              .filter((item): item is NonNullable<typeof item> => item !== null)}
-                            ariaLabel={tr("dashboard.settings.moreActions", dictionary)}
+                              .filter(
+                                (item): item is NonNullable<typeof item> =>
+                                  item !== null
+                              )}
+                            ariaLabel={tr(
+                              "dashboard.settings.moreActions",
+                              dictionary
+                            )}
                           />
                         </td>
                       )}

@@ -379,7 +379,12 @@ export function DashletSettings({
               <AdvancedColorPicker
                 value={(customColors[i] ?? "5470c6").replace(/^#/, "")}
                 onChange={(c) => updateCustomColor(i, `#${c}`)}
-                title={s.label || `Series ${i + 1}`}
+                title={
+                  s.label ||
+                  tr("dashboard.dashlets.chart.seriesNumber", dictionary, {
+                    n: i + 1,
+                  })
+                }
               />
               {series.length > 1 && (
                 <button

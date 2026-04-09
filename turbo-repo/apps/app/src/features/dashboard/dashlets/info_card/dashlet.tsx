@@ -227,7 +227,7 @@ export function Dashlet({
             onClick={handleViewMore}
             className="no-drag shrink-0"
           >
-            {compiledViewMoreLabel}
+            {compiledViewMoreLabel?.trim() || defaultConfig.viewMoreLabel}
           </Button>
         )}
       </div>

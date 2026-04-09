@@ -21,6 +21,8 @@ import {
   DataProviderEntries,
   type SimpleDataMode,
   isRemoteDataMode,
+  useThresholdSettings,
+  ThresholdEditor,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
@@ -54,6 +56,7 @@ export function DashletSettings({
   );
 
   const dp = useDataProvider(config.dataProvider ?? []);
+  const threshold = useThresholdSettings(config);
 
   const staticSnapshot = useRef({ title, value, subtitle });
 
@@ -96,6 +99,7 @@ export function DashletSettings({
       dataSourceId: dataSourceId || undefined,
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
+      ...threshold.buildThresholdSavePayload(),
     } as DashletConfig);
     onClose();
   };
@@ -139,6 +143,19 @@ export function DashletSettings({
         value={icon}
         onChange={(v) => setIcon(v as StatusIcon)}
         options={ICON_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+      />
+      <ThresholdEditor
+        enabled={threshold.thresholdEnabled}
+        onToggle={threshold.setThresholdEnabled}
+        field={threshold.thresholdField}
+        onFieldChange={threshold.setThresholdField}
+        applyTo={threshold.thresholdApplyTo}
+        onApplyToChange={threshold.setThresholdApplyTo}
+        rules={threshold.thresholdRules}
+        onAdd={threshold.addThresholdRule}
+        onRemove={threshold.removeThresholdRule}
+        onUpdate={threshold.updateThresholdRule}
+        schemaSuggestions={schemaSuggestions}
       />
     </>
   );

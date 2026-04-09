@@ -25,6 +25,8 @@ export interface SettingsFieldDef {
   readonly state: string;
   readonly hbPlaceholder: string;
   readonly staticPlaceholder: string;
+  /** Optional: state key for a checkbox shown to the left of the input */
+  readonly checkboxState?: string;
 }
 
 export interface SimpleDashletSettingsProps<C extends object> {
@@ -40,6 +42,10 @@ export interface SimpleDashletSettingsProps<C extends object> {
   extraSaveFields?: Record<string, unknown>;
   /** When true, show the ThresholdEditor in the visualization tab */
   thresholds?: boolean;
+  /** Checkbox values for fields with checkboxState */
+  checkboxValues?: Record<string, boolean>;
+  /** Checkbox setters for fields with checkboxState */
+  checkboxSetters?: Record<string, (v: boolean) => void>;
 }
 
 // ============================================================================
@@ -105,6 +111,8 @@ export function SimpleDashletSettings<C extends object>({
   extraVisualization,
   extraSaveFields,
   thresholds: showThresholds = false,
+  checkboxValues,
+  checkboxSetters,
 }: Readonly<SimpleDashletSettingsProps<C>>) {
   const configRecord = config as unknown as Record<string, unknown>;
   const { values, setters, fieldNames, buildSaveValues } = useFieldState(
@@ -178,6 +186,8 @@ export function SimpleDashletSettings<C extends object>({
         isPgrest={isPgrest}
         dictionary={dictionary}
         schemaSuggestions={schemaSuggestions}
+        checkboxValues={checkboxValues}
+        checkboxSetters={checkboxSetters}
       />
       {extraVisualization}
       {thresholdNode}

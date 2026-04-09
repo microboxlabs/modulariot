@@ -18,6 +18,8 @@ export interface DashletConfig {
   title: string;
   value: string;
   max: string;
+  /** Progress bar color (hex without #) */
+  barColor?: string;
   dataMode?: string;
   pgrestFunctionName?: string;
   pgrestParams?: PgrestParam[];
@@ -31,6 +33,7 @@ export const defaultConfig: DashletConfig = {
   title: "Progress",
   value: "6",
   max: "10",
+  barColor: "2563eb",
 };
 
 // ============================================================================
@@ -110,6 +113,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
+  const barColor = config.barColor ?? "2563eb";
 
   return (
     <div
@@ -139,8 +143,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <div className="mt-2 flex min-h-1.5 flex-1 w-full items-center">
         <div className="h-full w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700">
           <div
-            className="h-full bg-blue-600 transition-all duration-300 dark:bg-blue-500"
-            style={{ width: `${clampedPercentage}%` }}
+            className="h-full transition-all duration-300"
+            style={{ width: `${clampedPercentage}%`, backgroundColor: `#${barColor}` }}
           />
         </div>
       </div>

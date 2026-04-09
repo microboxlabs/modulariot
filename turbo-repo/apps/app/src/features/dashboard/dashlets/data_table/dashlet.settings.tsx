@@ -27,6 +27,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
@@ -130,6 +131,7 @@ export function DashletSettings({
       plannerContent={plannerContent}
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

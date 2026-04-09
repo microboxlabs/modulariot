@@ -37,6 +37,8 @@ interface TableListSettingsShellProps {
   handlebarsColorKeys?: boolean;
   /** Optional refresh interval select rendered above the save button */
   refreshSelect?: ReactNode;
+  /** Optional title shown in the modal header */
+  title?: string;
 }
 
 // ============================================================================
@@ -55,6 +57,7 @@ export function TableListSettingsShell({
   plannerContent,
   handlebarsColorKeys = false,
   refreshSelect,
+  title,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -224,6 +227,7 @@ export function TableListSettingsShell({
       dataTab={dataTab}
       className="w-[28rem]"
       refreshSelect={refreshSelect}
+      title={title}
     />
   );
 }

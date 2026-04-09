@@ -1519,6 +1519,7 @@
       "categoryAriaLabel": "Category {name} {field}",
       "new": "new",
       "borderColor": "Border Color",
+      "barColor": "Bar Color",
       "seeMoreUrl": "\"See more\" Link URL",
       "items": "Items",
       "details": "Details",

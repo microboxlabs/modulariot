@@ -1544,6 +1544,7 @@
       "categoryAriaLabel": "Categoría {name} {field}",
       "new": "nueva",
       "borderColor": "Color del Borde",
+      "barColor": "Color de la Barra",
       "seeMoreUrl": "URL \"Ver más\"",
       "items": "Elementos",
       "details": "Detalles",

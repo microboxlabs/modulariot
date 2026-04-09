@@ -10,6 +10,7 @@ import {
   getGroupsForPerson,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { RouteGuard } from "@/features/auth/components/route-guard";
+import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
 import { logger } from "@/lib/logger";
 import type { Session } from "next-auth";
 
@@ -45,15 +46,14 @@ async function enforceDashboardAccess(
     redirect(`/${lang}/home`);
   }
 
-  const allowed = configData?.allowedGroups;
-  if (allowed === undefined || allowed === null) return;
+  const parsed = parseAllowedGroups(configData?.allowedGroups);
 
-  if (!Array.isArray(allowed) || !allowed.every((g): g is string => typeof g === "string")) {
-    logger.error({ slug, siteId, allowedGroups: allowed }, "Malformed allowedGroups in dashboard config");
+  if (!parsed.valid) {
+    logger.error({ slug, siteId, allowedGroups: configData?.allowedGroups }, "Malformed allowedGroups in dashboard config");
     redirect(`/${lang}/home`);
   }
 
-  if (allowed.length === 0) return;
+  if (!parsed.groups || parsed.groups.length === 0) return;
 
   let userGroups: string[];
   try {
@@ -63,7 +63,7 @@ async function enforceDashboardAccess(
     redirect(`/${lang}/home`);
   }
 
-  if (!allowed.some((g) => userGroups.includes(g))) {
+  if (!parsed.groups.some((g) => userGroups.includes(g))) {
     redirect(`/${lang}/home`);
   }
 }

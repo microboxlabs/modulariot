@@ -15,7 +15,11 @@ import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
 import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { fromPgrestParamItems } from "../common/pgrest-types";
-import { buildPgrestSettingsConfig, buildPgrestContentLabels, syncColumnsFromKeys } from "../common/pgrest-settings-helpers";
+import {
+  buildPgrestSettingsConfig,
+  buildPgrestContentLabels,
+  syncColumnsFromKeys,
+} from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
@@ -27,6 +31,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
@@ -55,7 +60,8 @@ export function DashletSettings({
     defaultFilter,
     sort: config.sort,
     defaultSort,
-    dataMode: config.dataMode === "pgrest" ? "pgrest" : (config.dataMode ?? "static"),
+    dataMode:
+      config.dataMode === "pgrest" ? "pgrest" : (config.dataMode ?? "static"),
     apiUrl: "",
     rowColorRules: config.rowColorRules,
     actions: config.actions,
@@ -72,11 +78,12 @@ export function DashletSettings({
   const handleSave = () => {
     const rows = s.parseRows(
       tr("dashboard.settings.mustBeJsonArray", dictionary),
-      tr("dashboard.settings.invalidJson", dictionary),
+      tr("dashboard.settings.invalidJson", dictionary)
     );
     if (!rows) return;
 
-    const { filter, sort, savedColumns, rowColorRules, actions } = s.buildFilterSort();
+    const { filter, sort, savedColumns, rowColorRules, actions } =
+      s.buildFilterSort();
 
     onSave({
       title: s.title,
@@ -90,7 +97,8 @@ export function DashletSettings({
       filter,
       sort,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: s.dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        s.dataMode === "planner" ? plannerVariableName : undefined,
       rowColorRules,
       actions,
       ...refresh.savePayload,
@@ -130,6 +138,7 @@ export function DashletSettings({
       plannerContent={plannerContent}
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

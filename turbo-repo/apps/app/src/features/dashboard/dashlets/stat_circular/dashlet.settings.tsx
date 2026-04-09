@@ -17,7 +17,10 @@ import {
   useThresholdSettings,
   ThresholdEditor,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -27,21 +30,32 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
 
-  const [title, setTitle] = useState(String(config.title ?? defaultConfig.title));
-  const [value, setValue] = useState(String(config.value ?? defaultConfig.value));
-  const [maxValue, setMaxValue] = useState(String(config.maxValue ?? defaultConfig.maxValue));
+  const [title, setTitle] = useState(
+    String(config.title ?? defaultConfig.title)
+  );
+  const [value, setValue] = useState(
+    String(config.value ?? defaultConfig.value)
+  );
+  const [maxValue, setMaxValue] = useState(
+    String(config.maxValue ?? defaultConfig.maxValue)
+  );
   const [unit, setUnit] = useState(String(config.unit ?? defaultConfig.unit));
   const [dataMode, setDataMode] = useState<"static" | "pgrest" | "planner">(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
       : "static"
   );
-  const [dataSourceId, setDataSourceId] = useState<string>(config.dataSourceId ?? "");
+  const [dataSourceId, setDataSourceId] = useState<string>(
+    config.dataSourceId ?? ""
+  );
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
   );
@@ -50,10 +64,13 @@ export function DashletSettings({
   const threshold = useThresholdSettings(config);
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setValue(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setMaxValue(`{{row.${detected[1].key}}}`);
-    }),
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) setValue(`{{row.${detected[0].key}}}`);
+        if (detected.length >= 2) setMaxValue(`{{row.${detected[1].key}}}`);
+      }
+    ),
   });
 
   const schemaSuggestions =
@@ -72,7 +89,8 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       dataProvider: dp.getCleanEntries(),
       ...refresh.savePayload,
       ...threshold.buildThresholdSavePayload(),
@@ -142,7 +160,9 @@ export function DashletSettings({
       <PgrestDataTab
         id="sc-data-mode"
         dataMode={dataMode}
-        onDataModeChange={(v) => setDataMode(v as "static" | "pgrest" | "planner")}
+        onDataModeChange={(v) =>
+          setDataMode(v as "static" | "pgrest" | "planner")
+        }
         pgrest={pg}
         dictionary={dictionary}
         plannerVariableName={plannerVariableName}
@@ -164,6 +184,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

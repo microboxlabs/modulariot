@@ -6,6 +6,9 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useRowThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -16,6 +19,7 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   details: { label: string; value: string }[];
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -54,7 +58,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [expanded, setExpanded] = useState(false);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -71,7 +77,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {title}
         </p>
-        <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
+        <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
           {displayValue}
           <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>
         </p>

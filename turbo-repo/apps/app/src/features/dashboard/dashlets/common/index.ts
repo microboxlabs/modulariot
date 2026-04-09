@@ -63,10 +63,7 @@ export {
 } from "./use-pgrest-settings-state";
 export { PgrestSettingsSection } from "./pgrest-settings-section";
 export { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
-export {
-  type FilterItemConfig,
-  type FilterConfig,
-} from "./filter-types";
+export { type FilterItemConfig, type FilterConfig } from "./filter-types";
 export {
   type FilterItem,
   toFilterItems,
@@ -107,16 +104,29 @@ export {
   buildSimplePgrestConfig,
 } from "./pgrest-settings-helpers";
 export { IconColorPickerRow } from "./icon-color-picker-row";
+export { DASHLET_ICON_OPTIONS, type DashletIconKey } from "./icon-options";
 export { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 export { PgrestDataTab } from "./pgrest-data-tab";
 export { usePlannerData } from "./use-planner-data";
 export { useDashletData } from "./use-dashlet-data";
 export { PlannerVariableSelector } from "./planner-variable-selector";
 export { useActiveProviders } from "./use-active-providers";
-export { DashletLoading, DashletError, parseResolvedNumber } from "./dashlet-states";
+export {
+  DashletLoading,
+  DashletError,
+  parseResolvedNumber,
+} from "./dashlet-states";
 export { DataProviderEntries } from "./data-provider-entries";
-export { type SimpleDataMode, isRemoteDataMode, useSimplePgrestSettings } from "./use-simple-pgrest-settings";
-export { type PgrestDashletFields, useDashletPgrest, useHybridPgrestContext } from "./use-dashlet-pgrest";
+export {
+  type SimpleDataMode,
+  isRemoteDataMode,
+  useSimplePgrestSettings,
+} from "./use-simple-pgrest-settings";
+export {
+  type PgrestDashletFields,
+  useDashletPgrest,
+  useHybridPgrestContext,
+} from "./use-dashlet-pgrest";
 export {
   type SettingsFieldDef,
   type SimpleDashletSettingsProps,
@@ -124,3 +134,30 @@ export {
   createSimpleDashletSettings,
   useFieldState,
 } from "./simple-dashlet-settings";
+export {
+  type ThresholdTarget,
+  type ThresholdRule,
+  type ThresholdConfig,
+  type ThresholdRuleItem,
+  THRESHOLD_TARGETS,
+  THRESHOLD_TARGET_LABELS,
+} from "./threshold-types";
+export {
+  evaluateThreshold,
+  getThresholdBgClasses,
+  getThresholdTextClasses,
+  getThresholdIconClasses,
+  getThresholdBorderClasses,
+  getThresholdStrokeClass,
+  getThresholdBarClass,
+  getThresholdGradientClasses,
+} from "./threshold-engine";
+export {
+  DEFAULT_THRESHOLD_CONFIG,
+  normalizeThresholdConfig,
+  toThresholdRuleItems,
+  fromThresholdRuleItems,
+} from "./threshold-helpers";
+export { type ThresholdResult, useThreshold, useRowThreshold } from "./use-threshold";
+export { ThresholdEditor } from "./threshold-editor";
+export { useThresholdSettings } from "./use-threshold-settings";

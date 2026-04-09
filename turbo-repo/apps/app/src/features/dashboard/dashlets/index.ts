@@ -17,11 +17,8 @@ import type { ContainerConfig, ContainerVariant } from "./container";
 
 // Import dashlet definitions (each folder exports dashletDefinition)
 import { dashletDefinition as containerDefinition } from "./container";
-import { dashletDefinition as cardDefinition } from "./card";
-import { dashletDefinition as labeledDataDefinition } from "./labeled_data";
 import { dashletDefinition as percentageValueDefinition } from "./percentage_value";
 import { dashletDefinition as statDetailedDefinition } from "./stat_detailed";
-import { dashletDefinition as statGradientDefinition } from "./stat_gradient";
 import { dashletDefinition as statIconDefinition } from "./stat_icon";
 import { dashletDefinition as statCircularDefinition } from "./stat_circular";
 import { dashletDefinition as statExpandableDefinition } from "./stat_expandable";
@@ -41,11 +38,8 @@ import { dashletDefinition as chartDefinition } from "./chart";
 // ============================================================================
 const DASHLET_DEFINITIONS: DashletDefinition[] = [
   containerDefinition,
-  cardDefinition,
-  labeledDataDefinition,
   percentageValueDefinition,
   statDetailedDefinition,
-  statGradientDefinition,
   statIconDefinition,
   statCircularDefinition,
   statExpandableDefinition,

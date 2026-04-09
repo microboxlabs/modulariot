@@ -3,8 +3,9 @@ import type { DashletMeta } from "../types";
 
 export const dashletMeta: DashletMeta = {
   id: "stat_icon",
-  name: "Icon Stat",
-  description: "Card with large icon accent on the left",
+  name: "Stat Card",
+  description:
+    "KPI card with multiple styles: default, gradient, minimal, bordered",
   icon: HiSquare3Stack3D,
   category: "data-display",
   canNestIn: [],

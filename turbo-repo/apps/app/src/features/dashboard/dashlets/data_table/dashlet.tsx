@@ -2,9 +2,18 @@
 
 import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
-import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
-import type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
+import type {
+  DashletComponentProps,
+  DashletLayoutDefaults,
+} from "@/features/dashboard/dashlets/types";
+import type {
+  TableColumn,
+  SortConfig,
+} from "@/features/dashboard/dashlets/common/column-types";
+import type {
+  FilterItemConfig,
+  FilterConfig,
+} from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
@@ -20,15 +29,31 @@ import { tr } from "@/features/i18n/tr.service";
 // Re-exports
 // ============================================================================
 
-export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
-export type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
-export type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+export type {
+  ColumnType,
+  TableColumn,
+  SortConfig,
+} from "@/features/dashboard/dashlets/common/column-types";
+export type {
+  FilterItemConfig,
+  FilterConfig,
+} from "@/features/dashboard/dashlets/common/filter-types";
+export type {
+  PgrestParam,
+  PgrestHttpMethod,
+} from "@/features/dashboard/dashlets/common/pgrest-types";
 export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 export { resolveDataProperty } from "@/features/dashboard/dashlets/common/handlebars-helpers";
 
-import type { PgrestParam, PgrestHttpMethod } from "@/features/dashboard/dashlets/common/pgrest-types";
+import type {
+  PgrestParam,
+  PgrestHttpMethod,
+} from "@/features/dashboard/dashlets/common/pgrest-types";
 import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-types";
-import { findMatchingColor, getRowColorClasses } from "@/features/dashboard/dashlets/common/color-rule-engine";
+import {
+  findMatchingColor,
+  getRowColorClasses,
+} from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
 
 export interface DashletConfig {
@@ -128,8 +153,8 @@ export const defaultConfig: DashletConfig = {
 // ============================================================================
 
 export const layoutDefaults: DashletLayoutDefaults = {
-  minW: 6,
-  minH: 4,
+  minW: 7,
+  minH: 6,
 };
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
@@ -156,10 +181,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataSourceId,
     plannerVariableName,
   } = config;
-  const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
+  const filter = useMemo(
+    () => normalizeFilterConfig(config.filter, defaultFilter),
+    [config.filter]
+  );
   const safeRowColorRules = useMemo(
-    () => normalizeColorRulesConfig(config.rowColorRules, { enabled: false, rules: [] }),
-    [config.rowColorRules],
+    () =>
+      normalizeColorRulesConfig(config.rowColorRules, {
+        enabled: false,
+        rules: [],
+      }),
+    [config.rowColorRules]
   );
 
   // ── Data fetching (pgrest or planner) ───────────────────────────────────────
@@ -178,7 +210,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     refreshIntervalMs,
   });
 
-  const allRows = dataMode === "pgrest" || dataMode === "planner" ? fetchedRows : staticRows;
+  const allRows =
+    dataMode === "pgrest" || dataMode === "planner" ? fetchedRows : staticRows;
 
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {
@@ -195,10 +228,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   } = useFilterAndSort(filter, sort, allRows, columns);
 
   const getSortIcon = (dir: "asc" | "desc") =>
-    dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
+    dir === "asc" ? (
+      <HiArrowUp className="h-3 w-3" />
+    ) : (
+      <HiArrowDown className="h-3 w-3" />
+    );
 
   // ── Handlebars template compilation ────────────────────────────────────────
-  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(columns, displayRows.length);
+  const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(
+    columns,
+    displayRows.length
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -253,18 +293,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               label={getColumnLabel(key)}
               active={sortKey === key}
               onClick={() => handleSortClick(key)}
-              icon={
-                sortKey === key
-                  ? getSortIcon(sortDir)
-                  : undefined
-              }
+              icon={sortKey === key ? getSortIcon(sortDir) : undefined}
             />
           ))}
         </div>
       )}
 
       {/* Table card */}
-      <div className="flex-1 overflow-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         {loading && (
           <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
             Loading...
@@ -277,12 +313,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
         {!loading && !fetchError && (
           <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-700/50">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-gray-50 dark:bg-gray-700">
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                    className="sticky top-0 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                   >
                     {resolveLabel(col.key)}
                   </th>
@@ -302,26 +338,39 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               ) : (
                 displayRows.map((row, rowIdx) => {
                   const rowColor = safeRowColorRules.enabled
-                    ? findMatchingColor(safeRowColorRules.rules, row, resolveValue, rowIdx, displayRows.length)
+                    ? findMatchingColor(
+                        safeRowColorRules.rules,
+                        row,
+                        resolveValue,
+                        rowIdx,
+                        displayRows.length
+                      )
                     : null;
                   const trClass = rowColor
                     ? `border-t border-gray-100 ${getRowColorClasses(rowColor)} dark:border-gray-700`
                     : "border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800";
 
                   return (
-                    <tr
-                      key={row.id ?? row._id ?? rowIdx}
-                      className={trClass}
-                    >
+                    <tr key={row.id ?? row._id ?? rowIdx} className={trClass}>
                       {columns.map((col) => (
                         <td
                           key={col.key}
                           className="px-4 py-4 text-gray-700 dark:text-gray-300"
                         >
                           {renderCell(
-                            resolveValue(col.key, row, rowIdx, displayRows.length),
-                            resolveType(col.key, row, rowIdx, displayRows.length),
-                            col.colorMap,
+                            resolveValue(
+                              col.key,
+                              row,
+                              rowIdx,
+                              displayRows.length
+                            ),
+                            resolveType(
+                              col.key,
+                              row,
+                              rowIdx,
+                              displayRows.length
+                            ),
+                            col.colorMap
                           )}
                         </td>
                       ))}

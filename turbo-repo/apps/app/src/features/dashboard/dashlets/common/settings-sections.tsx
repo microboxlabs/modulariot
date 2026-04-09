@@ -106,7 +106,7 @@ export function ColumnEditor({
                 type="button"
                 onClick={() => onRemove(col._id)}
                 onMouseDown={stopPropagation}
-                className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
               >
                 <HiTrash className="h-4 w-4" />
               </button>
@@ -156,7 +156,7 @@ export function ColumnEditor({
                       type="button"
                       onClick={() => onRemoveColorMapping(col._id, idx)}
                       onMouseDown={stopPropagation}
-                      className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                      className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
                     >
                       <HiTrash className="h-4 w-4" />
                     </button>
@@ -262,7 +262,7 @@ export function FilterEditor({
                     type="button"
                     onClick={() => onRemove(fi._id)}
                     onMouseDown={stopPropagation}
-                    className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                    className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
                   >
                     <HiTrash className="h-4 w-4" />
                   </button>
@@ -558,7 +558,7 @@ export function ColorRuleEditor({
                     type="button"
                     onClick={() => onRemove(rule._id)}
                     onMouseDown={stopPropagation}
-                    className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                    className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
                   >
                     <HiTrash className="h-4 w-4" />
                   </button>

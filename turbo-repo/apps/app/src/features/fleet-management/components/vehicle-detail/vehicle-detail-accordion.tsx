@@ -31,16 +31,6 @@ export interface VehicleDetailData {
   general: {
     health: number;
   };
-  technicalHealth: {
-    alerts: Array<{
-      title: string;
-      description: string;
-      type: "critical" | "warning";
-    }>;
-    activeFailures: number;
-    resolved: number;
-    responseTimeHour: number;
-  };
   usage: {
     totalKilometers: number;
     monthlyContractualConsumptionPercentage: number;
@@ -97,10 +87,12 @@ export function getTelemetrySectionStatus(
   return "ok";
 }
 
-export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus {
-  const hasCriticalAlert = data.technicalHealth.alerts.some(alert => alert.type === "critical");
-  if (hasCriticalAlert || data.technicalHealth.activeFailures > 2) return "critical";
-  if (data.technicalHealth.alerts.length > 0 || data.technicalHealth.activeFailures > 0) return "warning";
+/**
+ * Placeholder until the technical-health backend wiring lands. The
+ * section currently renders a hardcoded happy-path UI, so the overall
+ * health overview should agree and treat it as ok.
+ */
+export function getTechnicalHealthStatus(): SectionStatus {
   return "ok";
 }
 
@@ -145,7 +137,7 @@ export function getMockSectionStatuses(
   data: VehicleDetailData
 ): Omit<SectionStatuses, "maintenance" | "telemetry" | "events"> {
   return {
-    technicalHealth: getTechnicalHealthStatus(data),
+    technicalHealth: getTechnicalHealthStatus(),
     usage: getUsageStatus(data),
   };
 }
@@ -166,23 +158,6 @@ export function getOverallHealthScore(statuses: SectionStatuses): number {
 const vehicleData = {
   general: {
     health: 50,
-  },
-  technicalHealth: {
-    "alerts": [
-      {
-        title: "Falla DPF - Saturación crítica",
-        description: "Sistema de filtro de partículas diésel requiere regeneración urgente (Detectada: 10 Feb 2026 14:45)",
-        type: "critical"
-      } as const,
-      {
-        title: "Falla sensor presión neumáticos",
-        description: "TPMS reporta error en sensor rueda delantera derecha (Detectada: 22 Ene 2026 16:30)",
-        type: "warning"
-      } as const
-    ],
-    "activeFailures": 3,
-    "resolved": 5,
-    "responseTimeHour": 18
   },
   usage: {
     totalKilometers: 47400,
@@ -234,7 +209,7 @@ export default function VehicleDetailAccordion({
     <div className="flex flex-col gap-3 py-4 overflow-y-auto">
       <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
       <MaintenanceSection vehicle={vehicle} dict={dict} />
-      <TechnicalHealthSection dict={dict} data={vehicleData} status={statuses.technicalHealth} />
+      <TechnicalHealthSection dict={dict} status={statuses.technicalHealth} />
       <TelemetrySection vehicle={vehicle} dict={dict} />
       <EventsSection vehicle={vehicle} dict={dict} />
       <UsageSection dict={dict} data={vehicleData} status={statuses.usage} />

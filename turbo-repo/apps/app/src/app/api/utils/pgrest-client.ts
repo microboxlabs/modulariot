@@ -21,6 +21,10 @@ import type {
   TelemetryCapabilities,
   TruckTelemetryDetail,
 } from "@/features/fleet-management/types/truck-telemetry.types";
+import type {
+  TruckEventItem,
+  TruckEventsDetail,
+} from "@/features/fleet-management/types/truck-events.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -167,6 +171,30 @@ export interface PgrestSignalRow {
   last_throttle_pos_pct: number | null;
   last_engine_runtime_h: number | null;
   last_odometer_km: number | null;
+}
+
+/**
+ * Row shape returned by `public.fn_dx_eventos_detalle` in prod-iot-gps.
+ * One row per operational event (symptom) for a single vehicle within the
+ * lookback window. `p_patente` is required by the function.
+ */
+export interface PgrestEventRow {
+  evento_id: number;
+  timestamp_evento: string;
+  categoria: string;
+  symptom_name: string;
+  duracion_minutos: number | null;
+  severidad: "Bajo" | "Medio" | "Alto" | "Crítico";
+  icu_code: number;
+  velocidad_detectada: number | null;
+  limite_velocidad: number | null;
+  signal_lag: string | null;
+  accumulated_signals: number | null;
+  detalle: Record<string, unknown> | null;
+  tiene_treatment: boolean;
+  treatment_status: string | null;
+  treatment_type: string | null;
+  message: string;
 }
 
 /** Row shape for ams.fleet_special_views — see db-scripts migration. */
@@ -698,5 +726,84 @@ export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
       can_metrics: row.metricas_can ?? 0,
     },
     capabilities: buildTelemetryCapabilities(row),
+  };
+}
+
+// --- pgrest events rows → DTO adapter. ---
+
+/**
+ * Call `public.fn_dx_eventos_detalle(p_patente => <plate>)` via pgrest RPC.
+ * Returns an array (potentially large — the caller is responsible for
+ * limiting). `p_patente` is mandatory; the function raises if omitted.
+ *
+ * `minIcuCode` defaults to 2 to filter out the massive `Bajo/SEÑAL` noise
+ * (~99% of events). `limit` defaults to 50 most recent events.
+ */
+export async function fetchTruckEventsDetailByPlate(
+  plate: string,
+  opts?: { minIcuCode?: number; limit?: number }
+): Promise<PgrestEventRow[]> {
+  const minIcu = opts?.minIcuCode ?? 2;
+  const limit = opts?.limit ?? 50;
+  const token = await bearerToken();
+  const clientId = getPgrestClientId();
+  const url = `${pgrestBaseUrl()}/rpc/fn_dx_eventos_detalle`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      p_shared_client_id: clientId,
+      p_patente: plate,
+      p_min_icu_code: minIcu,
+    }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest POST rpc/fn_dx_eventos_detalle failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const rows = (await response.json()) as PgrestEventRow[];
+  // Sort descending by timestamp and apply the limit client-side since
+  // pgrest RPC calls don't natively support ORDER BY / LIMIT headers.
+  rows.sort(
+    (a, b) =>
+      new Date(b.timestamp_evento).getTime() -
+      new Date(a.timestamp_evento).getTime()
+  );
+  return rows.slice(0, limit);
+}
+
+function eventRowToItem(row: PgrestEventRow): TruckEventItem {
+  return {
+    id: row.evento_id,
+    timestamp: row.timestamp_evento,
+    category: row.categoria,
+    symptom_name: row.symptom_name ?? "",
+    duration_minutes:
+      row.duracion_minutos !== null && row.duracion_minutos > 0
+        ? Number(row.duracion_minutos)
+        : null,
+    severity: row.severidad,
+    icu_code: row.icu_code,
+    speed_detected: row.velocidad_detectada,
+    speed_limit: row.limite_velocidad,
+    message: row.message ?? "",
+    has_treatment: row.tiene_treatment,
+    treatment_status: row.treatment_status,
+  };
+}
+
+export function eventsRowsToDto(
+  plate: string,
+  rows: PgrestEventRow[]
+): TruckEventsDetail {
+  return {
+    plate,
+    events: rows.map(eventRowToItem),
   };
 }

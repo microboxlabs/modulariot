@@ -2647,7 +2647,7 @@
       "totalFleet": "Total Flota",
       "active": "Activos",
       "inMaintenance": "En Mantención",
-      "alerts": "Alertas",
+      "symptoms": "Síntomas",
       "inactive": "Inactivos"
     },
     "specialViews": {
@@ -2862,22 +2862,25 @@
         "events": {
           "title": "Eventos Operativos",
           "description": "Alertas e incidentes recientes",
-          "hardBraking": "Frenado brusco detectado",
-          "routeCompleted": "Ruta completada exitosamente",
-          "incidentsThisMonth": "Incidentes Este Mes",
-          "hoursAgo": "Hace {count}h",
           "noIssues": "Sin alertas",
+          "criticalCount": "{count} crítico(s)",
+          "warningCount": "{count} alerta(s)",
+          "speedExceeded": "{speed} km/h en zona de {limit} km/h",
+          "durationMinutes": "{minutes} min",
+          "emptyTitle": "Sin eventos",
+          "emptyDesc": "No se registraron eventos operativos en los últimos 30 días.",
+          "errorTitle": "No pudimos cargar los eventos",
+          "errorDesc": "Algo salió mal al obtener los eventos. Intenta nuevamente en unos segundos.",
+          "retry": "Reintentar",
           "urgency": {
             "critical": "Crítico",
             "warning": "Alerta",
             "info": "Info"
           },
           "category": {
-            "falla_tecnica": "Falla técnica",
-            "evento": "Evento",
-            "uso": "Uso",
-            "cambio_datos": "Cambio de datos",
-            "mantencion": "Mantención"
+            "SEÑAL": "Señal",
+            "VELOCIDAD": "Velocidad",
+            "OTROS": "Otros"
           }
         },
         "usage": {

@@ -2616,7 +2616,7 @@
       "totalFleet": "Total Fleet",
       "active": "Active",
       "inMaintenance": "In Maintenance",
-      "alerts": "Alerts",
+      "symptoms": "Symptoms",
       "inactive": "Inactive"
     },
     "specialViews": {
@@ -2831,22 +2831,25 @@
         "events": {
           "title": "Operational Events",
           "description": "Recent alerts and incidents",
-          "hardBraking": "Hard braking event detected",
-          "routeCompleted": "Route completed successfully",
-          "incidentsThisMonth": "Incidents This Month",
-          "hoursAgo": "{count}h ago",
           "noIssues": "No issues",
+          "criticalCount": "{count} critical",
+          "warningCount": "{count} warning",
+          "speedExceeded": "{speed} km/h in a {limit} km/h zone",
+          "durationMinutes": "{minutes} min",
+          "emptyTitle": "No events",
+          "emptyDesc": "No operational events were recorded in the last 30 days.",
+          "errorTitle": "Couldn't load events",
+          "errorDesc": "Something went wrong fetching the event feed. Try again in a moment.",
+          "retry": "Retry",
           "urgency": {
             "critical": "Critical",
             "warning": "Warning",
             "info": "Info"
           },
           "category": {
-            "falla_tecnica": "Technical Failure",
-            "evento": "Event",
-            "uso": "Usage",
-            "cambio_datos": "Data Change",
-            "mantencion": "Maintenance"
+            "SEÑAL": "Signal",
+            "VELOCIDAD": "Speed",
+            "OTROS": "Other"
           }
         },
         "usage": {

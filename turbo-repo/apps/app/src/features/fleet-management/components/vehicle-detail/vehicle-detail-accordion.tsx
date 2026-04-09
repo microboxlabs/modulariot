@@ -8,9 +8,11 @@ import type {
   SignalFreshness,
 } from "../../types/truck-telemetry.types";
 import type { TruckEventItem } from "../../types/truck-events.types";
+import type { ContractDeviation } from "../../types/truck-usage.types";
 import { useFleetTruckMaintenance } from "../../hooks/use-fleet-truck-maintenance";
 import { useFleetTruckTelemetry } from "../../hooks/use-fleet-truck-telemetry";
 import { useFleetTruckEvents } from "../../hooks/use-fleet-truck-events";
+import { useFleetTruckUsage } from "../../hooks/use-fleet-truck-usage";
 import {
   HealthSection,
   MaintenanceSection,
@@ -30,17 +32,6 @@ export type SectionStatus = "ok" | "warning" | "critical";
 export interface VehicleDetailData {
   general: {
     health: number;
-  };
-  usage: {
-    totalKilometers: number;
-    monthlyContractualConsumptionPercentage: number;
-    kmTravelledThisMonth: number;
-    remainingKmThisMonth: number;
-    averageDaily: number;
-    operationHours: number;
-    activeDays: number;
-    annualTotalKm: number;
-    intensityLast30Days: number[];
   };
 }
 
@@ -113,9 +104,24 @@ export function getEventsSectionStatus(
   return "ok";
 }
 
-export function getUsageStatus(data: VehicleDetailData): SectionStatus {
-  if (data.usage.monthlyContractualConsumptionPercentage > 100) return "critical";
-  if (data.usage.monthlyContractualConsumptionPercentage > 90) return "warning";
+/**
+ * Collapse the `(desviacion_contrato × pct_contrato)` signal from
+ * `fn_dx_uso_flota_detalle` into the accordion's three-state section
+ * status. Shared with UsageSection so the header badge and the overall
+ * health overview always agree.
+ *
+ * Only `SOBREUSO` is treated as critical — `SUBUTILIZADO` is the majority
+ * case (~76% of the fleet) and `SIN_DATOS` is a no-signal baseline. The
+ * `NORMAL` bucket escalates to `warning` once consumption passes 90%
+ * (mirrors the telemetry pattern of flagging near-limit cases).
+ */
+export function getUsageSectionStatus(
+  deviation: ContractDeviation,
+  pctConsumed: number | null
+): SectionStatus {
+  if (deviation === "SOBREUSO") return "critical";
+  if (deviation === "NORMAL" && pctConsumed !== null && pctConsumed > 90)
+    return "warning";
   return "ok";
 }
 
@@ -128,53 +134,37 @@ export interface SectionStatuses {
 }
 
 /**
- * Computes statuses for the mock-backed sections only. The maintenance
- * and telemetry statuses come from async hooks and are merged in at the
- * component level — keeping this function pure so the other sections
- * stay testable.
+ * Computes statuses for the mock-backed sections only. The maintenance,
+ * telemetry, events, and usage statuses come from async hooks and are
+ * merged in at the component level — keeping this function pure so the
+ * remaining section stays testable.
  */
-export function getMockSectionStatuses(
-  data: VehicleDetailData
-): Omit<SectionStatuses, "maintenance" | "telemetry" | "events"> {
+export function getMockSectionStatuses(): Pick<
+  SectionStatuses,
+  "technicalHealth"
+> {
   return {
     technicalHealth: getTechnicalHealthStatus(),
-    usage: getUsageStatus(data),
   };
 }
 
 export function getOverallHealthScore(_statuses: SectionStatuses): number {
   // Placeholder until the 1000–9999 scoring model is wired up.
-  return 6789;
-}
-
-const vehicleData = {
-  general: {
-    health: 50,
-  },
-  usage: {
-    totalKilometers: 47400,
-    monthlyContractualConsumptionPercentage: 75,
-    kmTravelledThisMonth: 11700,
-    remainingKmThisMonth: 3300,
-    averageDaily: 390,
-    operationHours: 153,
-    activeDays: 25,
-    annualTotalKm: 140000,
-    intensityLast30Days: [320, 450, 380, 520, 410, 280, 390, 120, 12, 156, 600, 480, 350, 400, 420, 500, 300, 200, 450, 480, 520, 410, 280, 390, 120,12, 156, 600, 610, 510],
-  }
+  return 1000;
 }
 
 export default function VehicleDetailAccordion({
   vehicle,
   dict,
 }: VehicleDetailAccordionProps) {
-  // MaintenanceSection and TelemetrySection both subscribe to the same SWR
-  // keys below, so these extra calls here dedup to a single network fetch
-  // each. While loading or on 404/error we fall back to "ok" so the
-  // health overview doesn't flicker or go red on transient states.
+  // Each child section subscribes to the same SWR keys below, so these
+  // extra calls here dedup to a single network fetch each. While loading
+  // or on 404/error we fall back to "ok" so the health overview doesn't
+  // flicker or go red on transient states.
   const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
   const { telemetry } = useFleetTruckTelemetry(vehicle.plate);
   const { eventsDetail } = useFleetTruckEvents(vehicle.plate);
+  const { usage } = useFleetTruckUsage(vehicle.plate);
 
   const maintenanceStatus: SectionStatus = maintenance
     ? getMaintenanceSectionStatus(maintenance.status.criticality)
@@ -188,12 +178,16 @@ export default function VehicleDetailAccordion({
   const eventsStatus: SectionStatus = eventsDetail
     ? getEventsSectionStatus(eventsDetail.events)
     : "ok";
+  const usageStatus: SectionStatus = usage
+    ? getUsageSectionStatus(usage.contract.status, usage.contract.pct_consumed)
+    : "ok";
 
   const statuses: SectionStatuses = {
-    ...getMockSectionStatuses(vehicleData),
+    ...getMockSectionStatuses(),
     maintenance: maintenanceStatus,
     telemetry: telemetryStatus,
     events: eventsStatus,
+    usage: usageStatus,
   };
   const healthScore = getOverallHealthScore(statuses);
 
@@ -204,7 +198,7 @@ export default function VehicleDetailAccordion({
       <TechnicalHealthSection dict={dict} status={statuses.technicalHealth} />
       <TelemetrySection vehicle={vehicle} dict={dict} />
       <EventsSection vehicle={vehicle} dict={dict} />
-      <UsageSection dict={dict} data={vehicleData} status={statuses.usage} />
+      <UsageSection vehicle={vehicle} dict={dict} />
     </div>
   );
 }

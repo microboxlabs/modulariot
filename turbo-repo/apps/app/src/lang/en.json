@@ -2872,31 +2872,58 @@
         "usage": {
           "title": "Fleet Usage",
           "description": "Utilization and mileage statistics",
-          "totalKm": "Total Kilometers",
-          "avgDailyKm": "Average Daily Km",
-          "utilizationRate": "Utilization Rate",
-          "idleTime": "Idle Time",
-          "weeklyGoal": "Weekly Goal Progress",
-          "totalKilometrage": "Total Kilometrage of the vehicle",
-          "odometerSinceOrigin": "Odometer since origin",
-          "monthlyContractualConsumption": "Monthly contractual consumption",
-          "deviationFromAverage": "Deviation from average",
-          "kmTraveledThisMonth": "Km traveled this month",
-          "kmRemainingThisMonth": "Km remaining this month",
-          "avgDaily": "Average daily",
-          "operationHours": "Operation hours",
-          "activeDays": "Active days",
-          "annualTotalKm": "Annual total km",
+          "currentOdometer": "Current odometer",
+          "odometerSinceOrigin": "Accumulated odometer since origin",
+          "contractConsumption": "Contract consumption",
+          "contractMaxLabel": "Contract target: {km} km",
+          "kmLast30Days": "Km in last 30 days",
+          "lookbackWindowLabel": "{days}-day window",
+          "kmRemainingContract": "Km remaining on contract",
+          "withinContract": "Within contract",
+          "overuseAmount": "+{km} km overuse",
+          "noDataShort": "No data",
+          "avgDailyKm": "Daily average",
           "kmPerDay": "{km} km/day",
-          "projectedDays": "Projected days: {days}",
-          "limitKmMonthly": "Limit {km} km/month",
-          "avgDailyOperationHours": "Average daily: {hours}",
-          "utilization": "{percentage}% Utilization",
-          "estimatedProjection": "Estimated projection",
-          "intensityLastDays": "Intensity last 30 days",
-          "exceeded": "Exceeded",
-          "nearLimit": "Near limit",
-          "usageLabel": "usage"
+          "activeDaysLabel": "Days with data",
+          "activeDaysValue": "{active}/{total} days",
+          "utilization": "{percentage}% coverage",
+          "useType": "Use type",
+          "useTypeUnknown": "Unclassified",
+          "useTypeDesc": "Contract category",
+          "annualProjection": "Annual projection",
+          "projectionBasis": "Estimated from the last 30 days",
+          "contractStatus": {
+            "NORMAL": {
+              "label": "{pct} – normal use",
+              "bannerTitle": "Usage within contract",
+              "bannerDesc": "The vehicle is consuming mileage within the expected contractual range."
+            },
+            "SOBREUSO": {
+              "label": "{pct} – overuse",
+              "bannerTitle": "Contract overuse",
+              "bannerDesc": "Accumulated mileage exceeds the contractual target. Review contract terms or vehicle reassignment."
+            },
+            "SUBUTILIZADO": {
+              "label": "{pct} – underused",
+              "bannerTitle": "Vehicle underused",
+              "bannerDesc": "The vehicle is consuming mileage well below the contractual target. Consider reassignment or fleet rebalancing."
+            },
+            "SIN_DATOS": {
+              "label": "No data",
+              "bannerTitle": "No usage data",
+              "bannerDesc": "No recent odometer readings for this vehicle. The section will update once new telemetry arrives."
+            }
+          },
+          "intensity": {
+            "ALTA": { "label": "High intensity" },
+            "MEDIA": { "label": "Medium intensity" },
+            "BAJA": { "label": "Low intensity" },
+            "SIN_DATO": { "label": "No intensity data" }
+          },
+          "loading": "Loading usage…",
+          "errorTitle": "Could not load usage",
+          "errorDesc": "There was a problem fetching usage data. Please try again.",
+          "retry": "Retry"
         },
         "general": {
           "title": "General Information",

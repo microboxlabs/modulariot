@@ -128,7 +128,10 @@ function insertClonedAfterSource(
 function normalizeAllowedGroups(value: unknown): string[] | undefined {
   if (value === undefined || value === null) return undefined;
   if (!Array.isArray(value)) return undefined;
-  const filtered = value.filter((g): g is string => typeof g === "string");
+  const filtered = value
+    .filter((g): g is string => typeof g === "string")
+    .map((g) => g.trim())
+    .filter((g) => g.length > 0);
   return filtered.length > 0 ? filtered : undefined;
 }
 

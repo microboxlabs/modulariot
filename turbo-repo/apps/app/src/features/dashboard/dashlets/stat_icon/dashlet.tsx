@@ -2,8 +2,8 @@
 
 import type { IconType } from "react-icons";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestDashletFields } from "../common";
 import {
+  PgrestDashletFields,
   useDashletPgrest,
   DashletLoading,
   DashletError,

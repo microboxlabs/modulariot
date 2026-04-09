@@ -284,6 +284,9 @@ export function AdvancedColorPicker({
             {/* Color square */}
             <div
               ref={squareRef}
+              role="application"
+              tabIndex={0}
+              aria-label="Color saturation and brightness picker"
               className="relative w-full h-32 rounded cursor-crosshair mb-2"
               style={{
                 background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${pureHueColor})`,
@@ -308,6 +311,12 @@ export function AdvancedColorPicker({
             {/* Hue slider */}
             <div
               ref={hueRef}
+              role="slider"
+              tabIndex={0}
+              aria-label="Hue"
+              aria-valuemin={0}
+              aria-valuemax={360}
+              aria-valuenow={Math.round(hue)}
               className="relative w-full h-3 rounded cursor-pointer mb-3"
               style={{
                 background:

@@ -142,17 +142,9 @@ export function getMockSectionStatuses(
   };
 }
 
-export function getOverallHealthScore(statuses: SectionStatuses): number {
-  const statusValues = Object.values(statuses);
-  const criticalCount = statusValues.filter(s => s === "critical").length;
-  const warningCount = statusValues.filter(s => s === "warning").length;
-  
-  // Base score of 100, subtract for issues
-  let score = 100;
-  score -= criticalCount * 20;
-  score -= warningCount * 10;
-  
-  return Math.max(0, Math.min(100, score));
+export function getOverallHealthScore(_statuses: SectionStatuses): number {
+  // Placeholder until the 1000–9999 scoring model is wired up.
+  return 6789;
 }
 
 const vehicleData = {

@@ -124,6 +124,14 @@ function insertClonedAfterSource(
   });
 }
 
+/** Coerce an unknown allowedGroups value to a clean string[] or undefined. */
+function normalizeAllowedGroups(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) return undefined;
+  const filtered = value.filter((g): g is string => typeof g === "string");
+  return filtered.length > 0 ? filtered : undefined;
+}
+
 /** Strip editMode from config before persisting to Alfresco */
 export function stripEphemeralState(
   data: DashboardStorageSchema
@@ -620,7 +628,7 @@ export function useDashboardStorage(
           filters: imported.filters,
           refreshInterval: imported.refreshInterval,
           order: imported.order,
-          allowedGroups: imported.allowedGroups,
+          allowedGroups: normalizeAllowedGroups(imported.allowedGroups),
         };
 
         clearHistory();
@@ -644,7 +652,7 @@ export function useDashboardStorage(
     dashboardName: resolvedConfig.name,
     refreshInterval: resolvedConfig.refreshInterval ?? 0,
     order: resolvedConfig.order,
-    allowedGroups: resolvedConfig.allowedGroups ?? [],
+    allowedGroups: normalizeAllowedGroups(resolvedConfig.allowedGroups) ?? [],
     isLoaded,
     addWidget,
     addChildWidget,

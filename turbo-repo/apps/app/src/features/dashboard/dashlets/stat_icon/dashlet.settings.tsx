@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Label, Checkbox } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
@@ -36,7 +36,6 @@ const FIELDS = [
     state: "title",
     hbPlaceholder: "{{row.label}}",
     staticPlaceholder: "Orders",
-    checkboxState: "showTitle",
   },
   {
     id: "si-value",
@@ -58,7 +57,6 @@ const FIELDS = [
     state: "subtitle",
     hbPlaceholder: "{{row.subtitle}}",
     staticPlaceholder: "Last 24 hours",
-    checkboxState: "showSubtitle",
   },
 ] as const;
 
@@ -73,10 +71,6 @@ export function DashletSettings(
   const { dictionary } = props;
   const [cardVariant, setCardVariant] = useState<CardVariant>(
     props.config.cardVariant ?? "horizontal"
-  );
-  const [showTitle, setShowTitle] = useState(props.config.showTitle !== false);
-  const [showSubtitle, setShowSubtitle] = useState(
-    props.config.showSubtitle !== false
   );
   const [showIcon, setShowIcon] = useState(props.config.showIcon !== false);
   const [icon, setIcon] = useState<DashletIconKey>(props.config.icon ?? "cart");
@@ -105,33 +99,13 @@ export function DashletSettings(
     props.config.expandable === true
   );
 
-  const checkboxValues = useMemo(
-    () => ({
-      showTitle,
-      showSubtitle,
-    }),
-    [showTitle, showSubtitle]
-  );
-
-  const checkboxSetters = useMemo(
-    () => ({
-      showTitle: setShowTitle,
-      showSubtitle: setShowSubtitle,
-    }),
-    []
-  );
-
   return (
     <SimpleDashletSettings
       fields={FIELDS}
       idPrefix="si"
       settingsProps={props}
-      checkboxValues={checkboxValues}
-      checkboxSetters={checkboxSetters}
       extraSaveFields={{
         cardVariant,
-        showTitle,
-        showSubtitle,
         showIcon,
         icon,
         iconColor,

@@ -32,25 +32,27 @@ export interface SettingsStateConfig {
 
 // ── Pure helpers for colorMap mutations (kept flat to avoid nesting) ────────
 
+let _cmCounter = 0;
+
 function appendColorMapping(col: ColumnItem, targetId: string): ColumnItem {
   if (col._id !== targetId) return col;
-  return { ...col, colorMap: [...(col.colorMap ?? []), { operator: "equals", value: "", color: "gray" }] };
+  return { ...col, colorMap: [...(col.colorMap ?? []), { _id: `cm-${Date.now()}-${_cmCounter++}`, operator: "equals", value: "", color: "gray" }] };
 }
 
-function dropColorMapping(col: ColumnItem, targetId: string, index: number): ColumnItem {
+function dropColorMapping(col: ColumnItem, targetId: string, mappingId: string): ColumnItem {
   if (col._id !== targetId) return col;
-  return { ...col, colorMap: (col.colorMap ?? []).filter((_, i) => i !== index) };
+  return { ...col, colorMap: (col.colorMap ?? []).filter((m) => m._id !== mappingId) };
 }
 
 function patchColorMapping(
   col: ColumnItem,
   targetId: string,
-  index: number,
+  mappingId: string,
   field: string,
   val: string,
 ): ColumnItem {
   if (col._id !== targetId) return col;
-  return { ...col, colorMap: (col.colorMap ?? []).map((m, i) => (i === index ? { ...m, [field]: val } : m)) };
+  return { ...col, colorMap: (col.colorMap ?? []).map((m) => (m._id === mappingId ? { ...m, [field]: val } : m)) };
 }
 
 // ============================================================================
@@ -139,12 +141,12 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setColumns((prev) => prev.map((c) => appendColorMapping(c, colId)));
   };
 
-  const removeColorMapping = (colId: string, index: number) => {
-    setColumns((prev) => prev.map((c) => dropColorMapping(c, colId, index)));
+  const removeColorMapping = (colId: string, mappingId: string) => {
+    setColumns((prev) => prev.map((c) => dropColorMapping(c, colId, mappingId)));
   };
 
-  const updateColorMapping = (colId: string, index: number, field: "operator" | "value" | "color", val: string) => {
-    setColumns((prev) => prev.map((c) => patchColorMapping(c, colId, index, field, val)));
+  const updateColorMapping = (colId: string, mappingId: string, field: "operator" | "value" | "color", val: string) => {
+    setColumns((prev) => prev.map((c) => patchColorMapping(c, colId, mappingId, field, val)));
   };
 
   // ── Filter item helpers ─────────────────────────────────────────────────

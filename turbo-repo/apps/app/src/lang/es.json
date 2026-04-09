@@ -1561,6 +1561,8 @@
       "descriptor": "Descriptor",
       "aiPlaceholder": "Texto IA",
       "viewMoreUrl": "URL Ver Más (opcional)",
+      "viewMoreLabel": "Texto Botón Ver Más",
+      "viewMoreLabelPlaceholder": "Ver más",
       "openInSameTab": "Abrir en la misma pestaña",
       "key": "Clave",
       "addEntry": "+ Agregar Entrada",

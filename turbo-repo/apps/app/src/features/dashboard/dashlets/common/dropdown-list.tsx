@@ -4,7 +4,7 @@ import { type RefObject, type ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 const dropdownClassName = twMerge(
-  "absolute z-50 w-full mt-1",
+  "absolute z-50 min-w-full mt-1",
   "bg-white dark:bg-gray-800",
   "border border-gray-200 dark:border-gray-700",
   "rounded-lg shadow-lg",
@@ -40,10 +40,11 @@ export function DropdownList<T>({
           <button
             type="button"
             tabIndex={index === selectedIndex ? 0 : -1}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => onSelect(item)}
             onMouseEnter={() => onHover(index)}
             className={twMerge(
-              "w-full text-left px-3 py-1.5 text-sm cursor-pointer",
+              "w-full text-left px-3 py-1.5 text-sm cursor-pointer whitespace-nowrap",
               "transition-colors border-0 bg-transparent",
               index === selectedIndex
                 ? "bg-blue-50 dark:bg-blue-900/30"

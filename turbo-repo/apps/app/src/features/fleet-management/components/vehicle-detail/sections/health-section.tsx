@@ -83,7 +83,7 @@ export default function HealthSection({
   
   return (
     <ExpandableSection
-      customIcon={<CircularProgress value={healthScore} size={72} max={10000} />}
+      customIcon={<CircularProgress value={healthScore} size={72} max={1000} />}
       title={
         <span className={getHealthTitleClass(healthScore)}>
           {tr(getHealthTitleKey(healthScore), dict)}

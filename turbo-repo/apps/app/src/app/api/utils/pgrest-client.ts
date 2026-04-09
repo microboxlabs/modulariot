@@ -25,6 +25,11 @@ import type {
   TruckEventItem,
   TruckEventsDetail,
 } from "@/features/fleet-management/types/truck-events.types";
+import type {
+  ContractDeviation,
+  TruckUsageDetail,
+  UsageIntensity,
+} from "@/features/fleet-management/types/truck-usage.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -178,6 +183,55 @@ export interface PgrestSignalRow {
   last_throttle_pos_pct: number | null;
   last_engine_runtime_h: number | null;
   last_odometer_km: number | null;
+}
+
+/**
+ * Row shape returned by `public.fn_dx_uso_flota_detalle` in prod-iot-gps.
+ * Mirrors the 18 columns of the function's RETURNS TABLE verbatim.
+ *
+ * `max_travel` is the **lifetime** contract allowance (not monthly), and
+ * `pct_contrato` / `desviacion_km` are cumulative against it. Only
+ * `km_periodo` / `km_por_dia` / `dias_con_dato` use the rolling
+ * `p_lookback_days` window (default 30).
+ *
+ * SIN_DATOS rows (≈10% of the fleet) have null odometer-dependent
+ * columns — the device doesn't report distance at all.
+ */
+export interface PgrestUsageRow {
+  rent_id: string | null;
+  patente: string;
+  /** Display label, unused — already on the Vehicle object. */
+  vehiculo: string | null;
+  /** Use-type category from the upstream catalog ("Mixed", "Urbano", ...). */
+  gm_use_type: string | null;
+  /** GPS provider — dropped from DTO (duplicated by telemetry). */
+  proveedor_gps: string | null;
+  /** Current odometer (km). NULL when the upstream has no distance signal. */
+  km_actual: number | null;
+  /** Whether the device natively reports odometer. */
+  has_odometer: boolean;
+  /** Contractual lifetime allowance (km). */
+  max_travel: number;
+  /** Cumulative contract consumption 0–100+. NULL when SIN_DATOS. */
+  pct_contrato: number | null;
+  /** Signed: `km_actual - max_travel`. NULL when SIN_DATOS. */
+  desviacion_km: number | null;
+  /** 4-value enum — see ContractDeviation. */
+  desviacion_contrato: ContractDeviation;
+  /** km traveled in the rolling lookback window. */
+  km_periodo: number | null;
+  /** Rolling km/day across the lookback window. */
+  km_por_dia: number | null;
+  /** Days with signal in the window (0 — lookback_days). */
+  dias_con_dato: number;
+  /** Signal count in the window — dropped from DTO (duplicated by telemetry). */
+  total_senales: number | null;
+  /** Stability pct — dropped from DTO (duplicated by telemetry). */
+  pct_estabilidad: number | null;
+  /** Pulses/min — dropped from DTO (duplicated by telemetry). */
+  pulsos_por_minuto: number | null;
+  /** 4-value enum — see UsageIntensity. */
+  intensidad: UsageIntensity;
 }
 
 /**
@@ -739,6 +793,94 @@ export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
       can_metrics: row.metricas_can ?? 0,
     },
     capabilities: buildTelemetryCapabilities(row),
+  };
+}
+
+// --- pgrest usage row → DTO adapter. ---
+// Lives alongside the row type so the SIN_DATOS null-handling rules stay in
+// one place. See truck-usage.types.ts for the DTO contract.
+
+/** Lookback window in days — matches the function's default. */
+const USAGE_LOOKBACK_DAYS = 30;
+
+/**
+ * Call `public.fn_dx_uso_flota_detalle(p_asset_id => <plate>)` via pgrest
+ * RPC and return the single matching row, or `null` when the plate has no
+ * entry upstream. Same parameter handling as the other three helpers —
+ * `p_shared_client_id` keeps its default (RLS enforced upstream),
+ * `p_lookback_days` keeps its 30-day default, and we only pass the plate.
+ */
+export async function fetchTruckUsageDetailByPlate(
+  plate: string
+): Promise<PgrestUsageRow | null> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/rpc/fn_dx_uso_flota_detalle`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ p_asset_id: plate }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest POST rpc/fn_dx_uso_flota_detalle failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const body = (await response.json()) as PgrestUsageRow[];
+  return body[0] ?? null;
+}
+
+/**
+ * Transform a raw `fn_dx_uso_flota_detalle` row into the DTO consumed by
+ * the UsageSection. Null-handling rules:
+ *
+ * - `desviacion_contrato = 'SIN_DATOS'` → `km_actual` / `pct_contrato` /
+ *   `desviacion_km` / `km_periodo` / `km_por_dia` are all null upstream.
+ *   Pass them through as null; the UI renders `—` in each cell.
+ * - `remaining_km` is derived from `desviacion_km`: when negative, the
+ *   vehicle is within the contract so `remaining_km = |desviacion_km|`;
+ *   when positive (sobreuso) the contract is already exceeded so
+ *   `remaining_km = 0`. Null when `desviacion_km` is null.
+ * - Empty/whitespace `gm_use_type` collapses to null so the UI can show
+ *   a localized placeholder.
+ */
+export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
+  const useTypeRaw = row.gm_use_type?.trim();
+  const useType = useTypeRaw && useTypeRaw.length > 0 ? useTypeRaw : null;
+
+  const deviationKm =
+    row.desviacion_km !== null ? Number(row.desviacion_km) : null;
+  const remainingKm =
+    deviationKm === null ? null : deviationKm < 0 ? Math.abs(deviationKm) : 0;
+
+  return {
+    plate: row.patente,
+    use_type: useType,
+    odometer: {
+      current_km: row.km_actual !== null ? Number(row.km_actual) : null,
+      has_odometer: row.has_odometer,
+    },
+    contract: {
+      max_travel_km: Number(row.max_travel),
+      pct_consumed:
+        row.pct_contrato !== null ? Number(row.pct_contrato) : null,
+      deviation_km: deviationKm,
+      remaining_km: remainingKm,
+      status: row.desviacion_contrato,
+    },
+    period: {
+      lookback_days: USAGE_LOOKBACK_DAYS,
+      km_traveled:
+        row.km_periodo !== null ? Number(row.km_periodo) : null,
+      km_per_day:
+        row.km_por_dia !== null ? Number(row.km_por_dia) : null,
+      active_days: row.dias_con_dato,
+      intensity: row.intensidad,
+    },
   };
 }
 

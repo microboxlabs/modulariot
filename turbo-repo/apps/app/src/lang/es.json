@@ -2903,31 +2903,58 @@
         "usage": {
           "title": "Uso de Flota",
           "description": "Estadísticas de utilización y kilometraje",
-          "totalKm": "Kilómetros Totales",
-          "avgDailyKm": "Km Promedio Diario",
-          "utilizationRate": "Tasa de Utilización",
-          "idleTime": "Tiempo Inactivo",
-          "weeklyGoal": "Progreso Meta Semanal",
-          "totalKilometrage": "Kilometraje Total del vehiculo",
+          "currentOdometer": "Kilometraje Actual",
           "odometerSinceOrigin": "Odómetro acumulado desde origen",
-          "monthlyContractualConsumption": "Consumo contractual mensual",
-          "deviationFromAverage": "Desviación respecto al promedio",
-          "kmTraveledThisMonth": "Km recorridos (mes)",
-          "kmRemainingThisMonth": "Km restantes (mes)",
-          "avgDaily": "Promedio diario",
-          "operationHours": "Horas de operación",
-          "activeDays": "Días activos",
-          "annualTotalKm": "Km totales anuales",
+          "contractConsumption": "Consumo del contrato",
+          "contractMaxLabel": "Meta contractual: {km} km",
+          "kmLast30Days": "Km últimos 30 días",
+          "lookbackWindowLabel": "Ventana de {days} días",
+          "kmRemainingContract": "Km restantes del contrato",
+          "withinContract": "Dentro del contrato",
+          "overuseAmount": "+{km} km sobreuso",
+          "noDataShort": "Sin datos",
+          "avgDailyKm": "Promedio diario",
           "kmPerDay": "{km} km/día",
-          "projectedDays": "Proyección: {days} días",
-          "limitKmMonthly": "Límite {km} km/mes",
-          "avgDailyOperationHours": "Promedio diario: {hours}",
-          "utilization": "{percentage}% Utilización",
-          "estimatedProjection": "Proyección estimada",
-          "intensityLastDays": "Intensidad últimos 30 días",
-          "exceeded": "Excedido",
-          "nearLimit": "Próximo al límite",
-          "usageLabel": "uso"
+          "activeDaysLabel": "Días con datos",
+          "activeDaysValue": "{active}/{total} días",
+          "utilization": "{percentage}% de cobertura",
+          "useType": "Tipo de uso",
+          "useTypeUnknown": "Sin clasificar",
+          "useTypeDesc": "Categoría del contrato",
+          "annualProjection": "Proyección anual",
+          "projectionBasis": "Estimación basada en los últimos 30 días",
+          "contractStatus": {
+            "NORMAL": {
+              "label": "{pct} – uso normal",
+              "bannerTitle": "Uso dentro del contrato",
+              "bannerDesc": "El vehículo consume kilometraje dentro del rango contractual esperado."
+            },
+            "SOBREUSO": {
+              "label": "{pct} – sobreuso",
+              "bannerTitle": "Sobreuso del contrato",
+              "bannerDesc": "El kilometraje acumulado supera la meta contractual. Revisar condiciones del contrato o reasignación del vehículo."
+            },
+            "SUBUTILIZADO": {
+              "label": "{pct} – subutilizado",
+              "bannerTitle": "Vehículo subutilizado",
+              "bannerDesc": "El vehículo consume muy por debajo de la meta contractual. Evaluar reasignación o rebalance de flota."
+            },
+            "SIN_DATOS": {
+              "label": "Sin datos",
+              "bannerTitle": "Sin datos de uso",
+              "bannerDesc": "No se registran lecturas de odómetro recientes para este vehículo. La sección se actualizará cuando llegue nueva telemetría."
+            }
+          },
+          "intensity": {
+            "ALTA": { "label": "Intensidad alta" },
+            "MEDIA": { "label": "Intensidad media" },
+            "BAJA": { "label": "Intensidad baja" },
+            "SIN_DATO": { "label": "Sin intensidad" }
+          },
+          "loading": "Cargando uso…",
+          "errorTitle": "No se pudo cargar el uso",
+          "errorDesc": "Hubo un problema al obtener los datos de uso. Intenta nuevamente.",
+          "retry": "Reintentar"
         },
         "general": {
           "title": "Información General",

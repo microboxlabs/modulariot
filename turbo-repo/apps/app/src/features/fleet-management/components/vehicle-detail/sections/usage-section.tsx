@@ -1,108 +1,245 @@
 "use client";
 
-import { HiOutlineArrowPath } from "react-icons/hi2";
+import {
+  HiOutlineArrowPath,
+  HiOutlineExclamationTriangle,
+  HiOutlineCheckCircle,
+  HiOutlineInformationCircle,
+  HiOutlineXCircle,
+} from "react-icons/hi2";
+import type { IconType } from "react-icons";
+import type { Vehicle } from "../../../types/fleet.types";
+import type {
+  ContractDeviation,
+  TruckUsageDetail,
+} from "../../../types/truck-usage.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { ProgressBar } from "@/features/common/components/progress-bar";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { TbRoute } from "react-icons/tb";
-import ReactECharts from "echarts-for-react";
 import { CustomBadge } from "@/features/common/components/custom-badge";
-import type { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
+import { MessageBanner } from "@/features/common/components/message-banner";
+import type { MessageBannerVariant } from "@/features/common/components/message-banner";
+import { useFleetTruckUsage } from "../../../hooks/use-fleet-truck-usage";
+import { getUsageSectionStatus } from "../vehicle-detail-accordion";
 
 interface UsageSectionProps {
-  readonly data: VehicleDetailData;
+  readonly vehicle: Vehicle;
   readonly dict: I18nRecord;
-  readonly status: SectionStatus;
 }
 
-export default function UsageSection({
-  data,
-  dict,
-  status,
-}: UsageSectionProps) {
-  const percentage = data.usage.monthlyContractualConsumptionPercentage;
+// --- Contract-deviation → UI mapping ---
+// Single source of truth for badge colors, progress-bar color, and the
+// SIN_DATOS empty-state banner. The accordion section status comes from
+// `getUsageSectionStatus` so the header color and the overall health
+// overview share the same derivation.
 
-  const chartOption = {
-    grid: {
-      top: 10,
-      right: 10,
-      bottom: 20,
-      left: 40,
-    },
-    xAxis: {
-      type: "category" as const,
-      data: Array.from({ length: 30 }, (_, i) => (i + 1).toString()),
-      axisLine: { lineStyle: { color: "#9ca3af" } },
-      axisLabel: { color: "#6b7280", fontSize: 10 },
-    },
-    yAxis: {
-      type: "value" as const,
-      axisLine: { show: false },
-      axisLabel: { color: "#6b7280", fontSize: 10 },
-      splitLine: { lineStyle: { color: "#e5e7eb" } },
-    },
-    series: [
-      {
-        data: data.usage.intensityLast30Days,
-        type: "line" as const,
-        smooth: true,
-        lineStyle: { color: "#8b5cf6", width: 2 },
-        areaStyle: {
-          color: {
-            type: "linear" as const,
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: "rgba(139, 92, 246, 0.3)" },
-              { offset: 1, color: "rgba(139, 92, 246, 0.05)" },
-            ],
-          },
-        },
-        symbol: "circle",
-        symbolSize: 6,
-        itemStyle: { color: "#8b5cf6" },
-      },
-    ],
-    tooltip: {
-      trigger: "axis" as const,
-      backgroundColor: "#1f2937",
-      borderColor: "#374151",
-      textStyle: { color: "#f9fafb", fontSize: 12 },
-      formatter: (params: Array<{ name: string; value: number }>) => {
-        const point = params[0];
-        return `${point.name}: ${point.value} km`;
-      },
-    },
-  };
+interface DeviationUi {
+  badgeClass: string;
+  progressBarClass: string;
+  bannerVariant: MessageBannerVariant;
+  bannerIcon: IconType;
+}
 
-  const getUsageBadgeClass = () => {
-    if (percentage > 100) return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-    if (percentage > 90) return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-    return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-  };
+const DEVIATION_UI: Record<ContractDeviation, DeviationUi> = {
+  NORMAL: {
+    badgeClass:
+      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    progressBarClass: "bg-green-500",
+    bannerVariant: "success",
+    bannerIcon: HiOutlineCheckCircle,
+  },
+  SOBREUSO: {
+    badgeClass: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    progressBarClass: "bg-red-500",
+    bannerVariant: "error",
+    bannerIcon: HiOutlineXCircle,
+  },
+  SUBUTILIZADO: {
+    badgeClass:
+      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    progressBarClass: "bg-blue-500",
+    bannerVariant: "info",
+    bannerIcon: HiOutlineInformationCircle,
+  },
+  SIN_DATOS: {
+    badgeClass: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+    progressBarClass: "bg-gray-400",
+    bannerVariant: "info",
+    bannerIcon: HiOutlineInformationCircle,
+  },
+};
 
-  const getUsageBadgeText = () => {
-    if (percentage > 100) return `${percentage}% - ${tr("vehicleDetail.sections.usage.exceeded", dict)}`;
-    if (percentage > 90) return `${percentage}% - ${tr("vehicleDetail.sections.usage.nearLimit", dict)}`;
-    return `${percentage}% ${tr("vehicleDetail.sections.usage.usageLabel", dict)}`;
-  };
+// --- Value formatters ---
+
+function formatKm(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  return `${Math.round(n).toLocaleString()} km`;
+}
+
+function formatPct(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  return `${n.toFixed(1)}%`;
+}
+
+// --- Header badge ---
+
+function getUsageBadge(usage: TruckUsageDetail, dict: I18nRecord) {
+  const ui = DEVIATION_UI[usage.contract.status];
+  const label =
+    usage.contract.status === "SIN_DATOS"
+      ? tr("vehicleDetail.sections.usage.contractStatus.SIN_DATOS.label", dict)
+      : tr(
+          `vehicleDetail.sections.usage.contractStatus.${usage.contract.status}.label`,
+          dict,
+          { pct: formatPct(usage.contract.pct_consumed) }
+        );
+  return <CustomBadge text={label} className={ui.badgeClass} />;
+}
+
+// --- Component ---
+
+export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
+  const { usage, notFound, error, isLoading, mutate } = useFleetTruckUsage(
+    vehicle.plate
+  );
+
+  const title = tr("vehicleDetail.sections.usage.title", dict);
+  const description = tr("vehicleDetail.sections.usage.description", dict);
+
+  // Loading — skeleton grid mirroring the final layout.
+  if (isLoading) {
+    return (
+      <ExpandableSection
+        icon={HiOutlineArrowPath}
+        title={title}
+        description={description}
+        status="ok"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="h-20 rounded-lg bg-gray-100 dark:bg-gray-700/40 animate-pulse" />
+          <div className="h-10 rounded-lg bg-gray-100 dark:bg-gray-700/40 animate-pulse" />
+          <div className="grid grid-cols-3 gap-3">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div
+                key={`us-skel-${i}`}
+                className="h-24 rounded-lg bg-gray-100 dark:bg-gray-700/40 animate-pulse"
+              />
+            ))}
+          </div>
+        </div>
+      </ExpandableSection>
+    );
+  }
+
+  // Error (distinct from not-found) — retry affordance.
+  if (error && !notFound) {
+    return (
+      <ExpandableSection
+        icon={HiOutlineArrowPath}
+        title={title}
+        description={description}
+        status="warning"
+      >
+        <MessageBanner
+          icon={HiOutlineExclamationTriangle}
+          title={tr("vehicleDetail.sections.usage.errorTitle", dict)}
+          description={tr("vehicleDetail.sections.usage.errorDesc", dict)}
+          variant="error"
+        />
+        <button
+          type="button"
+          onClick={() => mutate()}
+          className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {tr("vehicleDetail.sections.usage.retry", dict)}
+        </button>
+      </ExpandableSection>
+    );
+  }
+
+  // 404 — the truck has no row upstream. Render the same SIN_DATOS shell
+  // as a regular SIN_DATOS vehicle so the user sees a coherent state.
+  if (notFound || !usage) {
+    const ui = DEVIATION_UI.SIN_DATOS;
+    const badge = (
+      <CustomBadge
+        text={tr(
+          "vehicleDetail.sections.usage.contractStatus.SIN_DATOS.label",
+          dict
+        )}
+        className={ui.badgeClass}
+      />
+    );
+    return (
+      <ExpandableSection
+        icon={HiOutlineArrowPath}
+        title={title}
+        description={description}
+        status="ok"
+        badge={badge}
+      >
+        <MessageBanner
+          icon={ui.bannerIcon}
+          title={tr(
+            "vehicleDetail.sections.usage.contractStatus.SIN_DATOS.bannerTitle",
+            dict
+          )}
+          description={tr(
+            "vehicleDetail.sections.usage.contractStatus.SIN_DATOS.bannerDesc",
+            dict
+          )}
+          variant={ui.bannerVariant}
+        />
+      </ExpandableSection>
+    );
+  }
+
+  // Loaded state.
+  const deviation = usage.contract.status;
+  const ui = DEVIATION_UI[deviation];
+  const pctConsumed = usage.contract.pct_consumed;
+  // The progress bar caps at 100 visually even when sobreuso hits 115+.
+  const progressValue = pctConsumed !== null ? Math.min(pctConsumed, 100) : 0;
+
+  // Cell 2 — km restantes del contrato. When over-contract, show the
+  // excess km with a `+N km sobreuso` description so the direction is
+  // clear instead of rendering "0 km" with no signal that it's worse
+  // than zero.
+  const remainingKm = usage.contract.remaining_km;
+  const deviationKm = usage.contract.deviation_km;
+  const remainingCellValue = formatKm(remainingKm);
+  const remainingCellDesc =
+    remainingKm === null
+      ? tr("vehicleDetail.sections.usage.noDataShort", dict)
+      : deviationKm !== null && deviationKm > 0
+      ? tr("vehicleDetail.sections.usage.overuseAmount", dict, {
+          km: Math.round(deviationKm).toLocaleString(),
+        })
+      : tr("vehicleDetail.sections.usage.withinContract", dict);
+
+  // Cell 6 — annual projection. Computed client-side as km/day * 365;
+  // null when the upstream has no km/day signal at all.
+  const annualProjection =
+    usage.period.km_per_day !== null
+      ? Math.round(usage.period.km_per_day * 365)
+      : null;
+
+  // Intensity label shown as the description on the km/day cell.
+  const intensityLabel = tr(
+    `vehicleDetail.sections.usage.intensity.${usage.period.intensity}.label`,
+    dict
+  );
 
   return (
     <ExpandableSection
       icon={HiOutlineArrowPath}
-      title={tr("vehicleDetail.sections.usage.title", dict)}
-      description={tr("vehicleDetail.sections.usage.description", dict)}
-      status={status}
-      badge={
-        <CustomBadge 
-          text={getUsageBadgeText()}
-          className={getUsageBadgeClass()}
-        />
-      }
+      title={title}
+      description={description}
+      status={getUsageSectionStatus(deviation, pctConsumed)}
+      badge={getUsageBadge(usage, dict)}
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3">
@@ -113,11 +250,12 @@ export default function UsageSection({
                 "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30 border border-purple-500",
             }}
             title={{
-              text: tr("vehicleDetail.sections.usage.totalKm", dict),
+              text: tr("vehicleDetail.sections.usage.currentOdometer", dict),
             }}
             value={{
-              text: data.usage.totalKilometers.toLocaleString() + " km",
-              className: "font-bold !text-xl text-purple-500 dark:text-purple-400",
+              text: formatKm(usage.odometer.current_km),
+              className:
+                "font-bold !text-xl text-purple-500 dark:text-purple-400",
             }}
             description={{
               text: tr("vehicleDetail.sections.usage.odometerSinceOrigin", dict),
@@ -125,127 +263,135 @@ export default function UsageSection({
             className="w-full bg-purple-50 border border-purple-500 dark:bg-purple-900/30 dark:border-purple-500"
             variant="horizontal"
           />
-          <ProgressBar 
-            progress={percentage} 
-            label={{ text: tr("vehicleDetail.sections.usage.monthlyContractualConsumption", dict), className: "text-sm text-gray-600 dark:text-gray-400" }}
-            value={{
-              text: `${percentage}%`,
-              className: "text-purple-500 dark:text-purple-400 font-medium"
+          <ProgressBar
+            progress={progressValue}
+            label={{
+              text: tr("vehicleDetail.sections.usage.contractConsumption", dict),
+              className: "text-sm text-gray-600 dark:text-gray-400",
             }}
-            barClassName="bg-purple-500"
+            value={{
+              text: formatPct(pctConsumed),
+              className: "text-purple-500 dark:text-purple-400 font-medium",
+            }}
+            barClassName={ui.progressBarClass}
             description={{
-              text: `+12% ${tr("vehicleDetail.sections.usage.deviationFromAverage", dict)}`
+              text: tr("vehicleDetail.sections.usage.contractMaxLabel", dict, {
+                km: usage.contract.max_travel_km.toLocaleString(),
+              }),
             }}
           />
         </div>
         <div className="grid grid-cols-3 gap-3">
           <KpiStat
             title={{
-              text: tr(
-                "vehicleDetail.sections.usage.kmTraveledThisMonth",
-                dict
-              ),
+              text: tr("vehicleDetail.sections.usage.kmLast30Days", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
-            value={{
-              text: data.usage.kmTravelledThisMonth.toLocaleString() + " km",
-            }}
+            value={{ text: formatKm(usage.period.km_traveled) }}
             description={{
-              text: tr("vehicleDetail.sections.usage.limitKmMonthly", dict, { km: data.usage.remainingKmThisMonth.toLocaleString() }),
+              text: tr("vehicleDetail.sections.usage.lookbackWindowLabel", dict, {
+                days: String(usage.period.lookback_days),
+              }),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"
           />
           <KpiStat
             title={{
-              text: tr("vehicleDetail.sections.usage.kmRemainingThisMonth", dict),
+              text: tr("vehicleDetail.sections.usage.kmRemainingContract", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
-            value={{
-              text: data.usage.remainingKmThisMonth.toLocaleString() + " km",
-            }}
+            value={{ text: remainingCellValue }}
             description={{
-              text: tr("vehicleDetail.sections.usage.projectedDays", dict, { days: "8" }),
+              text: remainingCellDesc,
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"
           />
           <KpiStat
             title={{
-              text: tr("vehicleDetail.sections.usage.avgDaily", dict),
+              text: tr("vehicleDetail.sections.usage.avgDailyKm", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
             value={{
-              text: tr("vehicleDetail.sections.usage.kmPerDay", dict, { km: data.usage.averageDaily.toLocaleString() }),
+              text:
+                usage.period.km_per_day !== null
+                  ? tr("vehicleDetail.sections.usage.kmPerDay", dict, {
+                      km: usage.period.km_per_day.toFixed(1),
+                    })
+                  : "—",
             }}
             description={{
-              text: tr("vehicleDetail.sections.usage.kmPerDay", dict, { km: "390" }),
+              text: intensityLabel,
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"
           />
           <KpiStat
             title={{
-              text: tr("vehicleDetail.sections.usage.operationHours", dict),
+              text: tr("vehicleDetail.sections.usage.activeDaysLabel", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
             value={{
-              text: data.usage.operationHours.toLocaleString() + " hrs",
+              text: tr("vehicleDetail.sections.usage.activeDaysValue", dict, {
+                active: String(usage.period.active_days),
+                total: String(usage.period.lookback_days),
+              }),
             }}
             description={{
-              text: tr(
-                "vehicleDetail.sections.usage.avgDailyOperationHours",
-                dict,
-                {
-                  hours:
-                    data.usage.activeDays > 0
-                      ? (data.usage.operationHours / data.usage.activeDays).toFixed(1) + "h"
-                      : "0h",
-                }
-              ),
+              text: tr("vehicleDetail.sections.usage.utilization", dict, {
+                percentage: (
+                  (usage.period.active_days / usage.period.lookback_days) *
+                  100
+                ).toFixed(0),
+              }),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"
           />
           <KpiStat
             title={{
-              text: tr("vehicleDetail.sections.usage.activeDays", dict),
+              text: tr("vehicleDetail.sections.usage.useType", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
             value={{
-              text: data.usage.activeDays.toString() + " días",
+              text:
+                usage.use_type ??
+                tr("vehicleDetail.sections.usage.useTypeUnknown", dict),
             }}
             description={{
-              text: tr("vehicleDetail.sections.usage.utilization", dict, { percentage: ((data.usage.activeDays / 30) * 100).toFixed(0) }),
+              text: tr("vehicleDetail.sections.usage.useTypeDesc", dict),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"
           />
           <KpiStat
             title={{
-              text: tr("vehicleDetail.sections.usage.annualTotalKm", dict),
+              text: tr("vehicleDetail.sections.usage.annualProjection", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
-            value={{
-              text: data.usage.annualTotalKm.toLocaleString() + " km",
-            }}
+            value={{ text: formatKm(annualProjection) }}
             description={{
-              text: tr("vehicleDetail.sections.usage.estimatedProjection", dict),
+              text: tr("vehicleDetail.sections.usage.projectionBasis", dict),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"
           />
         </div>
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-md p-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            {tr("vehicleDetail.sections.usage.intensityLastDays", dict)}
-          </p>
-          <ReactECharts 
-            option={chartOption} 
-            style={{ height: 200 }}
-            opts={{ renderer: "svg" }}
+        {deviation !== "SIN_DATOS" && (
+          <MessageBanner
+            icon={ui.bannerIcon}
+            title={tr(
+              `vehicleDetail.sections.usage.contractStatus.${deviation}.bannerTitle`,
+              dict
+            )}
+            description={tr(
+              `vehicleDetail.sections.usage.contractStatus.${deviation}.bannerDesc`,
+              dict
+            )}
+            variant={ui.bannerVariant}
           />
-        </div>
+        )}
       </div>
     </ExpandableSection>
   );

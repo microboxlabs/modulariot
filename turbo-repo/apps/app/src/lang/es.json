@@ -2722,6 +2722,15 @@
     "vehicleDetail": {
       "title": "Detalles del Vehículo",
       "back": "Volver a la flota",
+      "lastSignalMap": {
+        "title": "Ubicación de última señal",
+        "snapshot": "Captura",
+        "share": "Compartir",
+        "copyLink": "Copiar enlace",
+        "copied": "Copiado",
+        "unavailable": "Sin ubicación disponible",
+        "openInMaps": "Abrir en Google Maps"
+      },
       "sections": {
         "health": {
           "title": "Salud",

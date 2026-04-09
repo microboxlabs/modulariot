@@ -53,6 +53,8 @@ export function truckToVehicle(truck: Truck): Vehicle {
   const kmTraveled = metricNumber(truck, "odometer_km") ?? 0;
   const lastSignal = metricString(truck, "timestamp");
   const transportist = metricString(truck, "customer_account") ?? "—";
+  const latitude = metricNumber(truck, "latitude");
+  const longitude = metricNumber(truck, "longitude");
 
   return {
     id: String(truck.id),
@@ -69,6 +71,8 @@ export function truckToVehicle(truck: Truck): Vehicle {
     nextMaintenance: formatNextMaintenance(truck),
     kmTraveled,
     lastSignal,
+    latitude,
+    longitude,
     assetId: truck.assetId,
   };
 }

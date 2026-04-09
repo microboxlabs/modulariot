@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { twMerge } from "tailwind-merge";
 import { Button } from "flowbite-react";
 import {
   HiChartBar,
@@ -15,9 +16,17 @@ import {
   HiTruck,
   HiBolt,
 } from "react-icons/hi2";
-import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type {
+  DashletComponentProps,
+  DashletLayoutDefaults,
+  DataProviderEntry,
+} from "../types";
 import type { PgrestDashletFields } from "../common";
-import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import {
+  useHybridPgrestContext,
+  DashletLoading,
+  DashletError,
+} from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
@@ -75,10 +84,16 @@ export interface DashletConfig extends PgrestDashletFields {
   title: string;
   /** Icon displayed in header (top-right) */
   icon: InfoCardIcon;
+  /** Custom color for the icon (hex or CSS color) */
+  iconColor?: string;
   /** Main value display (e.g., "100%", "42", "$1,234") */
   value: string;
+  /** Custom color for the value text (hex or CSS color) */
+  valueColor?: string;
   /** Description text below the value */
   descriptor: string;
+  /** Custom color for the descriptor text (hex or CSS color) */
+  descriptorColor?: string;
   /** AI-generated summary placeholder text */
   aiPlaceholder: string;
   /** Optional URL for "View more" button */
@@ -95,8 +110,11 @@ export interface DashletConfig extends PgrestDashletFields {
 export const defaultConfig: DashletConfig = {
   title: "Metric",
   icon: "chart",
+  iconColor: "",
   value: "100%",
+  valueColor: "",
   descriptor: "Percentage of tasks completed",
+  descriptorColor: "",
   aiPlaceholder: "AI summary will appear here",
   viewMoreUrl: "",
   viewMoreLabel: "View more",
@@ -133,8 +151,11 @@ export function Dashlet({
   const {
     title = defaultConfig.title,
     icon = defaultConfig.icon,
+    iconColor = defaultConfig.iconColor,
     value = defaultConfig.value,
+    valueColor = defaultConfig.valueColor,
     descriptor = defaultConfig.descriptor,
+    descriptorColor = defaultConfig.descriptorColor,
     aiPlaceholder = defaultConfig.aiPlaceholder,
     viewMoreUrl = defaultConfig.viewMoreUrl,
     viewMoreLabel = defaultConfig.viewMoreLabel,
@@ -143,14 +164,36 @@ export function Dashlet({
 
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider, refreshIntervalMs);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(
+    config,
+    dataProvider,
+    refreshIntervalMs
+  );
 
-  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
-  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
-  const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
-  const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
-  const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
-  const compiledViewMoreLabel = useMemo(() => resolveHandlebarsField(viewMoreLabel, templateContext), [viewMoreLabel, templateContext]);
+  const compiledTitle = useMemo(
+    () => resolveHandlebarsField(title, templateContext),
+    [title, templateContext]
+  );
+  const compiledValue = useMemo(
+    () => resolveHandlebarsField(value, templateContext),
+    [value, templateContext]
+  );
+  const compiledDescriptor = useMemo(
+    () => resolveHandlebarsField(descriptor, templateContext),
+    [descriptor, templateContext]
+  );
+  const compiledAiPlaceholder = useMemo(
+    () => resolveHandlebarsField(aiPlaceholder, templateContext),
+    [aiPlaceholder, templateContext]
+  );
+  const compiledViewMoreUrl = useMemo(
+    () => resolveHandlebarsField(viewMoreUrl, templateContext),
+    [viewMoreUrl, templateContext]
+  );
+  const compiledViewMoreLabel = useMemo(
+    () => resolveHandlebarsField(viewMoreLabel, templateContext),
+    [viewMoreLabel, templateContext]
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -166,7 +209,11 @@ export function Dashlet({
           if (config.openInSameTab) {
             globalThis.location.href = url.href;
           } else {
-            globalThis.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+            globalThis.open(
+              compiledViewMoreUrl,
+              "_blank",
+              "noopener,noreferrer"
+            );
           }
         }
       } catch {
@@ -186,15 +233,28 @@ export function Dashlet({
         <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           {compiledTitle}
         </h3>
-        <IconComponent className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+        <span style={iconColor ? { color: iconColor } : undefined}>
+          <IconComponent
+            className={twMerge(
+              "h-5 w-5",
+              iconColor ? "" : "text-gray-500 dark:text-gray-400"
+            )}
+          />
+        </span>
       </div>
 
       {/* Body: Value + Descriptor + Children */}
       <div className="flex flex-1 flex-col justify-center px-4 py-4">
-        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+        <p
+          className="text-3xl font-bold text-gray-900 dark:text-white"
+          style={valueColor ? { color: valueColor } : undefined}
+        >
           {compiledValue}
         </p>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p
+          className="mt-1 text-sm text-gray-500 dark:text-gray-400"
+          style={descriptorColor ? { color: descriptorColor } : undefined}
+        >
           {compiledDescriptor}
         </p>
 

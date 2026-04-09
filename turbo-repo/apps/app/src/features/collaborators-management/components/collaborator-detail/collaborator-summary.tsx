@@ -116,7 +116,7 @@ function EvolutionChart({
         max: 100,
         axisLine: { show: false },
         axisLabel: { color: "#6b7280", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#e5e7eb" } },
+        splitLine: { lineStyle: { color: "rgba(229, 231, 235, 0.1)" } },
       },
       series: [
         {

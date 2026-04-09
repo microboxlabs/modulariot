@@ -2985,7 +2985,12 @@
     "grid": {
       "title": "Collaborators",
       "colaboratorCount": "{count} collaborators",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "emptyTitle": "No results",
+      "emptyDesc": "No collaborators match the current search criteria.",
+      "errorTitle": "Failed to load collaborators",
+      "errorDesc": "Something went wrong while querying the data source. Please try again.",
+      "retry": "Retry"
     },
     "rank": {
       "conductor-senior": "Senior Driver",

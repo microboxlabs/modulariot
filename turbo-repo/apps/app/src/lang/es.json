@@ -3016,7 +3016,12 @@
     "grid": {
       "title": "Colaboradores",
       "colaboratorCount": "{count} colaboradores",
-      "loading": "Cargando..."
+      "loading": "Cargando...",
+      "emptyTitle": "Sin resultados",
+      "emptyDesc": "No se encontraron colaboradores con los criterios de búsqueda actuales.",
+      "errorTitle": "No se pudieron cargar los colaboradores",
+      "errorDesc": "Hubo un problema al consultar la fuente de datos. Intenta nuevamente.",
+      "retry": "Reintentar"
     },
     "rank": {
       "conductor-senior": "Conductor Senior",

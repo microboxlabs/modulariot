@@ -10,6 +10,9 @@ import {
   parseResolvedNumber,
 } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useRowThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses, getThresholdIconClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 
 // ============================================================================
@@ -21,6 +24,7 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   subtitle: string;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -57,10 +61,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
     config,
     FIELD_DEFAULTS, refreshIntervalMs
   );
+
+  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -70,11 +76,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const subtitle = resolved.subtitle || "";
   const value = parseResolvedNumber(resolved.value);
 
+  const iconClassName = thresholdColor && appliesTo("icon")
+    ? `${getThresholdIconClasses(thresholdColor).text} ${getThresholdIconClasses(thresholdColor).bg}`
+    : undefined;
+  const valueClassName = thresholdColor && appliesTo("text")
+    ? getThresholdTextClasses(thresholdColor)
+    : undefined;
+
   return (
     <KpiStat
-      icon={{ icon: HiShoppingCart }}
+      icon={{ icon: HiShoppingCart, className: iconClassName }}
       title={{ text: title }}
-      value={{ text: value }}
+      value={{ text: value, className: valueClassName }}
       unit={unit}
       description={{ text: subtitle }}
       variant="horizontal"

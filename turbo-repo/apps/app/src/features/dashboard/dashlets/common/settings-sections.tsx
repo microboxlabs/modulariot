@@ -18,9 +18,10 @@ import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
-import type { ColorRule, ColorRuleOperator, RuleColor } from "./color-rule-types";
+import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
 import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
 import { getColorDotClass } from "./color-rule-engine";
+import { RuleRowControls } from "./rule-row-controls";
 
 // ============================================================================
 // Shared mouse-down handler (prevents drag on settings modals)
@@ -466,7 +467,7 @@ interface ColorRuleEditorProps {
   columnsWithKeys: ColumnItem[];
   onAdd: () => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, field: keyof ColorRule, value: string) => void;
+  onUpdate: (id: string, field: string, value: string) => void;
   labels: {
     addRule: string;
     valuePlaceholder: string;
@@ -514,54 +515,17 @@ export function ColorRuleEditor({
                       ))}
                     </Select>
                   </div>
-                  {/* Operator select */}
-                  <div className="w-24 shrink-0">
-                    <Select
-                      sizing="sm"
-                      value={rule.operator}
-                      onChange={(e) => onUpdate(rule._id, "operator", e.target.value)}
-                    >
-                      {COLOR_RULE_OPERATORS.map((op) => (
-                        <option key={op} value={op}>
-                          {labels.operatorLabels[op]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  {/* Value input */}
-                  <div className="min-w-0 flex-1">
-                    <TextInput
-                      sizing="sm"
-                      placeholder={labels.valuePlaceholder}
-                      value={rule.value}
-                      onChange={(e) => onUpdate(rule._id, "value", e.target.value)}
-                    />
-                  </div>
-                  {/* Color select */}
-                  <div className="w-24 shrink-0">
-                    <Select
-                      sizing="sm"
-                      value={rule.color}
-                      onChange={(e) => onUpdate(rule._id, "color", e.target.value)}
-                    >
-                      {RULE_COLORS.map((c) => (
-                        <option key={c} value={c}>
-                          {labels.colorLabels[c]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  {/* Color dot preview */}
-                  <span className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(rule.color)}`} />
-                  {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => onRemove(rule._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                  >
-                    <HiTrash className="h-4 w-4" />
-                  </button>
+                  <RuleRowControls
+                    ruleId={rule._id}
+                    operator={rule.operator}
+                    value={rule.value}
+                    color={rule.color}
+                    onUpdate={onUpdate}
+                    onRemove={onRemove}
+                    operatorLabels={labels.operatorLabels}
+                    colorLabels={labels.colorLabels}
+                    valuePlaceholder={labels.valuePlaceholder}
+                  />
                 </div>
               ))}
             </div>

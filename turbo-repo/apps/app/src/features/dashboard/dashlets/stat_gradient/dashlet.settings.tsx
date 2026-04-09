@@ -35,6 +35,7 @@ export function DashletSettings(
       fields={FIELDS}
       idPrefix="sg"
       settingsProps={props}
+      thresholds
       extraSaveFields={{ color }}
       extraVisualization={
         <SettingsPickerItem label="Color">

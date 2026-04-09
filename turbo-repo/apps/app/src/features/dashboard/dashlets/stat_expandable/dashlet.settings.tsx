@@ -54,6 +54,7 @@ export function DashletSettings(
       fields={FIELDS}
       idPrefix="se"
       settingsProps={props}
+      thresholds
       extraSaveFields={{
         details: details.map(({ label, value }) => ({ label, value })),
       }}

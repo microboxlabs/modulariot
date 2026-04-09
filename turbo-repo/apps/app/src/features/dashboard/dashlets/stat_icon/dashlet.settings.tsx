@@ -10,4 +10,5 @@ export const DashletSettings = createSimpleDashletSettings(
     { id: "si-subtitle", labelKey: "common.subtitle", state: "subtitle", hbPlaceholder: "{{row.subtitle}}", staticPlaceholder: "Last 24 hours" },
   ],
   "si",
+  { thresholds: true },
 );

@@ -10,6 +10,7 @@ import {
   getGroupsForPerson,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { RouteGuard } from "@/features/auth/components/route-guard";
+import { logger } from "@/lib/logger";
 
 interface SlugPageParams extends ParamsWithLang {
   params: Promise<{ lang: string; slug: string }>;
@@ -47,18 +48,46 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
 
   // Per-dashboard group access check
   if (session && siteId) {
+    let dashboardConfig: { data: unknown };
     try {
-      const dashboardConfig = await getDashboardConfig(session, siteId, slug);
-      const configData = dashboardConfig.data as Record<string, unknown> | null;
-      const allowed = configData?.allowedGroups;
-      if (Array.isArray(allowed) && allowed.length > 0) {
-        const userGroups = await getGroupsForPerson(session);
-        if (!allowed.some((g: string) => userGroups.includes(g))) {
+      dashboardConfig = await getDashboardConfig(session, siteId, slug);
+    } catch (error) {
+      // Not-found means no saved config yet — fall through to default rendering.
+      // Any other error (network, 500, auth) is unexpected — deny access.
+      const status = (error as { status?: number }).status;
+      if (status === 404) {
+        dashboardConfig = { data: null };
+      } else {
+        logger.error({ err: error, slug, siteId }, "Failed to fetch dashboard config for access check");
+        redirect(`/${lang}/home`);
+      }
+    }
+
+    const configData = dashboardConfig.data as Record<string, unknown> | null;
+    const allowed = configData?.allowedGroups;
+
+    // If allowedGroups is present but malformed, treat as misconfigured — deny access
+    if (allowed !== undefined && allowed !== null) {
+      if (
+        !Array.isArray(allowed) ||
+        !allowed.every((g): g is string => typeof g === "string")
+      ) {
+        logger.error({ slug, siteId, allowedGroups: allowed }, "Malformed allowedGroups in dashboard config");
+        redirect(`/${lang}/home`);
+      }
+
+      if (allowed.length > 0) {
+        let userGroups: string[];
+        try {
+          userGroups = await getGroupsForPerson(session);
+        } catch (error) {
+          logger.error({ err: error, slug }, "Failed to fetch user groups for dashboard access check");
+          redirect(`/${lang}/home`);
+        }
+        if (!allowed.some((g) => userGroups.includes(g))) {
           redirect(`/${lang}/home`);
         }
       }
-    } catch {
-      // If config fetch fails, let the page render with default/empty config
     }
   }
 

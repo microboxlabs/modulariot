@@ -5,7 +5,7 @@ import { Button, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig, BarColor, ChartType } from "./dashlet";
+import type { DashletConfig, ChartType } from "./dashlet";
 import {
   HbTextFieldList,
   HbInlineInput,
@@ -38,7 +38,7 @@ interface StackItem {
   id: string;
   label: string;
   value: string;
-  color: BarColor;
+  color: string;
 }
 
 const FIELDS = [

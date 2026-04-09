@@ -13,18 +13,14 @@ import { RouteGuard } from "@/features/auth/components/route-guard";
 import { logger } from "@/lib/logger";
 import type { Session } from "next-auth";
 
-/** Resolve the user's primary Alfresco site. Returns null on failure. */
+/** Resolve the user's primary Alfresco site. Returns null when the user has no sites. Throws on errors. */
 async function resolvePrimarySite(session: Session): Promise<string | null> {
-  try {
-    const sites = await getUserSites(session);
-    if (sites.length === 0) return null;
-    const sorted = [...sites].sort((a, b) =>
-      a.shortName.localeCompare(b.shortName)
-    );
-    return sorted[0].shortName;
-  } catch {
-    return null;
-  }
+  const sites = await getUserSites(session);
+  if (sites.length === 0) return null;
+  const sorted = [...sites].sort((a, b) =>
+    a.shortName.localeCompare(b.shortName)
+  );
+  return sorted[0].shortName;
 }
 
 /**
@@ -87,7 +83,15 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
 
   const defaultConfig = loadDefaultConfig(slug);
 
-  const siteId = session ? await resolvePrimarySite(session) : null;
+  let siteId: string | null = null;
+  if (session) {
+    try {
+      siteId = await resolvePrimarySite(session);
+    } catch (error) {
+      logger.error({ err: error }, "Failed to resolve primary site for dashboard access");
+      redirect(`/${lang}/home`);
+    }
+  }
 
   if (session && siteId) {
     await enforceDashboardAccess(session, siteId, slug, lang);

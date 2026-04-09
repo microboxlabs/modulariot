@@ -5,7 +5,7 @@ import type { ColumnItem } from "./column-helpers";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
 import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "./filter-helpers";
-import type { ColorRulesConfig, ColorRule } from "./color-rule-types";
+import type { ColorRulesConfig } from "./color-rule-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
 import { toColorRuleItems, fromColorRuleItems, normalizeColorRulesConfig } from "./color-rule-helpers";
 import type { ActionsConfig } from "./action-types";
@@ -193,7 +193,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setRowColorRuleItems((prev) => prev.filter((r) => r._id !== id));
   };
 
-  const updateRowColorRule = (id: string, field: keyof ColorRule, value: string) => {
+  const updateRowColorRule = (id: string, field: string, value: string) => {
     setRowColorRuleItems((prev) => prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)));
   };
 

@@ -24,6 +24,7 @@ export function DashletSettings(
       fields={FIELDS}
       idPrefix="ss"
       settingsProps={props}
+      thresholds
       extraSaveFields={{ isSensitive }}
       extraVisualization={
         <div className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">

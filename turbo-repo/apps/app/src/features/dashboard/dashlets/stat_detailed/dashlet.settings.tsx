@@ -12,4 +12,5 @@ export const DashletSettings = createSimpleDashletSettings(
     { id: "sd-target", labelKey: "common.target", state: "target", hbPlaceholder: "{{row.target}}", staticPlaceholder: "100000" },
   ],
   "sd",
+  { thresholds: true },
 );

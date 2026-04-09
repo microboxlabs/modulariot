@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { twMerge } from "tailwind-merge";
 import { Button } from "flowbite-react";
 import {
   HiChartBar,
@@ -15,9 +16,17 @@ import {
   HiTruck,
   HiBolt,
 } from "react-icons/hi2";
-import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import type {
+  DashletComponentProps,
+  DashletLayoutDefaults,
+  DataProviderEntry,
+} from "../types";
 import type { PgrestDashletFields } from "../common";
-import { useHybridPgrestContext, DashletLoading, DashletError } from "../common";
+import {
+  useHybridPgrestContext,
+  DashletLoading,
+  DashletError,
+} from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 
@@ -155,14 +164,36 @@ export function Dashlet({
 
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { templateContext, loading, fetchError } = useHybridPgrestContext(config, dataProvider, refreshIntervalMs);
+  const { templateContext, loading, fetchError } = useHybridPgrestContext(
+    config,
+    dataProvider,
+    refreshIntervalMs
+  );
 
-  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
-  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
-  const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
-  const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
-  const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
-  const compiledViewMoreLabel = useMemo(() => resolveHandlebarsField(viewMoreLabel, templateContext), [viewMoreLabel, templateContext]);
+  const compiledTitle = useMemo(
+    () => resolveHandlebarsField(title, templateContext),
+    [title, templateContext]
+  );
+  const compiledValue = useMemo(
+    () => resolveHandlebarsField(value, templateContext),
+    [value, templateContext]
+  );
+  const compiledDescriptor = useMemo(
+    () => resolveHandlebarsField(descriptor, templateContext),
+    [descriptor, templateContext]
+  );
+  const compiledAiPlaceholder = useMemo(
+    () => resolveHandlebarsField(aiPlaceholder, templateContext),
+    [aiPlaceholder, templateContext]
+  );
+  const compiledViewMoreUrl = useMemo(
+    () => resolveHandlebarsField(viewMoreUrl, templateContext),
+    [viewMoreUrl, templateContext]
+  );
+  const compiledViewMoreLabel = useMemo(
+    () => resolveHandlebarsField(viewMoreLabel, templateContext),
+    [viewMoreLabel, templateContext]
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -178,7 +209,11 @@ export function Dashlet({
           if (config.openInSameTab) {
             globalThis.location.href = url.href;
           } else {
-            globalThis.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+            globalThis.open(
+              compiledViewMoreUrl,
+              "_blank",
+              "noopener,noreferrer"
+            );
           }
         }
       } catch {
@@ -200,7 +235,10 @@ export function Dashlet({
         </h3>
         <span style={iconColor ? { color: iconColor } : undefined}>
           <IconComponent
-            className={`h-5 w-5 ${iconColor ? "" : "text-gray-500 dark:text-gray-400"}`}
+            className={twMerge(
+              "h-5 w-5",
+              iconColor ? "" : "text-gray-500 dark:text-gray-400"
+            )}
           />
         </span>
       </div>

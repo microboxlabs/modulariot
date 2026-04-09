@@ -8,6 +8,9 @@ import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "./filter-
 import type { ColorRulesConfig } from "./color-rule-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
 import { toColorRuleItems, fromColorRuleItems, normalizeColorRulesConfig } from "./color-rule-helpers";
+import type { ActionsConfig } from "./action-types";
+import type { ActionItemWithId } from "./action-helpers";
+import { toActionItems, fromActionItems, normalizeActionsConfig } from "./action-helpers";
 
 export interface SettingsStateConfig {
   title: string;
@@ -24,6 +27,7 @@ export interface SettingsStateConfig {
   dataMode: DataMode;
   apiUrl: string;
   rowColorRules?: ColorRulesConfig;
+  actions?: ActionsConfig;
 }
 
 // ── Pure helpers for colorMap mutations (kept flat to avoid nesting) ────────
@@ -83,6 +87,14 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   const [rowColorRulesEnabled, setRowColorRulesEnabled] = useState(normalizedRowColorRules.enabled);
   const [rowColorRuleItems, setRowColorRuleItems] = useState<ColorRuleItem[]>(
     toColorRuleItems(normalizedRowColorRules.rules),
+  );
+
+  // Actions config
+  const defaultActions: ActionsConfig = { enabled: false, items: [] };
+  const normalizedActions = normalizeActionsConfig(cfg.actions, defaultActions);
+  const [actionsEnabled, setActionsEnabled] = useState(normalizedActions.enabled);
+  const [actionItems, setActionItems] = useState<ActionItemWithId[]>(
+    toActionItems(normalizedActions.items),
   );
 
   // Data provider fields
@@ -185,6 +197,23 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setRowColorRuleItems((prev) => prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)));
   };
 
+  // ── Action helpers ─────────────────────────────────────────────────────
+
+  const addAction = () => {
+    setActionItems((prev) => [
+      ...prev,
+      { _id: `act-${Date.now()}`, name: "", link: "", target: "_blank" as const },
+    ]);
+  };
+
+  const removeAction = (id: string) => {
+    setActionItems((prev) => prev.filter((a) => a._id !== id));
+  };
+
+  const updateAction = (id: string, field: "name" | "link" | "target", value: string) => {
+    setActionItems((prev) => prev.map((a) => (a._id === id ? { ...a, [field]: value } : a)));
+  };
+
   // ── Rows JSON parse ──────────────────────────────────────────────────────
 
   const parseRows = (
@@ -230,7 +259,12 @@ export function useSettingsState(cfg: SettingsStateConfig) {
       ),
     };
 
-    return { filter, sort, savedColumns, validKeys, rowColorRules };
+    const actions: ActionsConfig = {
+      enabled: actionsEnabled,
+      items: fromActionItems(actionItems),
+    };
+
+    return { filter, sort, savedColumns, validKeys, rowColorRules, actions };
   };
 
   return {
@@ -265,6 +299,13 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     addRowColorRule,
     removeRowColorRule,
     updateRowColorRule,
+    // Actions
+    actionsEnabled,
+    setActionsEnabled,
+    actionItems,
+    addAction,
+    removeAction,
+    updateAction,
     // Helpers
     addColumn,
     removeColumn,

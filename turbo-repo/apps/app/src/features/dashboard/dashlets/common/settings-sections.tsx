@@ -21,6 +21,8 @@ import type { ColorRuleItem } from "./color-rule-helpers";
 import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
 import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
 import { getColorDotClass } from "./color-rule-engine";
+import type { ActionItemWithId } from "./action-helpers";
+import type { ActionTarget } from "./action-types";
 import { RuleRowControls } from "./rule-row-controls";
 
 // ============================================================================
@@ -538,6 +540,109 @@ export function ColorRuleEditor({
             >
               <HiPlus className="mr-1 h-3 w-3" />
               {labels.addRule}
+            </Button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ============================================================================
+// ActionsEditor
+// ============================================================================
+
+interface ActionsEditorProps {
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  items: ActionItemWithId[];
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, field: "name" | "link" | "target", value: string) => void;
+  labels: {
+    actions: string;
+    addAction: string;
+    actionName: string;
+    actionLink: string;
+    actionTarget: string;
+    actionTargetSelf: string;
+    actionTargetBlank: string;
+  };
+}
+
+export function ActionsEditor({
+  enabled,
+  onToggle,
+  items,
+  onAdd,
+  onRemove,
+  onUpdate,
+  labels,
+}: Readonly<ActionsEditorProps>) {
+  return (
+    <>
+      <hr className="border-gray-200 dark:border-gray-700" />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">{labels.actions}</Label>
+          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
+        </div>
+
+        {enabled && (
+          <div>
+            <div className="space-y-2">
+              {items.map((item) => (
+                <div key={item._id} className="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-gray-600">
+                  <div className="flex items-center gap-1">
+                    <div className="min-w-0 flex-1">
+                      <TextInput
+                        sizing="sm"
+                        placeholder={labels.actionName}
+                        value={item.name}
+                        onChange={(e) => onUpdate(item._id, "name", e.target.value)}
+                      />
+                    </div>
+                    <div className="w-28 shrink-0">
+                      <Select
+                        sizing="sm"
+                        aria-label={labels.actionTarget}
+                        value={item.target}
+                        onChange={(e) => onUpdate(item._id, "target", e.target.value as ActionTarget)}
+                      >
+                        <option value="_blank">{labels.actionTargetBlank}</option>
+                        <option value="_self">{labels.actionTargetSelf}</option>
+                      </Select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(item._id)}
+                      onMouseDown={stopPropagation}
+                      className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                    >
+                      <HiTrash className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div>
+                    <TextInput
+                      sizing="sm"
+                      placeholder={labels.actionLink}
+                      value={item.link}
+                      onChange={(e) => onUpdate(item._id, "link", e.target.value)}
+                      color={getFlowbiteColor(getHandlebarsStatus(item.link))}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              color="light"
+              size="xs"
+              onClick={onAdd}
+              onMouseDown={stopPropagation}
+              className="no-drag mt-2"
+            >
+              <HiPlus className="mr-1 h-3 w-3" />
+              {labels.addAction}
             </Button>
           </div>
         )}

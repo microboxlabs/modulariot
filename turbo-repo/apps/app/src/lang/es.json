@@ -1538,6 +1538,7 @@
       "valueColor": "Color del valor",
       "secondaryColor": "Color secundario",
       "secondaryTextColor": "Texto secundario",
+      "expandable": "Expandible",
       "variant": "Variante",
       "label": "Etiqueta",
       "categoryAriaLabel": "Categoría {name} {field}",

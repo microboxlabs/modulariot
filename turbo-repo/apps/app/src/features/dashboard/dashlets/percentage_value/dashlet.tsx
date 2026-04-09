@@ -63,7 +63,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       value: String(config.value ?? "6"),
       max: String(config.max ?? "10"),
     }),
-    [config.title, config.value, config.max],
+    [config.title, config.value, config.max]
   );
 
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -89,14 +89,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   if (fetchError) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-        <span className="text-xs text-red-600 dark:text-red-400">{fetchError}</span>
+        <span className="text-xs text-red-600 dark:text-red-400">
+          {fetchError}
+        </span>
       </div>
     );
   }
 
   const title = resolved.title || "Progress";
-  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
-  const parsedMax = resolved.max === "" || resolved.max == null ? Number.NaN : Number(resolved.max);
+  const parsedValue =
+    resolved.value === "" || resolved.value == null
+      ? Number.NaN
+      : Number(resolved.value);
+  const parsedMax =
+    resolved.max === "" || resolved.max == null
+      ? Number.NaN
+      : Number(resolved.max);
   const value = Number.isFinite(parsedValue) ? parsedValue : 0;
   const max = Number.isFinite(parsedMax) ? parsedMax : 10;
 
@@ -104,13 +112,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
 
   return (
-    <div className="flex h-full flex-col justify-center gap-1 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+    <div
+      className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-2 px-4 dark:border-gray-700 dark:bg-gray-800"
+      style={{ containerType: "size" }}
+    >
       {/* Header with title and value */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+      <div className="flex shrink-0 items-center justify-between">
+        <span
+          className="font-medium text-gray-600 dark:text-gray-400"
+          style={{ fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" }}
+        >
           {title}
         </span>
-        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+        <span
+          className="font-semibold text-gray-900 dark:text-white"
+          style={{ fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" }}
+        >
           {value} / {max}{" "}
           <span className="text-gray-500 dark:text-gray-400">
             ({clampedPercentage}%)
@@ -118,12 +135,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-        <div
-          className="h-full rounded-full bg-blue-600 transition-all duration-300 dark:bg-blue-500"
-          style={{ width: `${clampedPercentage}%` }}
-        />
+      {/* Progress bar - fills remaining height */}
+      <div className="mt-2 flex min-h-1.5 flex-1 w-full items-center">
+        <div className="h-full w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700">
+          <div
+            className="h-full bg-blue-600 transition-all duration-300 dark:bg-blue-500"
+            style={{ width: `${clampedPercentage}%` }}
+          />
+        </div>
       </div>
     </div>
   );

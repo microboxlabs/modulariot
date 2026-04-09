@@ -11,6 +11,7 @@ import { tr } from "@/features/i18n/tr.service";
 import VehicleStatusBadge from "../vehicle-grid/vehicle-status-badge";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
 interface VehicleDetailHeaderProps {
   readonly vehicle: Vehicle;
@@ -106,7 +107,7 @@ export default function VehicleDetailHeader({
                   {tr("vehicleGrid.lastSignal", dict)}
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {vehicle.lastSignal}
+                  {formatDateString(vehicle.lastSignal)}
                 </span>
               </div>
             )}

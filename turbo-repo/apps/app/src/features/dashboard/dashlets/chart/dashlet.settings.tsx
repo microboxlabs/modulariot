@@ -382,7 +382,7 @@ export function DashletSettings({
                 title={
                   s.label ||
                   tr("dashboard.dashlets.chart.seriesNumber", dictionary, {
-                    n: i + 1,
+                    n: String(i + 1),
                   })
                 }
               />

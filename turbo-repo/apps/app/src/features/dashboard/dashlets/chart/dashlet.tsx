@@ -4,7 +4,12 @@ import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
-import { useDashletData, DashletLoading, DashletError, resolveHandlebarsField } from "../common";
+import {
+  useDashletData,
+  DashletLoading,
+  DashletError,
+  resolveHandlebarsField,
+} from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
 import { useDashboard } from "../../context/dashboard-context";
@@ -126,7 +131,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // Fetch row data for pgrest/planner modes
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
-  const { rows: fetchedRows, loading, fetchError } = useDashletData({
+  const {
+    rows: fetchedRows,
+    loading,
+    fetchError,
+  } = useDashletData({
     dataMode: config.dataMode ?? "static",
     pgrestFunctionName: config.pgrestFunctionName ?? "",
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
@@ -151,35 +160,39 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // Resolve Handlebars templates in scalar fields
   const resolvedTitle = useMemo(
     () => resolveHandlebarsField(config.title ?? "", templateContext),
-    [config.title, templateContext],
+    [config.title, templateContext]
   );
   const resolvedXAxisLabel = useMemo(
     () => resolveHandlebarsField(config.xAxisLabel ?? "", templateContext),
-    [config.xAxisLabel, templateContext],
+    [config.xAxisLabel, templateContext]
   );
   const resolvedYAxisLabel = useMemo(
     () => resolveHandlebarsField(config.yAxisLabel ?? "", templateContext),
-    [config.yAxisLabel, templateContext],
+    [config.yAxisLabel, templateContext]
   );
   const resolvedSeries = useMemo(
-    () => config.series.map((s) => ({
-      ...s,
-      label: resolveHandlebarsField(s.label, templateContext),
-    })),
-    [config.series, templateContext],
+    () =>
+      config.series.map((s) => ({
+        ...s,
+        label: resolveHandlebarsField(s.label, templateContext),
+      })),
+    [config.series, templateContext]
   );
 
-  const resolvedConfig = useMemo(() => ({
-    ...config,
-    xAxisLabel: resolvedXAxisLabel,
-    yAxisLabel: resolvedYAxisLabel,
-    series: resolvedSeries,
-  }), [config, resolvedXAxisLabel, resolvedYAxisLabel, resolvedSeries]);
+  const resolvedConfig = useMemo(
+    () => ({
+      ...config,
+      xAxisLabel: resolvedXAxisLabel,
+      yAxisLabel: resolvedYAxisLabel,
+      series: resolvedSeries,
+    }),
+    [config, resolvedXAxisLabel, resolvedYAxisLabel, resolvedSeries]
+  );
 
   const noDataLabel = tr("dashboard.dashlets.chart.noData", dictionary);
   const option = useMemo(
     () => buildEChartsOption(resolvedConfig, rows, darkMode, noDataLabel),
-    [resolvedConfig, rows, darkMode, noDataLabel],
+    [resolvedConfig, rows, darkMode, noDataLabel]
   );
 
   // Resize chart when container size changes (react-grid-layout doesn't trigger echarts auto-resize)
@@ -205,7 +218,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         observerRef.current = observer;
       }
     },
-    [handleResize],
+    [handleResize]
   );
 
   if (loading && config.dataMode !== "static") return <DashletLoading />;
@@ -215,16 +228,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   return (
     <div
       ref={attachContainerRef}
-      className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+      className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
     >
       {resolvedTitle && (
-        <div className="shrink-0 px-3 pt-2">
+        <div className="shrink-0">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
             {resolvedTitle}
           </h3>
         </div>
       )}
-      <div className="min-h-0 flex-1 p-1">
+      <div className="min-h-0 flex-1">
         <ReactECharts
           ref={chartRef}
           option={option}

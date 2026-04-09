@@ -141,7 +141,7 @@ export function PgrestSettingsSection({
                 type="button"
                 onClick={() => pg.removePgrestParam(p._id)}
                 onMouseDown={stopPropagation}
-                className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
               >
                 <HiTrash className="h-4 w-4" />
               </button>

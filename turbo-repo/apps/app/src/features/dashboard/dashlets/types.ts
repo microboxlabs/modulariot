@@ -86,6 +86,8 @@ export interface DashletSettingsProps<
   onSave: (config: Partial<TConfig>) => void;
   /** Dictionary for internationalization */
   dictionary: I18nRecord;
+  /** Display name of the dashlet */
+  dashletName?: string;
 }
 
 /**

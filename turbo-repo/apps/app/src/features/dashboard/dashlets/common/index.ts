@@ -63,10 +63,7 @@ export {
 } from "./use-pgrest-settings-state";
 export { PgrestSettingsSection } from "./pgrest-settings-section";
 export { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
-export {
-  type FilterItemConfig,
-  type FilterConfig,
-} from "./filter-types";
+export { type FilterItemConfig, type FilterConfig } from "./filter-types";
 export {
   type FilterItem,
   toFilterItems,
@@ -107,16 +104,29 @@ export {
   buildSimplePgrestConfig,
 } from "./pgrest-settings-helpers";
 export { IconColorPickerRow } from "./icon-color-picker-row";
+export { DASHLET_ICON_OPTIONS, type DashletIconKey } from "./icon-options";
 export { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 export { PgrestDataTab } from "./pgrest-data-tab";
 export { usePlannerData } from "./use-planner-data";
 export { useDashletData } from "./use-dashlet-data";
 export { PlannerVariableSelector } from "./planner-variable-selector";
 export { useActiveProviders } from "./use-active-providers";
-export { DashletLoading, DashletError, parseResolvedNumber } from "./dashlet-states";
+export {
+  DashletLoading,
+  DashletError,
+  parseResolvedNumber,
+} from "./dashlet-states";
 export { DataProviderEntries } from "./data-provider-entries";
-export { type SimpleDataMode, isRemoteDataMode, useSimplePgrestSettings } from "./use-simple-pgrest-settings";
-export { type PgrestDashletFields, useDashletPgrest, useHybridPgrestContext } from "./use-dashlet-pgrest";
+export {
+  type SimpleDataMode,
+  isRemoteDataMode,
+  useSimplePgrestSettings,
+} from "./use-simple-pgrest-settings";
+export {
+  type PgrestDashletFields,
+  useDashletPgrest,
+  useHybridPgrestContext,
+} from "./use-dashlet-pgrest";
 export {
   type SettingsFieldDef,
   type SimpleDashletSettingsProps,

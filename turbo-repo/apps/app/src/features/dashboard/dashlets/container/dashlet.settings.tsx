@@ -152,7 +152,7 @@ export function DashletSettings({
             type="button"
             onClick={() => setVariant("bento-box")}
             onMouseDown={handleMouseDown}
-            className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
+            className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
               variant === "bento-box"
                 ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
                 : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
@@ -166,7 +166,7 @@ export function DashletSettings({
             type="button"
             onClick={() => setVariant("labeled-group")}
             onMouseDown={handleMouseDown}
-            className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
+            className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-all ${
               variant === "labeled-group"
                 ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300"
                 : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"

@@ -51,8 +51,9 @@ export function ColorPickerDropdown<T extends string = string>({
         type="button"
         onClick={toggle}
         className={twMerge(
-          "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-          "bg-gray-100 dark:bg-gray-900/50 hover:bg-gray-200 dark:hover:bg-gray-700",
+          "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+          "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600",
+          "hover:border-gray-400 dark:hover:border-gray-500",
           "focus:outline-none focus:ring-2 focus:ring-primary-300",
           className
         )}

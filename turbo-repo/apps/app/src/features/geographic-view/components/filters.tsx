@@ -245,9 +245,12 @@ export default function Filters({
   useEffect(() => {
     if (configDefaultApplied.current) return;
     if (!runtimeConfig) return;
-    if (hasUrlParam("trip")) return;
 
+    // Mark as applied once we've observed runtimeConfig
     configDefaultApplied.current = true;
+
+    // If URL param exists, respect user's explicit choice
+    if (hasUrlParam("trip")) return;
 
     if (defaultTripFilter) {
       setActiveFilters((prev) => ({

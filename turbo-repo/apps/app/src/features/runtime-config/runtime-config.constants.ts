@@ -5,4 +5,5 @@
  */
 export const RUNTIME_CONFIG_WHITELIST: Record<string, string> = {
   ECM_PUBLIC_URL: "ECM_PUBLIC_URL",
+  MAP_DEFAULT_TRIP_FILTER: "MAP_DEFAULT_TRIP_FILTER",
 } as const;

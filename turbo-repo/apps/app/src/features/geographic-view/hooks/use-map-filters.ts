@@ -20,6 +20,10 @@ export function useMapFilters() {
     return codes.includes(code);
   };
 
+  const hasUrlParam = (filterType: FilterType): boolean => {
+    return searchParams.get(filterType) !== null;
+  };
+
   const syncFiltersToUrl = useCallback(
     (filters: {
       conditions: Option[];
@@ -48,7 +52,7 @@ export function useMapFilters() {
         }
       };
 
-      setFilterParam("trip", filters.tripStates, ["1"]);
+      setFilterParam("trip", filters.tripStates, []);
       setFilterParam("conditions", filters.conditions, []);
       setFilterParam("speed", filters.speed, []);
 
@@ -60,5 +64,5 @@ export function useMapFilters() {
     [searchParams, router, pathname]
   );
 
-  return { getInitialActivated, syncFiltersToUrl };
+  return { getInitialActivated, hasUrlParam, syncFiltersToUrl };
 }

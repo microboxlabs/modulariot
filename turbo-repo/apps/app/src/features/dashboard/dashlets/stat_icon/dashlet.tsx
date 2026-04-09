@@ -28,6 +28,10 @@ export interface DashletConfig extends PgrestDashletFields {
   subtitle: string;
   /** Layout variant: horizontal (icon left) or vertical (stacked) */
   cardVariant?: CardVariant;
+  /** Whether to show the title */
+  showTitle?: boolean;
+  /** Whether to show the subtitle/description */
+  showSubtitle?: boolean;
   /** Whether to show the icon */
   showIcon?: boolean;
   /** Selected icon key */
@@ -57,6 +61,8 @@ export const defaultConfig: DashletConfig = {
   unit: "",
   subtitle: "Last 24 hours",
   cardVariant: "horizontal",
+  showTitle: true,
+  showSubtitle: true,
   showIcon: true,
   icon: "cart",
   iconColor: "3b82f6",
@@ -127,6 +133,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const value = parseResolvedNumber(resolved.value);
 
   const cardVariant: CardVariant = config.cardVariant ?? "horizontal";
+  const showTitle = config.showTitle !== false;
+  const showSubtitle = config.showSubtitle !== false;
   const showIcon = config.showIcon !== false;
   const iconKey = config.icon ?? "cart";
   const iconColorHex = config.iconColor ?? "3b82f6";
@@ -168,15 +176,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { color: `#${secondaryColorHex}`, opacity: 0.7 }
     : { opacity: 0.7 };
 
+  // Build title config (only if showTitle is enabled)
+  const titleConfig = showTitle ? { text: title, style: titleStyle } : undefined;
+  // Build description config (only if showSubtitle is enabled)
+  const descriptionConfig = showSubtitle
+    ? { text: subtitle, style: descriptionStyle }
+    : undefined;
+
   if (expandable) {
     return (
       <div className="h-full w-full" style={{ containerType: "size" }}>
         <KpiStat
           icon={iconConfig}
-          title={{ text: title, style: titleStyle }}
+          title={titleConfig}
           value={{ text: value, style: valueStyle }}
           unit={unit}
-          description={{ text: subtitle, style: descriptionStyle }}
+          description={descriptionConfig}
           variant={cardVariant}
           className="h-full"
           containerStyle={bgStyle}
@@ -189,10 +204,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   return (
     <KpiStat
       icon={iconConfig}
-      title={{ text: title, style: titleStyle }}
+      title={titleConfig}
       value={{ text: value, style: valueStyle }}
       unit={unit}
-      description={{ text: subtitle, style: descriptionStyle }}
+      description={descriptionConfig}
       variant={cardVariant}
       className="h-full text-2xl"
       containerStyle={bgStyle}

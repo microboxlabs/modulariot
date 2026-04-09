@@ -1516,6 +1516,8 @@
       "secondaryColor": "Secondary Color",
       "secondaryTextColor": "Secondary Text",
       "expandable": "Expandable",
+      "showTitle": "Show Title",
+      "showSubtitle": "Show Description",
       "variant": "Variant",
       "label": "Label",
       "categoryAriaLabel": "Category {name} {field}",

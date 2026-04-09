@@ -138,6 +138,8 @@ export interface PgrestSignalRow {
   horas_sin_senal: number | null;
   total_senales_7d: number | null;
   senales_por_dia: number | null;
+  /** Instantaneous pulse rate (pulses / minute); null when SIN_SENAL. */
+  pulsos_por_minuto: number | null;
   // Per-metric capability flags — true when the device reports this metric.
   has_vehicle_speed: boolean;
   has_odometer: boolean;
@@ -709,6 +711,10 @@ export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
       total_last_7d: row.total_senales_7d ?? 0,
       signals_per_day:
         row.senales_por_dia !== null ? Number(row.senales_por_dia) : 0,
+      pulses_per_minute:
+        row.pulsos_por_minuto !== null && row.pulsos_por_minuto !== undefined
+          ? Number(row.pulsos_por_minuto)
+          : null,
       stability_pct:
         row.pct_estabilidad !== null ? Number(row.pct_estabilidad) : null,
       freshness: row.frescura,

@@ -149,16 +149,16 @@ function deriveMotorLabel(
 }
 
 /**
- * Average signal interval derived from `senales_por_dia`. We never get a
- * literal "transmission interval" from the function, so this is the
- * best-effort seconds between signals rounded to the nearest integer.
+ * Transmission interval derived from `pulsos_por_minuto`. Inverted to
+ * seconds between pulses (60 / ppm) and rounded, so the label format
+ * stays "Every N seconds" even though the source unit is pulses/min.
  */
 function fmtTransmissionInterval(
-  signalsPerDay: number,
+  pulsesPerMinute: number | null,
   dict: I18nRecord
 ): string {
-  if (signalsPerDay <= 0) return "—";
-  const seconds = Math.round(86400 / signalsPerDay);
+  if (pulsesPerMinute === null || pulsesPerMinute <= 0) return "—";
+  const seconds = Math.round(60 / pulsesPerMinute);
   return tr("vehicleDetail.sections.telemetry.everySeconds", dict, {
     seconds: String(seconds),
   });
@@ -464,7 +464,7 @@ export default function TelemetrySection({
               }}
               value={{
                 text: fmtTransmissionInterval(
-                  telemetry.signal.signals_per_day,
+                  telemetry.signal.pulses_per_minute,
                   dict
                 ),
                 className: "text-base",

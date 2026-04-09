@@ -119,6 +119,138 @@ function getIconClasses(style: KpiStatStyle, customClassName?: string): string {
   return "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30";
 }
 
+/** Get scalable styles for different elements */
+function getScalableStyles(scalable: boolean) {
+  if (!scalable) {
+    return {
+      icon: undefined,
+      iconInner: undefined,
+      title: undefined,
+      value: undefined,
+      unit: undefined,
+      description: undefined,
+    };
+  }
+  return {
+    icon: {
+      width: "clamp(2rem, 30cqh, 8rem)",
+      height: "clamp(2rem, 30cqh, 8rem)",
+    },
+    iconInner: {
+      width: "clamp(1rem, 18cqh, 5rem)",
+      height: "clamp(1rem, 18cqh, 5rem)",
+    },
+    title: { fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" },
+    value: { fontSize: "clamp(1.25rem, 40cqh, 6rem)" },
+    unit: { fontSize: "clamp(0.75rem, 20cqh, 3rem)" },
+    description: { fontSize: "clamp(0.625rem, 12cqh, 2rem)" },
+  };
+}
+
+/** Icon section sub-component */
+function IconSection({
+  icon,
+  iconClassName,
+  scalable,
+  variant,
+  scalableStyles,
+}: Readonly<{
+  icon: IconConfig | undefined;
+  iconClassName: string;
+  scalable: boolean;
+  variant: KpiStatVariant;
+  scalableStyles: ReturnType<typeof getScalableStyles>;
+}>) {
+  const Icon = icon?.icon;
+  const customIcon = icon?.custom;
+  const hasIcon = Icon !== undefined || customIcon !== undefined;
+
+  if (!hasIcon) return null;
+
+  const getIconSizeClass = (): string => {
+    if (scalable) return "";
+    return variant === "vertical" ? "w-12 h-12" : "w-10 h-10";
+  };
+  const sizeClass = getIconSizeClass();
+
+  return (
+    <div
+      className={twMerge(
+        "flex items-center justify-center rounded-lg shrink-0",
+        sizeClass,
+        iconClassName
+      )}
+      style={{ ...icon?.style, ...scalableStyles.icon }}
+    >
+      {customIcon ??
+        (Icon && (
+          <Icon
+            className={scalable ? "" : "w-6 h-6"}
+            style={scalableStyles.iconInner}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** Title element */
+function TitleElement({
+  title,
+  textClasses,
+  scalable,
+  scalableStyles,
+}: Readonly<{
+  title: TitleConfig | undefined;
+  textClasses: ReturnType<typeof getTextClasses>;
+  scalable: boolean;
+  scalableStyles: ReturnType<typeof getScalableStyles>;
+}>) {
+  if (!title) return null;
+
+  return (
+    <span
+      className={twMerge(
+        scalable ? "" : "text-sm",
+        "truncate",
+        textClasses.title,
+        title.className
+      )}
+      style={{ ...title.style, ...scalableStyles.title }}
+    >
+      {title.text}
+    </span>
+  );
+}
+
+/** Description element */
+function DescriptionElement({
+  description,
+  textClasses,
+  scalable,
+  scalableStyles,
+}: Readonly<{
+  description: DescriptionConfig | undefined;
+  textClasses: ReturnType<typeof getTextClasses>;
+  scalable: boolean;
+  scalableStyles: ReturnType<typeof getScalableStyles>;
+}>) {
+  if (!description) return null;
+
+  return (
+    <span
+      className={twMerge(
+        scalable ? "" : "text-xs",
+        "truncate",
+        textClasses.description,
+        description.className
+      )}
+      style={{ ...description.style, ...scalableStyles.description }}
+    >
+      {description.text}
+    </span>
+  );
+}
+
 export default function KpiStat({
   title,
   value,
@@ -132,134 +264,75 @@ export default function KpiStat({
   children,
   scalable = false,
 }: Readonly<KpiStatProps>) {
-  const Icon = icon?.icon;
-  const customIcon = icon?.custom;
   const iconClassName = getIconClasses(style, icon?.className);
   const textClasses = getTextClasses(style);
+  const scalableStyles = getScalableStyles(scalable);
+  const containerClasses = getContainerClasses(style, variant);
 
-  const hasIcon = Icon !== undefined || customIcon !== undefined;
   const displayValue =
     typeof value.text === "number" ? value.text.toLocaleString() : value.text;
 
-  // Render icon section
-  const iconSection = hasIcon && (
-    <div
+  const iconSection = (
+    <IconSection
+      icon={icon}
+      iconClassName={iconClassName}
+      scalable={scalable}
+      variant={variant}
+      scalableStyles={scalableStyles}
+    />
+  );
+
+  const unitElement = unit && (
+    <span
       className={twMerge(
-        "flex items-center justify-center rounded-lg shrink-0",
-        scalable ? "" : variant === "vertical" ? "w-12 h-12" : "w-10 h-10",
-        iconClassName
+        scalable ? "" : "text-base",
+        "ml-1 font-normal",
+        textClasses.unit
       )}
-      style={{
-        ...icon?.style,
-        ...(scalable
-          ? {
-              width: "clamp(2rem, 30cqh, 8rem)",
-              height: "clamp(2rem, 30cqh, 8rem)",
-            }
-          : {}),
-      }}
+      style={scalableStyles.unit}
     >
-      {customIcon ??
-        (Icon && (
-          <Icon
-            className={scalable ? "" : "w-6 h-6"}
-            style={
-              scalable
-                ? {
-                    width: "clamp(1rem, 18cqh, 5rem)",
-                    height: "clamp(1rem, 18cqh, 5rem)",
-                  }
-                : undefined
-            }
-          />
-        ))}
-    </div>
+      {unit}
+    </span>
   );
-
-  // Render content section
-  const contentSection = (
-    <div
-      className={`flex flex-col min-w-0 ${variant === "vertical" ? "flex-1" : ""}`}
-    >
-      {title && (
-        <span
-          className={twMerge(
-            scalable ? "" : "text-sm",
-            "truncate",
-            textClasses.title,
-            title.className
-          )}
-          style={{
-            ...title.style,
-            ...(scalable ? { fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" } : {}),
-          }}
-        >
-          {title.text}
-        </span>
-      )}
-      <span
-        className={twMerge(
-          "font-bold truncate",
-          textClasses.value,
-          value.className
-        )}
-        style={{
-          ...value.style,
-          ...(scalable ? { fontSize: "clamp(1.25rem, 40cqh, 6rem)" } : {}),
-        }}
-      >
-        {displayValue}
-        {unit && (
-          <span
-            className={twMerge(
-              scalable ? "" : "text-base",
-              "ml-1 font-normal",
-              textClasses.unit
-            )}
-            style={
-              scalable ? { fontSize: "clamp(0.75rem, 20cqh, 3rem)" } : undefined
-            }
-          >
-            {unit}
-          </span>
-        )}
-      </span>
-      {description && (
-        <span
-          className={twMerge(
-            scalable ? "" : "text-xs",
-            "truncate",
-            textClasses.description,
-            description.className
-          )}
-          style={{
-            ...description.style,
-            ...(scalable ? { fontSize: "clamp(0.625rem, 12cqh, 2rem)" } : {}),
-          }}
-        >
-          {description.text}
-        </span>
-      )}
-      {children}
-    </div>
-  );
-
-  const containerClasses = getContainerClasses(style, variant);
 
   if (variant === "vertical") {
-    // Vertical: icon | title+value+description stacked in one column
     return (
       <div
         className={twMerge(containerClasses, className)}
         style={containerStyle}
       >
         {iconSection}
-        {contentSection}
+        <div className="flex flex-col min-w-0 flex-1">
+          <TitleElement
+            title={title}
+            textClasses={textClasses}
+            scalable={scalable}
+            scalableStyles={scalableStyles}
+          />
+          <span
+            className={twMerge(
+              "font-bold truncate",
+              textClasses.value,
+              value.className
+            )}
+            style={{ ...value.style, ...scalableStyles.value }}
+          >
+            {displayValue}
+            {unitElement}
+          </span>
+          <DescriptionElement
+            description={description}
+            textClasses={textClasses}
+            scalable={scalable}
+            scalableStyles={scalableStyles}
+          />
+          {children}
+        </div>
       </div>
     );
   }
 
-  // Horizontal: icon+title+description on left, value on right
+  // Horizontal layout
   return (
     <div
       className={twMerge(containerClasses, className)}
@@ -268,42 +341,18 @@ export default function KpiStat({
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {iconSection}
         <div className="flex flex-col min-w-0">
-          {title && (
-            <span
-              className={twMerge(
-                scalable ? "" : "text-sm",
-                "truncate",
-                textClasses.title,
-                title.className
-              )}
-              style={{
-                ...title.style,
-                ...(scalable
-                  ? { fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" }
-                  : {}),
-              }}
-            >
-              {title.text}
-            </span>
-          )}
-          {description && (
-            <span
-              className={twMerge(
-                scalable ? "" : "text-xs",
-                "truncate",
-                textClasses.description,
-                description.className
-              )}
-              style={{
-                ...description.style,
-                ...(scalable
-                  ? { fontSize: "clamp(0.625rem, 12cqh, 2rem)" }
-                  : {}),
-              }}
-            >
-              {description.text}
-            </span>
-          )}
+          <TitleElement
+            title={title}
+            textClasses={textClasses}
+            scalable={scalable}
+            scalableStyles={scalableStyles}
+          />
+          <DescriptionElement
+            description={description}
+            textClasses={textClasses}
+            scalable={scalable}
+            scalableStyles={scalableStyles}
+          />
         </div>
       </div>
       <div className="flex items-baseline gap-1 shrink-0">
@@ -314,10 +363,7 @@ export default function KpiStat({
             textClasses.value,
             value.className
           )}
-          style={{
-            ...value.style,
-            ...(scalable ? { fontSize: "clamp(1.25rem, 40cqh, 6rem)" } : {}),
-          }}
+          style={{ ...value.style, ...scalableStyles.value }}
         >
           {displayValue}
         </span>
@@ -328,9 +374,7 @@ export default function KpiStat({
               "font-normal",
               textClasses.unit
             )}
-            style={
-              scalable ? { fontSize: "clamp(0.75rem, 20cqh, 3rem)" } : undefined
-            }
+            style={scalableStyles.unit}
           >
             {unit}
           </span>

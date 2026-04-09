@@ -11,6 +11,9 @@ import {
 } from "./settings-modal-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
+import { useThresholdSettings } from "./use-threshold-settings";
+import { ThresholdEditor } from "./threshold-editor";
+import type { ThresholdConfig } from "./threshold-types";
 
 // ============================================================================
 // Types
@@ -35,6 +38,8 @@ export interface SimpleDashletSettingsProps<C extends object> {
   extraVisualization?: ReactNode;
   /** Extra fields merged into onSave (e.g. { isSensitive, color }) */
   extraSaveFields?: Record<string, unknown>;
+  /** When true, show the ThresholdEditor in the visualization tab */
+  thresholds?: boolean;
 }
 
 // ============================================================================
@@ -99,6 +104,7 @@ export function SimpleDashletSettings<C extends object>({
   settingsProps: { isOpen, onClose, config, onSave, dictionary, dashletName },
   extraVisualization,
   extraSaveFields,
+  thresholds: showThresholds = false,
 }: Readonly<SimpleDashletSettingsProps<C>>) {
   const configRecord = config as unknown as Record<string, unknown>;
   const { values, setters, fieldNames, buildSaveValues } = useFieldState(
@@ -108,6 +114,10 @@ export function SimpleDashletSettings<C extends object>({
 
   const refresh = useWidgetRefreshSettings(configRecord, dictionary);
   const { schemas } = usePlannerContext();
+
+  const threshold = useThresholdSettings({
+    thresholds: configRecord.thresholds as ThresholdConfig | undefined,
+  });
 
   const {
     isPgrest,
@@ -138,11 +148,28 @@ export function SimpleDashletSettings<C extends object>({
       ...extraSaveFields,
       ...pgrestSaveFields,
       ...refresh.savePayload,
+      ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
     } as unknown as Partial<C>);
     onClose();
   };
 
-  const visualizationTab = extraVisualization ? (
+  const thresholdNode = showThresholds ? (
+    <ThresholdEditor
+      enabled={threshold.thresholdEnabled}
+      onToggle={threshold.setThresholdEnabled}
+      field={threshold.thresholdField}
+      onFieldChange={threshold.setThresholdField}
+      applyTo={threshold.thresholdApplyTo}
+      onApplyToChange={threshold.setThresholdApplyTo}
+      rules={threshold.thresholdRules}
+      onAdd={threshold.addThresholdRule}
+      onRemove={threshold.removeThresholdRule}
+      onUpdate={threshold.updateThresholdRule}
+      schemaSuggestions={schemaSuggestions}
+    />
+  ) : null;
+
+  const visualizationTab = (
     <>
       <HbTextFieldList
         fields={fields}
@@ -153,16 +180,8 @@ export function SimpleDashletSettings<C extends object>({
         schemaSuggestions={schemaSuggestions}
       />
       {extraVisualization}
+      {thresholdNode}
     </>
-  ) : (
-    <HbTextFieldList
-      fields={fields}
-      fieldValues={values}
-      fieldSetters={setters}
-      isPgrest={isPgrest}
-      dictionary={dictionary}
-      schemaSuggestions={schemaSuggestions}
-    />
   );
 
   const dataTab = (
@@ -209,7 +228,8 @@ export function SimpleDashletSettings<C extends object>({
  */
 export function createSimpleDashletSettings(
   fields: readonly SettingsFieldDef[],
-  idPrefix: string
+  idPrefix: string,
+  options?: { thresholds?: boolean }
 ) {
   return function DashletSettings(
     props: Readonly<DashletSettingsProps<Record<string, unknown>>>
@@ -219,6 +239,7 @@ export function createSimpleDashletSettings(
         fields={fields}
         idPrefix={idPrefix}
         settingsProps={props}
+        thresholds={options?.thresholds}
       />
     );
   };

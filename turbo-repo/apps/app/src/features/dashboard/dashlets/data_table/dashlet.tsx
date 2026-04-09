@@ -55,6 +55,10 @@ import {
   getRowColorClasses,
 } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
+import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
+import { normalizeActionsConfig, isSafeActionUrl } from "@/features/dashboard/dashlets/common/action-helpers";
+import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
+import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
 
 export interface DashletConfig {
   title: string;
@@ -70,6 +74,7 @@ export interface DashletConfig {
   dataSourceId?: string;
   plannerVariableName?: string;
   rowColorRules?: ColorRulesConfig;
+  actions?: ActionsConfig;
 }
 
 // ============================================================================
@@ -193,6 +198,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       }),
     [config.rowColorRules]
   );
+  const safeActions = useMemo(
+    () => normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
+    [config.actions],
+  );
+  const hasActions = safeActions.enabled && safeActions.items.length > 0;
 
   // ── Data fetching (pgrest or planner) ───────────────────────────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -323,13 +333,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     {resolveLabel(col.key)}
                   </th>
                 ))}
+                {hasActions && (
+                  <th className="sticky right-0 w-10 border-l border-gray-200 bg-gray-50 px-2 py-3 dark:border-gray-600 dark:bg-gray-700/50">
+                    <span className="sr-only">{tr("dashboard.settings.actions", dictionary)}</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {displayRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length || 1}
+                    colSpan={(columns.length || 1) + (hasActions ? 1 : 0)}
                     className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500"
                   >
                     No data
@@ -374,6 +389,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                           )}
                         </td>
                       ))}
+                      {hasActions && (
+                        <td className={`sticky right-0 border-l border-gray-200 px-2 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}>
+                          <ActionDropdown
+                            items={safeActions.items
+                              .map((action) => {
+                                const ctx = { ...row, row };
+                                const href = resolveHandlebarsField(action.link, ctx);
+                                return isSafeActionUrl(href) ? { action, href } : null;
+                              })
+                              .filter((item): item is NonNullable<typeof item> => item !== null)}
+                            ariaLabel={tr("dashboard.settings.moreActions", dictionary)}
+                          />
+                        </td>
+                      )}
                     </tr>
                   );
                 })

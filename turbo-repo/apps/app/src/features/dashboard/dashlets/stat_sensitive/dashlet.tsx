@@ -6,6 +6,9 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useRowThreshold } from "../common/use-threshold";
+import { getThresholdTextClasses } from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -16,6 +19,7 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   isSensitive: boolean;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -36,6 +40,14 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 const FIELD_DEFAULTS: Record<string, string> = { title: "Account Balance", value: "125847.32", unit: "$" };
 
+function getValueTextClasses(
+  thresholdColor: import("../common/color-rule-types").RuleColor | null,
+  appliesTo: (target: import("../common/threshold-types").ThresholdTarget) => boolean,
+): string {
+  if (thresholdColor && appliesTo("text")) return getThresholdTextClasses(thresholdColor);
+  return "text-gray-900 dark:text-white";
+}
+
 // ============================================================================
 // Component - Style 10: Sensitive Data (Hidden by default)
 // ============================================================================
@@ -49,7 +61,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [isHidden, setIsHidden] = useState(isSensitive);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+
+  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -90,7 +104,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         className={`mt-2 text-3xl font-bold transition-all ${
           isHidden
             ? "text-gray-400 dark:text-gray-500"
-            : "text-gray-900 dark:text-white"
+            : getValueTextClasses(thresholdColor, appliesTo)
         }`}
       >
         {displayValue}

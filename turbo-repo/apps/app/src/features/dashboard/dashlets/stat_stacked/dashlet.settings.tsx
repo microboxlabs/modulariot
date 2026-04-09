@@ -11,6 +11,8 @@ import {
   HbInlineInput,
   PgrestDataTab,
   useSimplePgrestSettings,
+  useThresholdSettings,
+  ThresholdEditor,
 } from "../common";
 import { usePlannerContext } from "../../context/planner-context";
 import {
@@ -90,6 +92,7 @@ export function DashletSettings({
   };
 
   const [items, setItems] = useState(initializeItems);
+  const threshold = useThresholdSettings(config);
 
   const fieldValues = { title, unit };
   const fieldSetters = { title: setTitle, unit: setUnit };
@@ -131,6 +134,7 @@ export function DashletSettings({
       chartType,
       ...pgrestSaveFields,
       ...refresh.savePayload,
+      ...threshold.buildThresholdSavePayload(),
     });
     onClose();
   };
@@ -290,6 +294,19 @@ export function DashletSettings({
           </div>
         ))}
       </div>
+      <ThresholdEditor
+        enabled={threshold.thresholdEnabled}
+        onToggle={threshold.setThresholdEnabled}
+        field={threshold.thresholdField}
+        onFieldChange={threshold.setThresholdField}
+        applyTo={threshold.thresholdApplyTo}
+        onApplyToChange={threshold.setThresholdApplyTo}
+        rules={threshold.thresholdRules}
+        onAdd={threshold.addThresholdRule}
+        onRemove={threshold.removeThresholdRule}
+        onUpdate={threshold.updateThresholdRule}
+        schemaSuggestions={schemaSuggestions}
+      />
     </>
   );
 

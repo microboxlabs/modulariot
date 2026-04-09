@@ -8,6 +8,12 @@ import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { useRowThreshold } from "../common/use-threshold";
+import {
+  getThresholdTextClasses,
+  getThresholdBgClasses,
+} from "../common/threshold-engine";
+import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
 // Configuration Types
@@ -24,6 +30,7 @@ export interface DashletConfig extends PgrestDashletFields {
   unit: string;
   showHeader: boolean;
   chartType?: ChartType;
+  thresholds?: ThresholdConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -257,6 +264,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     config,
     FIELD_DEFAULTS,
     refreshIntervalMs
+  );
+
+  const { color: thresholdColor, appliesTo } = useRowThreshold(
+    config.thresholds,
+    firstRow
   );
 
   // Resolve Handlebars templates in item labels and values (only in remote modes)

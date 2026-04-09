@@ -108,8 +108,8 @@ export default function FleetManagementPage({
         state: "maintenance",
       },
       {
-        id: "alerts",
-        labelKey: "alerts",
+        id: "symptoms",
+        labelKey: "symptoms",
         value: vehicles.filter((v) => v.status === "alert").length,
         icon: HiOutlineExclamationTriangle,
         color: "text-red-600 bg-red-100",

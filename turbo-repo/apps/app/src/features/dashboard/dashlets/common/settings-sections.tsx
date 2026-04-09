@@ -39,10 +39,19 @@ interface ColumnEditorProps {
   columns: ColumnItem[];
   onAdd: () => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, field: "key" | "label" | "type", value: string) => void;
+  onUpdate: (
+    id: string,
+    field: "key" | "label" | "type",
+    value: string
+  ) => void;
   onAddColorMapping?: (colId: string) => void;
   onRemoveColorMapping?: (colId: string, index: number) => void;
-  onUpdateColorMapping?: (colId: string, index: number, field: "operator" | "value" | "color", val: string) => void;
+  onUpdateColorMapping?: (
+    colId: string,
+    index: number,
+    field: "operator" | "value" | "color",
+    val: string
+  ) => void;
   labels: {
     columns: string;
     key: string;
@@ -83,7 +92,11 @@ export function ColumnEditor({
                   placeholder={labels.key}
                   value={col.key}
                   onChange={(e) => onUpdate(col._id, "key", e.target.value)}
-                  color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
+                  color={
+                    handlebarsColorKeys
+                      ? getFlowbiteColor(getHandlebarsStatus(col.key))
+                      : undefined
+                  }
                 />
               </div>
               <div className="min-w-0 flex-1">
@@ -92,7 +105,11 @@ export function ColumnEditor({
                   placeholder={labels.label}
                   value={col.label}
                   onChange={(e) => onUpdate(col._id, "label", e.target.value)}
-                  color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.label)) : undefined}
+                  color={
+                    handlebarsColorKeys
+                      ? getFlowbiteColor(getHandlebarsStatus(col.label))
+                      : undefined
+                  }
                 />
               </div>
               <div className="w-28 shrink-0">
@@ -109,74 +126,103 @@ export function ColumnEditor({
                 type="button"
                 onClick={() => onRemove(col._id)}
                 onMouseDown={stopPropagation}
-                className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
               >
                 <HiTrash className="h-4 w-4" />
               </button>
             </div>
 
             {/* Inline badge color map */}
-            {col.type === "badge" && onAddColorMapping && onRemoveColorMapping && onUpdateColorMapping && (
-              <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
-                {(col.colorMap ?? []).map((mapping, idx) => (
-                  <div key={`${col._id}-cm-${mapping.operator}-${mapping.value}-${mapping.color}`} className="flex items-center gap-1">
-                    <div className="w-24 shrink-0">
-                      <Select
-                        sizing="sm"
-                        value={mapping.operator}
-                        onChange={(e) => onUpdateColorMapping(col._id, idx, "operator", e.target.value)}
-                      >
-                        {COLOR_RULE_OPERATORS.map((op) => (
-                          <option key={op} value={op}>
-                            {labels.operatorLabels[op]}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <TextInput
-                        sizing="sm"
-                        placeholder={labels.valuePlaceholder}
-                        value={mapping.value}
-                        onChange={(e) => onUpdateColorMapping(col._id, idx, "value", e.target.value)}
-                      />
-                    </div>
-                    <div className="w-24 shrink-0">
-                      <Select
-                        sizing="sm"
-                        value={mapping.color}
-                        onChange={(e) => onUpdateColorMapping(col._id, idx, "color", e.target.value)}
-                      >
-                        {RULE_COLORS.map((c) => (
-                          <option key={c} value={c}>
-                            {labels.colorLabels[c]}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <span className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`} />
-                    <button
-                      type="button"
-                      onClick={() => onRemoveColorMapping(col._id, idx)}
-                      onMouseDown={stopPropagation}
-                      className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+            {col.type === "badge" &&
+              onAddColorMapping &&
+              onRemoveColorMapping &&
+              onUpdateColorMapping && (
+                <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
+                  {(col.colorMap ?? []).map((mapping, idx) => (
+                    <div
+                      key={`${col._id}-cm-${mapping.operator}-${mapping.value}-${mapping.color}`}
+                      className="flex items-center gap-1"
                     >
-                      <HiTrash className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-                <Button
-                  color="light"
-                  size="xs"
-                  onClick={() => onAddColorMapping(col._id)}
-                  onMouseDown={stopPropagation}
-                  className="no-drag"
-                >
-                  <HiPlus className="mr-1 h-3 w-3" />
-                  {labels.addMapping}
-                </Button>
-              </div>
-            )}
+                      <div className="w-24 shrink-0">
+                        <Select
+                          sizing="sm"
+                          value={mapping.operator}
+                          onChange={(e) =>
+                            onUpdateColorMapping(
+                              col._id,
+                              idx,
+                              "operator",
+                              e.target.value
+                            )
+                          }
+                        >
+                          {COLOR_RULE_OPERATORS.map((op) => (
+                            <option key={op} value={op}>
+                              {labels.operatorLabels[op]}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <TextInput
+                          sizing="sm"
+                          placeholder={labels.valuePlaceholder}
+                          value={mapping.value}
+                          onChange={(e) =>
+                            onUpdateColorMapping(
+                              col._id,
+                              idx,
+                              "value",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <Select
+                          sizing="sm"
+                          value={mapping.color}
+                          onChange={(e) =>
+                            onUpdateColorMapping(
+                              col._id,
+                              idx,
+                              "color",
+                              e.target.value
+                            )
+                          }
+                        >
+                          {RULE_COLORS.map((c) => (
+                            <option key={c} value={c}>
+                              {labels.colorLabels[c]}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <span
+                        className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onRemoveColorMapping(col._id, idx)}
+                        onMouseDown={stopPropagation}
+                        className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                      >
+                        <HiTrash className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    color="light"
+                    size="xs"
+                    onClick={() => onAddColorMapping(col._id)}
+                    onMouseDown={stopPropagation}
+                    className="no-drag"
+                  >
+                    <HiPlus className="mr-1 h-3 w-3" />
+                    {labels.addMapping}
+                  </Button>
+                </div>
+              )}
           </div>
         ))}
       </div>
@@ -206,7 +252,12 @@ interface FilterEditorProps {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: keyof FilterItemConfig, value: string) => void;
-  labels: { filter: string; filterRows: string; label: string; addFilter: string };
+  labels: {
+    filter: string;
+    filterRows: string;
+    label: string;
+    addFilter: string;
+  };
 }
 
 export function FilterEditor({
@@ -265,7 +316,7 @@ export function FilterEditor({
                     type="button"
                     onClick={() => onRemove(fi._id)}
                     onMouseDown={stopPropagation}
-                    className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                    className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
                   >
                     <HiTrash className="h-4 w-4" />
                   </button>
@@ -508,7 +559,9 @@ export function ColorRuleEditor({
                     <Select
                       sizing="sm"
                       value={rule.column}
-                      onChange={(e) => onUpdate(rule._id, "column", e.target.value)}
+                      onChange={(e) =>
+                        onUpdate(rule._id, "column", e.target.value)
+                      }
                     >
                       {columnsWithKeys.map((c) => (
                         <option key={c._id} value={c.key}>
@@ -558,7 +611,11 @@ interface ActionsEditorProps {
   items: ActionItemWithId[];
   onAdd: () => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, field: "name" | "link" | "target", value: string) => void;
+  onUpdate: (
+    id: string,
+    field: "name" | "link" | "target",
+    value: string
+  ) => void;
   labels: {
     actions: string;
     addAction: string;
@@ -592,14 +649,19 @@ export function ActionsEditor({
           <div>
             <div className="space-y-2">
               {items.map((item) => (
-                <div key={item._id} className="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-gray-600">
+                <div
+                  key={item._id}
+                  className="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
+                >
                   <div className="flex items-center gap-1">
                     <div className="min-w-0 flex-1">
                       <TextInput
                         sizing="sm"
                         placeholder={labels.actionName}
                         value={item.name}
-                        onChange={(e) => onUpdate(item._id, "name", e.target.value)}
+                        onChange={(e) =>
+                          onUpdate(item._id, "name", e.target.value)
+                        }
                       />
                     </div>
                     <div className="w-28 shrink-0">
@@ -607,9 +669,17 @@ export function ActionsEditor({
                         sizing="sm"
                         aria-label={labels.actionTarget}
                         value={item.target}
-                        onChange={(e) => onUpdate(item._id, "target", e.target.value as ActionTarget)}
+                        onChange={(e) =>
+                          onUpdate(
+                            item._id,
+                            "target",
+                            e.target.value as ActionTarget
+                          )
+                        }
                       >
-                        <option value="_blank">{labels.actionTargetBlank}</option>
+                        <option value="_blank">
+                          {labels.actionTargetBlank}
+                        </option>
                         <option value="_self">{labels.actionTargetSelf}</option>
                       </Select>
                     </div>
@@ -627,7 +697,9 @@ export function ActionsEditor({
                       sizing="sm"
                       placeholder={labels.actionLink}
                       value={item.link}
-                      onChange={(e) => onUpdate(item._id, "link", e.target.value)}
+                      onChange={(e) =>
+                        onUpdate(item._id, "link", e.target.value)
+                      }
                       color={getFlowbiteColor(getHandlebarsStatus(item.link))}
                     />
                   </div>
@@ -673,10 +745,7 @@ export function CheckboxColumnList({
       <Label className="mb-1.5 block text-sm font-medium">{label}</Label>
       <div className="space-y-1">
         {columnsWithKeys.map((c) => (
-          <label
-            key={c._id}
-            className="flex cursor-pointer items-center gap-2"
-          >
+          <label key={c._id} className="flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
               checked={selected.includes(c.key)}

@@ -5,7 +5,10 @@ import { useMemo, useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
-import { SettingsModalShell, useWidgetRefreshSettings } from "./settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "./settings-modal-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useThresholdSettings } from "./use-threshold-settings";
@@ -51,7 +54,7 @@ function toStringOrDefault(v: unknown, fallback: string): string {
 
 export function useFieldState(
   config: Record<string, unknown>,
-  fields: readonly SettingsFieldDef[],
+  fields: readonly SettingsFieldDef[]
 ) {
   const [values, setValues] = useState<Record<string, string>>(() => {
     const result: Record<string, string> = {};
@@ -65,8 +68,7 @@ export function useFieldState(
     const result: Record<string, (v: string) => void> = {};
     for (const f of fields) {
       const key = f.state;
-      result[key] = (v: string) =>
-        setValues((prev) => ({ ...prev, [key]: v }));
+      result[key] = (v: string) => setValues((prev) => ({ ...prev, [key]: v }));
     }
     return result;
     // fields is a module-level const — safe to depend on reference
@@ -99,7 +101,7 @@ export function useFieldState(
 export function SimpleDashletSettings<C extends object>({
   fields,
   idPrefix,
-  settingsProps: { isOpen, onClose, config, onSave, dictionary },
+  settingsProps: { isOpen, onClose, config, onSave, dictionary, dashletName },
   extraVisualization,
   extraSaveFields,
   thresholds: showThresholds = false,
@@ -107,13 +109,15 @@ export function SimpleDashletSettings<C extends object>({
   const configRecord = config as unknown as Record<string, unknown>;
   const { values, setters, fieldNames, buildSaveValues } = useFieldState(
     configRecord,
-    fields,
+    fields
   );
 
   const refresh = useWidgetRefreshSettings(configRecord, dictionary);
   const { schemas } = usePlannerContext();
 
-  const threshold = useThresholdSettings({ thresholds: configRecord.thresholds as ThresholdConfig | undefined });
+  const threshold = useThresholdSettings({
+    thresholds: configRecord.thresholds as ThresholdConfig | undefined,
+  });
 
   const {
     isPgrest,
@@ -204,6 +208,7 @@ export function SimpleDashletSettings<C extends object>({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }
@@ -224,10 +229,10 @@ export function SimpleDashletSettings<C extends object>({
 export function createSimpleDashletSettings(
   fields: readonly SettingsFieldDef[],
   idPrefix: string,
-  options?: { thresholds?: boolean },
+  options?: { thresholds?: boolean }
 ) {
   return function DashletSettings(
-    props: Readonly<DashletSettingsProps<Record<string, unknown>>>,
+    props: Readonly<DashletSettingsProps<Record<string, unknown>>>
   ) {
     return (
       <SimpleDashletSettings

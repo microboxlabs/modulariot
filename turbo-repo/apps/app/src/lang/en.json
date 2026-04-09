@@ -2691,6 +2691,15 @@
     "vehicleDetail": {
       "title": "Vehicle Details",
       "back": "Back to fleet",
+      "lastSignalMap": {
+        "title": "Last signal location",
+        "snapshot": "Snapshot",
+        "share": "Share",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "unavailable": "No location available",
+        "openInMaps": "Open in Google Maps"
+      },
       "sections": {
         "health": {
           "title": "Health",

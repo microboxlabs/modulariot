@@ -51,6 +51,10 @@ export interface Vehicle {
   nextMaintenance: string;
   kmTraveled: number;
   lastSignal?: string;
+  /** Latest known latitude in decimal degrees. */
+  latitude?: number;
+  /** Latest known longitude in decimal degrees. */
+  longitude?: number;
   assetId?: string;
   gamification?: VehicleGamification;
 }

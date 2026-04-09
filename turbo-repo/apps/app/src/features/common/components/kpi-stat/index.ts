@@ -4,4 +4,5 @@ export type {
   ValueConfig as KpiStatValueConfig,
   DescriptionConfig as KpiStatDescriptionConfig,
   IconConfig as KpiStatIconConfig,
+  KpiStatStyle,
 } from "./kpi-stat";

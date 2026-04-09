@@ -15,10 +15,14 @@ interface ChartOptionInput {
   stacked: boolean;
 }
 
-const DARK_TEXT = "#d1d5db";
-const LIGHT_TEXT = "#374151";
-const DARK_AXIS_LINE = "#4b5563";
-const LIGHT_AXIS_LINE = "#e5e7eb";
+const DARK_TEXT = "#9ca3af";
+const LIGHT_TEXT = "#6b7280";
+const DARK_AXIS_LINE = "#374151";
+const LIGHT_AXIS_LINE = "#d1d5db";
+const DARK_TOOLTIP_BG = "#374151";
+const LIGHT_TOOLTIP_BG = "#ffffff";
+const DARK_TOOLTIP_TEXT = "#f3f4f6";
+const LIGHT_TOOLTIP_TEXT = "#111827";
 
 function noDataOption(darkMode: boolean, label = "No data"): EChartsOption {
   return {
@@ -39,19 +43,31 @@ function buildCartesianOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   colors: string[],
-  darkMode: boolean,
+  darkMode: boolean
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
 
   return {
     color: colors,
-    tooltip: { trigger: "axis" },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+      borderWidth: 0,
+      textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+    },
     legend: {
       show: config.showLegend,
       textStyle: { color: textColor },
+      bottom: 0,
     },
-    grid: { left: 48, right: 16, top: 40, bottom: 32, containLabel: true },
+    grid: {
+      left: 8,
+      right: 8,
+      top: 24,
+      bottom: config.showLegend ? 32 : 8,
+      containLabel: true,
+    },
     xAxis: {
       type: "category",
       data: rows.map((r) => r[config.xAxisColumn] ?? ""),
@@ -87,7 +103,7 @@ function buildPieOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   colors: string[],
-  darkMode: boolean,
+  darkMode: boolean
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const valueSeries = config.series[0];
@@ -104,15 +120,22 @@ function buildPieOption(
 
   return {
     color: colors,
-    tooltip: { trigger: "item" },
+    tooltip: {
+      trigger: "item",
+      backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+      borderWidth: 0,
+      textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+    },
     legend: {
       show: config.showLegend,
       textStyle: { color: textColor },
+      bottom: 0,
     },
     series: [
       {
         type: "pie",
         radius: ["30%", "65%"],
+        center: ["50%", config.showLegend ? "45%" : "50%"],
         data,
         label: { color: textColor },
       },
@@ -124,7 +147,7 @@ function buildGaugeOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   colors: string[],
-  darkMode: boolean,
+  darkMode: boolean
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const valueSeries = config.series[0];
@@ -136,9 +159,16 @@ function buildGaugeOption(
 
   return {
     color: colors,
+    tooltip: {
+      trigger: "item",
+      backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+      borderWidth: 0,
+      textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+    },
     series: [
       {
         type: "gauge",
+        radius: "100%",
         data: [{ value, name: valueSeries.label }],
         detail: {
           formatter: "{value}",
@@ -155,7 +185,7 @@ export function buildEChartsOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   darkMode = false,
-  noDataLabel?: string,
+  noDataLabel?: string
 ): EChartsOption {
   if (rows.length === 0) return noDataOption(darkMode, noDataLabel);
 

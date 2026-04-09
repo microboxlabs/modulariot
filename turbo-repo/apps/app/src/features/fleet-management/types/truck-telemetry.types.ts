@@ -53,6 +53,8 @@ export interface TruckTelemetryDetail {
     total_last_7d: number;
     /** Rolling daily average over the lookback window. */
     signals_per_day: number;
+    /** Instantaneous pulse rate (pulses / minute); null when SIN_SENAL. */
+    pulses_per_minute: number | null;
     /** Signal stability percentage [0,100]; null when SIN_SENAL. */
     stability_pct: number | null;
     freshness: SignalFreshness;

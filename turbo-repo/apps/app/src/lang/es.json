@@ -2842,7 +2842,7 @@
           "engineTemp": "Temp. motor",
           "location": "Ubicación",
           "transmissionInterval": "Intervalo de transmisión",
-          "everySeconds": "Cada {seconds} s",
+          "pulsesPerMinute": "{pulses} pulsos/min",
           "hoursSinceSignal": "Horas sin señal",
           "signalsPerDay": "Señales / día",
           "stability": "Estabilidad",

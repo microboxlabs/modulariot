@@ -140,6 +140,11 @@ export interface PgrestSignalRow {
   senales_por_dia: number | null;
   /** Instantaneous pulse rate (pulses / minute); null when SIN_SENAL. */
   pulsos_por_minuto: number | null;
+  /**
+   * Human-readable location label of the last signal; null when unknown.
+   * Name preserves the upstream typo (`ubication` vs `ubicacion`).
+   */
+  ubication: string | null;
   // Per-metric capability flags — true when the device reports this metric.
   has_vehicle_speed: boolean;
   has_odometer: boolean;
@@ -702,8 +707,10 @@ function buildTelemetryCapabilities(row: PgrestSignalRow): TelemetryCapabilities
  */
 export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
   const provider = row.proveedor_gps?.trim();
+  const ubication = row.ubication?.trim();
   return {
     plate: row.patente,
+    location: ubication && ubication.length > 0 ? ubication : null,
     signal: {
       last_at: row.ultima_senal,
       hours_since_last:

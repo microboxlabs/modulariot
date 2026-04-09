@@ -2811,7 +2811,7 @@
           "engineTemp": "Engine temp",
           "location": "Location",
           "transmissionInterval": "Transmission interval",
-          "everySeconds": "Every {seconds} s",
+          "pulsesPerMinute": "{pulses} pulses/min",
           "hoursSinceSignal": "Hours since signal",
           "signalsPerDay": "Signals / day",
           "stability": "Stability",

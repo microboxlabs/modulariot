@@ -149,18 +149,16 @@ function deriveMotorLabel(
 }
 
 /**
- * Transmission interval derived from `pulsos_por_minuto`. Inverted to
- * seconds between pulses (60 / ppm) and rounded, so the label format
- * stays "Every N seconds" even though the source unit is pulses/min.
+ * Transmission rate sourced from `pulsos_por_minuto` and rendered as-is
+ * (pulses / minute) so the displayed unit matches the upstream metric.
  */
 function fmtTransmissionInterval(
   pulsesPerMinute: number | null,
   dict: I18nRecord
 ): string {
   if (pulsesPerMinute === null || pulsesPerMinute <= 0) return "—";
-  const seconds = Math.round(60 / pulsesPerMinute);
-  return tr("vehicleDetail.sections.telemetry.everySeconds", dict, {
-    seconds: String(seconds),
+  return tr("vehicleDetail.sections.telemetry.pulsesPerMinute", dict, {
+    pulses: String(Math.round(pulsesPerMinute)),
   });
 }
 
@@ -445,7 +443,7 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.location", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: vehicle.lastLocation || "—", className: "text-base" }}
+              value={{ text: telemetry.location ?? "—", className: "text-base" }}
               className="col-span-2"
               variant="horizontal"
             />

@@ -44,6 +44,9 @@ export interface TelemetryCapabilities {
 export interface TruckTelemetryDetail {
   plate: string;
 
+  /** Human-readable location label of the last signal; null when unknown. */
+  location: string | null;
+
   signal: {
     /** ISO timestamp of the last signal; null when SIN_SENAL. */
     last_at: string | null;

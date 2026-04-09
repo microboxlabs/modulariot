@@ -206,7 +206,7 @@ export default function TelemetrySection({
         description={description}
         status="ok"
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={`tel-skel-${i}`}
@@ -309,7 +309,7 @@ export default function TelemetrySection({
           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             {tr("vehicleDetail.sections.telemetry.lastDataReceived", dict)}
           </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <KpiStat
               icon={{
                 icon: TbGauge,
@@ -322,44 +322,47 @@ export default function TelemetrySection({
               }}
               value={{
                 text: fmtKm(caps.odometer_km),
-                className: "text-blue-600 dark:text-blue-400 font-bold",
+                className: "text-blue-600 dark:text-blue-400 font-bold text-base",
               }}
               className="bg-blue-100/40 dark:bg-blue-600/10 border border-blue-500/50"
               variant="horizontal"
             />
-            <KpiStat
-              icon={{
-                icon: HiOutlineClock,
-                className:
-                  "text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700",
-              }}
-              title={{
-                text: tr("vehicleDetail.sections.telemetry.dateTime", dict),
-                className: "text-gray-500 dark:text-gray-300",
-              }}
-              value={{
-                text: telemetry.signal.last_at
-                  ? formatDateString(telemetry.signal.last_at)
-                  : "—",
-              }}
-              variant="horizontal"
-            />
-            <KpiStat
-              icon={{
-                icon: TbRoute,
-                className:
-                  "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
-              }}
-              title={{
-                text: tr("vehicleDetail.sections.telemetry.statusLabel", dict),
-                className: "text-gray-500 dark:text-gray-300",
-              }}
-              value={{
-                text: deriveStatusLabel(caps, dict),
-                className: "text-green-500 dark:text-green-400 font-bold",
-              }}
-              variant="horizontal"
-            />
+            <div className="col-span-2 grid grid-cols-2 gap-3 w-full">
+              <KpiStat
+                icon={{
+                  icon: HiOutlineClock,
+                  className:
+                    "text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700",
+                }}
+                title={{
+                  text: tr("vehicleDetail.sections.telemetry.dateTime", dict),
+                  className: "text-gray-500 dark:text-gray-300",
+                }}
+                value={{
+                  text: telemetry.signal.last_at
+                    ? formatDateString(telemetry.signal.last_at)
+                    : "—",
+                  className: "text-base",
+                }}
+                variant="horizontal"
+              />
+              <KpiStat
+                icon={{
+                  icon: TbRoute,
+                  className:
+                    "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
+                }}
+                title={{
+                  text: tr("vehicleDetail.sections.telemetry.statusLabel", dict),
+                  className: "text-gray-500 dark:text-gray-300",
+                }}
+                value={{
+                  text: deriveStatusLabel(caps, dict),
+                  className: "text-green-500 dark:text-green-400 font-bold text-base",
+                }}
+                variant="horizontal"
+              />
+            </div>
             <KpiStat
               icon={{
                 icon: TbEngine,
@@ -372,7 +375,7 @@ export default function TelemetrySection({
               }}
               value={{
                 text: deriveMotorLabel(caps, dict),
-                className: "text-green-500 dark:text-green-400 font-bold",
+                className: "text-green-500 dark:text-green-400 font-bold text-base",
               }}
               variant="horizontal"
             />
@@ -386,7 +389,7 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.speed", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: fmtKph(caps.vehicle_speed_kph) }}
+              value={{ text: fmtKph(caps.vehicle_speed_kph), className: "text-base" }}
               variant="horizontal"
             />
             <KpiStat
@@ -399,8 +402,8 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.rpm", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: fmtRpm(caps.engine_rpm) }}
-              className="md:col-span-2"
+              value={{ text: fmtRpm(caps.engine_rpm), className: "text-base" }}
+              className="col-span-2"
               variant="horizontal"
             />
             <KpiStat
@@ -415,7 +418,7 @@ export default function TelemetrySection({
               }}
               value={{
                 text: fmtVolts(caps.battery_voltage_v),
-                className: "text-green-500 dark:text-green-400 font-bold",
+                className: "text-green-500 dark:text-green-400 font-bold text-base",
               }}
               variant="horizontal"
             />
@@ -429,7 +432,7 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.engineTemp", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: fmtCelsius(caps.coolant_temp_c) }}
+              value={{ text: fmtCelsius(caps.coolant_temp_c), className: "text-base" }}
               variant="horizontal"
             />
             <KpiStat
@@ -442,8 +445,8 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.location", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: vehicle.lastLocation || "—" }}
-              className="md:col-span-2"
+              value={{ text: vehicle.lastLocation || "—", className: "text-base" }}
+              className="col-span-2"
               variant="horizontal"
             />
             <KpiStat
@@ -464,6 +467,7 @@ export default function TelemetrySection({
                   telemetry.signal.signals_per_day,
                   dict
                 ),
+                className: "text-base",
               }}
               variant="horizontal"
             />

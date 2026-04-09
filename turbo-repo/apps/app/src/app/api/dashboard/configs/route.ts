@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { listDashboardConfigs } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  listDashboardConfigs,
+  getGroupsForPerson,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
   handleApiError,
   unauthorizedResponse,
@@ -28,11 +31,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await listDashboardConfigs(session, site);
+    const [result, userGroups] = await Promise.all([
+      listDashboardConfigs(session, site),
+      getGroupsForPerson(session),
+    ]);
+
+    // Filter out dashboards the user is not allowed to access
+    const accessible = (result.data ?? []).filter((item) => {
+      const allowed = item.config?.allowedGroups;
+      if (!Array.isArray(allowed) || allowed.length === 0) return true;
+      return allowed.some((g: string) => userGroups.includes(g));
+    });
 
     // Transform { slug, config } → { slug, name } for the client
     const transformed = {
-      data: (result.data ?? []).map((item) => {
+      data: accessible.map((item) => {
         const rawName = item.config?.name;
         const name =
           typeof rawName === "string" && rawName.trim().length > 0

@@ -7,8 +7,10 @@ import type {
   GpsHealth,
   SignalFreshness,
 } from "../../types/truck-telemetry.types";
+import type { TruckEventItem } from "../../types/truck-events.types";
 import { useFleetTruckMaintenance } from "../../hooks/use-fleet-truck-maintenance";
 import { useFleetTruckTelemetry } from "../../hooks/use-fleet-truck-telemetry";
+import { useFleetTruckEvents } from "../../hooks/use-fleet-truck-events";
 import {
   HealthSection,
   MaintenanceSection,
@@ -39,14 +41,6 @@ export interface VehicleDetailData {
     resolved: number;
     responseTimeHour: number;
   };
-  events: Array<{
-    title: string;
-    description: string;
-    urgency: "critical" | "warning" | "info";
-    direction: string;
-    date: string;
-    category: "evento" | "mantencion";
-  }>;
   usage: {
     totalKilometers: number;
     monthlyContractualConsumptionPercentage: number;
@@ -110,11 +104,20 @@ export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus
   return "ok";
 }
 
-export function getEventsStatus(data: VehicleDetailData): SectionStatus {
-  const hasCriticalEvent = data.events.some(event => event.urgency === "critical");
-  const hasWarningEvent = data.events.some(event => event.urgency === "warning");
-  if (hasCriticalEvent) return "critical";
-  if (hasWarningEvent) return "warning";
+/**
+ * Derive section status from the DTO events list. Severity mapping:
+ *   Crítico/Alto (icu 3–4) → critical
+ *   Medio (icu 2)          → warning
+ *   Bajo (icu 1)           → info (ok)
+ * Shared with EventsSection via import.
+ */
+export function getEventsSectionStatus(
+  events: TruckEventItem[]
+): SectionStatus {
+  const hasCritical = events.some((e) => e.icu_code >= 3);
+  const hasWarning = events.some((e) => e.icu_code === 2);
+  if (hasCritical) return "critical";
+  if (hasWarning) return "warning";
   return "ok";
 }
 
@@ -140,10 +143,9 @@ export interface SectionStatuses {
  */
 export function getMockSectionStatuses(
   data: VehicleDetailData
-): Omit<SectionStatuses, "maintenance" | "telemetry"> {
+): Omit<SectionStatuses, "maintenance" | "telemetry" | "events"> {
   return {
     technicalHealth: getTechnicalHealthStatus(data),
-    events: getEventsStatus(data),
     usage: getUsageStatus(data),
   };
 }
@@ -182,32 +184,6 @@ const vehicleData = {
     "resolved": 5,
     "responseTimeHour": 18
   },
-  events: [
-    {
-      title: "Frenado brusco detectado",
-      description: "Sistema de telemetría detectó evento de frenado brusco superior a 8G",
-      urgency: "warning",
-      direction: "Av. Kennedy 5000, Las Condes",
-      date: "10 Feb 2026 14:45",
-      category: "evento",
-    } as const,
-    {
-      title: "Exceso de velocidad",
-      description: "Velocidad máxima de 120 km/h superada en zona de 80 km/h",
-      urgency: "critical",
-      direction: "Ruta 5 Sur, Km 45",
-      date: "10 Feb 2026 12:30",
-      category: "evento",
-    } as const,
-    {
-      title: "Mantención programada completada",
-      description: "Cambio de aceite y filtros realizado según pauta de 10.000 km",
-      urgency: "info",
-      direction: "Taller Central, Santiago",
-      date: "08 Feb 2026 09:00",
-      category: "mantencion",
-    } as const,
-  ],
   usage: {
     totalKilometers: 47400,
     monthlyContractualConsumptionPercentage: 75,
@@ -231,6 +207,7 @@ export default function VehicleDetailAccordion({
   // health overview doesn't flicker or go red on transient states.
   const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
   const { telemetry } = useFleetTruckTelemetry(vehicle.plate);
+  const { eventsDetail } = useFleetTruckEvents(vehicle.plate);
 
   const maintenanceStatus: SectionStatus = maintenance
     ? getMaintenanceSectionStatus(maintenance.status.criticality)
@@ -241,11 +218,15 @@ export default function VehicleDetailAccordion({
         telemetry.gps.health
       )
     : "ok";
+  const eventsStatus: SectionStatus = eventsDetail
+    ? getEventsSectionStatus(eventsDetail.events)
+    : "ok";
 
   const statuses: SectionStatuses = {
     ...getMockSectionStatuses(vehicleData),
     maintenance: maintenanceStatus,
     telemetry: telemetryStatus,
+    events: eventsStatus,
   };
   const healthScore = getOverallHealthScore(statuses);
 
@@ -255,7 +236,7 @@ export default function VehicleDetailAccordion({
       <MaintenanceSection vehicle={vehicle} dict={dict} />
       <TechnicalHealthSection dict={dict} data={vehicleData} status={statuses.technicalHealth} />
       <TelemetrySection vehicle={vehicle} dict={dict} />
-      <EventsSection dict={dict} data={vehicleData} status={statuses.events} />
+      <EventsSection vehicle={vehicle} dict={dict} />
       <UsageSection dict={dict} data={vehicleData} status={statuses.usage} />
     </div>
   );

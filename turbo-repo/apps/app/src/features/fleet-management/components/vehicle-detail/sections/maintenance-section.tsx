@@ -257,8 +257,15 @@ export default function MaintenanceSection({
             text: tr("vehicleDetail.sections.maintenance.lastService", dict),
           }}
           value={{
+            // lastServiceAt: known date, formatted.
+            // lastServiceKm !== null: serviced, date unknown (pgrest dropped
+            //   `last_seen_at`) — show a dash so the description's "A los X km"
+            //   still carries the signal.
+            // else: actually never serviced (km_os was 0).
             text: lastServiceAt
               ? formatDateString(lastServiceAt)
+              : lastServiceKm !== null
+              ? "—"
               : tr("vehicleDetail.sections.maintenance.neverServiced", dict),
           }}
           description={{ text: kpiLastServiceDesc }}
@@ -288,7 +295,12 @@ export default function MaintenanceSection({
             ),
           }}
           value={{
-            text: String(maintenance.plan.completed_services),
+            // Nullable: source function dropped `num_maintance`. Fall back
+            // to em-dash instead of rendering "null" or a misleading "0".
+            text:
+              maintenance.plan.completed_services !== null
+                ? String(maintenance.plan.completed_services)
+                : "—",
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{

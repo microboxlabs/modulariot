@@ -56,8 +56,13 @@ export interface TruckMaintenanceDetail {
     last_service_at: string | null;
     /** `interval_km + last_service_km`. */
     next_service_target_km: number;
-    /** Distinct completed work orders. */
-    completed_services: number;
+    /**
+     * Distinct completed work orders. Temporarily nullable: the pgrest
+     * source function (`fn_dx_mantenimiento_detalle`) recently dropped
+     * `num_maintance` from its output. Restore when the Java endpoint
+     * ships.
+     */
+    completed_services: number | null;
     /** `odometer.current_km - plan.last_service_km`, null when either is missing. */
     km_since_last_service: number | null;
     /** `(km_since_last_service / interval_km) * 100`, null when `km_since_last_service` is null. */

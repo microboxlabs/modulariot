@@ -144,7 +144,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <div className="h-full w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700">
           <div
             className="h-full transition-all duration-300"
-            style={{ width: `${clampedPercentage}%`, backgroundColor: `#${barColor}` }}
+            style={{
+              width: `${clampedPercentage}%`,
+              backgroundColor: `#${barColor}`,
+            }}
           />
         </div>
       </div>

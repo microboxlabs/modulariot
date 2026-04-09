@@ -12,7 +12,10 @@ import {
   PgrestDataTab,
   useActiveProviders,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
@@ -21,9 +24,27 @@ type SimpleDataMode = "static" | "pgrest" | "planner";
 
 /** Field config for the three percentage_value text fields */
 const PERCENTAGE_FIELDS = [
-  { id: "pv-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Progress" },
-  { id: "pv-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.current}}", staticPlaceholder: "6" },
-  { id: "pv-max", labelKey: "common.max", state: "max", hbPlaceholder: "{{row.total}}", staticPlaceholder: "10" },
+  {
+    id: "pv-title",
+    labelKey: "common.title",
+    state: "title",
+    hbPlaceholder: "{{row.label}}",
+    staticPlaceholder: "Progress",
+  },
+  {
+    id: "pv-value",
+    labelKey: "common.value",
+    state: "value",
+    hbPlaceholder: "{{row.current}}",
+    staticPlaceholder: "6",
+  },
+  {
+    id: "pv-max",
+    labelKey: "common.max",
+    state: "max",
+    hbPlaceholder: "{{row.total}}",
+    staticPlaceholder: "10",
+  },
 ] as const;
 
 /**
@@ -45,9 +66,11 @@ export function DashletSettings({
   const [max, setMax] = useState(String(config.max ?? "10"));
   const [barColor, setBarColor] = useState(config.barColor ?? "2563eb");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
@@ -79,17 +102,20 @@ export function DashletSettings({
       : undefined;
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) {
-        setTitle(`{{row.${detected[0].key}}}`);
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) {
+          setTitle(`{{row.${detected[0].key}}}`);
+        }
+        if (detected.length >= 2) {
+          setValue(`{{row.${detected[1].key}}}`);
+        }
+        if (detected.length >= 3) {
+          setMax(`{{row.${detected[2].key}}}`);
+        }
       }
-      if (detected.length >= 2) {
-        setValue(`{{row.${detected[1].key}}}`);
-      }
-      if (detected.length >= 3) {
-        setMax(`{{row.${detected[2].key}}}`);
-      }
-    }),
+    ),
   });
 
   const handleSave = () => {
@@ -102,7 +128,8 @@ export function DashletSettings({
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
       ...refresh.savePayload,
     });

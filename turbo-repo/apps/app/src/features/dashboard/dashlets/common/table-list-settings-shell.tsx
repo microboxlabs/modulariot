@@ -66,8 +66,14 @@ export function TableListSettingsShell({
     not_contains: tr("dashboard.settings.operatorNotContains", dictionary),
     greater_than: tr("dashboard.settings.operatorGreaterThan", dictionary),
     less_than: tr("dashboard.settings.operatorLessThan", dictionary),
-    greater_than_or_equal: tr("dashboard.settings.operatorGreaterThanOrEqual", dictionary),
-    less_than_or_equal: tr("dashboard.settings.operatorLessThanOrEqual", dictionary),
+    greater_than_or_equal: tr(
+      "dashboard.settings.operatorGreaterThanOrEqual",
+      dictionary
+    ),
+    less_than_or_equal: tr(
+      "dashboard.settings.operatorLessThanOrEqual",
+      dictionary
+    ),
   };
 
   const colorLabels: Record<RuleColor, string> = {
@@ -184,11 +190,16 @@ export function TableListSettingsShell({
           actionName: tr("dashboard.settings.actionName", dictionary),
           actionLink: tr("dashboard.settings.actionLink", dictionary),
           actionTarget: tr("dashboard.settings.actionTarget", dictionary),
-          actionTargetSelf: tr("dashboard.settings.actionTargetSelf", dictionary),
-          actionTargetBlank: tr("dashboard.settings.actionTargetBlank", dictionary),
+          actionTargetSelf: tr(
+            "dashboard.settings.actionTargetSelf",
+            dictionary
+          ),
+          actionTargetBlank: tr(
+            "dashboard.settings.actionTargetBlank",
+            dictionary
+          ),
         }}
       />
-
     </>
   );
 

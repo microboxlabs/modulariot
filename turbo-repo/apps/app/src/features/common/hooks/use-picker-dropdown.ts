@@ -64,7 +64,8 @@ export function usePickerDropdown<T extends HTMLElement = HTMLButtonElement>({
       const gap = 4;
 
       // Prefer opening below, but open above if not enough space below
-      const opensUp = spaceBelow < dropdownHeight + gap && spaceAbove > spaceBelow;
+      const opensUp =
+        spaceBelow < dropdownHeight + gap && spaceAbove > spaceBelow;
 
       const top = opensUp
         ? rect.top + window.scrollY - dropdownHeight - gap

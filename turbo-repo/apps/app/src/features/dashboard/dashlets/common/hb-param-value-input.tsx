@@ -68,11 +68,12 @@ export function HbParamValueInput({
       {ac.isOpen &&
         createPortal(
           <div
+            onMouseDown={(e) => e.preventDefault()}
             style={{
               position: "fixed",
               top: dropdownPos.top,
               left: dropdownPos.left,
-              width: dropdownPos.width,
+              minWidth: dropdownPos.width,
               zIndex: 9999,
             }}
           >

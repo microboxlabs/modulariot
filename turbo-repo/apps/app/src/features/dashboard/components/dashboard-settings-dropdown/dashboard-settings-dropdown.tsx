@@ -728,6 +728,7 @@ export default function DashboardSettingsDropdown() {
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)

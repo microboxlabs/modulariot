@@ -11,8 +11,6 @@ import {
   type IconOption,
 } from "@/features/common/components/icon-picker-dropdown";
 import {
-  SettingsPickerRow,
-  SettingsPickerItem,
   HbTextField,
   HbTextareaField,
   useDataProvider,
@@ -27,6 +25,7 @@ import {
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
@@ -55,10 +54,13 @@ export function DashletSettings({
 
   const [title, setTitle] = useState(config.title || "Metric");
   const [icon, setIcon] = useState<InfoCardIcon>(config.icon || "chart");
+  const [iconColor, setIconColor] = useState(config.iconColor || "");
   const [value, setValue] = useState(config.value || "100%");
+  const [valueColor, setValueColor] = useState(config.valueColor || "");
   const [descriptor, setDescriptor] = useState(
     config.descriptor || "Percentage of tasks completed"
   );
+  const [descriptorColor, setDescriptorColor] = useState(config.descriptorColor || "");
   const [aiPlaceholder, setAiPlaceholder] = useState(
     config.aiPlaceholder || "AI summary will appear here"
   );
@@ -82,15 +84,18 @@ export function DashletSettings({
       .dataProvider || DEFAULT_DATA_ENTRIES
   );
 
-  const staticSnapshot = useRef({ title, value, descriptor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab });
+  const staticSnapshot = useRef({ title, value, valueColor, iconColor, descriptor, descriptorColor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
     if (isRemoteDataMode(mode) && dataMode === "static") {
-      staticSnapshot.current = { title, value, descriptor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab };
+      staticSnapshot.current = { title, value, valueColor, iconColor, descriptor, descriptorColor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab };
     } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
+      setValueColor(staticSnapshot.current.valueColor);
+      setIconColor(staticSnapshot.current.iconColor);
       setDescriptor(staticSnapshot.current.descriptor);
+      setDescriptorColor(staticSnapshot.current.descriptorColor);
       setAiPlaceholder(staticSnapshot.current.aiPlaceholder);
       setViewMoreUrl(staticSnapshot.current.viewMoreUrl);
       setViewMoreLabel(staticSnapshot.current.viewMoreLabel);
@@ -116,8 +121,11 @@ export function DashletSettings({
     onSave({
       title,
       icon,
+      iconColor,
       value,
+      valueColor,
       descriptor,
+      descriptorColor,
       aiPlaceholder,
       viewMoreUrl,
       viewMoreLabel,
@@ -144,17 +152,6 @@ export function DashletSettings({
         placeholder={tr("dashboard.settings.titlePlaceholder", dictionary)}
         schemaSuggestions={schemaSuggestions}
       />
-
-      <SettingsPickerRow>
-        <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
-          <IconPickerDropdown
-            options={ICON_PICKER_OPTIONS}
-            value={icon}
-            onChange={setIcon}
-            title={tr("dashboard.settings.selectIcon", dictionary)}
-          />
-        </SettingsPickerItem>
-      </SettingsPickerRow>
 
       <HbTextField
         id="value"
@@ -210,6 +207,48 @@ export function DashletSettings({
           <ToggleSwitch checked={openInSameTab} onChange={setOpenInSameTab} />
         </div>
       )}
+
+      {/* Icon & Colors section */}
+      <div className="space-y-2 pt-2">
+        <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+          <Label className="text-sm font-medium">
+            {tr("dashboard.settings.icon", dictionary)}
+          </Label>
+          <div className="flex items-center gap-2">
+            <IconPickerDropdown
+              options={ICON_PICKER_OPTIONS}
+              value={icon}
+              onChange={setIcon}
+              title={tr("dashboard.settings.selectIcon", dictionary)}
+            />
+            <AdvancedColorPicker
+              value={iconColor}
+              onChange={setIconColor}
+              title={tr("dashboard.settings.selectColor", dictionary)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+          <Label className="text-sm font-medium">
+            {tr("dashboard.settings.valueColor", dictionary)}
+          </Label>
+          <AdvancedColorPicker
+            value={valueColor}
+            onChange={setValueColor}
+            title={tr("dashboard.settings.selectColor", dictionary)}
+          />
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+          <Label className="text-sm font-medium">
+            {tr("dashboard.settings.descriptorColor", dictionary)}
+          </Label>
+          <AdvancedColorPicker
+            value={descriptorColor}
+            onChange={setDescriptorColor}
+            title={tr("dashboard.settings.selectColor", dictionary)}
+          />
+        </div>
+      </div>
     </>
   );
 

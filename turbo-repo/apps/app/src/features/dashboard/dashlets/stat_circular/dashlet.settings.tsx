@@ -27,6 +27,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -164,6 +165,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

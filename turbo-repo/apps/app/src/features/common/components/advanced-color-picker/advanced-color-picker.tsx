@@ -137,6 +137,7 @@ export function AdvancedColorPicker({
   const { isOpen, position, triggerRef, toggle, close } = usePickerDropdown({
     portalDataAttribute: "data-advcolorpicker-portal",
     dropdownWidth: 224, // w-56 = 14rem = 224px
+    dropdownHeight: 280, // approximate height of the picker
   });
 
   // Close dropdown when component unmounts (e.g., when settings dialog closes)

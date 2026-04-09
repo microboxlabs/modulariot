@@ -33,6 +33,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const activeProviders = useActiveProviders();
@@ -256,6 +257,7 @@ export function DashletSettings({
       plannerContent={plannerContent}
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

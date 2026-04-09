@@ -5,32 +5,32 @@ import {
   HiOutlineShieldCheck,
   HiOutlineExclamationTriangle,
 } from "react-icons/hi2";
-import type { Colaborator } from "../../types/colaborators.types";
+import type { Collaborator } from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import ColaboratorStatusBadge from "./colaborator-status-badge";
-import ColaboratorStatItem from "./colaborator-stat-item";
-import ColaboratorPerformanceBadge from "./colaborator-performance-badge";
+import CollaboratorStatusBadge from "./collaborator-status-badge";
+import CollaboratorStatItem from "./collaborator-stat-item";
+import CollaboratorPerformanceBadge from "./collaborator-performance-badge";
 
-interface ColaboratorCardProps {
-  readonly colaborator: Colaborator;
+interface CollaboratorCardProps {
+  readonly collaborator: Collaborator;
   readonly dict: I18nRecord;
   readonly onSelect?: (id: string) => void;
 }
 
-export default function ColaboratorCard({
-  colaborator,
+export default function CollaboratorCard({
+  collaborator,
   dict,
   onSelect,
-}: ColaboratorCardProps) {
+}: CollaboratorCardProps) {
   const handleClick = () => {
-    onSelect?.(colaborator.id);
+    onSelect?.(collaborator.id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onSelect?.(colaborator.id);
+      onSelect?.(collaborator.id);
     }
   };
 
@@ -52,7 +52,7 @@ export default function ColaboratorCard({
         <div className="relative shrink-0">
           <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
             <span className="text-blue-600 dark:text-blue-400 font-semibold text-xl">
-              {colaborator.name.charAt(0)}
+              {collaborator.name.charAt(0)}
             </span>
           </div>
         </div>
@@ -61,19 +61,19 @@ export default function ColaboratorCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-              {colaborator.name}
+              {collaborator.name}
             </h3>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {tr(`rank.${colaborator.rank}`, dict)}
+            {tr(`rank.${collaborator.rank}`, dict)}
           </p>
         </div>
 
         {/* Performance Score then Status */}
         <div className="flex items-center gap-2 shrink-0">
-          <ColaboratorPerformanceBadge score={colaborator.score} />
-          <ColaboratorStatusBadge
-            status={colaborator.employmentStatus}
+          <CollaboratorPerformanceBadge score={collaborator.score} />
+          <CollaboratorStatusBadge
+            status={collaborator.employmentStatus}
             dict={dict}
           />
         </div>
@@ -81,20 +81,20 @@ export default function ColaboratorCard({
 
       {/* Separator and Stats */}
       <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex items-center justify-between gap-2">
-        <ColaboratorStatItem
+        <CollaboratorStatItem
           icon={HiOutlineClock}
           label={tr("stats.punctuality", dict)}
-          value={`${colaborator.punctuality}%`}
+          value={`${collaborator.punctuality}%`}
         />
-        <ColaboratorStatItem
+        <CollaboratorStatItem
           icon={HiOutlineShieldCheck}
           label={tr("stats.safety", dict)}
-          value={`${colaborator.safety}%`}
+          value={`${collaborator.safety}%`}
         />
-        <ColaboratorStatItem
+        <CollaboratorStatItem
           icon={HiOutlineExclamationTriangle}
           label={tr("stats.incidents", dict)}
-          value={`${colaborator.incidentsCount}`}
+          value={`${collaborator.incidentsCount}`}
         />
       </div>
     </button>

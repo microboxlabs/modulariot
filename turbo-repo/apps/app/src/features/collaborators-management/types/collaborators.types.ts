@@ -1,6 +1,6 @@
 import { type IconType } from "react-icons";
 
-export interface ColaboratorKpi {
+export interface CollaboratorKpi {
   id: string;
   labelKey: string;
   value: string | number;
@@ -9,54 +9,54 @@ export interface ColaboratorKpi {
   darkColor: string;
 }
 
-export type ColaboratorRank =
+export type CollaboratorRank =
   | "conductor-senior"
   | "conductor-especializado"
   | "conductor"
   | "operador-logistico";
 
-export type ColaboratorEmploymentStatus =
+export type CollaboratorEmploymentStatus =
   | "activo"
   | "suspendido"
   | "vacaciones";
 
-export type ColaboratorPerformanceStatus =
+export type CollaboratorPerformanceStatus =
   | "excelente"
   | "bueno"
   | "en-observacion";
 
-export type ColaboratorAchievement =
+export type CollaboratorAchievement =
   | "mejora-sostenida"
   | "puntualidad-excepcional";
 
-export type ColaboratorAlert = "conducta-critica-reciente";
+export type CollaboratorAlert = "conducta-critica-reciente";
 
-export interface Colaborator {
+export interface Collaborator {
   id: string;
   /**
    * Stable external identifier the backend uses to look up the expediente
    * (currently `cod_driver` from `v_modulariot_drivers_tmp`, shaped as
    * `{id}-{patente}`). Surfaced here so the list page can route straight
-   * to `/colaborators-management/{externalId}` without a second lookup.
+   * to `/collaborators-management/{externalId}` without a second lookup.
    * Optional because the mock data service doesn't produce it.
    */
   externalId?: string;
   name: string;
   email: string;
-  rank: ColaboratorRank;
+  rank: CollaboratorRank;
   department: string;
   score: number; // 0-100 percentage for performance indicator
-  employmentStatus: ColaboratorEmploymentStatus;
+  employmentStatus: CollaboratorEmploymentStatus;
   punctuality: number; // percentage
   safety: number; // percentage
   incidentsCount: number;
   avatar?: string;
   assignedVehiclePlate?: string; // License plate if using a vehicle
-  achievements?: ColaboratorAchievement[];
-  alerts?: ColaboratorAlert[];
+  achievements?: CollaboratorAchievement[];
+  alerts?: CollaboratorAlert[];
 }
 
-export type ColaboratorStatus =
+export type CollaboratorStatus =
   | "active"
   | "at-risk"
   | "outstanding"
@@ -64,13 +64,13 @@ export type ColaboratorStatus =
 
 export function getPerformanceStatus(
   score: number
-): ColaboratorPerformanceStatus {
+): CollaboratorPerformanceStatus {
   if (score >= 80) return "excelente";
   if (score >= 50) return "bueno";
   return "en-observacion";
 }
 
-// ─── Colaborator Detail / Expedient types ────────────────────────────
+// ─── Collaborator Detail / Expedient types ────────────────────────────
 
 import type { EventUrgency } from "@/features/common/components/timeline-event";
 
@@ -117,22 +117,22 @@ export interface ScoreCardValue {
   score: number;
 }
 
-/** Full detail/expedient data for one colaborator (dynamic — backend payload) */
-export interface ColaboratorDetailData {
-  colaboratorId: string;
+/** Full detail/expedient data for one collaborator (dynamic — backend payload) */
+export interface CollaboratorDetailData {
+  collaboratorId: string;
   scores: ScoreCardValue[];
   monthlyEvolution: MonthlyDataPoint[];
   behaviorEvents: BehaviorEvent[];
 }
 
 /**
- * Combined detail response shape — bundles the list-shaped `Colaborator`
- * (for the header) and the `ColaboratorDetailData` (for the score cards,
- * chart, and timeline) so the detail page can feed `ColaboratorDetailView`
+ * Combined detail response shape — bundles the list-shaped `Collaborator`
+ * (for the header) and the `CollaboratorDetailData` (for the score cards,
+ * chart, and timeline) so the detail page can feed `CollaboratorDetailView`
  * from a single hook call. Matches what `/api/collaborators/[codDriver]`
  * returns.
  */
-export interface ColaboratorDetailDto {
-  colaborator: Colaborator;
-  detailData: ColaboratorDetailData;
+export interface CollaboratorDetailDto {
+  collaborator: Collaborator;
+  detailData: CollaboratorDetailData;
 }

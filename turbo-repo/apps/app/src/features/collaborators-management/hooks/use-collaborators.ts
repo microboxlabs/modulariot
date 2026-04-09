@@ -1,8 +1,8 @@
 import useSWR from "swr";
-import type { Colaborator } from "../types/colaborators.types";
+import type { Collaborator } from "../types/collaborators.types";
 
 type FetcherResult = {
-  colaborators: Colaborator[];
+  collaborators: Collaborator[];
   disabled: boolean;
 };
 
@@ -14,13 +14,13 @@ type FetcherResult = {
 const fetcher = async (url: string): Promise<FetcherResult> => {
   const response = await fetch(url);
   if (response.status === 501) {
-    return { colaborators: [], disabled: true };
+    return { collaborators: [], disabled: true };
   }
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
-  const colaborators = (await response.json()) as Colaborator[];
-  return { colaborators, disabled: false };
+  const collaborators = (await response.json()) as Collaborator[];
+  return { collaborators, disabled: false };
 };
 
 /**
@@ -46,7 +46,7 @@ export function useCollaborators(query?: string | null) {
   );
 
   return {
-    colaborators: data?.colaborators ?? [],
+    collaborators: data?.collaborators ?? [],
     disabled: data?.disabled ?? false,
     error,
     isLoading,

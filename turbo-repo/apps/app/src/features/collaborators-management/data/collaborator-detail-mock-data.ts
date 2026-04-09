@@ -1,13 +1,13 @@
-import type { ColaboratorDetailData } from "../types/colaborators.types";
-import { colaborators } from "./colaborators-mock-data";
+import type { CollaboratorDetailData } from "../types/collaborators.types";
+import { collaborators } from "./collaborators-mock-data";
 
 /**
- * Default detail/expedient data shared by all colaborators.
+ * Default detail/expedient data shared by all collaborators.
  * Contains ONLY dynamic values that would come from the backend.
  * Static UI config (icons, colors, translation keys) lives in the component layer.
  */
-export const defaultColaboratorDetailData: ColaboratorDetailData = {
-  colaboratorId: "default",
+export const defaultCollaboratorDetailData: CollaboratorDetailData = {
+  collaboratorId: "default",
 
   scores: [
     { id: "seguridad", score: 78 },
@@ -100,24 +100,24 @@ export const defaultColaboratorDetailData: ColaboratorDetailData = {
   ],
 };
 
-// ─── Per-colaborator detail data map ─────────────────────────────────
-// Uses the colaborator ID as key. Every colaborator gets the same default
+// ─── Per-collaborator detail data map ─────────────────────────────────
+// Uses the collaborator ID as key. Every collaborator gets the same default
 // data for now; the backend will provide real per-user data later.
 
-export const colaboratorDetailDataMap: Record<string, ColaboratorDetailData> =
+export const collaboratorDetailDataMap: Record<string, CollaboratorDetailData> =
   Object.fromEntries(
-    colaborators.map((c) => [
+    collaborators.map((c) => [
       c.id,
-      { ...defaultColaboratorDetailData, colaboratorId: c.id },
+      { ...defaultCollaboratorDetailData, collaboratorId: c.id },
     ])
   );
 
 /**
- * Get detail/expedient data for a single colaborator.
+ * Get detail/expedient data for a single collaborator.
  * Returns undefined when the ID is not found.
  */
-export function getColaboratorDetailData(
-  colaboratorId: string
-): ColaboratorDetailData | undefined {
-  return colaboratorDetailDataMap[colaboratorId];
+export function getCollaboratorDetailData(
+  collaboratorId: string
+): CollaboratorDetailData | undefined {
+  return collaboratorDetailDataMap[collaboratorId];
 }

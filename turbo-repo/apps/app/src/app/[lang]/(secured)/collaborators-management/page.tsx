@@ -1,9 +1,9 @@
 import "server-only";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import ColaboratorsManagementPage from "@/features/colaborators-management/components/colaborators-management-page";
+import CollaboratorsManagementPage from "@/features/collaborators-management/components/collaborators-management-page";
 
-export default async function ColaboratorsManagementRoute({
+export default async function CollaboratorsManagementRoute({
   params,
 }: ParamsWithLang) {
   const { lang } = await params;
@@ -11,7 +11,7 @@ export default async function ColaboratorsManagementRoute({
 
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900 overflow-y-auto">
-      <ColaboratorsManagementPage dict={dict} locale={lang} />
+      <CollaboratorsManagementPage dict={dict} locale={lang} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Colaborator } from "../../types/colaborators.types";
+import type { Collaborator } from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
@@ -19,8 +19,8 @@ const statusStyles: Record<string, string> = {
   vacaciones: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
 };
 
-interface ColaboratorDetailHeaderProps {
-  readonly colaborator: Colaborator;
+interface CollaboratorDetailHeaderProps {
+  readonly collaborator: Collaborator;
   readonly dict: I18nRecord;
   readonly previous: {
     hasPrevious: boolean;
@@ -33,13 +33,13 @@ interface ColaboratorDetailHeaderProps {
 
 }
 
-export default function ColaboratorDetailHeader({
-  colaborator,
+export default function CollaboratorDetailHeader({
+  collaborator,
   dict,
   previous,
   next,
-}: ColaboratorDetailHeaderProps) {
-  const initials = colaborator.name
+}: CollaboratorDetailHeaderProps) {
+  const initials = collaborator.name
     .split(" ")
     .map((n) => n[0])
     .slice(0, 2)
@@ -50,8 +50,8 @@ export default function ColaboratorDetailHeader({
     <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
       <ClientBreadcrumb
         path={[
-          { label: "breadcrumb.colaboratorsManagement", href: "/colaborators-management" },
-          colaborator.name,
+          { label: "breadcrumb.collaboratorsManagement", href: "/collaborators-management" },
+          collaborator.name,
         ]}
         rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
         dict={dict}
@@ -72,7 +72,7 @@ export default function ColaboratorDetailHeader({
                 {tr("detail.name", dict)}
               </span>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
-                {colaborator.name}
+                {collaborator.name}
               </span>
             </div>
 
@@ -82,7 +82,7 @@ export default function ColaboratorDetailHeader({
                 {tr("detail.role", dict)}
               </span>
               <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {tr(`rank.${colaborator.rank}`, dict)}
+                {tr(`rank.${collaborator.rank}`, dict)}
               </span>
             </div>
 
@@ -91,20 +91,20 @@ export default function ColaboratorDetailHeader({
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {tr("detail.status", dict)}
               </span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[colaborator.employmentStatus]}`}>
-                {tr(`employmentStatus.${colaborator.employmentStatus}`, dict)}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[collaborator.employmentStatus]}`}>
+                {tr(`employmentStatus.${collaborator.employmentStatus}`, dict)}
               </span>
             </div>
 
             {/* Vehicle (if assigned) */}
-            {colaborator.assignedVehiclePlate && (
+            {collaborator.assignedVehiclePlate && (
               <div className="flex flex-col shrink-0">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {tr("detail.vehicle", dict)}
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1">
                   <HiOutlineTruck className="w-4 h-4" />
-                  {colaborator.assignedVehiclePlate}
+                  {collaborator.assignedVehiclePlate}
                 </span>
               </div>
             )}
@@ -114,7 +114,7 @@ export default function ColaboratorDetailHeader({
         </div>
         <div className="flex flex-row gap-1">
           {/* Achievements */}
-          {colaborator.achievements?.map((achievement) => (
+          {collaborator.achievements?.map((achievement) => (
             <span
               key={achievement}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0"
@@ -125,7 +125,7 @@ export default function ColaboratorDetailHeader({
           ))}
 
           {/* Alerts */}
-          {colaborator.alerts?.map((alert) => (
+          {collaborator.alerts?.map((alert) => (
             <span
               key={alert}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shrink-0"

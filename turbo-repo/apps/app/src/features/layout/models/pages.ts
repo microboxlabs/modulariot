@@ -25,11 +25,17 @@ export const pages: SidebarItem[] = [
     requiredGroups: ["GROUP_DASHBOARD"],
   },
   {
-    href: "/colaborators-management",
+    href: "/collaborators-management",
     icon: PeopleIcon,
-    label: "colaboratorsManagement",
+    label: "collaboratorsManagement",
     totals: {},
-    requiredGroups: ["GROUP_COLABORATORS_MANAGEMENT"],
+    // Legacy group name kept for backward compat during the colaborator→collaborator
+    // typo migration. Remove GROUP_COLABORATORS_MANAGEMENT once the Alfresco side
+    // has been renamed (see Phase 6 of settings_module_multitenancy.plan.md).
+    requiredGroups: [
+      "GROUP_COLLABORATORS_MANAGEMENT",
+      "GROUP_COLABORATORS_MANAGEMENT",
+    ],
     blockedGroups: [],
   },
   {

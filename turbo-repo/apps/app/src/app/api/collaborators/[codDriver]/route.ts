@@ -4,7 +4,7 @@ import {
   driverDetailResponseToDto,
   fetchDriverDetailByCodDriver,
 } from "../../utils/pgrest-client";
-import type { ColaboratorDetailDto } from "@/features/colaborators-management/types/colaborators.types";
+import type { CollaboratorDetailDto } from "@/features/collaborators-management/types/collaborators.types";
 import { logger } from "@/lib/logger";
 
 /**
@@ -12,7 +12,7 @@ import { logger } from "@/lib/logger";
  *
  * Returns the full expediente for one driver from
  * `public.api_detalle_expediente_colaborador`, mapped into
- * `ColaboratorDetailDto = { colaborator, detailData }`.
+ * `CollaboratorDetailDto = { collaborator, detailData }`.
  *
  * Feature-flagged on `MIOT_COLLABORATORS_SOURCE=pgrest`. When unset the
  * route returns 501 so the detail page falls back to the mock data
@@ -26,9 +26,9 @@ const DETAIL_CACHE_TTL_MS = 30_000;
 const DETAIL_CACHE_STALE_TTL_MS = 5 * 60_000;
 
 type DetailCacheEntry = {
-  data: ColaboratorDetailDto;
+  data: CollaboratorDetailDto;
   fetchedAt: number;
-  refreshPromise?: Promise<ColaboratorDetailDto>;
+  refreshPromise?: Promise<CollaboratorDetailDto>;
 };
 
 const detailCache = new Map<string, DetailCacheEntry>();
@@ -38,7 +38,7 @@ function buildCacheKey(userId: string, codDriver: string) {
 }
 
 function buildJsonResponse(
-  dto: ColaboratorDetailDto,
+  dto: CollaboratorDetailDto,
   cacheStatus: "MISS" | "HIT" | "STALE" | "STALE_IF_ERROR"
 ) {
   return NextResponse.json(dto, {
@@ -63,7 +63,7 @@ class DriverNotFoundError extends Error {
 
 async function fetchDetailFromPgrest(
   codDriver: string
-): Promise<ColaboratorDetailDto> {
+): Promise<CollaboratorDetailDto> {
   const resp = await fetchDriverDetailByCodDriver(codDriver);
   if (!resp) throw new DriverNotFoundError(codDriver);
   return driverDetailResponseToDto(resp);

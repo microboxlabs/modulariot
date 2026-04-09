@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "../utils/alfresco-crud-client";
 import {
-  driverRowToColaborator,
+  driverRowToCollaborator,
   fetchDriversFromView,
 } from "../utils/pgrest-client";
-import type { Colaborator } from "@/features/colaborators-management/types/colaborators.types";
+import type { Collaborator } from "@/features/collaborators-management/types/collaborators.types";
 import { logger } from "@/lib/logger";
 
 /**
  * GET /api/collaborators
  *
  * Returns the list of drivers from `public.v_modulariot_drivers_tmp`, mapped
- * into the existing `Colaborator` shape. Supports `?q=<search>` for a
+ * into the existing `Collaborator` shape. Supports `?q=<search>` for a
  * case-insensitive OR match across `name_driver`, `cust_account`, and
  * `cod_driver` — see plan file for the caveats about the missing driver
  * RUT column.
@@ -28,9 +28,9 @@ const COLLABORATORS_CACHE_TTL_MS = 30_000;
 const COLLABORATORS_CACHE_STALE_TTL_MS = 5 * 60_000;
 
 type CollaboratorsCacheEntry = {
-  data: Colaborator[];
+  data: Collaborator[];
   fetchedAt: number;
-  refreshPromise?: Promise<Colaborator[]>;
+  refreshPromise?: Promise<Collaborator[]>;
 };
 
 const collaboratorsCache = new Map<string, CollaboratorsCacheEntry>();
@@ -40,10 +40,10 @@ function buildCacheKey(userId: string, query: string) {
 }
 
 function buildJsonResponse(
-  colaborators: Colaborator[],
+  collaborators: Collaborator[],
   cacheStatus: "MISS" | "HIT" | "STALE" | "STALE_IF_ERROR"
 ) {
-  return NextResponse.json(colaborators, {
+  return NextResponse.json(collaborators, {
     headers: {
       "Cache-Control": "private, no-store",
       "X-Cache-Status": cacheStatus,
@@ -53,11 +53,11 @@ function buildJsonResponse(
 
 async function fetchCollaboratorsFromPgrest(
   query: string | null
-): Promise<Colaborator[]> {
+): Promise<Collaborator[]> {
   const rows = await fetchDriversFromView(
     query ? { q: query } : undefined
   );
-  return rows.map(driverRowToColaborator);
+  return rows.map(driverRowToCollaborator);
 }
 
 function refreshCollaboratorsCache(cacheKey: string, query: string | null) {
@@ -67,12 +67,12 @@ function refreshCollaboratorsCache(cacheKey: string, query: string | null) {
   }
 
   const refreshPromise = fetchCollaboratorsFromPgrest(query)
-    .then((colaborators) => {
+    .then((collaborators) => {
       collaboratorsCache.set(cacheKey, {
-        data: colaborators,
+        data: collaborators,
         fetchedAt: Date.now(),
       });
-      return colaborators;
+      return collaborators;
     })
     .catch((error) => {
       logger.warn(
@@ -137,8 +137,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const colaborators = await refreshCollaboratorsCache(cacheKey, query);
-    return buildJsonResponse(colaborators, "MISS");
+    const collaborators = await refreshCollaboratorsCache(cacheKey, query);
+    return buildJsonResponse(collaborators, "MISS");
   } catch (error) {
     if (cacheEntry) {
       return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");

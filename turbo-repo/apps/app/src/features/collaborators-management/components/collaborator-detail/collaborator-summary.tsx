@@ -2,10 +2,10 @@
 
 import { useState, useMemo } from "react";
 import type {
-  Colaborator,
+  Collaborator,
   MonthlyDataPoint,
   ScoreCardValue,
-} from "../../types/colaborators.types";
+} from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { IoShieldOutline } from "react-icons/io5";
@@ -311,21 +311,21 @@ function QuickSummaryPanel({
   );
 }
 
-interface ColaboratorSummaryProps {
-  readonly colaborator: Colaborator;
+interface CollaboratorSummaryProps {
+  readonly collaborator: Collaborator;
   readonly dict: I18nRecord;
   readonly locale: string;
   readonly monthlyData: MonthlyDataPoint[];
   readonly scores: readonly ScoreCardValue[];
 }
 
-export default function ColaboratorSummary({
-  colaborator,
+export default function CollaboratorSummary({
+  collaborator,
   dict,
   locale,
   monthlyData,
   scores,
-}: ColaboratorSummaryProps) {
+}: CollaboratorSummaryProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const overallScore = useMemo(() => {
@@ -333,8 +333,8 @@ export default function ColaboratorSummary({
     const sum = scores.reduce((acc, s) => acc + s.score, 0);
     return Math.round(sum / scores.length);
   }, [scores]);
-  const safetyScore = colaborator.safety;
-  const punctualityScore = colaborator.punctuality;
+  const safetyScore = collaborator.safety;
+  const punctualityScore = collaborator.punctuality;
 
   const hovered = hoveredIndex === null ? null : monthlyData[hoveredIndex];
   const prevHovered =
@@ -354,10 +354,10 @@ export default function ColaboratorSummary({
 
         {/* Quick summary with hover data */}
         <QuickSummaryPanel
-          incidentsCount={hovered?.incidents ?? colaborator.incidentsCount}
+          incidentsCount={hovered?.incidents ?? collaborator.incidentsCount}
           punctualityScore={hovered?.punctuality ?? punctualityScore}
           safetyScore={hovered?.safety ?? safetyScore}
-          assignedVehiclePlate={colaborator.assignedVehiclePlate}
+          assignedVehiclePlate={collaborator.assignedVehiclePlate}
           overallScore={hovered?.score ?? overallScore}
           scoreDelta={
             hovered && prevHovered

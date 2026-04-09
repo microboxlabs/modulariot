@@ -1,4 +1,4 @@
-/** Shared urgency level used across features (fleet events, colaborator behavior, etc.) */
+/** Shared urgency level used across features (fleet events, collaborator behavior, etc.) */
 export type EventUrgency = "critical" | "warning" | "info";
 
 /** Style configuration for each urgency level */

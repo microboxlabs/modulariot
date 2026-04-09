@@ -98,7 +98,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
     "fleet-management": getParamsFixed(fleet_params, dict),
-    "colaborators-management": getParamsFixed(
+    "collaborators-management": getParamsFixed(
       collaborators_management_params,
       dict,
       true

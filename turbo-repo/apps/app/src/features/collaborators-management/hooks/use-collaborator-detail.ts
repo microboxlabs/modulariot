@@ -1,8 +1,8 @@
 import useSWR from "swr";
-import type { ColaboratorDetailDto } from "../types/colaborators.types";
+import type { CollaboratorDetailDto } from "../types/collaborators.types";
 
 type FetcherResult = {
-  detail: ColaboratorDetailDto | null;
+  detail: CollaboratorDetailDto | null;
   disabled: boolean;
   notFound: boolean;
 };
@@ -25,7 +25,7 @@ const fetcher = async (url: string): Promise<FetcherResult> => {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
-  const detail = (await response.json()) as ColaboratorDetailDto;
+  const detail = (await response.json()) as CollaboratorDetailDto;
   return { detail, disabled: false, notFound: false };
 };
 
@@ -39,7 +39,7 @@ const fetcher = async (url: string): Promise<FetcherResult> => {
  * Mirrors `useCollaborators` 1:1 for consistency — 501-aware fetcher,
  * same retry/dedup settings, same `{ disabled, error, isLoading, mutate }`
  * return shape plus a new `notFound` flag and the unwrapped
- * `colaborator` / `detailData` fields.
+ * `collaborator` / `detailData` fields.
  */
 export function useCollaboratorDetail(codDriver: string | null | undefined) {
   const trimmed = codDriver?.trim() ?? "";
@@ -55,7 +55,7 @@ export function useCollaboratorDetail(codDriver: string | null | undefined) {
   );
 
   return {
-    colaborator: data?.detail?.colaborator ?? null,
+    collaborator: data?.detail?.collaborator ?? null,
     detailData: data?.detail?.detailData ?? null,
     disabled: data?.disabled ?? false,
     notFound: data?.notFound ?? false,

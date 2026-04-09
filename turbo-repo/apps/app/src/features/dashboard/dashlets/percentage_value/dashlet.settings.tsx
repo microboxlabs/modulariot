@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {
@@ -11,16 +12,39 @@ import {
   PgrestDataTab,
   useActiveProviders,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { tr } from "@/features/i18n/tr.service";
 
 type SimpleDataMode = "static" | "pgrest" | "planner";
 
 /** Field config for the three percentage_value text fields */
 const PERCENTAGE_FIELDS = [
-  { id: "pv-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Progress" },
-  { id: "pv-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.current}}", staticPlaceholder: "6" },
-  { id: "pv-max", labelKey: "common.max", state: "max", hbPlaceholder: "{{row.total}}", staticPlaceholder: "10" },
+  {
+    id: "pv-title",
+    labelKey: "common.title",
+    state: "title",
+    hbPlaceholder: "{{row.label}}",
+    staticPlaceholder: "Progress",
+  },
+  {
+    id: "pv-value",
+    labelKey: "common.value",
+    state: "value",
+    hbPlaceholder: "{{row.current}}",
+    staticPlaceholder: "6",
+  },
+  {
+    id: "pv-max",
+    labelKey: "common.max",
+    state: "max",
+    hbPlaceholder: "{{row.total}}",
+    staticPlaceholder: "10",
+  },
 ] as const;
 
 /**
@@ -32,6 +56,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -39,10 +64,13 @@ export function DashletSettings({
   const [title, setTitle] = useState(config.title || "Progress");
   const [value, setValue] = useState(String(config.value ?? "6"));
   const [max, setMax] = useState(String(config.max ?? "10"));
+  const [barColor, setBarColor] = useState(config.barColor ?? "2563eb");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
@@ -74,17 +102,20 @@ export function DashletSettings({
       : undefined;
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) {
-        setTitle(`{{row.${detected[0].key}}}`);
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) {
+          setTitle(`{{row.${detected[0].key}}}`);
+        }
+        if (detected.length >= 2) {
+          setValue(`{{row.${detected[1].key}}}`);
+        }
+        if (detected.length >= 3) {
+          setMax(`{{row.${detected[2].key}}}`);
+        }
       }
-      if (detected.length >= 2) {
-        setValue(`{{row.${detected[1].key}}}`);
-      }
-      if (detected.length >= 3) {
-        setMax(`{{row.${detected[2].key}}}`);
-      }
-    }),
+    ),
   });
 
   const handleSave = () => {
@@ -92,11 +123,13 @@ export function DashletSettings({
       title: title.trim() || "Progress",
       value: value.trim() || "6",
       max: max.trim() || "10",
+      barColor,
       dataMode,
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
       ...refresh.savePayload,
     });
@@ -113,14 +146,27 @@ export function DashletSettings({
   };
 
   const visualizationTab = (
-    <HbTextFieldList
-      fields={PERCENTAGE_FIELDS}
-      fieldValues={fieldValues}
-      fieldSetters={fieldSetters}
-      isPgrest={isPgrest}
-      dictionary={dictionary}
-      schemaSuggestions={schemaSuggestions}
-    />
+    <>
+      <HbTextFieldList
+        fields={PERCENTAGE_FIELDS}
+        fieldValues={fieldValues}
+        fieldSetters={fieldSetters}
+        isPgrest={isPgrest}
+        dictionary={dictionary}
+        schemaSuggestions={schemaSuggestions}
+      />
+      {/* Bar color picker */}
+      <div className="mt-3 flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+        <Label className="text-sm font-medium">
+          {tr("dashboard.settings.barColor", dictionary)}
+        </Label>
+        <AdvancedColorPicker
+          value={barColor}
+          onChange={setBarColor}
+          title={tr("dashboard.settings.selectColor", dictionary)}
+        />
+      </div>
+    </>
   );
 
   const dataTab = (
@@ -147,6 +193,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

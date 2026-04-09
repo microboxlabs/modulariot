@@ -8,11 +8,6 @@ import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
-import {
-  getThresholdTextClasses,
-  getThresholdBgClasses,
-} from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
@@ -20,13 +15,13 @@ import type { ThresholdConfig } from "../common/threshold-types";
 // ============================================================================
 
 /** Hex color without # prefix */
-export type BarColor = string;
+// export type BarColor = string;
 
 export type ChartType = "bar" | "donut";
 
 export interface DashletConfig extends PgrestDashletFields {
   title: string;
-  items: { label: string; value: string; color: BarColor }[];
+  items: { label: string; value: string; color: string }[];
   unit: string;
   showHeader: boolean;
   chartType?: ChartType;
@@ -266,10 +261,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     refreshIntervalMs
   );
 
-  const { color: thresholdColor, appliesTo } = useRowThreshold(
-    config.thresholds,
-    firstRow
-  );
+  /*
+    const { color: thresholdColor, appliesTo } = useRowThreshold(
+      config.thresholds,
+      firstRow
+    );
+  */
 
   // Resolve Handlebars templates in item labels and values (only in remote modes)
   const isStatic = !config.dataMode || config.dataMode === "static";

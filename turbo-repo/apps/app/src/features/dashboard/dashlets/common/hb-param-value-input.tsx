@@ -72,7 +72,7 @@ export function HbParamValueInput({
               position: "fixed",
               top: dropdownPos.top,
               left: dropdownPos.left,
-              width: dropdownPos.width,
+              minWidth: dropdownPos.width,
               zIndex: 9999,
             }}
           >

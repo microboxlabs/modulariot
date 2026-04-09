@@ -1532,6 +1532,7 @@
       "descriptor": "Descriptor",
       "aiPlaceholder": "AI Placeholder",
       "viewMoreUrl": "View More URL (optional)",
+      "viewMoreLabel": "View More Button Label",
       "openInSameTab": "Open in same tab",
       "key": "Key",
       "addEntry": "+ Add Entry",

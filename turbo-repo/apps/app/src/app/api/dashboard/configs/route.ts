@@ -42,8 +42,9 @@ export async function GET(request: NextRequest) {
       // No restriction: field is absent or empty array
       if (allowed === undefined || allowed === null) return true;
       if (!Array.isArray(allowed)) return false; // malformed — deny
+      if (!allowed.every((g): g is string => typeof g === "string")) return false;
       if (allowed.length === 0) return true;
-      return allowed.some((g: string) => userGroups.includes(g));
+      return allowed.some((g) => userGroups.includes(g));
     });
 
     // Transform { slug, config } → { slug, name } for the client

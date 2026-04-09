@@ -128,6 +128,10 @@ export interface DashboardStorageSchema {
   refreshInterval?: RefreshInterval;
   /** Sidebar display order (lower numbers appear first; unset = last) */
   order?: number;
+  /** Optional group-based access control. When non-empty, user must belong to
+   *  at least one listed group (in addition to GROUP_DASHBOARD) to view this
+   *  dashboard. When empty/undefined, any GROUP_DASHBOARD user can access. */
+  allowedGroups?: string[];
 }
 
 /** Default storage state */

@@ -515,6 +515,13 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  const setAllowedGroups = useCallback(
+    (allowedGroups: string[]) => {
+      updateConfig({ allowedGroups });
+    },
+    [updateConfig]
+  );
+
   // ── Planner CRUD ──────────────────────────────────────────────────────────
 
   const getPlannerDefinitions = useCallback(
@@ -613,6 +620,7 @@ export function useDashboardStorage(
           filters: imported.filters,
           refreshInterval: imported.refreshInterval,
           order: imported.order,
+          allowedGroups: imported.allowedGroups,
         };
 
         clearHistory();
@@ -636,6 +644,7 @@ export function useDashboardStorage(
     dashboardName: resolvedConfig.name,
     refreshInterval: resolvedConfig.refreshInterval ?? 0,
     order: resolvedConfig.order,
+    allowedGroups: resolvedConfig.allowedGroups ?? [],
     isLoaded,
     addWidget,
     addChildWidget,
@@ -648,6 +657,7 @@ export function useDashboardStorage(
     setFilters,
     setRefreshInterval,
     setOrder,
+    setAllowedGroups,
     findWidget,
     findParent,
     exportDashboard,

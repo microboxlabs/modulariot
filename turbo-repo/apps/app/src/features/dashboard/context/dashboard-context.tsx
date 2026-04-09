@@ -50,6 +50,10 @@ interface DashboardContextValue {
   order: number | undefined;
   /** Update sidebar display order */
   setOrder: (order: number) => void;
+  /** Groups allowed to access this dashboard (empty = all GROUP_DASHBOARD users) */
+  allowedGroups: string[];
+  /** Update allowed groups */
+  setAllowedGroups: (groups: string[]) => void;
 
   // Widget actions
   createWidget: (
@@ -145,6 +149,8 @@ export function DashboardProvider({
     setRefreshInterval,
     order,
     setOrder: setOrderStorage,
+    allowedGroups,
+    setAllowedGroups,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -378,6 +384,8 @@ export function DashboardProvider({
       setRefreshInterval,
       order,
       setOrder,
+      allowedGroups,
+      setAllowedGroups,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -414,6 +422,8 @@ export function DashboardProvider({
       setRefreshInterval,
       order,
       setOrder,
+      allowedGroups,
+      setAllowedGroups,
       dashboardName,
       createWidget,
       updateWidgetConfig,

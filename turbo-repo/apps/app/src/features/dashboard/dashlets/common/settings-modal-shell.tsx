@@ -24,6 +24,8 @@ interface SettingsModalShellProps {
   className?: string;
   /** Optional refresh interval select rendered above the save button (overrides built-in) */
   refreshSelect?: ReactNode;
+  /** Optional title shown in the header */
+  title?: string;
 }
 
 export function SettingsModalShell({
@@ -35,6 +37,7 @@ export function SettingsModalShell({
   dataTab,
   className,
   refreshSelect,
+  title,
 }: Readonly<SettingsModalShellProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
@@ -45,11 +48,16 @@ export function SettingsModalShell({
       "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
       activeTab === tab
         ? "border-blue-500 text-blue-600 dark:text-blue-400"
-        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400",
+        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
     );
 
   return (
-    <SettingsDrawer open={isOpen} onClose={onClose} className={className}>
+    <SettingsDrawer
+      open={isOpen}
+      onClose={onClose}
+      className={className}
+      title={title}
+    >
       <div className="flex h-full flex-col gap-3">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
@@ -109,7 +117,7 @@ export function SettingsModalShell({
  */
 export function useWidgetRefreshSettings(
   config: object,
-  dictionary: I18nRecord,
+  dictionary: I18nRecord
 ) {
   const [value, setValue] = useState<number | "inherit">(() => {
     const v = "refreshInterval" in config ? config.refreshInterval : undefined;

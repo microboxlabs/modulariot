@@ -78,10 +78,7 @@ export function PgrestSettingsSection({
         </div>
       )}
       <div>
-        <Label
-          htmlFor="pgrest-fn"
-          className="mb-1 block text-sm font-medium"
-        >
+        <Label htmlFor="pgrest-fn" className="mb-1 block text-sm font-medium">
           {labels.functionName}
         </Label>
         <PgrestFunctionAutocomplete
@@ -131,9 +128,7 @@ export function PgrestSettingsSection({
                 <HbParamValueInput
                   placeholder={pg.paramHints[p.key] ?? labels.value}
                   value={p.value}
-                  onChange={(v) =>
-                    pg.updatePgrestParam(p._id, "value", v)
-                  }
+                  onChange={(v) => pg.updatePgrestParam(p._id, "value", v)}
                   filterSuggestions={filterSuggestions}
                 />
               </div>
@@ -141,7 +136,7 @@ export function PgrestSettingsSection({
                 type="button"
                 onClick={() => pg.removePgrestParam(p._id)}
                 onMouseDown={stopPropagation}
-                className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
               >
                 <HiTrash className="h-4 w-4" />
               </button>

@@ -32,6 +32,7 @@ export function DashletSettings(
       fields={FIELDS}
       idPrefix="sk"
       settingsProps={props}
+      thresholds
       extraSaveFields={{
         sparkline: sparkline.length > 0 ? sparkline : [50, 50],
       }}

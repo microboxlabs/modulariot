@@ -2737,13 +2737,50 @@
           "kmSinceService": "Km Desde Mantención",
           "kmSinceServiceDesc": "Recorrido desde último servicio",
           "kmRemaining": "Faltan {km} km (proyección: {days} días)",
+          "kmRemainingNoDays": "Faltan {km} km",
           "atKm": "A los {km} km",
           "intervalPercent": "{percent}% del intervalo ({interval})",
-          "upToDate": "Mantención al día",
-          "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva.",
-          "upToDateBadge": "Al día",
-          "dueSoon": "Próxima",
-          "overdue": "Vencida"
+          "neverServiced": "Nunca",
+          "errorTitle": "No pudimos cargar los datos de mantención",
+          "errorDesc": "Algo salió mal al obtener el detalle. Intenta nuevamente en unos segundos.",
+          "retry": "Reintentar",
+          "criticality": {
+            "AL_DIA": {
+              "label": "Al día",
+              "bannerTitle": "Mantención al día",
+              "bannerDesc": "El vehículo cumple con el plan de mantención preventiva."
+            },
+            "POR_VENCER": {
+              "label": "Por vencer",
+              "bannerTitle": "Mantención por vencer",
+              "bannerDesc": "Faltan menos de 2.000 km para la próxima mantención programada. Agenda una visita al taller."
+            },
+            "CRITICO": {
+              "label": "Crítica",
+              "bannerTitle": "Ventana crítica de mantención",
+              "bannerDesc": "Faltan menos de 500 km para la próxima mantención. Agenda el servicio de inmediato para evitar la sobrepasada."
+            },
+            "VENCIDO": {
+              "label": "Vencida",
+              "bannerTitle": "Mantención vencida",
+              "bannerDesc": "El vehículo sobrepasó el kilometraje programado. Retíralo de servicio hasta completar la mantención."
+            },
+            "EN_TALLER": {
+              "label": "En taller",
+              "bannerTitle": "Vehículo en taller",
+              "bannerDesc": "Hay una orden de mantención en curso para este vehículo."
+            },
+            "AGENDADO": {
+              "label": "Agendada",
+              "bannerTitle": "Mantención agendada",
+              "bannerDesc": "Se creó una orden de mantención y está en espera para iniciarse."
+            },
+            "SIN_INFO": {
+              "label": "Sin datos",
+              "bannerTitle": "Sin señal de odómetro",
+              "bannerDesc": "No tenemos datos recientes de odómetro para este vehículo para calcular su estado de mantención. Verifica que el dispositivo GPS esté reportando."
+            }
+          }
         },
         "technicalHealth": {
           "title": "Salud Técnica",

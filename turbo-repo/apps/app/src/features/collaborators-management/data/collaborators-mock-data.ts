@@ -6,12 +6,12 @@ import {
   HiOutlineDocumentText,
   HiOutlineChartBar,
 } from "react-icons/hi2";
-import type { ColaboratorKpi, Colaborator } from "../types/colaborators.types";
+import type { CollaboratorKpi, Collaborator } from "../types/collaborators.types";
 
-export const colaboratorsKpis: ColaboratorKpi[] = [
+export const collaboratorsKpis: CollaboratorKpi[] = [
   {
     id: "total",
-    labelKey: "totalColaborators",
+    labelKey: "totalCollaborators",
     value: 256,
     icon: HiOutlineUserGroup,
     color: "text-blue-600 bg-blue-100",
@@ -59,7 +59,7 @@ export const colaboratorsKpis: ColaboratorKpi[] = [
   },
 ];
 
-export const colaborators: Colaborator[] = [
+export const collaborators: Collaborator[] = [
   {
     id: "1",
     name: "Carlos Mendoza",

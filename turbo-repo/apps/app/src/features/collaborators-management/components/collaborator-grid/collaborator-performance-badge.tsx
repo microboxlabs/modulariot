@@ -2,12 +2,12 @@
 
 import { CircularProgress } from "@/features/common/components/circular-progress";
 
-interface ColaboratorPerformanceBadgeProps {
+interface CollaboratorPerformanceBadgeProps {
   readonly score: number;
 }
 
-export default function ColaboratorPerformanceBadge({
+export default function CollaboratorPerformanceBadge({
   score,
-}: ColaboratorPerformanceBadgeProps) {
+}: CollaboratorPerformanceBadgeProps) {
   return <CircularProgress value={score} size={32} />;
 }

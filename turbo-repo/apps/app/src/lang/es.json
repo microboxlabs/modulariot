@@ -1355,7 +1355,7 @@
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
         "fleetManagement": "Flotas",
-        "colaboratorsManagement": "Colaboradores"
+        "collaboratorsManagement": "Colaboradores"
       }
     },
     "calendar": {
@@ -3002,11 +3002,11 @@
       "goalCompleted": "¡Meta completada!"
     }
   },
-  "colaboratorsManagement": {
+  "collaboratorsManagement": {
     "title": "Gestión de Colaboradores",
     "subtitle": "Monitorea y administra el desempeño de todos los colaboradores de tu organización",
     "kpi": {
-      "totalColaborators": "Total Colaboradores",
+      "totalCollaborators": "Total Colaboradores",
       "averageScore": "Score Promedio de Equipo",
       "driversAtRisk": "Conductores en Riesgo",
       "outstandingDrivers": "Conductores Destacados",
@@ -3015,7 +3015,7 @@
     },
     "grid": {
       "title": "Colaboradores",
-      "colaboratorCount": "{count} colaboradores",
+      "collaboratorCount": "{count} colaboradores",
       "loading": "Cargando...",
       "emptyTitle": "Sin resultados",
       "emptyDesc": "No se encontraron colaboradores con los criterios de búsqueda actuales.",
@@ -3116,11 +3116,11 @@
     "alert": {
       "conducta-critica-reciente": "Conducta Crítica Reciente"
     },
-    "colaboratorGrid": {
+    "collaboratorGrid": {
       "name": "Nombre"
     },
     "breadcrumb": {
-      "colaboratorsManagement": "Gestión de Colaboradores"
+      "collaboratorsManagement": "Gestión de Colaboradores"
     }
   },
   "ext_tasks": {

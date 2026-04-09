@@ -1,12 +1,12 @@
 "use client";
 
-import type { ColaboratorKpi } from "../../types/colaborators.types";
+import type { CollaboratorKpi } from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 
 interface KpiCardsRowProps {
-  readonly kpis: ColaboratorKpi[];
+  readonly kpis: CollaboratorKpi[];
   readonly dict: I18nRecord;
 }
 

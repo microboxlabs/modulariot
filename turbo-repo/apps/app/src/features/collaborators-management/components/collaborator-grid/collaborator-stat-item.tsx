@@ -2,17 +2,17 @@
 
 import type { IconType } from "react-icons";
 
-interface ColaboratorStatItemProps {
+interface CollaboratorStatItemProps {
   readonly icon: IconType;
   readonly label: string;
   readonly value: string;
 }
 
-export default function ColaboratorStatItem({
+export default function CollaboratorStatItem({
   icon: Icon,
   label,
   value,
-}: ColaboratorStatItemProps) {
+}: CollaboratorStatItemProps) {
   return (
     <div className="flex flex-col items-center gap-0.5">
       <div className="flex items-center gap-1">

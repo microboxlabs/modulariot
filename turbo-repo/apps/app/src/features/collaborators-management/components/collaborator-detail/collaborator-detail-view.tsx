@@ -2,20 +2,20 @@
 
 import { useState, useCallback, useMemo } from "react";
 import type {
-  Colaborator,
-  ColaboratorDetailData,
+  Collaborator,
+  CollaboratorDetailData,
   ScoreCardIconId,
   FilterType,
-} from "../../types/colaborators.types";
+} from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { IconType } from "react-icons";
-import ColaboratorDetailHeader from "./colaborator-detail-header";
+import CollaboratorDetailHeader from "./collaborator-detail-header";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { HiClock, HiBolt, HiDocumentText, HiTruck } from "react-icons/hi2";
 import { IoShieldOutline, IoPulseOutline } from "react-icons/io5";
 import { tr } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
-import ColaboratorSummary from "./colaborator-summary";
+import CollaboratorSummary from "./collaborator-summary";
 
 // ─── Static UI config (does NOT come from backend) ───────────────────
 
@@ -83,9 +83,9 @@ const SCORE_CARD_CONFIG: readonly ScoreCardConfig[] = [
 
 // ─── Component ───────────────────────────────────────────────────────
 
-interface ColaboratorDetailViewProps {
-  readonly colaborator: Colaborator;
-  readonly detailData: ColaboratorDetailData;
+interface CollaboratorDetailViewProps {
+  readonly collaborator: Collaborator;
+  readonly detailData: CollaboratorDetailData;
   readonly dict: I18nRecord;
   readonly locale: string;
   readonly onBack: () => void;
@@ -99,8 +99,8 @@ interface ColaboratorDetailViewProps {
   };
 }
 
-export default function ColaboratorDetailView({
-  colaborator,
+export default function CollaboratorDetailView({
+  collaborator,
   detailData,
   dict,
   locale,
@@ -108,7 +108,7 @@ export default function ColaboratorDetailView({
   onBack,
   previous,
   next,
-}: ColaboratorDetailViewProps) {
+}: CollaboratorDetailViewProps) {
   const [behaviorFilter, setBehaviorFilter] = useState<FilterType>("todos");
 
   const handleCardClick = useCallback((filter: FilterType) => {
@@ -135,15 +135,15 @@ export default function ColaboratorDetailView({
 
   return (
     <div className="flex flex-col h-full items-center w-full">
-      <ColaboratorDetailHeader
-        colaborator={colaborator}
+      <CollaboratorDetailHeader
+        collaborator={collaborator}
         dict={dict}
         previous={previous}
         next={next}
       />
       <div className="flex-1 min-h-0 overflow-y-auto w-[70vw] max-w-screen-2xl p-4 flex flex-col gap-4">
-        <ColaboratorSummary
-          colaborator={colaborator}
+        <CollaboratorSummary
+          collaborator={collaborator}
           dict={dict}
           locale={locale}
           monthlyData={detailData.monthlyEvolution}

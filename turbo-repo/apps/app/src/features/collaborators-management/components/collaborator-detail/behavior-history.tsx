@@ -10,11 +10,11 @@ import type {
   BehaviorEvent,
   BehaviorCategory,
   FilterType,
-} from "../../types/colaborators.types";
+} from "../../types/collaborators.types";
 
-export type { FilterType } from "../../types/colaborators.types";
+export type { FilterType } from "../../types/collaborators.types";
 
-/** Maps each urgency level to its i18n key within the colaborators dict */
+/** Maps each urgency level to its i18n key within the collaborators dict */
 const urgencyLabelKeys: Record<string, string> = {
   critical: "behaviorHistory.urgency.critical",
   warning: "behaviorHistory.urgency.warning",

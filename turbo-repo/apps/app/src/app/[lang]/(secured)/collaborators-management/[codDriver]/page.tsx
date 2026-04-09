@@ -1,11 +1,11 @@
 import "server-only";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import ColaboratorDetailPage from "@/features/colaborators-management/components/colaborator-detail/colaborator-detail-page";
+import CollaboratorDetailPage from "@/features/collaborators-management/components/collaborator-detail/collaborator-detail-page";
 
 type DriverRouteParams = ParamsWithLang<{ codDriver: string }>;
 
-export default async function ColaboratorDetailRoute({
+export default async function CollaboratorDetailRoute({
   params,
 }: DriverRouteParams) {
   const { lang, codDriver } = await params;
@@ -14,7 +14,7 @@ export default async function ColaboratorDetailRoute({
 
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900 overflow-y-auto">
-      <ColaboratorDetailPage dict={dict} codDriver={decodedCodDriver} />
+      <CollaboratorDetailPage dict={dict} codDriver={decodedCodDriver} />
     </div>
   );
 }

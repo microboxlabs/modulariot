@@ -31,10 +31,10 @@ import type {
   UsageIntensity,
 } from "@/features/fleet-management/types/truck-usage.types";
 import type {
-  Colaborator,
-  ColaboratorDetailData,
-  ColaboratorDetailDto,
-} from "@/features/colaborators-management/types/colaborators.types";
+  Collaborator,
+  CollaboratorDetailData,
+  CollaboratorDetailDto,
+} from "@/features/collaborators-management/types/collaborators.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -1136,11 +1136,11 @@ export async function fetchDriverById(
 
 /**
  * Transform a raw `v_modulariot_drivers_tmp` row into the existing
- * `Colaborator` shape consumed by the grid and detail components.
+ * `Collaborator` shape consumed by the grid and detail components.
  *
  * Field mapping decisions (see plan file for the full justification):
  *
- * - `id` is stringified — the `Colaborator` contract expects string ids.
+ * - `id` is stringified — the `Collaborator` contract expects string ids.
  * - `employmentStatus` maps `is_active` → `"activo" | "suspendido"`. The
  *   view has no third state, so `"vacaciones"` is never emitted.
  * - `department` surfaces `cust_account` (customer RUT) because it's the
@@ -1151,11 +1151,11 @@ export async function fetchDriverById(
  *   they'll come from richer endpoints in a later phase.
  * - `score` is a plain numeric copy. Today every row is `0` upstream.
  */
-export function driverRowToColaborator(row: PgrestDriverRow): Colaborator {
+export function driverRowToCollaborator(row: PgrestDriverRow): Collaborator {
   return {
     id: String(row.id),
     // `externalId` carries the cod_driver (`{id}-{patente}`) so the list
-    // page can route straight to `/colaborators-management/{externalId}`
+    // page can route straight to `/collaborators-management/{externalId}`
     // without a second lookup. See `api_detalle_expediente_colaborador`
     // which takes `p_cod_driver` verbatim.
     externalId: row.cod_driver,
@@ -1176,14 +1176,14 @@ export function driverRowToColaborator(row: PgrestDriverRow): Colaborator {
  * Response shape returned by `public.api_detalle_expediente_colaborador`
  * in prod-iot-gps. One JSON object (not an array) containing the driver
  * header plus three pre-shaped sub-payloads that map 1:1 onto the
- * frontend's `ColaboratorDetailData` type.
+ * frontend's `CollaboratorDetailData` type.
  *
  * Caveats (see .cursor/plans/collaborator_detail_page_integration.plan.md):
  *
  * - `scores` contains 6 entries in positional order matching the
  *   frontend's `SCORE_CARD_CONFIG`, but the `FilterType` enum only has 5
  *   values, so positions 1 and 2 (punctuality + operational efficiency)
- *   both carry `id: "todos"` as a placeholder. The `ColaboratorDetailView`
+ *   both carry `id: "todos"` as a placeholder. The `CollaboratorDetailView`
  *   merges by array index, so rendering is unaffected — the duplicate id
  *   only matters if the score card ever becomes a click-through to a
  *   behavior-history filter.
@@ -1193,9 +1193,9 @@ export function driverRowToColaborator(row: PgrestDriverRow): Colaborator {
  */
 export interface PgrestDriverDetailResponse {
   driver: PgrestDriverRow;
-  scores: ColaboratorDetailData["scores"];
-  behaviorEvents: ColaboratorDetailData["behaviorEvents"];
-  monthlyEvolution: ColaboratorDetailData["monthlyEvolution"];
+  scores: CollaboratorDetailData["scores"];
+  behaviorEvents: CollaboratorDetailData["behaviorEvents"];
+  monthlyEvolution: CollaboratorDetailData["monthlyEvolution"];
 }
 
 /**
@@ -1237,23 +1237,23 @@ export async function fetchDriverDetailByCodDriver(
 }
 
 /**
- * Transform the raw expediente response into the `ColaboratorDetailDto`
- * consumed by the detail page. The header rides on `driverRowToColaborator`
+ * Transform the raw expediente response into the `CollaboratorDetailDto`
+ * consumed by the detail page. The header rides on `driverRowToCollaborator`
  * (same adapter the list uses, so the header stays consistent with the
  * list card), and the three sub-arrays pass through unchanged because the
  * backend already shapes them to match the frontend types.
  *
- * `colaboratorId` is the list-shaped numeric id (stringified), matching
+ * `collaboratorId` is the list-shaped numeric id (stringified), matching
  * how the mock data service identifies drivers internally.
  */
 export function driverDetailResponseToDto(
   resp: PgrestDriverDetailResponse
-): ColaboratorDetailDto {
-  const colaborator = driverRowToColaborator(resp.driver);
+): CollaboratorDetailDto {
+  const collaborator = driverRowToCollaborator(resp.driver);
   return {
-    colaborator,
+    collaborator,
     detailData: {
-      colaboratorId: colaborator.id,
+      collaboratorId: collaborator.id,
       scores: resp.scores ?? [],
       monthlyEvolution: resp.monthlyEvolution ?? [],
       behaviorEvents: resp.behaviorEvents ?? [],

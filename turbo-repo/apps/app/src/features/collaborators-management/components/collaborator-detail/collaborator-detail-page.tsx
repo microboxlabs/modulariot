@@ -9,17 +9,17 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { MessageBanner } from "@/features/common/components/message-banner";
-import type { Colaborator } from "../../types/colaborators.types";
+import type { Collaborator } from "../../types/collaborators.types";
 import { useCollaboratorDetail } from "../../hooks/use-collaborator-detail";
 import { useCollaborators } from "../../hooks/use-collaborators";
 import {
-  getColaboratorById,
-  getColaborators,
-} from "../../data/colaborators-data-service";
-import { getColaboratorDetailData } from "../../data/colaborator-detail-mock-data";
-import ColaboratorDetailView from "./colaborator-detail-view";
+  getCollaboratorById,
+  getCollaborators,
+} from "../../data/collaborators-data-service";
+import { getCollaboratorDetailData } from "../../data/collaborator-detail-mock-data";
+import CollaboratorDetailView from "./collaborator-detail-view";
 
-interface ColaboratorDetailPageProps {
+interface CollaboratorDetailPageProps {
   readonly dict: I18nRecord;
   readonly codDriver: string;
 }
@@ -57,7 +57,7 @@ function DetailSkeleton() {
  * the driver isn't in the list at all.
  */
 function computeNeighborNav(
-  list: Colaborator[],
+  list: Collaborator[],
   routeSegment: string
 ): {
   prevSegment: string | null;
@@ -76,17 +76,17 @@ function computeNeighborNav(
   };
 }
 
-export default function ColaboratorDetailPage({
+export default function CollaboratorDetailPage({
   dict,
   codDriver,
-}: ColaboratorDetailPageProps) {
-  const colaboratorsDict = dict["colaboratorsManagement"] as I18nRecord;
-  const detailDict = colaboratorsDict["detail"] as I18nRecord;
+}: CollaboratorDetailPageProps) {
+  const collaboratorsDict = dict["collaboratorsManagement"] as I18nRecord;
+  const detailDict = collaboratorsDict["detail"] as I18nRecord;
   const router = useRouter();
   const { lang } = useParams<{ lang: string }>();
 
   const {
-    colaborator: backendColaborator,
+    collaborator: backendCollaborator,
     detailData: backendDetailData,
     disabled: backendDisabled,
     notFound,
@@ -98,15 +98,15 @@ export default function ColaboratorDetailPage({
   // Pull the list for prev/next navigation. SWR dedupes against the list
   // page's call so there's no extra network cost when the user came here
   // via a card click; direct URL hits pay one fetch for navigation state.
-  const { colaborators: backendList, disabled: listDisabled } =
+  const { collaborators: backendList, disabled: listDisabled } =
     useCollaborators();
 
   // Mock-fallback branches. When the pgrest source is disabled the hooks
   // both return `disabled: true` and empty arrays, so we substitute the
   // mock data service at the point of use. The hook fallback branches on
   // the *detail* hook's flag because that's the one the detail UI reads.
-  const list = useMemo<Colaborator[]>(() => {
-    if (listDisabled) return getColaborators();
+  const list = useMemo<Collaborator[]>(() => {
+    if (listDisabled) return getCollaborators();
     return backendList;
   }, [listDisabled, backendList]);
 
@@ -115,16 +115,16 @@ export default function ColaboratorDetailPage({
     // The mock data service keys by numeric id, not cod_driver.
     // Accept either shape — the list-page handoff passes `externalId`
     // when available and falls back to `id` for mock-only rows.
-    const mockColaborator =
-      getColaboratorById(codDriver) ??
+    const mockCollaborator =
+      getCollaboratorById(codDriver) ??
       list.find((c) => c.externalId === codDriver || c.id === codDriver);
-    if (!mockColaborator) return null;
-    const mockDetail = getColaboratorDetailData(mockColaborator.id);
+    if (!mockCollaborator) return null;
+    const mockDetail = getCollaboratorDetailData(mockCollaborator.id);
     if (!mockDetail) return null;
-    return { colaborator: mockColaborator, detailData: mockDetail };
+    return { collaborator: mockCollaborator, detailData: mockDetail };
   }, [backendDisabled, codDriver, list]);
 
-  const colaborator = backendColaborator ?? mockFallback?.colaborator ?? null;
+  const collaborator = backendCollaborator ?? mockFallback?.collaborator ?? null;
   const detailData = backendDetailData ?? mockFallback?.detailData ?? null;
 
   const navigation = useMemo(
@@ -133,13 +133,13 @@ export default function ColaboratorDetailPage({
   );
 
   const handleBack = useCallback(() => {
-    router.push(`/${lang}/colaborators-management`);
+    router.push(`/${lang}/collaborators-management`);
   }, [router, lang]);
 
   const handlePrevious = useCallback(() => {
     if (navigation?.prevSegment) {
       router.push(
-        `/${lang}/colaborators-management/${encodeURIComponent(
+        `/${lang}/collaborators-management/${encodeURIComponent(
           navigation.prevSegment
         )}`
       );
@@ -149,7 +149,7 @@ export default function ColaboratorDetailPage({
   const handleNext = useCallback(() => {
     if (navigation?.nextSegment) {
       router.push(
-        `/${lang}/colaborators-management/${encodeURIComponent(
+        `/${lang}/collaborators-management/${encodeURIComponent(
           navigation.nextSegment
         )}`
       );
@@ -157,12 +157,12 @@ export default function ColaboratorDetailPage({
   }, [navigation, router, lang]);
 
   // Loading — only on the initial load (SWR has no cached payload yet).
-  if (isLoading && !colaborator) {
+  if (isLoading && !collaborator) {
     return <DetailSkeleton />;
   }
 
   // 404 — driver not found upstream. Empty state + back link.
-  if (notFound || (!colaborator && !isLoading && !error)) {
+  if (notFound || (!collaborator && !isLoading && !error)) {
     return (
       <div className="flex flex-col items-center justify-center h-full w-full gap-4 p-8">
         <MessageBanner
@@ -183,7 +183,7 @@ export default function ColaboratorDetailPage({
   }
 
   // Error — fetch failed, no cached payload to fall back on. Retry cta.
-  if (error && !colaborator) {
+  if (error && !collaborator) {
     return (
       <div className="flex flex-col items-center justify-center h-full w-full gap-4 p-8">
         <MessageBanner
@@ -212,7 +212,7 @@ export default function ColaboratorDetailPage({
     );
   }
 
-  if (!colaborator || !detailData) {
+  if (!collaborator || !detailData) {
     // Defensive — should be unreachable given the guards above but keeps
     // TypeScript happy.
     return <DetailSkeleton />;
@@ -220,10 +220,10 @@ export default function ColaboratorDetailPage({
 
   return (
     <div className="flex flex-col gap-6 w-full mx-auto h-full">
-      <ColaboratorDetailView
-        colaborator={colaborator}
+      <CollaboratorDetailView
+        collaborator={collaborator}
         detailData={detailData}
-        dict={colaboratorsDict}
+        dict={collaboratorsDict}
         locale={lang}
         onBack={handleBack}
         previous={{

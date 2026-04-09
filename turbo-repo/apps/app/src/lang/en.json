@@ -1330,7 +1330,7 @@
         "truckBeds": "Truck Beds",
         "allDevices": "All Devices",
         "fleetManagement": "Fleet",
-        "colaboratorsManagement": "Collaborators"
+        "collaboratorsManagement": "Collaborators"
       }
     },
     "calendar": {
@@ -2971,11 +2971,11 @@
       "goalCompleted": "Goal completed!"
     }
   },
-  "colaboratorsManagement": {
+  "collaboratorsManagement": {
     "title": "Collaborators Management",
     "subtitle": "Monitor and manage the performance of all collaborators in your organization",
     "kpi": {
-      "totalColaborators": "Total Collaborators",
+      "totalCollaborators": "Total Collaborators",
       "averageScore": "Team Average Score",
       "driversAtRisk": "Drivers at Risk",
       "outstandingDrivers": "Outstanding Drivers",
@@ -2984,7 +2984,7 @@
     },
     "grid": {
       "title": "Collaborators",
-      "colaboratorCount": "{count} collaborators",
+      "collaboratorCount": "{count} collaborators",
       "loading": "Loading...",
       "emptyTitle": "No results",
       "emptyDesc": "No collaborators match the current search criteria.",
@@ -3085,11 +3085,11 @@
     "alert": {
       "conducta-critica-reciente": "Recent Critical Conduct"
     },
-    "colaboratorGrid": {
+    "collaboratorGrid": {
       "name": "Name"
     },
     "breadcrumb": {
-      "colaboratorsManagement": "Collaborators Management"
+      "collaboratorsManagement": "Collaborators Management"
     }
   },
   "ext_tasks": {

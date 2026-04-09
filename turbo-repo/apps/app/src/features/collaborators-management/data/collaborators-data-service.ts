@@ -6,48 +6,48 @@ import {
   HiOutlineDocumentText,
   HiOutlineChartBar,
 } from "react-icons/hi2";
-import type { Colaborator, ColaboratorKpi } from "../types/colaborators.types";
+import type { Collaborator, CollaboratorKpi } from "../types/collaborators.types";
 import {
-  colaborators as mockColaborators,
-  colaboratorsKpis as mockKpis,
-} from "./colaborators-mock-data";
+  collaborators as mockCollaborators,
+  collaboratorsKpis as mockKpis,
+} from "./collaborators-mock-data";
 
 /**
- * Colaborators Data Service
+ * Collaborators Data Service
  *
- * This service provides access to colaborator data.
+ * This service provides access to collaborator data.
  * Currently uses mock data but can be replaced with API/database calls.
  */
 
 /**
- * Get all colaborators
- * @returns Array of colaborators
+ * Get all collaborators
+ * @returns Array of collaborators
  */
-export function getColaborators(): Colaborator[] {
-  return mockColaborators;
+export function getCollaborators(): Collaborator[] {
+  return mockCollaborators;
 }
 
 /**
- * Get a single colaborator by ID
- * @param id - The colaborator ID
- * @returns Colaborator or undefined
+ * Get a single collaborator by ID
+ * @param id - The collaborator ID
+ * @returns Collaborator or undefined
  */
-export function getColaboratorById(id: string): Colaborator | undefined {
-  return mockColaborators.find((c) => c.id === id);
+export function getCollaboratorById(id: string): Collaborator | undefined {
+  return mockCollaborators.find((c) => c.id === id);
 }
 
 /**
- * Get colaborator KPIs (legacy hardcoded mock values).
+ * Get collaborator KPIs (legacy hardcoded mock values).
  *
- * Prefer `computeColaboratorsKpis(list)` — it derives every card from the
+ * Prefer `computeCollaboratorsKpis(list)` — it derives every card from the
  * actual list so the numbers can't drift from what the grid shows.
  */
-export function getColaboratorsKpis(): ColaboratorKpi[] {
+export function getCollaboratorsKpis(): CollaboratorKpi[] {
   return mockKpis;
 }
 
 /**
- * Derive the KPI card row from the current colaborators list.
+ * Derive the KPI card row from the current collaborators list.
  *
  * All six cards are computed from the list so the row stays in sync with
  * whatever the grid is showing — previously the `total` card was hardcoded
@@ -65,9 +65,9 @@ export function getColaboratorsKpis(): ColaboratorKpi[] {
  * The icon/color styling stays identical to the legacy hardcoded values
  * so the visual layout doesn't change.
  */
-export function computeColaboratorsKpis(
-  list: Colaborator[]
-): ColaboratorKpi[] {
+export function computeCollaboratorsKpis(
+  list: Collaborator[]
+): CollaboratorKpi[] {
   const total = list.length;
 
   const formatPct = (n: number) => `${n.toFixed(1)}%`;
@@ -87,7 +87,7 @@ export function computeColaboratorsKpis(
   return [
     {
       id: "total",
-      labelKey: "totalColaborators",
+      labelKey: "totalCollaborators",
       value: total,
       icon: HiOutlineUserGroup,
       color: "text-blue-600 bg-blue-100",
@@ -137,38 +137,38 @@ export function computeColaboratorsKpis(
 }
 
 /**
- * Get navigation info for a colaborator (previous/next)
- * @param currentId - Current colaborator ID
- * @param colaborators - Optional list of colaborators (defaults to all)
- * @returns Navigation info with previous and next colaborator IDs
+ * Get navigation info for a collaborator (previous/next)
+ * @param currentId - Current collaborator ID
+ * @param collaborators - Optional list of collaborators (defaults to all)
+ * @returns Navigation info with previous and next collaborator IDs
  */
-export function getColaboratorNavigation(
+export function getCollaboratorNavigation(
   currentId: string,
-  colaborators: Colaborator[] = mockColaborators
+  collaborators: Collaborator[] = mockCollaborators
 ): {
   previousId: string | null;
   nextId: string | null;
   currentIndex: number;
   total: number;
 } {
-  const currentIndex = colaborators.findIndex((c) => c.id === currentId);
+  const currentIndex = collaborators.findIndex((c) => c.id === currentId);
 
   if (currentIndex === -1) {
     return {
       previousId: null,
       nextId: null,
       currentIndex: -1,
-      total: colaborators.length,
+      total: collaborators.length,
     };
   }
 
   return {
-    previousId: currentIndex > 0 ? colaborators[currentIndex - 1].id : null,
+    previousId: currentIndex > 0 ? collaborators[currentIndex - 1].id : null,
     nextId:
-      currentIndex < colaborators.length - 1
-        ? colaborators[currentIndex + 1].id
+      currentIndex < collaborators.length - 1
+        ? collaborators[currentIndex + 1].id
         : null,
     currentIndex,
-    total: colaborators.length,
+    total: collaborators.length,
   };
 }

@@ -2,10 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import type { Colaborator } from "../../types/colaborators.types";
+import type { Collaborator } from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import ColaboratorCard from "./colaborator-card";
+import CollaboratorCard from "./collaborator-card";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -18,17 +18,17 @@ interface SortState {
   direction: SortDirection;
 }
 
-interface ColaboratorGridProps {
-  readonly colaborators: Colaborator[];
+interface CollaboratorGridProps {
+  readonly collaborators: Collaborator[];
   readonly dict: I18nRecord;
-  readonly onSelectColaborator?: (id: string) => void;
+  readonly onSelectCollaborator?: (id: string) => void;
 }
 
-export default function ColaboratorGrid({
-  colaborators,
+export default function CollaboratorGrid({
+  collaborators,
   dict,
-  onSelectColaborator,
-}: ColaboratorGridProps) {
+  onSelectCollaborator,
+}: CollaboratorGridProps) {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
   const [sort, setSort] = useState<SortState>({ field: null, direction: "desc" });
@@ -51,35 +51,35 @@ export default function ColaboratorGrid({
     });
   };
 
-  const filteredColaborators = useMemo(() => {
+  const filteredCollaborators = useMemo(() => {
     switch (filter) {
       case "activos":
-        return colaborators.filter((c) => c.employmentStatus === "activo");
+        return collaborators.filter((c) => c.employmentStatus === "activo");
       case "en-riesgo":
-        return colaborators.filter((c) => c.score < 50);
+        return collaborators.filter((c) => c.score < 50);
       case "destacados":
-        return colaborators.filter((c) => c.score >= 80);
+        return collaborators.filter((c) => c.score >= 80);
       case "con-incidentes":
-        return colaborators.filter((c) => c.incidentsCount > 0);
+        return collaborators.filter((c) => c.incidentsCount > 0);
       default:
-        return colaborators;
+        return collaborators;
     }
-  }, [colaborators, filter]);
+  }, [collaborators, filter]);
 
-  const sortedColaborators = useMemo(() => {
-    if (!sort.field) return filteredColaborators;
+  const sortedCollaborators = useMemo(() => {
+    if (!sort.field) return filteredCollaborators;
     
-    return [...filteredColaborators].sort((a, b) => {
+    return [...filteredCollaborators].sort((a, b) => {
       if (!sort.field) return 0;
       const aVal = a[sort.field];
       const bVal = b[sort.field];
       const diff = aVal - bVal;
       return sort.direction === "asc" ? diff : -diff;
     });
-  }, [filteredColaborators, sort]);
+  }, [filteredCollaborators, sort]);
 
-  const visibleColaborators = sortedColaborators.slice(0, visibleCount);
-  const hasMore = visibleCount < sortedColaborators.length;
+  const visibleCollaborators = sortedCollaborators.slice(0, visibleCount);
+  const hasMore = visibleCount < sortedCollaborators.length;
 
   const clearLoadTimeout = useCallback(() => {
     if (loadTimeoutRef.current) {
@@ -91,16 +91,16 @@ export default function ColaboratorGrid({
   // Reset visible count when filter changes
   useEffect(() => {
     clearLoadTimeout();
-    setVisibleCount(Math.min(ITEMS_PER_PAGE, sortedColaborators.length));
+    setVisibleCount(Math.min(ITEMS_PER_PAGE, sortedCollaborators.length));
     setIsLoading(false);
-  }, [filter, sortedColaborators.length, clearLoadTimeout]);
+  }, [filter, sortedCollaborators.length, clearLoadTimeout]);
 
-  // Reset state when colaborators prop changes
+  // Reset state when collaborators prop changes
   useEffect(() => {
     clearLoadTimeout();
-    setVisibleCount(Math.min(ITEMS_PER_PAGE, colaborators.length));
+    setVisibleCount(Math.min(ITEMS_PER_PAGE, collaborators.length));
     setIsLoading(false);
-  }, [colaborators, clearLoadTimeout]);
+  }, [collaborators, clearLoadTimeout]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -113,11 +113,11 @@ export default function ColaboratorGrid({
     setIsLoading(true);
     loadTimeoutRef.current = setTimeout(() => {
       setVisibleCount((prev) =>
-        Math.min(prev + ITEMS_PER_PAGE, sortedColaborators.length)
+        Math.min(prev + ITEMS_PER_PAGE, sortedCollaborators.length)
       );
       setIsLoading(false);
     }, 300);
-  }, [isLoading, hasMore, sortedColaborators.length]);
+  }, [isLoading, hasMore, sortedCollaborators.length]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -171,7 +171,7 @@ export default function ColaboratorGrid({
             {tr("grid.title", dict)}
           </h2>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            {tr("grid.colaboratorCount", dict, { count: String(sortedColaborators.length) })}
+            {tr("grid.collaboratorCount", dict, { count: String(sortedCollaborators.length) })}
           </span>
         </div>
         <div className="flex items-end gap-2 flex-wrap">
@@ -243,12 +243,12 @@ export default function ColaboratorGrid({
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        {visibleColaborators.map((colaborator) => (
-          <ColaboratorCard
-            key={colaborator.id}
-            colaborator={colaborator}
+        {visibleCollaborators.map((collaborator) => (
+          <CollaboratorCard
+            key={collaborator.id}
+            collaborator={collaborator}
             dict={dict}
-            onSelect={onSelectColaborator}
+            onSelect={onSelectCollaborator}
           />
         ))}
       </div>

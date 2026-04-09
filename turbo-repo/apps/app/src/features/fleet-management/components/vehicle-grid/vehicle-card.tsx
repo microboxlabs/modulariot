@@ -29,9 +29,10 @@ export default function VehicleCard({
   isDetailed,
   onSelect,
 }: VehicleCardProps) {
-  const fuelValue = vehicle.fuelVolumeLiters === undefined
-    ? `${vehicle.fuelLevel}%`
-    : `${vehicle.fuelVolumeLiters.toFixed(1)} L`;
+  const fuelValue =
+    vehicle.fuelVolumeLiters === undefined
+      ? `${vehicle.fuelLevel}%`
+      : `${vehicle.fuelVolumeLiters.toFixed(1)} L`;
 
   const handleClick = () => {
     onSelect?.(vehicle.plate);
@@ -45,8 +46,10 @@ export default function VehicleCard({
   };
 
   const isInteractive = Boolean(onSelect);
-  const baseClasses = "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 transition-colors";
-  const interactiveClasses = "cursor-pointer hover:border-gray-400 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400";
+  const baseClasses =
+    "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 transition-colors text-left";
+  const interactiveClasses =
+    "cursor-pointer hover:border-gray-400 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400";
 
   const cardContent = (
     <>
@@ -111,11 +114,7 @@ export default function VehicleCard({
   );
 
   if (!isInteractive) {
-    return (
-      <div className={baseClasses}>
-        {cardContent}
-      </div>
-    );
+    return <div className={baseClasses}>{cardContent}</div>;
   }
 
   return (

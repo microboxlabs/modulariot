@@ -11,10 +11,11 @@ import icu_codes from "@/features/symptoms/model/icu_condition.json";
 import { MapPosition } from "@/features/geographic-view/types/map";
 import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import PinIcon from "@/features/icons/pin-icon";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
 import { tr } from "@/features/i18n/tr.service";
 import { useMapFilters } from "../hooks/use-map-filters";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 
 function set_filtered_positions(
   originalPositions: MapPosition[],
@@ -73,7 +74,11 @@ export default function Filters({
   originalPositions: MapPosition[];
   setPositions: (positions: MapPosition[]) => void;
 }) {
-  const { getInitialActivated, syncFiltersToUrl } = useMapFilters();
+  const { getInitialActivated, syncFiltersToUrl, hasUrlParam } = useMapFilters();
+  const runtimeConfig = useRuntimeConfig();
+
+  // Determine default trip filter from runtime config
+  const defaultTripFilter = runtimeConfig?.MAP_DEFAULT_TRIP_FILTER === "true";
 
   const [activeFilters, setActiveFilters] = useState<{
     conditions: Option[];
@@ -208,7 +213,7 @@ export default function Filters({
             </div>
           </CustomTooltip>
         ),
-        activated: getInitialActivated("trip", "1", true),
+        activated: getInitialActivated("trip", "1", false),
       },
       {
         text: "Sin viaje",
@@ -232,6 +237,27 @@ export default function Filters({
       },
     ],
   });
+
+  // Track if config default has been applied
+  const configDefaultApplied = useRef(false);
+
+  // Apply runtime config default for trip filter once loaded (if no URL param)
+  useEffect(() => {
+    if (configDefaultApplied.current) return;
+    if (!runtimeConfig) return;
+    if (hasUrlParam("trip")) return;
+
+    configDefaultApplied.current = true;
+
+    if (defaultTripFilter) {
+      setActiveFilters((prev) => ({
+        ...prev,
+        tripStates: prev.tripStates.map((state) =>
+          state.code === "1" ? { ...state, activated: true } : state
+        ),
+      }));
+    }
+  }, [runtimeConfig, defaultTripFilter, hasUrlParam]);
 
   // Re-apply filters when data changes
   useEffect(() => {

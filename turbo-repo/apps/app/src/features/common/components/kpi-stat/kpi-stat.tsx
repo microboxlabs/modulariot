@@ -1,7 +1,7 @@
 "use client";
 
 import type { IconType } from "react-icons";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
 type KpiStatVariant = "horizontal" | "vertical";
@@ -19,26 +19,26 @@ export type KpiStatStyle =
 export interface TitleConfig {
   readonly text: string;
   readonly className?: string;
-  readonly style?: React.CSSProperties;
+  readonly style?: CSSProperties;
 }
 
 export interface ValueConfig {
   readonly text: string | number;
   readonly className?: string;
-  readonly style?: React.CSSProperties;
+  readonly style?: CSSProperties;
 }
 
 export interface DescriptionConfig {
   readonly text: string;
   readonly className?: string;
-  readonly style?: React.CSSProperties;
+  readonly style?: CSSProperties;
 }
 
 export interface IconConfig {
   readonly icon?: IconType;
   readonly custom?: ReactNode;
   readonly className?: string;
-  readonly style?: React.CSSProperties;
+  readonly style?: CSSProperties;
 }
 
 interface KpiStatProps {

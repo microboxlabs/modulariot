@@ -14,6 +14,8 @@ import {
   PgrestDataTab,
   useActiveProviders,
   DataProviderEntries,
+  useThresholdSettings,
+  ThresholdEditor,
 } from "../common";
 import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
@@ -45,6 +47,7 @@ export function DashletSettings({
   );
 
   const dp = useDataProvider(config.dataProvider ?? []);
+  const threshold = useThresholdSettings(config);
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
@@ -72,6 +75,7 @@ export function DashletSettings({
       plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
       dataProvider: dp.getCleanEntries(),
       ...refresh.savePayload,
+      ...threshold.buildThresholdSavePayload(),
     });
     onClose();
   };
@@ -117,6 +121,19 @@ export function DashletSettings({
           schemaSuggestions={schemaSuggestions}
         />
       </SettingsFieldGrid>
+      <ThresholdEditor
+        enabled={threshold.thresholdEnabled}
+        onToggle={threshold.setThresholdEnabled}
+        field={threshold.thresholdField}
+        onFieldChange={threshold.setThresholdField}
+        applyTo={threshold.thresholdApplyTo}
+        onApplyToChange={threshold.setThresholdApplyTo}
+        rules={threshold.thresholdRules}
+        onAdd={threshold.addThresholdRule}
+        onRemove={threshold.removeThresholdRule}
+        onUpdate={threshold.updateThresholdRule}
+        schemaSuggestions={schemaSuggestions}
+      />
     </>
   );
 

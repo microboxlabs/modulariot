@@ -192,7 +192,7 @@ export function DashletSettings({
         placeholder="https://example.com/details"
       />
 
-      {viewMoreUrl && (
+      {viewMoreUrl.trim() && (
         <HbTextField
           id="viewMoreLabel"
           label={tr("dashboard.settings.viewMoreLabel", dictionary)}
@@ -202,7 +202,7 @@ export function DashletSettings({
           placeholder={tr("dashboard.settings.viewMoreLabelPlaceholder", dictionary)}
         />
       )}
-      {viewMoreUrl && (
+      {viewMoreUrl.trim() && (
         <div className="flex items-center justify-between">
           <Label className="text-sm">
             {tr("dashboard.settings.openInSameTab", dictionary)}

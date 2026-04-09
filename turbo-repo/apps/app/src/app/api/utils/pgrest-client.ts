@@ -85,6 +85,13 @@ export interface PgrestMaintenanceRow {
   km_rest_os: number | null;
   /** Effective remaining km — `LEAST(km_rest_fab, km_rest_os)` when serviced, else `km_rest_fab`. */
   km_rest_peor: number | null;
+  /**
+   * Target odometer for the next scheduled service.
+   * Computed upstream as `km_actual + km_rest_peor` so it lands on the
+   * next round interval (e.g. 90000 when `km_actual=88501` and
+   * `km_rest_peor=1499`). Replaces the older `km_next_maintance`.
+   */
+  prox_mant_km: number | null;
   /** ABS of `km_rest_peor` when it goes negative; NULL when not overdue. */
   km_excedido: number | null;
   /** 7-day rolling average km/day. May be 0 or NULL. */
@@ -105,12 +112,6 @@ export interface PgrestMaintenanceRow {
     | "EN_TALLER"
     | "AGENDADO"
     | "SIN_INFO";
-  /** Distinct completed work orders count. */
-  num_maintance: number | null;
-  /** Most recent closed-WO timestamp (ISO 8601). */
-  last_seen_at: string | null;
-  /** `freq + km_os` — the next scheduled service odometer. */
-  km_next_maintance: number | null;
 }
 
 /**
@@ -542,17 +543,21 @@ export function pgrestRowToTruck(
  *   `odometer.current_km` null and making every odometer-dependent derivation
  *   also null (`km_since_last_service`, `pct_of_interval`).
  * - `km_os = 0` → never serviced; the source still returns zero but the UI
- *   must treat this as "no prior service", so `last_service_km` and
- *   `last_service_at` both become null even though the row may carry a value.
+ *   must treat this as "no prior service", so `last_service_km` becomes
+ *   null even though the row may carry a value.
  * - `km_por_dia = 0 OR NULL` → the source returns null `dias_est`/`fecha_est`
  *   already; we pass those through untouched.
+ *
+ * TODO: the upstream function recently dropped `last_seen_at` and
+ * `num_maintance` from its RETURNS TABLE, so `plan.last_service_at` and
+ * `plan.completed_services` are forced to null here. Restore when the
+ * function re-exposes them or when the Java endpoint lands.
  */
 export function maintenanceRowToDto(
   row: PgrestMaintenanceRow
 ): TruckMaintenanceDetail {
   const intervalKm = row.freq ?? 0;
   const lastServiceKm = row.km_os && row.km_os > 0 ? row.km_os : null;
-  const lastServiceAt = lastServiceKm !== null ? row.last_seen_at : null;
 
   const kmSinceLastService =
     row.km_actual !== null && lastServiceKm !== null
@@ -575,9 +580,11 @@ export function maintenanceRowToDto(
     plan: {
       interval_km: intervalKm,
       last_service_km: lastServiceKm,
-      last_service_at: lastServiceAt,
-      next_service_target_km: row.km_next_maintance ?? intervalKm,
-      completed_services: row.num_maintance ?? 0,
+      // Source no longer ships `last_seen_at`. See TODO above.
+      last_service_at: null,
+      next_service_target_km: row.prox_mant_km ?? intervalKm,
+      // Source no longer ships `num_maintance`. See TODO above.
+      completed_services: null,
       km_since_last_service: kmSinceLastService,
       pct_of_interval: pctOfInterval,
     },

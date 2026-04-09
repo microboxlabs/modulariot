@@ -41,6 +41,11 @@ const where_is_my_load_params: ParamType[] = [
   setParam("expeditionNumber", "text"),
 ];
 
+const collaborators_management_params: ParamType[] = [
+  setParam("name", "text"),
+  setParam("rut", "text"),
+];
+
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
   setParam("trip_id", "text"),
@@ -80,6 +85,11 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       true
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
+    "colaborators-management": getParamsFixed(
+      collaborators_management_params,
+      dict,
+      true
+    ), // No params for this page
   };
 }
 

@@ -25,8 +25,6 @@ export interface SettingsFieldDef {
   readonly state: string;
   readonly hbPlaceholder: string;
   readonly staticPlaceholder: string;
-  /** Optional: state key for a checkbox shown to the left of the input */
-  readonly checkboxState?: string;
 }
 
 export interface SimpleDashletSettingsProps<C extends object> {
@@ -42,20 +40,16 @@ export interface SimpleDashletSettingsProps<C extends object> {
   extraSaveFields?: Record<string, unknown>;
   /** When true, show the ThresholdEditor in the visualization tab */
   thresholds?: boolean;
-  /** Checkbox values for fields with checkboxState */
-  checkboxValues?: Record<string, boolean>;
-  /** Checkbox setters for fields with checkboxState */
-  checkboxSetters?: Record<string, (v: boolean) => void>;
 }
 
 // ============================================================================
 // Hook: manage field state from a FIELDS config array
 // ============================================================================
 
-function toStringOrDefault(v: unknown, fallback: string): string {
+function toStringOrDefault(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
-  return fallback;
+  return "";
 }
 
 export function useFieldState(
@@ -65,7 +59,7 @@ export function useFieldState(
   const [values, setValues] = useState<Record<string, string>>(() => {
     const result: Record<string, string> = {};
     for (const f of fields) {
-      result[f.state] = toStringOrDefault(config[f.state], f.staticPlaceholder);
+      result[f.state] = toStringOrDefault(config[f.state]);
     }
     return result;
   });
@@ -85,7 +79,7 @@ export function useFieldState(
   const buildSaveValues = (): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const f of fields) {
-      result[f.state] = values[f.state].trim() || f.staticPlaceholder;
+      result[f.state] = values[f.state].trim();
     }
     return result;
   };
@@ -111,8 +105,6 @@ export function SimpleDashletSettings<C extends object>({
   extraVisualization,
   extraSaveFields,
   thresholds: showThresholds = false,
-  checkboxValues,
-  checkboxSetters,
 }: Readonly<SimpleDashletSettingsProps<C>>) {
   const configRecord = config as unknown as Record<string, unknown>;
   const { values, setters, fieldNames, buildSaveValues } = useFieldState(
@@ -186,8 +178,6 @@ export function SimpleDashletSettings<C extends object>({
         isPgrest={isPgrest}
         dictionary={dictionary}
         schemaSuggestions={schemaSuggestions}
-        checkboxValues={checkboxValues}
-        checkboxSetters={checkboxSetters}
       />
       {extraVisualization}
       {thresholdNode}

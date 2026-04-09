@@ -28,10 +28,6 @@ export interface DashletConfig extends PgrestDashletFields {
   subtitle: string;
   /** Layout variant: horizontal (icon left) or vertical (stacked) */
   cardVariant?: CardVariant;
-  /** Whether to show the title */
-  showTitle?: boolean;
-  /** Whether to show the subtitle/description */
-  showSubtitle?: boolean;
   /** Whether to show the icon */
   showIcon?: boolean;
   /** Selected icon key */
@@ -61,8 +57,6 @@ export const defaultConfig: DashletConfig = {
   unit: "",
   subtitle: "Last 24 hours",
   cardVariant: "horizontal",
-  showTitle: true,
-  showSubtitle: true,
   showIcon: true,
   icon: "cart",
   iconColor: "3b82f6",
@@ -85,10 +79,10 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 const FIELD_DEFAULTS: Record<string, string> = {
-  title: "Orders",
-  value: "156",
+  title: "",
+  value: "0",
   unit: "",
-  subtitle: "Last 24 hours",
+  subtitle: "",
 };
 
 /** Get the icon component from the icon key */
@@ -127,14 +121,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
-  const title = resolved.title || "Orders";
+  const title = resolved.title ?? "";
   const unit = resolved.unit ?? "";
-  const subtitle = resolved.subtitle || "";
+  const subtitle = resolved.subtitle ?? "";
   const value = parseResolvedNumber(resolved.value);
 
   const cardVariant: CardVariant = config.cardVariant ?? "horizontal";
-  const showTitle = config.showTitle !== false;
-  const showSubtitle = config.showSubtitle !== false;
   const showIcon = config.showIcon !== false;
   const iconKey = config.icon ?? "cart";
   const iconColorHex = config.iconColor ?? "3b82f6";
@@ -176,10 +168,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { color: `#${secondaryColorHex}`, opacity: 0.7 }
     : { opacity: 0.7 };
 
-  // Build title config (only if showTitle is enabled)
-  const titleConfig = showTitle ? { text: title, style: titleStyle } : undefined;
-  // Build description config (only if showSubtitle is enabled)
-  const descriptionConfig = showSubtitle
+  // Only show title/description if they have content
+  const titleConfig = title.trim()
+    ? { text: title, style: titleStyle }
+    : undefined;
+  const descriptionConfig = subtitle.trim()
     ? { text: subtitle, style: descriptionStyle }
     : undefined;
 

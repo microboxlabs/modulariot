@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Label, TextInput, Textarea, Select, Checkbox } from "flowbite-react";
-import { twMerge } from "tailwind-merge";
+import { Label, TextInput, Textarea, Select } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
@@ -470,8 +469,6 @@ interface HbTextFieldListField {
   state: string;
   hbPlaceholder: string;
   staticPlaceholder: string;
-  /** Optional: state key for a checkbox shown to the left of the input */
-  checkboxState?: string;
 }
 
 interface HbTextFieldListProps {
@@ -482,10 +479,6 @@ interface HbTextFieldListProps {
   dictionary: I18nRecord;
   /** Column keys for Handlebars autocomplete in dynamic modes */
   schemaSuggestions?: string[];
-  /** Checkbox values for fields with checkboxState */
-  checkboxValues?: Record<string, boolean>;
-  /** Checkbox setters for fields with checkboxState */
-  checkboxSetters?: Record<string, (v: boolean) => void>;
 }
 
 export function HbTextFieldList({
@@ -495,54 +488,20 @@ export function HbTextFieldList({
   isPgrest,
   dictionary,
   schemaSuggestions,
-  checkboxValues,
-  checkboxSetters,
 }: Readonly<HbTextFieldListProps>) {
   return (
     <>
-      {fields.map((f) => {
-        const hasCheckbox =
-          f.checkboxState && checkboxValues && checkboxSetters;
-        const isChecked = hasCheckbox
-          ? checkboxValues[f.checkboxState] ?? true
-          : true;
-
-        return (
-          <div key={f.id} className="space-y-1">
-            <Label
-              htmlFor={f.id}
-              className="text-sm font-medium text-gray-900 dark:text-white"
-            >
-              {tr(f.labelKey, dictionary)}
-            </Label>
-            <div className="flex items-center gap-2">
-              {hasCheckbox && (
-                <Checkbox
-                  id={`${f.id}-checkbox`}
-                  checked={isChecked}
-                  onChange={(e) =>
-                    checkboxSetters[f.checkboxState!](e.target.checked)
-                  }
-                />
-              )}
-              <div
-                className={twMerge(
-                  "flex-1",
-                  hasCheckbox && !isChecked && "opacity-40 pointer-events-none"
-                )}
-              >
-                <HbAutoInput
-                  id={f.id}
-                  value={fieldValues[f.state]}
-                  onChange={fieldSetters[f.state]}
-                  placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
-                  schemaSuggestions={isPgrest ? schemaSuggestions : undefined}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      {fields.map((f) => (
+        <HbTextField
+          key={f.id}
+          id={f.id}
+          label={tr(f.labelKey, dictionary)}
+          value={fieldValues[f.state]}
+          onChange={fieldSetters[f.state]}
+          placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
+          schemaSuggestions={isPgrest ? schemaSuggestions : undefined}
+        />
+      ))}
     </>
   );
 }

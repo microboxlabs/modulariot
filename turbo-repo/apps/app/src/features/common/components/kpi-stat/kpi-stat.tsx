@@ -70,7 +70,7 @@ function getContainerClasses(
   variant: KpiStatVariant
 ): string {
   // Both variants use flex row for the main container
-  const base = "flex items-center gap-3 h-fit rounded-lg p-4 shrink-0";
+  const base = "flex items-center gap-3 h-fit rounded-lg p-4 shrink-0 h-full";
 
   const styleClasses: Record<KpiStatStyle, string> = {
     default:

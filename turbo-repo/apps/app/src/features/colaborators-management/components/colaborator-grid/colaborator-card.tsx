@@ -36,7 +36,7 @@ export default function ColaboratorCard({
 
   const isInteractive = Boolean(onSelect);
   const baseClasses =
-    "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col gap-3 transition-colors";
+    "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col text-left gap-3 transition-colors";
   const interactiveClasses =
     "cursor-pointer hover:border-gray-500 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400";
 
@@ -56,7 +56,7 @@ export default function ColaboratorCard({
             </span>
           </div>
         </div>
-        
+
         {/* Name and Rank */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -68,11 +68,14 @@ export default function ColaboratorCard({
             {tr(`rank.${colaborator.rank}`, dict)}
           </p>
         </div>
-        
+
         {/* Performance Score then Status */}
         <div className="flex items-center gap-2 shrink-0">
           <ColaboratorPerformanceBadge score={colaborator.score} />
-          <ColaboratorStatusBadge status={colaborator.employmentStatus} dict={dict} />
+          <ColaboratorStatusBadge
+            status={colaborator.employmentStatus}
+            dict={dict}
+          />
         </div>
       </div>
 

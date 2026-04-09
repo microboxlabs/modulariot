@@ -63,6 +63,7 @@ export function DashletSettings({
     config.aiPlaceholder || "AI summary will appear here"
   );
   const [viewMoreUrl, setViewMoreUrl] = useState(config.viewMoreUrl || "");
+  const [viewMoreLabel, setViewMoreLabel] = useState(config.viewMoreLabel || "View more");
   const [openInSameTab, setOpenInSameTab] = useState(config.openInSameTab ?? false);
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
     config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
@@ -81,17 +82,18 @@ export function DashletSettings({
       .dataProvider || DEFAULT_DATA_ENTRIES
   );
 
-  const staticSnapshot = useRef({ title, value, descriptor, aiPlaceholder, viewMoreUrl, openInSameTab });
+  const staticSnapshot = useRef({ title, value, descriptor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab });
 
   const handleDataModeChange = (mode: SimpleDataMode) => {
     if (isRemoteDataMode(mode) && dataMode === "static") {
-      staticSnapshot.current = { title, value, descriptor, aiPlaceholder, viewMoreUrl, openInSameTab };
+      staticSnapshot.current = { title, value, descriptor, aiPlaceholder, viewMoreUrl, viewMoreLabel, openInSameTab };
     } else if (mode === "static" && isRemoteDataMode(dataMode)) {
       setTitle(staticSnapshot.current.title);
       setValue(staticSnapshot.current.value);
       setDescriptor(staticSnapshot.current.descriptor);
       setAiPlaceholder(staticSnapshot.current.aiPlaceholder);
       setViewMoreUrl(staticSnapshot.current.viewMoreUrl);
+      setViewMoreLabel(staticSnapshot.current.viewMoreLabel);
       setOpenInSameTab(staticSnapshot.current.openInSameTab);
     }
     setDataMode(mode);
@@ -118,6 +120,7 @@ export function DashletSettings({
       descriptor,
       aiPlaceholder,
       viewMoreUrl,
+      viewMoreLabel,
       openInSameTab,
       dataProvider: dp.getCleanEntries(),
       dataMode,
@@ -188,7 +191,18 @@ export function DashletSettings({
         onChange={setViewMoreUrl}
         placeholder="https://example.com/details"
       />
-      {viewMoreUrl && (
+
+      {viewMoreUrl.trim() && (
+        <HbTextField
+          id="viewMoreLabel"
+          label={tr("dashboard.settings.viewMoreLabel", dictionary)}
+          schemaSuggestions={schemaSuggestions}
+          value={viewMoreLabel}
+          onChange={setViewMoreLabel}
+          placeholder={tr("dashboard.settings.viewMoreLabelPlaceholder", dictionary)}
+        />
+      )}
+      {viewMoreUrl.trim() && (
         <div className="flex items-center justify-between">
           <Label className="text-sm">
             {tr("dashboard.settings.openInSameTab", dictionary)}

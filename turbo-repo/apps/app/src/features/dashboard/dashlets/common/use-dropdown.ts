@@ -26,6 +26,7 @@ export function useDropdown<T>({
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
       const target = event.target as Node;
       if (
         containerRef.current &&

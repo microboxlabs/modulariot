@@ -18,7 +18,7 @@ import { MessageBanner } from "@/features/common/components/message-banner";
 import type { MessageBannerVariant } from "@/features/common/components/message-banner";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 import { CustomBadge } from "@/features/common/components/custom-badge";
-import type { SectionStatus } from "../vehicle-detail-accordion";
+import { getMaintenanceSectionStatus } from "../vehicle-detail-accordion";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { useFleetTruckMaintenance } from "../../../hooks/use-fleet-truck-maintenance";
 
@@ -28,14 +28,15 @@ interface MaintenanceSectionProps {
 }
 
 // --- Criticality → UI mapping ---
-// One place for color, icon, banner variant, and accordion section status.
-// Keeps the switch statements to a single lookup in the render path.
+// One place for color, icon, and banner variant per criticality bucket.
+// The accordion section status comes from `getMaintenanceSectionStatus` in
+// vehicle-detail-accordion.tsx so the header color and the overall health
+// overview share a single source of truth.
 
 interface CriticalityUi {
   badgeClass: string;
   bannerVariant: MessageBannerVariant;
   bannerIcon: IconType;
-  sectionStatus: SectionStatus;
 }
 
 const CRITICALITY_UI: Record<MaintenanceCriticality, CriticalityUi> = {
@@ -44,47 +45,40 @@ const CRITICALITY_UI: Record<MaintenanceCriticality, CriticalityUi> = {
       "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     bannerVariant: "success",
     bannerIcon: HiOutlineCheckCircle,
-    sectionStatus: "ok",
   },
   POR_VENCER: {
     badgeClass:
       "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     bannerVariant: "warning",
     bannerIcon: HiOutlineExclamationTriangle,
-    sectionStatus: "warning",
   },
   CRITICO: {
     badgeClass: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     bannerVariant: "error",
     bannerIcon: HiOutlineExclamationTriangle,
-    sectionStatus: "critical",
   },
   VENCIDO: {
     badgeClass: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     bannerVariant: "error",
     bannerIcon: HiOutlineXCircle,
-    sectionStatus: "critical",
   },
   EN_TALLER: {
     badgeClass:
       "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
     bannerVariant: "warning",
     bannerIcon: HiOutlineWrenchScrewdriver,
-    sectionStatus: "warning",
   },
   AGENDADO: {
     badgeClass:
       "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     bannerVariant: "info",
     bannerIcon: HiOutlineClock,
-    sectionStatus: "ok",
   },
   SIN_INFO: {
     badgeClass:
       "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
     bannerVariant: "info",
     bannerIcon: HiOutlineInformationCircle,
-    sectionStatus: "ok",
   },
 };
 
@@ -219,7 +213,7 @@ export default function MaintenanceSection({
       icon={HiOutlineWrenchScrewdriver}
       title={title}
       description={description}
-      status={ui.sectionStatus}
+      status={getMaintenanceSectionStatus(criticality)}
       badge={badge}
     >
       <div className="grid grid-cols-3 gap-3">
@@ -365,7 +359,7 @@ function renderEmptyState({
       icon={HiOutlineWrenchScrewdriver}
       title={title}
       description={description}
-      status={ui.sectionStatus}
+      status={getMaintenanceSectionStatus(criticality)}
       badge={badge}
     >
       <MessageBanner

@@ -8,6 +8,7 @@ import MessageBanner from "@/features/common/components/message-banner/message-b
 import { GoAlert, GoCheckCircle } from "react-icons/go";
 import { SectionStatus, SectionStatuses } from "../vehicle-detail-accordion";
 import {
+  HiOutlineWrenchScrewdriver,
   HiOutlineShieldCheck,
   HiOutlineSignal,
   HiOutlineExclamationTriangle,
@@ -58,10 +59,8 @@ const statusStyles: Record<SectionStatus, {
   },
 };
 
-// TODO: re-add maintenance once it lifts its status back up to the accordion.
-// MaintenanceSection currently fetches its own data and computes criticality
-// locally, so the overall health overview temporarily excludes it.
 const sectionConfig = [
+  { key: "maintenance" as const, icon: HiOutlineWrenchScrewdriver, labelKey: "vehicleDetail.sections.maintenance.title" },
   { key: "technicalHealth" as const, icon: HiOutlineShieldCheck, labelKey: "vehicleDetail.sections.technicalHealth.title" },
   { key: "telemetry" as const, icon: HiOutlineSignal, labelKey: "vehicleDetail.sections.telemetry.title" },
   { key: "events" as const, icon: HiOutlineExclamationTriangle, labelKey: "vehicleDetail.sections.events.title" },
@@ -95,7 +94,7 @@ export default function HealthSection({
     >
       <div className="flex flex-col gap-3">
         {/* Section Status Cards */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           {sectionConfig.map((section) => {
             const status = statuses[section.key];
             const styles = statusStyles[status];

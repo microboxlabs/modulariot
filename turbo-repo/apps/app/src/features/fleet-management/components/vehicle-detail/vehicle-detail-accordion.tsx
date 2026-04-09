@@ -2,6 +2,8 @@
 
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { MaintenanceCriticality } from "../../types/truck-maintenance.types";
+import { useFleetTruckMaintenance } from "../../hooks/use-fleet-truck-maintenance";
 import {
   HealthSection,
   MaintenanceSection,
@@ -75,6 +77,29 @@ export interface VehicleDetailData {
 }
 
 // Status calculation helpers
+
+/**
+ * Map a maintenance criticality bucket to the accordion's three-state
+ * section status. Shared with MaintenanceSection so the accordion health
+ * overview and the section header always agree.
+ */
+export function getMaintenanceSectionStatus(
+  criticality: MaintenanceCriticality
+): SectionStatus {
+  switch (criticality) {
+    case "CRITICO":
+    case "VENCIDO":
+      return "critical";
+    case "POR_VENCER":
+    case "EN_TALLER":
+      return "warning";
+    case "AL_DIA":
+    case "AGENDADO":
+    case "SIN_INFO":
+      return "ok";
+  }
+}
+
 export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus {
   const hasCriticalAlert = data.technicalHealth.alerts.some(alert => alert.type === "critical");
   if (hasCriticalAlert || data.technicalHealth.activeFailures > 2) return "critical";
@@ -103,17 +128,22 @@ export function getUsageStatus(data: VehicleDetailData): SectionStatus {
 }
 
 export interface SectionStatuses {
+  maintenance: SectionStatus;
   technicalHealth: SectionStatus;
   telemetry: SectionStatus;
   events: SectionStatus;
   usage: SectionStatus;
 }
 
-export function getAllSectionStatuses(data: VehicleDetailData): SectionStatuses {
+/**
+ * Computes statuses for the mock-backed sections only. The maintenance
+ * status comes from the async hook and is merged in at the component level
+ * — keeping this function pure so the other sections stay testable.
+ */
+export function getMockSectionStatuses(
+  data: VehicleDetailData
+): Omit<SectionStatuses, "maintenance"> {
   return {
-    // TODO: re-include maintenance status once the section's own hook exposes
-    // it up here — currently MaintenanceSection fetches its own data and
-    // computes status locally, so it's not in the shared health score.
     technicalHealth: getTechnicalHealthStatus(data),
     telemetry: getTelemetryStatus(data),
     events: getEventsStatus(data),
@@ -231,7 +261,19 @@ export default function VehicleDetailAccordion({
   vehicle,
   dict,
 }: VehicleDetailAccordionProps) {
-  const statuses = getAllSectionStatuses(vehicleData);
+  // MaintenanceSection subscribes to the same SWR key, so this extra call
+  // here dedups to a single network fetch. While loading or on 404/error
+  // we fall back to "ok" so the health overview doesn't flicker or go red
+  // on transient states.
+  const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
+  const maintenanceStatus: SectionStatus = maintenance
+    ? getMaintenanceSectionStatus(maintenance.status.criticality)
+    : "ok";
+
+  const statuses: SectionStatuses = {
+    ...getMockSectionStatuses(vehicleData),
+    maintenance: maintenanceStatus,
+  };
   const healthScore = getOverallHealthScore(statuses);
 
   return (

@@ -40,6 +40,7 @@ export function DropdownList<T>({
           <button
             type="button"
             tabIndex={index === selectedIndex ? 0 : -1}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => onSelect(item)}
             onMouseEnter={() => onHover(index)}
             className={twMerge(

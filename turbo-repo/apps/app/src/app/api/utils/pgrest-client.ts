@@ -30,6 +30,7 @@ import type {
   TruckUsageDetail,
   UsageIntensity,
 } from "@/features/fleet-management/types/truck-usage.types";
+import type { Colaborator } from "@/features/colaborators-management/types/colaborators.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
 const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
@@ -187,15 +188,20 @@ export interface PgrestSignalRow {
 
 /**
  * Row shape returned by `public.fn_dx_uso_flota_detalle` in prod-iot-gps.
- * Mirrors the 18 columns of the function's RETURNS TABLE verbatim.
+ * The function was shrunk from 18 to 11 columns — see
+ * `vehicle_usage_detail_schema_shrink.plan.md` for the full diff and
+ * `fix-usage-data.md` for the backend team's handoff.
  *
  * `max_travel` is the **lifetime** contract allowance (not monthly), and
- * `pct_contrato` / `desviacion_km` are cumulative against it. Only
- * `km_periodo` / `km_por_dia` / `dias_con_dato` use the rolling
- * `p_lookback_days` window (default 30).
+ * `pct_consumido` / `desviacion_km` are cumulative against it. Only
+ * `km_periodo` / `promedio_diario` use the rolling date-range window
+ * (default 30 days via `p_desde` / `p_hasta`).
  *
- * SIN_DATOS rows (≈10% of the fleet) have null odometer-dependent
- * columns — the device doesn't report distance at all.
+ * Fields that used to exist but are now derived client-side in
+ * `usageRowToDto`: `has_odometer` (from `km_actual !== null`) and
+ * `desviacion_contrato` (via `deriveContractStatus`). `dias_con_dato`
+ * was dropped without replacement — the DTO carries `null` for
+ * `active_days` until the backend re-exposes it as a 12th column.
  */
 export interface PgrestUsageRow {
   rent_id: string | null;
@@ -204,32 +210,18 @@ export interface PgrestUsageRow {
   vehiculo: string | null;
   /** Use-type category from the upstream catalog ("Mixed", "Urbano", ...). */
   gm_use_type: string | null;
-  /** GPS provider — dropped from DTO (duplicated by telemetry). */
-  proveedor_gps: string | null;
   /** Current odometer (km). NULL when the upstream has no distance signal. */
   km_actual: number | null;
-  /** Whether the device natively reports odometer. */
-  has_odometer: boolean;
   /** Contractual lifetime allowance (km). */
   max_travel: number;
   /** Cumulative contract consumption 0–100+. NULL when SIN_DATOS. */
-  pct_contrato: number | null;
+  pct_consumido: number | null;
+  /** km traveled in the rolling window (default 30 days). */
+  km_periodo: number | null;
+  /** Rolling km/day across the window. NULL when there's no signal. */
+  promedio_diario: number | null;
   /** Signed: `km_actual - max_travel`. NULL when SIN_DATOS. */
   desviacion_km: number | null;
-  /** 4-value enum — see ContractDeviation. */
-  desviacion_contrato: ContractDeviation;
-  /** km traveled in the rolling lookback window. */
-  km_periodo: number | null;
-  /** Rolling km/day across the lookback window. */
-  km_por_dia: number | null;
-  /** Days with signal in the window (0 — lookback_days). */
-  dias_con_dato: number;
-  /** Signal count in the window — dropped from DTO (duplicated by telemetry). */
-  total_senales: number | null;
-  /** Stability pct — dropped from DTO (duplicated by telemetry). */
-  pct_estabilidad: number | null;
-  /** Pulses/min — dropped from DTO (duplicated by telemetry). */
-  pulsos_por_minuto: number | null;
   /** 4-value enum — see UsageIntensity. */
   intensidad: UsageIntensity;
 }
@@ -276,6 +268,41 @@ export interface PgrestFleetSpecialViewRow {
   badge_color: string | null;
   badge_color_dark: string | null;
   route: string;
+}
+
+/**
+ * Row shape returned by `public.v_modulariot_drivers_tmp` in prod-iot-gps.
+ *
+ * Temporary stub view — fabricated 1:1 from the truck catalog, so every row
+ * today carries placeholder data (`name_driver = 'Conductor Automatico {patente}'`,
+ * `score_driver = 0.0`, every row `is_active = true`). The `_tmp` suffix and
+ * the frozen `created_at` / `updated_at` stamps confirm it will be replaced by
+ * a real driver table; treat it as throwaway. See
+ * `.cursor/plans/collaborators_management_integration.plan.md` for context.
+ *
+ * Critical: there is **no driver RUT column**. `cust_account` is the customer
+ * (fleet owner) RUT, not the driver's — the collaborators search falls back
+ * to `cust_account` + `name_driver` + `cod_driver` as proxies.
+ */
+export interface PgrestDriverRow {
+  /** Numeric driver id — primary key on the temp view. */
+  id: number;
+  /** Driver code, today literally `{id}-{patente}` (e.g. `1-TWHS10`). */
+  cod_driver: string;
+  /** Display name. All rows are the `Conductor Automatico {patente}` placeholder today. */
+  name_driver: string;
+  /** Performance score 0..100. Currently 0.0 across all rows. */
+  score_driver: number;
+  /** Customer RUT (fleet owner, NOT driver). Nullable (~3% of rows). */
+  cust_account: string | null;
+  /** Contract id — matches `rent_id` on `v_modulariot_trucks_tmp`. Nullable. */
+  rent_id: string | null;
+  /** Active flag — 100% `true` in the current snapshot. */
+  is_active: boolean;
+  /** Currently assigned vehicle plate. 1:1 with the truck catalog. */
+  patente_actual: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Lat/lon decoded from a PostGIS EWKB hex POINT string. */
@@ -806,9 +833,10 @@ const USAGE_LOOKBACK_DAYS = 30;
 /**
  * Call `public.fn_dx_uso_flota_detalle(p_asset_id => <plate>)` via pgrest
  * RPC and return the single matching row, or `null` when the plate has no
- * entry upstream. Same parameter handling as the other three helpers —
- * `p_shared_client_id` keeps its default (RLS enforced upstream),
- * `p_lookback_days` keeps its 30-day default, and we only pass the plate.
+ * entry upstream. Same parameter handling as the other three helpers:
+ * `p_shared_client_id` keeps its default (RLS enforced upstream), the
+ * date-range window (`p_desde` / `p_hasta`) keeps its 30-day default, and
+ * we only pass the plate.
  */
 export async function fetchTruckUsageDetailByPlate(
   plate: string
@@ -835,16 +863,59 @@ export async function fetchTruckUsageDetailByPlate(
 }
 
 /**
- * Transform a raw `fn_dx_uso_flota_detalle` row into the DTO consumed by
- * the UsageSection. Null-handling rules:
+ * Contract-deviation classifier using the formula handed off by the
+ * backend team when `fn_dx_uso_flota_detalle` was shrunk from 18 to 11
+ * columns. See `fix-usage-data.md` and
+ * `vehicle_usage_detail_schema_shrink.plan.md` for context.
  *
- * - `desviacion_contrato = 'SIN_DATOS'` → `km_actual` / `pct_contrato` /
- *   `desviacion_km` / `km_periodo` / `km_por_dia` are all null upstream.
- *   Pass them through as null; the UI renders `—` in each cell.
+ * Rules (order matters):
+ *  1. If there's no odometer reading or no contract allowance, the
+ *     vehicle is `SIN_DATOS` — nothing to classify against.
+ *  2. Any positive `desviacion_km` is `SOBREUSO`, regardless of the
+ *     percentage. Evaluated before the 60% cutoff so a shrinking
+ *     `max_travel` can still flip a vehicle into overuse.
+ *  3. Consumption ≥ 60% → `NORMAL`.
+ *  4. Anything below → `SUBUTILIZADO`.
+ *
+ * Caveat: the 60% threshold is static and does **not** consider
+ * contract age. Two vehicles at 50% consumption classify the same
+ * way regardless of whether one is a week old and the other is in
+ * year three. The pre-shrink backend function did weigh contract age;
+ * this simpler rule is the one the backend team endorsed as the
+ * drop-in replacement.
+ */
+function deriveContractStatus(
+  kmActual: number | null,
+  maxTravel: number,
+  deviationKm: number | null
+): ContractDeviation {
+  if (kmActual === null || maxTravel === 0) return "SIN_DATOS";
+  if (deviationKm !== null && deviationKm > 0) return "SOBREUSO";
+  const pct = kmActual / maxTravel;
+  if (pct >= 0.6) return "NORMAL";
+  return "SUBUTILIZADO";
+}
+
+/**
+ * Transform a raw `fn_dx_uso_flota_detalle` row into the DTO consumed by
+ * the UsageSection. Null-handling and derivation rules:
+ *
+ * - When `km_actual` is null the upstream has no distance signal at all
+ *   — `pct_consumido` / `desviacion_km` / `km_periodo` / `promedio_diario`
+ *   are also null and the derived `status` becomes `SIN_DATOS`.
+ * - `has_odometer` is derived from `km_actual !== null`; the upstream no
+ *   longer exposes a dedicated boolean.
+ * - `status` is derived via `deriveContractStatus` (see above).
  * - `remaining_km` is derived from `desviacion_km`: when negative, the
  *   vehicle is within the contract so `remaining_km = |desviacion_km|`;
- *   when positive (sobreuso) the contract is already exceeded so
- *   `remaining_km = 0`. Null when `desviacion_km` is null.
+ *   when positive (sobreuso) the contract is exceeded so
+ *   `remaining_km = 0`. **Null when `desviacion_km` is null** — we
+ *   deliberately keep `null → "—"` in the UI instead of rendering
+ *   "0 km restantes" for a SIN_DATOS vehicle (diverges from the BE
+ *   handoff adapter on purpose).
+ * - `active_days` is always `null` — `dias_con_dato` was dropped from the
+ *   11-column response. If backend re-exposes it as a 12th column this
+ *   becomes `row.dias_con_dato` and the UI cell starts showing values.
  * - Empty/whitespace `gm_use_type` collapses to null so the UI can show
  *   a localized placeholder.
  */
@@ -852,33 +923,35 @@ export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
   const useTypeRaw = row.gm_use_type?.trim();
   const useType = useTypeRaw && useTypeRaw.length > 0 ? useTypeRaw : null;
 
+  const kmActual = row.km_actual !== null ? Number(row.km_actual) : null;
+  const maxTravel = Number(row.max_travel);
   const deviationKm =
     row.desviacion_km !== null ? Number(row.desviacion_km) : null;
   const remainingKm =
     deviationKm === null ? null : deviationKm < 0 ? Math.abs(deviationKm) : 0;
+  const status = deriveContractStatus(kmActual, maxTravel, deviationKm);
 
   return {
     plate: row.patente,
     use_type: useType,
     odometer: {
-      current_km: row.km_actual !== null ? Number(row.km_actual) : null,
-      has_odometer: row.has_odometer,
+      current_km: kmActual,
+      has_odometer: kmActual !== null,
     },
     contract: {
-      max_travel_km: Number(row.max_travel),
+      max_travel_km: maxTravel,
       pct_consumed:
-        row.pct_contrato !== null ? Number(row.pct_contrato) : null,
+        row.pct_consumido !== null ? Number(row.pct_consumido) : null,
       deviation_km: deviationKm,
       remaining_km: remainingKm,
-      status: row.desviacion_contrato,
+      status,
     },
     period: {
       lookback_days: USAGE_LOOKBACK_DAYS,
-      km_traveled:
-        row.km_periodo !== null ? Number(row.km_periodo) : null,
+      km_traveled: row.km_periodo !== null ? Number(row.km_periodo) : null,
       km_per_day:
-        row.km_por_dia !== null ? Number(row.km_por_dia) : null,
-      active_days: row.dias_con_dato,
+        row.promedio_diario !== null ? Number(row.promedio_diario) : null,
+      active_days: null,
       intensity: row.intensidad,
     },
   };
@@ -960,5 +1033,132 @@ export function eventsRowsToDto(
   return {
     plate,
     events: rows.map(eventRowToItem),
+  };
+}
+
+// --- pgrest drivers (collaborators) view helpers. ---
+// See .cursor/plans/collaborators_management_integration.plan.md for the
+// mapping rules and the caveats about the `_tmp` stub view.
+
+/**
+ * Escape a user-supplied search term for PostgREST `ilike` filters.
+ *
+ * PostgREST's filter query-string grammar uses `,` and `()` as delimiters and
+ * `*` as the wildcard, so an unescaped value containing any of those would
+ * either break the query or inject filters. We strip them out. The remaining
+ * characters are URL-encoded by the caller via `encodeURIComponent`.
+ */
+function sanitizePgrestSearchTerm(term: string): string {
+  return term.replace(/[,()*]/g, "").trim();
+}
+
+/**
+ * Fetch rows from `public.v_modulariot_drivers_tmp` visible to the token's
+ * tenant. When `q` is provided, applies a case-insensitive OR match across
+ * `name_driver`, `cust_account`, and `cod_driver` — the three text columns
+ * that can plausibly carry a name or a RUT-like identifier in this view.
+ *
+ * There is no driver RUT column on this view, so the "search by RUT"
+ * requirement falls back to matching `cust_account` (customer RUT).
+ *
+ * The view is small (~334 rows) so we fetch everything and let the frontend
+ * paginate; no server-side pagination is wired yet.
+ */
+export async function fetchDriversFromView(opts?: {
+  q?: string;
+}): Promise<PgrestDriverRow[]> {
+  const token = await bearerToken();
+  const params = new URLSearchParams();
+  params.set("order", "id.asc");
+
+  const rawTerm = opts?.q?.trim();
+  if (rawTerm) {
+    const safe = sanitizePgrestSearchTerm(rawTerm);
+    if (safe.length > 0) {
+      const pattern = `*${safe}*`;
+      // PostgREST `or=` composite filter — matches any of the listed columns.
+      params.set(
+        "or",
+        `(name_driver.ilike.${pattern},cust_account.ilike.${pattern},cod_driver.ilike.${pattern})`
+      );
+    }
+  }
+
+  const url = `${pgrestBaseUrl()}/v_modulariot_drivers_tmp?${params.toString()}`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "Range-Unit": "items",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET v_modulariot_drivers_tmp failed: ${response.status} ${response.statusText}`
+    );
+  }
+  return (await response.json()) as PgrestDriverRow[];
+}
+
+/**
+ * Fetch a single driver row by its numeric `id`. Returns `null` when no row
+ * matches. Used by the detail page so the list response doesn't have to be
+ * round-tripped just to render one card.
+ */
+export async function fetchDriverById(
+  id: string | number
+): Promise<PgrestDriverRow | null> {
+  const numeric = Number(id);
+  if (!Number.isInteger(numeric)) return null;
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/v_modulariot_drivers_tmp?id=eq.${numeric}&limit=1`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "Range-Unit": "items",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET v_modulariot_drivers_tmp (id=eq.${numeric}) failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const rows = (await response.json()) as PgrestDriverRow[];
+  return rows[0] ?? null;
+}
+
+/**
+ * Transform a raw `v_modulariot_drivers_tmp` row into the existing
+ * `Colaborator` shape consumed by the grid and detail components.
+ *
+ * Field mapping decisions (see plan file for the full justification):
+ *
+ * - `id` is stringified — the `Colaborator` contract expects string ids.
+ * - `employmentStatus` maps `is_active` → `"activo" | "suspendido"`. The
+ *   view has no third state, so `"vacaciones"` is never emitted.
+ * - `department` surfaces `cust_account` (customer RUT) because it's the
+ *   closest thing to a company/department identifier the view provides.
+ *   Null collapses to an empty string.
+ * - `rank` defaults to `"conductor"` — the view has no rank column.
+ * - `email`, `punctuality`, `safety`, `incidentsCount` default to empty/zero;
+ *   they'll come from richer endpoints in a later phase.
+ * - `score` is a plain numeric copy. Today every row is `0` upstream.
+ */
+export function driverRowToColaborator(row: PgrestDriverRow): Colaborator {
+  return {
+    id: String(row.id),
+    name: row.name_driver,
+    email: "",
+    rank: "conductor",
+    department: row.cust_account ?? "",
+    score: Number(row.score_driver),
+    employmentStatus: row.is_active ? "activo" : "suspendido",
+    punctuality: 0,
+    safety: 0,
+    incidentsCount: 0,
+    assignedVehiclePlate: row.patente_actual,
   };
 }

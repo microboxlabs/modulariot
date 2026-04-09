@@ -40,7 +40,12 @@ export interface TruckUsageDetail {
   odometer: {
     /** Current odometer (km). Null when `SIN_DATOS`. */
     current_km: number | null;
-    /** Whether the device natively reports odometer. */
+    /**
+     * Whether the device reports an odometer reading. Derived
+     * client-side as `current_km !== null`; the upstream no longer
+     * exposes a dedicated boolean after the schema shrink from 18 to
+     * 11 columns.
+     */
     has_odometer: boolean;
   };
 
@@ -59,6 +64,12 @@ export interface TruckUsageDetail {
      * over; null when `SIN_DATOS`.
      */
     remaining_km: number | null;
+    /**
+     * Contract-deviation bucket. Derived client-side with a 60% cutoff
+     * after the schema shrink dropped the upstream `desviacion_contrato`
+     * column. See `usageRowToDto` in `pgrest-client.ts` for the exact
+     * rule.
+     */
     status: ContractDeviation;
   };
 
@@ -69,8 +80,12 @@ export interface TruckUsageDetail {
     km_traveled: number | null;
     /** Average km / day across the window. Null when no signal. */
     km_per_day: number | null;
-    /** Days with signal in the window (0 — `lookback_days`). */
-    active_days: number;
+    /**
+     * Days with signal in the window (0 — `lookback_days`). **Null**
+     * until the backend re-exposes `dias_con_dato` as a 12th column —
+     * the current 11-column response does not carry the value.
+     */
+    active_days: number | null;
     intensity: UsageIntensity;
   };
 }

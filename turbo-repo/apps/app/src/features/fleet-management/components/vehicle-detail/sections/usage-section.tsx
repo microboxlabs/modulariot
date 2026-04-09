@@ -87,12 +87,13 @@ function formatPct(n: number | null | undefined): string {
 // --- Header badge ---
 
 function getUsageBadge(usage: TruckUsageDetail, dict: I18nRecord) {
-  const ui = DEVIATION_UI[usage.contract.status];
+  const status = usage.contract.status;
+  const ui = DEVIATION_UI[status];
   const label =
-    usage.contract.status === "SIN_DATOS"
+    status === "SIN_DATOS"
       ? tr("vehicleDetail.sections.usage.contractStatus.SIN_DATOS.label", dict)
       : tr(
-          `vehicleDetail.sections.usage.contractStatus.${usage.contract.status}.label`,
+          `vehicleDetail.sections.usage.contractStatus.${status}.label`,
           dict,
           { pct: formatPct(usage.contract.pct_consumed) }
         );
@@ -233,6 +234,28 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
     dict
   );
 
+  // Cell 4 — "Días con dato". The upstream `dias_con_dato` column was
+  // dropped in the 11-column shrink; until backend re-exposes it, the
+  // cell renders a placeholder. Once `active_days` comes back non-null
+  // the existing i18n keys kick back in with no code change.
+  const activeDays = usage.period.active_days;
+  const activeDaysValue =
+    activeDays !== null
+      ? tr("vehicleDetail.sections.usage.activeDaysValue", dict, {
+          active: String(activeDays),
+          total: String(usage.period.lookback_days),
+        })
+      : "—";
+  const activeDaysDesc =
+    activeDays !== null
+      ? tr("vehicleDetail.sections.usage.utilization", dict, {
+          percentage: (
+            (activeDays / usage.period.lookback_days) *
+            100
+          ).toFixed(0),
+        })
+      : tr("vehicleDetail.sections.usage.noDataShort", dict);
+
   return (
     <ExpandableSection
       icon={HiOutlineArrowPath}
@@ -332,19 +355,9 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
               text: tr("vehicleDetail.sections.usage.activeDaysLabel", dict),
               className: "text-gray-500 dark:text-gray-300",
             }}
-            value={{
-              text: tr("vehicleDetail.sections.usage.activeDaysValue", dict, {
-                active: String(usage.period.active_days),
-                total: String(usage.period.lookback_days),
-              }),
-            }}
+            value={{ text: activeDaysValue }}
             description={{
-              text: tr("vehicleDetail.sections.usage.utilization", dict, {
-                percentage: (
-                  (usage.period.active_days / usage.period.lookback_days) *
-                  100
-                ).toFixed(0),
-              }),
+              text: activeDaysDesc,
               className: "text-gray-500 dark:text-gray-300/60",
             }}
             variant="vertical"

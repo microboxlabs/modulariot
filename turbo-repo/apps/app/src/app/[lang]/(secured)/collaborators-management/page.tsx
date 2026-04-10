@@ -11,7 +11,7 @@ export default async function CollaboratorsManagementRoute({
 
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900 overflow-y-auto">
-      <CollaboratorsManagementPage dict={dict} locale={lang} />
+      <CollaboratorsManagementPage dict={dict} />
     </div>
   );
 }

@@ -194,19 +194,19 @@ export default function MaintenanceSection({
   const lastServiceKm = maintenance.plan.last_service_km;
   const lastServiceAt = maintenance.plan.last_service_at;
   const kpiLastServiceDesc =
-    lastServiceKm !== null
-      ? tr("vehicleDetail.sections.maintenance.atKm", dict, {
+    lastServiceKm === null
+      ? tr("vehicleDetail.sections.maintenance.neverServiced", dict)
+      : tr("vehicleDetail.sections.maintenance.atKm", dict, {
           km: lastServiceKm.toLocaleString(),
-        })
-      : tr("vehicleDetail.sections.maintenance.neverServiced", dict);
+        });
 
   const kpiKmSinceDesc =
-    maintenance.plan.pct_of_interval !== null
-      ? tr("vehicleDetail.sections.maintenance.intervalPercent", dict, {
+    maintenance.plan.pct_of_interval === null
+      ? ""
+      : tr("vehicleDetail.sections.maintenance.intervalPercent", dict, {
           percent: String(maintenance.plan.pct_of_interval),
           interval: `${(maintenance.plan.interval_km / 1000).toFixed(0)}k`,
-        })
-      : "";
+        });
 
   return (
     <ExpandableSection
@@ -262,11 +262,11 @@ export default function MaintenanceSection({
             //   `last_seen_at`) — show a dash so the description's "A los X km"
             //   still carries the signal.
             // else: actually never serviced (km_os was 0).
-            text: lastServiceAt
-              ? formatDateString(lastServiceAt)
-              : lastServiceKm !== null
-              ? "—"
-              : tr("vehicleDetail.sections.maintenance.neverServiced", dict),
+            text: (() => {
+              if (lastServiceAt) return formatDateString(lastServiceAt);
+              if (lastServiceKm === null) return tr("vehicleDetail.sections.maintenance.neverServiced", dict);
+              return "—";
+            })(),
           }}
           description={{ text: kpiLastServiceDesc }}
           variant="vertical"
@@ -298,9 +298,9 @@ export default function MaintenanceSection({
             // Nullable: source function dropped `num_maintance`. Fall back
             // to em-dash instead of rendering "null" or a misleading "0".
             text:
-              maintenance.plan.completed_services !== null
-                ? String(maintenance.plan.completed_services)
-                : "—",
+              maintenance.plan.completed_services === null
+                ? "—"
+                : String(maintenance.plan.completed_services),
             className: "text-green-500 dark:text-green-400 bold",
           }}
           description={{

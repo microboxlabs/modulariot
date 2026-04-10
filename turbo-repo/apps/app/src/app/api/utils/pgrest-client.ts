@@ -578,6 +578,21 @@ function mapPgrestStatus(row: PgrestTruckCatalogRow): string {
   return "ACTIVE";
 }
 
+function addPositionMetrics(
+  metrics: Record<string, string | number | boolean | null>,
+  position: PgrestMapPositionRow
+): void {
+  if (position.timestamp) metrics.timestamp = position.timestamp;
+  if (position.speed != null) metrics.vehicle_speed_kph = position.speed;
+  if (position.heading != null) metrics.heading = position.heading;
+  if (position.gps_provider != null) metrics.gps_provider = position.gps_provider;
+  const point = decodeEwkbPoint(position.location);
+  if (point) {
+    metrics.latitude = point.latitude;
+    metrics.longitude = point.longitude;
+  }
+}
+
 function buildLatestMetricsFromPgrest(
   row: PgrestTruckCatalogRow,
   position: PgrestMapPositionRow | undefined
@@ -602,15 +617,7 @@ function buildLatestMetricsFromPgrest(
   }
 
   if (position) {
-    if (position.timestamp) metrics.timestamp = position.timestamp;
-    if (position.speed != null) metrics.vehicle_speed_kph = position.speed;
-    if (position.heading != null) metrics.heading = position.heading;
-    if (position.gps_provider != null) metrics.gps_provider = position.gps_provider;
-    const point = decodeEwkbPoint(position.location);
-    if (point) {
-      metrics.latitude = point.latitude;
-      metrics.longitude = point.longitude;
-    }
+    addPositionMetrics(metrics, position);
   }
 
   return metrics;
@@ -712,7 +719,7 @@ export function maintenanceRowToDto(
     },
     forecast: {
       estimated_days_remaining:
-        row.dias_est !== null ? Math.round(Number(row.dias_est)) : null,
+        row.dias_est === null ? null : Math.round(Number(row.dias_est)),
       estimated_service_date: row.fecha_est,
     },
     work_order: {
@@ -740,35 +747,29 @@ export function maintenanceRowToDto(
  * zero". Battery voltage is converted from millivolts to volts here so
  * the UI never has to deal with raw mV.
  */
+function addCapability<K extends keyof TelemetryCapabilities>(
+  caps: TelemetryCapabilities,
+  key: K,
+  hasFlag: boolean,
+  value: number | null,
+  transform?: (v: number) => number
+): void {
+  if (hasFlag && value !== null) {
+    caps[key] = transform ? transform(value) : value;
+  }
+}
+
 function buildTelemetryCapabilities(row: PgrestSignalRow): TelemetryCapabilities {
   const caps: TelemetryCapabilities = {};
-  if (row.has_vehicle_speed && row.last_vehicle_speed_kph !== null) {
-    caps.vehicle_speed_kph = row.last_vehicle_speed_kph;
-  }
-  if (row.has_odometer && row.last_odometer_km !== null) {
-    caps.odometer_km = row.last_odometer_km;
-  }
-  if (row.has_engine_rpm && row.last_engine_rpm !== null) {
-    caps.engine_rpm = row.last_engine_rpm;
-  }
-  if (row.has_fuel_level && row.last_fuel_level_pct !== null) {
-    caps.fuel_level_pct = Number(row.last_fuel_level_pct);
-  }
-  if (row.has_coolant_temp && row.last_coolant_temp_c !== null) {
-    caps.coolant_temp_c = row.last_coolant_temp_c;
-  }
-  if (row.has_battery_v && row.last_battery_voltage_mv !== null) {
-    caps.battery_voltage_v = row.last_battery_voltage_mv / 1000;
-  }
-  if (row.has_engine_load && row.last_engine_load_pct !== null) {
-    caps.engine_load_pct = row.last_engine_load_pct;
-  }
-  if (row.has_throttle && row.last_throttle_pos_pct !== null) {
-    caps.throttle_pos_pct = row.last_throttle_pos_pct;
-  }
-  if (row.has_engine_runtime && row.last_engine_runtime_h !== null) {
-    caps.engine_runtime_h = row.last_engine_runtime_h;
-  }
+  addCapability(caps, "vehicle_speed_kph", row.has_vehicle_speed, row.last_vehicle_speed_kph);
+  addCapability(caps, "odometer_km", row.has_odometer, row.last_odometer_km);
+  addCapability(caps, "engine_rpm", row.has_engine_rpm, row.last_engine_rpm);
+  addCapability(caps, "fuel_level_pct", row.has_fuel_level, row.last_fuel_level_pct, Number);
+  addCapability(caps, "coolant_temp_c", row.has_coolant_temp, row.last_coolant_temp_c);
+  addCapability(caps, "battery_voltage_v", row.has_battery_v, row.last_battery_voltage_mv, (mv) => mv / 1000);
+  addCapability(caps, "engine_load_pct", row.has_engine_load, row.last_engine_load_pct);
+  addCapability(caps, "throttle_pos_pct", row.has_throttle, row.last_throttle_pos_pct);
+  addCapability(caps, "engine_runtime_h", row.has_engine_runtime, row.last_engine_runtime_h);
   return caps;
 }
 
@@ -797,16 +798,14 @@ export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
     signal: {
       last_at: row.ultima_senal,
       hours_since_last:
-        row.horas_sin_senal !== null ? Number(row.horas_sin_senal) : null,
+        row.horas_sin_senal === null ? null : Number(row.horas_sin_senal),
       total_last_7d: row.total_senales_7d ?? 0,
       signals_per_day:
-        row.senales_por_dia !== null ? Number(row.senales_por_dia) : 0,
+        row.senales_por_dia === null ? 0 : Number(row.senales_por_dia),
       pulses_per_minute:
-        row.pulsos_por_minuto !== null && row.pulsos_por_minuto !== undefined
-          ? Number(row.pulsos_por_minuto)
-          : null,
+        row.pulsos_por_minuto == null ? null : Number(row.pulsos_por_minuto),
       stability_pct:
-        row.pct_estabilidad !== null ? Number(row.pct_estabilidad) : null,
+        row.pct_estabilidad === null ? null : Number(row.pct_estabilidad),
       freshness: row.frescura,
     },
     gps: {
@@ -818,7 +817,7 @@ export function signalRowToDto(row: PgrestSignalRow): TruckTelemetryDetail {
     },
     score: {
       telemetry:
-        row.score_telemetria !== null ? Number(row.score_telemetria) : 0,
+        row.score_telemetria === null ? 0 : Number(row.score_telemetria),
       can_metrics: row.metricas_can ?? 0,
     },
     capabilities: buildTelemetryCapabilities(row),
@@ -921,6 +920,11 @@ function deriveContractStatus(
  * - Empty/whitespace `gm_use_type` collapses to null so the UI can show
  *   a localized placeholder.
  */
+function computeRemainingKm(deviationKm: number | null): number | null {
+  if (deviationKm === null) return null;
+  return deviationKm < 0 ? Math.abs(deviationKm) : 0;
+}
+
 export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
   const useTypeRaw = row.gm_use_type?.trim();
   const useType = useTypeRaw && useTypeRaw.length > 0 ? useTypeRaw : null;
@@ -928,9 +932,8 @@ export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
   const kmActual = row.km_actual !== null ? Number(row.km_actual) : null;
   const maxTravel = Number(row.max_travel);
   const deviationKm =
-    row.desviacion_km !== null ? Number(row.desviacion_km) : null;
-  const remainingKm =
-    deviationKm === null ? null : deviationKm < 0 ? Math.abs(deviationKm) : 0;
+    row.desviacion_km === null ? null : Number(row.desviacion_km);
+  const remainingKm = computeRemainingKm(deviationKm);
   const status = deriveContractStatus(kmActual, maxTravel, deviationKm);
 
   return {
@@ -943,16 +946,16 @@ export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
     contract: {
       max_travel_km: maxTravel,
       pct_consumed:
-        row.pct_consumido !== null ? Number(row.pct_consumido) : null,
+        row.pct_consumido === null ? null : Number(row.pct_consumido),
       deviation_km: deviationKm,
       remaining_km: remainingKm,
       status,
     },
     period: {
       lookback_days: USAGE_LOOKBACK_DAYS,
-      km_traveled: row.km_periodo !== null ? Number(row.km_periodo) : null,
+      km_traveled: row.km_periodo === null ? null : Number(row.km_periodo),
       km_per_day:
-        row.promedio_diario !== null ? Number(row.promedio_diario) : null,
+        row.promedio_diario === null ? null : Number(row.promedio_diario),
       active_days: null,
       intensity: row.intensidad,
     },
@@ -1051,7 +1054,7 @@ export function eventsRowsToDto(
  * characters are URL-encoded by the caller via `encodeURIComponent`.
  */
 function sanitizePgrestSearchTerm(term: string): string {
-  return term.replace(/[,()*]/g, "").trim();
+  return term.replaceAll(/[,()*]/g, "").trim();
 }
 
 /**
@@ -1230,7 +1233,7 @@ export async function fetchDriverDetailByCodDriver(
   }
   const body = (await response.json()) as PgrestDriverDetailResponse | null;
   // Defensive: some pgrest RPC errors return 200 + null body.
-  if (!body || !body.driver) return null;
+  if (!body?.driver) return null;
   return body;
 }
 

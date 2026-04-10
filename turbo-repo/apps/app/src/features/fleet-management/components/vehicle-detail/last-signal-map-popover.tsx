@@ -115,7 +115,7 @@ async function downloadSnapshot(
   link.download = `last-signal-${latitude.toFixed(5)}-${longitude.toFixed(5)}.png`;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  link.remove();
   URL.revokeObjectURL(objectUrl);
 }
 
@@ -245,7 +245,7 @@ export default function LastSignalMapPopover({
   const [position, setPosition] = useState<PopoverPosition | null>(null);
   const [mounted, setMounted] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -348,9 +348,9 @@ export default function LastSignalMapPopover({
   })();
 
   const popoverContent = mounted && isOpen && position ? (
-    <div
+    <dialog
+      open
       ref={popoverRef}
-      role="dialog"
       aria-label={tr("vehicleDetail.lastSignalMap.title", dict)}
       style={{
         position: "fixed",
@@ -358,6 +358,12 @@ export default function LastSignalMapPopover({
         left: position.left,
         width: POPOVER_WIDTH,
         zIndex: 1000,
+        border: "none",
+        padding: 0,
+        margin: 0,
+        background: "transparent",
+        maxWidth: "none",
+        maxHeight: "none",
       }}
       className="rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
     >
@@ -429,7 +435,7 @@ export default function LastSignalMapPopover({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   ) : null;
 
   return (

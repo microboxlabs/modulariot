@@ -85,6 +85,8 @@ export default function SpecialViewsCarousel({
 
   return (
     <div
+      role="group"
+      aria-roledescription="carousel"
       className="flex flex-col gap-2"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

@@ -38,7 +38,6 @@ function CollaboratorsSkeleton() {
 
 interface CollaboratorsManagementPageProps {
   readonly dict: I18nRecord;
-  readonly locale: string;
 }
 
 export default function CollaboratorsManagementPage({
@@ -126,6 +125,27 @@ export default function CollaboratorsManagementPage({
     !error &&
     filteredCollaborators.length === 0;
 
+  const renderContent = () => {
+    if (showSkeleton) return <CollaboratorsSkeleton />;
+    if (showEmpty) {
+      return (
+        <MessageBanner
+          icon={HiOutlineInformationCircle}
+          title={tr("emptyTitle", gridDict)}
+          description={tr("emptyDesc", gridDict)}
+          variant="info"
+        />
+      );
+    }
+    return (
+      <CollaboratorGrid
+        collaborators={filteredCollaborators}
+        dict={collaboratorsDict}
+        onSelectCollaborator={handleSelectCollaborator}
+      />
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6 p-4 max-w-screen-2xl mx-auto w-full">
       <div className="flex flex-col gap-1">
@@ -157,22 +177,7 @@ export default function CollaboratorsManagementPage({
         />
       )}
 
-      {showSkeleton ? (
-        <CollaboratorsSkeleton />
-      ) : showEmpty ? (
-        <MessageBanner
-          icon={HiOutlineInformationCircle}
-          title={tr("emptyTitle", gridDict)}
-          description={tr("emptyDesc", gridDict)}
-          variant="info"
-        />
-      ) : (
-        <CollaboratorGrid
-          collaborators={filteredCollaborators}
-          dict={collaboratorsDict}
-          onSelectCollaborator={handleSelectCollaborator}
-        />
-      )}
+      {renderContent()}
     </div>
   );
 }

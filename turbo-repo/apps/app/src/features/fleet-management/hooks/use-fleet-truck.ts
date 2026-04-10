@@ -38,11 +38,10 @@ export function useFleetTruck(
   if (params?.metricView) query.set("metricView", params.metricView);
   if (params?.metricFields) query.set("metricFields", params.metricFields);
   const qs = query.toString();
+  const suffix = qs ? `?${qs}` : "";
 
   const url = idOrPlate
-    ? `/app/api/fleet/trucks/${encodeURIComponent(idOrPlate)}${
-        qs ? `?${qs}` : ""
-      }`
+    ? `/app/api/fleet/trucks/${encodeURIComponent(idOrPlate)}${suffix}`
     : null;
 
   const { data, error, isLoading, mutate } = useSWR<FetcherResult>(

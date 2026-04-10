@@ -60,7 +60,7 @@ function groupDashboardsByPath(
     .slice()
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 
-  const topLevel: SidebarItem[] = [];
+  const result: SidebarItem[] = [];
   const groups = new Map<string, SidebarItem[]>();
 
   for (const dashboard of sorted) {
@@ -71,32 +71,29 @@ function groupDashboardsByPath(
     };
 
     if (!dashboard.path) {
-      topLevel.push(item);
+      result.push(item);
       continue;
     }
 
     const segment = dashboard.path.replaceAll(/^\/+|\/+$/g, "").split("/")[0];
     if (!segment) {
-      topLevel.push(item);
+      result.push(item);
       continue;
     }
 
     if (!groups.has(segment)) {
-      groups.set(segment, []);
+      const children: SidebarItem[] = [];
+      groups.set(segment, children);
+      result.push({
+        label: formatPathLabel(segment),
+        items: children,
+        requiredGroups: ["GROUP_DASHBOARD"],
+      });
     }
     groups.get(segment)!.push(item);
   }
 
-  const folderItems: SidebarItem[] = [];
-  for (const [segment, children] of groups) {
-    folderItems.push({
-      label: formatPathLabel(segment),
-      items: children,
-      requiredGroups: ["GROUP_DASHBOARD"],
-    });
-  }
-
-  return [...topLevel, ...folderItems];
+  return result;
 }
 
 export function useDashboardDynamicItems(): SidebarItem[] {

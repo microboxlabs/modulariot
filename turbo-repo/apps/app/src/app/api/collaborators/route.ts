@@ -35,6 +35,21 @@ type CollaboratorsCacheEntry = {
 
 const collaboratorsCache = new Map<string, CollaboratorsCacheEntry>();
 
+// Sweep the entire cache when it exceeds this size, removing entries whose
+// stale window has expired. Triggered on writes so growth is bounded without
+// needing a setInterval (which can duplicate across Next.js HMR reloads).
+const CACHE_PRUNE_THRESHOLD = 200;
+
+function pruneCollaboratorsCache() {
+  if (collaboratorsCache.size < CACHE_PRUNE_THRESHOLD) return;
+  const cutoff = Date.now() - COLLABORATORS_CACHE_STALE_TTL_MS;
+  for (const [key, entry] of collaboratorsCache) {
+    if (!entry.refreshPromise && entry.fetchedAt < cutoff) {
+      collaboratorsCache.delete(key);
+    }
+  }
+}
+
 function buildCacheKey(userId: string, query: string) {
   return `${userId}:${query}`;
 }
@@ -68,6 +83,7 @@ function refreshCollaboratorsCache(cacheKey: string, query: string | null) {
 
   const refreshPromise = fetchCollaboratorsFromPgrest(query)
     .then((collaborators) => {
+      pruneCollaboratorsCache();
       collaboratorsCache.set(cacheKey, {
         data: collaborators,
         fetchedAt: Date.now(),
@@ -134,6 +150,10 @@ export async function GET(request: Request) {
       void refreshCollaboratorsCache(cacheKey, query).catch(() => undefined);
       return buildJsonResponse(cacheEntry.data, "STALE");
     }
+
+    // Entry is older than the stale TTL — evict it so memory doesn't stay
+    // resident until the next threshold-based sweep.
+    collaboratorsCache.delete(cacheKey);
   }
 
   try {

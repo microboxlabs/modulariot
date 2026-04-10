@@ -1692,6 +1692,8 @@
       "accessControlDescription": "Restringir este dashboard a grupos de usuarios específicos",
       "noGroupRestrictions": "Sin restricciones de grupo — visible para todos los usuarios del dashboard",
       "allowedGroupsUpdated": "Grupos permitidos actualizados",
+      "loadingGroups": "Cargando grupos…",
+      "noGroupsAvailable": "No hay grupos disponibles.",
       "deleteDescription": "Eliminar permanentemente este dashboard",
       "line": "Línea",
       "bars": "Barras",

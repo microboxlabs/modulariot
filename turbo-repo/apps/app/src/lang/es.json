@@ -1690,6 +1690,7 @@
       "orderInvalid": "Ingrese un número válido no negativo",
       "pathTitle": "Carpeta en Barra Lateral",
       "pathDescription": "Agrupa este dashboard en una carpeta de la barra lateral.",
+      "pathPlaceholder": "/administración",
       "pathUpdated": "Carpeta de barra lateral actualizada",
       "accessControlTitle": "Control de Acceso",
       "accessControlDescription": "Restringir este dashboard a grupos de usuarios específicos",

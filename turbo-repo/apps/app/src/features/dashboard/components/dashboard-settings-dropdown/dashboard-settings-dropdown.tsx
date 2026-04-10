@@ -801,7 +801,7 @@ function PathForm() {
           sizing="sm"
           value={localPath}
           onChange={(e) => setLocalPath(e.target.value)}
-          placeholder="/management"
+          placeholder={tr("dashboard.settings.pathPlaceholder", dictionary)}
           className="flex-1"
         />
         <Button size="sm" onClick={handleSave}>

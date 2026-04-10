@@ -1664,6 +1664,7 @@
       "orderInvalid": "Please enter a valid non-negative number",
       "pathTitle": "Sidebar Folder",
       "pathDescription": "Group this dashboard under a folder in the sidebar.",
+      "pathPlaceholder": "/management",
       "pathUpdated": "Sidebar folder updated",
       "accessControlTitle": "Access Control",
       "accessControlDescription": "Restrict this dashboard to specific user groups",

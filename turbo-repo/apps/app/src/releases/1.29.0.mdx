@@ -17,7 +17,7 @@
   - **Botón de acceso rápido**: Nuevo botón en el header del dashboard que abre el tablero en modo kiosco en una nueva pestaña.
 
 - **🎨 Formato condicional (Thresholds) para dashlets**
-  - **Sistema de reglas**: Motor de evaluación con 8 operadores de comparación (=, !=, contains, >, <, >=, <=, not contains) y 7 colores semánticos con variantes light/dark mode, aplicando la primera regla que coincida. *(Integración OSS — MIOT-0.5.0)*
+  - **Sistema de reglas**: Motor de evaluación con 8 operadores de comparación (`=`, `!=`, `contains`, `>`, `<`, `>=`, `<=`, `not contains`) y 7 colores semánticos con variantes light/dark mode, aplicando la primera regla que coincida. *(Integración OSS — MIOT-0.5.0)*
   - **Aplicación visual múltiple**: Los umbrales pueden colorear independientemente texto, fondo e icono de cada dashlet.
   - **Integración amplia**: Habilitado en 10+ dashlets tipo stat (icon, detailed, progress, status, stacked, circular, expandable, gradient, sensitive, sparkline).
   - **Editor de reglas**: Componente `ThresholdEditor` en la pestaña de visualización con toggle, selector de campo Handlebars con autocompletado, checkboxes de target y lista ordenada de reglas.
@@ -114,11 +114,11 @@
 
 - **⛵ Módulo miot-gateway con canary traffic forking**
   - **Nuevo módulo gateway**: Servicio que recibe tráfico espejado desde APISIX via `proxy-mirror` y reenvía selectivamente a un entorno canary basándose en `asset_id`. *(Integración OSS — MIOT-0.5.0)*
-  - **Fire-and-forget asíncrono**: Reenvío no bloqueante vía `HttpClient.sendAsync()` con contadores Micrometer (`canary_requests_total{outcome=forwarded|discarded}`).
+  - **Fire-and-forget asíncrono**: Reenvío no bloqueante vía `HttpClient.sendAsync()` con contadores Micrometer (`canary_requests_total`).
   - **Despliegue independiente**: Ejecuta como deployment K8s separado desde la misma imagen Docker con solo el componente gateway habilitado.
 
 - **🏗️ Endpoints API org-scoped con validación de membresía Alfresco**
-  - **Estructura org-scoped**: Todos los recursos migrados a `/api/v1/orgs/{organizationId}/...` con validación de membresía en Alfresco para usuarios web y verificación de audience/azp para servicios M2M. *(Integración OSS — MIOT-0.5.0)*
+  - **Estructura org-scoped**: Todos los recursos migrados a `/api/v1/orgs/[organizationId]/...` con validación de membresía en Alfresco para usuarios web y verificación de audience/azp para servicios M2M. *(Integración OSS — MIOT-0.5.0)*
   - **Entidades de organización**: Nueva tabla `miot_core.organizations` que mapea slug → grupo Alfresco + tenant client ID, con contexto request-scoped (`OrganizationContext`).
 
 - **🏗️ Reestructuración del monorepo en turbo-repo/ y quarkus-srv/**
@@ -129,7 +129,7 @@
 - **🐳 Pipeline CI/CD para imagen Docker de quarkus-srv**
   - **Build y publicación automáticos**: El workflow `quarkus.yml` incluye jobs de build, publish multi-plataforma (amd64 + arm64) y security scan (Trivy) de la imagen Docker `ghcr.io/microboxlabs/miot-srv`. *(Integración OSS — MIOT-0.5.0)*
   - **Dockerfile production-grade**: Base UBI9 OpenJDK 21, usuario non-root, capas optimizadas para cache Docker y entrypoint `run-java.sh` con tuning JVM automático.
-  - **Comando overridable**: `CMD ["miot", "all"]` permite seleccionar componentes en tiempo de ejecución (`docker run <image> miot fleet`).
+  - **Comando overridable**: `CMD ["miot", "all"]` permite seleccionar componentes en tiempo de ejecución (`docker run IMAGE miot fleet`).
 
 - **⛵ Helm chart para el modulito Quarkus (miot-modulith)**
   - **Nuevo chart `miot-modulith`**: Chart de Helm para despliegue del modulito Quarkus (`ghcr.io/microboxlabs/miot-srv`), siguiendo el patrón del chart `miot-calendar`. *(Integración OSS — MIOT-0.5.0)*
@@ -156,7 +156,7 @@
   - **Detección automática**: `formDataToObject` detecta strings `"true"`/`"false"` y los convierte a booleanos reales antes de enviar el payload JSON, corrigiendo el type mismatch en `addReasonProperties`. *(Integración OSS — MIOT-0.5.0)*
 
 - **🐛 Slug de organización inexistente retorna 500 en vez de 404**
-  - **Respuesta controlada**: `OrganizationRequestFilter` actualizado para retornar `Uni<Response>` con JSON explícito en casos 404/401/403, eliminando el uso prohibido de `abortWith` en `@ServerRequestFilter` de RESTEasy Reactive. *(Integración OSS — MIOT-0.5.0)*
+  - **Respuesta controlada**: `OrganizationRequestFilter` actualizado para retornar `Uni` con JSON explícito en casos 404/401/403, eliminando el uso prohibido de `abortWith` en `@ServerRequestFilter` de RESTEasy Reactive. *(Integración OSS — MIOT-0.5.0)*
 
 - **🐛 Unidad canónica por defecto cuando se omite en métricas**
   - **Fallback automático**: Cuando una métrica canónica conocida llega sin unidad explícita, la ingesta ahora usa la unidad canónica definida en `MetricRegistry` en vez de rechazar con `UNIT_MISMATCH`. *(Integración OSS — MIOT-0.5.0)*

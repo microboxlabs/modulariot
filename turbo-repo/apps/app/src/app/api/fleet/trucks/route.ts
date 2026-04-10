@@ -174,6 +174,12 @@ export async function GET(request: Request) {
     }
   }
 
+  // Entry is either absent or older than the stale TTL — evict it so stale
+  // data doesn't stay resident and attempt a fresh fetch.
+  if (cacheEntry) {
+    fleetTrucksCache.delete(cacheKey);
+  }
+
   try {
     const trucks = await refreshFleetTrucksCache(
       cacheKey,
@@ -182,10 +188,6 @@ export async function GET(request: Request) {
     );
     return buildJsonResponse(trucks, "MISS");
   } catch (error) {
-    if (cacheEntry) {
-      return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
-    }
-
     const status = error instanceof MiotResourceApiError ? error.status : 500;
     logger.error({ err: error }, "Failed to fetch trucks");
     return NextResponse.json({ error: "Failed to fetch trucks" }, { status });

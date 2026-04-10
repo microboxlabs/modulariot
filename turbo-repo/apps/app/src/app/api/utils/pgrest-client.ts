@@ -326,10 +326,13 @@ export interface DecodedPoint {
  * Returns null on malformed input instead of throwing.
  */
 export function decodeEwkbPoint(hex: string | null | undefined): DecodedPoint | null {
-  if (!hex || hex.length < 50) return null;
+  if (!hex) return null;
+  // Strip PostgreSQL bytea hex-escape prefix (\x, 0x) if present.
+  const clean = hex.replace(/^(\\x|0x)/i, "");
+  if (clean.length < 50) return null;
   let buf: Buffer;
   try {
-    buf = Buffer.from(hex, "hex");
+    buf = Buffer.from(clean, "hex");
   } catch {
     return null;
   }

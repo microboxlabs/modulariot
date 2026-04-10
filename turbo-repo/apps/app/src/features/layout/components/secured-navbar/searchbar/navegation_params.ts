@@ -11,47 +11,42 @@ export type ParamType =
       options?: any[];
     };
 
-const kanban_params: ParamType[] = [
-  setParam("service", "text"),
-  setParam("licensePlate", "text"),
-  setParam("driverId", "text"),
-  setParam("carrierId", "text"),
-  setParam("origin", "text"),
-  setParam("destination", "text"),
-  setParam("customer", "text"),
-  setParam("originType", "selector", [
-    {
-      value: "",
-      label: "-",
-    },
-    {
-      value: "INTERNAL",
-      label: "Interno",
-    },
-    {
-      value: "EXTERNAL",
-      label: "Externo",
-    },
-  ]),
-  setParam("date_range", "date_range"),
-];
+function kanban_params(searchbarDict: I18nRecord): ParamType[] {
+  return [
+    setParam("service", "text"),
+    setParam("licensePlate", "text"),
+    setParam("driverId", "text"),
+    setParam("carrierId", "text"),
+    setParam("origin", "text"),
+    setParam("destination", "text"),
+    setParam("customer", "text"),
+    setParam("originType", "selector", [
+      { value: "", label: tr("allOption", searchbarDict) },
+      { value: "INTERNAL", label: tr("internal", searchbarDict) },
+      { value: "EXTERNAL", label: tr("external", searchbarDict) },
+    ]),
+    setParam("date_range", "date_range"),
+  ];
+}
 
 const where_is_my_load_params: ParamType[] = [
   setParam("expeditionCode", "text"),
   setParam("expeditionNumber", "text"),
 ];
 
-const fleet_params: ParamType[] = [
-  setParam("licensePlate", "text"),
-  setParam("client", "text"),
-  setParam("state", "selector", [
-    { value: "", label: "-" },
-    { value: "active", label: "Activo" },
-    { value: "maintenance", label: "En mantención" },
-    { value: "alert", label: "Alerta" },
-    { value: "inactive", label: "Inactivo" },
-  ]),
-];
+function fleet_params(searchbarDict: I18nRecord): ParamType[] {
+  return [
+    setParam("licensePlate", "text"),
+    setParam("client", "text"),
+    setParam("state", "selector", [
+      { value: "", label: tr("allOption", searchbarDict) },
+      { value: "active", label: tr("stateActive", searchbarDict) },
+      { value: "maintenance", label: tr("stateMaintenance", searchbarDict) },
+      { value: "alert", label: tr("stateAlert", searchbarDict) },
+      { value: "inactive", label: tr("stateInactive", searchbarDict) },
+    ]),
+  ];
+}
   
 const collaborators_management_params: ParamType[] = [
   setParam("name", "text"),
@@ -84,12 +79,16 @@ function setParam(
 }
 
 export function getNavegationParams(dict: I18nRecord, size: number) {
+  const searchbarDict = dict.searchbar as I18nRecord;
+  const kanban = kanban_params(searchbarDict);
+  const fleet = fleet_params(searchbarDict);
+
   return {
-    finished: getParamsFixed(kanban_params, dict),
-    shipping: getParamsFixed(kanban_params, dict),
-    delivery: getParamsFixed(kanban_params, dict),
-    planning: getParamsFixed(kanban_params, dict),
-    mytasks: getParamsFixed(kanban_params, dict),
+    finished: getParamsFixed(kanban, dict),
+    shipping: getParamsFixed(kanban, dict),
+    delivery: getParamsFixed(kanban, dict),
+    planning: getParamsFixed(kanban, dict),
+    mytasks: getParamsFixed(kanban, dict),
     "where-is-my-load": getParamsFixed(
       where_is_my_load_params,
       dict,
@@ -97,12 +96,12 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       true
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
-    "fleet-management": getParamsFixed(fleet_params, dict),
+    "fleet-management": getParamsFixed(fleet, dict),
     "collaborators-management": getParamsFixed(
       collaborators_management_params,
       dict,
       true
-    ), // No params for this page
+    ),
   };
 }
 

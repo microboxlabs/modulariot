@@ -37,7 +37,8 @@ export function useCollaborators(query?: string | null) {
   const params = new URLSearchParams();
   if (trimmed.length > 0) params.set("q", trimmed);
   const qs = params.toString();
-  const url = `/app/api/collaborators${qs ? `?${qs}` : ""}`;
+  const suffix = qs ? `?${qs}` : "";
+  const url = `/app/api/collaborators${suffix}`;
 
   const { data, error, isLoading, mutate } = useSWR<FetcherResult>(
     url,

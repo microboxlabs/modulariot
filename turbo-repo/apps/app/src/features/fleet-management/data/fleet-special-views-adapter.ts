@@ -43,7 +43,7 @@ export function pgrestRowToSpecialView(
     icon: resolveFleetViewIcon(row.icon),
     iconColor: row.icon_color,
     iconDarkColor: row.icon_color_dark,
-    badgeText: badgeText !== "" ? badgeText : undefined,
+    badgeText: badgeText === "" ? undefined : badgeText,
     badgeColor: row.badge_color ?? undefined,
     badgeColorDark: row.badge_color_dark ?? undefined,
     route: row.route,

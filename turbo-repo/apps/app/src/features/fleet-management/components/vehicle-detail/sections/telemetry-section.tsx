@@ -289,9 +289,9 @@ export default function TelemetrySection({
   );
 
   const stabilityText =
-    telemetry.signal.stability_pct !== null
-      ? `${Math.round(telemetry.signal.stability_pct)}%`
-      : "—";
+    telemetry.signal.stability_pct === null
+      ? "—"
+      : `${Math.round(telemetry.signal.stability_pct)}%`;
 
   return (
     <ExpandableSection

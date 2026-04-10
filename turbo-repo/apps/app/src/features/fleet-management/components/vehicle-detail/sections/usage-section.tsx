@@ -203,7 +203,7 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
   const ui = DEVIATION_UI[deviation];
   const pctConsumed = usage.contract.pct_consumed;
   // The progress bar caps at 100 visually even when sobreuso hits 115+.
-  const progressValue = pctConsumed !== null ? Math.min(pctConsumed, 100) : 0;
+  const progressValue = pctConsumed === null ? 0 : Math.min(pctConsumed, 100);
 
   // Cell 2 — km restantes del contrato. When over-contract, show the
   // excess km with a `+N km sobreuso` description so the direction is
@@ -212,21 +212,23 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
   const remainingKm = usage.contract.remaining_km;
   const deviationKm = usage.contract.deviation_km;
   const remainingCellValue = formatKm(remainingKm);
-  const remainingCellDesc =
-    remainingKm === null
-      ? tr("vehicleDetail.sections.usage.noDataShort", dict)
-      : deviationKm !== null && deviationKm > 0
-      ? tr("vehicleDetail.sections.usage.overuseAmount", dict, {
-          km: Math.round(deviationKm).toLocaleString(),
-        })
-      : tr("vehicleDetail.sections.usage.withinContract", dict);
+  let remainingCellDesc: string;
+  if (remainingKm === null) {
+    remainingCellDesc = tr("vehicleDetail.sections.usage.noDataShort", dict);
+  } else if (deviationKm !== null && deviationKm > 0) {
+    remainingCellDesc = tr("vehicleDetail.sections.usage.overuseAmount", dict, {
+      km: Math.round(deviationKm).toLocaleString(),
+    });
+  } else {
+    remainingCellDesc = tr("vehicleDetail.sections.usage.withinContract", dict);
+  }
 
   // Cell 6 — annual projection. Computed client-side as km/day * 365;
   // null when the upstream has no km/day signal at all.
   const annualProjection =
-    usage.period.km_per_day !== null
-      ? Math.round(usage.period.km_per_day * 365)
-      : null;
+    usage.period.km_per_day === null
+      ? null
+      : Math.round(usage.period.km_per_day * 365);
 
   // Intensity label shown as the description on the km/day cell.
   const intensityLabel = tr(
@@ -240,21 +242,21 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
   // the existing i18n keys kick back in with no code change.
   const activeDays = usage.period.active_days;
   const activeDaysValue =
-    activeDays !== null
-      ? tr("vehicleDetail.sections.usage.activeDaysValue", dict, {
+    activeDays === null
+      ? "—"
+      : tr("vehicleDetail.sections.usage.activeDaysValue", dict, {
           active: String(activeDays),
           total: String(usage.period.lookback_days),
-        })
-      : "—";
+        });
   const activeDaysDesc =
-    activeDays !== null
-      ? tr("vehicleDetail.sections.usage.utilization", dict, {
+    activeDays === null
+      ? tr("vehicleDetail.sections.usage.noDataShort", dict)
+      : tr("vehicleDetail.sections.usage.utilization", dict, {
           percentage: (
             (activeDays / usage.period.lookback_days) *
             100
           ).toFixed(0),
-        })
-      : tr("vehicleDetail.sections.usage.noDataShort", dict);
+        });
 
   return (
     <ExpandableSection
@@ -338,11 +340,11 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
             }}
             value={{
               text:
-                usage.period.km_per_day !== null
-                  ? tr("vehicleDetail.sections.usage.kmPerDay", dict, {
+                usage.period.km_per_day === null
+                  ? "—"
+                  : tr("vehicleDetail.sections.usage.kmPerDay", dict, {
                       km: usage.period.km_per_day.toFixed(1),
-                    })
-                  : "—",
+                    }),
             }}
             description={{
               text: intensityLabel,

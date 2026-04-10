@@ -16,6 +16,7 @@ import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
 import SearchBar from "./searchbar/search-bar";
+import OrgSwitcher from "./org-switcher/org-switcher";
 // import { Filter } from "flowbite-react-icons/outline";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDebouncedCallback } from "use-debounce";
@@ -238,6 +239,7 @@ export function SecuredNavbar({
               />
             </div>
 
+            <OrgSwitcher />
             {!pathname.includes("/notifications") && (
               <Link
                 href="/notifications"

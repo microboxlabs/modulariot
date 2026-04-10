@@ -371,6 +371,27 @@ async function bearerToken(): Promise<string> {
   return getSharedAuthToken().getToken();
 }
 
+const PGREST_FETCH_TIMEOUT_MS = 30_000;
+
+/** Thin wrapper around fetch that aborts after a timeout. */
+async function pgrestFetch(
+  input: string,
+  init?: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PGREST_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`pgrest request timed out after ${PGREST_FETCH_TIMEOUT_MS}ms: ${input}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Fetch every row of `v_modulariot_trucks_tmp` visible to the token's tenant.
  * pgrest applies row-level security via the JWT, so no explicit tenant filter
@@ -379,7 +400,7 @@ async function bearerToken(): Promise<string> {
 export async function fetchTrucksCatalog(): Promise<PgrestTruckCatalogRow[]> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
       "Range-Unit": "items",
@@ -409,7 +430,7 @@ export async function fetchTruckCatalogByIdOrPlate(
     ? `mbl_id=eq.${numeric}`
     : `patente=eq.${encodeURIComponent(idOrPlate)}`;
   const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp?${filter}&limit=1`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
       "Range-Unit": "items",
@@ -437,7 +458,7 @@ export async function fetchTruckCatalogByIdOrPlate(
 export async function fetchSpecialViews(): Promise<PgrestFleetSpecialViewRow[]> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/fleet_special_views?active=eq.true&order=position`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
       "Accept-Profile": "ams",
@@ -465,7 +486,7 @@ export async function fetchLastPositions(
 ): Promise<PgrestMapPositionRow[]> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/rpc/api_modular_map_positions`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -503,7 +524,7 @@ export async function fetchTruckMaintenanceDetailByPlate(
 ): Promise<PgrestMaintenanceRow | null> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/rpc/fn_dx_mantenimiento_detalle`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -536,7 +557,7 @@ export async function fetchTruckSignalDetailByPlate(
 ): Promise<PgrestSignalRow | null> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/rpc/fn_dx_senal_detalle`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -847,7 +868,7 @@ export async function fetchTruckUsageDetailByPlate(
 ): Promise<PgrestUsageRow | null> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/rpc/fn_dx_uso_flota_detalle`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -984,7 +1005,7 @@ export async function fetchTruckEventsDetailByPlate(
   const token = await bearerToken();
   const clientId = getPgrestClientId();
   const url = `${pgrestBaseUrl()}/rpc/fn_dx_eventos_detalle`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -1093,7 +1114,7 @@ export async function fetchDriversFromView(opts?: {
   }
 
   const url = `${pgrestBaseUrl()}/v_modulariot_drivers_tmp?${params.toString()}`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
       "Range-Unit": "items",
@@ -1121,7 +1142,7 @@ export async function fetchDriverById(
   if (!Number.isInteger(numeric)) return null;
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/v_modulariot_drivers_tmp?id=eq.${numeric}&limit=1`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
       "Range-Unit": "items",
@@ -1221,7 +1242,7 @@ export async function fetchDriverDetailByCodDriver(
   const url = `${pgrestBaseUrl()}/rpc/api_detalle_expediente_colaborador?p_cod_driver=${encodeURIComponent(
     codDriver
   )}`;
-  const response = await fetch(url, {
+  const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
       Authorization: `Bearer ${token}`,

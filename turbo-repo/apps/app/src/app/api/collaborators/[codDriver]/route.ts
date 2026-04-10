@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import {
@@ -28,13 +29,21 @@ const DETAIL_CACHE_STALE_TTL_MS = 5 * 60_000;
 type DetailCacheEntry = {
   data: CollaboratorDetailDto;
   fetchedAt: number;
-  refreshPromise?: Promise<CollaboratorDetailDto>;
 };
 
 const detailCache = new Map<string, DetailCacheEntry>();
+const inFlight = new Map<string, Promise<CollaboratorDetailDto>>();
 
-function buildCacheKey(userId: string, codDriver: string) {
-  return `${userId}:${codDriver}`;
+/** Returns a non-PII user token: the raw id when available, otherwise a SHA-256 prefix of the fallback value. */
+function resolveUserToken(user: { id?: string | null; email?: string | null; name?: string | null } | undefined): string {
+  if (user?.id) return user.id;
+  const raw = user?.email ?? user?.name;
+  if (!raw) return "anon";
+  return createHash("sha256").update(raw).digest("hex").slice(0, 16);
+}
+
+function buildCacheKey(userToken: string, codDriver: string) {
+  return `${userToken}:${codDriver}`;
 }
 
 function buildJsonResponse(
@@ -70,12 +79,10 @@ async function fetchDetailFromPgrest(
 }
 
 function refreshDetailCache(cacheKey: string, codDriver: string) {
-  const existingEntry = detailCache.get(cacheKey);
-  if (existingEntry?.refreshPromise) {
-    return existingEntry.refreshPromise;
-  }
+  const existing = inFlight.get(cacheKey);
+  if (existing) return existing;
 
-  const refreshPromise = fetchDetailFromPgrest(codDriver)
+  const promise = fetchDetailFromPgrest(codDriver)
     .then((dto) => {
       detailCache.set(cacheKey, { data: dto, fetchedAt: Date.now() });
       return dto;
@@ -88,23 +95,11 @@ function refreshDetailCache(cacheKey: string, codDriver: string) {
       throw error;
     })
     .finally(() => {
-      const currentEntry = detailCache.get(cacheKey);
-      if (!currentEntry?.refreshPromise) return;
-      detailCache.set(cacheKey, {
-        data: currentEntry.data,
-        fetchedAt: currentEntry.fetchedAt,
-      });
+      inFlight.delete(cacheKey);
     });
 
-  if (existingEntry) {
-    detailCache.set(cacheKey, {
-      data: existingEntry.data,
-      fetchedAt: existingEntry.fetchedAt,
-      refreshPromise,
-    });
-  }
-
-  return refreshPromise;
+  inFlight.set(cacheKey, promise);
+  return promise;
 }
 
 export async function GET(
@@ -130,12 +125,8 @@ export async function GET(
     );
   }
 
-  const userId =
-    authResult.session.user?.id ??
-    authResult.session.user?.email ??
-    authResult.session.user?.name ??
-    "anonymous";
-  const cacheKey = buildCacheKey(userId, codDriver);
+  const userToken = resolveUserToken(authResult.session.user);
+  const cacheKey = buildCacheKey(userToken, codDriver);
   const cacheEntry = detailCache.get(cacheKey);
   const now = Date.now();
 

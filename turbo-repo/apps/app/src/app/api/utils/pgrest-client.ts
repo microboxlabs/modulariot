@@ -37,8 +37,6 @@ import type {
 } from "@/features/collaborators-management/types/collaborators.types";
 import { getSharedAuthToken } from "./streamhub-api-client";
 
-const DEFAULT_PGREST_URL = "https://pgrest.streamhub.cl/api/v1/pgrest";
-
 // --- Row shapes returned by the two pgrest endpoints. ---
 // Only columns the fleet card actually reads are listed; pgrest returns more.
 
@@ -358,7 +356,10 @@ export function getPgrestClientId(): string {
 
 /** pgrest base URL with trailing slash tolerated. */
 function pgrestBaseUrl(): string {
-  const raw = process.env.STREAMHUB_URL ?? DEFAULT_PGREST_URL;
+  const raw = process.env.STREAMHUB_URL;
+  if (!raw) {
+    throw new Error("STREAMHUB_URL environment variable is not set");
+  }
   return raw.replace(/\/+$/, "");
 }
 

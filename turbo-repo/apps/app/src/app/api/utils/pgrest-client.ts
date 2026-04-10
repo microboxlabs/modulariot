@@ -329,13 +329,8 @@ export function decodeEwkbPoint(hex: string | null | undefined): DecodedPoint | 
   if (!hex) return null;
   // Strip PostgreSQL bytea hex-escape prefix (\x, 0x) if present.
   const clean = hex.replace(/^(\\x|0x)/i, "");
-  if (clean.length < 50) return null;
-  let buf: Buffer;
-  try {
-    buf = Buffer.from(clean, "hex");
-  } catch {
-    return null;
-  }
+  if (clean.length < 50 || clean.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(clean)) return null;
+  const buf = Buffer.from(clean, "hex");
   if (buf.length < 25) return null;
   const littleEndian = buf.readUInt8(0) === 1;
   const longitude = littleEndian ? buf.readDoubleLE(9) : buf.readDoubleBE(9);

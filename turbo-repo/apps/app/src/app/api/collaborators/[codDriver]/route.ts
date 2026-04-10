@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import {
@@ -28,13 +29,21 @@ const DETAIL_CACHE_STALE_TTL_MS = 5 * 60_000;
 type DetailCacheEntry = {
   data: CollaboratorDetailDto;
   fetchedAt: number;
-  refreshPromise?: Promise<CollaboratorDetailDto>;
 };
 
 const detailCache = new Map<string, DetailCacheEntry>();
+const inFlight = new Map<string, Promise<CollaboratorDetailDto>>();
 
-function buildCacheKey(userId: string, activeOrgSlug: string, codDriver: string) {
-  return `${userId}:${activeOrgSlug}:${codDriver}`;
+/** Returns a non-PII user token: the raw id when available, otherwise a SHA-256 prefix of the fallback value. */
+function resolveUserToken(user: { id?: string | null; email?: string | null; name?: string | null } | undefined): string {
+  if (user?.id) return user.id;
+  const raw = user?.email ?? user?.name;
+  if (!raw) return "anon";
+  return createHash("sha256").update(raw).digest("hex").slice(0, 16);
+}
+
+function buildCacheKey(userToken: string, activeOrgSlug: string, codDriver: string) {
+  return `${userToken}:${activeOrgSlug}:${codDriver}`;
 }
 
 function buildJsonResponse(
@@ -70,12 +79,10 @@ async function fetchDetailFromPgrest(
 }
 
 function refreshDetailCache(cacheKey: string, codDriver: string) {
-  const existingEntry = detailCache.get(cacheKey);
-  if (existingEntry?.refreshPromise) {
-    return existingEntry.refreshPromise;
-  }
+  const existing = inFlight.get(cacheKey);
+  if (existing) return existing;
 
-  const refreshPromise = fetchDetailFromPgrest(codDriver)
+  const promise = fetchDetailFromPgrest(codDriver)
     .then((dto) => {
       detailCache.set(cacheKey, { data: dto, fetchedAt: Date.now() });
       return dto;
@@ -88,23 +95,11 @@ function refreshDetailCache(cacheKey: string, codDriver: string) {
       throw error;
     })
     .finally(() => {
-      const currentEntry = detailCache.get(cacheKey);
-      if (!currentEntry?.refreshPromise) return;
-      detailCache.set(cacheKey, {
-        data: currentEntry.data,
-        fetchedAt: currentEntry.fetchedAt,
-      });
+      inFlight.delete(cacheKey);
     });
 
-  if (existingEntry) {
-    detailCache.set(cacheKey, {
-      data: existingEntry.data,
-      fetchedAt: existingEntry.fetchedAt,
-      refreshPromise,
-    });
-  }
-
-  return refreshPromise;
+  inFlight.set(cacheKey, promise);
+  return promise;
 }
 
 export async function GET(
@@ -131,12 +126,8 @@ export async function GET(
     );
   }
 
-  const userId =
-    session.user?.id ??
-    session.user?.email ??
-    session.user?.name ??
-    "anonymous";
-  const cacheKey = buildCacheKey(userId, scope.activeOrg.slug, codDriver);
+  const userToken = resolveUserToken(session.user);
+  const cacheKey = buildCacheKey(userToken, scope.activeOrg.slug, codDriver);
   const cacheEntry = detailCache.get(cacheKey);
   const now = Date.now();
 
@@ -172,7 +163,11 @@ export async function GET(
       return NextResponse.json({ error: "driver not found" }, { status: 404 });
     }
     if (cacheEntry) {
-      return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
+      const ageMs = now - cacheEntry.fetchedAt;
+      if (ageMs <= DETAIL_CACHE_STALE_TTL_MS) {
+        return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
+      }
+      detailCache.delete(cacheKey);
     }
     logger.error(
       { err: error, codDriver },

@@ -37,11 +37,13 @@ export async function GET(
   }
 
   const { id: rawId } = await params;
-  const idOrPlate = decodeURIComponent(rawId);
-  const numericId = Number(idOrPlate);
-  const isNumeric = Number.isInteger(numericId);
+  let idOrPlate = rawId;
 
   try {
+    idOrPlate = decodeURIComponent(rawId);
+    const numericId = Number(idOrPlate);
+    const isNumeric = Number.isInteger(numericId);
+
     let plate: string | null;
     if (isNumeric) {
       const catalogRow = await fetchTruckCatalogByIdOrPlate(String(numericId));

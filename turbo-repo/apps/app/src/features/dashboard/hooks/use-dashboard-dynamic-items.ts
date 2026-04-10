@@ -75,7 +75,7 @@ function groupDashboardsByPath(
       continue;
     }
 
-    const segment = dashboard.path.replace(/^\/+|\/+$/g, "").split("/")[0];
+    const segment = dashboard.path.replaceAll(/^\/+|\/+$/g, "").split("/")[0];
     if (!segment) {
       topLevel.push(item);
       continue;

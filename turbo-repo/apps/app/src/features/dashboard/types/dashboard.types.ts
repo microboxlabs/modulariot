@@ -134,6 +134,21 @@ export interface DashboardStorageSchema {
   allowedGroups?: string[];
 }
 
+/**
+ * Parse an unknown allowedGroups value into a validated result.
+ * - `{ valid: true, groups: string[] }` when value is a proper string array (may be empty)
+ * - `{ valid: true, groups: undefined }` when value is absent (undefined/null)
+ * - `{ valid: false }` when value is present but malformed
+ */
+export function parseAllowedGroups(
+  value: unknown
+): { valid: true; groups: string[] | undefined } | { valid: false } {
+  if (value === undefined || value === null) return { valid: true, groups: undefined };
+  if (!Array.isArray(value)) return { valid: false };
+  if (!value.every((g): g is string => typeof g === "string")) return { valid: false };
+  return { valid: true, groups: value };
+}
+
 /** Default storage state */
 export const DEFAULT_STORAGE: DashboardStorageSchema = {
   version: 2,

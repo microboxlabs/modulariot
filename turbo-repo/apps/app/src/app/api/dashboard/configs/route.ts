@@ -4,6 +4,7 @@ import {
   listDashboardConfigs,
   getGroupsForPerson,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
 import {
   handleApiError,
   unauthorizedResponse,
@@ -38,9 +39,10 @@ export async function GET(request: NextRequest) {
 
     // Filter out dashboards the user is not allowed to access
     const accessible = (result.data ?? []).filter((item) => {
-      const allowed = item.config?.allowedGroups;
-      if (!Array.isArray(allowed) || allowed.length === 0) return true;
-      return allowed.some((g: string) => userGroups.includes(g));
+      const parsed = parseAllowedGroups(item.config?.allowedGroups);
+      if (!parsed.valid) return false; // malformed — deny
+      if (!parsed.groups || parsed.groups.length === 0) return true;
+      return parsed.groups.some((g) => userGroups.includes(g));
     });
 
     // Transform { slug, config } → { slug, name } for the client

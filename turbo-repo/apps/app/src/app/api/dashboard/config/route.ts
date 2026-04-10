@@ -11,6 +11,7 @@ import {
   unauthorizedResponse,
   badRequestResponse,
 } from "@/app/api/utils/api-error-handler";
+import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
 import type { DashboardStorageSchema } from "@/features/dashboard/types/dashboard.types";
 
 function forbiddenResponse() {
@@ -29,10 +30,11 @@ async function hasAccessToDashboard(
   session: Parameters<typeof getGroupsForPerson>[0]
 ): Promise<boolean> {
   if (!config) return true;
-  const allowed = config.allowedGroups;
-  if (!Array.isArray(allowed) || allowed.length === 0) return true;
+  const parsed = parseAllowedGroups(config.allowedGroups);
+  if (!parsed.valid) return false; // malformed — deny
+  if (!parsed.groups || parsed.groups.length === 0) return true;
   const userGroups = await getGroupsForPerson(session);
-  return allowed.some((g) => userGroups.includes(g));
+  return parsed.groups.some((g) => userGroups.includes(g));
 }
 
 /**

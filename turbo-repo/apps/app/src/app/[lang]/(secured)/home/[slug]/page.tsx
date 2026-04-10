@@ -10,6 +10,63 @@ import {
   getGroupsForPerson,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { RouteGuard } from "@/features/auth/components/route-guard";
+import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
+import { logger } from "@/lib/logger";
+import type { Session } from "next-auth";
+
+/** Resolve the user's primary Alfresco site. Returns null when the user has no sites. Throws on errors. */
+async function resolvePrimarySite(session: Session): Promise<string | null> {
+  const sites = await getUserSites(session);
+  if (sites.length === 0) return null;
+  const sorted = [...sites].sort((a, b) =>
+    a.shortName.localeCompare(b.shortName)
+  );
+  return sorted[0].shortName;
+}
+
+/**
+ * Fetch the dashboard config and verify the user has access based on
+ * allowedGroups. Redirects to the overview page if access is denied.
+ */
+async function enforceDashboardAccess(
+  session: Session,
+  siteId: string,
+  slug: string,
+  lang: string
+): Promise<void> {
+  let configData: Record<string, unknown> | null = null;
+
+  try {
+    const result = await getDashboardConfig(session, siteId, slug);
+    configData = result.data as Record<string, unknown> | null;
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status === 404) return; // No saved config yet — allow default rendering
+    logger.error({ err: error, slug, siteId }, "Failed to fetch dashboard config for access check");
+    redirect(`/${lang}/home`);
+  }
+
+  const parsed = parseAllowedGroups(configData?.allowedGroups);
+
+  if (!parsed.valid) {
+    logger.error({ slug, siteId, allowedGroups: configData?.allowedGroups }, "Malformed allowedGroups in dashboard config");
+    redirect(`/${lang}/home`);
+  }
+
+  if (!parsed.groups || parsed.groups.length === 0) return;
+
+  let userGroups: string[];
+  try {
+    userGroups = await getGroupsForPerson(session);
+  } catch (error) {
+    logger.error({ err: error, slug }, "Failed to fetch user groups for dashboard access check");
+    redirect(`/${lang}/home`);
+  }
+
+  if (!parsed.groups.some((g) => userGroups.includes(g))) {
+    redirect(`/${lang}/home`);
+  }
+}
 
 interface SlugPageParams extends ParamsWithLang {
   params: Promise<{ lang: string; slug: string }>;
@@ -18,48 +75,26 @@ interface SlugPageParams extends ParamsWithLang {
 export default async function SlugDashboardPage({ params }: Readonly<SlugPageParams>) {
   const { lang, slug } = await params;
 
-  // Run independent async work in parallel
   const [dictionaryResult, session] = await Promise.all([
     getDictionary(lang),
     auth(),
   ]);
   const [, dictionary] = dictionaryResult;
 
-  // Try to load a default config from src/features/dashboard/defaults/{slug}-config.json
-  // Returns null if the file doesn't exist — dashboard starts empty as usual
   const defaultConfig = loadDefaultConfig(slug);
 
-  // Resolve user's primary site for Alfresco persistence
   let siteId: string | null = null;
   if (session) {
     try {
-      const sites = await getUserSites(session);
-      if (sites.length > 0) {
-        const sorted = [...sites].sort((a, b) =>
-          a.shortName.localeCompare(b.shortName)
-        );
-        siteId = sorted[0].shortName;
-      }
-    } catch {
-      // If site resolution fails, fall back to default config only
+      siteId = await resolvePrimarySite(session);
+    } catch (error) {
+      logger.error({ err: error }, "Failed to resolve primary site for dashboard access");
+      redirect(`/${lang}/home`);
     }
   }
 
-  // Per-dashboard group access check
   if (session && siteId) {
-    try {
-      const dashboardConfig = await getDashboardConfig(session, siteId, slug);
-      const configData = dashboardConfig.data as Record<string, unknown> | null;
-      const allowed = configData?.allowedGroups;
-      if (Array.isArray(allowed) && allowed.length > 0) {
-        const userGroups = await getGroupsForPerson(session);
-        if (!allowed.some((g: string) => userGroups.includes(g))) {
-          redirect(`/${lang}/home`);
-        }
-      }
-    } catch {
-      // If config fetch fails, let the page render with default/empty config
-    }
+    await enforceDashboardAccess(session, siteId, slug, lang);
   }
 
   return (

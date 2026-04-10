@@ -578,8 +578,10 @@ function mapPgrestStatus(row: PgrestTruckCatalogRow): string {
   return "ACTIVE";
 }
 
+type MetricsMap = MetricsMap;
+
 function addPositionMetrics(
-  metrics: Record<string, string | number | boolean | null>,
+  metrics: MetricsMap,
   position: PgrestMapPositionRow
 ): void {
   if (position.timestamp) metrics.timestamp = position.timestamp;
@@ -596,8 +598,8 @@ function addPositionMetrics(
 function buildLatestMetricsFromPgrest(
   row: PgrestTruckCatalogRow,
   position: PgrestMapPositionRow | undefined
-): Record<string, string | number | boolean | null> {
-  const metrics: Record<string, string | number | boolean | null> = {};
+): MetricsMap {
+  const metrics: MetricsMap = {};
 
   if (row.device_usage_qty != null) {
     metrics.odometer_km = row.device_usage_qty;
@@ -929,7 +931,7 @@ export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
   const useTypeRaw = row.gm_use_type?.trim();
   const useType = useTypeRaw && useTypeRaw.length > 0 ? useTypeRaw : null;
 
-  const kmActual = row.km_actual !== null ? Number(row.km_actual) : null;
+  const kmActual = row.km_actual === null ? null : Number(row.km_actual);
   const maxTravel = Number(row.max_travel);
   const deviationKm =
     row.desviacion_km === null ? null : Number(row.desviacion_km);

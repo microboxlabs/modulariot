@@ -84,8 +84,7 @@ export default function SpecialViewsCarousel({
   }
 
   return (
-    <div
-      role="group"
+    <section
       aria-roledescription="carousel"
       className="flex flex-col gap-2"
       onMouseEnter={handleMouseEnter}
@@ -192,6 +191,6 @@ export default function SpecialViewsCarousel({
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

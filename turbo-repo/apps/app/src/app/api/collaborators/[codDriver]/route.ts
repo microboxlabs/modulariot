@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "../../utils/alfresco-crud-client";
+import { resolveTenantScope } from "../../utils/tenant-scope";
 import {
   driverDetailResponseToDto,
   fetchDriverDetailByCodDriver,
@@ -33,8 +33,8 @@ type DetailCacheEntry = {
 
 const detailCache = new Map<string, DetailCacheEntry>();
 
-function buildCacheKey(userId: string, codDriver: string) {
-  return `${userId}:${codDriver}`;
+function buildCacheKey(userId: string, activeOrgSlug: string, codDriver: string) {
+  return `${userId}:${activeOrgSlug}:${codDriver}`;
 }
 
 function buildJsonResponse(
@@ -111,8 +111,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ codDriver: string }> }
 ) {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return authResult.response;
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  const { scope, session } = scopeResult;
 
   if (process.env.MIOT_COLLABORATORS_SOURCE !== "pgrest") {
     return NextResponse.json(
@@ -131,11 +132,11 @@ export async function GET(
   }
 
   const userId =
-    authResult.session.user?.id ??
-    authResult.session.user?.email ??
-    authResult.session.user?.name ??
+    session.user?.id ??
+    session.user?.email ??
+    session.user?.name ??
     "anonymous";
-  const cacheKey = buildCacheKey(userId, codDriver);
+  const cacheKey = buildCacheKey(userId, scope.activeOrg.slug, codDriver);
   const cacheEntry = detailCache.get(cacheKey);
   const now = Date.now();
 
@@ -154,6 +155,17 @@ export async function GET(
 
   try {
     const dto = await refreshDetailCache(cacheKey, codDriver);
+
+    // Enforce scope: if the active org has tax ids configured, the returned
+    // driver's cust_account (mapped to `department`) must be in the set.
+    if (
+      scope.effectiveTaxIds.length > 0 &&
+      dto.collaborator.department &&
+      !scope.effectiveTaxIds.includes(dto.collaborator.department)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     return buildJsonResponse(dto, "MISS");
   } catch (error) {
     if (error instanceof DriverNotFoundError) {

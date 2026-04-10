@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "../../utils/alfresco-crud-client";
+import { resolveTenantScope } from "../../utils/tenant-scope";
 import { createResourceClient } from "../../utils/miot-resource-api-client";
 import { parsePageParams, isPageParamsError } from "../../utils/page-params";
 import {
@@ -28,12 +28,12 @@ type FleetTrucksCacheEntry = {
 
 const fleetTrucksCache = new Map<string, FleetTrucksCacheEntry>();
 
-function buildCacheKey(request: Request, userId: string) {
+function buildCacheKey(request: Request, userId: string, activeOrgSlug: string) {
   const { searchParams } = new URL(request.url);
   const normalizedParams = new URLSearchParams(searchParams);
   normalizedParams.sort();
 
-  return `${userId}:${normalizedParams.toString()}`;
+  return `${userId}:${activeOrgSlug}:${normalizedParams.toString()}`;
 }
 
 function buildJsonResponse(
@@ -49,12 +49,13 @@ function buildJsonResponse(
 }
 
 async function fetchTrucksFromPgrest(
-  truckQuery: TruckQueryParams
+  truckQuery: TruckQueryParams,
+  custAccounts?: string[],
 ): Promise<Truck[]> {
   const clientId = getPgrestClientId();
 
   const [catalog, positions] = await Promise.all([
-    fetchTrucksCatalog(),
+    fetchTrucksCatalog({ custAccounts }),
     fetchLastPositions(clientId),
   ]);
 
@@ -77,10 +78,11 @@ async function fetchTrucksFromPgrest(
 
 async function fetchTrucks(
   session: Parameters<typeof createResourceClient>[0],
-  truckQuery: TruckQueryParams
+  truckQuery: TruckQueryParams,
+  custAccounts?: string[],
 ) {
   if (process.env.MIOT_FLEET_SOURCE === "pgrest") {
-    return fetchTrucksFromPgrest(truckQuery);
+    return fetchTrucksFromPgrest(truckQuery, custAccounts);
   }
   const client = createResourceClient(session);
   return client.fleet.listTrucks(truckQuery);
@@ -89,14 +91,15 @@ async function fetchTrucks(
 function refreshFleetTrucksCache(
   cacheKey: string,
   session: Parameters<typeof createResourceClient>[0],
-  truckQuery: TruckQueryParams
+  truckQuery: TruckQueryParams,
+  custAccounts?: string[],
 ) {
   const existingEntry = fleetTrucksCache.get(cacheKey);
   if (existingEntry?.refreshPromise) {
     return existingEntry.refreshPromise;
   }
 
-  const refreshPromise = fetchTrucks(session, truckQuery)
+  const refreshPromise = fetchTrucks(session, truckQuery, custAccounts)
     .then((trucks) => {
       fleetTrucksCache.set(cacheKey, {
         data: trucks,
@@ -128,8 +131,9 @@ function refreshFleetTrucksCache(
 }
 
 export async function GET(request: Request) {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return authResult.response;
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  const { scope, session } = scopeResult;
 
   const { searchParams } = new URL(request.url);
   const pageParams = parsePageParams(searchParams);
@@ -151,13 +155,15 @@ export async function GET(request: Request) {
   }
 
   const userId =
-    authResult.session.user?.id ??
-    authResult.session.user?.email ??
-    authResult.session.user?.name ??
+    session.user?.id ??
+    session.user?.email ??
+    session.user?.name ??
     "anonymous";
-  const cacheKey = buildCacheKey(request, userId);
+  const cacheKey = buildCacheKey(request, userId, scope.activeOrg.slug);
   const cacheEntry = fleetTrucksCache.get(cacheKey);
   const now = Date.now();
+  const custAccounts =
+    scope.effectiveTaxIds.length > 0 ? scope.effectiveTaxIds : undefined;
 
   if (cacheEntry) {
     const ageMs = now - cacheEntry.fetchedAt;
@@ -167,9 +173,12 @@ export async function GET(request: Request) {
     }
 
     if (ageMs <= FLEET_TRUCKS_CACHE_STALE_TTL_MS) {
-      void refreshFleetTrucksCache(cacheKey, authResult.session, truckQuery).catch(
-        () => undefined
-      );
+      void refreshFleetTrucksCache(
+        cacheKey,
+        session,
+        truckQuery,
+        custAccounts,
+      ).catch(() => undefined);
       return buildJsonResponse(cacheEntry.data, "STALE");
     }
   }
@@ -183,8 +192,9 @@ export async function GET(request: Request) {
   try {
     const trucks = await refreshFleetTrucksCache(
       cacheKey,
-      authResult.session,
-      truckQuery
+      session,
+      truckQuery,
+      custAccounts,
     );
     return buildJsonResponse(trucks, "MISS");
   } catch (error) {

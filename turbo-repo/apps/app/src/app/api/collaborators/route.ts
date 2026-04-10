@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "../utils/alfresco-crud-client";
+import { resolveTenantScope } from "../utils/tenant-scope";
 import {
   driverRowToCollaborator,
   fetchDriversFromView,
@@ -35,8 +35,8 @@ type CollaboratorsCacheEntry = {
 
 const collaboratorsCache = new Map<string, CollaboratorsCacheEntry>();
 
-function buildCacheKey(userId: string, query: string) {
-  return `${userId}:${query}`;
+function buildCacheKey(userId: string, activeOrgSlug: string, query: string) {
+  return `${userId}:${activeOrgSlug}:${query}`;
 }
 
 function buildJsonResponse(
@@ -52,21 +52,27 @@ function buildJsonResponse(
 }
 
 async function fetchCollaboratorsFromPgrest(
-  query: string | null
+  query: string | null,
+  custAccounts?: string[],
 ): Promise<Collaborator[]> {
-  const rows = await fetchDriversFromView(
-    query ? { q: query } : undefined
-  );
+  const rows = await fetchDriversFromView({
+    q: query ?? undefined,
+    custAccounts,
+  });
   return rows.map(driverRowToCollaborator);
 }
 
-function refreshCollaboratorsCache(cacheKey: string, query: string | null) {
+function refreshCollaboratorsCache(
+  cacheKey: string,
+  query: string | null,
+  custAccounts?: string[],
+) {
   const existingEntry = collaboratorsCache.get(cacheKey);
   if (existingEntry?.refreshPromise) {
     return existingEntry.refreshPromise;
   }
 
-  const refreshPromise = fetchCollaboratorsFromPgrest(query)
+  const refreshPromise = fetchCollaboratorsFromPgrest(query, custAccounts)
     .then((collaborators) => {
       collaboratorsCache.set(cacheKey, {
         data: collaborators,
@@ -100,8 +106,13 @@ function refreshCollaboratorsCache(cacheKey: string, query: string | null) {
 }
 
 export async function GET(request: Request) {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return authResult.response;
+  // Resolve tenant scope — replaces the old requireAuth() call.
+  // When effectiveTaxIds is non-empty the pgrest query is filtered by cust_account;
+  // when empty (e.g. new parent org with no children, or no tax ids populated yet)
+  // the query runs unfiltered (graceful degradation for Phase 1 deployments).
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  const { scope } = scopeResult;
 
   if (process.env.MIOT_COLLABORATORS_SOURCE !== "pgrest") {
     return NextResponse.json(
@@ -115,13 +126,15 @@ export async function GET(request: Request) {
   const query = rawQuery && rawQuery.trim().length > 0 ? rawQuery.trim() : null;
 
   const userId =
-    authResult.session.user?.id ??
-    authResult.session.user?.email ??
-    authResult.session.user?.name ??
+    scopeResult.session.user?.id ??
+    scopeResult.session.user?.email ??
+    scopeResult.session.user?.name ??
     "anonymous";
-  const cacheKey = buildCacheKey(userId, query ?? "");
+  const cacheKey = buildCacheKey(userId, scope.activeOrg.slug, query ?? "");
   const cacheEntry = collaboratorsCache.get(cacheKey);
   const now = Date.now();
+  const custAccounts =
+    scope.effectiveTaxIds.length > 0 ? scope.effectiveTaxIds : undefined;
 
   if (cacheEntry) {
     const ageMs = now - cacheEntry.fetchedAt;
@@ -131,13 +144,19 @@ export async function GET(request: Request) {
     }
 
     if (ageMs <= COLLABORATORS_CACHE_STALE_TTL_MS) {
-      void refreshCollaboratorsCache(cacheKey, query).catch(() => undefined);
+      void refreshCollaboratorsCache(cacheKey, query, custAccounts).catch(
+        () => undefined,
+      );
       return buildJsonResponse(cacheEntry.data, "STALE");
     }
   }
 
   try {
-    const collaborators = await refreshCollaboratorsCache(cacheKey, query);
+    const collaborators = await refreshCollaboratorsCache(
+      cacheKey,
+      query,
+      custAccounts,
+    );
     return buildJsonResponse(collaborators, "MISS");
   } catch (error) {
     if (cacheEntry) {

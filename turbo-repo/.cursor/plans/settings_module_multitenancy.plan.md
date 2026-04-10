@@ -4,7 +4,7 @@
 
 Add a settings admin module so that administrators of a parent site (e.g. `gama-mobility`) can:
 
-1. Create and manage **sub-accounts** (child organizations) and associate them to a **customer tax id** (RUT in Chile, e.g. `77856310-K`).
+1. Create and manage **sub-accounts** (child organizations) and associate them to a **tax id** (Chilean RUT, e.g. `77856310-K`, or another international tax id format in future deployments).
 2. Assign existing Alfresco users to those sub-accounts (e.g. enroll `cris` to `TRAZA`).
 3. Toggle which **application modules** each sub-account has access to (FLEET_MANAGEMENT, DASHBOARDS, COLLABORATORS_MANAGEMENT).
 
@@ -26,7 +26,7 @@ What's missing:
 - **Organization `tax_id`** column on `organizations` — needed to filter pgrest by `cust_account`. Kept intentionally generic (Chilean RUT today, other national tax ids later).
 - **Module entitlements** table — today, module access is hardcoded as Alfresco groups in `features/layout/models/pages.ts` (`GROUP_FLEET_MANAGEMENT`, etc.), which conflates "user belongs to tenant" with "tenant has purchased this product".
 - **Write-side** Alfresco admin client — the existing `IAlfrescoMembershipClient` is read-only stub. Need `createGroup`, `addGroupMember`, `removeGroupMember`, `searchPeople`.
-- **`GET /api/v1/me/scopes`** — a single endpoint that returns the caller's resolved org(s), effective customer tax ids, and enabled modules. This is the bridge between Alfresco authorities and pgrest filtering.
+- **`GET /api/v1/me/scopes`** — a single endpoint that returns the caller's resolved org(s), effective tax ids, and enabled modules. This is the bridge between Alfresco authorities and pgrest filtering.
 - **Admin UI** in the settings page.
 - **Top-nav org switcher** so users with multi-org access can pick an active org (stored in a httpOnly cookie).
 
@@ -76,12 +76,12 @@ New migration `miot-core/src/main/resources/db/migration/core/V0.1.3__add_org_cu
 
 ```sql
 ALTER TABLE miot_core.organizations
-  ADD COLUMN customer_rut VARCHAR(20),   -- Chilean RUT, normalize format on write
+  ADD COLUMN tax_id VARCHAR(32),           -- normalized by pluggable validator (see MIOT_TAX_ID_VALIDATOR)
   ADD COLUMN display_name VARCHAR(200),
   ADD COLUMN active BOOLEAN NOT NULL DEFAULT true;
 
-CREATE UNIQUE INDEX ux_org_customer_rut
-  ON miot_core.organizations (customer_rut) WHERE customer_rut IS NOT NULL;
+CREATE UNIQUE INDEX ux_org_tax_id
+  ON miot_core.organizations (tax_id) WHERE tax_id IS NOT NULL;
 
 CREATE TABLE miot_core.organization_modules (
   organization_id BIGINT NOT NULL REFERENCES miot_core.organizations(id) ON DELETE CASCADE,
@@ -92,7 +92,7 @@ CREATE TABLE miot_core.organization_modules (
 );
 ```
 
-Backfill: set `customer_rut` on existing seeded orgs where known (TBD in Phase 1).
+No backfill in V0.1.3: GAMA and its children keep `tax_id = NULL` until admins populate them via the settings UI.
 
 ## Backend API surface (Quarkus)
 
@@ -135,24 +135,26 @@ GET    /api/v1/people?q=...                              (admin-only people sear
     "organizationId": 1,
     "slug": "gama-mobility",
     "displayName": "GAMA Mobility",
-    "customerRut": null,
+    "taxId": null,
     "role": "SITE_MANAGER",
     "isParent": true,
-    "effectiveCustomerRuts": ["77856310-K", "96123456-7"],
+    "effectiveTaxIds": ["77856310-K", "96123456-7"],
     "modules": ["FLEET_MANAGEMENT","DASHBOARDS","COLLABORATORS_MANAGEMENT"]
   },
   {
     "organizationId": 7,
     "slug": "traza",
     "displayName": "Traza",
-    "customerRut": "77856310-K",
+    "taxId": "77856310-K",
     "role": "SITE_COLLABORATOR",
     "isParent": false,
-    "effectiveCustomerRuts": ["77856310-K"],
+    "effectiveTaxIds": ["77856310-K"],
     "modules": ["FLEET_MANAGEMENT","COLLABORATORS_MANAGEMENT"]
   }
 ]
 ```
+
+Note: parent orgs (GAMA) have `taxId = null`; only child orgs (TRAZA, SomeCo, …) carry a tax id. For a parent, `effectiveTaxIds` is the union of all child `tax_id`s. For a child, it's a single-element array.
 
 Authorization for write ops: caller must have `SITE_MANAGER` / `GROUP_ADMIN` on the *parent* org. GAMA admins can manage TRAZA; TRAZA admins cannot manage GAMA.
 
@@ -166,11 +168,11 @@ export type TenantScope = {
     id: number;
     slug: string;
     displayName: string;
-    customerRut: string | null;
+    taxId: string | null;
     modules: ModuleCode[];
   };
-  availableOrgs: Array<{ id: number; slug: string; displayName: string; customerRut: string | null }>;
-  effectiveCustomerRuts: string[];
+  availableOrgs: Array<{ id: number; slug: string; displayName: string; taxId: string | null }>;
+  effectiveTaxIds: string[];
 };
 
 export async function resolveTenantScope(req: NextRequest): Promise<TenantScope>;
@@ -181,7 +183,7 @@ Flow:
 
 1. Call Quarkus `/api/v1/me/scopes` with the session's Alfresco ticket / Auth0 JWT.
 2. Pick active org from httpOnly cookie `miot_active_org` (slug). Default: user's single org, or parent org if user is a GAMA admin.
-3. For parent orgs, `effectiveCustomerRuts` is the union of self + all child orgs' customer_rut.
+3. For parent orgs, `effectiveTaxIds` is the union of all child orgs' `tax_id`. For child orgs, it's a single-element array.
 4. Cache per `session.user.id + activeOrg` for a short TTL (e.g. 60s) to avoid hammering Quarkus on every request.
 
 Extend `pgrest-client.ts` functions to accept `custAccounts: string[]` and inject:
@@ -273,12 +275,12 @@ Keep `requiredGroups` only for cross-cutting system roles like `GROUP_ALFRESCO_A
 2. Types "Cris" in the people search → `/api/admin/people?q=cris` → Quarkus → Alfresco `/people?where=...`.
 3. Selects "Cris Pérez" → "Add to TRAZA".
 4. `POST /api/admin/orgs/{trazaId}/members { personId:'cris.perez' }` → Quarkus → Alfresco `addGroupMember(GROUP_TRAZA, cris.perez)`.
-5. Next time Cris makes a request, `/me/scopes` includes TRAZA with `customerRut=77856310-K`, and pgrest queries are filtered.
+5. Next time Cris makes a request, `/me/scopes` includes TRAZA with `taxId=77856310-K`, and pgrest queries are filtered.
 
 ### Ex2 — Create sub-account for SomeCo
 
 1. Admin opens Settings › Organizations › "New sub-account".
-2. Form: Name (SomeCo), Slug (auto `someco`), Customer RUT (`96123456-7`, with Chilean RUT checksum validation), Parent = GAMA (pre-filled).
+2. Form: Name (SomeCo), Slug (auto `someco`), Tax ID (`96123456-7`, validated by the pluggable `MIOT_TAX_ID_VALIDATOR`), Parent = GAMA (pre-filled).
 3. `POST /api/admin/orgs/{gamaId}/children`.
 4. Quarkus creates the row, creates `GROUP_SOMECO` in Alfresco, sets `alfresco_group_id`, default-disables modules (admin must enable them explicitly).
 
@@ -304,7 +306,7 @@ Each phase independently shippable and reversible. Work one phase at a time.
 
 ### Phase 1 — Backend data model & read APIs
 
-- Migration V0.1.3: `customer_rut`, `organization_modules`.
+- Migration V0.1.3: `tax_id`, `organization_modules`.
 - Real `IAlfrescoGroupAdminClient` (read ops only: list members, search people).
 - `GET /api/v1/me/scopes`, `GET /orgs/{id}/members`, `GET /orgs/{id}/modules`, `GET /people?q=...`.
 - Seed existing orgs with known customer RUTs.
@@ -343,13 +345,17 @@ Each phase independently shippable and reversible. Work one phase at a time.
 - Remove the compat dual-check from Phase 0.
 - Document the new mental model in project docs.
 
-## Open questions (to resolve before Phase 1)
+## Decisions (resolved before Phase 1)
 
-1. **RUT source of truth.** Editable in admin UI or seeded from external master data? If editable, validate Chilean RUT checksum.
-2. **One org = one RUT or many?** `cust_account` is a single column per driver/truck row, so assumption is 1:1. Confirm.
-3. **Default module entitlements** for new sub-accounts: none (opt-in) or mirror parent's?
-4. **Who can create sub-accounts?** Only system admins (`GROUP_ALFRESCO_ADMINISTRATORS` / `GROUP_MINTRAL_SYSTEM_ADMIN`), or also a per-org role derived from Alfresco `SITE_MANAGER`?
-5. **Naming.** `customer_rut` is Chile-specific. Prefer `customer_tax_id` for future-proofing when expanding outside Chile?
+1. **tax_id source of truth.** Editable via the admin UI. Validation is **pluggable via an environment variable** (e.g. `MIOT_TAX_ID_VALIDATOR=chilean_rut`) so the format can be swapped per deployment region. A `ChileanRutValidator` implementation ships first (checksum on the trailing `-K`/digit).
+2. **One org = one tax_id.** Confirmed 1:1. Keep the unique index on `organizations.tax_id WHERE tax_id IS NOT NULL`.
+3. **Parent vs. child semantics.** **Parent organizations are site-level containers that hold multiple client sub-accounts.** GAMA itself is not a customer — TRAZA, SomeCo, etc. are. Consequences:
+   - `tax_id` on parent orgs stays `NULL`; only child sub-accounts carry a tax id.
+   - pgrest tenant filtering uses child `tax_id`s via `effectiveTaxIds[]` (parent resolves to union of its children).
+   - Module entitlements on a parent org represent the "ceiling" of what sub-accounts can be granted. *(Assumption to confirm during Phase 1: new sub-accounts start with **no modules enabled** — admin grants explicitly per client.)*
+4. **Who can create sub-accounts.** Users with Alfresco **SITE_MANAGER** role on the parent site/org. System admins (`GROUP_ALFRESCO_ADMINISTRATORS` / `GROUP_MINTRAL_SYSTEM_ADMIN`) retain full access. Role is determined via the existing `IAlfrescoMembershipClient.getRole()` call against the parent org's `alfresco_group_id`.
+5. **Field naming.** `tax_id` on `miot_core.organizations` (not `customer_rut` / `customer_tax_id`). Kept generic for international use.
+6. **Backfill.** Do **not** backfill existing seeded orgs in the V0.1.3 migration. Leave `tax_id` as `NULL` for GAMA and its children; admin will populate via the UI once known.
 
 ## File paths touched (high level)
 

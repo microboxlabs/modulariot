@@ -11,6 +11,8 @@ import { tr } from "@/features/i18n/tr.service";
 import VehicleStatusBadge from "../vehicle-grid/vehicle-status-badge";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+import LastSignalMapPopover from "./last-signal-map-popover";
 
 interface VehicleDetailHeaderProps {
   readonly vehicle: Vehicle;
@@ -99,15 +101,33 @@ export default function VehicleDetailHeader({
               </span>
             </div>
 
-            {/* Last signal */}
+            {/* Last signal — clickable when lat/lng are available. */}
             {vehicle.lastSignal && (
-              <div className="flex flex-col shrink-0">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {tr("vehicleGrid.lastSignal", dict)}
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {vehicle.lastSignal}
-                </span>
+              <div className="shrink-0">
+                {vehicle.latitude !== undefined &&
+                vehicle.longitude !== undefined ? (
+                  <LastSignalMapPopover
+                    latitude={vehicle.latitude}
+                    longitude={vehicle.longitude}
+                    dict={dict}
+                  >
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {tr("vehicleGrid.lastSignal", dict)}
+                    </span>
+                    <span className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                      {formatDateString(vehicle.lastSignal)}
+                    </span>
+                  </LastSignalMapPopover>
+                ) : (
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {tr("vehicleGrid.lastSignal", dict)}
+                    </span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {formatDateString(vehicle.lastSignal)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

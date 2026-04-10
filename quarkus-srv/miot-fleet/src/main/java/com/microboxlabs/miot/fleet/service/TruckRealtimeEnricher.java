@@ -89,7 +89,8 @@ public class TruckRealtimeEnricher {
                 });
     }
 
-    private void applySnapshot(Truck truck, SnapshotBundle snapshot, TruckMetricSelection selection) {
+    // Package-private for unit testing.
+    void applySnapshot(Truck truck, SnapshotBundle snapshot, TruckMetricSelection selection) {
         if (truck == null || snapshot == null) {
             if (truck != null) {
                 truck.latestMetrics = null;
@@ -98,10 +99,12 @@ public class TruckRealtimeEnricher {
         }
         JsonObject latestMetrics = new JsonObject();
         JsonObject core = snapshot.metricCore();
+        JsonObject tracking = snapshot.tracking();
         for (String field : selection.metricFields()) {
             Object value = switch (truckMetricCatalog.sourceOf(field)) {
                 case CORE -> core != null ? core.getValue(field) : null;
                 case CORE_TIMESTAMP -> resolveTimestamp(snapshot);
+                case TRACKING -> tracking != null ? tracking.getValue(field) : null;
             };
             if (value != null) {
                 latestMetrics.put(field, value);

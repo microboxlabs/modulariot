@@ -51,6 +51,10 @@ export interface Vehicle {
   nextMaintenance: string;
   kmTraveled: number;
   lastSignal?: string;
+  /** Latest known latitude in decimal degrees. */
+  latitude?: number;
+  /** Latest known longitude in decimal degrees. */
+  longitude?: number;
   assetId?: string;
   gamification?: VehicleGamification;
 }
@@ -62,14 +66,22 @@ export interface FleetKpi {
   icon: IconType;
   color: string;
   darkColor: string;
+  /**
+   * The vehicle status this KPI represents as a filter. Undefined on the
+   * "total" card, which clears any active state filter when clicked.
+   */
+  state?: VehicleStatus;
 }
 
 export interface SpecialView {
   id: string;
-  titleKey: string;
-  descriptionKey: string;
+  title: string;
+  description: string;
   icon: IconType;
   iconColor: string;
   iconDarkColor: string;
+  badgeText?: string;
+  badgeColor?: string;
+  badgeColorDark?: string;
   route: string;
 }

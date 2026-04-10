@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { HiChevronDown } from "react-icons/hi2";
 import type { IconType } from "react-icons";
 import type { SectionStatus } from "./vehicle-detail-accordion";
@@ -26,8 +26,17 @@ export default function ExpandableSection({
   defaultExpanded = false,
   status,
 }: ExpandableSectionProps) {
-  // Auto-expand if status is critical
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded || status === "critical");
+  // Auto-expand sections that surface issues so users see them immediately.
+  // Status can flip from "ok" to "critical"/"warning" after async data loads,
+  // so we also sync via effect — `useState` only runs its initializer once.
+  const [isExpanded, setIsExpanded] = useState(
+    defaultExpanded || status === "critical" || status === "warning"
+  );
+  useEffect(() => {
+    if (status === "critical" || status === "warning") {
+      setIsExpanded(true);
+    }
+  }, [status]);
 
   const renderIcon = () => {
     if (customIcon) {

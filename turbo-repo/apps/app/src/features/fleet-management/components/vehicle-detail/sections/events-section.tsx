@@ -1,138 +1,249 @@
 "use client";
 
-import {
-  HiOutlineExclamationTriangle,
-} from "react-icons/hi2";
+import { HiOutlineExclamationTriangle } from "react-icons/hi2";
+import { useParams } from "next/navigation";
+import type { Vehicle } from "../../../types/fleet.types";
+import type { TruckEventItem } from "../../../types/truck-events.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
+import { MessageBanner } from "@/features/common/components/message-banner";
 import { CustomBadge } from "@/features/common/components/custom-badge";
 import { TimelineEvent } from "@/features/common/components/timeline-event";
 import type { EventUrgency } from "@/features/common/components/timeline-event";
-import { VehicleDetailData, SectionStatus } from "../vehicle-detail-accordion";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+import { useFleetTruckEvents } from "../../../hooks/use-fleet-truck-events";
+import { getEventsSectionStatus } from "../vehicle-detail-accordion";
 
-type EventCategory = "falla_tecnica" | "evento" | "uso" | "cambio_datos" | "mantencion";
+interface EventsSectionProps {
+  readonly vehicle: Vehicle;
+  readonly dict: I18nRecord;
+}
 
-const categoryLabelKeys: Record<EventCategory, string> = {
-  falla_tecnica: "vehicleDetail.sections.events.category.falla_tecnica",
-  evento: "vehicleDetail.sections.events.category.evento",
-  uso: "vehicleDetail.sections.events.category.uso",
-  cambio_datos: "vehicleDetail.sections.events.category.cambio_datos",
-  mantencion: "vehicleDetail.sections.events.category.mantencion",
+// --- Severity → urgency mapping. ---
+
+function severityToUrgency(icuCode: number): EventUrgency {
+  if (icuCode >= 3) return "critical";
+  if (icuCode === 2) return "warning";
+  return "info";
+}
+
+// --- Category i18n lookup. ---
+
+const CATEGORY_I18N: Record<string, string> = {
+  SEÑAL: "vehicleDetail.sections.events.category.SEÑAL",
+  VELOCIDAD: "vehicleDetail.sections.events.category.VELOCIDAD",
+  OTROS: "vehicleDetail.sections.events.category.OTROS",
 };
 
-const urgencyLabelKeys: Record<EventUrgency, string> = {
+function getCategoryLabel(category: string, dict: I18nRecord): string {
+  const key = CATEGORY_I18N[category];
+  return key ? tr(key, dict) : category;
+}
+
+const URGENCY_I18N: Record<EventUrgency, string> = {
   critical: "vehicleDetail.sections.events.urgency.critical",
   warning: "vehicleDetail.sections.events.urgency.warning",
   info: "vehicleDetail.sections.events.urgency.info",
 };
 
-interface FleetTimelineEventProps {
-  readonly title: string;
-  readonly description: string;
-  readonly urgency: EventUrgency;
-  readonly direction?: string;
-  readonly date: string;
-  readonly category: EventCategory;
-  readonly isLast: boolean;
-  readonly dict: I18nRecord;
-}
+// --- Badge. ---
 
-function FleetTimelineEvent({
-  title,
-  description,
-  urgency,
-  direction,
-  date,
-  category,
-  isLast,
-  dict,
-}: FleetTimelineEventProps) {
-  return (
-    <TimelineEvent
-      title={title}
-      urgency={urgency}
-      urgencyLabel={tr(urgencyLabelKeys[urgency], dict)}
-      isLast={isLast}
-      extraBadges={
-        <CustomBadge
-          text={tr(categoryLabelKeys[category], dict)}
-          className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-        />
-      }
-    >
-      <span>{description}</span>
-      {direction && (
-        <>
-          <span>•</span>
-          <span>{direction}</span>
-        </>
-      )}
-      <span>•</span>
-      <span>{date}</span>
-    </TimelineEvent>
-  );
-}
+function getEventsBadge(
+  events: TruckEventItem[],
+  dict: I18nRecord
+) {
+  const criticalCount = events.filter((e) => e.icu_code >= 3).length;
+  const warningCount = events.filter((e) => e.icu_code === 2).length;
 
-interface EventsSectionProps {
-  readonly data: VehicleDetailData;
-  readonly dict: I18nRecord;
-  readonly status: SectionStatus;
-}
-
-function getEventsBadge(data: VehicleDetailData, status: SectionStatus, dict: I18nRecord) {
-  const criticalCount = data.events.filter(e => e.urgency === "critical").length;
-  const warningCount = data.events.filter(e => e.urgency === "warning").length;
-  
   if (criticalCount > 0) {
     return (
-      <CustomBadge 
-        text={`${criticalCount} evento${criticalCount > 1 ? 's' : ''} crítico${criticalCount > 1 ? 's' : ''}`}
+      <CustomBadge
+        text={tr("vehicleDetail.sections.events.criticalCount", dict, {
+          count: String(criticalCount),
+        })}
         className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
       />
     );
   }
-  
+
   if (warningCount > 0) {
     return (
-      <CustomBadge 
-        text={`${warningCount} alerta${warningCount > 1 ? 's' : ''}`}
+      <CustomBadge
+        text={tr("vehicleDetail.sections.events.warningCount", dict, {
+          count: String(warningCount),
+        })}
         className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
       />
     );
   }
-  
+
   return (
-    <CustomBadge 
-      text={tr("vehicleDetail.sections.events.noIssues", dict) || "Sin alertas"}
+    <CustomBadge
+      text={tr("vehicleDetail.sections.events.noIssues", dict)}
       className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
     />
   );
 }
 
-export default function EventsSection({ dict, data, status }: EventsSectionProps) {
+// --- Duration formatting. ---
+
+function fmtDuration(minutes: number | null, dict: I18nRecord): string | null {
+  if (minutes === null || minutes <= 0) return null;
+  if (minutes < 60) {
+    return tr("vehicleDetail.sections.events.durationMinutes", dict, {
+      minutes: String(Math.round(minutes)),
+    });
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMin = Math.round(minutes % 60);
+  return `${hours}h ${remainingMin}m`;
+}
+
+// --- Component. ---
+
+export default function EventsSection({
+  vehicle,
+  dict,
+}: EventsSectionProps) {
+  const { lang } = useParams<{ lang: string }>();
+  const isSpanish = lang === "es";
+
+  const { eventsDetail, notFound, error, isLoading, mutate } =
+    useFleetTruckEvents(vehicle.plate);
+
+  const title = tr("vehicleDetail.sections.events.title", dict);
+  const description = tr("vehicleDetail.sections.events.description", dict);
+
+  // Loading — skeleton timeline.
+  if (isLoading) {
+    return (
+      <ExpandableSection
+        icon={HiOutlineExclamationTriangle}
+        title={title}
+        description={description}
+        status="ok"
+      >
+        <div className="flex flex-col gap-3 pt-4">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div
+              key={`ev-skel-${i}`}
+              className="h-16 rounded-lg bg-gray-100 dark:bg-gray-700/40 animate-pulse"
+            />
+          ))}
+        </div>
+      </ExpandableSection>
+    );
+  }
+
+  // Error — retry.
+  if (error && !notFound) {
+    return (
+      <ExpandableSection
+        icon={HiOutlineExclamationTriangle}
+        title={title}
+        description={description}
+        status="warning"
+      >
+        <MessageBanner
+          icon={HiOutlineExclamationTriangle}
+          title={tr("vehicleDetail.sections.events.errorTitle", dict)}
+          description={tr("vehicleDetail.sections.events.errorDesc", dict)}
+          variant="error"
+        />
+        <button
+          type="button"
+          onClick={() => mutate()}
+          className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {tr("vehicleDetail.sections.events.retry", dict)}
+        </button>
+      </ExpandableSection>
+    );
+  }
+
+  const events = eventsDetail?.events ?? [];
+  const sectionStatus = events.length > 0 ? getEventsSectionStatus(events) : "ok";
+  const badge = getEventsBadge(events, dict);
+
+  // No events in the window — clean state.
+  if (events.length === 0) {
+    return (
+      <ExpandableSection
+        icon={HiOutlineExclamationTriangle}
+        title={title}
+        description={description}
+        status="ok"
+        badge={badge}
+      >
+        <MessageBanner
+          icon={HiOutlineExclamationTriangle}
+          title={tr("vehicleDetail.sections.events.emptyTitle", dict)}
+          description={tr("vehicleDetail.sections.events.emptyDesc", dict)}
+          variant="info"
+        />
+      </ExpandableSection>
+    );
+  }
+
+  // Loaded with events.
   return (
     <ExpandableSection
       icon={HiOutlineExclamationTriangle}
-      title={tr("vehicleDetail.sections.events.title", dict)}
-      description={tr("vehicleDetail.sections.events.description", dict)}
-      status={status}
-      badge={getEventsBadge(data, status, dict)}
+      title={title}
+      description={description}
+      status={sectionStatus}
+      badge={badge}
     >
       <div className="pt-4 max-h-150 overflow-y-auto">
-        {data.events.map((event, index) => (
-          <FleetTimelineEvent
-            key={`${event.title}-${index}`}
-            title={event.title}
-            description={event.description}
-            urgency={event.urgency as EventUrgency}
-            direction={event.direction}
-            date={event.date}
-            category={event.category as EventCategory}
-            isLast={index === data.events.length - 1}
-            dict={dict}
-          />
-        ))}
+        {events.map((event, index) => {
+          const urgency = severityToUrgency(event.icu_code);
+          // Language-aware title: `message` for es, `symptom_name` for en.
+          const eventTitle = isSpanish ? event.message : event.symptom_name;
+          const eventSubtitle = isSpanish ? event.symptom_name : event.message;
+          const duration = fmtDuration(event.duration_minutes, dict);
+
+          return (
+            <TimelineEvent
+              key={event.id}
+              title={eventTitle || event.symptom_name}
+              urgency={urgency}
+              urgencyLabel={tr(URGENCY_I18N[urgency], dict)}
+              isLast={index === events.length - 1}
+              extraBadges={
+                <CustomBadge
+                  text={getCategoryLabel(event.category, dict)}
+                  className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                />
+              }
+            >
+              <span>{eventSubtitle}</span>
+              {event.speed_detected !== null && event.speed_limit !== null && (
+                <>
+                  <span>•</span>
+                  <span>
+                    {tr(
+                      "vehicleDetail.sections.events.speedExceeded",
+                      dict,
+                      {
+                        speed: String(event.speed_detected),
+                        limit: String(event.speed_limit),
+                      }
+                    )}
+                  </span>
+                </>
+              )}
+              {duration && (
+                <>
+                  <span>•</span>
+                  <span>{duration}</span>
+                </>
+              )}
+              <span>•</span>
+              <span>{formatDateString(event.timestamp)}</span>
+            </TimelineEvent>
+          );
+        })}
       </div>
     </ExpandableSection>
   );

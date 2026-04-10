@@ -2465,7 +2465,12 @@
     "date": "Date",
     "symptom_name": "Symptom Name",
     "name": "Name",
-    "rut": "RUT"
+    "rut": "RUT",
+    "allOption": "—",
+    "stateActive": "Active",
+    "stateMaintenance": "In Maintenance",
+    "stateAlert": "Alert",
+    "stateInactive": "Inactive"
   },
   "comments": {
     "title": "Comments",

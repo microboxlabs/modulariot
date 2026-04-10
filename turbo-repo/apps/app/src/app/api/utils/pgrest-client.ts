@@ -578,10 +578,10 @@ function mapPgrestStatus(row: PgrestTruckCatalogRow): string {
   return "ACTIVE";
 }
 
-type MetricsMap = MetricsMap;
+type MetricValue = string | number | boolean | null;
 
 function addPositionMetrics(
-  metrics: MetricsMap,
+  metrics: Record<string, MetricValue>,
   position: PgrestMapPositionRow
 ): void {
   if (position.timestamp) metrics.timestamp = position.timestamp;
@@ -598,8 +598,8 @@ function addPositionMetrics(
 function buildLatestMetricsFromPgrest(
   row: PgrestTruckCatalogRow,
   position: PgrestMapPositionRow | undefined
-): MetricsMap {
-  const metrics: MetricsMap = {};
+): Record<string, MetricValue> {
+  const metrics: Record<string, MetricValue> = {};
 
   if (row.device_usage_qty != null) {
     metrics.odometer_km = row.device_usage_qty;

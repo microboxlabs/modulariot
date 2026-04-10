@@ -54,7 +54,9 @@ export async function GET(request: NextRequest) {
             ? rawName
             : item.slug;
         const order = typeof item.config?.order === "number" ? item.config.order : undefined;
-        return { slug: item.slug, name, order };
+        const rawPath = item.config?.path;
+        const path = typeof rawPath === "string" && rawPath.trim().length > 0 ? rawPath.trim() : undefined;
+        return { slug: item.slug, name, order, path };
       }),
     };
 

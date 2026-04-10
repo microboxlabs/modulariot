@@ -132,6 +132,9 @@ export interface DashboardStorageSchema {
    *  at least one listed group (in addition to GROUP_DASHBOARD) to view this
    *  dashboard. When empty/undefined, any GROUP_DASHBOARD user can access. */
   allowedGroups?: string[];
+  /** Optional sidebar folder path (e.g. "/management"). Dashboards sharing
+   *  the same path are grouped under a collapsible folder. */
+  path?: string;
 }
 
 /**

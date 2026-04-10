@@ -54,7 +54,7 @@ export default function KpiCardsRow({
         );
 
         if (!isClickable) {
-          return <div key={kpi.id}>{card}</div>;
+          return <div key={kpi.id} className="flex-1">{card}</div>;
         }
 
         return (

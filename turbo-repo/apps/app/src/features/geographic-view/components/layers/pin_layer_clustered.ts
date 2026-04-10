@@ -229,6 +229,11 @@ export class PinLayer extends CompositeLayer<any> {
       return [];
     }
 
+    // Sort by latitude descending - pins with lower latitude (closer to camera) render last (on top)
+    const sortedClusters = [...clusters].sort(
+      (a, b) => b.geometry.coordinates[1] - a.geometry.coordinates[1]
+    );
+
     const getIconSize = (count: number) => {
       const baseSize = Math.min(70, count) / 70 + 1;
       return count > 1 ? baseSize * 70 : 50;
@@ -237,7 +242,7 @@ export class PinLayer extends CompositeLayer<any> {
     return [
       new IconLayer({
         id: "IconLayer-base",
-        data: clusters,
+        data: sortedClusters,
         getIcon: (d: any) => ({
           url: createSVGIcon(
             d.properties.cluster
@@ -259,7 +264,7 @@ export class PinLayer extends CompositeLayer<any> {
         updateTriggers: this.props.updateTriggers,
         pickable: true,
         parameters: {
-          depthTest: false,
+          depthTest: true,
         },
       }) as Layer,
       new PinCountLayer({
@@ -311,6 +316,9 @@ export class PinLayer extends CompositeLayer<any> {
         getAngle: (d: ClusterFeature) =>
           !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
         pickable: true,
+        parameters: {
+          depthTest: true,
+        },
       }) as Layer,
     ];
   }

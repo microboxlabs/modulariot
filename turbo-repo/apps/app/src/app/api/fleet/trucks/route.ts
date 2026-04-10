@@ -28,12 +28,16 @@ type FleetTrucksCacheEntry = {
 
 const fleetTrucksCache = new Map<string, FleetTrucksCacheEntry>();
 
-function buildCacheKey(request: Request, userId: string) {
-  const { searchParams } = new URL(request.url);
-  const normalizedParams = new URLSearchParams(searchParams);
-  normalizedParams.sort();
+const CACHE_KEY_PARAMS = ["page", "size", "includeMetrics", "metricView", "metricFields"] as const;
 
-  return `${userId}:${normalizedParams.toString()}`;
+function buildCacheKey(searchParams: URLSearchParams, userId: string) {
+  const relevant = new URLSearchParams();
+  for (const key of CACHE_KEY_PARAMS) {
+    const value = searchParams.get(key);
+    if (value !== null) relevant.set(key, value);
+  }
+  relevant.sort();
+  return `${userId}:${relevant.toString()}`;
 }
 
 function buildJsonResponse(
@@ -155,7 +159,7 @@ export async function GET(request: Request) {
     authResult.session.user?.email ??
     authResult.session.user?.name ??
     "anonymous";
-  const cacheKey = buildCacheKey(request, userId);
+  const cacheKey = buildCacheKey(searchParams, userId);
   const cacheEntry = fleetTrucksCache.get(cacheKey);
   const now = Date.now();
 

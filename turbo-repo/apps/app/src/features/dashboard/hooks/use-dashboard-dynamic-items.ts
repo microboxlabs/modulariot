@@ -47,10 +47,13 @@ export function useDashboardConfigs() {
 }
 
 function formatPathLabel(segment: string): string {
-  return segment
+  const label = segment
     .split(/[-_]/)
+    .filter((w) => w.length > 0)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+    .join(" ")
+    .trim();
+  return label || segment;
 }
 
 function groupDashboardsByPath(

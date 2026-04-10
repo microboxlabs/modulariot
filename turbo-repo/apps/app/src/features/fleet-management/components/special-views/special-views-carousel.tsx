@@ -86,7 +86,8 @@ export default function SpecialViewsCarousel({
   return (
     <section
       aria-roledescription="carousel"
-      className="flex flex-col gap-2"
+      tabIndex={-1}
+      className="flex flex-col gap-2 outline-none"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onFocus={handleFocus}

@@ -668,10 +668,8 @@ export function pgrestRowToTruck(
  * - `km_por_dia = 0 OR NULL` → the source returns null `dias_est`/`fecha_est`
  *   already; we pass those through untouched.
  *
- * TODO: the upstream function recently dropped `last_seen_at` and
- * `num_maintance` from its RETURNS TABLE, so `plan.last_service_at` and
- * `plan.completed_services` are forced to null here. Restore when the
- * function re-exposes them or when the Java endpoint lands.
+ * `plan.last_service_at` and `plan.completed_services` are forced to null
+ * because the upstream function dropped those columns. See #298.
  */
 export function maintenanceRowToDto(
   row: PgrestMaintenanceRow
@@ -700,11 +698,11 @@ export function maintenanceRowToDto(
     plan: {
       interval_km: intervalKm,
       last_service_km: lastServiceKm,
-      // Source no longer ships `last_seen_at`. See TODO above.
-      last_service_at: null,
+      last_service_at: null, // #298
+
       next_service_target_km: row.prox_mant_km ?? intervalKm,
-      // Source no longer ships `num_maintance`. See TODO above.
-      completed_services: null,
+      completed_services: null, // #298
+
       km_since_last_service: kmSinceLastService,
       pct_of_interval: pctOfInterval,
     },

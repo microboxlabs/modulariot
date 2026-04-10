@@ -31,7 +31,7 @@ export default function VehicleCard({
 }: VehicleCardProps) {
   const fuelValue =
     vehicle.fuelVolumeLiters === undefined
-      ? `${vehicle.fuelLevel}%`
+      ? "—"
       : `${vehicle.fuelVolumeLiters.toFixed(1)} L`;
 
   const handleClick = () => {

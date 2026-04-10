@@ -84,8 +84,10 @@ export default function SpecialViewsCarousel({
   }
 
   return (
-    <button
-      className="flex flex-col gap-2"
+    <section
+      aria-roledescription="carousel"
+      tabIndex={-1}
+      className="flex flex-col gap-2 outline-none"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onFocus={handleFocus}
@@ -120,7 +122,7 @@ export default function SpecialViewsCarousel({
                   width: itemWidth,
                 }}
               >
-                <SpecialViewCard view={view} dict={dict} />
+                <SpecialViewCard view={view} />
               </div>
             ))}
           </div>
@@ -190,6 +192,6 @@ export default function SpecialViewsCarousel({
           ))}
         </div>
       )}
-    </button>
+    </section>
   );
 }

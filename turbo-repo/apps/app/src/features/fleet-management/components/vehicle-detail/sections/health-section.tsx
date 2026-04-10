@@ -7,10 +7,10 @@ import { CircularProgress } from "@/features/common/components/circular-progress
 import MessageBanner from "@/features/common/components/message-banner/message-banner";
 import { GoAlert, GoCheckCircle } from "react-icons/go";
 import { SectionStatus, SectionStatuses } from "../vehicle-detail-accordion";
-import { 
-  HiOutlineWrenchScrewdriver, 
-  HiOutlineShieldCheck, 
-  HiOutlineSignal, 
+import {
+  HiOutlineWrenchScrewdriver,
+  HiOutlineShieldCheck,
+  HiOutlineSignal,
   HiOutlineExclamationTriangle,
   HiOutlineArrowPath,
   HiOutlineCheckCircle,
@@ -83,7 +83,7 @@ export default function HealthSection({
   
   return (
     <ExpandableSection
-      customIcon={<CircularProgress value={healthScore} />}
+      customIcon={<CircularProgress value={healthScore} size={72} max={1000} />}
       title={
         <span className={getHealthTitleClass(healthScore)}>
           {tr(getHealthTitleKey(healthScore), dict)}

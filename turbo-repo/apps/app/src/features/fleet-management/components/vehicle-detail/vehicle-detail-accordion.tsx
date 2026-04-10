@@ -2,6 +2,17 @@
 
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { MaintenanceCriticality } from "../../types/truck-maintenance.types";
+import type {
+  GpsHealth,
+  SignalFreshness,
+} from "../../types/truck-telemetry.types";
+import type { TruckEventItem } from "../../types/truck-events.types";
+import type { ContractDeviation } from "../../types/truck-usage.types";
+import { useFleetTruckMaintenance } from "../../hooks/use-fleet-truck-maintenance";
+import { useFleetTruckTelemetry } from "../../hooks/use-fleet-truck-telemetry";
+import { useFleetTruckEvents } from "../../hooks/use-fleet-truck-events";
+import { useFleetTruckUsage } from "../../hooks/use-fleet-truck-usage";
 import {
   HealthSection,
   MaintenanceSection,
@@ -22,98 +33,98 @@ export interface VehicleDetailData {
   general: {
     health: number;
   };
-  maintenance: {
-    status: "up_to_date" | "due_soon" | "overdue";
-    totalKm: number;
-    nextMaintenanceKm: number;
-    lastManteinanceDate: string;
-    contractualFrecuency: number;
-    manteinancesCount: number;
-    kmSinceManteinance: number;
-  };
-  technicalHealth: {
-    alerts: Array<{
-      title: string;
-      description: string;
-      type: "critical" | "warning";
-    }>;
-    activeFailures: number;
-    resolved: number;
-    responseTimeHour: number;
-  };
-  telemetry: {
-    odometer: number;
-    dateLastUpdate: string;
-    status: string;
-    engineRunning: boolean;
-    speed: number;
-    rpm: number;
-    batteryPercentage: number;
-    engineTempC: number;
-    location: string;
-    locationCoords: { lat: number, lng: number },
-    transmissionIntervalSecs: number;
-    installedDevices: Array<{
-      name: string;
-      description: string;
-      icon: "location" | "odometer" | "live";
-    }>;
-    accumulatedUptimePercentage: number;
-    dataProcessedToday: number;
-    signalLost30d: number;
-  };
-  events: Array<{
-    title: string;
-    description: string;
-    urgency: "critical" | "warning" | "info";
-    direction: string;
-    date: string;
-    category: "evento" | "mantencion";
-  }>;
-  usage: {
-    totalKilometers: number;
-    monthlyContractualConsumptionPercentage: number;
-    kmTravelledThisMonth: number;
-    remainingKmThisMonth: number;
-    averageDaily: number;
-    operationHours: number;
-    activeDays: number;
-    annualTotalKm: number;
-    intensityLast30Days: number[];
-  };
 }
 
 // Status calculation helpers
-export function getMaintenanceStatus(data: VehicleDetailData): SectionStatus {
-  if (data.maintenance.status === "overdue") return "critical";
-  if (data.maintenance.status === "due_soon") return "warning";
+
+/**
+ * Map a maintenance criticality bucket to the accordion's three-state
+ * section status. Shared with MaintenanceSection so the accordion health
+ * overview and the section header always agree.
+ */
+export function getMaintenanceSectionStatus(
+  criticality: MaintenanceCriticality
+): SectionStatus {
+  switch (criticality) {
+    case "CRITICO":
+    case "VENCIDO":
+      return "critical";
+    case "POR_VENCER":
+    case "EN_TALLER":
+      return "warning";
+    case "AL_DIA":
+    case "AGENDADO":
+    case "SIN_INFO":
+      return "ok";
+  }
+}
+
+/**
+ * Collapse the `(frescura × salud_gps)` cross product from
+ * `fn_dx_senal_detalle` into the accordion's three-state section status.
+ * Shared with TelemetrySection so the header badge and the overall
+ * health overview always agree.
+ *
+ * SIN_SENAL is intentionally `ok` (baseline): ~89% of the fleet is in
+ * that bucket today, and treating it as warning or critical would paint
+ * the dashboard red on a data-availability gap, not a vehicle problem.
+ */
+export function getTelemetrySectionStatus(
+  freshness: SignalFreshness,
+  health: GpsHealth
+): SectionStatus {
+  if (freshness === "SIN_SENAL") return "ok";
+  if (freshness === "REZAGADO" || health === "DEGRADADO") return "warning";
   return "ok";
 }
 
-export function getTechnicalHealthStatus(data: VehicleDetailData): SectionStatus {
-  const hasCriticalAlert = data.technicalHealth.alerts.some(alert => alert.type === "critical");
-  if (hasCriticalAlert || data.technicalHealth.activeFailures > 2) return "critical";
-  if (data.technicalHealth.alerts.length > 0 || data.technicalHealth.activeFailures > 0) return "warning";
+/**
+ * Placeholder until the technical-health backend wiring lands. The
+ * section currently renders a hardcoded happy-path UI, so the overall
+ * health overview should agree and treat it as ok.
+ */
+export function getTechnicalHealthStatus(): SectionStatus {
   return "ok";
 }
 
-export function getTelemetryStatus(data: VehicleDetailData): SectionStatus {
-  if (data.telemetry.batteryPercentage < 20 || data.telemetry.signalLost30d > 5) return "critical";
-  if (data.telemetry.batteryPercentage < 40 || data.telemetry.signalLost30d > 2) return "warning";
+/**
+ * Derive section status from the DTO events list. Severity mapping:
+ *   Crítico/Alto (icu 3–4) → critical
+ *   Medio (icu 2)          → warning
+ *   Bajo (icu 1)           → info (ok)
+ * Shared with EventsSection via import.
+ */
+export function getEventsSectionStatus(
+  events: TruckEventItem[]
+): SectionStatus {
+  const hasCritical = events.some((e) => e.icu_code >= 3);
+  const hasWarning = events.some((e) => e.icu_code === 2);
+  if (hasCritical) return "critical";
+  if (hasWarning) return "warning";
   return "ok";
 }
 
-export function getEventsStatus(data: VehicleDetailData): SectionStatus {
-  const hasCriticalEvent = data.events.some(event => event.urgency === "critical");
-  const hasWarningEvent = data.events.some(event => event.urgency === "warning");
-  if (hasCriticalEvent) return "critical";
-  if (hasWarningEvent) return "warning";
-  return "ok";
-}
-
-export function getUsageStatus(data: VehicleDetailData): SectionStatus {
-  if (data.usage.monthlyContractualConsumptionPercentage > 100) return "critical";
-  if (data.usage.monthlyContractualConsumptionPercentage > 90) return "warning";
+/**
+ * Collapse the `(contract.status × contract.pct_consumed)` signal from
+ * the usage DTO into the accordion's three-state section status. Shared
+ * with UsageSection so the header badge and the overall health overview
+ * always agree.
+ *
+ * `contract.status` is derived client-side after the 18→11 column
+ * shrink (see `deriveContractStatus` in `pgrest-client.ts`).
+ *
+ * Only `SOBREUSO` is treated as critical — `SUBUTILIZADO` is the majority
+ * case (~76% of the fleet) and `SIN_DATOS` is a no-signal baseline. The
+ * `NORMAL` bucket escalates to `warning` once consumption passes 90%
+ * (mirrors the telemetry pattern of flagging near-limit cases).
+ */
+export function getUsageSectionStatus(
+  deviation: ContractDeviation,
+  pctConsumed: number | null
+): SectionStatus {
+  if (deviation === "SOBREUSO") return "critical";
+  if (deviation === "NORMAL" && pctConsumed !== null && pctConsumed > 90)
+    return "warning";
   return "ok";
 }
 
@@ -125,146 +136,72 @@ export interface SectionStatuses {
   usage: SectionStatus;
 }
 
-export function getAllSectionStatuses(data: VehicleDetailData): SectionStatuses {
+/**
+ * Computes statuses for the mock-backed sections only. The maintenance,
+ * telemetry, events, and usage statuses come from async hooks and are
+ * merged in at the component level — keeping this function pure so the
+ * remaining section stays testable.
+ */
+export function getMockSectionStatuses(): Pick<
+  SectionStatuses,
+  "technicalHealth"
+> {
   return {
-    maintenance: getMaintenanceStatus(data),
-    technicalHealth: getTechnicalHealthStatus(data),
-    telemetry: getTelemetryStatus(data),
-    events: getEventsStatus(data),
-    usage: getUsageStatus(data),
+    technicalHealth: getTechnicalHealthStatus(),
   };
 }
 
-export function getOverallHealthScore(statuses: SectionStatuses): number {
-  const statusValues = Object.values(statuses);
-  const criticalCount = statusValues.filter(s => s === "critical").length;
-  const warningCount = statusValues.filter(s => s === "warning").length;
-  
-  // Base score of 100, subtract for issues
-  let score = 100;
-  score -= criticalCount * 20;
-  score -= warningCount * 10;
-  
-  return Math.max(0, Math.min(100, score));
-}
-
-const vehicleData = {
-  general: {
-    health: 50,
-  },
-  maintenance: {
-    status: "up_to_date" as const, // up_to_date | due_soon | overdue
-    totalKm: 12450,
-    nextMaintenanceKm: 55000,
-    lastManteinanceDate: "2026-01-25", 
-    contractualFrecuency: 10000,
-    manteinancesCount: 5,
-    kmSinceManteinance: 2400,
-  },
-  technicalHealth: {
-    "alerts": [
-      {
-        title: "Falla DPF - Saturación crítica",
-        description: "Sistema de filtro de partículas diésel requiere regeneración urgente (Detectada: 10 Feb 2026 14:45)",
-        type: "critical"
-      } as const,
-      {
-        title: "Falla sensor presión neumáticos",
-        description: "TPMS reporta error en sensor rueda delantera derecha (Detectada: 22 Ene 2026 16:30)",
-        type: "warning"
-      } as const
-    ],
-    "activeFailures": 3,
-    "resolved": 5,
-    "responseTimeHour": 18
-  },
-  telemetry: {
-    odometer: 47000,
-    dateLastUpdate: "2026-02-10T14:45:00Z",
-    status: "On Route",
-    engineRunning: true,
-    speed: 65,
-    rpm: 3000,
-    batteryPercentage: 80,
-    engineTempC: 90,
-    location: "Av Kennedy 5000, Las Condes",
-    locationCoords: { lat: -33.393, lng: -70.567 },
-    transmissionIntervalSecs: 30,
-    installedDevices: [
-      {
-        name: "GPS Tracker",
-        description: "S/N: GT-2341-A8F2",
-        icon: "location"
-      } as const,
-      {
-        name: "Sensor OBD-II",
-        description: "Diagnóstico motor",
-        icon: "odometer"
-      } as const,
-      {
-        name: "Acelerómetro 3-Ejes",
-        description: "Detección de eventos",
-        icon: "live"
-      } as const,
-    ],
-    accumulatedUptimePercentage: 99.7,
-    dataProcessedToday: 708,
-    signalLost30d: 1,
-  },
-  events: [
-    {
-      title: "Frenado brusco detectado",
-      description: "Sistema de telemetría detectó evento de frenado brusco superior a 8G",
-      urgency: "warning",
-      direction: "Av. Kennedy 5000, Las Condes",
-      date: "10 Feb 2026 14:45",
-      category: "evento",
-    } as const,
-    {
-      title: "Exceso de velocidad",
-      description: "Velocidad máxima de 120 km/h superada en zona de 80 km/h",
-      urgency: "critical",
-      direction: "Ruta 5 Sur, Km 45",
-      date: "10 Feb 2026 12:30",
-      category: "evento",
-    } as const,
-    {
-      title: "Mantención programada completada",
-      description: "Cambio de aceite y filtros realizado según pauta de 10.000 km",
-      urgency: "info",
-      direction: "Taller Central, Santiago",
-      date: "08 Feb 2026 09:00",
-      category: "mantencion",
-    } as const,
-  ],
-  usage: {
-    totalKilometers: 47400,
-    monthlyContractualConsumptionPercentage: 75,
-    kmTravelledThisMonth: 11700,
-    remainingKmThisMonth: 3300,
-    averageDaily: 390,
-    operationHours: 153,
-    activeDays: 25,
-    annualTotalKm: 140000,
-    intensityLast30Days: [320, 450, 380, 520, 410, 280, 390, 120, 12, 156, 600, 480, 350, 400, 420, 500, 300, 200, 450, 480, 520, 410, 280, 390, 120,12, 156, 600, 610, 510],
-  }
+export function getOverallHealthScore(_statuses: SectionStatuses): number {
+  // Placeholder until the 1000–9999 scoring model is wired up.
+  return 1000;
 }
 
 export default function VehicleDetailAccordion({
   vehicle,
   dict,
 }: VehicleDetailAccordionProps) {
-  const statuses = getAllSectionStatuses(vehicleData);
+  // Each child section subscribes to the same SWR keys below, so these
+  // extra calls here dedup to a single network fetch each. While loading
+  // or on 404/error we fall back to "ok" so the health overview doesn't
+  // flicker or go red on transient states.
+  const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
+  const { telemetry } = useFleetTruckTelemetry(vehicle.plate);
+  const { eventsDetail } = useFleetTruckEvents(vehicle.plate);
+  const { usage } = useFleetTruckUsage(vehicle.plate);
+
+  const maintenanceStatus: SectionStatus = maintenance
+    ? getMaintenanceSectionStatus(maintenance.status.criticality)
+    : "ok";
+  const telemetryStatus: SectionStatus = telemetry
+    ? getTelemetrySectionStatus(
+        telemetry.signal.freshness,
+        telemetry.gps.health
+      )
+    : "ok";
+  const eventsStatus: SectionStatus = eventsDetail
+    ? getEventsSectionStatus(eventsDetail.events)
+    : "ok";
+  const usageStatus: SectionStatus = usage
+    ? getUsageSectionStatus(usage.contract.status, usage.contract.pct_consumed)
+    : "ok";
+
+  const statuses: SectionStatuses = {
+    ...getMockSectionStatuses(),
+    maintenance: maintenanceStatus,
+    telemetry: telemetryStatus,
+    events: eventsStatus,
+    usage: usageStatus,
+  };
   const healthScore = getOverallHealthScore(statuses);
 
   return (
     <div className="flex flex-col gap-3 py-4 overflow-y-auto">
       <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
-      <MaintenanceSection vehicle={vehicle} dict={dict} data={vehicleData} status={statuses.maintenance} />
-      <TechnicalHealthSection dict={dict} data={vehicleData} status={statuses.technicalHealth} />
-      <TelemetrySection dict={dict} data={vehicleData} status={statuses.telemetry} />
-      <EventsSection dict={dict} data={vehicleData} status={statuses.events} />
-      <UsageSection dict={dict} data={vehicleData} status={statuses.usage} />
+      <MaintenanceSection vehicle={vehicle} dict={dict} />
+      <TechnicalHealthSection dict={dict} status={statuses.technicalHealth} />
+      <TelemetrySection vehicle={vehicle} dict={dict} />
+      <EventsSection vehicle={vehicle} dict={dict} />
+      <UsageSection vehicle={vehicle} dict={dict} />
     </div>
   );
 }

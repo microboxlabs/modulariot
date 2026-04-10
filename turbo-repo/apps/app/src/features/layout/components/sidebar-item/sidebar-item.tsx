@@ -138,6 +138,7 @@ export default function SidebarItem({
       label={badge}
       className={twMerge(
         (pathname === href ||
+          (typeof href === "string" && pathname.startsWith(`${href}/`)) ||
           (searchParams.toString() &&
             href === pathname + "?" + searchParams.toString())) &&
           "bg-gray-100 dark:bg-gray-700",

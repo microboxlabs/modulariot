@@ -3,24 +3,28 @@
 interface CircularProgressProps {
   readonly value: number;
   readonly size?: number;
+  /** Upper bound for the progress fill and color thresholds. Defaults to 100. */
+  readonly max?: number;
 }
 
 export default function CircularProgress({
   value,
   size = 40,
+  max = 100,
 }: CircularProgressProps) {
   const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (value / 100) * circumference;
+  const ratio = Math.max(0, Math.min(1, value / max));
+  const offset = circumference - ratio * circumference;
 
-  const getColorClass = (val: number): string => {
-    if (val >= 80) return "text-green-500";
-    if (val >= 60) return "text-yellow-500";
+  const getColorClass = (pct: number): string => {
+    if (pct >= 0.8) return "text-green-500";
+    if (pct >= 0.6) return "text-yellow-500";
     return "text-red-500";
   };
 
-  const color = getColorClass(value);
+  const color = getColorClass(ratio);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -48,7 +52,10 @@ export default function CircularProgress({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+        <span
+          className="font-semibold text-gray-700 dark:text-gray-300"
+          style={{ fontSize: Math.max(12, Math.round(size * 0.3)) }}
+        >
           {value}
         </span>
       </div>

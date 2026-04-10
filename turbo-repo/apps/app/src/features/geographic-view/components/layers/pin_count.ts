@@ -85,7 +85,7 @@ export class PinCountLayer extends CompositeLayer<PinCountLayerProps> {
           return offset;
         },
         parameters: {
-          depthTest: false,
+          depthTest: true,
         },
       }) as Layer,
     ];

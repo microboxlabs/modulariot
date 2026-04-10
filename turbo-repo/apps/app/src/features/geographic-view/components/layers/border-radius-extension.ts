@@ -29,8 +29,13 @@ void main(void) {
   vec2 pixelPosition = (uv - 0.5) * dimensions;
 
   float maxBorderRadius = min(dimensions.x, dimensions.y) * 0.5;
-  vec4 borderRadius = vec4(min(20.0, maxBorderRadius)); // 14px border radius
+  vec4 borderRadius = vec4(min(20.0, maxBorderRadius)); // 20px border radius
   float dist = round_rect(pixelPosition, dimensions * 0.5, borderRadius);
+
+  // Discard pixels outside the rounded rect
+  if (dist > 1.0) {
+    discard;
+  }
 
   // Border Calculation - check vLineWidth directly for border
   if (vLineWidth > 0.0) {

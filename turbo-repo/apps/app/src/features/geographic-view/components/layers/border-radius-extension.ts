@@ -55,7 +55,7 @@ void main(void) {
 `;
 
 export class BorderRadiusExtension extends LayerExtension {
-  static extensionName = "BorderRadiusExtension";
+  static readonly extensionName = "BorderRadiusExtension";
 
   getShaders() {
     return {

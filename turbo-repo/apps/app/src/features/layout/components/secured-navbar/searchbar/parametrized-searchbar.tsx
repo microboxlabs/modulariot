@@ -295,8 +295,8 @@ function SelectorParams({
         // Use dynamic options from localStorage for specific params, or fallback to param.options
         let options: { value: string; label: string }[] = [];
 
-        if (dynamicOptions.length > 0) {
-          // For symptom_name in symptoms page, use dynamic options from localStorage
+        if (param.param.key === "symptom_name" && dynamicOptions.length > 0) {
+          // For symptom_name selector only, use dynamic options from localStorage
           options = [
             { value: "", label: "-" },
             ...dynamicOptions.map((option) => ({
@@ -305,7 +305,7 @@ function SelectorParams({
             })),
           ];
         } else if (param.options && Array.isArray(param.options)) {
-          // For other selectors (like originType), use their predefined options
+          // For other selectors (like state, originType), use their predefined options
           options = param.options;
         } else {
           // Fallback to empty options

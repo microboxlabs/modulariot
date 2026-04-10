@@ -160,7 +160,11 @@ export async function GET(
       return NextResponse.json({ error: "driver not found" }, { status: 404 });
     }
     if (cacheEntry) {
-      return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
+      const ageMs = now - cacheEntry.fetchedAt;
+      if (ageMs <= DETAIL_CACHE_STALE_TTL_MS) {
+        return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
+      }
+      detailCache.delete(cacheKey);
     }
     logger.error(
       { err: error, codDriver },

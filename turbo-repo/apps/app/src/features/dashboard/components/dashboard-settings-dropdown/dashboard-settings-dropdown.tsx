@@ -20,7 +20,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
+type SettingOption = "rename" | "order" | "path" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -771,6 +771,48 @@ function OrderForm() {
 }
 
 // ============================================================================
+// Path (Folder) Form
+// ============================================================================
+
+function PathForm() {
+  const { path, setPath, dictionary } = useDashboard();
+  const [localPath, setLocalPath] = useState(path ?? "");
+
+  useEffect(() => {
+    setLocalPath(path ?? "");
+  }, [path]);
+
+  const handleSave = () => {
+    const trimmed = localPath.trim();
+    setPath(trimmed.length > 0 ? trimmed : undefined);
+    ShowNotification({
+      type: "success",
+      message: tr("dashboard.settings.pathUpdated", dictionary),
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {tr("dashboard.settings.pathDescription", dictionary)}
+      </p>
+      <div className="flex items-center gap-2">
+        <TextInput
+          sizing="sm"
+          value={localPath}
+          onChange={(e) => setLocalPath(e.target.value)}
+          placeholder="/management"
+          className="flex-1"
+        />
+        <Button size="sm" onClick={handleSave}>
+          {tr("common.save", dictionary)}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -929,6 +971,16 @@ export default function DashboardSettingsDropdown() {
             description={tr("dashboard.settings.orderDescription", dictionary)}
           >
             <OrderForm />
+          </SettingsSection>
+
+          <SettingsSection
+            option="path"
+            selected={selected}
+            setSelected={setSelected}
+            title={tr("dashboard.settings.pathTitle", dictionary)}
+            description={tr("dashboard.settings.pathDescription", dictionary)}
+          >
+            <PathForm />
           </SettingsSection>
 
           <SettingsSection

@@ -54,6 +54,10 @@ interface DashboardContextValue {
   allowedGroups: string[];
   /** Update allowed groups */
   setAllowedGroups: (groups: string[]) => void;
+  /** Sidebar folder path (e.g. "/management") */
+  path: string | undefined;
+  /** Update sidebar folder path */
+  setPath: (path: string | undefined) => void;
 
   // Widget actions
   createWidget: (
@@ -151,6 +155,8 @@ export function DashboardProvider({
     setOrder: setOrderStorage,
     allowedGroups,
     setAllowedGroups,
+    path,
+    setPath,
     findWidget,
     exportDashboard,
     importDashboard,
@@ -386,6 +392,8 @@ export function DashboardProvider({
       setOrder,
       allowedGroups,
       setAllowedGroups,
+      path,
+      setPath,
       dashboardName,
       createWidget,
       updateWidgetConfig,
@@ -424,6 +432,8 @@ export function DashboardProvider({
       setOrder,
       allowedGroups,
       setAllowedGroups,
+      path,
+      setPath,
       dashboardName,
       createWidget,
       updateWidgetConfig,

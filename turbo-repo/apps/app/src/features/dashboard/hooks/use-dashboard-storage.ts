@@ -533,6 +533,13 @@ export function useDashboardStorage(
     [updateConfig]
   );
 
+  const setPath = useCallback(
+    (path: string | undefined) => {
+      updateConfig({ path });
+    },
+    [updateConfig]
+  );
+
   // ── Planner CRUD ──────────────────────────────────────────────────────────
 
   const getPlannerDefinitions = useCallback(
@@ -632,6 +639,7 @@ export function useDashboardStorage(
           refreshInterval: imported.refreshInterval,
           order: imported.order,
           allowedGroups: normalizeAllowedGroups(imported.allowedGroups),
+          path: typeof imported.path === "string" && imported.path.trim().length > 0 ? imported.path.trim() : undefined,
         };
 
         clearHistory();
@@ -656,6 +664,7 @@ export function useDashboardStorage(
     refreshInterval: resolvedConfig.refreshInterval ?? 0,
     order: resolvedConfig.order,
     allowedGroups: normalizeAllowedGroups(resolvedConfig.allowedGroups) ?? [],
+    path: resolvedConfig.path,
     isLoaded,
     addWidget,
     addChildWidget,
@@ -669,6 +678,7 @@ export function useDashboardStorage(
     setRefreshInterval,
     setOrder,
     setAllowedGroups,
+    setPath,
     findWidget,
     findParent,
     exportDashboard,

@@ -19,7 +19,7 @@ function escapeCell(value: string): string {
     value.includes("\n") ||
     value.includes("\r")
   ) {
-    return `"${value.replace(/"/g, '""')}"`;
+    return `"${value.replaceAll('"', '""')}"`;
   }
   return value;
 }
@@ -54,7 +54,7 @@ export function buildCsvContent(
 
 /** Trigger a CSV file download in the browser. */
 export function downloadCsv(csvContent: string, filename: string): void {
-  const safeName = filename.replace(/[/\\:*?"<>|]/g, "_");
+  const safeName = filename.replaceAll(/[/\\:*?"<>|]/g, "_");
   const bom = "\uFEFF";
   const blob = new Blob([bom + csvContent], {
     type: "text/csv;charset=utf-8;",

@@ -10,6 +10,11 @@ interface SortPillRowProps {
   onSortClick: (key: string) => void;
 }
 
+function SortIcon({ dir }: Readonly<{ dir: "asc" | "desc" }>) {
+  if (dir === "asc") return <HiArrowUp className="h-3 w-3" />;
+  return <HiArrowDown className="h-3 w-3" />;
+}
+
 export function SortPillRow({
   label,
   columns,
@@ -29,15 +34,7 @@ export function SortPillRow({
           label={getColumnLabel(key)}
           active={sortKey === key}
           onClick={() => onSortClick(key)}
-          icon={
-            sortKey === key ? (
-              sortDir === "asc" ? (
-                <HiArrowUp className="h-3 w-3" />
-              ) : (
-                <HiArrowDown className="h-3 w-3" />
-              )
-            ) : undefined
-          }
+          icon={sortKey === key ? <SortIcon dir={sortDir} /> : undefined}
         />
       ))}
     </div>

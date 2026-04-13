@@ -163,3 +163,5 @@ export { ThresholdEditor } from "./threshold-editor";
 export { useThresholdSettings } from "./use-threshold-settings";
 export { buildCsvContent, downloadCsv } from "./export-csv";
 export { ExportDropdown } from "./export-dropdown";
+export { usePortalDropdown } from "./use-portal-dropdown";
+export { DashletTitleBar } from "./dashlet-title-bar";

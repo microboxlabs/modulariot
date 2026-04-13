@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { HiArrowDownTray } from "react-icons/hi2";
 import { RiFileChartLine } from "react-icons/ri";
+import { usePortalDropdown } from "./use-portal-dropdown";
 
 interface ExportDropdownProps {
   ariaLabel: string;
@@ -16,56 +16,15 @@ export function ExportDropdown({
   csvLabel,
   onExportCsv,
 }: Readonly<ExportDropdownProps>) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  const close = useCallback(() => setOpen(false), []);
-
-  useEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: rect.right });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        buttonRef.current?.contains(target) ||
-        menuRef.current?.contains(target)
-      )
-        return;
-      close();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open, close]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, close]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = () => close();
-    window.addEventListener("scroll", handler, true);
-    return () => window.removeEventListener("scroll", handler, true);
-  }, [open, close]);
+  const { open, pos, buttonRef, menuRef, close, toggle } =
+    usePortalDropdown();
 
   return (
     <>
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggle}
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}

@@ -4,7 +4,7 @@ import { Pill } from "./pill";
 interface SortPillRowProps {
   label: string;
   columns: string[];
-  sortKey: string;
+  sortKey: string | null;
   sortDir: "asc" | "desc";
   getColumnLabel: (key: string) => string;
   onSortClick: (key: string) => void;

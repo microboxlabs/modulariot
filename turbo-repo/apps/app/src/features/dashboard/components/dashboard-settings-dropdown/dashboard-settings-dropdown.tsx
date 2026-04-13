@@ -305,7 +305,7 @@ function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) {
   const handleCopyKioskLink = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("kiosk", "true");
-    const kioskUrl = `${window.location.origin}${pathname}?${params.toString()}`;
+    const kioskUrl = `${globalThis.location.origin}${pathname}?${params.toString()}`;
     navigator.clipboard.writeText(kioskUrl).then(() => {
       ShowNotification({ type: "success", message: "Kiosk link copied to clipboard" });
       onClose();
@@ -1076,7 +1076,7 @@ export default function DashboardSettingsDropdown() {
             selected={selected}
             setSelected={setSelected}
             title="Share Dashboard"
-            description="Share via link or public URL"
+            description="Copy link or download snapshot"
           >
             <ShareForm dashboardName={dashboardName} onClose={closePanel} />
           </SettingsSection>

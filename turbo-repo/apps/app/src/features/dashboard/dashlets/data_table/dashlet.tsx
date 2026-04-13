@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type {
   DashletComponentProps,
@@ -62,8 +62,7 @@ import {
 } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
-import { buildCsvContent, downloadCsv } from "@/features/dashboard/dashlets/common/export-csv";
-import { ExportDropdown } from "@/features/dashboard/dashlets/common/export-dropdown";
+import { DashletTitleBar } from "@/features/dashboard/dashlets/common/dashlet-title-bar";
 
 export interface DashletConfig {
   title: string;
@@ -262,43 +261,28 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     displayRows.length
   );
 
-  // ── CSV export ──────────────────────────────────────────────────────────────
-  const handleExportCsv = useCallback(() => {
-    const csv = buildCsvContent(columns, displayRows, resolveValue, resolveLabel);
-    downloadCsv(csv, `${title}.csv`);
-  }, [columns, displayRows, resolveValue, resolveLabel, title]);
-
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {/* Title + row count + export — outside any card */}
-      <div className="flex shrink-0 items-start justify-between">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-          {title}
-        </h3>
-        <div className="flex items-center gap-2">
-          {showRowCount && (
-            <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-              {tr(
-                displayRows.length === 1
-                  ? "dashboard.settings.totalItemsSingular"
-                  : "dashboard.settings.totalItems",
-                dictionary,
-                { count: String(displayRows.length) }
-              )}
-            </span>
-          )}
-          {showExport && displayRows.length > 0 && (
-            <ExportDropdown
-              ariaLabel={tr("dashboard.settings.exportCsv", dictionary)}
-              csvLabel="CSV"
-              onExportCsv={handleExportCsv}
-            />
-          )}
-        </div>
-      </div>
+      <DashletTitleBar
+        title={title}
+        showRowCount={showRowCount}
+        showExport={showExport}
+        rowCountLabel={tr(
+          displayRows.length === 1
+            ? "dashboard.settings.totalItemsSingular"
+            : "dashboard.settings.totalItems",
+          dictionary,
+          { count: String(displayRows.length) }
+        )}
+        columns={columns}
+        displayRows={displayRows}
+        resolveValue={resolveValue}
+        resolveLabel={resolveLabel}
+        dictionary={dictionary}
+      />
 
       {/* Filter cards */}
       {filter.enabled &&

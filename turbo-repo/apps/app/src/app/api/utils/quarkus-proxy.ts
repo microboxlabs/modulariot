@@ -4,19 +4,27 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 
 /**
- * Forward the caller's session JWT to a Quarkus read endpoint and return the
- * raw JSON response. Used by the admin UI's read-only routes
- * (`/api/admin/orgs/{id}/members`, `/modules`, etc.) to proxy to the
- * equivalent Quarkus resources without duplicating the authorization flow.
+ * Forward the caller's session JWT to a Quarkus endpoint and return the
+ * raw response. Used by the admin UI's proxy routes
+ * (`/api/admin/orgs/**`) to delegate auth + tenant scoping to Quarkus
+ * without duplicating the authorization flow in Next.
+ *
+ * Supports read and write verbs. When {@code init.body} is provided the
+ * upstream request is sent with {@code Content-Type: application/json}
+ * and a serialized JSON body.
  *
  * - Returns a 401 when the caller is unauthenticated.
  * - Returns a 502 when the upstream is unreachable.
- * - Forwards the upstream status code verbatim for 4xx responses (so
- *   Quarkus's own 403 "not a member of org" reaches the frontend).
+ * - Forwards the upstream status code verbatim for 4xx/5xx responses
+ *   (so Quarkus's own 403 "not a member of org" / 400 "invalid tax id"
+ *   reach the frontend).
  */
 export async function forwardToQuarkus(
   path: string,
-  init?: { method?: string },
+  init?: {
+    method?: string;
+    body?: unknown;
+  },
 ): Promise<NextResponse> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -32,13 +40,20 @@ export async function forwardToQuarkus(
   }
 
   const headers = buildAuthHeaders(session);
+  const method = init?.method ?? "GET";
+  let body: string | undefined;
+  if (init?.body !== undefined) {
+    body = JSON.stringify(init.body);
+    headers["Content-Type"] = "application/json";
+  }
 
   let upstream: Response;
   try {
     upstream = await fetch(`${baseUrl}${path}`, {
-      method: init?.method ?? "GET",
+      method,
       headers,
-      signal: AbortSignal.timeout(10_000),
+      body,
+      signal: AbortSignal.timeout(15_000),
     });
   } catch (err) {
     return NextResponse.json(
@@ -50,10 +65,15 @@ export async function forwardToQuarkus(
     );
   }
 
-  const body = await upstream.text();
+  // 204 No Content responses carry no body — return them as-is.
+  if (upstream.status === 204) {
+    return new NextResponse(null, { status: 204 });
+  }
+
+  const responseBody = await upstream.text();
   const contentType = upstream.headers.get("content-type") ?? "application/json";
 
-  return new NextResponse(body, {
+  return new NextResponse(responseBody, {
     status: upstream.status,
     headers: {
       "Content-Type": contentType,

@@ -77,7 +77,7 @@ export function ActionDropdown({ items, ariaLabel }: Readonly<ActionDropdownProp
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+        className="cursor-pointer rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
       >
         <HiEllipsisVertical className="h-5 w-5" />
       </button>

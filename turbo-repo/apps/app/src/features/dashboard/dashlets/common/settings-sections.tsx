@@ -8,8 +8,9 @@ import {
   TextInput,
   Select,
 } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import type { ColumnItem } from "./column-helpers";
+import { DeleteItemButton } from "./delete-item-button";
 import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
 import type { DataMode } from "./column-types";
@@ -122,14 +123,10 @@ export function ColumnEditor({
                   color={getFlowbiteColor(getHandlebarsStatus(col.type))}
                 />
               </div>
-              <button
-                type="button"
+              <DeleteItemButton
                 onClick={() => onRemove(col._id)}
-                onMouseDown={stopPropagation}
-                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-              >
-                <HiTrash className="h-4 w-4" />
-              </button>
+                ariaLabel="Delete column"
+              />
             </div>
 
             {/* Inline badge color map */}
@@ -155,6 +152,7 @@ export function ColumnEditor({
                               e.target.value
                             )
                           }
+                          className="[&>select]:cursor-pointer"
                         >
                           {COLOR_RULE_OPERATORS.map((op) => (
                             <option key={op} value={op}>
@@ -190,6 +188,7 @@ export function ColumnEditor({
                               e.target.value
                             )
                           }
+                          className="[&>select]:cursor-pointer"
                         >
                           {RULE_COLORS.map((c) => (
                             <option key={c} value={c}>
@@ -201,14 +200,12 @@ export function ColumnEditor({
                       <span
                         className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`}
                       />
-                      <button
-                        type="button"
-                        onClick={() => onRemoveColorMapping(col._id, mapping._id!)}
-                        onMouseDown={stopPropagation}
-                        className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                      >
-                        <HiTrash className="h-4 w-4" />
-                      </button>
+                      <DeleteItemButton
+                        onClick={() =>
+                          onRemoveColorMapping(col._id, mapping._id!)
+                        }
+                        ariaLabel="Delete color mapping"
+                      />
                     </div>
                   ))}
                   <Button
@@ -304,6 +301,7 @@ export function FilterEditor({
                       onChange={(e) =>
                         onUpdate(fi._id, "column", e.target.value)
                       }
+                      className="[&>select]:cursor-pointer"
                     >
                       {columnsWithKeys.map((c) => (
                         <option key={c._id} value={c.key}>
@@ -312,14 +310,10 @@ export function FilterEditor({
                       ))}
                     </Select>
                   </div>
-                  <button
-                    type="button"
+                  <DeleteItemButton
                     onClick={() => onRemove(fi._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                  >
-                    <HiTrash className="h-4 w-4" />
-                  </button>
+                    ariaLabel="Delete filter"
+                  />
                 </div>
               ))}
             </div>
@@ -562,6 +556,7 @@ export function ColorRuleEditor({
                       onChange={(e) =>
                         onUpdate(rule._id, "column", e.target.value)
                       }
+                      className="[&>select]:cursor-pointer"
                     >
                       {columnsWithKeys.map((c) => (
                         <option key={c._id} value={c.key}>
@@ -676,6 +671,7 @@ export function ActionsEditor({
                             e.target.value as ActionTarget
                           )
                         }
+                        className="[&>select]:cursor-pointer"
                       >
                         <option value="_blank">
                           {labels.actionTargetBlank}
@@ -683,14 +679,10 @@ export function ActionsEditor({
                         <option value="_self">{labels.actionTargetSelf}</option>
                       </Select>
                     </div>
-                    <button
-                      type="button"
+                    <DeleteItemButton
                       onClick={() => onRemove(item._id)}
-                      onMouseDown={stopPropagation}
-                      className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                    >
-                      <HiTrash className="h-4 w-4" />
-                    </button>
+                      ariaLabel="Delete action"
+                    />
                   </div>
                   <div>
                     <TextInput

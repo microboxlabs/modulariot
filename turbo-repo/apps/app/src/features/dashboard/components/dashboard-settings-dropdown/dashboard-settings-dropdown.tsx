@@ -2,7 +2,14 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Button, TextInput, Textarea, FileInput, Label, Select } from "flowbite-react";
+import {
+  Button,
+  TextInput,
+  Textarea,
+  FileInput,
+  Label,
+  Select,
+} from "flowbite-react";
 import { FaGear } from "react-icons/fa6";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { HiArrowDownTray } from "react-icons/hi2";
@@ -10,17 +17,33 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ConfirmModal } from "../confirm-modal";
-import { deleteDashboardConfigClient, useUserGroups } from "@/features/common/providers/client-api.provider";
+import {
+  deleteDashboardConfigClient,
+  useUserGroups,
+} from "@/features/common/providers/client-api.provider";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
-import type { DashboardFilterParam, RefreshInterval } from "../../types/dashboard.types";
+import type {
+  DashboardFilterParam,
+  RefreshInterval,
+} from "../../types/dashboard.types";
 import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
+type SettingOption =
+  | "rename"
+  | "order"
+  | "export"
+  | "import"
+  | "planner"
+  | "filters"
+  | "refresh"
+  | "access"
+  | "delete"
+  | null;
 
 type ImportMethod = "text" | "file";
 
@@ -42,7 +65,11 @@ function isSectionActive(
   return selected === option;
 }
 
-function getSectionClasses(expanded: boolean, active: boolean, maxHeight = "max-h-[400px]") {
+function getSectionClasses(
+  expanded: boolean,
+  active: boolean,
+  maxHeight = "max-h-[400px]"
+) {
   return {
     headerHeightClass: expanded ? "h-16" : "h-0",
     headerInteractiveClass: active
@@ -138,7 +165,9 @@ function SectionLayout({
       </div>
       <div
         className={`${contentMaxHeightClass} transition-all duration-300 ${animationDone ? "overflow-y-auto" : "overflow-hidden"}`}
-        onTransitionEnd={() => { if (active) setAnimationDone(true); }}
+        onTransitionEnd={() => {
+          if (active) setAnimationDone(true);
+        }}
       >
         {children}
       </div>
@@ -432,7 +461,8 @@ function FilterManagerForm({
 }: Readonly<FilterManagerFormProps>) {
   const { dictionary } = useDashboard();
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
-  const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
+  const [localFilters, setLocalFilters] =
+    useState<DashboardFilterParam[]>(filters);
   const [filterIds, setFilterIds] = useState(() =>
     filters.map(() => crypto.randomUUID())
   );
@@ -443,10 +473,7 @@ function FilterManagerForm({
   }, [filters]);
 
   const addFilter = () => {
-    setLocalFilters((prev) => [
-      ...prev,
-      { key: "", label: "", type: "text" },
-    ]);
+    setLocalFilters((prev) => [...prev, { key: "", label: "", type: "text" }]);
     setFilterIds((prev) => [...prev, crypto.randomUUID()]);
   };
 
@@ -625,7 +652,10 @@ function RefreshForm() {
       <Select
         sizing="sm"
         value={String(refreshInterval)}
-        onChange={(e) => setRefreshInterval(Number(e.target.value) as RefreshInterval)}
+        onChange={(e) =>
+          setRefreshInterval(Number(e.target.value) as RefreshInterval)
+        }
+        className="[&>select]:cursor-pointer"
       >
         {REFRESH_INTERVAL_OPTIONS.map((opt) => (
           <option key={opt.value} value={String(opt.value)}>
@@ -668,7 +698,9 @@ function AllowedGroupsForm() {
   if (isLoading) {
     return (
       <div className="p-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">{t("loadingGroups")}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t("loadingGroups")}
+        </p>
       </div>
     );
   }
@@ -845,18 +877,21 @@ export default function DashboardSettingsDropdown() {
 
   const handleExportToClipboard = useCallback(() => {
     const json = exportDashboard();
-    navigator.clipboard.writeText(json).then(() => {
-      ShowNotification({
-        type: "success",
-        message: "Dashboard copied to clipboard",
+    navigator.clipboard
+      .writeText(json)
+      .then(() => {
+        ShowNotification({
+          type: "success",
+          message: "Dashboard copied to clipboard",
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to copy to clipboard:", error);
+        ShowNotification({
+          type: "error",
+          message: "Failed to copy dashboard to clipboard",
+        });
       });
-    }).catch((error) => {
-      console.error("Failed to copy to clipboard:", error);
-      ShowNotification({
-        type: "error",
-        message: "Failed to copy dashboard to clipboard",
-      });
-    });
   }, [exportDashboard]);
 
   const handleSaveName = useCallback(
@@ -960,7 +995,10 @@ export default function DashboardSettingsDropdown() {
             selected={selected}
             setSelected={setSelected}
             title={tr("dashboard.settings.filterBarTitle", dictionary)}
-            description={tr("dashboard.settings.filterBarDescription", dictionary)}
+            description={tr(
+              "dashboard.settings.filterBarDescription",
+              dictionary
+            )}
           >
             <FilterManagerForm filters={filters} onSave={setFilters} />
           </SettingsSection>
@@ -970,7 +1008,10 @@ export default function DashboardSettingsDropdown() {
             selected={selected}
             setSelected={setSelected}
             title={tr("dashboard.settings.autoRefresh", dictionary)}
-            description={tr("dashboard.settings.autoRefreshDescription", dictionary)}
+            description={tr(
+              "dashboard.settings.autoRefreshDescription",
+              dictionary
+            )}
           >
             <RefreshForm />
           </SettingsSection>
@@ -991,7 +1032,10 @@ export default function DashboardSettingsDropdown() {
             selected={selected}
             setSelected={setSelected}
             title={tr("dashboard.settings.accessControlTitle", dictionary)}
-            description={tr("dashboard.settings.accessControlDescription", dictionary)}
+            description={tr(
+              "dashboard.settings.accessControlDescription",
+              dictionary
+            )}
           >
             <AllowedGroupsForm />
           </SettingsSection>
@@ -1004,16 +1048,11 @@ export default function DashboardSettingsDropdown() {
             description={tr("dashboard.settings.deleteDescription", dictionary)}
           >
             <div className="p-4">
-              <Button
-                color="failure"
-                size="sm"
-                onClick={handleDeleteClick}
-              >
+              <Button color="failure" size="sm" onClick={handleDeleteClick}>
                 {tr("dashboard.landing.delete_confirm_title", dictionary)}
               </Button>
             </div>
           </SettingsSection>
-
         </div>
       )}
 
@@ -1022,9 +1061,13 @@ export default function DashboardSettingsDropdown() {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteConfirm}
         title={tr("dashboard.landing.delete_confirm_title", dictionary)}
-        description={tr("dashboard.landing.delete_confirm_message", dictionary, {
-          name: dashboardName,
-        })}
+        description={tr(
+          "dashboard.landing.delete_confirm_message",
+          dictionary,
+          {
+            name: dashboardName,
+          }
+        )}
         confirmText={tr("dashboard.landing.delete_confirm_title", dictionary)}
       />
     </div>

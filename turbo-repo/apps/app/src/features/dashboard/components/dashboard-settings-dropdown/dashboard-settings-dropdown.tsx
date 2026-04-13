@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
 import { Button, TextInput, Textarea, FileInput, Label, Select } from "flowbite-react";
 import { FaGear } from "react-icons/fa6";
 import { ChevronLeft } from "flowbite-react-icons/outline";
-import { HiArrowDownTray } from "react-icons/hi2";
+import { HiArrowDownTray, HiLink } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
@@ -20,7 +20,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
+type SettingOption = "share" | "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -284,6 +284,170 @@ function ExportForm({
     </div>
   );
 }
+
+// ============================================================================
+// Share Form
+// ============================================================================
+
+/** CSS selector for the dashboard content area to capture */
+const DASHBOARD_CAPTURE_SELECTOR = ".dashboard-root-grid";
+
+interface ShareFormProps {
+  dashboardName: string;
+  onClose: () => void;
+}
+
+function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const [exporting, setExporting] = useState<"image" | "pdf" | null>(null);
+
+  const handleCopyKioskLink = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("kiosk", "true");
+    const kioskUrl = `${window.location.origin}${pathname}?${params.toString()}`;
+    navigator.clipboard.writeText(kioskUrl).then(() => {
+      ShowNotification({ type: "success", message: "Kiosk link copied to clipboard" });
+      onClose();
+    }).catch(() => {
+      ShowNotification({ type: "error", message: "Failed to copy link" });
+    });
+  };
+
+  const captureElement = async () => {
+    const el = document.querySelector(DASHBOARD_CAPTURE_SELECTOR) as HTMLElement | null;
+    if (!el) {
+      ShowNotification({ type: "error", message: "Dashboard content not found" });
+      return null;
+    }
+    const { default: html2canvas } = await import("html2canvas-pro");
+    return html2canvas(el, {
+      useCORS: true,
+      scale: 2,
+      backgroundColor: null,
+      logging: false,
+    });
+  };
+
+  const handleDownloadImage = async () => {
+    setExporting("image");
+    try {
+      const canvas = await captureElement();
+      if (!canvas) return;
+
+      const link = document.createElement("a");
+      link.download = `${dashboardName.replaceAll(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      ShowNotification({ type: "success", message: "Image downloaded" });
+      onClose();
+    } catch {
+      ShowNotification({ type: "error", message: "Failed to capture dashboard image" });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setExporting("pdf");
+    try {
+      const canvas = await captureElement();
+      if (!canvas) return;
+
+      const { jsPDF } = await import("jspdf");
+
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = imgWidth / imgHeight;
+
+      // Use landscape if wider than tall, portrait otherwise
+      const orientation = ratio > 1 ? "landscape" : "portrait";
+      const pdf = new jsPDF({ orientation, unit: "px", format: "a4" });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - margin * 2;
+      const contentHeight = contentWidth / ratio;
+
+      // Add title
+      pdf.setFontSize(14);
+      pdf.text(dashboardName, margin, margin + 10);
+
+      // Add date
+      pdf.setFontSize(9);
+      pdf.setTextColor(128);
+      pdf.text(new Date().toLocaleString(), margin, margin + 22);
+      pdf.setTextColor(0);
+
+      const imgY = margin + 30;
+      const imgData = canvas.toDataURL("image/png");
+
+      if (imgY + contentHeight <= pageHeight - margin) {
+        // Fits on one page
+        pdf.addImage(imgData, "PNG", margin, imgY, contentWidth, contentHeight);
+      } else {
+        // Scale down to fit
+        const availableHeight = pageHeight - imgY - margin;
+        const scaledWidth = availableHeight * ratio;
+        const finalWidth = Math.min(contentWidth, scaledWidth);
+        const finalHeight = finalWidth / ratio;
+        pdf.addImage(imgData, "PNG", margin, imgY, finalWidth, finalHeight);
+      }
+
+      pdf.save(`${dashboardName.replaceAll(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      ShowNotification({ type: "success", message: "PDF downloaded" });
+      onClose();
+    } catch {
+      ShowNotification({ type: "error", message: "Failed to export dashboard as PDF" });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Share your dashboard via link or download a snapshot.
+      </p>
+
+      <div className="flex flex-col gap-2">
+        {/* Authenticated kiosk link */}
+        <Button color="light" size="sm" onClick={handleCopyKioskLink}>
+          <HiLink className="mr-2 h-4 w-4" />
+          Copy link
+        </Button>
+
+        {/* Download as image */}
+        <Button
+          color="light"
+          size="sm"
+          onClick={handleDownloadImage}
+          disabled={exporting !== null}
+        >
+          <HiArrowDownTray className="mr-2 h-4 w-4" />
+          {exporting === "image" ? "Capturing..." : "Download as image"}
+        </Button>
+
+        {/* Download as PDF */}
+        <Button
+          color="light"
+          size="sm"
+          onClick={handleDownloadPdf}
+          disabled={exporting !== null}
+        >
+          <HiArrowDownTray className="mr-2 h-4 w-4" />
+          {exporting === "pdf" ? "Generating..." : "Download as PDF"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Import Form
+// ============================================================================
 
 interface ImportFormProps {
   onImport: (json: string) => { success: boolean; error?: string };
@@ -907,6 +1071,16 @@ export default function DashboardSettingsDropdown() {
 
       {open && (
         <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
+          <SettingsSection
+            option="share"
+            selected={selected}
+            setSelected={setSelected}
+            title="Share Dashboard"
+            description="Share via link or public URL"
+          >
+            <ShareForm dashboardName={dashboardName} onClose={closePanel} />
+          </SettingsSection>
+
           <SettingsSection
             option="rename"
             selected={selected}

@@ -17,7 +17,10 @@ import { normalizeFilterConfig } from "../common/filter-helpers";
 import { FilterPillRow } from "../common/filter-pill-row";
 import { useFilterAndSort } from "../common/use-filter-and-sort";
 import { useCompiledColumns } from "../common/use-compiled-columns";
-import { DashletTitleBar } from "../common/dashlet-title-bar";
+import {
+  DashletTitleBar,
+  buildTitleBarData,
+} from "../common/dashlet-title-bar";
 
 export type {
   DataMode,
@@ -405,15 +408,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     displayRows.length
   );
 
+  // ── Title bar data ──────────────────────────────────────────────────────────
+  const titleBarData = buildTitleBarData({
+    title, showRowCount, showExport, columns,
+    displayRows, resolveValue, resolveLabel, dictionary,
+  });
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
 
   return (
     <div className="flex h-full flex-col gap-3">
       <DashletTitleBar
-        title={title}
-        showRowCount={showRowCount}
-        showExport={showExport}
+        {...titleBarData}
         rowCountLabel={
           displayRows.length === 1
             ? tr("dashboard.dashlets.data_list.itemTotal", dictionary)
@@ -421,11 +428,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                 count: String(displayRows.length),
               })
         }
-        columns={columns}
-        displayRows={displayRows}
-        resolveValue={resolveValue}
-        resolveLabel={resolveLabel}
-        dictionary={dictionary}
       />
 
       {/* Filter cards */}

@@ -151,7 +151,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
 
       <div className="flex flex-col gap-2">
         {/* Authenticated kiosk link */}
-        <Button color="light" size="sm" onClick={handleCopyKioskLink}>
+        <Button color="light" size="sm" onClick={handleCopyKioskLink} disabled={exporting !== null}>
           <HiLink className="mr-2 h-4 w-4" />
           Copy link
         </Button>

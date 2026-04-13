@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import React from "react";
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -13,52 +12,13 @@ let mockPathname = "/en/home/myDashboard";
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
   usePathname: () => mockPathname,
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
-  useParams: () => ({ lang: "en", slug: "myDashboard" }),
 }));
 
 vi.mock("@/features/notifications/notification", () => ({
   ShowNotification: (...args: unknown[]) => mockShowNotification(...args),
 }));
 
-vi.mock("@/features/i18n/tr.service", () => ({
-  tr: (key: string) => key,
-}));
-
-vi.mock("@/features/common/providers/client-api.provider", () => ({
-  deleteDashboardConfigClient: vi.fn(),
-  useUserGroups: () => ({ data: [], isLoading: false }),
-}));
-
-vi.mock("../../context/dashboard-context", () => ({
-  useDashboard: () => ({
-    dashboardName: "Test Dashboard",
-    setDashboardName: vi.fn(),
-    filters: [],
-    setFilters: vi.fn(),
-    exportDashboard: vi.fn(() => "{}"),
-    importDashboard: vi.fn(),
-    downloadDashboard: vi.fn(),
-    dictionary: {},
-    siteId: "test-site",
-    refreshInterval: 0,
-    setRefreshInterval: vi.fn(),
-    order: undefined,
-    setOrder: vi.fn(),
-    allowedGroups: [],
-    setAllowedGroups: vi.fn(),
-    plannerDefinitions: [],
-    addPlannerRequest: vi.fn(),
-    updatePlannerRequest: vi.fn(),
-    removePlannerRequest: vi.fn(),
-  }),
-}));
-
-vi.mock("../planner-manager/planner-manager", () => ({
-  PlannerManagerForm: () => <div data-testid="planner-form" />,
-}));
-
-// Mock html2canvas-pro and jspdf — they are dynamically imported
+// Mock html2canvas-pro — dynamically imported
 const mockToDataURL = vi.fn(() => "data:image/png;base64,fakedata");
 const mockCanvas = {
   toDataURL: mockToDataURL,
@@ -71,40 +31,27 @@ vi.mock("html2canvas-pro", () => ({
   default: (...args: unknown[]) => mockHtml2canvas(...args),
 }));
 
+// Mock jspdf — dynamically imported
 const mockPdfSave = vi.fn();
 const mockPdfText = vi.fn();
 const mockPdfSetFontSize = vi.fn();
 const mockPdfSetTextColor = vi.fn();
 const mockPdfAddImage = vi.fn();
-const mockJsPDF = vi.fn(() => ({
-  internal: { pageSize: { getWidth: () => 595, getHeight: () => 842 } },
-  setFontSize: mockPdfSetFontSize,
-  text: mockPdfText,
-  setTextColor: mockPdfSetTextColor,
-  addImage: mockPdfAddImage,
-  save: mockPdfSave,
-}));
 
-vi.mock("jspdf", () => ({
-  jsPDF: (...args: unknown[]) => mockJsPDF(...args),
-}));
+vi.mock("jspdf", () => {
+  class MockJsPDF {
+    internal = { pageSize: { getWidth: () => 595, getHeight: () => 842 } };
+    setFontSize = mockPdfSetFontSize;
+    text = mockPdfText;
+    setTextColor = mockPdfSetTextColor;
+    addImage = mockPdfAddImage;
+    save = mockPdfSave;
+  }
+  return { jsPDF: MockJsPDF };
+});
 
-// Dynamically import after all mocks are set up
-const { default: DashboardSettingsDropdown } = await import(
-  "./dashboard-settings-dropdown"
-);
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Open the settings panel and navigate to the Share section */
-async function openShareSection() {
-  render(<DashboardSettingsDropdown />);
-  // Click gear icon to open
-  fireEvent.click(screen.getByTitle("Dashboard settings"));
-  // Click the Share Dashboard section
-  const shareButton = screen.getByText("Share Dashboard");
-  fireEvent.click(shareButton);
-}
+// Import after mocks
+const { ShareForm } = await import("./share-form");
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 
@@ -113,14 +60,12 @@ beforeEach(() => {
   mockSearchParams = new URLSearchParams();
   mockPathname = "/en/home/myDashboard";
 
-  // navigator.clipboard mock
   Object.defineProperty(globalThis.navigator, "clipboard", {
     value: { writeText: vi.fn(() => Promise.resolve()) },
     writable: true,
     configurable: true,
   });
 
-  // globalThis.location mock
   Object.defineProperty(globalThis, "location", {
     value: { origin: "https://app.example.com" },
     writable: true,
@@ -139,8 +84,7 @@ describe("ShareForm", () => {
 
   describe("handleCopyKioskLink", () => {
     it("copies a kiosk URL with kiosk=true search param", async () => {
-      await openShareSection();
-
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Copy link"));
 
       await waitFor(() => {
@@ -153,7 +97,7 @@ describe("ShareForm", () => {
     it("preserves existing search params and adds kiosk=true", async () => {
       mockSearchParams = new URLSearchParams("asset_id=42&status=active");
 
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Copy link"));
 
       await waitFor(() => {
@@ -166,7 +110,7 @@ describe("ShareForm", () => {
     });
 
     it("shows success notification and calls onClose on successful copy", async () => {
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Copy link"));
 
       await waitFor(() => {
@@ -174,6 +118,7 @@ describe("ShareForm", () => {
           type: "success",
           message: "Kiosk link copied to clipboard",
         });
+        expect(mockOnClose).toHaveBeenCalled();
       });
     });
 
@@ -182,7 +127,7 @@ describe("ShareForm", () => {
         new Error("Clipboard blocked")
       );
 
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Copy link"));
 
       await waitFor(() => {
@@ -199,15 +144,9 @@ describe("ShareForm", () => {
   // --------------------------------------------------------------------------
 
   describe("captureElement", () => {
-    it("shows 'Dashboard content not found' when the grid element is missing", async () => {
-      // Ensure querySelector returns null for DASHBOARD_CAPTURE_SELECTOR
-      const originalQuerySelector = document.querySelector.bind(document);
-      vi.spyOn(document, "querySelector").mockImplementation((sel: string) => {
-        if (sel === ".dashboard-root-grid") return null;
-        return originalQuerySelector(sel);
-      });
-
-      await openShareSection();
+    it("shows error when dashboard grid element is not found", async () => {
+      // querySelector returns null for .dashboard-root-grid by default (no element in jsdom)
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Download as image"));
 
       await waitFor(() => {
@@ -216,8 +155,8 @@ describe("ShareForm", () => {
           message: "Dashboard content not found",
         });
       });
-
-      vi.restoreAllMocks();
+      // html2canvas should not have been called
+      expect(mockHtml2canvas).not.toHaveBeenCalled();
     });
   });
 
@@ -226,40 +165,33 @@ describe("ShareForm", () => {
   // --------------------------------------------------------------------------
 
   describe("exporting UI states", () => {
-    it("disables all export buttons while exporting an image", async () => {
-      // Make html2canvas hang so we can observe the loading state
-      let resolveCapture!: (v: unknown) => void;
+    it("shows 'Capturing...' and disables buttons while exporting image", async () => {
+      let resolveCapture!: (v: typeof mockCanvas) => void;
       mockHtml2canvas.mockImplementationOnce(
         () => new Promise((resolve) => { resolveCapture = resolve; })
       );
 
-      // Need a real element for querySelector
       const gridEl = document.createElement("div");
       gridEl.className = "dashboard-root-grid";
       document.body.appendChild(gridEl);
 
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Download as image"));
 
-      // Buttons should show loading text and be disabled
       await waitFor(() => {
         expect(screen.getByText("Capturing...")).toBeInTheDocument();
       });
 
-      const buttons = screen.getAllByRole("button").filter(
-        (b) => b.textContent?.includes("Download as") || b.textContent?.includes("Capturing")
-      );
-      for (const btn of buttons) {
-        expect(btn).toBeDisabled();
-      }
+      // The other export buttons should be disabled
+      const pdfButton = screen.getByText("Download as PDF").closest("button")!;
+      expect(pdfButton).toBeDisabled();
 
-      // Resolve to end the loading state
       resolveCapture(mockCanvas);
       document.body.removeChild(gridEl);
     });
 
-    it("shows 'Generating...' while exporting PDF", async () => {
-      let resolveCapture!: (v: unknown) => void;
+    it("shows 'Generating...' and disables buttons while exporting PDF", async () => {
+      let resolveCapture!: (v: typeof mockCanvas) => void;
       mockHtml2canvas.mockImplementationOnce(
         () => new Promise((resolve) => { resolveCapture = resolve; })
       );
@@ -268,12 +200,15 @@ describe("ShareForm", () => {
       gridEl.className = "dashboard-root-grid";
       document.body.appendChild(gridEl);
 
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Download as PDF"));
 
       await waitFor(() => {
         expect(screen.getByText("Generating...")).toBeInTheDocument();
       });
+
+      const imageButton = screen.getByText("Download as image").closest("button")!;
+      expect(imageButton).toBeDisabled();
 
       resolveCapture(mockCanvas);
       document.body.removeChild(gridEl);
@@ -285,32 +220,27 @@ describe("ShareForm", () => {
   // --------------------------------------------------------------------------
 
   describe("handleDownloadImage", () => {
-    it("creates an anchor element, triggers download, and notifies success", async () => {
+    it("captures the dashboard, triggers download, and notifies success", async () => {
       const gridEl = document.createElement("div");
       gridEl.className = "dashboard-root-grid";
       document.body.appendChild(gridEl);
 
-      const clickSpy = vi.fn();
-      vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
-        if (tag === "a") {
-          const anchor = { click: clickSpy, download: "", href: "" } as unknown as HTMLElement;
-          return anchor;
-        }
-        return document.createElement.call(document, tag);
-      });
-
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Download as image"));
 
       await waitFor(() => {
-        expect(mockHtml2canvas).toHaveBeenCalled();
+        expect(mockHtml2canvas).toHaveBeenCalledWith(gridEl, expect.objectContaining({
+          useCORS: true,
+          scale: 2,
+        }));
+        expect(mockToDataURL).toHaveBeenCalledWith("image/png");
         expect(mockShowNotification).toHaveBeenCalledWith({
           type: "success",
           message: "Image downloaded",
         });
+        expect(mockOnClose).toHaveBeenCalled();
       });
 
-      vi.restoreAllMocks();
       document.body.removeChild(gridEl);
     });
   });
@@ -320,17 +250,16 @@ describe("ShareForm", () => {
   // --------------------------------------------------------------------------
 
   describe("handleDownloadPdf", () => {
-    it("generates a PDF with title, saves it, and notifies success", async () => {
+    it("captures the dashboard, generates PDF with title, and notifies success", async () => {
       const gridEl = document.createElement("div");
       gridEl.className = "dashboard-root-grid";
       document.body.appendChild(gridEl);
 
-      await openShareSection();
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
       fireEvent.click(screen.getByText("Download as PDF"));
 
       await waitFor(() => {
         expect(mockHtml2canvas).toHaveBeenCalled();
-        expect(mockJsPDF).toHaveBeenCalled();
         expect(mockPdfSetFontSize).toHaveBeenCalledWith(14);
         expect(mockPdfText).toHaveBeenCalledWith(
           "Test Dashboard",
@@ -345,6 +274,7 @@ describe("ShareForm", () => {
           type: "success",
           message: "PDF downloaded",
         });
+        expect(mockOnClose).toHaveBeenCalled();
       });
 
       document.body.removeChild(gridEl);

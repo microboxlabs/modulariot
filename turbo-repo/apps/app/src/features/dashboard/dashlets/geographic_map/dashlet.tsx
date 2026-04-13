@@ -5,9 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { PickingInfo } from "@deck.gl/core";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
-import {
-  useMapPositions,
-} from "@/features/common/providers/client-api.provider";
+import { useMapPositions } from "@/features/common/providers/client-api.provider";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer_clustered";
 import Filters from "@/features/geographic-view/components/filters";
 import MapTooltip from "@/features/geographic-view/components/map-tooltip";

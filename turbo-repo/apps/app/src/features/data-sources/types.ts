@@ -17,6 +17,7 @@ export interface DataSourceListItem {
     tokenUrl?: string;
     scope?: string;
     audience?: string;
+    tokenRequestFormat?: "form" | "json";
   };
   isActive: boolean;
   lastTestedAt?: string;
@@ -39,6 +40,7 @@ export interface DataSourceFormData {
   tokenUrl?: string;
   scope?: string;
   audience?: string;
+  tokenRequestFormat?: "form" | "json";
 }
 
 const baseFields = {
@@ -63,6 +65,7 @@ const oauthCreateFields = z.object({
   tokenUrl: z.string().url("validation.tokenUrlInvalid"),
   scope: z.string().max(500).optional(),
   audience: z.string().max(500).optional(),
+  tokenRequestFormat: z.enum(["form", "json"]).optional(),
 });
 
 export const CreateDataSourceSchema = z.discriminatedUnion("authMethod", [
@@ -85,6 +88,7 @@ export const UpdateDataSourceSchema = z.object({
   tokenUrl: z.union([z.string().url("validation.tokenUrlInvalid"), z.literal("")]).optional(),
   scope: z.string().max(500).optional().nullable(),
   audience: z.string().max(500).optional().nullable(),
+  tokenRequestFormat: z.enum(["form", "json"]).optional(),
 });
 
 export type CreateDataSourceInput = z.infer<typeof CreateDataSourceSchema>;

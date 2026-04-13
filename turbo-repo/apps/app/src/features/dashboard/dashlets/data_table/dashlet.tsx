@@ -14,7 +14,6 @@ import type {
   FilterConfig,
 } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
-import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { SortPillRow } from "@/features/dashboard/dashlets/common/sort-pill-row";

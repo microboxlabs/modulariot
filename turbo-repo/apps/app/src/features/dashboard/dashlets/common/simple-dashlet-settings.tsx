@@ -46,10 +46,10 @@ export interface SimpleDashletSettingsProps<C extends object> {
 // Hook: manage field state from a FIELDS config array
 // ============================================================================
 
-function toStringOrDefault(v: unknown, fallback: string): string {
+function toStringOrDefault(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
-  return fallback;
+  return "";
 }
 
 export function useFieldState(
@@ -59,7 +59,7 @@ export function useFieldState(
   const [values, setValues] = useState<Record<string, string>>(() => {
     const result: Record<string, string> = {};
     for (const f of fields) {
-      result[f.state] = toStringOrDefault(config[f.state], f.staticPlaceholder);
+      result[f.state] = toStringOrDefault(config[f.state]);
     }
     return result;
   });
@@ -79,7 +79,7 @@ export function useFieldState(
   const buildSaveValues = (): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const f of fields) {
-      result[f.state] = values[f.state].trim() || f.staticPlaceholder;
+      result[f.state] = values[f.state].trim();
     }
     return result;
   };

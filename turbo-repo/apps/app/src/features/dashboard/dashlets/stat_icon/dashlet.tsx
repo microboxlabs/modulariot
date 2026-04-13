@@ -79,10 +79,10 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 const FIELD_DEFAULTS: Record<string, string> = {
-  title: "Orders",
-  value: "156",
+  title: "",
+  value: "0",
   unit: "",
-  subtitle: "Last 24 hours",
+  subtitle: "",
 };
 
 /** Get the icon component from the icon key */
@@ -121,9 +121,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
-  const title = resolved.title || "Orders";
+  const title = resolved.title ?? "";
   const unit = resolved.unit ?? "";
-  const subtitle = resolved.subtitle || "";
+  const subtitle = resolved.subtitle ?? "";
   const value = parseResolvedNumber(resolved.value);
 
   const cardVariant: CardVariant = config.cardVariant ?? "horizontal";
@@ -168,15 +168,23 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { color: `#${secondaryColorHex}`, opacity: 0.7 }
     : { opacity: 0.7 };
 
+  // Only show title/description if they have content
+  const titleConfig = title.trim()
+    ? { text: title, style: titleStyle }
+    : undefined;
+  const descriptionConfig = subtitle.trim()
+    ? { text: subtitle, style: descriptionStyle }
+    : undefined;
+
   if (expandable) {
     return (
       <div className="h-full w-full" style={{ containerType: "size" }}>
         <KpiStat
           icon={iconConfig}
-          title={{ text: title, style: titleStyle }}
+          title={titleConfig}
           value={{ text: value, style: valueStyle }}
           unit={unit}
-          description={{ text: subtitle, style: descriptionStyle }}
+          description={descriptionConfig}
           variant={cardVariant}
           className="h-full"
           containerStyle={bgStyle}
@@ -189,10 +197,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   return (
     <KpiStat
       icon={iconConfig}
-      title={{ text: title, style: titleStyle }}
+      title={titleConfig}
       value={{ text: value, style: valueStyle }}
       unit={unit}
-      description={{ text: subtitle, style: descriptionStyle }}
+      description={descriptionConfig}
       variant={cardVariant}
       className="h-full text-2xl"
       containerStyle={bgStyle}

@@ -1541,6 +1541,8 @@
       "secondaryColor": "Color secundario",
       "secondaryTextColor": "Texto secundario",
       "expandable": "Expandible",
+      "showTitle": "Mostrar Título",
+      "showSubtitle": "Mostrar Descripción",
       "variant": "Variante",
       "label": "Etiqueta",
       "categoryAriaLabel": "Categoría {name} {field}",

@@ -172,10 +172,9 @@ describe("ShareForm", () => {
 
   describe("exporting UI states", () => {
     it("shows 'Capturing...' and disables buttons while exporting image", async () => {
-      let resolveCapture!: (v: typeof mockCanvas) => void;
-      mockHtml2canvas.mockImplementationOnce(
-        () => new Promise((resolve) => { resolveCapture = resolve; })
-      );
+      let resolveCapture: ((v: unknown) => void) | undefined;
+      const pendingPromise = new Promise((resolve) => { resolveCapture = resolve; });
+      mockHtml2canvas.mockReturnValueOnce(pendingPromise);
 
       const gridEl = document.createElement("div");
       gridEl.className = "dashboard-root-grid";
@@ -193,17 +192,16 @@ describe("ShareForm", () => {
       expect(pdfButton).toBeDisabled();
 
       // Resolve and wait for state to settle before teardown
-      resolveCapture(mockCanvas);
+      resolveCapture!(mockCanvas);
       await waitFor(() => {
         expect(screen.getByText("Download as image")).toBeInTheDocument();
       });
     });
 
     it("shows 'Generating...' and disables buttons while exporting PDF", async () => {
-      let resolveCapture!: (v: typeof mockCanvas) => void;
-      mockHtml2canvas.mockImplementationOnce(
-        () => new Promise((resolve) => { resolveCapture = resolve; })
-      );
+      let resolveCapture: ((v: unknown) => void) | undefined;
+      const pendingPromise = new Promise((resolve) => { resolveCapture = resolve; });
+      mockHtml2canvas.mockReturnValueOnce(pendingPromise);
 
       const gridEl = document.createElement("div");
       gridEl.className = "dashboard-root-grid";
@@ -220,7 +218,7 @@ describe("ShareForm", () => {
       expect(imageButton).toBeDisabled();
 
       // Resolve and wait for state to settle before teardown
-      resolveCapture(mockCanvas);
+      resolveCapture!(mockCanvas);
       await waitFor(() => {
         expect(screen.getByText("Download as PDF")).toBeInTheDocument();
       });

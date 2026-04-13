@@ -1426,6 +1426,7 @@ interface AlfrescoDataSourceOAuthConfig {
   tokenUrl?: string;
   scope?: string;
   audience?: string;
+  tokenRequestFormat?: "form" | "json";
 }
 
 export type AlfrescoDataSourceConfig =

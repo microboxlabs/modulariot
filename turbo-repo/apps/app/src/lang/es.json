@@ -1493,6 +1493,7 @@
   },
   "dashboard": {
     "editMode": "Modo Edición",
+    "dragToMoveWidget": "Arrastra para mover este widget",
     "kioskMode": "Modo Kiosco",
     "landing": {
       "title": "Dashboards",
@@ -1688,6 +1689,9 @@
       "orderDescription": "Establece la posición en la barra lateral. Los números menores aparecen primero.",
       "orderUpdated": "Orden de visualización actualizado",
       "orderInvalid": "Ingrese un número válido no negativo",
+      "copySuccess": "Dashboard copiado al portapapeles",
+      "copyError": "Error al copiar el dashboard al portapapeles",
+      "renameSuccess": "Dashboard renombrado exitosamente",
       "deleteDescription": "Eliminar permanentemente este dashboard",
       "line": "Línea",
       "bars": "Barras",
@@ -1776,6 +1780,10 @@
         "loading": "Cargando...",
         "error": "Error: {message}",
         "noData": "Sin datos"
+      },
+      "geographic_map": {
+        "name": "Mapa Geográfico",
+        "description": "Mapa interactivo con marcadores de posición y filtros"
       }
     },
     "defaults": {

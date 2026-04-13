@@ -85,6 +85,55 @@ export function getLayoutDefaults(
 }
 
 // ============================================================================
+// Color Normalization
+// ============================================================================
+
+const DEFAULT_BORDER_COLOR = "#6b7280";
+
+/** Known color token names mapped to their hex values */
+const COLOR_TOKEN_MAP: Record<string, string> = {
+  gray: "#6b7280",
+  red: "#ef4444",
+  green: "#22c55e",
+  blue: "#3b82f6",
+  yellow: "#eab308",
+  purple: "#a855f7",
+  orange: "#f97316",
+};
+
+/** Validates if a string is a valid 3 or 6 character hex color (without #) */
+function isValidHex(value: string): boolean {
+  return /^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(value);
+}
+
+/**
+ * Normalizes a border color value to a valid CSS hex color.
+ * Handles legacy formats: color tokens, hex with/without #, whitespace.
+ */
+function normalizeBorderColor(value: string | undefined): string {
+  if (!value) return DEFAULT_BORDER_COLOR;
+
+  const trimmed = value.trim();
+  if (!trimmed) return DEFAULT_BORDER_COLOR;
+
+  // Already a valid CSS color with #
+  if (trimmed.startsWith("#")) {
+    const hex = trimmed.slice(1);
+    return isValidHex(hex) ? trimmed : DEFAULT_BORDER_COLOR;
+  }
+
+  // Check if it's a known color token
+  const tokenColor = COLOR_TOKEN_MAP[trimmed.toLowerCase()];
+  if (tokenColor) return tokenColor;
+
+  // Assume it's a hex value without # prefix
+  if (isValidHex(trimmed)) return `#${trimmed}`;
+
+  // Invalid value, use default
+  return DEFAULT_BORDER_COLOR;
+}
+
+// ============================================================================
 // Helper Components
 // ============================================================================
 
@@ -281,8 +330,8 @@ export function Dashlet({
     }
   };
 
-  // Get border color for labeled-group (hex value)
-  const borderColorHex = config.borderColor ?? "6b7280";
+  // Get normalized border color for labeled-group
+  const borderColor = normalizeBorderColor(config.borderColor);
 
   // Background color for label depends on context
   const labelBgClass = isRoot
@@ -401,7 +450,7 @@ export function Dashlet({
   return (
     <div
       className="relative flex flex-col rounded-lg border pt-1 h-full"
-      style={{ borderColor: `#${borderColorHex}` }}
+      style={{ borderColor }}
     >
       {/* Label that cuts into border (fieldset-legend style) */}
       <span

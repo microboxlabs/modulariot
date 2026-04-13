@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, ToggleSwitch, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
@@ -21,6 +21,14 @@ export function DashletSettings({
   const [showStyleSelector, setShowStyleSelector] = useState(
     config.showStyleSelector ?? true
   );
+
+  // Reset state from config when drawer opens or config changes
+  useEffect(() => {
+    if (isOpen) {
+      setShowFilters(config.showFilters ?? true);
+      setShowStyleSelector(config.showStyleSelector ?? true);
+    }
+  }, [isOpen, config.showFilters, config.showStyleSelector]);
 
   const handleSave = () => {
     onSave({

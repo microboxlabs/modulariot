@@ -882,27 +882,27 @@ export default function DashboardSettingsDropdown() {
       .then(() => {
         ShowNotification({
           type: "success",
-          message: "Dashboard copied to clipboard",
+          message: tr("dashboard.settings.copySuccess", dictionary),
         });
       })
       .catch((error) => {
         console.error("Failed to copy to clipboard:", error);
         ShowNotification({
           type: "error",
-          message: "Failed to copy dashboard to clipboard",
+          message: tr("dashboard.settings.copyError", dictionary),
         });
       });
-  }, [exportDashboard]);
+  }, [exportDashboard, dictionary]);
 
   const handleSaveName = useCallback(
     (name: string) => {
       setDashboardName(name);
       ShowNotification({
         type: "success",
-        message: "Dashboard renamed successfully",
+        message: tr("dashboard.settings.renameSuccess", dictionary),
       });
     },
-    [setDashboardName]
+    [setDashboardName, dictionary]
   );
 
   const handleDeleteClick = useCallback(() => {

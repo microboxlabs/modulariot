@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "flowbite-react";
-import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsDrawer } from "./settings-drawer";
 import { RefreshIntervalSelect } from "./refresh-interval-select";
+import { SettingsTabButton } from "./settings-tab-button";
 
 type SettingsTab = "visualization" | "data";
 
@@ -40,16 +40,7 @@ export function SettingsModalShell({
   title,
 }: Readonly<SettingsModalShellProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
-
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
-
-  const tabClass = (tab: SettingsTab) =>
-    twMerge(
-      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-      activeTab === tab
-        ? "border-blue-500 text-blue-600 dark:text-blue-400"
-        : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-    );
 
   return (
     <SettingsDrawer
@@ -61,20 +52,18 @@ export function SettingsModalShell({
       <div className="flex h-full flex-col gap-3">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <button
-            type="button"
+          <SettingsTabButton
+            active={activeTab === "visualization"}
             onClick={() => setActiveTab("visualization")}
-            className={tabClass("visualization")}
           >
             {tr("dashboard.settings.visualization", dictionary)}
-          </button>
-          <button
-            type="button"
+          </SettingsTabButton>
+          <SettingsTabButton
+            active={activeTab === "data"}
             onClick={() => setActiveTab("data")}
-            className={tabClass("data")}
           >
             {tr("dashboard.settings.dataProvider", dictionary)}
-          </button>
+          </SettingsTabButton>
         </div>
 
         {/* Scrollable content */}

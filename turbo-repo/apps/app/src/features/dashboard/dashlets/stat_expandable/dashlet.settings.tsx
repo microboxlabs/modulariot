@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SimpleDashletSettings, getHandlebarsStatus, getFlowbiteColor } from "../common";
+import { SimpleDashletSettings, getHandlebarsStatus, getFlowbiteColor, DeleteItemButton } from "../common";
 
 interface DetailWithId {
   id: string;
@@ -91,15 +91,10 @@ export function DashletSettings(
                 className="flex-1"
                 color={getFlowbiteColor(getHandlebarsStatus(d.value))}
               />
-              <Button
-                size="xs"
-                color="failure"
+              <DeleteItemButton
                 onClick={() => removeDetail(d.id)}
-                onMouseDown={handleMouseDown}
-                className="no-drag"
-              >
-                <HiTrash className="h-3 w-3" />
-              </Button>
+                ariaLabel="Delete detail"
+              />
             </div>
           ))}
         </div>

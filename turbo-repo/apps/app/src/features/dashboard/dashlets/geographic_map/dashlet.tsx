@@ -7,10 +7,8 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import {
   useMapPositions,
-  useMapPositionsResume,
 } from "@/features/common/providers/client-api.provider";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer_clustered";
-import SideBar from "@/features/geographic-view/components/side-bar/side-bar";
 import Filters from "@/features/geographic-view/components/filters";
 import MapTooltip from "@/features/geographic-view/components/map-tooltip";
 import PinTooltip from "@/features/geographic-view/components/tooltips/pin-tooltip";
@@ -18,7 +16,6 @@ import MapStyleSelector from "@/features/geographic-view/components/map-style-se
 import {
   MapPosition,
   MapPositionProperties,
-  MapPositionResume,
 } from "@/features/geographic-view/types/map";
 import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
 import {
@@ -35,14 +32,12 @@ import { Spinner } from "flowbite-react";
 /** Configuration for this dashlet */
 export interface DashletConfig {
   showFilters: boolean;
-  showSidebar: boolean;
   showStyleSelector: boolean;
 }
 
 /** Default configuration */
 export const defaultConfig: DashletConfig = {
   showFilters: true,
-  showSidebar: true,
   showStyleSelector: true,
 };
 
@@ -106,19 +101,15 @@ function MapLoadingSkeleton() {
 
 interface MapContentProps {
   mapPositions: MapPosition[] | null;
-  mapPositionsResume: MapPositionResume;
   isLoading: boolean;
   showFilters: boolean;
-  showSidebar: boolean;
   showStyleSelector: boolean;
 }
 
 function MapContent({
   mapPositions,
-  mapPositionsResume,
   isLoading,
   showFilters,
-  showSidebar,
   showStyleSelector,
 }: Readonly<MapContentProps>) {
   const { dictionary } = useDashboard();
@@ -253,17 +244,6 @@ function MapContent({
           </div>
         </div>
       )}
-      {showSidebar && (
-        <div className="absolute right-0 top-0 bottom-0 pointer-events-none">
-          {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
-            <SideBar
-              dict={dictionary}
-              mapPositionsResume={mapPositionsResume}
-              mapPositions={mapPositions || []}
-            />
-          )}
-        </div>
-      )}
       {hoverInfo && (
         <MapTooltip
           left={hoverInfo.x}
@@ -284,17 +264,15 @@ function MapContent({
 /**
  * Geographic Map Dashlet
  *
- * Displays an interactive map with position markers, filters, and sidebar.
+ * Displays an interactive map with position markers and filters.
  * In edit mode, an overlay is shown to allow moving the widget.
  */
 export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const showFilters = config.showFilters ?? true;
-  const showSidebar = config.showSidebar ?? true;
   const showStyleSelector = config.showStyleSelector ?? true;
 
   const { positions: mapPositions, isLoading, error } = useMapPositions();
-  const { data: mapPositionsResume } = useMapPositionsResume();
 
   if (error) {
     console.error("Map dashlet error:", error);
@@ -308,10 +286,8 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
       ) : (
         <MapContent
           mapPositions={mapPositions}
-          mapPositionsResume={mapPositionsResume as MapPositionResume}
           isLoading={isLoading}
           showFilters={showFilters}
-          showSidebar={showSidebar}
           showStyleSelector={showStyleSelector}
         />
       )}

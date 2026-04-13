@@ -2,8 +2,8 @@
  * Geographic Map Dashlet Module
  *
  * Exports the complete dashlet definition for the geographic map.
- * This dashlet displays an interactive map with position markers,
- * filters, and sidebar controls.
+ * This dashlet displays an interactive map with position markers
+ * and filters.
  */
 
 import type { DashletDefinition } from "../types";

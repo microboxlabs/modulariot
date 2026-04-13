@@ -18,7 +18,6 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [showFilters, setShowFilters] = useState(config.showFilters ?? true);
-  const [showSidebar, setShowSidebar] = useState(config.showSidebar ?? true);
   const [showStyleSelector, setShowStyleSelector] = useState(
     config.showStyleSelector ?? true
   );
@@ -26,7 +25,6 @@ export function DashletSettings({
   const handleSave = () => {
     onSave({
       showFilters,
-      showSidebar,
       showStyleSelector,
     });
     onClose();
@@ -55,21 +53,6 @@ export function DashletSettings({
             id="show-filters"
             checked={showFilters}
             onChange={setShowFilters}
-          />
-        </div>
-
-        {/* Show Sidebar Toggle */}
-        <div className="flex items-center justify-between">
-          <Label
-            htmlFor="show-sidebar"
-            className="text-sm text-gray-700 dark:text-gray-300"
-          >
-            {tr("dashboard.settings.showSidebar", dictionary) || "Show Sidebar"}
-          </Label>
-          <ToggleSwitch
-            id="show-sidebar"
-            checked={showSidebar}
-            onChange={setShowSidebar}
           />
         </div>
 

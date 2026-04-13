@@ -10,7 +10,7 @@ import type { DashletMeta } from "../types";
 export const dashletMeta: DashletMeta = {
   id: "geographic_map",
   name: "Geographic Map",
-  description: "Interactive map with position markers, filters, and sidebar",
+  description: "Interactive map with position markers and filters",
   icon: HiGlobeAlt,
   category: "data-display",
   canNestIn: [],

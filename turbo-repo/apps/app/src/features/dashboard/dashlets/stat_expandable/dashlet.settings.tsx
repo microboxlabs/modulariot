@@ -5,7 +5,12 @@ import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SimpleDashletSettings, getHandlebarsStatus, getFlowbiteColor, DeleteItemButton } from "../common";
+import {
+  SimpleDashletSettings,
+  getHandlebarsStatus,
+  getFlowbiteColor,
+  DeleteItemButton,
+} from "../common";
 
 interface DetailWithId {
   id: string;
@@ -14,13 +19,31 @@ interface DetailWithId {
 }
 
 const FIELDS = [
-  { id: "se-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Conversion Rate" },
-  { id: "se-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.rate}}", staticPlaceholder: "3.24" },
-  { id: "se-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
+  {
+    id: "se-title",
+    labelKey: "common.title",
+    state: "title",
+    hbPlaceholder: "{{row.label}}",
+    staticPlaceholder: "Conversion Rate",
+  },
+  {
+    id: "se-value",
+    labelKey: "common.value",
+    state: "value",
+    hbPlaceholder: "{{row.rate}}",
+    staticPlaceholder: "3.24",
+  },
+  {
+    id: "se-unit",
+    labelKey: "common.unit",
+    state: "unit",
+    hbPlaceholder: "{{row.unit}}",
+    staticPlaceholder: "%",
+  },
 ] as const;
 
 export function DashletSettings(
-  props: Readonly<DashletSettingsProps<DashletConfig>>,
+  props: Readonly<DashletSettingsProps<DashletConfig>>
 ) {
   const { config } = props;
 

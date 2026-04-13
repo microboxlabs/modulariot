@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
-import { HiCog, HiDatabase } from "react-icons/hi";
+import { HiCog, HiDatabase, HiOfficeBuilding } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
 const navItems = [
   { key: "general", href: "/users/settings", icon: HiCog, labelKey: "general" },
+  { key: "organizations", href: "/users/settings/organizations", icon: HiOfficeBuilding, labelKey: "organizations" },
   { key: "data-sources", href: "/users/settings/data-sources", icon: HiDatabase, labelKey: "dataSources" },
 ];
 

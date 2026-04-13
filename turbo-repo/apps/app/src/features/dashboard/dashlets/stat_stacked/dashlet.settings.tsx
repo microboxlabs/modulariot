@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus } from "react-icons/hi2";
-import { twMerge } from "tailwind-merge"
+import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType } from "./dashlet";
 import {

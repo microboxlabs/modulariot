@@ -62,7 +62,10 @@ import {
 } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
-import { DashletTitleBar } from "@/features/dashboard/dashlets/common/dashlet-title-bar";
+import {
+  DashletTitleBar,
+  buildTitleBarData,
+} from "@/features/dashboard/dashlets/common/dashlet-title-bar";
 
 export interface DashletConfig {
   title: string;
@@ -261,15 +264,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     displayRows.length
   );
 
+  // ── Title bar data ──────────────────────────────────────────────────────────
+  const titleBarData = buildTitleBarData({
+    title, showRowCount, showExport, columns,
+    displayRows, resolveValue, resolveLabel, dictionary,
+  });
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
 
   return (
     <div className="flex h-full flex-col gap-3">
       <DashletTitleBar
-        title={title}
-        showRowCount={showRowCount}
-        showExport={showExport}
+        {...titleBarData}
         rowCountLabel={tr(
           displayRows.length === 1
             ? "dashboard.settings.totalItemsSingular"
@@ -277,11 +284,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           dictionary,
           { count: String(displayRows.length) }
         )}
-        columns={columns}
-        displayRows={displayRows}
-        resolveValue={resolveValue}
-        resolveLabel={resolveLabel}
-        dictionary={dictionary}
       />
 
       {/* Filter cards */}

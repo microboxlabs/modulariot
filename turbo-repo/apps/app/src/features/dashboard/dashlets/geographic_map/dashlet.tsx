@@ -22,6 +22,8 @@ import {
 } from "@/features/map-visualization/map-view-utils";
 import type { MapRef } from "react-map-gl";
 import { Spinner } from "flowbite-react";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 // ============================================================================
 // Configuration Types
@@ -57,15 +59,19 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Edit Mode Overlay Component
 // ============================================================================
 
-function EditModeOverlay() {
+interface EditModeOverlayProps {
+  dictionary: I18nRecord;
+}
+
+function EditModeOverlay({ dictionary }: Readonly<EditModeOverlayProps>) {
   return (
-    <div className="absolute inset-0 z-[55] flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+    <div className="absolute inset-0 z-55 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
       <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 pointer-events-none">
         <p className="text-lg font-semibold text-gray-900 dark:text-white">
-          Edit Mode
+          {tr("dashboard.editMode", dictionary)}
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Drag to move this widget
+          {tr("dashboard.dragToMoveWidget", dictionary)}
         </p>
       </div>
     </div>
@@ -266,10 +272,15 @@ function MapContent({
  * In edit mode, an overlay is shown to allow moving the widget.
  */
 export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
-  const config = widget.config as unknown as DashletConfig;
-  const showFilters = config.showFilters ?? true;
-  const showStyleSelector = config.showStyleSelector ?? true;
+  // Merge widget.config with defaultConfig to ensure safe access
+  const config: DashletConfig = {
+    ...defaultConfig,
+    ...(widget.config as unknown as Partial<DashletConfig>),
+  };
+  const showFilters = config.showFilters;
+  const showStyleSelector = config.showStyleSelector;
 
+  const { dictionary } = useDashboard();
   const { positions: mapPositions, isLoading, error } = useMapPositions();
 
   if (error) {
@@ -289,7 +300,7 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
           showStyleSelector={showStyleSelector}
         />
       )}
-      {editMode && <EditModeOverlay />}
+      {editMode && <EditModeOverlay dictionary={dictionary} />}
     </div>
   );
 }

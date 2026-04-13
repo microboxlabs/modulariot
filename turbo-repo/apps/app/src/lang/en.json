@@ -1468,6 +1468,7 @@
   },
   "dashboard": {
     "editMode": "Edit Mode",
+    "dragToMoveWidget": "Drag to move this widget",
     "kioskMode": "Kiosk Mode",
     "landing": {
       "title": "Dashboards",
@@ -1662,6 +1663,9 @@
       "orderDescription": "Set the sidebar position. Lower numbers appear first.",
       "orderUpdated": "Display order updated",
       "orderInvalid": "Please enter a valid non-negative number",
+      "copySuccess": "Dashboard copied to clipboard",
+      "copyError": "Failed to copy dashboard to clipboard",
+      "renameSuccess": "Dashboard renamed successfully",
       "deleteDescription": "Permanently remove this dashboard",
       "chartType": "Chart Type",
       "line": "Line",
@@ -1751,6 +1755,10 @@
         "loading": "Loading...",
         "error": "Error: {message}",
         "noData": "No data"
+      },
+      "geographic_map": {
+        "name": "Geographic Map",
+        "description": "Interactive map with position markers and filters"
       }
     },
     "defaults": {

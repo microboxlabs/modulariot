@@ -1634,6 +1634,7 @@
       "addParameter": "Agregar parámetro",
       "totalItems": "{count} elementos",
       "totalItemsSingular": "{count} elemento",
+      "sortBy": "Ordenar por:",
       "exportCsv": "Exportar CSV",
       "showExport": "Mostrar exportación",
       "staticJson": "Estático (JSON)",

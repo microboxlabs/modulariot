@@ -299,7 +299,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {/* Sort card */}
       {sort.enabled && (
         <SortPillRow
-          label="Ordenar por:"
+          label={tr("dashboard.settings.sortBy", dictionary)}
           columns={validSortColumns}
           sortKey={sortKey}
           sortDir={sortDir}

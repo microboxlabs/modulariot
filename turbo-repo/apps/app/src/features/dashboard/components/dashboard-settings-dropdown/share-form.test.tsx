@@ -51,7 +51,7 @@ vi.mock("jspdf", () => {
 });
 
 // Import after mocks
-const { ShareForm } = await import("./share-form");
+const { ShareForm, sanitizeBaseName } = await import("./share-form");
 
 // ── Setup ──────────────────────────────────────────────────────────────────
 
@@ -289,5 +289,49 @@ describe("ShareForm", () => {
 
       document.body.removeChild(gridEl);
     });
+  });
+});
+
+// ============================================================================
+// sanitizeBaseName
+// ============================================================================
+
+describe("sanitizeBaseName", () => {
+  it("replaces whitespace with underscores", () => {
+    expect(sanitizeBaseName("My Dashboard")).toBe("My_Dashboard");
+  });
+
+  it("strips filesystem-unsafe characters", () => {
+    expect(sanitizeBaseName('a/b\\c:d*e?f"g<h>i|j')).toBe("abcdefghij");
+  });
+
+  it("strips control characters", () => {
+    expect(sanitizeBaseName("abc\x00\x1fdef")).toBe("abcdef");
+  });
+
+  it("collapses consecutive underscores", () => {
+    expect(sanitizeBaseName("a___b")).toBe("a_b");
+  });
+
+  it("collapses whitespace then underscores together", () => {
+    expect(sanitizeBaseName("a  _  b")).toBe("a_b");
+  });
+
+  it("trims leading dots and underscores", () => {
+    expect(sanitizeBaseName("..._name")).toBe("name");
+  });
+
+  it("trims trailing dots and underscores", () => {
+    expect(sanitizeBaseName("name_..")).toBe("name");
+  });
+
+  it("returns 'dashboard' for empty input after sanitization", () => {
+    expect(sanitizeBaseName("")).toBe("dashboard");
+    expect(sanitizeBaseName("???")).toBe("dashboard");
+    expect(sanitizeBaseName("...")).toBe("dashboard");
+  });
+
+  it("handles a realistic dashboard name", () => {
+    expect(sanitizeBaseName("Fleet Status / Q2 2025")).toBe("Fleet_Status_Q2_2025");
   });
 });

@@ -9,6 +9,21 @@ import { ShowNotification } from "@/features/notifications/notification";
 /** CSS selector for the dashboard content area to capture */
 const DASHBOARD_CAPTURE_SELECTOR = ".dashboard-root-grid";
 
+/**
+ * Sanitize a user-provided name for use as a download filename base.
+ * Strips filesystem/URI-unsafe characters, collapses runs of whitespace
+ * and underscores, and trims leading/trailing dots and underscores.
+ */
+export function sanitizeBaseName(name: string): string {
+  return name
+    .replaceAll(/[/\\:*?"<>|\x00-\x1f]/g, "")  // strip unsafe chars + control chars
+    .replaceAll(/\s+/g, "_")                     // whitespace → underscore
+    .replaceAll(/_+/g, "_")                       // collapse consecutive underscores
+    .replace(/^[._]+/, "")                        // trim leading dots/underscores
+    .replace(/[._]+$/, "")                        // trim trailing dots/underscores
+    || "dashboard";                               // fallback if empty after sanitization
+}
+
 export interface ShareFormProps {
   dashboardName: string;
   onClose: () => void;
@@ -53,7 +68,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
       if (!canvas) return;
 
       const link = document.createElement("a");
-      link.download = `${dashboardName.replaceAll(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -113,7 +128,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
         pdf.addImage(imgData, "PNG", margin, imgY, finalWidth, finalHeight);
       }
 
-      pdf.save(`${dashboardName.replaceAll(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      pdf.save(`${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.pdf`);
       ShowNotification({ type: "success", message: "PDF downloaded" });
       onClose();
     } catch {

@@ -15,13 +15,18 @@ const DASHBOARD_CAPTURE_SELECTOR = ".dashboard-root-grid";
  * and underscores, and trims leading/trailing dots and underscores.
  */
 export function sanitizeBaseName(name: string): string {
-  return name
+  let result = name
     .replaceAll(/[/\\:*?"<>|\x00-\x1f]/g, "")  // strip unsafe chars + control chars
     .replaceAll(/\s+/g, "_")                     // whitespace → underscore
-    .replaceAll(/_+/g, "_")                       // collapse consecutive underscores
-    .replace(/^[._]+/, "")                        // trim leading dots/underscores
-    .replace(/[._]+$/, "")                        // trim trailing dots/underscores
-    || "dashboard";                               // fallback if empty after sanitization
+    .replaceAll(/_+/g, "_");                      // collapse consecutive underscores
+
+  // trim leading and trailing dots/underscores without backtracking-prone regex
+  let start = 0;
+  while (start < result.length && (result[start] === "." || result[start] === "_")) start++;
+  let end = result.length;
+  while (end > start && (result[end - 1] === "." || result[end - 1] === "_")) end--;
+
+  return result.slice(start, end) || "dashboard"; // fallback if empty after sanitization
 }
 
 export interface ShareFormProps {

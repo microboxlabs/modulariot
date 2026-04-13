@@ -1109,7 +1109,29 @@
       "breadcrumb": {
         "user": "Usuario",
         "settings": "Ajustes",
-        "dataSources": "Fuentes de Datos"
+        "dataSources": "Fuentes de Datos",
+        "organizations": "Organizaciones"
+      },
+      "organizations": {
+        "title": "Organizaciones",
+        "description": "Revisa tus membresías de organización, los módulos habilitados y los usuarios de Alfresco asignados a cada una.",
+        "listTitle": "Mis organizaciones",
+        "empty": "No hay organizaciones disponibles",
+        "loading": "Cargando…",
+        "loadError": "No se pudieron cargar los datos desde el backend",
+        "noSelection": "Selecciona una organización para ver su detalle",
+        "parentAccount": "Cuenta principal",
+        "membersTitle": "Miembros",
+        "membersDescription": "Usuarios que pertenecen al grupo de Alfresco de esta organización.",
+        "membersEmpty": "No se encontraron miembros",
+        "modulesTitle": "Módulos habilitados",
+        "modulesDescription": "Módulos de producto a los que esta organización tiene acceso.",
+        "modulesEmpty": "No hay módulos habilitados para esta organización",
+        "moduleNames": {
+          "FLEET_MANAGEMENT": "Gestión de flota",
+          "DASHBOARDS": "Dashboards",
+          "COLLABORATORS_MANAGEMENT": "Colaboradores"
+        }
       },
       "symptoms": {
         "config": {
@@ -1196,6 +1218,7 @@
       "settingsNav": {
         "title": "Ajustes",
         "general": "General",
+        "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos"
       }
     },

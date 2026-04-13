@@ -25,10 +25,11 @@ const mockCanvas = {
   width: 1200,
   height: 600,
 };
-const mockHtml2canvas = vi.fn(() => Promise.resolve(mockCanvas));
+type MockCanvas = typeof mockCanvas;
+const mockHtml2canvas = vi.fn((_el: HTMLElement, _opts?: Record<string, unknown>): Promise<MockCanvas> => Promise.resolve(mockCanvas));
 
 vi.mock("html2canvas-pro", () => ({
-  default: (...args: unknown[]) => mockHtml2canvas(...args),
+  default: (...args: [HTMLElement, Record<string, unknown>]) => mockHtml2canvas(...args),
 }));
 
 // Mock jspdf — dynamically imported
@@ -172,8 +173,8 @@ describe("ShareForm", () => {
 
   describe("exporting UI states", () => {
     it("shows 'Capturing...' and disables buttons while exporting image", async () => {
-      let resolveCapture: ((v: unknown) => void) | undefined;
-      const pendingPromise = new Promise((resolve) => { resolveCapture = resolve; });
+      let resolveCapture: ((v: MockCanvas) => void) | undefined;
+      const pendingPromise = new Promise<MockCanvas>((resolve) => { resolveCapture = resolve; });
       mockHtml2canvas.mockReturnValueOnce(pendingPromise);
 
       const gridEl = document.createElement("div");
@@ -199,8 +200,8 @@ describe("ShareForm", () => {
     });
 
     it("shows 'Generating...' and disables buttons while exporting PDF", async () => {
-      let resolveCapture: ((v: unknown) => void) | undefined;
-      const pendingPromise = new Promise((resolve) => { resolveCapture = resolve; });
+      let resolveCapture: ((v: MockCanvas) => void) | undefined;
+      const pendingPromise = new Promise<MockCanvas>((resolve) => { resolveCapture = resolve; });
       mockHtml2canvas.mockReturnValueOnce(pendingPromise);
 
       const gridEl = document.createElement("div");

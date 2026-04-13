@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type {
   DashletComponentProps,
   DashletLayoutDefaults,
@@ -18,6 +17,7 @@ import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers"
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
+import { SortPillRow } from "@/features/dashboard/dashlets/common/sort-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
@@ -251,13 +251,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     handleSortClick,
   } = useFilterAndSort(filter, sort, allRows, columns);
 
-  const getSortIcon = (dir: "asc" | "desc") =>
-    dir === "asc" ? (
-      <HiArrowUp className="h-3 w-3" />
-    ) : (
-      <HiArrowDown className="h-3 w-3" />
-    );
-
   // ── Handlebars template compilation ────────────────────────────────────────
   const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(
     columns,
@@ -305,21 +298,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         })}
 
       {/* Sort card */}
-      {sort.enabled && validSortColumns.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            Ordenar por:
-          </span>
-          {validSortColumns.map((key) => (
-            <Pill
-              key={key}
-              label={getColumnLabel(key)}
-              active={sortKey === key}
-              onClick={() => handleSortClick(key)}
-              icon={sortKey === key ? getSortIcon(sortDir) : undefined}
-            />
-          ))}
-        </div>
+      {sort.enabled && (
+        <SortPillRow
+          label="Ordenar por:"
+          columns={validSortColumns}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          getColumnLabel={getColumnLabel}
+          onSortClick={handleSortClick}
+        />
       )}
 
       {/* Table card */}

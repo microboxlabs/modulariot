@@ -1608,6 +1608,8 @@
       "addParameter": "Add parameter",
       "totalItems": "{count} items",
       "totalItemsSingular": "{count} item",
+      "exportCsv": "Export CSV",
+      "showExport": "Show export",
       "staticJson": "Static (JSON)",
       "pgrest": "PGREST",
       "dynamicApi": "Dynamic (API)",

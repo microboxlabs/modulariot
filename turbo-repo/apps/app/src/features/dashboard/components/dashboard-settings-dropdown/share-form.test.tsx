@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +71,12 @@ beforeEach(() => {
     writable: true,
     configurable: true,
   });
+});
+
+afterEach(() => {
+  cleanup();
+  // Remove any leftover grid elements
+  document.querySelectorAll(".dashboard-root-grid").forEach((el) => el.remove());
 });
 
 // ============================================================================
@@ -186,8 +192,11 @@ describe("ShareForm", () => {
       const pdfButton = screen.getByText("Download as PDF").closest("button")!;
       expect(pdfButton).toBeDisabled();
 
+      // Resolve and wait for state to settle before teardown
       resolveCapture(mockCanvas);
-      document.body.removeChild(gridEl);
+      await waitFor(() => {
+        expect(screen.getByText("Download as image")).toBeInTheDocument();
+      });
     });
 
     it("shows 'Generating...' and disables buttons while exporting PDF", async () => {
@@ -210,8 +219,11 @@ describe("ShareForm", () => {
       const imageButton = screen.getByText("Download as image").closest("button")!;
       expect(imageButton).toBeDisabled();
 
+      // Resolve and wait for state to settle before teardown
       resolveCapture(mockCanvas);
-      document.body.removeChild(gridEl);
+      await waitFor(() => {
+        expect(screen.getByText("Download as PDF")).toBeInTheDocument();
+      });
     });
   });
 

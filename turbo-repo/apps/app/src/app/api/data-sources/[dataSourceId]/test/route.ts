@@ -70,12 +70,19 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     }
 
     const now = new Date().toISOString();
-    await updateDataSource(session, {
+    const updatePayload: Record<string, unknown> = {
       nodeRef: dataSourceId,
       site: siteId,
       lastTestedAt: now,
       lastTestResult: success,
-    });
+    };
+
+    // Persist the detected token request format so future calls skip the fallback
+    if (success && bearerResult.detectedFormat) {
+      updatePayload.config = { tokenRequestFormat: bearerResult.detectedFormat };
+    }
+
+    await updateDataSource(session, updatePayload);
 
     return NextResponse.json({
       success,

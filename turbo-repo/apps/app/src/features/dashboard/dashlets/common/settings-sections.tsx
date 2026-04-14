@@ -8,8 +8,9 @@ import {
   TextInput,
   Select,
 } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import type { ColumnItem } from "./column-helpers";
+import { DeleteItemButton } from "./delete-item-button";
 import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
 import type { DataMode } from "./column-types";
@@ -18,9 +19,9 @@ import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
-import { getColorDotClass } from "./color-rule-engine";
+import type { ColorRuleOperator } from "./color-rule-types";
+import { COLOR_RULE_PRESETS, COLOR_RULE_OPERATORS } from "./color-rule-types";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import type { ActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
 import { RuleRowControls } from "./rule-row-controls";
@@ -60,7 +61,6 @@ interface ColumnEditorProps {
     addMapping: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
-    colorLabels: Record<RuleColor, string>;
   };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
@@ -122,14 +122,10 @@ export function ColumnEditor({
                   color={getFlowbiteColor(getHandlebarsStatus(col.type))}
                 />
               </div>
-              <button
-                type="button"
+              <DeleteItemButton
                 onClick={() => onRemove(col._id)}
-                onMouseDown={stopPropagation}
-                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-              >
-                <HiTrash className="h-4 w-4" />
-              </button>
+                ariaLabel="Delete column"
+              />
             </div>
 
             {/* Inline badge color map */}
@@ -155,6 +151,7 @@ export function ColumnEditor({
                               e.target.value
                             )
                           }
+                          className="[&>select]:cursor-pointer"
                         >
                           {COLOR_RULE_OPERATORS.map((op) => (
                             <option key={op} value={op}>
@@ -178,37 +175,25 @@ export function ColumnEditor({
                           }
                         />
                       </div>
-                      <div className="w-24 shrink-0">
-                        <Select
-                          sizing="sm"
-                          value={mapping.color}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "color",
-                              e.target.value
-                            )
-                          }
-                        >
-                          {RULE_COLORS.map((c) => (
-                            <option key={c} value={c}>
-                              {labels.colorLabels[c]}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <span
-                        className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`}
+                      <AdvancedColorPicker
+                        value={mapping.color}
+                        onChange={(newColor) =>
+                          onUpdateColorMapping?.(
+                            col._id,
+                            mapping._id!,
+                            "color",
+                            newColor
+                          )
+                        }
+                        presets={COLOR_RULE_PRESETS}
+                        title="Select mapping color"
                       />
-                      <button
-                        type="button"
-                        onClick={() => onRemoveColorMapping(col._id, mapping._id!)}
-                        onMouseDown={stopPropagation}
-                        className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                      >
-                        <HiTrash className="h-4 w-4" />
-                      </button>
+                      <DeleteItemButton
+                        onClick={() =>
+                          onRemoveColorMapping(col._id, mapping._id!)
+                        }
+                        ariaLabel="Delete color mapping"
+                      />
                     </div>
                   ))}
                   <Button
@@ -304,6 +289,7 @@ export function FilterEditor({
                       onChange={(e) =>
                         onUpdate(fi._id, "column", e.target.value)
                       }
+                      className="[&>select]:cursor-pointer"
                     >
                       {columnsWithKeys.map((c) => (
                         <option key={c._id} value={c.key}>
@@ -312,14 +298,10 @@ export function FilterEditor({
                       ))}
                     </Select>
                   </div>
-                  <button
-                    type="button"
+                  <DeleteItemButton
                     onClick={() => onRemove(fi._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                  >
-                    <HiTrash className="h-4 w-4" />
-                  </button>
+                    ariaLabel="Delete filter"
+                  />
                 </div>
               ))}
             </div>
@@ -525,7 +507,6 @@ interface ColorRuleEditorProps {
     addRule: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
-    colorLabels: Record<RuleColor, string>;
   };
 }
 
@@ -562,6 +543,7 @@ export function ColorRuleEditor({
                       onChange={(e) =>
                         onUpdate(rule._id, "column", e.target.value)
                       }
+                      className="[&>select]:cursor-pointer"
                     >
                       {columnsWithKeys.map((c) => (
                         <option key={c._id} value={c.key}>
@@ -578,7 +560,6 @@ export function ColorRuleEditor({
                     onUpdate={onUpdate}
                     onRemove={onRemove}
                     operatorLabels={labels.operatorLabels}
-                    colorLabels={labels.colorLabels}
                     valuePlaceholder={labels.valuePlaceholder}
                   />
                 </div>
@@ -676,6 +657,7 @@ export function ActionsEditor({
                             e.target.value as ActionTarget
                           )
                         }
+                        className="[&>select]:cursor-pointer"
                       >
                         <option value="_blank">
                           {labels.actionTargetBlank}
@@ -683,14 +665,10 @@ export function ActionsEditor({
                         <option value="_self">{labels.actionTargetSelf}</option>
                       </Select>
                     </div>
-                    <button
-                      type="button"
+                    <DeleteItemButton
                       onClick={() => onRemove(item._id)}
-                      onMouseDown={stopPropagation}
-                      className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                    >
-                      <HiTrash className="h-4 w-4" />
-                    </button>
+                      ariaLabel="Delete action"
+                    />
                   </div>
                   <div>
                     <TextInput

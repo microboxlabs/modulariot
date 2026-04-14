@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SimpleDashletSettings, getHandlebarsStatus, getFlowbiteColor } from "../common";
+import {
+  SimpleDashletSettings,
+  getHandlebarsStatus,
+  getFlowbiteColor,
+  DeleteItemButton,
+} from "../common";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { tr } from "@/features/i18n/tr.service";
 
 interface DetailWithId {
   id: string;
@@ -14,15 +21,33 @@ interface DetailWithId {
 }
 
 const FIELDS = [
-  { id: "se-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Conversion Rate" },
-  { id: "se-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.rate}}", staticPlaceholder: "3.24" },
-  { id: "se-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "%" },
+  {
+    id: "se-title",
+    labelKey: "common.title",
+    state: "title",
+    hbPlaceholder: "{{row.label}}",
+    staticPlaceholder: "Conversion Rate",
+  },
+  {
+    id: "se-value",
+    labelKey: "common.value",
+    state: "value",
+    hbPlaceholder: "{{row.rate}}",
+    staticPlaceholder: "3.24",
+  },
+  {
+    id: "se-unit",
+    labelKey: "common.unit",
+    state: "unit",
+    hbPlaceholder: "{{row.unit}}",
+    staticPlaceholder: "%",
+  },
 ] as const;
 
 export function DashletSettings(
-  props: Readonly<DashletSettingsProps<DashletConfig>>,
+  props: Readonly<DashletSettingsProps<DashletConfig>>
 ) {
-  const { config } = props;
+  const { config, dictionary } = props;
 
   const initializeDetails = (): DetailWithId[] => {
     const defaultDetails = [
@@ -36,6 +61,7 @@ export function DashletSettings(
   };
 
   const [details, setDetails] = useState(initializeDetails);
+  const [valueColor, setValueColor] = useState(config.valueColor ?? "");
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -57,9 +83,22 @@ export function DashletSettings(
       thresholds
       extraSaveFields={{
         details: details.map(({ label, value }) => ({ label, value })),
+        valueColor,
       }}
       extraVisualization={
         <div className="space-y-2">
+          {/* Value color picker */}
+          <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+            <Label className="text-sm font-medium">
+              {tr("dashboard.settings.valueColor", dictionary)}
+            </Label>
+            <AdvancedColorPicker
+              value={valueColor}
+              onChange={setValueColor}
+              title={tr("dashboard.settings.selectColor", dictionary)}
+            />
+          </div>
+          {/* Expandable Details */}
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Expandable Details</Label>
             <Button
@@ -91,15 +130,10 @@ export function DashletSettings(
                 className="flex-1"
                 color={getFlowbiteColor(getHandlebarsStatus(d.value))}
               />
-              <Button
-                size="xs"
-                color="failure"
+              <DeleteItemButton
                 onClick={() => removeDetail(d.id)}
-                onMouseDown={handleMouseDown}
-                className="no-drag"
-              >
-                <HiTrash className="h-3 w-3" />
-              </Button>
+                ariaLabel="Delete detail"
+              />
             </div>
           ))}
         </div>

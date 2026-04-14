@@ -20,6 +20,8 @@ export interface DashletConfig extends PgrestDashletFields {
   unit: string;
   description: string;
   target: string;
+  /** Custom color for the value text (hex without #) */
+  valueColor?: string;
   thresholds?: ThresholdConfig;
 }
 
@@ -76,6 +78,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const title = resolved.title || "Monthly Revenue";
   const unit = resolved.unit ?? "$";
   const description = resolved.description || "";
+  const valueColor = config.valueColor;
 
   const value = parseResolvedNumber(resolved.value);
   const previousValue = parseResolvedNumber(resolved.previousValue);
@@ -94,7 +97,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {title}
           </p>
-          <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
+          <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : (valueColor ? '' : "text-gray-900 dark:text-white")}`} style={valueColor && !thresholdColor ? { color: `#${valueColor}` } : undefined}>
             {unit}
             {value.toLocaleString()}
           </p>

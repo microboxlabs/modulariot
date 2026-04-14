@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type {
   DashletComponentProps,
   DashletLayoutDefaults,
@@ -15,9 +14,9 @@ import type {
   FilterConfig,
 } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
-import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
+import { SortPillRow } from "@/features/dashboard/dashlets/common/sort-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
@@ -62,6 +61,10 @@ import {
 } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
+import {
+  DashletTitleBar,
+  buildTitleBarData,
+} from "@/features/dashboard/dashlets/common/dashlet-title-bar";
 
 export interface DashletConfig {
   title: string;
@@ -80,6 +83,8 @@ export interface DashletConfig {
   plannerVariableName?: string;
   rowColorRules?: ColorRulesConfig;
   actions?: ActionsConfig;
+  /** Show the export dropdown in the title bar */
+  showExport?: boolean;
 }
 
 // ============================================================================
@@ -192,6 +197,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sort = defaultSort,
     dataSourceId,
     plannerVariableName,
+    showExport = true,
   } = config;
   const filter = useMemo(
     () => normalizeFilterConfig(config.filter, defaultFilter),
@@ -244,41 +250,33 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     handleSortClick,
   } = useFilterAndSort(filter, sort, allRows, columns);
 
-  const getSortIcon = (dir: "asc" | "desc") =>
-    dir === "asc" ? (
-      <HiArrowUp className="h-3 w-3" />
-    ) : (
-      <HiArrowDown className="h-3 w-3" />
-    );
-
   // ── Handlebars template compilation ────────────────────────────────────────
   const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(
     columns,
     displayRows.length
   );
 
+  // ── Title bar data ──────────────────────────────────────────────────────────
+  const titleBarData = buildTitleBarData({
+    title, showRowCount, showExport, columns,
+    displayRows, resolveValue, resolveLabel, dictionary,
+  });
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {/* Title + row count — outside any card */}
-      <div className="flex shrink-0 items-start justify-between">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-          {title}
-        </h3>
-        {showRowCount && (
-          <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-            {tr(
-              displayRows.length === 1
-                ? "dashboard.settings.totalItemsSingular"
-                : "dashboard.settings.totalItems",
-              dictionary,
-              { count: String(displayRows.length) }
-            )}
-          </span>
+      <DashletTitleBar
+        {...titleBarData}
+        rowCountLabel={tr(
+          displayRows.length === 1
+            ? "dashboard.settings.totalItemsSingular"
+            : "dashboard.settings.totalItems",
+          dictionary,
+          { count: String(displayRows.length) }
         )}
-      </div>
+      />
 
       {/* Filter cards */}
       {filter.enabled &&
@@ -299,21 +297,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         })}
 
       {/* Sort card */}
-      {sort.enabled && validSortColumns.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            Ordenar por:
-          </span>
-          {validSortColumns.map((key) => (
-            <Pill
-              key={key}
-              label={getColumnLabel(key)}
-              active={sortKey === key}
-              onClick={() => handleSortClick(key)}
-              icon={sortKey === key ? getSortIcon(sortDir) : undefined}
-            />
-          ))}
-        </div>
+      {sort.enabled && (
+        <SortPillRow
+          label={tr("dashboard.settings.sortBy", dictionary)}
+          columns={validSortColumns}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          getColumnLabel={getColumnLabel}
+          onSortClick={handleSortClick}
+        />
       )}
 
       {/* Table card */}

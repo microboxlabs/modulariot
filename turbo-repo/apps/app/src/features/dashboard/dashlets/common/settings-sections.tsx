@@ -19,9 +19,9 @@ import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
-import { getColorDotClass } from "./color-rule-engine";
+import type { ColorRuleOperator } from "./color-rule-types";
+import { COLOR_RULE_PRESETS, COLOR_RULE_OPERATORS } from "./color-rule-types";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import type { ActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
 import { RuleRowControls } from "./rule-row-controls";
@@ -61,7 +61,6 @@ interface ColumnEditorProps {
     addMapping: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
-    colorLabels: Record<RuleColor, string>;
   };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
@@ -176,29 +175,18 @@ export function ColumnEditor({
                           }
                         />
                       </div>
-                      <div className="w-24 shrink-0">
-                        <Select
-                          sizing="sm"
-                          value={mapping.color}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "color",
-                              e.target.value
-                            )
-                          }
-                          className="[&>select]:cursor-pointer"
-                        >
-                          {RULE_COLORS.map((c) => (
-                            <option key={c} value={c}>
-                              {labels.colorLabels[c]}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <span
-                        className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`}
+                      <AdvancedColorPicker
+                        value={mapping.color}
+                        onChange={(newColor) =>
+                          onUpdateColorMapping?.(
+                            col._id,
+                            mapping._id!,
+                            "color",
+                            newColor
+                          )
+                        }
+                        presets={COLOR_RULE_PRESETS}
+                        title="Select mapping color"
                       />
                       <DeleteItemButton
                         onClick={() =>
@@ -519,7 +507,6 @@ interface ColorRuleEditorProps {
     addRule: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
-    colorLabels: Record<RuleColor, string>;
   };
 }
 
@@ -573,7 +560,6 @@ export function ColorRuleEditor({
                     onUpdate={onUpdate}
                     onRemove={onRemove}
                     operatorLabels={labels.operatorLabels}
-                    colorLabels={labels.colorLabels}
                     valuePlaceholder={labels.valuePlaceholder}
                   />
                 </div>

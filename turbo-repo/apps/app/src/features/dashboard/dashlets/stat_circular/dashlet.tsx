@@ -7,7 +7,7 @@ import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useThreshold } from "../common/use-threshold";
-import { getThresholdStrokeClass, getThresholdTextClasses } from "../common/threshold-engine";
+import { getThresholdStrokeClass, getThresholdStrokeStyle, getThresholdTextClasses, getThresholdTextStyle, isHexColor, isLegacyColor } from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
@@ -19,6 +19,8 @@ export interface DashletConfig {
   value: string;
   maxValue: string;
   unit: string;
+  /** Custom bar color (hex without #, e.g. "3b82f6") */
+  barColor?: string;
   dataMode: "static" | "pgrest" | "planner";
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
@@ -29,11 +31,15 @@ export interface DashletConfig {
   thresholds?: ThresholdConfig;
 }
 
+/** Default bar color (blue-500) */
+export const DEFAULT_BAR_COLOR = "3b82f6";
+
 export const defaultConfig: DashletConfig = {
   title: "Storage Used",
   value: "67",
   maxValue: "100",
   unit: "GB",
+  barColor: DEFAULT_BAR_COLOR,
   dataMode: "static",
   pgrestFunctionName: "",
   pgrestParams: [],
@@ -104,7 +110,29 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
-  const color = thresholdColor && appliesTo("background") ? getThresholdStrokeClass(thresholdColor) : getStrokeColor(percentage);
+
+  // Use threshold color if set, otherwise use custom barColor, otherwise percentage-based
+  const barColor = config.barColor ?? DEFAULT_BAR_COLOR;
+  const useCustomColor = barColor && /^[0-9a-fA-F]{6}$/.test(barColor);
+  
+  // Determine stroke class and style based on threshold or custom color
+  let strokeClass: string | undefined;
+  let strokeStyle: React.CSSProperties | undefined;
+  
+  if (thresholdColor && appliesTo("background")) {
+    // Threshold color takes priority
+    if (isLegacyColor(thresholdColor)) {
+      strokeClass = getThresholdStrokeClass(thresholdColor);
+    } else if (isHexColor(thresholdColor)) {
+      strokeStyle = getThresholdStrokeStyle(thresholdColor);
+    }
+  } else if (useCustomColor) {
+    // Custom bar color from settings
+    strokeStyle = { stroke: `#${barColor}` };
+  } else {
+    // Fallback to percentage-based color
+    strokeClass = getStrokeColor(percentage);
+  }
 
   if (loading) {
     return (
@@ -149,11 +177,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
-            className={`${color} transition-all duration-500`}
+            className={`${strokeClass ?? ''} transition-all duration-500`}
+            style={strokeStyle}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
+          <span 
+            className={`text-xl font-bold ${thresholdColor && appliesTo("text") && isLegacyColor(thresholdColor) ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}
+            style={thresholdColor && appliesTo("text") ? getThresholdTextStyle(thresholdColor) : undefined}
+          >
             {compiledValue}
           </span>
           <span className="text-xs text-gray-500">{compiledUnit}</span>

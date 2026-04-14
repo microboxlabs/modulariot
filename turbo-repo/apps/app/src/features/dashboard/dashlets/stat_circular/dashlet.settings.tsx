@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { defaultConfig } from "./dashlet";
+import { defaultConfig, DEFAULT_BAR_COLOR } from "./dashlet";
 import {
   HbTextField,
   SettingsFieldGrid,
@@ -23,6 +23,8 @@ import {
 } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { Label } from "flowbite-react";
 
 export function DashletSettings({
   isOpen,
@@ -46,6 +48,7 @@ export function DashletSettings({
     String(config.maxValue ?? defaultConfig.maxValue)
   );
   const [unit, setUnit] = useState(String(config.unit ?? defaultConfig.unit));
+  const [barColor, setBarColor] = useState(config.barColor ?? DEFAULT_BAR_COLOR);
   const [dataMode, setDataMode] = useState<"static" | "pgrest" | "planner">(
     config.dataMode === "static" ||
       config.dataMode === "pgrest" ||
@@ -84,6 +87,7 @@ export function DashletSettings({
       value,
       maxValue,
       unit,
+      barColor,
       dataMode,
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
@@ -139,6 +143,17 @@ export function DashletSettings({
           schemaSuggestions={schemaSuggestions}
         />
       </SettingsFieldGrid>
+      {/* Bar color picker */}
+      <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+        <Label className="text-sm font-medium">
+          {tr("dashboard.settings.barColor", dictionary)}
+        </Label>
+        <AdvancedColorPicker
+          value={barColor}
+          onChange={setBarColor}
+          title={tr("dashboard.settings.selectColor", dictionary)}
+        />
+      </div>
       <ThresholdEditor
         enabled={threshold.thresholdEnabled}
         onToggle={threshold.setThresholdEnabled}

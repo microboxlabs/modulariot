@@ -50,6 +50,7 @@ export function DashletSettings({
   const [showColumnDividers, setShowColumnDividers] = useState(
     config.showColumnDividers ?? true
   );
+  const [showExport, setShowExport] = useState(config.showExport ?? true);
 
   const s = useSettingsState({
     title: config.title,
@@ -92,6 +93,7 @@ export function DashletSettings({
       title: s.title,
       showRowCount: s.showRowCount,
       showColumnDividers,
+      showExport,
       dataMode: s.dataMode as "static" | "pgrest" | "planner",
       columns: savedColumns,
       rows,
@@ -130,18 +132,31 @@ export function DashletSettings({
     />
   );
 
-  const columnDividersToggle = (
-    <div className="flex items-center justify-between py-0.5">
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {tr("dashboard.settings.showColumnDividers", dictionary)}
-      </label>
-      <input
-        type="checkbox"
-        checked={showColumnDividers}
-        onChange={(e) => setShowColumnDividers(e.target.checked)}
-        className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
-      />
-    </div>
+  const displayOptions = (
+    <>
+      <div className="flex items-center justify-between py-0.5">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {tr("dashboard.settings.showColumnDividers", dictionary)}
+        </label>
+        <input
+          type="checkbox"
+          checked={showColumnDividers}
+          onChange={(e) => setShowColumnDividers(e.target.checked)}
+          className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+        />
+      </div>
+      <div className="flex items-center justify-between py-0.5">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {tr("dashboard.settings.showExport", dictionary)}
+        </label>
+        <input
+          type="checkbox"
+          checked={showExport}
+          onChange={(e) => setShowExport(e.target.checked)}
+          className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+        />
+      </div>
+    </>
   );
 
   return (
@@ -157,7 +172,7 @@ export function DashletSettings({
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
       title={dashletName}
-      displayOptionsChildren={columnDividersToggle}
+      displayOptionsChildren={displayOptions}
     />
   );
 }

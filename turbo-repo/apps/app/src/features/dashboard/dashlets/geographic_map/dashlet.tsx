@@ -281,11 +281,23 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
   const showStyleSelector = config.showStyleSelector;
 
   const { dictionary } = useDashboard();
-  const { positions: mapPositions, isLoading, error } = useMapPositions();
+  const { positions: mapPositions, isLoading, error, mutate } = useMapPositions();
 
   if (error) {
-    console.error("Map dashlet error:", error);
-    // Continue rendering with empty data instead of showing error
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+        <span className="text-sm font-medium text-red-600 dark:text-red-400">
+          Failed to load map data
+        </span>
+        <button
+          type="button"
+          onClick={() => mutate()}
+          className="rounded-md bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (

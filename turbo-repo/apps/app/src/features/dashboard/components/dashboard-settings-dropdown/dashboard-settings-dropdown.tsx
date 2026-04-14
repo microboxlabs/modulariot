@@ -43,6 +43,7 @@ type SettingOption =
   | "filters"
   | "refresh"
   | "access"
+  | "share"
   | "delete"
   | null;
 

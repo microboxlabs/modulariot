@@ -8,6 +8,7 @@ import {
 import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 import type { AuthMethod } from "@/app/api/data-sources/resolve-credentials";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
+import { logger } from "@/lib/logger";
 
 // The full PostgRest base URL should come from config (env var, data source, etc.)
 // rather than being assembled by convention. Each environment owns its own topology.
@@ -70,6 +71,7 @@ export async function resolveDataSourceCredentials(
   }
 
   if (!ds.isActive) {
+    logger.warn({ dataSourceId }, "Data source is not active");
     return NextResponse.json(
       { error: "Data source is not active" },
       { status: 400 }
@@ -77,6 +79,7 @@ export async function resolveDataSourceCredentials(
   }
 
   if (ds.lastTestResult !== true) {
+    logger.warn({ dataSourceId, lastTestResult: ds.lastTestResult }, "Data source has not passed connection test");
     return NextResponse.json(
       { error: "Data source has not passed connection test" },
       { status: 400 }
@@ -85,6 +88,7 @@ export async function resolveDataSourceCredentials(
 
   const urlCheck = await validateTargetUrl(ds.url);
   if (!urlCheck.valid) {
+    logger.warn({ dataSourceId, reason: urlCheck.reason }, "Invalid data source URL");
     return NextResponse.json(
       { error: `Invalid data source URL: ${urlCheck.reason}` },
       { status: 400 }
@@ -94,13 +98,16 @@ export async function resolveDataSourceCredentials(
   try {
     const bearerResult = await resolveBearerToken(ds.config, dataSourceId);
     if (!bearerResult.ok) {
+      logger.warn({ dataSourceId, error: bearerResult.error }, "Bearer token resolution failed");
       return NextResponse.json(
         { error: bearerResult.error },
         { status: 400 }
       );
     }
+    logger.debug({ dataSourceId, authMethod: bearerResult.authMethod }, "Data source credentials resolved");
     return { baseUrl: ds.url, token: bearerResult.token, authMethod: bearerResult.authMethod };
-  } catch {
+  } catch (err) {
+    logger.error({ dataSourceId, err }, "Failed to resolve data source credentials");
     return NextResponse.json(
       { error: "Failed to resolve data source credentials" },
       { status: 502 }

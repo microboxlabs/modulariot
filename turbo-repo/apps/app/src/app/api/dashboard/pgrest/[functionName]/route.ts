@@ -34,9 +34,10 @@ function isValidHttpError(status: number): boolean {
   return status >= 400 && status < 600;
 }
 
-function validateResponse(response: Response) {
+function validateResponse(response: Response, url: string) {
   if (!response.ok) {
     const status = isValidHttpError(response.status) ? response.status : 502;
+    logger.warn({ status: response.status, statusText: response.statusText, url }, "PgREST upstream returned error");
     const contentType = response.headers.get("content-type");
     if (contentType?.includes("text/html")) {
       return NextResponse.json(
@@ -81,9 +82,13 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
       session,
       parseDataSourceParam(req)
     );
-    if (creds instanceof NextResponse) return creds;
+    if (creds instanceof NextResponse) {
+      logger.warn({ functionName, dataSourceId: parseDataSourceParam(req) }, "Credential resolution returned error response");
+      return creds;
+    }
 
     const rpcUrl = `${creds.baseUrl}/${functionName}`;
+    logger.debug({ functionName, authMethod: creds.authMethod, baseUrl: creds.baseUrl }, "PgREST request with resolved credentials");
     const { fullUrl, fetchInit } = buildFetchOptions(req, rpcUrl, creds.token);
 
     if (req.method === "POST") {
@@ -92,7 +97,7 @@ async function handleRequest(req: NextRequest, ctx: RouteContext) {
     }
 
     const response = await fetch(fullUrl, fetchInit);
-    const validationError = validateResponse(response);
+    const validationError = validateResponse(response, fullUrl);
     if (validationError) return validationError;
 
     const data = await response.json();

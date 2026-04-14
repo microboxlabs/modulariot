@@ -4,6 +4,7 @@
 
 export { DashletSettingsWrapper } from "./dashlet-settings-wrapper";
 export { TabbedSettingsWrapper } from "./tabbed-settings-wrapper";
+export { SettingsTabButton } from "./settings-tab-button";
 export { useDataProvider } from "./use-data-provider";
 export {
   SettingsTextField,
@@ -146,11 +147,16 @@ export {
   evaluateThreshold,
   getThresholdBgClasses,
   getThresholdTextClasses,
+  getThresholdTextStyle,
   getThresholdIconClasses,
   getThresholdBorderClasses,
   getThresholdStrokeClass,
+  getThresholdStrokeStyle,
   getThresholdBarClass,
+  getThresholdBarStyle,
   getThresholdGradientClasses,
+  isLegacyColor,
+  isHexColor,
 } from "./threshold-engine";
 export {
   DEFAULT_THRESHOLD_CONFIG,
@@ -158,6 +164,12 @@ export {
   toThresholdRuleItems,
   fromThresholdRuleItems,
 } from "./threshold-helpers";
-export { type ThresholdResult, useThreshold, useRowThreshold } from "./use-threshold";
+export {
+  type ThresholdResult,
+  type ThresholdOptions,
+  useThreshold,
+  useRowThreshold,
+} from "./use-threshold";
 export { ThresholdEditor } from "./threshold-editor";
 export { useThresholdSettings } from "./use-threshold-settings";
+export { DeleteItemButton } from "./delete-item-button";

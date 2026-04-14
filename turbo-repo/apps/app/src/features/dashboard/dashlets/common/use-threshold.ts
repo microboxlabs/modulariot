@@ -12,6 +12,15 @@ export interface ThresholdResult {
   appliesTo: (target: ThresholdTarget) => boolean;
 }
 
+export interface ThresholdOptions {
+  /**
+   * Fallback value to use for rule evaluation when the threshold field is empty.
+   * This allows dashlets to provide a default value (e.g., the progress bar value)
+   * without requiring the user to configure the "Evaluate field" explicitly.
+   */
+  fallbackValue?: string | number;
+}
+
 /**
  * Convenience hook for Pattern A dashlets that use useDashletPgrest.
  * Builds the template context from firstRow and evaluates thresholds.
@@ -19,29 +28,46 @@ export interface ThresholdResult {
 export function useRowThreshold(
   thresholds: ThresholdConfig | undefined,
   firstRow: Record<string, unknown> | undefined,
+  options?: ThresholdOptions
 ): ThresholdResult {
   const templateContext = useMemo(
     () => (firstRow ? { ...firstRow, row: firstRow } : {}),
-    [firstRow],
+    [firstRow]
   );
-  return useThreshold(thresholds, templateContext);
+  return useThreshold(thresholds, templateContext, options);
 }
 
 /**
  * Evaluate threshold config against a template context.
  * Returns the matched color and a helper to check apply targets.
+ *
+ * @param thresholds - The threshold configuration
+ * @param templateContext - Context for resolving handlebars templates
+ * @param options - Optional settings including fallbackValue for when field is empty
  */
 export function useThreshold(
   thresholds: ThresholdConfig | undefined,
   templateContext: Record<string, unknown>,
+  options?: ThresholdOptions
 ): ThresholdResult {
   return useMemo(() => {
     const config = normalizeThresholdConfig(thresholds);
-    if (!config.enabled || !config.field || config.rules.length === 0) {
+    if (!config.enabled || config.rules.length === 0) {
       return { color: null, appliesTo: () => false };
     }
 
-    const resolvedValue = resolveHandlebarsField(config.field, templateContext);
+    // Determine the value to evaluate: use configured field if set, otherwise fallback
+    let resolvedValue: string;
+    if (config.field) {
+      resolvedValue = resolveHandlebarsField(config.field, templateContext);
+    } else if (options?.fallbackValue !== undefined) {
+      // Use fallback value when field is empty (e.g., the dashlet's main value)
+      resolvedValue = String(options.fallbackValue);
+    } else {
+      // No field and no fallback — cannot evaluate
+      return { color: null, appliesTo: () => false };
+    }
+
     const color = evaluateThreshold(config, resolvedValue);
 
     if (!color) {
@@ -53,5 +79,5 @@ export function useThreshold(
       color,
       appliesTo: (target: ThresholdTarget) => targets.has(target),
     };
-  }, [thresholds, templateContext]);
+  }, [thresholds, templateContext, options?.fallbackValue]);
 }

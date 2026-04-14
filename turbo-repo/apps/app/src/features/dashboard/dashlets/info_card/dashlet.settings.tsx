@@ -22,6 +22,8 @@ import {
   DataProviderEntries,
   type SimpleDataMode,
   isRemoteDataMode,
+  useThresholdSettings,
+  ThresholdEditor,
 } from "../common";
 import {
   SettingsModalShell,
@@ -97,6 +99,8 @@ export function DashletSettings({
       }
     ).dataProvider || DEFAULT_DATA_ENTRIES
   );
+
+  const threshold = useThresholdSettings(config);
 
   const staticSnapshot = useRef({
     title,
@@ -178,6 +182,7 @@ export function DashletSettings({
       plannerVariableName:
         dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
+      ...threshold.buildThresholdSavePayload(),
     } as DashletConfig);
     onClose();
   };
@@ -295,6 +300,19 @@ export function DashletSettings({
           />
         </div>
       </div>
+      <ThresholdEditor
+        enabled={threshold.thresholdEnabled}
+        onToggle={threshold.setThresholdEnabled}
+        field={threshold.thresholdField}
+        onFieldChange={threshold.setThresholdField}
+        applyTo={threshold.thresholdApplyTo}
+        onApplyToChange={threshold.setThresholdApplyTo}
+        rules={threshold.thresholdRules}
+        onAdd={threshold.addThresholdRule}
+        onRemove={threshold.removeThresholdRule}
+        onUpdate={threshold.updateThresholdRule}
+        schemaSuggestions={schemaSuggestions}
+      />
     </>
   );
 

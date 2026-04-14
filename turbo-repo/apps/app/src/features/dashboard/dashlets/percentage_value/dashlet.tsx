@@ -6,6 +6,9 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import type { ProgressBarColorConfig } from "./progress-bar-color-rules";
+import { normalizeProgressBarColorConfig } from "./progress-bar-color-rules";
+import { evaluateRule } from "../common/color-rule-engine";
 
 const EMPTY_PARAMS: PgrestParam[] = [];
 
@@ -26,6 +29,8 @@ export interface DashletConfig {
   pgrestHttpMethod?: PgrestHttpMethod;
   plannerVariableName?: string;
   dataSourceId?: string;
+  /** Bar color rules configuration */
+  barColorRules?: ProgressBarColorConfig;
 }
 
 /** Default configuration */
@@ -81,6 +86,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     refreshIntervalMs,
   });
 
+  // ── Bar color rules evaluation ───
+  const barColorRulesConfig = useMemo(
+    () => normalizeProgressBarColorConfig(config.barColorRules),
+    [config.barColorRules]
+  );
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
@@ -113,7 +124,28 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
-  const barColor = config.barColor ?? "2563eb";
+  const defaultBarColor = config.barColor ?? "2563eb";
+
+  // Evaluate bar color rules (based on percentage or count)
+  let barColor = defaultBarColor;
+  if (barColorRulesConfig.enabled && barColorRulesConfig.rules.length > 0) {
+    const evalValue =
+      barColorRulesConfig.evalMode === "percentage"
+        ? String(percentage)
+        : String(value);
+    for (const rule of barColorRulesConfig.rules) {
+      const syntheticRule = {
+        column: "",
+        operator: rule.operator,
+        value: rule.value,
+        color: rule.color,
+      };
+      if (evaluateRule(syntheticRule, evalValue)) {
+        barColor = rule.color;
+        break;
+      }
+    }
+  }
 
   return (
     <div

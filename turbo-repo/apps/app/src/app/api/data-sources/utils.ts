@@ -13,6 +13,7 @@ export function buildMaskedResponse(ds: AlfrescoDataSource) {
       tokenUrl: ds.config.tokenUrl,
       scope: ds.config.scope,
       audience: ds.config.audience,
+      ...(ds.config.tokenRequestFormat ? { tokenRequestFormat: ds.config.tokenRequestFormat } : {}),
     };
   } else {
     const tokenSuffix = ds.config?.authMethod === "TOKEN" ? ds.config.tokenSuffix : undefined;

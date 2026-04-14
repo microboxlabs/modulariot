@@ -10,6 +10,7 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ConfirmModal } from "../confirm-modal";
+import { ShareForm } from "./share-form";
 import { deleteDashboardConfigClient, useUserGroups } from "@/features/common/providers/client-api.provider";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
@@ -20,7 +21,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
+type SettingOption = "share" | "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -284,6 +285,10 @@ function ExportForm({
     </div>
   );
 }
+
+// ============================================================================
+// Import Form
+// ============================================================================
 
 interface ImportFormProps {
   onImport: (json: string) => { success: boolean; error?: string };
@@ -907,6 +912,16 @@ export default function DashboardSettingsDropdown() {
 
       {open && (
         <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
+          <SettingsSection
+            option="share"
+            selected={selected}
+            setSelected={setSelected}
+            title="Share Dashboard"
+            description="Copy link or download snapshot"
+          >
+            <ShareForm dashboardName={dashboardName} onClose={closePanel} />
+          </SettingsSection>
+
           <SettingsSection
             option="rename"
             selected={selected}

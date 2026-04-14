@@ -15,7 +15,6 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import Link from "next/link";
-import { twMerge } from "tailwind-merge";
 import { useSearchParams, usePathname } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
@@ -241,15 +240,16 @@ export function DashboardView() {
                 onKeyDown={handleNameKeyDown}
                 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white bg-transparent border-0 border-b-2 border-blue-500 outline-none px-0 py-0 min-w-[120px]"
               />
-            ) : (
-              <h1
-                className={twMerge(
-                  "shrink-0 text-xl font-semibold text-gray-900 dark:text-white",
-                  editMode &&
-                    "cursor-text border-b border-transparent hover:border-dashed hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-                )}
+            ) : editMode ? (
+              <button
+                type="button"
+                className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white cursor-text border-b border-transparent hover:border-dashed hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-transparent p-0"
                 onClick={handleNameClick}
               >
+                {dashboardName}
+              </button>
+            ) : (
+              <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
                 {dashboardName}
               </h1>
             )}

@@ -1786,7 +1786,8 @@
       },
       "geographic_map": {
         "name": "Mapa Geográfico",
-        "description": "Mapa interactivo con marcadores de posición y filtros"
+        "description": "Mapa interactivo con marcadores de posición y filtros",
+        "load_failed": "Error al cargar datos del mapa"
       }
     },
     "defaults": {

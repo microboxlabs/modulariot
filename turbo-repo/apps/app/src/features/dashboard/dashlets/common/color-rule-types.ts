@@ -30,9 +30,14 @@ export const OPERATOR_LABELS: Record<ColorRuleOperator, string> = {
   less_than_or_equal: "<=",
 };
 
-export type RuleColor = "red" | "yellow" | "green" | "blue" | "gray" | "orange" | "purple";
+/**
+ * Rule color is now a hex string (without #) for custom color picker support.
+ * Legacy named colors ("red", "yellow", etc.) are still supported for backward compatibility.
+ */
+export type RuleColor = string;
 
-export const RULE_COLORS: RuleColor[] = [
+/** @deprecated Use COLOR_RULE_PRESETS instead */
+export const RULE_COLORS: string[] = [
   "red",
   "yellow",
   "green",
@@ -41,6 +46,31 @@ export const RULE_COLORS: RuleColor[] = [
   "orange",
   "purple",
 ];
+
+/** Preset colors for the color rule picker (hex without #) */
+export interface ColorRulePreset {
+  /** Hex color value without # */
+  value: string;
+  /** Display label */
+  label: string;
+}
+
+/**
+ * Default preset colors matching Tailwind's color-500 palette.
+ * These replace the old named colors with their hex equivalents.
+ */
+export const COLOR_RULE_PRESETS: ColorRulePreset[] = [
+  { value: "ef4444", label: "Red" }, // red-500
+  { value: "eab308", label: "Yellow" }, // yellow-500
+  { value: "22c55e", label: "Green" }, // green-500
+  { value: "3b82f6", label: "Blue" }, // blue-500
+  { value: "6b7280", label: "Gray" }, // gray-500
+  { value: "f97316", label: "Orange" }, // orange-500
+  { value: "a855f7", label: "Purple" }, // purple-500
+];
+
+/** Default color for new rules */
+export const DEFAULT_RULE_COLOR = "3b82f6"; // Blue
 
 export interface ColorRule {
   /** Column key (Handlebars template, e.g. "{{row.status}}") */

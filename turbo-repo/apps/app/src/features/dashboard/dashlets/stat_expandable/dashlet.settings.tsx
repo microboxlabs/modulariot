@@ -11,6 +11,8 @@ import {
   getFlowbiteColor,
   DeleteItemButton,
 } from "../common";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { tr } from "@/features/i18n/tr.service";
 
 interface DetailWithId {
   id: string;
@@ -45,7 +47,7 @@ const FIELDS = [
 export function DashletSettings(
   props: Readonly<DashletSettingsProps<DashletConfig>>
 ) {
-  const { config } = props;
+  const { config, dictionary } = props;
 
   const initializeDetails = (): DetailWithId[] => {
     const defaultDetails = [
@@ -59,6 +61,7 @@ export function DashletSettings(
   };
 
   const [details, setDetails] = useState(initializeDetails);
+  const [valueColor, setValueColor] = useState(config.valueColor ?? "");
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -80,9 +83,22 @@ export function DashletSettings(
       thresholds
       extraSaveFields={{
         details: details.map(({ label, value }) => ({ label, value })),
+        valueColor,
       }}
       extraVisualization={
         <div className="space-y-2">
+          {/* Value color picker */}
+          <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+            <Label className="text-sm font-medium">
+              {tr("dashboard.settings.valueColor", dictionary)}
+            </Label>
+            <AdvancedColorPicker
+              value={valueColor}
+              onChange={setValueColor}
+              title={tr("dashboard.settings.selectColor", dictionary)}
+            />
+          </div>
+          {/* Expandable Details */}
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Expandable Details</Label>
             <Button

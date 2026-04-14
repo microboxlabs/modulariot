@@ -147,11 +147,16 @@ export {
   evaluateThreshold,
   getThresholdBgClasses,
   getThresholdTextClasses,
+  getThresholdTextStyle,
   getThresholdIconClasses,
   getThresholdBorderClasses,
   getThresholdStrokeClass,
+  getThresholdStrokeStyle,
   getThresholdBarClass,
+  getThresholdBarStyle,
   getThresholdGradientClasses,
+  isLegacyColor,
+  isHexColor,
 } from "./threshold-engine";
 export {
   DEFAULT_THRESHOLD_CONFIG,
@@ -161,6 +166,7 @@ export {
 } from "./threshold-helpers";
 export {
   type ThresholdResult,
+  type ThresholdOptions,
   useThreshold,
   useRowThreshold,
 } from "./use-threshold";

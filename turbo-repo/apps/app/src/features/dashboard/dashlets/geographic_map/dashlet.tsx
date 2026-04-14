@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { z } from "zod";
 import type { PickingInfo } from "@deck.gl/core";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
@@ -35,6 +36,12 @@ export interface DashletConfig {
   showStyleSelector: boolean;
 }
 
+/** Zod schema for runtime validation */
+const dashletConfigSchema = z.object({
+  showFilters: z.boolean(),
+  showStyleSelector: z.boolean(),
+});
+
 /** Default configuration */
 export const defaultConfig: DashletConfig = {
   showFilters: true,
@@ -65,7 +72,7 @@ interface EditModeOverlayProps {
 
 function EditModeOverlay({ dictionary }: Readonly<EditModeOverlayProps>) {
   return (
-    <div className="absolute inset-0 z-55 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+    <div className="absolute inset-0 z-[55] flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
       <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 pointer-events-none">
         <p className="text-lg font-semibold text-gray-900 dark:text-white">
           {tr("dashboard.editMode", dictionary)}
@@ -272,29 +279,34 @@ function MapContent({
  * In edit mode, an overlay is shown to allow moving the widget.
  */
 export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
-  // Merge widget.config with defaultConfig to ensure safe access
-  const config: DashletConfig = {
-    ...defaultConfig,
-    ...(widget.config as unknown as Partial<DashletConfig>),
-  };
+  // Validate and merge widget.config with defaultConfig
+  const parsed = dashletConfigSchema.partial().safeParse(widget.config);
+  const config: DashletConfig = parsed.success
+    ? { ...defaultConfig, ...parsed.data }
+    : defaultConfig;
   const showFilters = config.showFilters;
   const showStyleSelector = config.showStyleSelector;
 
   const { dictionary } = useDashboard();
-  const { positions: mapPositions, isLoading, error, mutate } = useMapPositions();
+  const {
+    positions: mapPositions,
+    isLoading,
+    error,
+    mutate,
+  } = useMapPositions();
 
   if (error) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
         <span className="text-sm font-medium text-red-600 dark:text-red-400">
-          Failed to load map data
+          {tr("dashboard.dashlets.geographic_map.load_failed", dictionary)}
         </span>
         <button
           type="button"
           onClick={() => mutate()}
           className="rounded-md bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
         >
-          Retry
+          {tr("common.retry", dictionary)}
         </button>
       </div>
     );

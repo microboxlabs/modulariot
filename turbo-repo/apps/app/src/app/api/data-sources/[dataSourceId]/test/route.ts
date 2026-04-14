@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const bearerResult = await resolveBearerToken(ds.config);
+    const bearerResult = await resolveBearerToken(ds.config, dataSourceId);
     if (!bearerResult.ok) {
       return NextResponse.json(
         { success: false, error: bearerResult.error },

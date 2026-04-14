@@ -9,6 +9,43 @@ export interface OAuthTokenResult {
   accessToken: string;
   /** The format that succeeded — persist this to skip the fallback next time. */
   detectedFormat: TokenRequestFormat;
+  /** When the token expires (Unix ms). */
+  expiresAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// In-memory token cache (per data source)
+// ---------------------------------------------------------------------------
+
+const TOKEN_EXPIRY_BUFFER_MS = 60_000; // refresh 60s before expiry
+const DEFAULT_EXPIRES_IN_S = 3600; // 1 hour fallback per RFC 6749 §4.2.2
+
+interface CachedToken {
+  accessToken: string;
+  detectedFormat: TokenRequestFormat;
+  expiresAt: number; // Unix ms
+  configFingerprint: string;
+}
+
+const tokenCache = new Map<string, CachedToken>();
+const inflightRequests = new Map<string, Promise<CachedToken>>();
+
+function computeConfigFingerprint(
+  tokenUrl: string,
+  clientId: string,
+  secretSuffix?: string,
+  scope?: string,
+  audience?: string
+): string {
+  return `${tokenUrl}|${clientId}|${secretSuffix ?? ""}|${scope ?? ""}|${audience ?? ""}`;
+}
+
+/**
+ * Remove cached token for a data source. Call this when config changes.
+ */
+export function invalidateTokenCache(dataSourceId: string): void {
+  tokenCache.delete(dataSourceId);
+  inflightRequests.delete(dataSourceId);
 }
 
 interface OAuthTokenParams {
@@ -77,12 +114,24 @@ function isContentTypeRejection(status: number, body: string): boolean {
   );
 }
 
-async function extractAccessToken(res: Response): Promise<string> {
+async function extractTokenWithExpiry(
+  res: Response
+): Promise<{ accessToken: string; expiresAt: number }> {
   const json = await res.json();
   if (typeof json.access_token !== "string" || !json.access_token) {
     throw new Error("OAuth response missing or invalid access_token");
   }
-  return json.access_token;
+
+  let expiresAt: number;
+  if (typeof json.expires_in === "number" && json.expires_in > 0) {
+    expiresAt = Date.now() + json.expires_in * 1000;
+  } else if (typeof json.expires_at === "number" && json.expires_at > 0) {
+    expiresAt = json.expires_at * 1000;
+  } else {
+    expiresAt = Date.now() + DEFAULT_EXPIRES_IN_S * 1000;
+  }
+
+  return { accessToken: json.access_token, expiresAt };
 }
 
 /**
@@ -113,8 +162,9 @@ export async function exchangeOAuthToken(
       );
       throw new Error("OAuth token exchange failed");
     }
+    const extracted = await extractTokenWithExpiry(res);
     return {
-      accessToken: await extractAccessToken(res),
+      ...extracted,
       detectedFormat: preferredFormat,
     };
   }
@@ -123,8 +173,9 @@ export async function exchangeOAuthToken(
   const formRes = await fetch(buildRequest(tokenUrl, params, "form"));
 
   if (formRes.ok) {
+    const extracted = await extractTokenWithExpiry(formRes);
     return {
-      accessToken: await extractAccessToken(formRes),
+      ...extracted,
       detectedFormat: "form",
     };
   }
@@ -139,8 +190,9 @@ export async function exchangeOAuthToken(
 
     const jsonRes = await fetch(buildRequest(tokenUrl, params, "json"));
     if (jsonRes.ok) {
+      const extracted = await extractTokenWithExpiry(jsonRes);
       return {
-        accessToken: await extractAccessToken(jsonRes),
+        ...extracted,
         detectedFormat: "json",
       };
     }
@@ -174,19 +226,88 @@ function errorResult(err: unknown, fallback: string): BearerResult {
   };
 }
 
+/**
+ * Get a cached token or fetch a new one. Concurrent callers for the same
+ * data source share a single in-flight request (deduplication).
+ */
+async function getOrRefreshToken(
+  dataSourceId: string,
+  tokenUrl: string,
+  clientId: string,
+  clientSecret: string,
+  scope: string | undefined,
+  audience: string | undefined,
+  preferredFormat: TokenRequestFormat | undefined,
+  fingerprint: string
+): Promise<CachedToken> {
+  const cached = tokenCache.get(dataSourceId);
+  if (
+    cached &&
+    cached.configFingerprint === fingerprint &&
+    cached.expiresAt - Date.now() > TOKEN_EXPIRY_BUFFER_MS
+  ) {
+    return cached;
+  }
+
+  // Deduplicate: reuse an in-flight request for the same data source.
+  const inflight = inflightRequests.get(dataSourceId);
+  if (inflight) return inflight;
+
+  const promise = exchangeOAuthToken(
+    tokenUrl, clientId, clientSecret, scope, audience, preferredFormat
+  ).then((result) => {
+    const entry: CachedToken = {
+      accessToken: result.accessToken,
+      detectedFormat: result.detectedFormat,
+      expiresAt: result.expiresAt,
+      configFingerprint: fingerprint,
+    };
+    tokenCache.set(dataSourceId, entry);
+    inflightRequests.delete(dataSourceId);
+    return entry;
+  }).catch((err) => {
+    inflightRequests.delete(dataSourceId);
+    throw err;
+  });
+
+  inflightRequests.set(dataSourceId, promise);
+  return promise;
+}
+
 async function resolveOAuthToken(
   tokenUrl: string,
   clientId: string,
   encryptedClientSecret: string,
   scope?: string,
   audience?: string,
-  tokenRequestFormat?: TokenRequestFormat
+  tokenRequestFormat?: TokenRequestFormat,
+  dataSourceId?: string,
+  clientSecretSuffix?: string
 ): Promise<BearerResult> {
   const tokenUrlCheck = await validateTargetUrl(tokenUrl);
   if (!tokenUrlCheck.valid) {
     return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
   }
   const clientSecret = decrypt(encryptedClientSecret);
+
+  // When a dataSourceId is available, use the cache.
+  if (dataSourceId) {
+    const fingerprint = computeConfigFingerprint(
+      tokenUrl, clientId, clientSecretSuffix, scope, audience
+    );
+    const cached = await getOrRefreshToken(
+      dataSourceId, tokenUrl, clientId, clientSecret,
+      scope, audience, tokenRequestFormat, fingerprint
+    );
+    return {
+      ok: true,
+      token: cached.accessToken,
+      authMethod: "OAUTH",
+      detectedFormat: cached.detectedFormat,
+    };
+  }
+
+  // Fallback: no cache when dataSourceId is not provided.
   const { accessToken, detectedFormat } = await exchangeOAuthToken(
     tokenUrl, clientId, clientSecret, scope, audience, tokenRequestFormat
   );
@@ -202,7 +323,10 @@ export function buildAuthHeader(token: string, authMethod: AuthMethod): string {
   return authMethod === "TOKEN" ? `Bearer ${token}` : token;
 }
 
-export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null): Promise<BearerResult> {
+export async function resolveBearerToken(
+  config: AlfrescoDataSourceConfig | null,
+  dataSourceId?: string
+): Promise<BearerResult> {
   if (config?.authMethod === "OAUTH") {
     if (!config.encryptedClientSecret || !config.tokenUrl || !config.clientId) {
       return { ok: false, error: "OAuth configuration is incomplete" };
@@ -210,7 +334,8 @@ export async function resolveBearerToken(config: AlfrescoDataSourceConfig | null
     try {
       return await resolveOAuthToken(
         config.tokenUrl, config.clientId, config.encryptedClientSecret,
-        config.scope, config.audience, config.tokenRequestFormat
+        config.scope, config.audience, config.tokenRequestFormat,
+        dataSourceId, config.clientSecretSuffix
       );
     } catch (err) {
       return errorResult(err, "OAuth token resolution failed");

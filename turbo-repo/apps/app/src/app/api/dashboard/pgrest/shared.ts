@@ -92,7 +92,7 @@ export async function resolveDataSourceCredentials(
   }
 
   try {
-    const bearerResult = await resolveBearerToken(ds.config);
+    const bearerResult = await resolveBearerToken(ds.config, dataSourceId);
     if (!bearerResult.ok) {
       return NextResponse.json(
         { error: bearerResult.error },

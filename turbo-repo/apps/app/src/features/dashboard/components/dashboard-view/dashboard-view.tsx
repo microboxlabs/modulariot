@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Button, ToggleSwitch } from "flowbite-react";
 import {
   HiPlus,
@@ -15,6 +15,7 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import Link from "next/link";
+import { twMerge } from "tailwind-merge";
 import { useSearchParams, usePathname } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
@@ -40,6 +41,7 @@ export function DashboardView() {
     isKiosk,
     isLoaded,
     dashboardName,
+    setDashboardName,
     dictionary,
     toggleEditMode,
     updateWidgetLayouts,
@@ -60,6 +62,50 @@ export function DashboardView() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Inline name editing
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(dashboardName);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setEditedName(dashboardName);
+  }, [dashboardName]);
+
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  const handleNameClick = useCallback(() => {
+    if (editMode) {
+      setIsEditingName(true);
+    }
+  }, [editMode]);
+
+  const handleNameSave = useCallback(() => {
+    const trimmed = editedName.trim();
+    if (!trimmed) {
+      setEditedName(dashboardName);
+    } else if (trimmed !== dashboardName) {
+      setDashboardName(trimmed);
+    }
+    setIsEditingName(false);
+  }, [editedName, dashboardName, setDashboardName]);
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        handleNameSave();
+      } else if (e.key === "Escape") {
+        setEditedName(dashboardName);
+        setIsEditingName(false);
+      }
+    },
+    [handleNameSave, dashboardName]
+  );
 
   // Measure container width reactively
   useEffect(() => {
@@ -185,9 +231,28 @@ export function DashboardView() {
       {!isKiosk && (
         <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between gap-4 p-4">
-            <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
-              {dashboardName}
-            </h1>
+            {isEditingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={handleNameKeyDown}
+                className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white bg-transparent border-0 border-b-2 border-blue-500 outline-none px-0 py-0 min-w-[120px]"
+              />
+            ) : (
+              <h1
+                className={twMerge(
+                  "shrink-0 text-xl font-semibold text-gray-900 dark:text-white",
+                  editMode &&
+                    "cursor-text border-b border-transparent hover:border-dashed hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                )}
+                onClick={handleNameClick}
+              >
+                {dashboardName}
+              </h1>
+            )}
             <div className="flex shrink-0 items-center gap-4">
               {editMode && (
                 <div className="flex items-center gap-1">

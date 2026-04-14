@@ -21,6 +21,7 @@ import {
   deleteDashboardConfigClient,
   useUserGroups,
 } from "@/features/common/providers/client-api.provider";
+import { ShareForm } from "./share-form";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import type {
@@ -313,6 +314,10 @@ function ExportForm({
     </div>
   );
 }
+
+// ============================================================================
+// Import Form
+// ============================================================================
 
 interface ImportFormProps {
   onImport: (json: string) => { success: boolean; error?: string };
@@ -942,6 +947,16 @@ export default function DashboardSettingsDropdown() {
 
       {open && (
         <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
+          <SettingsSection
+            option="share"
+            selected={selected}
+            setSelected={setSelected}
+            title="Share Dashboard"
+            description="Copy link or download snapshot"
+          >
+            <ShareForm dashboardName={dashboardName} onClose={closePanel} />
+          </SettingsSection>
+
           <SettingsSection
             option="rename"
             selected={selected}

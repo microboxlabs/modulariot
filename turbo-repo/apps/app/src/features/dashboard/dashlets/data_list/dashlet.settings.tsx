@@ -70,6 +70,8 @@ export function DashletSettings({
     cl.footerColumns
   );
 
+  const [showExport, setShowExport] = useState(config.showExport ?? true);
+
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
   );
@@ -122,6 +124,7 @@ export function DashletSettings({
     onSave({
       title: s.title,
       showRowCount: s.showRowCount,
+      showExport,
       dataMode: s.dataMode,
       columns: savedColumns,
       rows,
@@ -160,6 +163,20 @@ export function DashletSettings({
         syncColumnsFromKeys(keys, s, autoPopulateCardLayout)
       }
     />
+  );
+
+  const exportToggle = (
+    <div className="flex items-center justify-between py-0.5">
+      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        {tr("dashboard.settings.showExport", dictionary)}
+      </label>
+      <input
+        type="checkbox"
+        checked={showExport}
+        onChange={(e) => setShowExport(e.target.checked)}
+        className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+      />
+    </div>
   );
 
   // Card layout section (inserted between ColumnEditor and FilterEditor)
@@ -260,6 +277,7 @@ export function DashletSettings({
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
       title={dashletName}
+      displayOptionsChildren={exportToggle}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

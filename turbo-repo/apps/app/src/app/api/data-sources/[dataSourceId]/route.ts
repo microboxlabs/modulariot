@@ -8,6 +8,7 @@ import {
 import type { AlfrescoDataSource } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { encrypt, decrypt, maskToken } from "@/lib/crypto";
 import { UpdateDataSourceSchema } from "@/features/data-sources/types";
+import { invalidateTokenCache } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 import { buildMaskedResponse } from "../utils";
 
@@ -171,6 +172,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     }
 
     const updated = await updateDataSource(session, updateBody);
+    if (configObj) invalidateTokenCache(dataSourceId);
 
     if (!updated?.nodeRef) {
       return NextResponse.json(
@@ -198,6 +200,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
 
   try {
     const removed = await deleteDataSource(session, dataSourceId);
+    invalidateTokenCache(dataSourceId);
     if (!removed?.success) {
       return NextResponse.json(
         { error: "Data source not found" },

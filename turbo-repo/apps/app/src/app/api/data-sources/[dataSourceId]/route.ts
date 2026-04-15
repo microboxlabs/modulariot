@@ -131,7 +131,7 @@ async function buildConfigFromParsedData(
       configObj.tokenUrl = "";
       configObj.scope = "";
       configObj.audience = "";
-      configObj.tokenRequestFormat = "";
+      configObj.tokenRequestFormat = undefined;
     } else if (effectiveAuthMethod === "OAUTH") {
       configObj.encryptedToken = "";
       configObj.tokenSuffix = "";

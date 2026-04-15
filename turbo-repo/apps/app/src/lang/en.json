@@ -1717,7 +1717,10 @@
       "columnFilterNotEmpty": "not empty",
       "columnFilterNoValues": "No values",
       "columnFilterTitle": "Filter: {column}",
-      "columnFilterValue": "Value"
+      "columnFilterValue": "Value",
+      "columnFilterDateRange": "{from} → {to}",
+      "columnFilterFromDate": "from {date}",
+      "columnFilterToDate": "to {date}"
     },
     "filterBar": {
       "search": "Search...",

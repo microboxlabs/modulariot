@@ -1,6 +1,9 @@
 "use client";
 
 import { HiXMark } from "react-icons/hi2";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import type { TableColumn } from "./column-types";
 import type { ColumnFilter } from "./column-filter-types";
 import { resolveDataProperty } from "./handlebars-helpers";
@@ -22,13 +25,17 @@ export function ColumnFilterToolbar({
   onRemove,
   onClearAll,
 }: ColumnFilterToolbarProps) {
+  const { dictionary } = useDashboard();
   const activeFilters = Object.values(filters);
   if (activeFilters.length === 0) return null;
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800">
       <span className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-        Showing {filteredCount} of {totalCount}
+        {tr("dashboard.settings.columnFilterShowing", dictionary, {
+          filtered: String(filteredCount),
+          total: String(totalCount),
+        })}
       </span>
 
       <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
@@ -40,7 +47,7 @@ export function ColumnFilterToolbar({
           <FilterChip
             key={filter.columnKey}
             label={label}
-            value={formatFilterValue(filter)}
+            value={formatFilterValue(filter, dictionary)}
             onRemove={() => onRemove(filter.columnKey)}
           />
         );
@@ -51,7 +58,7 @@ export function ColumnFilterToolbar({
         className="flex items-center gap-1 rounded px-2 py-0.5 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
       >
         <HiXMark className="h-3 w-3" />
-        Clear all
+        {tr("dashboard.settings.columnFilterClearAll", dictionary)}
       </button>
     </div>
   );
@@ -88,11 +95,11 @@ function FilterChip({
 // Value formatting
 // ============================================================================
 
-function formatFilterValue(filter: ColumnFilter): string {
+function formatFilterValue(filter: ColumnFilter, dict: I18nRecord): string {
   const { operator, value, dataType } = filter;
 
-  if (operator === "isEmpty") return "empty";
-  if (operator === "isNotEmpty") return "not empty";
+  if (operator === "isEmpty") return tr("dashboard.settings.columnFilterEmpty", dict);
+  if (operator === "isNotEmpty") return tr("dashboard.settings.columnFilterNotEmpty", dict);
 
   switch (dataType) {
     case "text":
@@ -100,11 +107,13 @@ function formatFilterValue(filter: ColumnFilter): string {
     case "number":
       return formatNumericValue(operator, value);
     case "date":
-      return formatDateValue(value);
+      return formatDateValue(value, dict);
     case "enum":
       return formatEnumValue(value);
     case "boolean":
-      return value === true ? "Yes" : "No";
+      return value === true
+        ? tr("dashboard.settings.columnFilterYes", dict)
+        : tr("dashboard.settings.columnFilterNo", dict);
   }
 }
 
@@ -120,12 +129,12 @@ function formatNumericValue(
   return `= ${value}`;
 }
 
-function formatDateValue(value: ColumnFilter["value"]): string {
+function formatDateValue(value: ColumnFilter["value"], dict: I18nRecord): string {
   if (!Array.isArray(value)) return String(value);
   const [from, to] = value as [string, string];
-  if (from && to) return `${from} → ${to}`;
-  if (from) return `from ${from}`;
-  if (to) return `to ${to}`;
+  if (from && to) return tr("dashboard.settings.columnFilterDateRange", dict, { from, to });
+  if (from) return tr("dashboard.settings.columnFilterFromDate", dict, { date: from });
+  if (to) return tr("dashboard.settings.columnFilterToDate", dict, { date: to });
   return String(value);
 }
 

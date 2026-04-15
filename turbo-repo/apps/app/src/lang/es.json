@@ -1742,7 +1742,10 @@
       "columnFilterNotEmpty": "no vacío",
       "columnFilterNoValues": "Sin valores",
       "columnFilterTitle": "Filtrar: {column}",
-      "columnFilterValue": "Valor"
+      "columnFilterValue": "Valor",
+      "columnFilterDateRange": "{from} → {to}",
+      "columnFilterFromDate": "desde {date}",
+      "columnFilterToDate": "hasta {date}"
     },
     "filterBar": {
       "search": "Buscar...",

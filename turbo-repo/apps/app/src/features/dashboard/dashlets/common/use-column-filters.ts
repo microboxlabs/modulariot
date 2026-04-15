@@ -84,6 +84,23 @@ export function useColumnFilters(
 }
 
 // ---------------------------------------------------------------------------
+// Boolean value sets (shared between detection and filtering)
+// ---------------------------------------------------------------------------
+
+const BOOLEAN_VALUES = new Set([
+  "true",
+  "false",
+  "yes",
+  "no",
+  "si",
+  "sí",
+  "1",
+  "0",
+]);
+
+const BOOLEAN_TRUTHY = new Set(["true", "1", "yes", "si", "sí"]);
+
+// ---------------------------------------------------------------------------
 // Pure filter helpers
 // ---------------------------------------------------------------------------
 
@@ -191,25 +208,13 @@ function applyBooleanFilter(
   filterValue: ColumnFilter["value"],
 ): boolean {
   if (operator !== "is" || filterValue === null) return true;
-  const boolValue =
-    value === "true" || value === "1" || value === "yes" || value === "si";
+  const boolValue = BOOLEAN_TRUTHY.has(value.toLowerCase());
   return boolValue === filterValue;
 }
 
 // ---------------------------------------------------------------------------
 // Data type auto-detection
 // ---------------------------------------------------------------------------
-
-const BOOLEAN_VALUES = new Set([
-  "true",
-  "false",
-  "yes",
-  "no",
-  "si",
-  "sí",
-  "1",
-  "0",
-]);
 
 /** ISO-ish date pattern: 2024-01-15, 2024-01-15T10:30:00, etc. */
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+)?/;

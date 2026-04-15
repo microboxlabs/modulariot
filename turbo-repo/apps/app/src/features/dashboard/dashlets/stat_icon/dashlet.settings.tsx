@@ -285,6 +285,7 @@ export function DashletSettings(
           {/* Value Color Rules */}
           <ValueColorRulesEditor
             rules={valueColorRules.rules}
+            dictionary={dictionary}
             onAdd={valueColorRules.addRule}
             onRemove={valueColorRules.removeRule}
             onUpdate={valueColorRules.updateRule}

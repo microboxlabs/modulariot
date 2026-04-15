@@ -162,6 +162,7 @@ export function DashletSettings({
       </div>
       <RingColorRulesEditor
         rules={ringColorRules.rules}
+        dictionary={dictionary}
         onAdd={ringColorRules.addRule}
         onRemove={ringColorRules.removeRule}
         onUpdate={ringColorRules.updateRule}

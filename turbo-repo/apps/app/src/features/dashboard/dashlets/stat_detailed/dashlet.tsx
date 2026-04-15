@@ -115,8 +115,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     const getCompareValue = (
       rule: (typeof valueColorRulesConfig.rules)[0]
     ): string => {
-      if (rule.compareMode === "field" && rule.compareField) {
-        return String(fieldValues[rule.compareField] ?? 0);
+      if (rule.compareMode === "field") {
+        // Default to "previousValue" if compareField is not set
+        const field = rule.compareField ?? "previousValue";
+        return String(fieldValues[field] ?? 0);
       }
       return rule.value;
     };
@@ -166,9 +168,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     }
   }
 
+  // Helper to convert hex to rgba
+  const hexToRgba = (hex: string, alpha: number): string => {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   // Build badge style and classes
   const badgeStyle = ruleBadgeColor
-    ? { backgroundColor: `#${ruleBadgeColor}20`, color: `#${ruleBadgeColor}` }
+    ? {
+        backgroundColor: hexToRgba(ruleBadgeColor, 0.15),
+        color: `#${ruleBadgeColor}`,
+      }
     : undefined;
   const badgeClasses = ruleBadgeColor
     ? ""

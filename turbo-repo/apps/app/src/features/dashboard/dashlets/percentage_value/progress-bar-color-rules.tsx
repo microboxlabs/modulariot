@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { Button, Label, Select } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { useState } from "react";
+import { Label } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
-import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
-import type { PresetColor } from "@/features/common/components/advanced-color-picker";
-import type { ColorRuleOperator } from "../common/color-rule-types";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import {
-  COLOR_RULE_OPERATORS,
-  OPERATOR_LABELS,
-} from "../common/color-rule-types";
+  type ColorRule,
+  type ColorRuleItem,
+  normalizeColorRulesConfig,
+  ColorRuleSetter,
+  useColorRuleSettings,
+} from "../common";
 
 // ============================================================================
 // Types
@@ -19,17 +20,14 @@ import {
 /** Evaluation mode for progress bar rules */
 export type ProgressBarEvalMode = "count" | "percentage";
 
+/** What the rule applies to (bar only for this dashlet) */
+export type BarColorTarget = "bar";
+
 /** A single progress bar color rule */
-export interface ProgressBarRule {
-  operator: ColorRuleOperator;
-  value: string;
-  color: string;
-}
+export type ProgressBarRule = ColorRule<BarColorTarget, string>;
 
 /** Rule with stable ID for list rendering */
-export interface ProgressBarRuleItem extends ProgressBarRule {
-  _id: string;
-}
+export type ProgressBarRuleItem = ColorRuleItem<BarColorTarget, string>;
 
 /** Configuration stored in DashletConfig */
 export interface ProgressBarColorConfig {
@@ -43,21 +41,11 @@ export interface ProgressBarColorConfig {
 // Constants
 // ============================================================================
 
-const DEFAULT_RULE_COLOR = "2563eb";
+const VALID_TARGETS = new Set<string>(["bar"]);
 
-const COLOR_RULE_PRESETS: PresetColor[] = [
-  { value: "ef4444", label: "Red" },
-  { value: "f97316", label: "Orange" },
-  { value: "eab308", label: "Yellow" },
-  { value: "22c55e", label: "Green" },
-  { value: "3b82f6", label: "Blue" },
-  { value: "8b5cf6", label: "Purple" },
-  { value: "6b7280", label: "Gray" },
-];
-
-const EVAL_MODE_OPTIONS: { value: ProgressBarEvalMode; label: string }[] = [
-  { value: "percentage", label: "%" },
-  { value: "count", label: "Count" },
+const EVAL_MODE_OPTIONS: { value: ProgressBarEvalMode; labelKey: string }[] = [
+  { value: "percentage", labelKey: "%" },
+  { value: "count", labelKey: "dashboard.settings.evalModeCount" },
 ];
 
 // ============================================================================
@@ -77,47 +65,26 @@ export function normalizeProgressBarColorConfig(
     return DEFAULT_PROGRESS_BAR_COLOR_CONFIG;
   }
   const obj = raw as Record<string, unknown>;
-  if (typeof obj.enabled !== "boolean") {
-    return DEFAULT_PROGRESS_BAR_COLOR_CONFIG;
-  }
   const evalMode =
     obj.evalMode === "count" || obj.evalMode === "percentage"
       ? obj.evalMode
       : "percentage";
-  if (!Array.isArray(obj.rules)) {
-    return { enabled: obj.enabled, evalMode, rules: [] };
-  }
-  const rules = obj.rules.filter(
-    (r): r is ProgressBarRule =>
-      r != null &&
-      typeof r === "object" &&
-      typeof (r as Record<string, unknown>).operator === "string" &&
-      typeof (r as Record<string, unknown>).value === "string" &&
-      typeof (r as Record<string, unknown>).color === "string"
+
+  const normalizedRules = normalizeColorRulesConfig<BarColorTarget, string>(
+    { rules: obj.rules },
+    { validTargets: VALID_TARGETS, defaultTarget: "bar" }
   );
-  return { enabled: obj.enabled, evalMode, rules };
-}
 
-function toRuleItems(rules: ProgressBarRule[]): ProgressBarRuleItem[] {
-  return rules.map((rule, i) => ({
-    ...rule,
-    _id: `pbr-${i}-${rule.value}`,
-  }));
-}
-
-function fromRuleItems(items: ProgressBarRuleItem[]): ProgressBarRule[] {
-  return items.map((item) => ({
-    operator: item.operator,
-    value: item.value,
-    color: item.color,
-  }));
+  return {
+    enabled: obj.enabled === true || normalizedRules.rules.length > 0,
+    evalMode,
+    rules: normalizedRules.rules,
+  };
 }
 
 // ============================================================================
 // Hook for settings state
 // ============================================================================
-
-let nextId = 0;
 
 export function useProgressBarColorSettings(config: {
   barColorRules?: ProgressBarColorConfig;
@@ -127,47 +94,29 @@ export function useProgressBarColorSettings(config: {
   const [evalMode, setEvalMode] = useState<ProgressBarEvalMode>(
     normalized.evalMode
   );
-  const [rules, setRules] = useState<ProgressBarRuleItem[]>(
-    toRuleItems(normalized.rules)
-  );
 
-  const addRule = useCallback(() => {
-    setRules((prev) => [
-      ...prev,
-      {
-        _id: `pbr-new-${nextId++}`,
-        operator: "greater_than",
-        value: "",
-        color: DEFAULT_RULE_COLOR,
-      },
-    ]);
-  }, []);
-
-  const removeRule = useCallback((id: string) => {
-    setRules((prev) => prev.filter((r) => r._id !== id));
-  }, []);
-
-  const updateRule = useCallback((id: string, field: string, value: string) => {
-    setRules((prev) =>
-      prev.map((r) => (r._id === id ? { ...r, [field]: value } : r))
-    );
-  }, []);
+  const colorRules = useColorRuleSettings<BarColorTarget, string>({
+    config: { valueColorRules: { rules: normalized.rules } },
+    validTargets: VALID_TARGETS,
+    defaultTarget: "bar",
+  });
 
   const buildSavePayload = (): { barColorRules: ProgressBarColorConfig } => ({
     barColorRules: {
       enabled: true,
       evalMode,
-      rules: fromRuleItems(rules),
+      rules: colorRules.buildSavePayload().valueColorRules.rules,
     },
   });
 
   return {
     evalMode,
     setEvalMode,
-    rules,
-    addRule,
-    removeRule,
-    updateRule,
+    rules: colorRules.rules,
+    addRule: colorRules.addRule,
+    removeRule: colorRules.removeRule,
+    updateRule: colorRules.updateRule,
+    toggleTarget: colorRules.toggleTarget,
     buildSavePayload,
   };
 }
@@ -180,17 +129,17 @@ interface ProgressBarColorRulesEditorProps {
   evalMode: ProgressBarEvalMode;
   onEvalModeChange: (mode: ProgressBarEvalMode) => void;
   rules: ProgressBarRuleItem[];
+  dictionary: I18nRecord;
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: string, value: string) => void;
 }
 
-const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
-
 export function ProgressBarColorRulesEditor({
   evalMode,
   onEvalModeChange,
   rules,
+  dictionary,
   onAdd,
   onRemove,
   onUpdate,
@@ -199,89 +148,41 @@ export function ProgressBarColorRulesEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Bar Color Rules</Label>
+        <Label className="text-sm font-medium">
+          {tr("dashboard.settings.barColorRules", dictionary)}
+        </Label>
         {/* Eval mode toggle */}
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden dark:border-gray-600">
+        <div className="flex overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
           {EVAL_MODE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => onEvalModeChange(opt.value)}
               className={twMerge(
-                "flex-1 px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer",
+                "flex-1 cursor-pointer px-3 py-1.5 text-sm font-medium transition-colors",
                 evalMode === opt.value
                   ? "bg-primary-600 text-white"
                   : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
               )}
             >
-              {opt.label}
+              {opt.labelKey === "%" ? "%" : tr(opt.labelKey, dictionary)}
             </button>
           ))}
         </div>
-
-        {/* Rules */}
-        <div className="space-y-2">
-          {rules.map((rule) => (
-            <div key={rule._id} className="flex items-center gap-1">
-              {/* Operator */}
-              <div className="w-24 shrink-0">
-                <Select
-                  sizing="sm"
-                  value={rule.operator}
-                  onChange={(e) =>
-                    onUpdate(rule._id, "operator", e.target.value)
-                  }
-                  className="[&>select]:cursor-pointer"
-                >
-                  {COLOR_RULE_OPERATORS.map((op) => (
-                    <option key={op} value={op}>
-                      {OPERATOR_LABELS[op]}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              {/* Value */}
-              <div className="min-w-0 flex-1">
-                <input
-                  type="text"
-                  className="no-drag block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                  placeholder={evalMode === "percentage" ? "e.g. 80" : "e.g. 8"}
-                  value={rule.value}
-                  onChange={(e) => onUpdate(rule._id, "value", e.target.value)}
-                />
-              </div>
-              {/* Color */}
-              <AdvancedColorPicker
-                value={rule.color}
-                onChange={(c) => onUpdate(rule._id, "color", c)}
-                presets={COLOR_RULE_PRESETS}
-                title="Select rule color"
-              />
-              {/* Delete */}
-              <button
-                type="button"
-                onClick={() => onRemove(rule._id)}
-                onMouseDown={stopPropagation}
-                className="no-drag flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                aria-label="Delete rule"
-              >
-                <HiTrash className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <Button
-          color="light"
-          size="xs"
-          onClick={onAdd}
-          onMouseDown={stopPropagation}
-          className="no-drag"
-        >
-          <HiPlus className="mr-1 h-3 w-3" />
-          Add rule
-        </Button>
       </div>
+
+      {/* Rules using ColorRuleSetter */}
+      <ColorRuleSetter<BarColorTarget, string>
+        rules={rules}
+        dictionary={dictionary}
+        targetOptions={[]}
+        enableCompareMode={false}
+        onAdd={onAdd}
+        onRemove={onRemove}
+        onUpdate={onUpdate}
+        onToggleTarget={() => {}}
+        showSeparator={false}
+      />
     </>
   );
 }

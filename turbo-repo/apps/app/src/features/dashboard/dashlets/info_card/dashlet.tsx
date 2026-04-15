@@ -27,10 +27,11 @@ import {
   DashletLoading,
   DashletError,
 } from "../common";
+import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
-import { useThreshold } from "../common/use-threshold";
-import type { ThresholdConfig } from "../common/threshold-types";
+import type { ValueColorRulesConfig } from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -106,8 +107,8 @@ export interface DashletConfig extends PgrestDashletFields {
   openInSameTab?: boolean;
   /** Data provider entries for dynamic values */
   dataProvider?: DataProviderEntry[];
-  /** Threshold/color rules configuration */
-  thresholds?: ThresholdConfig;
+  /** Color rules for value-based styling */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 /** Default configuration */
@@ -199,31 +200,66 @@ export function Dashlet({
     [viewMoreLabel, templateContext]
   );
 
-  // ── Threshold / color rules support (hook must be before early returns) ────
-  const { color: thresholdColor, appliesTo } = useThreshold(
-    config.thresholds,
-    templateContext
-  );
+  // ── Color rules support ────
+  const colorRulesConfig = normalizeValueColorRulesConfig(config.valueColorRules);
+  let ruleTextColor: string | undefined;
+  let ruleIconColor: string | undefined;
 
-  const isHexColor = (c: string) => /^[0-9a-fA-F]{6}$/.test(c);
+  if (colorRulesConfig.rules.length > 0) {
+    const evalValue = compiledValue;
 
-  // Apply threshold color to value if threshold matches and applies to "text"
-  const effectiveValueColor =
-    thresholdColor && appliesTo("text") && isHexColor(thresholdColor)
-      ? `#${thresholdColor}`
-      : valueColor || undefined;
+    // Sort rules so most specific matches win
+    const sortedRules = [...colorRulesConfig.rules].sort((a, b) => {
+      const aVal = Number(a.value) || 0;
+      const bVal = Number(b.value) || 0;
+      const isAGreater =
+        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
+      const isBGreater =
+        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
+      const isALess =
+        a.operator === "less_than" || a.operator === "less_than_or_equal";
+      const isBLess =
+        b.operator === "less_than" || b.operator === "less_than_or_equal";
 
-  // Apply threshold color to icon if threshold matches and applies to "icon"
-  const effectiveIconColor =
-    thresholdColor && appliesTo("icon") && isHexColor(thresholdColor)
-      ? `#${thresholdColor}`
-      : iconColor || undefined;
+      if (isAGreater && isBGreater) return bVal - aVal;
+      if (isALess && isBLess) return aVal - bVal;
+      return 0;
+    });
+
+    for (const rule of sortedRules) {
+      if (
+        evaluateRule(
+          {
+            column: "",
+            operator: rule.operator,
+            value: rule.value,
+            color: "blue",
+          },
+          evalValue
+        )
+      ) {
+        if (rule.targets.includes("text") && !ruleTextColor) {
+          ruleTextColor = rule.color;
+        }
+        if (rule.targets.includes("icon") && !ruleIconColor) {
+          ruleIconColor = rule.color;
+        }
+        if (ruleTextColor && ruleIconColor) break;
+      }
+    }
+  }
+
+  // Apply color rules or fallback to manual colors
+  const effectiveValueColor = ruleTextColor
+    ? `#${ruleTextColor}`
+    : valueColor || undefined;
+
+  const effectiveIconColor = ruleIconColor
+    ? `#${ruleIconColor}`
+    : iconColor || undefined;
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
-    thresholdColor && appliesTo("icon") && isHexColor(thresholdColor)
-      ? `#${thresholdColor}`
-      : iconColor || undefined;
 
   const IconComponent = ICONS[icon] || ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;

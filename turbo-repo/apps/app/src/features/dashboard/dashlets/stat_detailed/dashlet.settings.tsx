@@ -69,6 +69,7 @@ export function DashletSettings(
       extraVisualization={
         <ValueColorRulesEditor
           rules={valueColorRules.rules}
+          dictionary={props.dictionary}
           onAdd={valueColorRules.addRule}
           onRemove={valueColorRules.removeRule}
           onUpdate={valueColorRules.updateRule}

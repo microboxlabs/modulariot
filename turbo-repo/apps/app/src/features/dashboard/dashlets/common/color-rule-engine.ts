@@ -44,10 +44,24 @@ export function evaluateRule(rule: ColorRule, resolvedValue: string): boolean {
   const cellVal = resolvedValue.trim();
 
   switch (rule.operator) {
-    case "equals":
+    case "equals": {
+      // Try numeric comparison first, fall back to string comparison
+      const numCell = Number.parseFloat(cellVal.replaceAll(/[^\d.-]/g, ""));
+      const numRule = Number.parseFloat(ruleVal.replaceAll(/[^\d.-]/g, ""));
+      if (!Number.isNaN(numCell) && !Number.isNaN(numRule)) {
+        return numCell === numRule;
+      }
       return cellVal.toLowerCase() === ruleVal.toLowerCase();
-    case "not_equals":
+    }
+    case "not_equals": {
+      // Try numeric comparison first, fall back to string comparison
+      const numCell = Number.parseFloat(cellVal.replaceAll(/[^\d.-]/g, ""));
+      const numRule = Number.parseFloat(ruleVal.replaceAll(/[^\d.-]/g, ""));
+      if (!Number.isNaN(numCell) && !Number.isNaN(numRule)) {
+        return numCell !== numRule;
+      }
       return cellVal.toLowerCase() !== ruleVal.toLowerCase();
+    }
     case "contains":
       return cellVal.toLowerCase().includes(ruleVal.toLowerCase());
     case "not_contains":

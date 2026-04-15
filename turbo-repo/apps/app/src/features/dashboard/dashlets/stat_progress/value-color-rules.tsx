@@ -12,37 +12,37 @@ import {
 } from "../common";
 
 // ============================================================================
-// Types specific to stat_circular
+// Types specific to stat_progress
 // ============================================================================
 
-/** What the rule applies to (ring only for this dashlet) */
-export type RingColorTarget = "ring";
+/** What the rule applies to (bar only for this dashlet) */
+export type BarColorTarget = "bar";
 
-/** A single ring color rule */
-export type RingColorRule = ColorRule<RingColorTarget, string>;
+/** A single bar color rule */
+export type BarColorRule = ColorRule<BarColorTarget, string>;
 
 /** Rule with stable ID for list rendering */
-export type RingColorRuleItem = ColorRuleItem<RingColorTarget, string>;
+export type BarColorRuleItem = ColorRuleItem<BarColorTarget, string>;
 
 /** Configuration stored in DashletConfig */
-export type RingColorRulesConfig = ColorRulesConfig<RingColorTarget, string>;
+export type BarColorRulesConfig = ColorRulesConfig<BarColorTarget, string>;
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const VALID_TARGETS = new Set<string>(["ring"]);
+const VALID_TARGETS = new Set<string>(["bar"]);
 
 // ============================================================================
 // Normalization helper
 // ============================================================================
 
-export function normalizeRingColorRulesConfig(
+export function normalizeBarColorRulesConfig(
   raw: unknown
-): RingColorRulesConfig {
-  return normalizeColorRulesConfig<RingColorTarget, string>(raw, {
+): BarColorRulesConfig {
+  return normalizeColorRulesConfig<BarColorTarget, string>(raw, {
     validTargets: VALID_TARGETS,
-    defaultTarget: "ring",
+    defaultTarget: "bar",
   });
 }
 
@@ -50,20 +50,20 @@ export function normalizeRingColorRulesConfig(
 // Hook for settings state
 // ============================================================================
 
-export function useRingColorSettings(config: {
-  ringColorRules?: RingColorRulesConfig;
+export function useBarColorSettings(config: {
+  barColorRules?: BarColorRulesConfig;
 }) {
-  const result = useColorRuleSettings<RingColorTarget, string>({
-    config: { valueColorRules: config.ringColorRules },
+  const result = useColorRuleSettings<BarColorTarget, string>({
+    config: { valueColorRules: config.barColorRules },
     validTargets: VALID_TARGETS,
-    defaultTarget: "ring",
+    defaultTarget: "bar",
   });
 
   // Return with correct key name for this dashlet
   return {
     ...result,
     buildSavePayload: () => ({
-      ringColorRules: result.buildSavePayload().valueColorRules,
+      barColorRules: result.buildSavePayload().valueColorRules,
     }),
   };
 }
@@ -72,23 +72,23 @@ export function useRingColorSettings(config: {
 // Editor Component
 // ============================================================================
 
-interface RingColorRulesEditorProps {
-  rules: RingColorRuleItem[];
+interface BarColorRulesEditorProps {
+  rules: BarColorRuleItem[];
   dictionary: I18nRecord;
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: string, value: string) => void;
 }
 
-export function RingColorRulesEditor({
+export function BarColorRulesEditor({
   rules,
   dictionary,
   onAdd,
   onRemove,
   onUpdate,
-}: Readonly<RingColorRulesEditorProps>) {
+}: Readonly<BarColorRulesEditorProps>) {
   return (
-    <ColorRuleSetter<RingColorTarget, string>
+    <ColorRuleSetter<BarColorTarget, string>
       rules={rules}
       dictionary={dictionary}
       targetOptions={[]}
@@ -97,7 +97,7 @@ export function RingColorRulesEditor({
       onRemove={onRemove}
       onUpdate={onUpdate}
       onToggleTarget={() => {}}
-      label={tr("dashboard.settings.ringColorRules", dictionary)}
+      label={tr("dashboard.settings.barColorRules", dictionary)}
     />
   );
 }

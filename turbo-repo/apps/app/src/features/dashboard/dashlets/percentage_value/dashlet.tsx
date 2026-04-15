@@ -6,9 +6,9 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { evaluateRule } from "../common/color-rule-engine";
 import type { ProgressBarColorConfig } from "./progress-bar-color-rules";
 import { normalizeProgressBarColorConfig } from "./progress-bar-color-rules";
-import { evaluateRule } from "../common/color-rule-engine";
 
 const EMPTY_PARAMS: PgrestParam[] = [];
 
@@ -133,14 +133,42 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       barColorRulesConfig.evalMode === "percentage"
         ? String(percentage)
         : String(value);
-    for (const rule of barColorRulesConfig.rules) {
-      const syntheticRule = {
-        column: "",
-        operator: rule.operator,
-        value: rule.value,
-        color: rule.color,
-      };
-      if (evaluateRule(syntheticRule, evalValue)) {
+
+    // Sort rules so most specific matches win:
+    // - greater_than/greater_than_or_equal: check highest thresholds first
+    // - less_than/less_than_or_equal: check lowest thresholds first
+    const sortedRules = [...barColorRulesConfig.rules].sort((a, b) => {
+      const aVal = Number(a.value) || 0;
+      const bVal = Number(b.value) || 0;
+      const isAGreater =
+        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
+      const isBGreater =
+        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
+      const isALess =
+        a.operator === "less_than" || a.operator === "less_than_or_equal";
+      const isBLess =
+        b.operator === "less_than" || b.operator === "less_than_or_equal";
+
+      // If both are "greater" type, sort descending (highest first)
+      if (isAGreater && isBGreater) return bVal - aVal;
+      // If both are "less" type, sort ascending (lowest first)
+      if (isALess && isBLess) return aVal - bVal;
+      // Mixed operators: keep original order
+      return 0;
+    });
+
+    for (const rule of sortedRules) {
+      if (
+        evaluateRule(
+          {
+            column: "",
+            operator: rule.operator,
+            value: rule.value,
+            color: "blue",
+          },
+          evalValue
+        )
+      ) {
         barColor = rule.color;
         break;
       }

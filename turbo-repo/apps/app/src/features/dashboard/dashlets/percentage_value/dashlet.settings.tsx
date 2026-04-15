@@ -174,8 +174,6 @@ export function DashletSettings({
         />
       </div>
       <ProgressBarColorRulesEditor
-        enabled={barColorRules.enabled}
-        onToggle={barColorRules.setEnabled}
         evalMode={barColorRules.evalMode}
         onEvalModeChange={barColorRules.setEvalMode}
         rules={barColorRules.rules}

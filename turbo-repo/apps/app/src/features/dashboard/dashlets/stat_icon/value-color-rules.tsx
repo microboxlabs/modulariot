@@ -16,34 +16,33 @@ import {
 // Types
 // ============================================================================
 
-/** Evaluation mode for progress bar rules */
-export type ProgressBarEvalMode = "count" | "percentage";
+/** What the rule applies to */
+export type ValueColorTarget = "text" | "bg" | "icon";
 
-/** A single progress bar color rule */
-export interface ProgressBarRule {
+/** A single value color rule */
+export interface ValueColorRule {
   operator: ColorRuleOperator;
   value: string;
   color: string;
+  /** What to apply the color to (can be multiple) */
+  targets: ValueColorTarget[];
 }
 
 /** Rule with stable ID for list rendering */
-export interface ProgressBarRuleItem extends ProgressBarRule {
+export interface ValueColorRuleItem extends ValueColorRule {
   _id: string;
 }
 
 /** Configuration stored in DashletConfig */
-export interface ProgressBarColorConfig {
-  enabled: boolean;
-  /** Whether to evaluate rules against "count" (raw value) or "percentage" */
-  evalMode: ProgressBarEvalMode;
-  rules: ProgressBarRule[];
+export interface ValueColorRulesConfig {
+  rules: ValueColorRule[];
 }
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const DEFAULT_RULE_COLOR = "2563eb";
+const DEFAULT_RULE_COLOR = "3b82f6";
 
 const COLOR_RULE_PRESETS: PresetColor[] = [
   { value: "ef4444", label: "Red" },
@@ -55,61 +54,79 @@ const COLOR_RULE_PRESETS: PresetColor[] = [
   { value: "6b7280", label: "Gray" },
 ];
 
-const EVAL_MODE_OPTIONS: { value: ProgressBarEvalMode; label: string }[] = [
-  { value: "percentage", label: "%" },
-  { value: "count", label: "Count" },
+const TARGET_OPTIONS: { value: ValueColorTarget; label: string }[] = [
+  { value: "bg", label: "BG" },
+  { value: "text", label: "Text" },
+  { value: "icon", label: "Icon" },
 ];
+
+const VALID_TARGETS = new Set<string>(["text", "bg", "icon"]);
+
+function isValidTarget(t: unknown): t is ValueColorTarget {
+  return typeof t === "string" && VALID_TARGETS.has(t);
+}
 
 // ============================================================================
 // Defaults & Helpers
 // ============================================================================
 
-export const DEFAULT_PROGRESS_BAR_COLOR_CONFIG: ProgressBarColorConfig = {
-  enabled: false,
-  evalMode: "percentage",
+export const DEFAULT_VALUE_COLOR_RULES_CONFIG: ValueColorRulesConfig = {
   rules: [],
 };
 
-export function normalizeProgressBarColorConfig(
+export function normalizeValueColorRulesConfig(
   raw: unknown
-): ProgressBarColorConfig {
+): ValueColorRulesConfig {
   if (raw == null || typeof raw !== "object") {
-    return DEFAULT_PROGRESS_BAR_COLOR_CONFIG;
+    return DEFAULT_VALUE_COLOR_RULES_CONFIG;
   }
   const obj = raw as Record<string, unknown>;
-  if (typeof obj.enabled !== "boolean") {
-    return DEFAULT_PROGRESS_BAR_COLOR_CONFIG;
-  }
-  const evalMode =
-    obj.evalMode === "count" || obj.evalMode === "percentage"
-      ? obj.evalMode
-      : "percentage";
   if (!Array.isArray(obj.rules)) {
-    return { enabled: obj.enabled, evalMode, rules: [] };
+    return DEFAULT_VALUE_COLOR_RULES_CONFIG;
   }
-  const rules = obj.rules.filter(
-    (r): r is ProgressBarRule =>
-      r != null &&
-      typeof r === "object" &&
-      typeof (r as Record<string, unknown>).operator === "string" &&
-      typeof (r as Record<string, unknown>).value === "string" &&
-      typeof (r as Record<string, unknown>).color === "string"
-  );
-  return { enabled: obj.enabled, evalMode, rules };
+  const rules: ValueColorRule[] = [];
+  for (const r of obj.rules) {
+    if (r == null || typeof r !== "object") continue;
+    const rec = r as Record<string, unknown>;
+    if (
+      typeof rec.operator !== "string" ||
+      typeof rec.value !== "string" ||
+      typeof rec.color !== "string"
+    )
+      continue;
+    // Support both legacy `target` and new `targets` array
+    let targets: ValueColorTarget[];
+    if (Array.isArray(rec.targets)) {
+      targets = rec.targets.filter(isValidTarget);
+    } else if (isValidTarget(rec.target)) {
+      targets = [rec.target];
+    } else {
+      targets = ["text"];
+    }
+    if (targets.length === 0) targets = ["text"];
+    rules.push({
+      operator: rec.operator as ColorRuleOperator,
+      value: rec.value,
+      color: rec.color,
+      targets,
+    });
+  }
+  return { rules };
 }
 
-function toRuleItems(rules: ProgressBarRule[]): ProgressBarRuleItem[] {
+function toRuleItems(rules: ValueColorRule[]): ValueColorRuleItem[] {
   return rules.map((rule, i) => ({
     ...rule,
-    _id: `pbr-${i}-${rule.value}`,
+    _id: `vcr-${i}-${rule.value}`,
   }));
 }
 
-function fromRuleItems(items: ProgressBarRuleItem[]): ProgressBarRule[] {
+function fromRuleItems(items: ValueColorRuleItem[]): ValueColorRule[] {
   return items.map((item) => ({
     operator: item.operator,
     value: item.value,
     color: item.color,
+    targets: item.targets,
   }));
 }
 
@@ -119,15 +136,12 @@ function fromRuleItems(items: ProgressBarRuleItem[]): ProgressBarRule[] {
 
 let nextId = 0;
 
-export function useProgressBarColorSettings(config: {
-  barColorRules?: ProgressBarColorConfig;
+export function useValueColorSettings(config: {
+  valueColorRules?: ValueColorRulesConfig;
 }) {
-  const normalized = normalizeProgressBarColorConfig(config.barColorRules);
+  const normalized = normalizeValueColorRulesConfig(config.valueColorRules);
 
-  const [evalMode, setEvalMode] = useState<ProgressBarEvalMode>(
-    normalized.evalMode
-  );
-  const [rules, setRules] = useState<ProgressBarRuleItem[]>(
+  const [rules, setRules] = useState<ValueColorRuleItem[]>(
     toRuleItems(normalized.rules)
   );
 
@@ -135,10 +149,11 @@ export function useProgressBarColorSettings(config: {
     setRules((prev) => [
       ...prev,
       {
-        _id: `pbr-new-${nextId++}`,
+        _id: `vcr-new-${nextId++}`,
         operator: "greater_than",
         value: "",
         color: DEFAULT_RULE_COLOR,
+        targets: ["text"],
       },
     ]);
   }, []);
@@ -147,27 +162,42 @@ export function useProgressBarColorSettings(config: {
     setRules((prev) => prev.filter((r) => r._id !== id));
   }, []);
 
-  const updateRule = useCallback((id: string, field: string, value: string) => {
+  const updateRule = useCallback(
+    (id: string, field: string, value: string | ValueColorTarget[]) => {
+      setRules((prev) =>
+        prev.map((r) => (r._id === id ? { ...r, [field]: value } : r))
+      );
+    },
+    []
+  );
+
+  const toggleTarget = useCallback((id: string, target: ValueColorTarget) => {
     setRules((prev) =>
-      prev.map((r) => (r._id === id ? { ...r, [field]: value } : r))
+      prev.map((r) => {
+        if (r._id !== id) return r;
+        const has = r.targets.includes(target);
+        // If removing and it's the last one, keep it (at least one must be selected)
+        if (has && r.targets.length === 1) return r;
+        const newTargets = has
+          ? r.targets.filter((t) => t !== target)
+          : [...r.targets, target];
+        return { ...r, targets: newTargets };
+      })
     );
   }, []);
 
-  const buildSavePayload = (): { barColorRules: ProgressBarColorConfig } => ({
-    barColorRules: {
-      enabled: true,
-      evalMode,
+  const buildSavePayload = (): { valueColorRules: ValueColorRulesConfig } => ({
+    valueColorRules: {
       rules: fromRuleItems(rules),
     },
   });
 
   return {
-    evalMode,
-    setEvalMode,
     rules,
     addRule,
     removeRule,
     updateRule,
+    toggleTarget,
     buildSavePayload,
   };
 }
@@ -176,55 +206,35 @@ export function useProgressBarColorSettings(config: {
 // Editor Component
 // ============================================================================
 
-interface ProgressBarColorRulesEditorProps {
-  evalMode: ProgressBarEvalMode;
-  onEvalModeChange: (mode: ProgressBarEvalMode) => void;
-  rules: ProgressBarRuleItem[];
+interface ValueColorRulesEditorProps {
+  rules: ValueColorRuleItem[];
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: string, value: string) => void;
+  onToggleTarget: (id: string, target: ValueColorTarget) => void;
 }
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
-export function ProgressBarColorRulesEditor({
-  evalMode,
-  onEvalModeChange,
+export function ValueColorRulesEditor({
   rules,
   onAdd,
   onRemove,
   onUpdate,
-}: Readonly<ProgressBarColorRulesEditorProps>) {
+  onToggleTarget,
+}: Readonly<ValueColorRulesEditorProps>) {
   return (
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Bar Color Rules</Label>
-        {/* Eval mode toggle */}
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden dark:border-gray-600">
-          {EVAL_MODE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onEvalModeChange(opt.value)}
-              className={twMerge(
-                "flex-1 px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer",
-                evalMode === opt.value
-                  ? "bg-primary-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <Label className="text-sm font-medium">Value Color Rules</Label>
 
         {/* Rules */}
         <div className="space-y-2">
           {rules.map((rule) => (
             <div key={rule._id} className="flex items-center gap-1">
               {/* Operator */}
-              <div className="w-24 shrink-0">
+              <div className="w-20 shrink-0">
                 <Select
                   sizing="sm"
                   value={rule.operator}
@@ -245,10 +255,28 @@ export function ProgressBarColorRulesEditor({
                 <input
                   type="text"
                   className="no-drag block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                  placeholder={evalMode === "percentage" ? "e.g. 80" : "e.g. 8"}
+                  placeholder="e.g. 100"
                   value={rule.value}
                   onChange={(e) => onUpdate(rule._id, "value", e.target.value)}
                 />
+              </div>
+              {/* Target multi-toggle (BG/Text/Icon) */}
+              <div className="flex shrink-0 rounded-md border border-gray-200 overflow-hidden dark:border-gray-600">
+                {TARGET_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onToggleTarget(rule._id, opt.value)}
+                    className={twMerge(
+                      "px-2 py-1 text-xs font-medium transition-colors cursor-pointer",
+                      rule.targets.includes(opt.value)
+                        ? "bg-primary-600 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
               {/* Color */}
               <AdvancedColorPicker

@@ -1548,6 +1548,7 @@
       "new": "nueva",
       "borderColor": "Color del Borde",
       "barColor": "Color de la Barra",
+      "ringColor": "Color del Anillo",
       "seeMoreUrl": "URL \"Ver más\"",
       "items": "Elementos",
       "details": "Detalles",
@@ -2876,7 +2877,54 @@
           "intensityLastDays": "Intensidad últimos 30 días",
           "exceeded": "Excedido",
           "nearLimit": "Próximo al límite",
-          "usageLabel": "uso"
+          "usageLabel": "uso",
+          "activeDaysLabel": "Días con datos",
+          "activeDaysValue": "{active}/{total} días",
+          "useType": "Tipo de uso",
+          "useTypeUnknown": "Sin clasificar",
+          "useTypeDesc": "Categoría del contrato",
+          "annualProjection": "Proyección anual",
+          "projectionBasis": "Estimación basada en los últimos 30 días",
+          "contractStatus": {
+            "NORMAL": {
+              "label": "{pct} – uso normal",
+              "bannerTitle": "Uso dentro del contrato",
+              "bannerDesc": "El vehículo consume kilometraje dentro del rango contractual esperado."
+            },
+            "SOBREUSO": {
+              "label": "{pct} – sobreuso",
+              "bannerTitle": "Sobreuso del contrato",
+              "bannerDesc": "El kilometraje acumulado supera la meta contractual. Revisar condiciones del contrato o reasignación del vehículo."
+            },
+            "SUBUTILIZADO": {
+              "label": "{pct} – subutilizado",
+              "bannerTitle": "Vehículo subutilizado",
+              "bannerDesc": "El vehículo consume muy por debajo de la meta contractual. Evaluar reasignación o rebalance de flota."
+            },
+            "SIN_DATOS": {
+              "label": "Sin datos",
+              "bannerTitle": "Sin datos de uso",
+              "bannerDesc": "No se registran lecturas de odómetro recientes para este vehículo. La sección se actualizará cuando llegue nueva telemetría."
+            }
+          },
+          "intensity": {
+            "ALTA": {
+              "label": "Intensidad alta"
+            },
+            "MEDIA": {
+              "label": "Intensidad media"
+            },
+            "BAJA": {
+              "label": "Intensidad baja"
+            },
+            "SIN_DATO": {
+              "label": "Sin intensidad"
+            }
+          },
+          "loading": "Cargando uso…",
+          "errorTitle": "No se pudo cargar el uso",
+          "errorDesc": "Hubo un problema al obtener los datos de uso. Intenta nuevamente.",
+          "retry": "Reintentar"
         },
         "general": {
           "title": "Información General",

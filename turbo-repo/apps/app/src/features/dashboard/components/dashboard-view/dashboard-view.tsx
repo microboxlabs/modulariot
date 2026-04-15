@@ -27,8 +27,6 @@ import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
-import "react-grid-layout/css/styles.css";
-
 /**
  * Main dashboard view component
  * Renders all root-level widgets with edit mode controls using react-grid-layout

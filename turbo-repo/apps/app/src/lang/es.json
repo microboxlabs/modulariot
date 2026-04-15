@@ -1631,6 +1631,7 @@
       "targetBar": "Barra",
       "targetBadge": "Badge",
       "targetBg": "Fondo",
+      "targetBorder": "Borde",
       "targetIcon": "Ícono",
       "compareModeValue": "Valor",
       "compareModeField": "Campo",
@@ -1803,7 +1804,7 @@
         "noData": "Sin datos"
       },
       "geographic_map": {
-        "name": "Mapa Geográfico",
+        "name": "Vista Geográfica",
         "description": "Mapa interactivo con marcadores de posición y filtros",
         "load_failed": "Error al cargar datos del mapa"
       }

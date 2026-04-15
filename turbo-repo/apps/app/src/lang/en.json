@@ -1605,6 +1605,7 @@
       "targetBar": "Bar",
       "targetBadge": "Badge",
       "targetBg": "BG",
+      "targetBorder": "Border",
       "targetIcon": "Icon",
       "compareModeValue": "Value",
       "compareModeField": "Field",

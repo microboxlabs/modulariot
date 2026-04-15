@@ -7,8 +7,10 @@ import {
   ToggleSwitch,
   TextInput,
   Select,
+  Dropdown,
+  DropdownItem,
 } from "flowbite-react";
-import { HiPlus } from "react-icons/hi2";
+import { HiPlus, HiChevronDown, HiTrash } from "react-icons/hi2";
 import type { ColumnItem } from "./column-helpers";
 import { DeleteItemButton } from "./delete-item-button";
 import type { FilterItem } from "./filter-helpers";
@@ -20,11 +22,10 @@ import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
 import type { ColorRuleOperator } from "./color-rule-types";
-import { COLOR_RULE_PRESETS, COLOR_RULE_OPERATORS } from "./color-rule-types";
+import { COLOR_RULE_PRESETS, COLOR_RULE_OPERATORS, OPERATOR_LABELS } from "./color-rule-types";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import type { ActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
-import { RuleRowControls } from "./rule-row-controls";
 
 // ============================================================================
 // Shared mouse-down handler (prevents drag on settings modals)
@@ -133,48 +134,61 @@ export function ColumnEditor({
               onAddColorMapping &&
               onRemoveColorMapping &&
               onUpdateColorMapping && (
-                <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
+                <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
                   {(col.colorMap ?? []).map((mapping) => (
                     <div
                       key={`${col._id}-cm-${mapping._id}`}
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-gray-600 dark:bg-gray-700/50"
                     >
-                      <div className="w-24 shrink-0">
-                        <Select
-                          sizing="sm"
-                          value={mapping.operator}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "operator",
-                              e.target.value
-                            )
-                          }
-                          className="[&>select]:cursor-pointer"
-                        >
-                          {COLOR_RULE_OPERATORS.map((op) => (
-                            <option key={op} value={op}>
-                              {labels.operatorLabels[op]}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <TextInput
-                          sizing="sm"
-                          placeholder={labels.valuePlaceholder}
-                          value={mapping.value}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "value",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
+                      {/* Operator dropdown */}
+                      <Dropdown
+                        label=""
+                        dismissOnClick
+                        renderTrigger={() => (
+                          <button
+                            type="button"
+                            className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                          >
+                            <span className="truncate">
+                              {OPERATOR_LABELS[mapping.operator as ColorRuleOperator]}
+                            </span>
+                            <HiChevronDown className="h-3 w-3 shrink-0" />
+                          </button>
+                        )}
+                      >
+                        {COLOR_RULE_OPERATORS.map((op) => (
+                          <DropdownItem
+                            key={op}
+                            onClick={() =>
+                              onUpdateColorMapping(
+                                col._id,
+                                mapping._id!,
+                                "operator",
+                                op
+                              )
+                            }
+                            className="text-xs"
+                          >
+                            {OPERATOR_LABELS[op]}
+                          </DropdownItem>
+                        ))}
+                      </Dropdown>
+                      {/* Value input */}
+                      <input
+                        type="text"
+                        className="no-drag h-7 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        placeholder={labels.valuePlaceholder}
+                        value={mapping.value}
+                        onChange={(e) =>
+                          onUpdateColorMapping(
+                            col._id,
+                            mapping._id!,
+                            "value",
+                            e.target.value
+                          )
+                        }
+                      />
+                      {/* Color picker */}
                       <AdvancedColorPicker
                         value={mapping.color}
                         onChange={(newColor) =>
@@ -188,12 +202,18 @@ export function ColumnEditor({
                         presets={COLOR_RULE_PRESETS}
                         title="Select mapping color"
                       />
-                      <DeleteItemButton
+                      {/* Delete button */}
+                      <button
+                        type="button"
                         onClick={() =>
                           onRemoveColorMapping(col._id, mapping._id!)
                         }
-                        ariaLabel="Delete color mapping"
-                      />
+                        onMouseDown={stopPropagation}
+                        className="no-drag flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                        aria-label="Delete color mapping"
+                      >
+                        <HiTrash className="h-4 w-4" />
+                      </button>
                     </div>
                   ))}
                   <Button
@@ -534,34 +554,92 @@ export function ColorRuleEditor({
           <div>
             <div className="space-y-2">
               {rules.map((rule) => (
-                <div key={rule._id} className="flex items-center gap-1">
-                  {/* Column select */}
-                  <div className="min-w-0 flex-1">
-                    <Select
-                      sizing="sm"
-                      value={rule.column}
-                      onChange={(e) =>
-                        onUpdate(rule._id, "column", e.target.value)
-                      }
-                      className="[&>select]:cursor-pointer"
-                    >
-                      {columnsWithKeys.map((c) => (
-                        <option key={c._id} value={c.key}>
-                          {c.label || c.key}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <RuleRowControls
-                    ruleId={rule._id}
-                    operator={rule.operator}
+                <div
+                  key={rule._id}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-gray-600 dark:bg-gray-700/50"
+                >
+                  {/* Column dropdown */}
+                  <Dropdown
+                    label=""
+                    dismissOnClick
+                    renderTrigger={() => (
+                      <button
+                        type="button"
+                        className="flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                      >
+                        <span className="truncate">
+                          {columnsWithKeys.find((c) => c.key === rule.column)
+                            ?.label || rule.column}
+                        </span>
+                        <HiChevronDown className="h-3 w-3 shrink-0" />
+                      </button>
+                    )}
+                  >
+                    {columnsWithKeys.map((c) => (
+                      <DropdownItem
+                        key={c._id}
+                        onClick={() => onUpdate(rule._id, "column", c.key)}
+                        className="text-xs"
+                      >
+                        {c.label || c.key}
+                      </DropdownItem>
+                    ))}
+                  </Dropdown>
+                  {/* Operator dropdown */}
+                  <Dropdown
+                    label=""
+                    dismissOnClick
+                    renderTrigger={() => (
+                      <button
+                        type="button"
+                        className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                      >
+                        <span className="truncate">
+                          {OPERATOR_LABELS[rule.operator]}
+                        </span>
+                        <HiChevronDown className="h-3 w-3 shrink-0" />
+                      </button>
+                    )}
+                  >
+                    {COLOR_RULE_OPERATORS.map((op) => (
+                      <DropdownItem
+                        key={op}
+                        onClick={() => onUpdate(rule._id, "operator", op)}
+                        className="text-xs"
+                      >
+                        {OPERATOR_LABELS[op]}
+                      </DropdownItem>
+                    ))}
+                  </Dropdown>
+                  {/* Value input */}
+                  <input
+                    type="text"
+                    className="no-drag h-7 w-20 shrink-0 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    placeholder={labels.valuePlaceholder}
                     value={rule.value}
-                    color={rule.color}
-                    onUpdate={onUpdate}
-                    onRemove={onRemove}
-                    operatorLabels={labels.operatorLabels}
-                    valuePlaceholder={labels.valuePlaceholder}
+                    onChange={(e) =>
+                      onUpdate(rule._id, "value", e.target.value)
+                    }
                   />
+                  {/* Color picker */}
+                  <AdvancedColorPicker
+                    value={rule.color}
+                    onChange={(newColor) =>
+                      onUpdate(rule._id, "color", newColor)
+                    }
+                    presets={COLOR_RULE_PRESETS}
+                    title="Select rule color"
+                  />
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(rule._id)}
+                    onMouseDown={stopPropagation}
+                    className="no-drag flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                    aria-label="Delete rule"
+                  >
+                    <HiTrash className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>

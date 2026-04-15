@@ -49,7 +49,7 @@ export function ActionDropdown({ items, ariaLabel }: Readonly<ActionDropdownProp
                 target={action.target}
                 rel={action.target === "_blank" ? "noopener noreferrer" : undefined}
                 onClick={close}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 {action.target === "_blank" ? (
                   <HiArrowTopRightOnSquare className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />

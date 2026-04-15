@@ -1793,7 +1793,16 @@
         "noData": "Sin datos"
       }
     },
-    "defaults": {
+    "fileUpload": {
+        "defaultTitle": "Subir archivo",
+        "configureHint": "Configura un endpoint en ajustes",
+        "noEndpoint": "No hay endpoint configurado",
+        "uploading": "Subiendo {fileName}...",
+        "uploaded": "{fileName} subido",
+        "uploadFailed": "Error al subir",
+        "tryAgain": "Intentar de nuevo"
+      },
+      "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",
       "orders": "Pedidos",

@@ -5,6 +5,8 @@ import { Button, Spinner } from "flowbite-react";
 import { HiCloudArrowUp, HiCheckCircle, HiExclamationCircle } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { buildDataSourceParams } from "../common/pgrest-utils";
+import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 
 export interface DashletConfig {
   title: string;
@@ -35,6 +37,7 @@ type UploadState =
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
+  const { dictionary } = useDashboard();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
 
@@ -47,7 +50,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const handleUpload = useCallback(async (file: File) => {
     if (!config.pgrestFunctionName) {
-      setUploadState({ status: "error", message: "No endpoint configured" });
+      setUploadState({ status: "error", message: tr("dashboard.dashlets.fileUpload.noEndpoint", dictionary) });
       return;
     }
 
@@ -72,10 +75,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     } catch (err) {
       setUploadState({
         status: "error",
-        message: err instanceof Error ? err.message : "Upload failed",
+        message: err instanceof Error ? err.message : tr("dashboard.dashlets.fileUpload.uploadFailed", dictionary),
       });
     }
-  }, [config.pgrestFunctionName, config.dataSourceId]);
+  }, [config.pgrestFunctionName, config.dataSourceId, dictionary]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,13 +103,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       />
 
       {!isConfigured && (
-        <p className="text-sm text-gray-400">Configure an endpoint in settings</p>
+        <p className="text-sm text-gray-400">{tr("dashboard.dashlets.fileUpload.configureHint", dictionary)}</p>
       )}
 
       {isConfigured && uploadState.status === "idle" && (
         <Button color="blue" onClick={handleClick} className="gap-2">
           <HiCloudArrowUp className="mr-2 h-5 w-5" />
-          {config.title || "Upload File"}
+          {config.title || tr("dashboard.dashlets.fileUpload.defaultTitle", dictionary)}
         </Button>
       )}
 
@@ -114,7 +117,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <div className="flex flex-col items-center gap-2">
           <Spinner size="lg" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Uploading {uploadState.fileName}...
+            {tr("dashboard.dashlets.fileUpload.uploading", dictionary, { fileName: uploadState.fileName })}
           </p>
         </div>
       )}
@@ -123,7 +126,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         <div className="flex flex-col items-center gap-2">
           <HiCheckCircle className="h-8 w-8 text-green-500" />
           <p className="text-sm text-green-600 dark:text-green-400">
-            {uploadState.fileName} uploaded
+            {tr("dashboard.dashlets.fileUpload.uploaded", dictionary, { fileName: uploadState.fileName })}
           </p>
         </div>
       )}
@@ -133,7 +136,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           <HiExclamationCircle className="h-8 w-8 text-red-500" />
           <p className="text-sm text-red-600 dark:text-red-400">{uploadState.message}</p>
           <Button color="gray" size="xs" onClick={() => setUploadState({ status: "idle" })}>
-            Try again
+            {tr("dashboard.dashlets.fileUpload.tryAgain", dictionary)}
           </Button>
         </div>
       )}

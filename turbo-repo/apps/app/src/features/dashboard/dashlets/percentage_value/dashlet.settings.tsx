@@ -180,6 +180,7 @@ export function DashletSettings({
         onAdd={barColorRules.addRule}
         onRemove={barColorRules.removeRule}
         onUpdate={barColorRules.updateRule}
+        dictionary={dictionary}
       />
     </>
   );

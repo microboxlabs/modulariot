@@ -177,3 +177,17 @@ export { buildCsvContent, downloadCsv } from "./export-csv";
 export { ExportDropdown } from "./export-dropdown";
 export { usePortalDropdown } from "./use-portal-dropdown";
 export { DashletTitleBar } from "./dashlet-title-bar";
+export {
+  type CompareMode,
+  type TargetOption,
+  type CompareFieldOption,
+  type ColorRule,
+  type ColorRuleItem,
+  type ColorRulesConfig,
+  type NormalizeOptions,
+  type UseColorRuleSettingsOptions,
+  type ColorRuleSetterProps,
+  normalizeColorRulesConfig,
+  useColorRuleSettings,
+  ColorRuleSetter,
+} from "./color-rule-setter";

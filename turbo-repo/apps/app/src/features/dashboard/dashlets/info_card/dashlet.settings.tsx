@@ -22,8 +22,6 @@ import {
   DataProviderEntries,
   type SimpleDataMode,
   isRemoteDataMode,
-  useThresholdSettings,
-  ThresholdEditor,
 } from "../common";
 import {
   SettingsModalShell,
@@ -31,6 +29,10 @@ import {
 } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
@@ -100,7 +102,7 @@ export function DashletSettings({
     ).dataProvider || DEFAULT_DATA_ENTRIES
   );
 
-  const threshold = useThresholdSettings(config);
+  const colorRules = useValueColorSettings({ valueColorRules: config.valueColorRules });
 
   const staticSnapshot = useRef({
     title,
@@ -182,7 +184,7 @@ export function DashletSettings({
       plannerVariableName:
         dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
-      ...threshold.buildThresholdSavePayload(),
+      ...colorRules.buildSavePayload(),
     } as DashletConfig);
     onClose();
   };
@@ -300,18 +302,13 @@ export function DashletSettings({
           />
         </div>
       </div>
-      <ThresholdEditor
-        enabled={threshold.thresholdEnabled}
-        onToggle={threshold.setThresholdEnabled}
-        field={threshold.thresholdField}
-        onFieldChange={threshold.setThresholdField}
-        applyTo={threshold.thresholdApplyTo}
-        onApplyToChange={threshold.setThresholdApplyTo}
-        rules={threshold.thresholdRules}
-        onAdd={threshold.addThresholdRule}
-        onRemove={threshold.removeThresholdRule}
-        onUpdate={threshold.updateThresholdRule}
-        schemaSuggestions={schemaSuggestions}
+      <ValueColorRulesEditor
+        rules={colorRules.rules}
+        dictionary={dictionary}
+        onAdd={colorRules.addRule}
+        onRemove={colorRules.removeRule}
+        onUpdate={colorRules.updateRule}
+        onToggleTarget={colorRules.toggleTarget}
       />
     </>
   );

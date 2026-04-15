@@ -12,92 +12,99 @@ import {
 } from "../common";
 
 // ============================================================================
-// Types specific to stat_circular
+// Types specific to info_card
 // ============================================================================
 
-/** What the rule applies to (ring only for this dashlet) */
-export type RingColorTarget = "ring";
+/** What the rule applies to - text or icon */
+export type ValueColorTarget = "text" | "icon";
 
-/** A single ring color rule */
-export type RingColorRule = ColorRule<RingColorTarget, string>;
+/** A single value color rule for info_card */
+export type ValueColorRule = ColorRule<ValueColorTarget, string>;
 
 /** Rule with stable ID for list rendering */
-export type RingColorRuleItem = ColorRuleItem<RingColorTarget, string>;
+export type ValueColorRuleItem = ColorRuleItem<ValueColorTarget, string>;
 
 /** Configuration stored in DashletConfig */
-export type RingColorRulesConfig = ColorRulesConfig<RingColorTarget, string>;
+export type ValueColorRulesConfig = ColorRulesConfig<ValueColorTarget, string>;
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const VALID_TARGETS = new Set<string>(["ring"]);
+const VALID_TARGETS = new Set<string>(["text", "icon"]);
 
 // ============================================================================
 // Normalization helper
 // ============================================================================
 
-export function normalizeRingColorRulesConfig(
+export function normalizeValueColorRulesConfig(
   raw: unknown
-): RingColorRulesConfig {
-  return normalizeColorRulesConfig<RingColorTarget, string>(raw, {
+): ValueColorRulesConfig {
+  return normalizeColorRulesConfig<ValueColorTarget, string>(raw, {
     validTargets: VALID_TARGETS,
-    defaultTarget: "ring",
+    defaultTarget: "text",
   });
+}
+
+function getTargetOptions(dictionary: I18nRecord) {
+  return [
+    {
+      value: "text" as const,
+      label: tr("dashboard.settings.targetText", dictionary),
+    },
+    {
+      value: "icon" as const,
+      label: tr("dashboard.settings.targetIcon", dictionary),
+    },
+  ];
 }
 
 // ============================================================================
 // Hook for settings state
 // ============================================================================
 
-export function useRingColorSettings(config: {
-  ringColorRules?: RingColorRulesConfig;
+export function useValueColorSettings(config: {
+  valueColorRules?: ColorRulesConfig<ValueColorTarget, string>;
 }) {
-  const result = useColorRuleSettings<RingColorTarget, string>({
-    config: { valueColorRules: config.ringColorRules },
+  return useColorRuleSettings<ValueColorTarget, string>({
+    config,
     validTargets: VALID_TARGETS,
-    defaultTarget: "ring",
+    defaultTarget: "text",
   });
-
-  // Return with correct key name for this dashlet
-  return {
-    ...result,
-    buildSavePayload: () => ({
-      ringColorRules: result.buildSavePayload().valueColorRules,
-    }),
-  };
 }
 
 // ============================================================================
 // Editor Component
 // ============================================================================
 
-interface RingColorRulesEditorProps {
-  rules: RingColorRuleItem[];
+interface ValueColorRulesEditorProps {
+  rules: ColorRuleItem<ValueColorTarget, string>[];
   dictionary: I18nRecord;
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: string, value: string) => void;
+  onToggleTarget: (id: string, target: ValueColorTarget) => void;
 }
 
-export function RingColorRulesEditor({
+export function ValueColorRulesEditor({
   rules,
   dictionary,
   onAdd,
   onRemove,
   onUpdate,
-}: Readonly<RingColorRulesEditorProps>) {
+  onToggleTarget,
+}: Readonly<ValueColorRulesEditorProps>) {
   return (
-    <ColorRuleSetter<RingColorTarget, string>
+    <ColorRuleSetter<ValueColorTarget, string>
       rules={rules}
       dictionary={dictionary}
-      targetOptions={[]}
+      targetOptions={getTargetOptions(dictionary)}
       enableCompareMode={false}
       onAdd={onAdd}
       onRemove={onRemove}
       onUpdate={onUpdate}
-      onToggleTarget={() => {}}
-      label={tr("dashboard.settings.ringColorRules", dictionary)}
+      onToggleTarget={onToggleTarget}
+      label={tr("dashboard.settings.valueColorRules", dictionary)}
     />
   );
 }

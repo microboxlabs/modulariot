@@ -5,10 +5,10 @@ import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
+import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
-import { getThresholdTextClasses } from "../common/threshold-engine";
-import type { ThresholdConfig } from "../common/threshold-types";
+import type { ValueColorRulesConfig } from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -21,7 +21,8 @@ export interface DashletConfig extends PgrestDashletFields {
   details: { label: string; value: string }[];
   /** Custom color for the value text (hex without #) */
   valueColor?: string;
-  thresholds?: ThresholdConfig;
+  /** Color rules for value-based styling */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -60,9 +61,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [expanded, setExpanded] = useState(false);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
-
-  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
+  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -73,14 +72,77 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
   const displayValue = Number.isFinite(parsedValue) ? parsedValue : resolved.value;
 
+  // Evaluate value color rules
+  const colorRulesConfig = normalizeValueColorRulesConfig(config.valueColorRules);
+  let ruleTextColor: string | undefined;
+  let ruleBgColor: string | undefined;
+
+  if (colorRulesConfig.rules.length > 0) {
+    const evalValue = String(displayValue);
+
+    // Sort rules so most specific matches win
+    const sortedRules = [...colorRulesConfig.rules].sort((a, b) => {
+      const aVal = Number(a.value) || 0;
+      const bVal = Number(b.value) || 0;
+      const isAGreater =
+        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
+      const isBGreater =
+        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
+      const isALess =
+        a.operator === "less_than" || a.operator === "less_than_or_equal";
+      const isBLess =
+        b.operator === "less_than" || b.operator === "less_than_or_equal";
+
+      if (isAGreater && isBGreater) return bVal - aVal;
+      if (isALess && isBLess) return aVal - bVal;
+      return 0;
+    });
+
+    for (const rule of sortedRules) {
+      if (
+        evaluateRule(
+          {
+            column: "",
+            operator: rule.operator,
+            value: rule.value,
+            color: "blue",
+          },
+          evalValue
+        )
+      ) {
+        if (rule.targets.includes("text") && !ruleTextColor) {
+          ruleTextColor = rule.color;
+        }
+        if (rule.targets.includes("bg") && !ruleBgColor) {
+          ruleBgColor = rule.color;
+        }
+        if (ruleTextColor && ruleBgColor) break;
+      }
+    }
+  }
+
+  // Build background styles
+  const mainBgStyle = ruleBgColor
+    ? { backgroundColor: `#${ruleBgColor}20` }
+    : undefined;
+  const expandedBgStyle = ruleBgColor
+    ? { backgroundColor: `#${ruleBgColor}10` }
+    : undefined;
+
   return (
-    <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+    <div
+      className={`flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 ${!ruleBgColor ? "bg-white dark:bg-gray-800" : ""}`}
+      style={mainBgStyle}
+    >
       {/* Main content */}
       <div className="flex flex-1 flex-col justify-center p-4">
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {title}
         </p>
-        <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : (valueColor ? '' : "text-gray-900 dark:text-white")}`} style={valueColor && !thresholdColor ? { color: `#${valueColor}` } : undefined}>
+        <p
+          className={`mt-1 text-3xl font-bold ${!ruleTextColor && !valueColor ? "text-gray-900 dark:text-white" : ""}`}
+          style={ruleTextColor ? { color: `#${ruleTextColor}` } : (valueColor ? { color: `#${valueColor}` } : undefined)}
+        >
           {displayValue}
           <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>
         </p>
@@ -90,7 +152,25 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="cursor-pointer flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs text-blue-600 hover:bg-gray-50 dark:border-gray-700 dark:text-blue-400 dark:hover:bg-gray-700"
+        className={`cursor-pointer flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs dark:border-gray-700 ${ruleBgColor ? "" : "text-blue-600 hover:bg-gray-50 dark:text-blue-400 dark:hover:bg-gray-700"}`}
+        style={
+          ruleBgColor
+            ? {
+                color: `#${ruleBgColor}`,
+                ["--tw-bg-opacity" as string]: 1,
+              }
+            : undefined
+        }
+        onMouseEnter={(e) => {
+          if (ruleBgColor) {
+            e.currentTarget.style.backgroundColor = `#${ruleBgColor}30`;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (ruleBgColor) {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }
+        }}
       >
         {expanded ? (
           <>
@@ -105,7 +185,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
       {/* Expandable details */}
       {expanded && (
-        <div className="border-t border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+        <div
+          className={`border-t border-gray-200 p-3 dark:border-gray-700 ${!ruleBgColor ? "bg-gray-50 dark:bg-gray-900/50" : ""}`}
+          style={expandedBgStyle}
+        >
           <div className="grid grid-cols-2 gap-2">
             {details.map((detail) => (
               <div key={detail.label}>

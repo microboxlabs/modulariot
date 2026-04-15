@@ -1715,7 +1715,9 @@
       "columnFilterNo": "No",
       "columnFilterEmpty": "empty",
       "columnFilterNotEmpty": "not empty",
-      "columnFilterNoValues": "No values"
+      "columnFilterNoValues": "No values",
+      "columnFilterTitle": "Filter: {column}",
+      "columnFilterValue": "Value"
     },
     "filterBar": {
       "search": "Search...",

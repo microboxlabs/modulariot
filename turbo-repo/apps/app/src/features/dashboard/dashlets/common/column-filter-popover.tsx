@@ -9,6 +9,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { HiFunnel } from "react-icons/hi2";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import type { DataType } from "./column-types";
 import type {
   ColumnFilter,
@@ -39,12 +42,16 @@ export function ColumnFilterPopover({
   enumValues,
   onFilterChange,
 }: ColumnFilterPopoverProps) {
+  const { dictionary } = useDashboard();
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDialogElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
 
   const hasActiveFilter = !!currentFilter;
+  const filterTitle = tr("dashboard.settings.columnFilterTitle", dictionary, {
+    column: columnLabel,
+  });
 
   useLayoutEffect(() => {
     if (!isOpen || !buttonRef.current) return;
@@ -116,7 +123,7 @@ export function ColumnFilterPopover({
             ? "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400"
             : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         }`}
-        title={`Filter ${columnLabel}`}
+        title={filterTitle}
       >
         <HiFunnel className="h-3 w-3" />
       </button>
@@ -126,7 +133,7 @@ export function ColumnFilterPopover({
           <dialog
             ref={popoverRef}
             open
-            aria-label={`Filter ${columnLabel}`}
+            aria-label={filterTitle}
             style={{
               position: "fixed",
               top: popoverPos.top,
@@ -135,7 +142,7 @@ export function ColumnFilterPopover({
             className="z-[9999] min-w-[220px] rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-600 dark:bg-gray-800"
           >
             <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-              Filter: {columnLabel}
+              {filterTitle}
             </div>
 
             <FilterInput
@@ -145,6 +152,7 @@ export function ColumnFilterPopover({
               enumValues={enumValues}
               onFilterChange={onFilterChange}
               cancelDebounceRef={cancelDebounceRef}
+              dictionary={dictionary}
             />
 
             {hasActiveFilter && (
@@ -152,7 +160,7 @@ export function ColumnFilterPopover({
                 onClick={handleClear}
                 className="mt-2 w-full text-xs text-red-600 hover:underline dark:text-red-400"
               >
-                Clear filter
+                {tr("dashboard.settings.columnFilterClear", dictionary)}
               </button>
             )}
           </dialog>,
@@ -173,6 +181,7 @@ function FilterInput({
   enumValues,
   onFilterChange,
   cancelDebounceRef,
+  dictionary,
 }: {
   readonly columnKey: string;
   readonly dataType: DataType;
@@ -183,8 +192,9 @@ function FilterInput({
     filter: ColumnFilter | null,
   ) => void;
   readonly cancelDebounceRef: React.RefObject<(() => void) | undefined>;
+  readonly dictionary: I18nRecord;
 }) {
-  const props = { columnKey, currentFilter, onFilterChange };
+  const props = { columnKey, currentFilter, onFilterChange, dictionary };
   switch (dataType) {
     case "text":
       return <TextFilter {...props} cancelDebounceRef={cancelDebounceRef} />;
@@ -211,6 +221,7 @@ interface FilterComponentProps {
     filter: ColumnFilter | null,
   ) => void;
   readonly cancelDebounceRef?: React.RefObject<(() => void) | undefined>;
+  readonly dictionary: I18nRecord;
 }
 
 const inputClass =
@@ -225,6 +236,7 @@ function TextFilter({
   currentFilter,
   onFilterChange,
   cancelDebounceRef,
+  dictionary,
 }: FilterComponentProps) {
   const [localValue, setLocalValue] = useState(
     (currentFilter?.value as string) || "",
@@ -265,7 +277,7 @@ function TextFilter({
       type="text"
       value={localValue}
       onChange={(e) => handleChange(e.target.value)}
-      placeholder="Search..."
+      placeholder={tr("dashboard.settings.columnFilterSearch", dictionary)}
       autoFocus
       className={inputClass}
     />
@@ -281,6 +293,7 @@ function NumberFilter({
   currentFilter,
   onFilterChange,
   cancelDebounceRef,
+  dictionary,
 }: FilterComponentProps) {
   const [operator, setOperator] = useState<FilterOperator>(
     currentFilter?.operator || "equals",
@@ -355,10 +368,10 @@ function NumberFilter({
         }}
         className={inputClass}
       >
-        <option value="equals">Equals</option>
-        <option value="gt">Greater than</option>
-        <option value="lt">Less than</option>
-        <option value="between">Between</option>
+        <option value="equals">{tr("dashboard.settings.columnFilterEquals", dictionary)}</option>
+        <option value="gt">{tr("dashboard.settings.columnFilterGreaterThan", dictionary)}</option>
+        <option value="lt">{tr("dashboard.settings.columnFilterLessThan", dictionary)}</option>
+        <option value="between">{tr("dashboard.settings.columnFilterBetween", dictionary)}</option>
       </select>
       <input
         type="number"
@@ -367,7 +380,7 @@ function NumberFilter({
           setValue(e.target.value);
           emitFilter(operator, e.target.value, value2);
         }}
-        placeholder={operator === "between" ? "Min" : "Value"}
+        placeholder={operator === "between" ? tr("dashboard.settings.columnFilterMin", dictionary) : tr("dashboard.settings.columnFilterValue", dictionary)}
         autoFocus
         className={inputClass}
       />
@@ -379,7 +392,7 @@ function NumberFilter({
             setValue2(e.target.value);
             emitFilter(operator, value, e.target.value);
           }}
-          placeholder="Max"
+          placeholder={tr("dashboard.settings.columnFilterMax", dictionary)}
           className={inputClass}
         />
       )}
@@ -395,6 +408,7 @@ function DateFilter({
   columnKey,
   currentFilter,
   onFilterChange,
+  dictionary,
 }: FilterComponentProps) {
   const currentRange = (currentFilter?.value as [string, string]) || ["", ""];
   const [from, setFrom] = useState(currentRange[0]);
@@ -426,7 +440,7 @@ function DateFilter({
           htmlFor={fromId}
           className="text-xs text-gray-500 dark:text-gray-400"
         >
-          From
+          {tr("dashboard.settings.columnFilterFrom", dictionary)}
         </label>
         <input
           id={fromId}
@@ -444,7 +458,7 @@ function DateFilter({
           htmlFor={toId}
           className="text-xs text-gray-500 dark:text-gray-400"
         >
-          To
+          {tr("dashboard.settings.columnFilterTo", dictionary)}
         </label>
         <input
           id={toId}
@@ -470,6 +484,7 @@ function EnumFilter({
   currentFilter,
   enumValues,
   onFilterChange,
+  dictionary,
 }: FilterComponentProps & { readonly enumValues: string[] }) {
   const selected = new Set((currentFilter?.value as string[]) || []);
 
@@ -505,11 +520,11 @@ function EnumFilter({
             onChange={() => toggle(val)}
             className="rounded border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600"
           />
-          <span className="truncate">{val || "(empty)"}</span>
+          <span className="truncate">{val || `(${tr("dashboard.settings.columnFilterEmpty", dictionary)})`}</span>
         </label>
       ))}
       {enumValues.length === 0 && (
-        <div className="text-xs italic text-gray-400">No values</div>
+        <div className="text-xs italic text-gray-400">{tr("dashboard.settings.columnFilterNoValues", dictionary)}</div>
       )}
     </div>
   );
@@ -523,6 +538,7 @@ function BooleanFilter({
   columnKey,
   currentFilter,
   onFilterChange,
+  dictionary,
 }: FilterComponentProps) {
   const currentValue = currentFilter?.value as boolean | null | undefined;
 
@@ -561,8 +577,8 @@ function BooleanFilter({
             className="text-orange-500 focus:ring-orange-500"
           />
           <span>
-            {opt === "all" && "All"}
-            {opt !== "all" && (opt === "true" ? "Yes" : "No")}
+            {opt === "all" && tr("dashboard.settings.columnFilterAll", dictionary)}
+            {opt !== "all" && (opt === "true" ? tr("dashboard.settings.columnFilterYes", dictionary) : tr("dashboard.settings.columnFilterNo", dictionary))}
           </span>
         </label>
       ))}

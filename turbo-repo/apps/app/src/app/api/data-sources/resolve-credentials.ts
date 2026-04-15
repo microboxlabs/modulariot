@@ -114,6 +114,15 @@ function isContentTypeRejection(status: number, body: string): boolean {
   );
 }
 
+function extractOAuthError(body: string): string {
+  try {
+    const json = JSON.parse(body);
+    return json.error_description || json.error || json.message || body.substring(0, 200);
+  } catch {
+    return body.substring(0, 200);
+  }
+}
+
 async function extractTokenWithExpiry(
   res: Response
 ): Promise<{ accessToken: string; expiresAt: number }> {
@@ -160,7 +169,7 @@ export async function exchangeOAuthToken(
         { status: res.status, body: text, tokenUrl, format: preferredFormat },
         "OAuth token exchange failed"
       );
-      throw new Error("OAuth token exchange failed");
+      throw new Error(`OAuth token exchange failed: HTTP ${res.status} — ${extractOAuthError(text)}`);
     }
     const extracted = await extractTokenWithExpiry(res);
     return {
@@ -202,7 +211,7 @@ export async function exchangeOAuthToken(
       { status: jsonRes.status, body: jsonErrorBody, tokenUrl, format: "json" },
       "OAuth token exchange failed (JSON fallback)"
     );
-    throw new Error("OAuth token exchange failed");
+    throw new Error(`OAuth token exchange failed: HTTP ${jsonRes.status} — ${extractOAuthError(jsonErrorBody)}`);
   }
 
   // form-urlencoded failed for a reason unrelated to content type
@@ -210,7 +219,7 @@ export async function exchangeOAuthToken(
     { status: formRes.status, body: formErrorBody, tokenUrl, format: "form" },
     "OAuth token exchange failed"
   );
-  throw new Error("OAuth token exchange failed");
+  throw new Error(`OAuth token exchange failed: HTTP ${formRes.status} — ${extractOAuthError(formErrorBody)}`);
 }
 
 export type AuthMethod = "TOKEN" | "OAUTH";
@@ -326,11 +335,11 @@ async function resolveOAuthToken(params: ResolveOAuthParams): Promise<BearerResu
 
 /**
  * Build the Authorization header value for a resolved token.
- * TOKEN auth uses "Bearer <token>"; OAUTH sends the raw JWT directly
- * because PostgREST instances behind OAuth typically expect the raw token.
+ * Both TOKEN and OAUTH use "Bearer <token>" — PostgREST always expects
+ * the standard Authorization: Bearer header regardless of token origin.
  */
-export function buildAuthHeader(token: string, authMethod: AuthMethod): string {
-  return authMethod === "TOKEN" ? `Bearer ${token}` : token;
+export function buildAuthHeader(token: string, _authMethod: AuthMethod): string {
+  return `Bearer ${token}`;
 }
 
 export async function resolveBearerToken(

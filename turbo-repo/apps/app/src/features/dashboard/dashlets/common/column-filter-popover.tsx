@@ -335,13 +335,15 @@ function NumberFilter({
             onFilterChange(columnKey, null);
             return;
           }
+          const parsedV1 = Number.parseFloat(v1);
+          const parsedV2 = Number.parseFloat(v2);
           onFilterChange(columnKey, {
             columnKey,
             dataType: "number",
             operator: "between",
             value: [
-              Number.parseFloat(v1) || 0,
-              Number.parseFloat(v2) || Infinity,
+              v1 === "" || Number.isNaN(parsedV1) ? -Infinity : parsedV1,
+              v2 === "" || Number.isNaN(parsedV2) ? Infinity : parsedV2,
             ],
           });
         } else {

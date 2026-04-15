@@ -22,8 +22,6 @@ import {
   DataProviderEntries,
   type SimpleDataMode,
   isRemoteDataMode,
-  useThresholdSettings,
-  ThresholdEditor,
 } from "../common";
 import {
   SettingsModalShell,
@@ -56,6 +54,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -104,11 +103,9 @@ export function DashletSettings({
     ).dataProvider || DEFAULT_DATA_ENTRIES
   );
 
-<<<<<<< HEAD
-  const colorRules = useValueColorSettings({ valueColorRules: config.valueColorRules });
-=======
-  const threshold = useThresholdSettings(config);
->>>>>>> c1d3548e85b35a07760990c2d42835e9a959b1d3
+  const colorRules = useValueColorSettings({
+    valueColorRules: config.valueColorRules,
+  });
 
   const staticSnapshot = useRef({
     title,
@@ -190,11 +187,7 @@ export function DashletSettings({
       plannerVariableName:
         dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
-<<<<<<< HEAD
       ...colorRules.buildSavePayload(),
-=======
-      ...threshold.buildThresholdSavePayload(),
->>>>>>> c1d3548e85b35a07760990c2d42835e9a959b1d3
     } as DashletConfig);
     onClose();
   };
@@ -312,7 +305,6 @@ export function DashletSettings({
           />
         </div>
       </div>
-<<<<<<< HEAD
       <ValueColorRulesEditor
         rules={colorRules.rules}
         dictionary={dictionary}
@@ -320,20 +312,6 @@ export function DashletSettings({
         onRemove={colorRules.removeRule}
         onUpdate={colorRules.updateRule}
         onToggleTarget={colorRules.toggleTarget}
-=======
-      <ThresholdEditor
-        enabled={threshold.thresholdEnabled}
-        onToggle={threshold.setThresholdEnabled}
-        field={threshold.thresholdField}
-        onFieldChange={threshold.setThresholdField}
-        applyTo={threshold.thresholdApplyTo}
-        onApplyToChange={threshold.setThresholdApplyTo}
-        rules={threshold.thresholdRules}
-        onAdd={threshold.addThresholdRule}
-        onRemove={threshold.removeThresholdRule}
-        onUpdate={threshold.updateThresholdRule}
-        schemaSuggestions={schemaSuggestions}
->>>>>>> c1d3548e85b35a07760990c2d42835e9a959b1d3
       />
     </>
   );
@@ -365,6 +343,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

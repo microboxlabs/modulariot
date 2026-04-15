@@ -30,13 +30,8 @@ import {
 import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
-<<<<<<< HEAD
 import type { ValueColorRulesConfig } from "./value-color-rules";
 import { normalizeValueColorRulesConfig } from "./value-color-rules";
-=======
-import { useThreshold } from "../common/use-threshold";
-import type { ThresholdConfig } from "../common/threshold-types";
->>>>>>> c1d3548e85b35a07760990c2d42835e9a959b1d3
 
 // ============================================================================
 // Configuration Types
@@ -112,13 +107,8 @@ export interface DashletConfig extends PgrestDashletFields {
   openInSameTab?: boolean;
   /** Data provider entries for dynamic values */
   dataProvider?: DataProviderEntry[];
-<<<<<<< HEAD
   /** Color rules for value-based styling */
   valueColorRules?: ValueColorRulesConfig;
-=======
-  /** Threshold/color rules configuration */
-  thresholds?: ThresholdConfig;
->>>>>>> c1d3548e85b35a07760990c2d42835e9a959b1d3
 }
 
 /** Default configuration */
@@ -210,9 +200,10 @@ export function Dashlet({
     [viewMoreLabel, templateContext]
   );
 
-<<<<<<< HEAD
   // ── Color rules support ────
-  const colorRulesConfig = normalizeValueColorRulesConfig(config.valueColorRules);
+  const colorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
   let ruleTextColor: string | undefined;
   let ruleIconColor: string | undefined;
 
@@ -268,33 +259,9 @@ export function Dashlet({
   const effectiveIconColor = ruleIconColor
     ? `#${ruleIconColor}`
     : iconColor || undefined;
-=======
-  // ── Threshold / color rules support (hook must be before early returns) ────
-  const { color: thresholdColor, appliesTo } = useThreshold(
-    config.thresholds,
-    templateContext
-  );
-
-  const isHexColor = (c: string) => /^[0-9a-fA-F]{6}$/.test(c);
-
-  // Apply threshold color to value if threshold matches and applies to "text"
-  const effectiveValueColor =
-    thresholdColor && appliesTo("text") && isHexColor(thresholdColor)
-      ? `#${thresholdColor}`
-      : valueColor || undefined;
-
-  // Apply threshold color to icon if threshold matches and applies to "icon"
-  const effectiveIconColor =
-    thresholdColor && appliesTo("icon") && isHexColor(thresholdColor)
-      ? `#${thresholdColor}`
-      : iconColor || undefined;
->>>>>>> c1d3548e85b35a07760990c2d42835e9a959b1d3
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
-    thresholdColor && appliesTo("icon") && isHexColor(thresholdColor)
-      ? `#${thresholdColor}`
-      : iconColor || undefined;
 
   const IconComponent = ICONS[icon] || ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;
@@ -331,7 +298,9 @@ export function Dashlet({
         <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           {compiledTitle}
         </h3>
-        <span style={effectiveIconColor ? { color: effectiveIconColor } : undefined}>
+        <span
+          style={effectiveIconColor ? { color: effectiveIconColor } : undefined}
+        >
           <IconComponent
             className={twMerge(
               "h-5 w-5",
@@ -345,7 +314,9 @@ export function Dashlet({
       <div className="flex flex-1 flex-col justify-center px-4 py-4">
         <p
           className="text-3xl font-bold text-gray-900 dark:text-white"
-          style={effectiveValueColor ? { color: effectiveValueColor } : undefined}
+          style={
+            effectiveValueColor ? { color: effectiveValueColor } : undefined
+          }
         >
           {compiledValue}
         </p>

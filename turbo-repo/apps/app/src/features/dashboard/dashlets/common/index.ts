@@ -191,3 +191,9 @@ export {
   useColorRuleSettings,
   ColorRuleSetter,
 } from "./color-rule-setter";
+export {
+  type ColumnOption,
+  type RowColorRuleItem,
+  type RowColorRuleSetterProps,
+  RowColorRuleSetter,
+} from "./row-color-rule-setter";

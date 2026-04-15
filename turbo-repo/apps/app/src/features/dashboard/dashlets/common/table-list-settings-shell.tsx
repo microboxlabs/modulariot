@@ -9,11 +9,11 @@ import {
   ColumnEditor,
   FilterEditor,
   SortEditor,
-  ColorRuleEditor,
   ActionsEditor,
   DataProviderTab,
 } from "./settings-sections";
 import { SettingsModalShell } from "./settings-modal-shell";
+import { RowColorRuleSetter } from "./row-color-rule-setter";
 import type { ColorRuleOperator } from "./color-rule-types";
 
 // ============================================================================
@@ -154,20 +154,16 @@ export function TableListSettingsShell({
         }}
       />
 
-      <ColorRuleEditor
+      <RowColorRuleSetter
         title={tr("dashboard.settings.rowColorRules", dictionary)}
         enabled={s.rowColorRulesEnabled}
         onToggle={s.setRowColorRulesEnabled}
         rules={s.rowColorRuleItems}
-        columnsWithKeys={s.columnsWithKeys}
+        columns={s.columnsWithKeys}
+        dictionary={dictionary}
         onAdd={s.addRowColorRule}
         onRemove={s.removeRowColorRule}
         onUpdate={s.updateRowColorRule}
-        labels={{
-          addRule: tr("dashboard.settings.addRule", dictionary),
-          valuePlaceholder,
-          operatorLabels,
-        }}
       />
 
       <ActionsEditor

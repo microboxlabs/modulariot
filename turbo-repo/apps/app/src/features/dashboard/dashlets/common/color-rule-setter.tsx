@@ -486,7 +486,7 @@ export function ColorRuleSetter<
                 type="button"
                 onClick={() => onRemove(rule._id)}
                 onMouseDown={stopPropagation}
-                className="no-drag flex h-7 w-7 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                className="no-drag flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                 aria-label="Delete rule"
               >
                 <HiTrash className="h-4 w-4" />

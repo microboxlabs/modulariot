@@ -1740,7 +1740,9 @@
       "columnFilterNo": "No",
       "columnFilterEmpty": "vacío",
       "columnFilterNotEmpty": "no vacío",
-      "columnFilterNoValues": "Sin valores"
+      "columnFilterNoValues": "Sin valores",
+      "columnFilterTitle": "Filtrar: {column}",
+      "columnFilterValue": "Valor"
     },
     "filterBar": {
       "search": "Buscar...",

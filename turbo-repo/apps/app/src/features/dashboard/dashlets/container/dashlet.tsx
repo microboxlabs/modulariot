@@ -24,47 +24,6 @@ import "react-grid-layout/css/styles.css";
 /** Container variant type */
 export type ContainerVariant = "bento-box" | "labeled-group";
 
-/** Available border colors for labeled-group variant (light colors) */
-export type LabelBorderColor =
-  | "gray"
-  | "red"
-  | "orange"
-  | "yellow"
-  | "green"
-  | "teal"
-  | "blue"
-  | "indigo"
-  | "purple"
-  | "pink";
-
-/** Border color class mapping (using 300 variants for light colors) */
-export const BORDER_COLOR_CLASSES: Record<LabelBorderColor, string> = {
-  gray: "border-gray-300 dark:border-gray-600",
-  red: "border-red-300 dark:border-red-400",
-  orange: "border-orange-300 dark:border-orange-400",
-  yellow: "border-yellow-300 dark:border-yellow-400",
-  green: "border-green-300 dark:border-green-400",
-  teal: "border-teal-300 dark:border-teal-400",
-  blue: "border-blue-300 dark:border-blue-400",
-  indigo: "border-indigo-300 dark:border-indigo-400",
-  purple: "border-purple-300 dark:border-purple-400",
-  pink: "border-pink-300 dark:border-pink-400",
-};
-
-/** All available border colors for settings select */
-export const LABEL_BORDER_COLORS: LabelBorderColor[] = [
-  "gray",
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "teal",
-  "blue",
-  "indigo",
-  "purple",
-  "pink",
-];
-
 /** Configuration for container dashlet */
 export interface DashletConfig {
   /** Container variant: bento-box or labeled-group */
@@ -83,8 +42,8 @@ export interface DashletConfig {
   // Labeled Group specific fields
   /** Label text for labeled-group variant */
   label?: string;
-  /** Border color for labeled-group variant */
-  borderColor?: LabelBorderColor;
+  /** Border color for labeled-group variant (hex without #) */
+  borderColor?: string;
 
   // Data source fields (for resolving display fields via Handlebars templates)
   dataMode?: "static" | "pgrest" | "planner";
@@ -103,7 +62,7 @@ export const defaultConfig: DashletConfig = {
   description: "",
   verMasUrl: "",
   label: "Group",
-  borderColor: "gray",
+  borderColor: "6b7280",
   dataMode: "static",
 };
 
@@ -123,6 +82,55 @@ export function getLayoutDefaults(
     CONTAINER_VARIANT_LAYOUT_DEFAULTS[variant] ??
     CONTAINER_VARIANT_LAYOUT_DEFAULTS["bento-box"]
   );
+}
+
+// ============================================================================
+// Color Normalization
+// ============================================================================
+
+const DEFAULT_BORDER_COLOR = "#6b7280";
+
+/** Known color token names mapped to their hex values */
+const COLOR_TOKEN_MAP: Record<string, string> = {
+  gray: "#6b7280",
+  red: "#ef4444",
+  green: "#22c55e",
+  blue: "#3b82f6",
+  yellow: "#eab308",
+  purple: "#a855f7",
+  orange: "#f97316",
+};
+
+/** Validates if a string is a valid 3 or 6 character hex color (without #) */
+function isValidHex(value: string): boolean {
+  return /^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(value);
+}
+
+/**
+ * Normalizes a border color value to a valid CSS hex color.
+ * Handles legacy formats: color tokens, hex with/without #, whitespace.
+ */
+function normalizeBorderColor(value: string | undefined): string {
+  if (!value) return DEFAULT_BORDER_COLOR;
+
+  const trimmed = value.trim();
+  if (!trimmed) return DEFAULT_BORDER_COLOR;
+
+  // Already a valid CSS color with #
+  if (trimmed.startsWith("#")) {
+    const hex = trimmed.slice(1);
+    return isValidHex(hex) ? trimmed : DEFAULT_BORDER_COLOR;
+  }
+
+  // Check if it's a known color token
+  const tokenColor = COLOR_TOKEN_MAP[trimmed.toLowerCase()];
+  if (tokenColor) return tokenColor;
+
+  // Assume it's a hex value without # prefix
+  if (isValidHex(trimmed)) return `#${trimmed}`;
+
+  // Invalid value, use default
+  return DEFAULT_BORDER_COLOR;
 }
 
 // ============================================================================
@@ -322,11 +330,8 @@ export function Dashlet({
     }
   };
 
-  // Get border color class for labeled-group
-  const borderColorClass =
-    variant === "labeled-group"
-      ? BORDER_COLOR_CLASSES[config.borderColor ?? "gray"]
-      : "";
+  // Get normalized border color for labeled-group
+  const borderColor = normalizeBorderColor(config.borderColor);
 
   // Background color for label depends on context
   const labelBgClass = isRoot
@@ -444,7 +449,8 @@ export function Dashlet({
   // ============================================================================
   return (
     <div
-      className={`relative flex flex-col rounded-lg border ${borderColorClass} pt-1 h-full`}
+      className="relative flex flex-col rounded-lg border pt-1 h-full"
+      style={{ borderColor }}
     >
       {/* Label that cuts into border (fieldset-legend style) */}
       <span

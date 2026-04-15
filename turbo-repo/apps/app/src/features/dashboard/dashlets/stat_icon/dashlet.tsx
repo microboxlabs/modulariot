@@ -14,6 +14,9 @@ import {
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { ThresholdConfig } from "../common/threshold-types";
 import { KpiStat } from "@/features/common/components/kpi-stat";
+import { evaluateRule } from "../common/color-rule-engine";
+import type { ValueColorRulesConfig } from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -49,6 +52,8 @@ export interface DashletConfig extends PgrestDashletFields {
   /** Whether to scale text and icons based on container size */
   expandable?: boolean;
   thresholds?: ThresholdConfig;
+  /** Value-based color rules for text and background */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -139,27 +144,101 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const expandable = config.expandable === true;
   const IconComponent = getIconFromKey(iconKey);
 
+  // Evaluate value color rules
+  const valueColorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
+  let ruleTextColor: string | undefined;
+  let ruleBgColor: string | undefined;
+  let ruleIconColor: string | undefined;
+
+  if (valueColorRulesConfig.rules.length > 0) {
+    // value is already a number from parseResolvedNumber
+    const evalValue = String(value);
+
+    // Sort rules so most specific matches win:
+    // - greater_than/greater_than_or_equal: check highest thresholds first
+    // - less_than/less_than_or_equal: check lowest thresholds first
+    const sortedRules = [...valueColorRulesConfig.rules].sort((a, b) => {
+      const aVal = Number(a.value) || 0;
+      const bVal = Number(b.value) || 0;
+      const isAGreater =
+        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
+      const isBGreater =
+        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
+      const isALess =
+        a.operator === "less_than" || a.operator === "less_than_or_equal";
+      const isBLess =
+        b.operator === "less_than" || b.operator === "less_than_or_equal";
+
+      // If both are "greater" type, sort descending (highest first)
+      if (isAGreater && isBGreater) return bVal - aVal;
+      // If both are "less" type, sort ascending (lowest first)
+      if (isALess && isBLess) return aVal - bVal;
+      // Mixed operators: keep original order
+      return 0;
+    });
+
+    for (const rule of sortedRules) {
+      if (
+        evaluateRule(
+          {
+            column: "",
+            operator: rule.operator,
+            value: rule.value,
+            color: "blue",
+          },
+          evalValue
+        )
+      ) {
+        // Check each target in the rule's targets array
+        if (rule.targets.includes("text") && !ruleTextColor) {
+          ruleTextColor = rule.color;
+        }
+        if (rule.targets.includes("bg") && !ruleBgColor) {
+          ruleBgColor = rule.color;
+        }
+        if (rule.targets.includes("icon") && !ruleIconColor) {
+          ruleIconColor = rule.color;
+        }
+        // Continue to find rules for all targets
+        if (ruleTextColor && ruleBgColor && ruleIconColor) break;
+      }
+    }
+  }
+
   // Build icon config: show icon with selected color, or undefined if hidden
+  // Rule icon color takes priority over manual setting
   const iconConfig =
     showIcon && IconComponent
       ? {
           icon: IconComponent,
-          style: {
-            backgroundColor: `#${iconColorHex}20`,
-            color: `#${iconColorHex}`,
-          },
+          style: ruleIconColor
+            ? {
+                backgroundColor: `#${ruleIconColor}20`,
+                color: `#${ruleIconColor}`,
+              }
+            : {
+                backgroundColor: `#${iconColorHex}20`,
+                color: `#${iconColorHex}`,
+              },
         }
       : undefined;
 
   // Build inline style for custom background color (80% opacity)
-  const bgStyle = showBgColor
-    ? { backgroundColor: `#${bgColorHex}CC` }
-    : undefined;
+  // Rule bg color takes priority over manual setting
+  const bgStyle = ruleBgColor
+    ? { backgroundColor: `#${ruleBgColor}CC` }
+    : showBgColor
+      ? { backgroundColor: `#${bgColorHex}CC` }
+      : undefined;
 
-  // Build text styles (only apply custom color when checkbox is on)
-  const valueStyle = showValueColor
-    ? { color: `#${valueColorHex}` }
-    : undefined;
+  // Build text styles (rule color takes priority over manual setting)
+  const valueStyle = ruleTextColor
+    ? { color: `#${ruleTextColor}` }
+    : showValueColor
+      ? { color: `#${valueColorHex}` }
+      : undefined;
   const titleStyle = showSecondaryColor
     ? { color: `#${secondaryColorHex}` }
     : undefined;

@@ -27,12 +27,24 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       );
     }
 
+    logger.info({ dataSourceId, config: { ...ds.config, encryptedClientSecret: ds.config?.authMethod === "OAUTH" ? "[REDACTED]" : undefined, encryptedToken: ds.config?.authMethod === "TOKEN" ? "[REDACTED]" : undefined } }, "Test: resolved data source config");
+
     const bearerResult = await resolveBearerToken(ds.config, dataSourceId);
+    logger.info({ dataSourceId, ok: bearerResult.ok, error: !bearerResult.ok ? bearerResult.error : undefined, authMethod: bearerResult.ok ? bearerResult.authMethod : undefined }, "Test: bearer token result");
+
     if (!bearerResult.ok) {
-      return NextResponse.json(
-        { success: false, error: bearerResult.error },
-        { status: 400 }
-      );
+      const now = new Date().toISOString();
+      await updateDataSource(session, {
+        nodeRef: dataSourceId,
+        site: siteId,
+        lastTestedAt: now,
+        lastTestResult: false,
+      });
+      return NextResponse.json({
+        success: false,
+        testedAt: now,
+        error: bearerResult.error,
+      });
     }
 
     let success = false;
@@ -79,7 +91,10 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 
     // Persist the detected token request format so future calls skip the fallback
     if (success && bearerResult.detectedFormat) {
-      updatePayload.config = { tokenRequestFormat: bearerResult.detectedFormat };
+      updatePayload.config = {
+        ...ds.config,
+        tokenRequestFormat: bearerResult.detectedFormat,
+      };
     }
 
     await updateDataSource(session, updatePayload);

@@ -1,4 +1,3 @@
-import type { RuleColor } from "./color-rule-types";
 import type { ThresholdConfig } from "./threshold-types";
 import { evaluateRule } from "./color-rule-engine";
 
@@ -34,13 +33,18 @@ export function isHexColor(color: string): boolean {
  */
 export function evaluateThreshold(
   config: ThresholdConfig,
-  resolvedFieldValue: string,
-): RuleColor | null {
+  resolvedFieldValue: string
+): string | null {
   if (!config.enabled || config.rules.length === 0) return null;
 
   for (const rule of config.rules) {
     // Reuse evaluateRule by constructing a synthetic ColorRule
-    const syntheticRule = { column: "", operator: rule.operator, value: rule.value, color: rule.color };
+    const syntheticRule = {
+      column: "",
+      operator: rule.operator,
+      value: rule.value,
+      color: rule.color,
+    };
     if (evaluateRule(syntheticRule, resolvedFieldValue)) {
       return rule.color;
     }
@@ -52,7 +56,7 @@ export function evaluateThreshold(
 // Tailwind class mappings (static strings — safe for Tailwind purge)
 // ============================================================================
 
-export function getThresholdBgClasses(color: RuleColor): string {
+export function getThresholdBgClasses(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -74,7 +78,7 @@ export function getThresholdBgClasses(color: RuleColor): string {
   }
 }
 
-export function getThresholdTextClasses(color: RuleColor): string {
+export function getThresholdTextClasses(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -100,19 +104,24 @@ export function getThresholdTextClasses(color: RuleColor): string {
  * Get inline text color style for hex colors.
  * Returns undefined for legacy colors (use getThresholdTextClasses instead).
  */
-export function getThresholdTextStyle(color: RuleColor): React.CSSProperties | undefined {
+export function getThresholdTextStyle(
+  color: string
+): React.CSSProperties | undefined {
   if (!isHexColor(color)) return undefined;
   return { color: `#${color}` };
 }
 
-export function getThresholdIconClasses(color: RuleColor): { bg: string; text: string } {
+export function getThresholdIconClasses(color: string): {
+  bg: string;
+  text: string;
+} {
   return {
     bg: getThresholdBgClasses(color),
     text: getThresholdTextClasses(color),
   };
 }
 
-export function getThresholdBorderClasses(color: RuleColor): string {
+export function getThresholdBorderClasses(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -134,7 +143,7 @@ export function getThresholdBorderClasses(color: RuleColor): string {
   }
 }
 
-export function getThresholdStrokeClass(color: RuleColor): string {
+export function getThresholdStrokeClass(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -160,12 +169,14 @@ export function getThresholdStrokeClass(color: RuleColor): string {
  * Get inline stroke style for hex colors.
  * Returns undefined for legacy colors (use getThresholdStrokeClass instead).
  */
-export function getThresholdStrokeStyle(color: RuleColor): React.CSSProperties | undefined {
+export function getThresholdStrokeStyle(
+  color: string
+): React.CSSProperties | undefined {
   if (!isHexColor(color)) return undefined;
   return { stroke: `#${color}` };
 }
 
-export function getThresholdBarClass(color: RuleColor): string {
+export function getThresholdBarClass(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -191,12 +202,17 @@ export function getThresholdBarClass(color: RuleColor): string {
  * Get inline background style for hex colors.
  * Returns undefined for legacy colors (use getThresholdBarClass instead).
  */
-export function getThresholdBarStyle(color: RuleColor): React.CSSProperties | undefined {
+export function getThresholdBarStyle(
+  color: string
+): React.CSSProperties | undefined {
   if (!isHexColor(color)) return undefined;
   return { backgroundColor: `#${color}` };
 }
 
-export function getThresholdGradientClasses(color: RuleColor): { from: string; to: string } {
+export function getThresholdGradientClasses(color: string): {
+  from: string;
+  to: string;
+} {
   if (!isLegacyColor(color)) return { from: "", to: "" };
   switch (color) {
     case "red":

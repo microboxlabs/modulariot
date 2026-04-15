@@ -94,6 +94,45 @@ export interface NormalizeOptions<
   defaultCompareField?: TCompareField;
 }
 
+/** Extract targets from rule record */
+function extractTargets<TTarget extends string>(
+  rec: Record<string, unknown>,
+  validTargets: Set<string>,
+  defaultTarget: TTarget
+): TTarget[] {
+  if (Array.isArray(rec.targets)) {
+    const filtered = rec.targets.filter(
+      (t): t is TTarget => typeof t === "string" && validTargets.has(t)
+    );
+    return filtered.length > 0 ? filtered : [defaultTarget];
+  }
+  if (typeof rec.target === "string" && validTargets.has(rec.target)) {
+    return [rec.target as TTarget];
+  }
+  return [defaultTarget];
+}
+
+/** Resolve compare field from rule record */
+function resolveCompareField<TCompareField extends string>(
+  rec: Record<string, unknown>,
+  compareMode: CompareMode,
+  validCompareFields: Set<string> | undefined,
+  defaultCompareField: TCompareField | undefined
+): TCompareField | undefined {
+  const hasValidField =
+    validCompareFields &&
+    typeof rec.compareField === "string" &&
+    validCompareFields.has(rec.compareField);
+
+  if (hasValidField) {
+    return rec.compareField as TCompareField;
+  }
+  if (compareMode === "field") {
+    return defaultCompareField;
+  }
+  return undefined;
+}
+
 export function normalizeColorRulesConfig<
   TTarget extends string,
   TCompareField extends string,
@@ -123,32 +162,15 @@ export function normalizeColorRulesConfig<
     if (typeof rec.operator !== "string" || typeof rec.color !== "string")
       continue;
 
-    // Support both legacy `target` and new `targets` array
-    let targets: TTarget[];
-    if (Array.isArray(rec.targets)) {
-      targets = rec.targets.filter(
-        (t): t is TTarget => typeof t === "string" && validTargets.has(t)
-      );
-    } else if (typeof rec.target === "string" && validTargets.has(rec.target)) {
-      targets = [rec.target as TTarget];
-    } else {
-      targets = [defaultTarget];
-    }
-    if (targets.length === 0) targets = [defaultTarget];
-
-    // Handle compare mode (default to static for backwards compatibility)
+    const targets = extractTargets(rec, validTargets, defaultTarget);
     const compareMode: CompareMode =
       rec.compareMode === "field" ? "field" : "static";
-
-    const compareField: TCompareField | undefined =
-      validCompareFields &&
-      typeof rec.compareField === "string" &&
-      validCompareFields.has(rec.compareField)
-        ? (rec.compareField as TCompareField)
-        : compareMode === "field"
-          ? defaultCompareField
-          : undefined;
-
+    const compareField = resolveCompareField(
+      rec,
+      compareMode,
+      validCompareFields,
+      defaultCompareField
+    );
     const value = typeof rec.value === "string" ? rec.value : "";
 
     rules.push({
@@ -317,6 +339,121 @@ export interface ColorRuleSetterProps<
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
+// ============================================================================
+// Extracted Sub-components
+// ============================================================================
+
+interface CompareModeToggleProps {
+  ruleId: string;
+  currentMode: CompareMode;
+  options: { value: CompareMode; label: string }[];
+  onUpdate: (id: string, field: string, value: string) => void;
+}
+
+function CompareModeToggle({
+  ruleId,
+  currentMode,
+  options,
+  onUpdate,
+}: Readonly<CompareModeToggleProps>) {
+  return (
+    <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onUpdate(ruleId, "compareMode", opt.value)}
+          className={twMerge(
+            "h-7 cursor-pointer px-1.5 text-[10px] font-medium transition-colors",
+            currentMode === opt.value
+              ? "bg-primary-600 text-white"
+              : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface OperatorDropdownProps {
+  operator: ColorRuleOperator;
+  ruleId: string;
+  onUpdate: (id: string, field: string, value: string) => void;
+}
+
+function OperatorDropdown({
+  operator,
+  ruleId,
+  onUpdate,
+}: Readonly<OperatorDropdownProps>) {
+  return (
+    <Dropdown
+      label=""
+      dismissOnClick
+      renderTrigger={() => (
+        <button
+          type="button"
+          className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+        >
+          <span className="truncate">{OPERATOR_LABELS[operator]}</span>
+          <HiChevronDown className="h-3 w-3 shrink-0" />
+        </button>
+      )}
+    >
+      {COLOR_RULE_OPERATORS.map((op) => (
+        <DropdownItem
+          key={op}
+          onClick={() => onUpdate(ruleId, "operator", op)}
+          className="text-xs"
+        >
+          {OPERATOR_LABELS[op]}
+        </DropdownItem>
+      ))}
+    </Dropdown>
+  );
+}
+
+interface TargetToggleProps<TTarget extends string> {
+  ruleId: string;
+  targets: TTarget[];
+  options: TargetOption<TTarget>[];
+  onToggleTarget: (id: string, target: TTarget) => void;
+}
+
+function TargetToggle<TTarget extends string>({
+  ruleId,
+  targets,
+  options,
+  onToggleTarget,
+}: Readonly<TargetToggleProps<TTarget>>) {
+  if (options.length === 0) return null;
+  return (
+    <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onToggleTarget(ruleId, opt.value)}
+          className={twMerge(
+            "h-7 cursor-pointer px-1.5 text-[10px] font-medium transition-colors",
+            targets.includes(opt.value)
+              ? "bg-primary-600 text-white"
+              : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export function ColorRuleSetter<
   TTarget extends string,
   TCompareField extends string,
@@ -344,6 +481,14 @@ export function ColorRuleSetter<
     },
   ];
 
+  const getCompareFieldLabel = (
+    compareField: TCompareField | undefined
+  ): string => {
+    const fieldValue = compareField ?? compareFieldOptions[0]?.value;
+    const found = compareFieldOptions.find((o) => o.value === fieldValue);
+    return found?.label ?? compareFieldOptions[0]?.label ?? "";
+  };
+
   return (
     <>
       {showSeparator && <hr className="border-gray-200 dark:border-gray-700" />}
@@ -352,64 +497,27 @@ export function ColorRuleSetter<
           {label ?? tr("dashboard.settings.valueColorRules", dictionary)}
         </Label>
 
-        {/* Rules */}
         <div className="space-y-2">
           {rules.map((rule) => (
             <div
               key={rule._id}
               className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-gray-600 dark:bg-gray-700/50"
             >
-              {/* Compare mode toggle (Value/Field) - only if enabled */}
               {enableCompareMode && (
-                <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
-                  {compareModeOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() =>
-                        onUpdate(rule._id, "compareMode", opt.value)
-                      }
-                      className={twMerge(
-                        "h-7 cursor-pointer px-1.5 text-[10px] font-medium transition-colors",
-                        rule.compareMode === opt.value
-                          ? "bg-primary-600 text-white"
-                          : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <CompareModeToggle
+                  ruleId={rule._id}
+                  currentMode={rule.compareMode}
+                  options={compareModeOptions}
+                  onUpdate={onUpdate}
+                />
               )}
 
-              {/* Operator */}
-              <Dropdown
-                label=""
-                dismissOnClick
-                renderTrigger={() => (
-                  <button
-                    type="button"
-                    className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                  >
-                    <span className="truncate">
-                      {OPERATOR_LABELS[rule.operator]}
-                    </span>
-                    <HiChevronDown className="h-3 w-3 shrink-0" />
-                  </button>
-                )}
-              >
-                {COLOR_RULE_OPERATORS.map((op) => (
-                  <DropdownItem
-                    key={op}
-                    onClick={() => onUpdate(rule._id, "operator", op)}
-                    className="text-xs"
-                  >
-                    {OPERATOR_LABELS[op]}
-                  </DropdownItem>
-                ))}
-              </Dropdown>
+              <OperatorDropdown
+                operator={rule.operator}
+                ruleId={rule._id}
+                onUpdate={onUpdate}
+              />
 
-              {/* Value input OR Field selector */}
               {enableCompareMode && rule.compareMode === "field" ? (
                 <Dropdown
                   label=""
@@ -420,11 +528,7 @@ export function ColorRuleSetter<
                       className="flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                     >
                       <span className="truncate">
-                        {compareFieldOptions.find(
-                          (o) =>
-                            o.value ===
-                            (rule.compareField ?? compareFieldOptions[0]?.value)
-                        )?.label ?? compareFieldOptions[0]?.label}
+                        {getCompareFieldLabel(rule.compareField)}
                       </span>
                       <HiChevronDown className="h-3 w-3 shrink-0" />
                     </button>
@@ -452,28 +556,13 @@ export function ColorRuleSetter<
                 />
               )}
 
-              {/* Target multi-toggle - only if there are options */}
-              {targetOptions.length > 0 && (
-                <div className="flex h-7 shrink-0 items-center overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
-                  {targetOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => onToggleTarget(rule._id, opt.value)}
-                      className={twMerge(
-                        "h-7 cursor-pointer px-1.5 text-[10px] font-medium transition-colors",
-                        rule.targets.includes(opt.value)
-                          ? "bg-primary-600 text-white"
-                          : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <TargetToggle
+                ruleId={rule._id}
+                targets={rule.targets}
+                options={targetOptions}
+                onToggleTarget={onToggleTarget}
+              />
 
-              {/* Color */}
               <AdvancedColorPicker
                 value={rule.color}
                 onChange={(c) => onUpdate(rule._id, "color", c)}
@@ -481,7 +570,6 @@ export function ColorRuleSetter<
                 title={tr("dashboard.settings.selectRuleColor", dictionary)}
               />
 
-              {/* Delete */}
               <button
                 type="button"
                 onClick={() => onRemove(rule._id)}

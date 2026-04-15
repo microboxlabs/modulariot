@@ -7,7 +7,10 @@ import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
 import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import type { ValueColorRulesConfig } from "./value-color-rules";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
 import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
@@ -53,6 +56,80 @@ const FIELD_DEFAULTS: Record<string, string> = {
 };
 
 // ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+interface EvaluatedColors {
+  textColor: string | undefined;
+  bgColor: string | undefined;
+}
+
+function isGreaterOperator(op: string): boolean {
+  return op === "greater_than" || op === "greater_than_or_equal";
+}
+
+function isLessOperator(op: string): boolean {
+  return op === "less_than" || op === "less_than_or_equal";
+}
+
+function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
+  return [...rules].sort((a, b) => {
+    const aVal = Number(a.value) || 0;
+    const bVal = Number(b.value) || 0;
+    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
+      return bVal - aVal;
+    }
+    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string
+): EvaluatedColors {
+  let textColor: string | undefined;
+  let bgColor: string | undefined;
+
+  const sortedRules = sortColorRules(rules);
+
+  for (const rule of sortedRules) {
+    const matches = evaluateRule(
+      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
+      evalValue
+    );
+    if (!matches) continue;
+
+    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
+    if (rule.targets.includes("bg") && !bgColor) bgColor = rule.color;
+    if (textColor && bgColor) break;
+  }
+
+  return { textColor, bgColor };
+}
+
+/** Determine value text style based on rule or manual color */
+function getValueTextStyle(
+  ruleTextColor: string | undefined,
+  valueColor: string | undefined
+): React.CSSProperties | undefined {
+  if (ruleTextColor) return { color: `#${ruleTextColor}` };
+  if (valueColor) return { color: `#${valueColor}` };
+  return undefined;
+}
+
+/** Determine value text classes when no color override */
+function getValueTextClasses(
+  ruleTextColor: string | undefined,
+  valueColor: string | undefined
+): string {
+  if (ruleTextColor || valueColor) return "";
+  return "text-gray-900 dark:text-white";
+}
+
+// ============================================================================
 // Component - Style 6: Expandable Details
 // ============================================================================
 
@@ -89,52 +166,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const colorRulesConfig = normalizeValueColorRulesConfig(
     config.valueColorRules
   );
-  let ruleTextColor: string | undefined;
-  let ruleBgColor: string | undefined;
 
-  if (colorRulesConfig.rules.length > 0) {
-    const evalValue = String(displayValue);
-
-    // Sort rules so most specific matches win
-    const sortedRules = [...colorRulesConfig.rules].sort((a, b) => {
-      const aVal = Number(a.value) || 0;
-      const bVal = Number(b.value) || 0;
-      const isAGreater =
-        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
-      const isBGreater =
-        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
-      const isALess =
-        a.operator === "less_than" || a.operator === "less_than_or_equal";
-      const isBLess =
-        b.operator === "less_than" || b.operator === "less_than_or_equal";
-
-      if (isAGreater && isBGreater) return bVal - aVal;
-      if (isALess && isBLess) return aVal - bVal;
-      return 0;
-    });
-
-    for (const rule of sortedRules) {
-      if (
-        evaluateRule(
-          {
-            column: "",
-            operator: rule.operator,
-            value: rule.value,
-            color: "blue",
-          },
-          evalValue
-        )
-      ) {
-        if (rule.targets.includes("text") && !ruleTextColor) {
-          ruleTextColor = rule.color;
-        }
-        if (rule.targets.includes("bg") && !ruleBgColor) {
-          ruleBgColor = rule.color;
-        }
-        if (ruleTextColor && ruleBgColor) break;
-      }
-    }
-  }
+  const { textColor: ruleTextColor, bgColor: ruleBgColor } =
+    colorRulesConfig.rules.length > 0
+      ? evaluateColorRules(colorRulesConfig.rules, String(displayValue))
+      : { textColor: undefined, bgColor: undefined };
 
   // Build background styles
   const mainBgStyle = ruleBgColor
@@ -144,9 +180,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { backgroundColor: `#${ruleBgColor}10` }
     : undefined;
 
+  // Build value text styling
+  const valueTextStyle = getValueTextStyle(ruleTextColor, valueColor);
+  const valueTextClasses = getValueTextClasses(ruleTextColor, valueColor);
+
+  // Build container classes
+  const containerBgClasses = ruleBgColor ? "" : "bg-white dark:bg-gray-800";
+  const expandedBgClasses = ruleBgColor ? "" : "bg-gray-50 dark:bg-gray-900/50";
+  const buttonClasses = ruleBgColor
+    ? ""
+    : "text-blue-600 hover:bg-gray-50 dark:text-blue-400 dark:hover:bg-gray-700";
+
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 ${!ruleBgColor ? "bg-white dark:bg-gray-800" : ""}`}
+      className={`flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 ${containerBgClasses}`}
       style={mainBgStyle}
     >
       {/* Main content */}
@@ -155,14 +202,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           {title}
         </p>
         <p
-          className={`mt-1 text-3xl font-bold ${!ruleTextColor && !valueColor ? "text-gray-900 dark:text-white" : ""}`}
-          style={
-            ruleTextColor
-              ? { color: `#${ruleTextColor}` }
-              : valueColor
-                ? { color: `#${valueColor}` }
-                : undefined
-          }
+          className={`mt-1 text-3xl font-bold ${valueTextClasses}`}
+          style={valueTextStyle}
         >
           {displayValue}
           <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>
@@ -173,7 +214,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className={`cursor-pointer flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs dark:border-gray-700 ${ruleBgColor ? "" : "text-blue-600 hover:bg-gray-50 dark:text-blue-400 dark:hover:bg-gray-700"}`}
+        className={`cursor-pointer flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs dark:border-gray-700 ${buttonClasses}`}
         style={
           ruleBgColor
             ? {
@@ -207,7 +248,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {/* Expandable details */}
       {expanded && (
         <div
-          className={`border-t border-gray-200 p-3 dark:border-gray-700 ${!ruleBgColor ? "bg-gray-50 dark:bg-gray-900/50" : ""}`}
+          className={`border-t border-gray-200 p-3 dark:border-gray-700 ${expandedBgClasses}`}
           style={expandedBgStyle}
         >
           <div className="grid grid-cols-2 gap-2">

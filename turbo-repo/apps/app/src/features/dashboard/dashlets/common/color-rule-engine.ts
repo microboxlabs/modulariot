@@ -1,4 +1,4 @@
-import type { ColorRule, RuleColor } from "./color-rule-types";
+import type { ColorRule } from "./color-rule-types";
 
 // ============================================================================
 // Legacy named color mappings (for backward compatibility)
@@ -92,7 +92,7 @@ export function findMatchingColor(
   ) => string,
   rowIdx: number,
   total: number
-): RuleColor | null {
+): string | null {
   for (const rule of rules) {
     const resolved = resolveValue(rule.column, row, rowIdx, total);
     if (evaluateRule(rule, resolved)) {
@@ -111,7 +111,7 @@ export function findMatchingColor(
  * Get Tailwind row background classes for legacy named colors.
  * For hex colors, returns empty string (use getRowColorStyles instead).
  */
-export function getRowColorClasses(color: RuleColor): string {
+export function getRowColorClasses(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -138,7 +138,7 @@ export function getRowColorClasses(color: RuleColor): string {
  * Returns CSS custom properties for light/dark mode support.
  */
 export function getRowColorStyles(
-  color: RuleColor
+  color: string
 ): React.CSSProperties | undefined {
   if (isLegacyColor(color) || !isHexColor(color)) return undefined;
   return {
@@ -150,7 +150,7 @@ export function getRowColorStyles(
  * Get Tailwind badge classes for legacy named colors.
  * For hex colors, returns base structure (use getBadgeColorStyles for colors).
  */
-export function getBadgeColorClassesByRule(color: RuleColor): string {
+export function getBadgeColorClassesByRule(color: string): string {
   if (!isLegacyColor(color)) return "border";
   switch (color) {
     case "red":
@@ -176,7 +176,7 @@ export function getBadgeColorClassesByRule(color: RuleColor): string {
  * Get inline styles for badge with hex colors.
  */
 export function getBadgeColorStyles(
-  color: RuleColor
+  color: string
 ): React.CSSProperties | undefined {
   if (isLegacyColor(color) || !isHexColor(color)) return undefined;
   return {
@@ -190,7 +190,7 @@ export function getBadgeColorStyles(
  * Get Tailwind color dot class for legacy named colors.
  * For hex colors, returns empty string (use getColorDotStyles instead).
  */
-export function getColorDotClass(color: RuleColor): string {
+export function getColorDotClass(color: string): string {
   if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
@@ -216,7 +216,7 @@ export function getColorDotClass(color: RuleColor): string {
  * Get inline styles for color dot with hex colors.
  */
 export function getColorDotStyles(
-  color: RuleColor
+  color: string
 ): React.CSSProperties | undefined {
   if (isLegacyColor(color) || !isHexColor(color)) return undefined;
   return {

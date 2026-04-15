@@ -7,6 +7,7 @@ import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { evaluateRule } from "../common/color-rule-engine";
+import type { ColorRuleOperator } from "../common/color-rule-types";
 import type { ProgressBarColorConfig } from "./progress-bar-color-rules";
 import { normalizeProgressBarColorConfig } from "./progress-bar-color-rules";
 
@@ -52,6 +53,54 @@ export const layoutDefaults: DashletLayoutDefaults = {
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
+}
+
+// ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+interface ProgressBarRule {
+  operator: ColorRuleOperator;
+  value: string;
+  color: string;
+}
+
+function isGreaterOperator(op: ColorRuleOperator): boolean {
+  return op === "greater_than" || op === "greater_than_or_equal";
+}
+
+function isLessOperator(op: ColorRuleOperator): boolean {
+  return op === "less_than" || op === "less_than_or_equal";
+}
+
+function sortBarColorRules<T extends ProgressBarRule>(rules: T[]): T[] {
+  return [...rules].sort((a, b) => {
+    const aVal = Number(a.value) || 0;
+    const bVal = Number(b.value) || 0;
+    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
+      return bVal - aVal;
+    }
+    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}
+
+function evaluateBarColor(
+  rules: ProgressBarRule[],
+  evalValue: string,
+  defaultColor: string
+): string {
+  const sortedRules = sortBarColorRules(rules);
+  for (const rule of sortedRules) {
+    const matches = evaluateRule(
+      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
+      evalValue
+    );
+    if (matches) return rule.color;
+  }
+  return defaultColor;
 }
 
 // ============================================================================
@@ -127,53 +176,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const defaultBarColor = config.barColor ?? "2563eb";
 
   // Evaluate bar color rules (based on percentage or count)
-  let barColor = defaultBarColor;
-  if (barColorRulesConfig.enabled && barColorRulesConfig.rules.length > 0) {
-    const evalValue =
-      barColorRulesConfig.evalMode === "percentage"
-        ? String(percentage)
-        : String(value);
-
-    // Sort rules so most specific matches win:
-    // - greater_than/greater_than_or_equal: check highest thresholds first
-    // - less_than/less_than_or_equal: check lowest thresholds first
-    const sortedRules = [...barColorRulesConfig.rules].sort((a, b) => {
-      const aVal = Number(a.value) || 0;
-      const bVal = Number(b.value) || 0;
-      const isAGreater =
-        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
-      const isBGreater =
-        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
-      const isALess =
-        a.operator === "less_than" || a.operator === "less_than_or_equal";
-      const isBLess =
-        b.operator === "less_than" || b.operator === "less_than_or_equal";
-
-      // If both are "greater" type, sort descending (highest first)
-      if (isAGreater && isBGreater) return bVal - aVal;
-      // If both are "less" type, sort ascending (lowest first)
-      if (isALess && isBLess) return aVal - bVal;
-      // Mixed operators: keep original order
-      return 0;
-    });
-
-    for (const rule of sortedRules) {
-      if (
-        evaluateRule(
-          {
-            column: "",
-            operator: rule.operator,
-            value: rule.value,
-            color: "blue",
-          },
-          evalValue
+  const barColor =
+    barColorRulesConfig.enabled && barColorRulesConfig.rules.length > 0
+      ? evaluateBarColor(
+          barColorRulesConfig.rules,
+          barColorRulesConfig.evalMode === "percentage"
+            ? String(percentage)
+            : String(value),
+          defaultBarColor
         )
-      ) {
-        barColor = rule.color;
-        break;
-      }
-    }
-  }
+      : defaultBarColor;
 
   return (
     <div

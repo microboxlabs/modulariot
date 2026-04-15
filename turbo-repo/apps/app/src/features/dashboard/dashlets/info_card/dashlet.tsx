@@ -30,7 +30,10 @@ import {
 import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
-import type { ValueColorRulesConfig } from "./value-color-rules";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
 import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
@@ -140,6 +143,65 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 // ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+interface EvaluatedColors {
+  textColor: string | undefined;
+  iconColor: string | undefined;
+}
+
+function isGreaterOperator(op: string): boolean {
+  return op === "greater_than" || op === "greater_than_or_equal";
+}
+
+function isLessOperator(op: string): boolean {
+  return op === "less_than" || op === "less_than_or_equal";
+}
+
+function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
+  return [...rules].sort((a, b) => {
+    const aVal = Number(a.value) || 0;
+    const bVal = Number(b.value) || 0;
+    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
+      return bVal - aVal;
+    }
+    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string
+): EvaluatedColors {
+  let textColor: string | undefined;
+  let iconColor: string | undefined;
+
+  const sortedRules = sortColorRules(rules);
+
+  for (const rule of sortedRules) {
+    const matches = evaluateRule(
+      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
+      evalValue
+    );
+    if (!matches) continue;
+
+    if (rule.targets.includes("text") && !textColor) {
+      textColor = rule.color;
+    }
+    if (rule.targets.includes("icon") && !iconColor) {
+      iconColor = rule.color;
+    }
+    if (textColor && iconColor) break;
+  }
+
+  return { textColor, iconColor };
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -204,52 +266,11 @@ export function Dashlet({
   const colorRulesConfig = normalizeValueColorRulesConfig(
     config.valueColorRules
   );
-  let ruleTextColor: string | undefined;
-  let ruleIconColor: string | undefined;
 
-  if (colorRulesConfig.rules.length > 0) {
-    const evalValue = compiledValue;
-
-    // Sort rules so most specific matches win
-    const sortedRules = [...colorRulesConfig.rules].sort((a, b) => {
-      const aVal = Number(a.value) || 0;
-      const bVal = Number(b.value) || 0;
-      const isAGreater =
-        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
-      const isBGreater =
-        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
-      const isALess =
-        a.operator === "less_than" || a.operator === "less_than_or_equal";
-      const isBLess =
-        b.operator === "less_than" || b.operator === "less_than_or_equal";
-
-      if (isAGreater && isBGreater) return bVal - aVal;
-      if (isALess && isBLess) return aVal - bVal;
-      return 0;
-    });
-
-    for (const rule of sortedRules) {
-      if (
-        evaluateRule(
-          {
-            column: "",
-            operator: rule.operator,
-            value: rule.value,
-            color: "blue",
-          },
-          evalValue
-        )
-      ) {
-        if (rule.targets.includes("text") && !ruleTextColor) {
-          ruleTextColor = rule.color;
-        }
-        if (rule.targets.includes("icon") && !ruleIconColor) {
-          ruleIconColor = rule.color;
-        }
-        if (ruleTextColor && ruleIconColor) break;
-      }
-    }
-  }
+  const { textColor: ruleTextColor, iconColor: ruleIconColor } =
+    colorRulesConfig.rules.length > 0
+      ? evaluateColorRules(colorRulesConfig.rules, compiledValue)
+      : { textColor: undefined, iconColor: undefined };
 
   // Apply color rules or fallback to manual colors
   const effectiveValueColor = ruleTextColor

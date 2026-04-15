@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { RuleColor } from "./color-rule-types";
 import type { ThresholdConfig, ThresholdTarget } from "./threshold-types";
 import { evaluateThreshold } from "./threshold-engine";
 import { resolveHandlebarsField } from "./use-handlebars-templates";
@@ -7,7 +6,7 @@ import { normalizeThresholdConfig } from "./threshold-helpers";
 
 export interface ThresholdResult {
   /** The matched color, or null if no match / disabled */
-  color: RuleColor | null;
+  color: string | null;
   /** Whether threshold color should apply to a given target */
   appliesTo: (target: ThresholdTarget) => boolean;
 }
@@ -60,12 +59,12 @@ export function useThreshold(
     let resolvedValue: string;
     if (config.field) {
       resolvedValue = resolveHandlebarsField(config.field, templateContext);
-    } else if (options?.fallbackValue !== undefined) {
-      // Use fallback value when field is empty (e.g., the dashlet's main value)
-      resolvedValue = String(options.fallbackValue);
-    } else {
+    } else if (options?.fallbackValue === undefined) {
       // No field and no fallback — cannot evaluate
       return { color: null, appliesTo: () => false };
+    } else {
+      // Use fallback value when field is empty (e.g., the dashlet's main value)
+      resolvedValue = String(options.fallbackValue);
     }
 
     const color = evaluateThreshold(config, resolvedValue);

@@ -226,24 +226,27 @@ function errorResult(err: unknown, fallback: string): BearerResult {
   };
 }
 
+interface TokenFetchParams {
+  tokenUrl: string;
+  clientId: string;
+  clientSecret: string;
+  scope?: string;
+  audience?: string;
+  preferredFormat?: TokenRequestFormat;
+}
+
 /**
  * Get a cached token or fetch a new one. Concurrent callers for the same
  * data source share a single in-flight request (deduplication).
  */
 async function getOrRefreshToken(
   dataSourceId: string,
-  tokenUrl: string,
-  clientId: string,
-  clientSecret: string,
-  scope: string | undefined,
-  audience: string | undefined,
-  preferredFormat: TokenRequestFormat | undefined,
+  params: TokenFetchParams,
   fingerprint: string
 ): Promise<CachedToken> {
   const cached = tokenCache.get(dataSourceId);
   if (
-    cached &&
-    cached.configFingerprint === fingerprint &&
+    cached?.configFingerprint === fingerprint &&
     cached.expiresAt - Date.now() > TOKEN_EXPIRY_BUFFER_MS
   ) {
     return cached;
@@ -254,7 +257,8 @@ async function getOrRefreshToken(
   if (inflight) return inflight;
 
   const promise = exchangeOAuthToken(
-    tokenUrl, clientId, clientSecret, scope, audience, preferredFormat
+    params.tokenUrl, params.clientId, params.clientSecret,
+    params.scope, params.audience, params.preferredFormat
   ).then((result) => {
     const entry: CachedToken = {
       accessToken: result.accessToken,
@@ -274,16 +278,21 @@ async function getOrRefreshToken(
   return promise;
 }
 
-async function resolveOAuthToken(
-  tokenUrl: string,
-  clientId: string,
-  encryptedClientSecret: string,
-  scope?: string,
-  audience?: string,
-  tokenRequestFormat?: TokenRequestFormat,
-  dataSourceId?: string,
-  clientSecretSuffix?: string
-): Promise<BearerResult> {
+interface ResolveOAuthParams {
+  tokenUrl: string;
+  clientId: string;
+  encryptedClientSecret: string;
+  scope?: string;
+  audience?: string;
+  tokenRequestFormat?: TokenRequestFormat;
+  dataSourceId?: string;
+  clientSecretSuffix?: string;
+}
+
+async function resolveOAuthToken(params: ResolveOAuthParams): Promise<BearerResult> {
+  const { tokenUrl, clientId, encryptedClientSecret, scope, audience,
+    tokenRequestFormat, dataSourceId, clientSecretSuffix } = params;
+
   const tokenUrlCheck = await validateTargetUrl(tokenUrl);
   if (!tokenUrlCheck.valid) {
     return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
@@ -296,8 +305,9 @@ async function resolveOAuthToken(
       tokenUrl, clientId, clientSecretSuffix, scope, audience
     );
     const cached = await getOrRefreshToken(
-      dataSourceId, tokenUrl, clientId, clientSecret,
-      scope, audience, tokenRequestFormat, fingerprint
+      dataSourceId,
+      { tokenUrl, clientId, clientSecret, scope, audience, preferredFormat: tokenRequestFormat },
+      fingerprint
     );
     return {
       ok: true,
@@ -332,11 +342,13 @@ export async function resolveBearerToken(
       return { ok: false, error: "OAuth configuration is incomplete" };
     }
     try {
-      return await resolveOAuthToken(
-        config.tokenUrl, config.clientId, config.encryptedClientSecret,
-        config.scope, config.audience, config.tokenRequestFormat,
-        dataSourceId, config.clientSecretSuffix
-      );
+      return await resolveOAuthToken({
+        tokenUrl: config.tokenUrl, clientId: config.clientId,
+        encryptedClientSecret: config.encryptedClientSecret,
+        scope: config.scope, audience: config.audience,
+        tokenRequestFormat: config.tokenRequestFormat,
+        dataSourceId, clientSecretSuffix: config.clientSecretSuffix,
+      });
     } catch (err) {
       return errorResult(err, "OAuth token resolution failed");
     }

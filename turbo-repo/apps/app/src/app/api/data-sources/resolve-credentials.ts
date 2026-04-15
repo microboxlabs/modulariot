@@ -28,7 +28,7 @@ interface CachedToken {
 }
 
 const tokenCache = new Map<string, CachedToken>();
-const inflightRequests = new Map<string, Promise<CachedToken>>();
+const inflightRequests = new Map<string, { fingerprint: string; promise: Promise<CachedToken> }>();
 
 function computeConfigFingerprint(
   tokenUrl: string,
@@ -252,9 +252,9 @@ async function getOrRefreshToken(
     return cached;
   }
 
-  // Deduplicate: reuse an in-flight request for the same data source.
+  // Deduplicate: reuse an in-flight request only if fingerprint matches.
   const inflight = inflightRequests.get(dataSourceId);
-  if (inflight) return inflight;
+  if (inflight?.fingerprint === fingerprint) return inflight.promise;
 
   const promise = exchangeOAuthToken(
     params.tokenUrl, params.clientId, params.clientSecret,
@@ -274,7 +274,7 @@ async function getOrRefreshToken(
     throw err;
   });
 
-  inflightRequests.set(dataSourceId, promise);
+  inflightRequests.set(dataSourceId, { fingerprint, promise });
   return promise;
 }
 

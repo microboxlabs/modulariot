@@ -320,6 +320,7 @@ export function DashletSettings({
             value={xAxisColumn}
             onChange={(e) => setXAxisColumn(e.target.value)}
             sizing="sm"
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {detectedColumns.length === 0
@@ -359,7 +360,7 @@ export function DashletSettings({
                   updateSeries(s._id, { columnKey: e.target.value })
                 }
                 sizing="sm"
-                className="flex-1"
+                className="flex-1 [&>select]:cursor-pointer"
               >
                 <option value="">
                   {tr("dashboard.settings.seriesColumn", dictionary)}

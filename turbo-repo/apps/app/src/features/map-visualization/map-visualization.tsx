@@ -1,5 +1,5 @@
 import type { LayersList } from "@deck.gl/core";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Map, { useControl, MapRef } from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
@@ -49,6 +49,26 @@ export default function MapVisualization({
 }) {
   const [cursor, setCursor] = useState<string>("grab");
   const [isMapDragging, setIsMapDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Resize map when container size changes
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      // Trigger map resize after a small delay to ensure DOM has updated
+      requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [mapRef]);
 
   const mapboxStyles = useMemo(
     () => (
@@ -74,7 +94,10 @@ export default function MapVisualization({
   );
 
   return (
-    <div className="h-full w-full relative rounded-lg overflow-hidden">
+    <div
+      ref={containerRef}
+      className="h-full w-full relative rounded-lg overflow-hidden"
+    >
       <Map
         ref={mapRef}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}

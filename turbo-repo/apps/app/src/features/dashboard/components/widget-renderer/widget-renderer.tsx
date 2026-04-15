@@ -41,7 +41,7 @@ function WidgetControls({
   onDelete,
 }: Readonly<WidgetControlsProps>) {
   return (
-    <div className="widget-controls absolute right-2 top-2 z-10 flex gap-1">
+    <div className="widget-controls absolute right-2 top-2 z-[60] flex gap-1">
       {hasChildren && (
         <button
           type="button"

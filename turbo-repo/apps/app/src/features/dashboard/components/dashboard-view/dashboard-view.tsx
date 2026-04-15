@@ -143,7 +143,7 @@ export function DashboardView() {
   // Measure container width reactively
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {      
+    if (!container) {
       return;
     }
 
@@ -310,7 +310,10 @@ export function DashboardView() {
       )}
 
       {/* Content */}
-      <div ref={containerRef} className="w-full min-h-[200px] max-w-screen-2xl mx-auto">
+      <div
+        ref={containerRef}
+        className="w-full min-h-[200px] max-w-screen-2xl mx-auto"
+      >
         {hasWidgets ? (
           <>
             {/* Root-level grid - only render when width is measured */}
@@ -424,6 +427,7 @@ export function DashboardView() {
           opacity: 0;
           transition: opacity 0.15s ease;
           transform: none !important;
+          z-index: 60;
         }
 
         .dashboard-root-grid .react-grid-item > .react-resizable-handle::after {

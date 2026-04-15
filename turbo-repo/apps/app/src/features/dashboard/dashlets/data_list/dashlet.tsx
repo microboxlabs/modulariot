@@ -403,8 +403,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // ── Title bar data ──────────────────────────────────────────────────────────
   const titleBarData = buildTitleBarData({
-    title, showRowCount, showExport, columns,
-    displayRows, resolveValue, resolveLabel, dictionary,
+    title,
+    showRowCount,
+    showExport,
+    columns,
+    displayRows,
+    resolveValue,
+    resolveLabel,
+    dictionary,
   });
 
   // ── Render ──────────────────────────────────────────────────────────────────

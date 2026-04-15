@@ -1,10 +1,16 @@
-import type { RuleColor, ColorRuleOperator } from "./color-rule-types";
+import type { ColorRuleOperator } from "./color-rule-types";
 
 export type DataMode = "static" | "dynamic" | "pgrest" | "planner";
 
 export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 
-export const COLUMN_TYPES: ColumnType[] = ["text", "badge", "highlight", "signed", "progress"];
+export const COLUMN_TYPES: ColumnType[] = [
+  "text",
+  "badge",
+  "highlight",
+  "signed",
+  "progress",
+];
 
 export function isColumnType(value: string): value is ColumnType {
   return (COLUMN_TYPES as string[]).includes(value);
@@ -14,7 +20,7 @@ export interface BadgeColorMapping {
   _id?: string;
   operator: ColorRuleOperator;
   value: string;
-  color: RuleColor;
+  color: string;
 }
 
 export interface TableColumn {

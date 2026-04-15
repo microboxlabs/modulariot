@@ -11,7 +11,10 @@ import {
 } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { evaluateRule } from "../common/color-rule-engine";
-import type { ValueColorRulesConfig } from "./value-color-rules";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
 import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
@@ -57,6 +60,104 @@ const FIELD_DEFAULTS: Record<string, string> = {
 };
 
 // ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+interface EvaluatedColors {
+  textColor: string | undefined;
+  barColor: string | undefined;
+  badgeColor: string | undefined;
+}
+
+function isGreaterOperator(op: string): boolean {
+  return op === "greater_than" || op === "greater_than_or_equal";
+}
+
+function isLessOperator(op: string): boolean {
+  return op === "less_than" || op === "less_than_or_equal";
+}
+
+function getCompareValue(
+  rule: ValueColorRule,
+  fieldValues: Record<string, number>
+): string {
+  if (rule.compareMode === "field") {
+    const field = rule.compareField ?? "previousValue";
+    return String(fieldValues[field] ?? 0);
+  }
+  return rule.value;
+}
+
+function sortColorRules(
+  rules: ValueColorRule[],
+  fieldValues: Record<string, number>
+): ValueColorRule[] {
+  return [...rules].sort((a, b) => {
+    const aVal = Number(getCompareValue(a, fieldValues)) || 0;
+    const bVal = Number(getCompareValue(b, fieldValues)) || 0;
+    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
+      return bVal - aVal;
+    }
+    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string,
+  fieldValues: Record<string, number>
+): EvaluatedColors {
+  let textColor: string | undefined;
+  let barColor: string | undefined;
+  let badgeColor: string | undefined;
+
+  const sortedRules = sortColorRules(rules, fieldValues);
+
+  for (const rule of sortedRules) {
+    const compareValue = getCompareValue(rule, fieldValues);
+    const matches = evaluateRule(
+      {
+        column: "",
+        operator: rule.operator,
+        value: compareValue,
+        color: "blue",
+      },
+      evalValue
+    );
+    if (!matches) continue;
+
+    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
+    if (rule.targets.includes("bar") && !barColor) barColor = rule.color;
+    if (rule.targets.includes("badge") && !badgeColor) badgeColor = rule.color;
+    if (textColor && barColor && badgeColor) break;
+  }
+
+  return { textColor, barColor, badgeColor };
+}
+
+/** Convert hex color to rgba string */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Get badge classes based on color rule or change direction */
+function getBadgeClasses(
+  ruleBadgeColor: string | undefined,
+  isPositive: boolean
+): string {
+  if (ruleBadgeColor) return "";
+  if (isPositive)
+    return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+  return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+}
+
+// ============================================================================
 // Component - Style 2: Full Details Card
 // ============================================================================
 
@@ -97,83 +198,21 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const valueColorRulesConfig = normalizeValueColorRulesConfig(
     config.valueColorRules
   );
-  let ruleTextColor: string | undefined;
-  let ruleBarColor: string | undefined;
-  let ruleBadgeColor: string | undefined;
 
   // Field values map for field comparison mode
-  const fieldValues: Record<string, number> = {
-    previousValue,
-    target,
-  };
+  const fieldValues: Record<string, number> = { previousValue, target };
 
-  if (valueColorRulesConfig.rules.length > 0) {
-    const evalValue = String(value);
-
-    // Helper to get comparison value based on rule's compare mode
-    const getCompareValue = (
-      rule: (typeof valueColorRulesConfig.rules)[0]
-    ): string => {
-      if (rule.compareMode === "field") {
-        // Default to "previousValue" if compareField is not set
-        const field = rule.compareField ?? "previousValue";
-        return String(fieldValues[field] ?? 0);
-      }
-      return rule.value;
-    };
-
-    // Sort rules so most specific matches win
-    const sortedRules = [...valueColorRulesConfig.rules].sort((a, b) => {
-      const aVal = Number(getCompareValue(a)) || 0;
-      const bVal = Number(getCompareValue(b)) || 0;
-      const isAGreater =
-        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
-      const isBGreater =
-        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
-      const isALess =
-        a.operator === "less_than" || a.operator === "less_than_or_equal";
-      const isBLess =
-        b.operator === "less_than" || b.operator === "less_than_or_equal";
-
-      if (isAGreater && isBGreater) return bVal - aVal;
-      if (isALess && isBLess) return aVal - bVal;
-      return 0;
-    });
-
-    for (const rule of sortedRules) {
-      const compareValue = getCompareValue(rule);
-      if (
-        evaluateRule(
-          {
-            column: "",
-            operator: rule.operator,
-            value: compareValue,
-            color: "blue",
-          },
-          evalValue
-        )
-      ) {
-        if (rule.targets.includes("text") && !ruleTextColor) {
-          ruleTextColor = rule.color;
-        }
-        if (rule.targets.includes("bar") && !ruleBarColor) {
-          ruleBarColor = rule.color;
-        }
-        if (rule.targets.includes("badge") && !ruleBadgeColor) {
-          ruleBadgeColor = rule.color;
-        }
-        if (ruleTextColor && ruleBarColor && ruleBadgeColor) break;
-      }
-    }
-  }
-
-  // Helper to convert hex to rgba
-  const hexToRgba = (hex: string, alpha: number): string => {
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  };
+  const {
+    textColor: ruleTextColor,
+    barColor: ruleBarColor,
+    badgeColor: ruleBadgeColor,
+  } = valueColorRulesConfig.rules.length > 0
+    ? evaluateColorRules(
+        valueColorRulesConfig.rules,
+        String(value),
+        fieldValues
+      )
+    : { textColor: undefined, barColor: undefined, badgeColor: undefined };
 
   // Build badge style and classes
   const badgeStyle = ruleBadgeColor
@@ -182,11 +221,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         color: `#${ruleBadgeColor}`,
       }
     : undefined;
-  const badgeClasses = ruleBadgeColor
-    ? ""
-    : isPositive
-      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+  const badgeClasses = getBadgeClasses(ruleBadgeColor, isPositive);
 
   // Build text style
   const textStyle = ruleTextColor ? { color: `#${ruleTextColor}` } : undefined;

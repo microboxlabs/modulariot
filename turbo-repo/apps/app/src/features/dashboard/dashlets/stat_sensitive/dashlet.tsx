@@ -45,7 +45,7 @@ const FIELD_DEFAULTS: Record<string, string> = {
 };
 
 function getValueTextClasses(
-  thresholdColor: import("../common/color-rule-types").RuleColor | null,
+  thresholdColor: string | null,
   appliesTo: (
     target: import("../common/threshold-types").ThresholdTarget
   ) => boolean

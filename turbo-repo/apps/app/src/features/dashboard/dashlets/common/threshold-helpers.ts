@@ -1,4 +1,4 @@
-import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
+import { COLOR_RULE_OPERATORS } from "./color-rule-types";
 import type {
   ThresholdConfig,
   ThresholdRule,
@@ -26,7 +26,11 @@ export function toThresholdRuleItems(
 export function fromThresholdRuleItems(
   items: ThresholdRuleItem[]
 ): ThresholdRule[] {
-  return items.map(({ _id, ...rule }) => rule);
+  return items.map((item) => ({
+    operator: item.operator,
+    value: item.value,
+    color: item.color,
+  }));
 }
 
 function isValidThresholdRule(r: unknown): r is ThresholdRule {
@@ -36,8 +40,7 @@ function isValidThresholdRule(r: unknown): r is ThresholdRule {
     typeof rule.operator === "string" &&
     (COLOR_RULE_OPERATORS as string[]).includes(rule.operator) &&
     typeof rule.value === "string" &&
-    typeof rule.color === "string" &&
-    (RULE_COLORS as string[]).includes(rule.color)
+    typeof rule.color === "string"
   );
 }
 

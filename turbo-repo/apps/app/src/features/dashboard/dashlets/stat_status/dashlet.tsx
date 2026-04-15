@@ -15,7 +15,10 @@ import {
 import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
-import type { ValueColorRulesConfig } from "./value-color-rules";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
 import { normalizeValueColorRulesConfig } from "./value-color-rules";
 import {
   HiWrench,
@@ -133,6 +136,89 @@ const DEFAULT_COLORS = {
 const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
 
 // ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+interface EvaluatedColors {
+  borderColor: string | undefined;
+  iconColor: string | undefined;
+  textColor: string | undefined;
+}
+
+function isGreaterOperator(op: string): boolean {
+  return op === "greater_than" || op === "greater_than_or_equal";
+}
+
+function isLessOperator(op: string): boolean {
+  return op === "less_than" || op === "less_than_or_equal";
+}
+
+function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
+  return [...rules].sort((a, b) => {
+    const aVal = Number(a.value) || 0;
+    const bVal = Number(b.value) || 0;
+    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
+      return bVal - aVal;
+    }
+    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string
+): EvaluatedColors {
+  let borderColor: string | undefined;
+  let iconColor: string | undefined;
+  let textColor: string | undefined;
+
+  const sortedRules = sortColorRules(rules);
+
+  for (const rule of sortedRules) {
+    const matches = evaluateRule(
+      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
+      evalValue
+    );
+    if (!matches) continue;
+
+    if (rule.targets.includes("border") && !borderColor)
+      borderColor = rule.color;
+    if (rule.targets.includes("icon") && !iconColor) iconColor = rule.color;
+    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
+    if (borderColor && iconColor && textColor) break;
+  }
+
+  return { borderColor, iconColor, textColor };
+}
+
+/** Get border classes when no custom color is applied */
+function getBorderClasses(effectiveColor: string | undefined): string {
+  if (effectiveColor) return "";
+  return DEFAULT_COLORS.border;
+}
+
+/** Get icon background classes when no custom color is applied */
+function getIconBgClasses(effectiveColor: string | undefined): string {
+  if (effectiveColor) return "";
+  return DEFAULT_COLORS.iconBg;
+}
+
+/** Get icon text classes when no custom color is applied */
+function getIconTextClasses(effectiveColor: string | undefined): string {
+  if (effectiveColor) return "";
+  return DEFAULT_COLORS.iconText;
+}
+
+/** Get value text classes when no custom color is applied */
+function getValueTextClasses(effectiveColor: string | undefined): string {
+  if (effectiveColor) return "";
+  return DEFAULT_COLORS.valueText;
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -173,56 +259,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const colorRulesConfig = normalizeValueColorRulesConfig(
     config.valueColorRules
   );
-  let ruleBorderColor: string | undefined;
-  let ruleIconColor: string | undefined;
-  let ruleTextColor: string | undefined;
 
-  if (colorRulesConfig.rules.length > 0) {
-    const evalValue = compiledValue;
-
-    // Sort rules so most specific matches win
-    const sortedRules = [...colorRulesConfig.rules].sort((a, b) => {
-      const aVal = Number(a.value) || 0;
-      const bVal = Number(b.value) || 0;
-      const isAGreater =
-        a.operator === "greater_than" || a.operator === "greater_than_or_equal";
-      const isBGreater =
-        b.operator === "greater_than" || b.operator === "greater_than_or_equal";
-      const isALess =
-        a.operator === "less_than" || a.operator === "less_than_or_equal";
-      const isBLess =
-        b.operator === "less_than" || b.operator === "less_than_or_equal";
-
-      if (isAGreater && isBGreater) return bVal - aVal;
-      if (isALess && isBLess) return aVal - bVal;
-      return 0;
-    });
-
-    for (const rule of sortedRules) {
-      if (
-        evaluateRule(
-          {
-            column: "",
-            operator: rule.operator,
-            value: rule.value,
-            color: "blue",
-          },
-          evalValue
-        )
-      ) {
-        if (rule.targets.includes("border") && !ruleBorderColor) {
-          ruleBorderColor = rule.color;
-        }
-        if (rule.targets.includes("icon") && !ruleIconColor) {
-          ruleIconColor = rule.color;
-        }
-        if (rule.targets.includes("text") && !ruleTextColor) {
-          ruleTextColor = rule.color;
-        }
-        if (ruleBorderColor && ruleIconColor && ruleTextColor) break;
-      }
-    }
-  }
+  const {
+    borderColor: ruleBorderColor,
+    iconColor: ruleIconColor,
+    textColor: ruleTextColor,
+  } = colorRulesConfig.rules.length > 0
+    ? evaluateColorRules(colorRulesConfig.rules, compiledValue)
+    : { borderColor: undefined, iconColor: undefined, textColor: undefined };
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -230,9 +274,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // Get effective colors: rule > (showColor ? base color : undefined)
   // If showColor is false, we use default theme colors (classes below)
   const baseColor = showColor ? color : undefined;
-  const effectiveBorderColor = ruleBorderColor || baseColor;
-  const effectiveIconColor = ruleIconColor || baseColor;
-  const effectiveTextColor = ruleTextColor || baseColor;
+  const effectiveBorderColor = ruleBorderColor ?? baseColor;
+  const effectiveIconColor = ruleIconColor ?? baseColor;
+  const effectiveTextColor = ruleTextColor ?? baseColor;
 
   const IconComponent = ICONS[icon] ?? ICONS.check;
 
@@ -250,9 +294,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { color: `#${effectiveTextColor}` }
     : undefined;
 
+  // Pre-compute classes using helpers (avoids negated conditions in JSX)
+  const borderClasses = getBorderClasses(effectiveBorderColor);
+  const iconBgClasses = getIconBgClasses(effectiveIconColor);
+  const iconTextClasses = getIconTextClasses(effectiveIconColor);
+  const valueTextClasses = getValueTextClasses(effectiveTextColor);
+
   return (
     <div
-      className={`flex h-full flex-col justify-between rounded-lg border border-gray-200 border-l-4 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${!effectiveBorderColor ? DEFAULT_COLORS.border : ""}`}
+      className={`flex h-full flex-col justify-between rounded-lg border border-gray-200 border-l-4 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${borderClasses}`}
       style={borderStyle}
     >
       <div className="flex items-start justify-between">
@@ -260,18 +310,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           {compiledTitle}
         </p>
         <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${!effectiveIconColor ? DEFAULT_COLORS.iconBg : ""}`}
-          style={iconBgStyle}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBgClasses} ${iconTextClasses}`}
+          style={{ ...iconBgStyle, ...iconTextStyle }}
         >
-          <IconComponent
-            className={`h-4 w-4 ${!effectiveIconColor ? DEFAULT_COLORS.iconText : ""}`}
-            style={iconTextStyle}
-          />
+          <IconComponent className="h-4 w-4" />
         </div>
       </div>
       <div>
         <p
-          className={`text-3xl font-bold ${!effectiveTextColor ? DEFAULT_COLORS.valueText : ""}`}
+          className={`text-3xl font-bold ${valueTextClasses}`}
           style={valueTextStyle}
         >
           {compiledValue}

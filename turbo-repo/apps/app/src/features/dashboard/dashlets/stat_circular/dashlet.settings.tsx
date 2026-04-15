@@ -50,9 +50,6 @@ export function DashletSettings({
     String(config.maxValue ?? defaultConfig.maxValue)
   );
   const [unit, setUnit] = useState(String(config.unit ?? defaultConfig.unit));
-  const [barColor, setBarColor] = useState(
-    config.barColor ?? DEFAULT_BAR_COLOR
-  );
   const [dataMode, setDataMode] = useState<"static" | "pgrest" | "planner">(
     config.dataMode === "static" ||
       config.dataMode === "pgrest" ||
@@ -92,7 +89,7 @@ export function DashletSettings({
       value,
       maxValue,
       unit,
-      barColor,
+      barColor: config.barColor ?? DEFAULT_BAR_COLOR,
       dataMode,
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),

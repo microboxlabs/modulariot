@@ -1,8 +1,18 @@
 "use client";
 
-import { Button, Label, ToggleSwitch, Dropdown, DropdownItem } from "flowbite-react";
+import {
+  Button,
+  Label,
+  ToggleSwitch,
+  Dropdown,
+  DropdownItem,
+} from "flowbite-react";
 import { HiPlus, HiChevronDown, HiTrash } from "react-icons/hi2";
-import { COLOR_RULE_OPERATORS, OPERATOR_LABELS, COLOR_RULE_PRESETS } from "./color-rule-types";
+import {
+  COLOR_RULE_OPERATORS,
+  OPERATOR_LABELS,
+  COLOR_RULE_PRESETS,
+} from "./color-rule-types";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
 import { HbTextField } from "./settings-fields";

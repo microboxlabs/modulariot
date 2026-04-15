@@ -22,7 +22,11 @@ import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
 import type { ColorRuleOperator } from "./color-rule-types";
-import { COLOR_RULE_PRESETS, COLOR_RULE_OPERATORS, OPERATOR_LABELS } from "./color-rule-types";
+import {
+  COLOR_RULE_PRESETS,
+  COLOR_RULE_OPERATORS,
+  OPERATOR_LABELS,
+} from "./color-rule-types";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import type { ActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
@@ -32,6 +36,94 @@ import type { ActionTarget } from "./action-types";
 // ============================================================================
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
+
+// ============================================================================
+// BadgeColorMappingRow — extracted to reduce nesting depth
+// ============================================================================
+
+interface BadgeColorMappingRowProps {
+  colId: string;
+  mapping: {
+    _id?: string;
+    operator: ColorRuleOperator;
+    value: string;
+    color: string;
+  };
+  onUpdate: (
+    colId: string,
+    mappingId: string,
+    field: "operator" | "value" | "color",
+    val: string
+  ) => void;
+  onRemove: (colId: string, mappingId: string) => void;
+  valuePlaceholder: string;
+}
+
+function BadgeColorMappingRow({
+  colId,
+  mapping,
+  onUpdate,
+  onRemove,
+  valuePlaceholder,
+}: Readonly<BadgeColorMappingRowProps>) {
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-gray-600 dark:bg-gray-700/50">
+      {/* Operator dropdown */}
+      <Dropdown
+        label=""
+        dismissOnClick
+        renderTrigger={() => (
+          <button
+            type="button"
+            className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+          >
+            <span className="truncate">
+              {OPERATOR_LABELS[mapping.operator]}
+            </span>
+            <HiChevronDown className="h-3 w-3 shrink-0" />
+          </button>
+        )}
+      >
+        {COLOR_RULE_OPERATORS.map((op) => (
+          <DropdownItem
+            key={op}
+            onClick={() => onUpdate(colId, mapping._id!, "operator", op)}
+            className="text-xs"
+          >
+            {OPERATOR_LABELS[op]}
+          </DropdownItem>
+        ))}
+      </Dropdown>
+      {/* Value input */}
+      <input
+        type="text"
+        className="no-drag h-7 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        placeholder={valuePlaceholder}
+        value={mapping.value}
+        onChange={(e) => onUpdate(colId, mapping._id!, "value", e.target.value)}
+      />
+      {/* Color picker */}
+      <AdvancedColorPicker
+        value={mapping.color}
+        onChange={(newColor) =>
+          onUpdate(colId, mapping._id!, "color", newColor)
+        }
+        presets={COLOR_RULE_PRESETS}
+        title="Select mapping color"
+      />
+      {/* Delete button */}
+      <button
+        type="button"
+        onClick={() => onRemove(colId, mapping._id!)}
+        onMouseDown={stopPropagation}
+        className="no-drag flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+        aria-label="Delete color mapping"
+      >
+        <HiTrash className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 // ============================================================================
 // ColumnEditor
@@ -136,85 +228,14 @@ export function ColumnEditor({
               onUpdateColorMapping && (
                 <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
                   {(col.colorMap ?? []).map((mapping) => (
-                    <div
+                    <BadgeColorMappingRow
                       key={`${col._id}-cm-${mapping._id}`}
-                      className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-gray-600 dark:bg-gray-700/50"
-                    >
-                      {/* Operator dropdown */}
-                      <Dropdown
-                        label=""
-                        dismissOnClick
-                        renderTrigger={() => (
-                          <button
-                            type="button"
-                            className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                          >
-                            <span className="truncate">
-                              {OPERATOR_LABELS[mapping.operator as ColorRuleOperator]}
-                            </span>
-                            <HiChevronDown className="h-3 w-3 shrink-0" />
-                          </button>
-                        )}
-                      >
-                        {COLOR_RULE_OPERATORS.map((op) => (
-                          <DropdownItem
-                            key={op}
-                            onClick={() =>
-                              onUpdateColorMapping(
-                                col._id,
-                                mapping._id!,
-                                "operator",
-                                op
-                              )
-                            }
-                            className="text-xs"
-                          >
-                            {OPERATOR_LABELS[op]}
-                          </DropdownItem>
-                        ))}
-                      </Dropdown>
-                      {/* Value input */}
-                      <input
-                        type="text"
-                        className="no-drag h-7 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                        placeholder={labels.valuePlaceholder}
-                        value={mapping.value}
-                        onChange={(e) =>
-                          onUpdateColorMapping(
-                            col._id,
-                            mapping._id!,
-                            "value",
-                            e.target.value
-                          )
-                        }
-                      />
-                      {/* Color picker */}
-                      <AdvancedColorPicker
-                        value={mapping.color}
-                        onChange={(newColor) =>
-                          onUpdateColorMapping?.(
-                            col._id,
-                            mapping._id!,
-                            "color",
-                            newColor
-                          )
-                        }
-                        presets={COLOR_RULE_PRESETS}
-                        title="Select mapping color"
-                      />
-                      {/* Delete button */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onRemoveColorMapping(col._id, mapping._id!)
-                        }
-                        onMouseDown={stopPropagation}
-                        className="no-drag flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                        aria-label="Delete color mapping"
-                      >
-                        <HiTrash className="h-4 w-4" />
-                      </button>
-                    </div>
+                      colId={col._id}
+                      mapping={mapping}
+                      onUpdate={onUpdateColorMapping}
+                      onRemove={onRemoveColorMapping}
+                      valuePlaceholder={labels.valuePlaceholder}
+                    />
                   ))}
                   <Button
                     color="light"

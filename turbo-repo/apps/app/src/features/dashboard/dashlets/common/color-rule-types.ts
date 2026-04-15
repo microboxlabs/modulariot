@@ -30,12 +30,6 @@ export const OPERATOR_LABELS: Record<ColorRuleOperator, string> = {
   less_than_or_equal: "<=",
 };
 
-/**
- * Rule color is now a hex string (without #) for custom color picker support.
- * Legacy named colors ("red", "yellow", etc.) are still supported for backward compatibility.
- */
-export type RuleColor = string;
-
 /** @deprecated Use COLOR_RULE_PRESETS instead */
 export const RULE_COLORS: string[] = [
   "red",
@@ -79,8 +73,8 @@ export interface ColorRule {
   operator: ColorRuleOperator;
   /** Value to compare against */
   value: string;
-  /** The color to apply when this rule matches */
-  color: RuleColor;
+  /** The color to apply when this rule matches (hex without # or legacy named color) */
+  color: string;
 }
 
 export interface ColorRulesConfig {

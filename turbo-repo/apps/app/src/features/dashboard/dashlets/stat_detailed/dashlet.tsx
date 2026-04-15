@@ -79,7 +79,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const title = resolved.title || "Monthly Revenue";
   const unit = resolved.unit ?? "$";
   const description = resolved.description || "";
-  const valueColor = config.valueColor;
 
   const value = parseResolvedNumber(resolved.value);
   const previousValue = parseResolvedNumber(resolved.previousValue);

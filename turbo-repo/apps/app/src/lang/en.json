@@ -1645,6 +1645,14 @@
       "noActiveProviders": "No active providers available",
       "failedToLoadFunctions": "Failed to load functions",
       "invalidResponseFormat": "Invalid response format",
+      "fileUpload": {
+        "buttonLabel": "Button Label",
+        "buttonLabelPlaceholder": "Upload File",
+        "uploadEndpoint": "Upload Endpoint",
+        "acceptedFileTypes": "Accepted File Types",
+        "acceptedFileTypesHint": "Comma-separated extensions or MIME types. Leave empty to accept all.",
+        "defaultEnv": "Default (env)"
+      },
       "filterBarTitle": "Filter Bar",
       "filterBarDescription": "Configure dashboard filter parameters",
       "noFiltersConfigured": "No filters configured. Add filters to enable the dashboard filter bar.",

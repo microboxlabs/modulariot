@@ -1671,6 +1671,14 @@
       "noActiveProviders": "No hay proveedores activos disponibles",
       "failedToLoadFunctions": "Error al cargar funciones",
       "invalidResponseFormat": "Formato de respuesta inválido",
+      "fileUpload": {
+        "buttonLabel": "Etiqueta del botón",
+        "buttonLabelPlaceholder": "Subir archivo",
+        "uploadEndpoint": "Endpoint de carga",
+        "acceptedFileTypes": "Tipos de archivo aceptados",
+        "acceptedFileTypesHint": "Extensiones o tipos MIME separados por coma. Dejar vacío para aceptar todos.",
+        "defaultEnv": "Por defecto (env)"
+      },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
       "noFiltersConfigured": "No hay filtros configurados. Agregue filtros para habilitar la barra de filtros del dashboard.",

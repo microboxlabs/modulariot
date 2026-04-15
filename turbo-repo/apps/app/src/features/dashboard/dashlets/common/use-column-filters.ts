@@ -327,6 +327,6 @@ function buildEnumValues(
 
 /** Strip non-numeric characters (except minus, dot) and parse. Handles "47,400 km" → 47400 */
 function parseNumericString(value: string): number {
-  const cleaned = value.replace(/[^0-9.\-]/g, "");
+  const cleaned = value.replaceAll(/[^0-9.-]/g, "");
   return Number.parseFloat(cleaned);
 }

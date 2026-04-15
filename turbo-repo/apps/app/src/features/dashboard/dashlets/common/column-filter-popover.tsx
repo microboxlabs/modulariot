@@ -504,8 +504,12 @@ function BooleanFilter({
     }
   };
 
-  const selectedVal =
-    currentValue === true ? "true" : currentValue === false ? "false" : "all";
+  let selectedVal: "all" | "true" | "false" = "all";
+  if (currentValue === true) {
+    selectedVal = "true";
+  } else if (currentValue === false) {
+    selectedVal = "false";
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -522,7 +526,8 @@ function BooleanFilter({
             className="text-orange-500 focus:ring-orange-500"
           />
           <span>
-            {opt === "all" ? "All" : opt === "true" ? "Yes" : "No"}
+            {opt === "all" && "All"}
+            {opt !== "all" && (opt === "true" ? "Yes" : "No")}
           </span>
         </label>
       ))}

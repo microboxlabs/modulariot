@@ -63,7 +63,7 @@ export interface Widget {
 }
 
 /** Dashlet categories for grouping in selector */
-export type DashletCategory = "containers" | "data-display";
+export type DashletCategory = "containers" | "data-display" | "actions";
 
 /** User preferences for the dashboard */
 export interface DashboardPreferences {

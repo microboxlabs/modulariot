@@ -89,10 +89,19 @@ export function ColumnFilterPopover({
     };
   }, [isOpen]);
 
+  const cancelDebounceRef = useRef<(() => void) | undefined>(undefined);
+
   const handleClear = useCallback(() => {
+    cancelDebounceRef.current?.();
     onFilterChange(columnKey, null);
     setIsOpen(false);
   }, [columnKey, onFilterChange]);
+
+  useEffect(() => {
+    return () => {
+      cancelDebounceRef.current?.();
+    };
+  }, []);
 
   return (
     <>
@@ -135,6 +144,7 @@ export function ColumnFilterPopover({
               currentFilter={currentFilter}
               enumValues={enumValues}
               onFilterChange={onFilterChange}
+              cancelDebounceRef={cancelDebounceRef}
             />
 
             {hasActiveFilter && (
@@ -162,6 +172,7 @@ function FilterInput({
   currentFilter,
   enumValues,
   onFilterChange,
+  cancelDebounceRef,
 }: {
   readonly columnKey: string;
   readonly dataType: DataType;
@@ -171,13 +182,14 @@ function FilterInput({
     columnKey: string,
     filter: ColumnFilter | null,
   ) => void;
+  readonly cancelDebounceRef: React.RefObject<(() => void) | undefined>;
 }) {
   const props = { columnKey, currentFilter, onFilterChange };
   switch (dataType) {
     case "text":
-      return <TextFilter {...props} />;
+      return <TextFilter {...props} cancelDebounceRef={cancelDebounceRef} />;
     case "number":
-      return <NumberFilter {...props} />;
+      return <NumberFilter {...props} cancelDebounceRef={cancelDebounceRef} />;
     case "date":
       return <DateFilter {...props} />;
     case "enum":
@@ -198,6 +210,7 @@ interface FilterComponentProps {
     columnKey: string,
     filter: ColumnFilter | null,
   ) => void;
+  readonly cancelDebounceRef?: React.RefObject<(() => void) | undefined>;
 }
 
 const inputClass =
@@ -211,6 +224,7 @@ function TextFilter({
   columnKey,
   currentFilter,
   onFilterChange,
+  cancelDebounceRef,
 }: FilterComponentProps) {
   const [localValue, setLocalValue] = useState(
     (currentFilter?.value as string) || "",
@@ -218,6 +232,16 @@ function TextFilter({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+
+  const cancelDebounce = useCallback(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = undefined;
+  }, []);
+
+  useEffect(() => {
+    if (cancelDebounceRef) cancelDebounceRef.current = cancelDebounce;
+    return cancelDebounce;
+  }, [cancelDebounce, cancelDebounceRef]);
 
   const handleChange = (value: string) => {
     setLocalValue(value);
@@ -256,6 +280,7 @@ function NumberFilter({
   columnKey,
   currentFilter,
   onFilterChange,
+  cancelDebounceRef,
 }: FilterComponentProps) {
   const [operator, setOperator] = useState<FilterOperator>(
     currentFilter?.operator || "equals",
@@ -273,6 +298,16 @@ function NumberFilter({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+
+  const cancelDebounce = useCallback(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = undefined;
+  }, []);
+
+  useEffect(() => {
+    if (cancelDebounceRef) cancelDebounceRef.current = cancelDebounce;
+    return cancelDebounce;
+  }, [cancelDebounce, cancelDebounceRef]);
 
   const emitFilter = useCallback(
     (op: FilterOperator, v1: string, v2: string) => {

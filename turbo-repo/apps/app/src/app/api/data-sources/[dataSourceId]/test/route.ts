@@ -5,10 +5,65 @@ import {
   getDataSource,
   updateDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import type { AlfrescoDataSourceConfig } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
+import type { BearerResult } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
+
+function buildDebugConfig(config: AlfrescoDataSourceConfig | null) {
+  if (config?.authMethod === "OAUTH") {
+    return { ...config, encryptedClientSecret: "[REDACTED]" };
+  }
+  if (config?.authMethod === "TOKEN") {
+    return { ...config, encryptedToken: "[REDACTED]" };
+  }
+  return config;
+}
+
+function buildBearerLogFields(dataSourceId: string, result: BearerResult) {
+  if (result.ok) {
+    return { dataSourceId, ok: true, authMethod: result.authMethod };
+  }
+  return { dataSourceId, ok: false, error: result.error };
+}
+
+async function testPostgrestConnection(
+  url: string,
+  token: string,
+  authMethod: "TOKEN" | "OAUTH",
+  dataSourceId: string
+): Promise<{ success: boolean; errorMessage?: string }> {
+  const specUrl = `${url}/`;
+
+  const urlCheck = await validateTargetUrl(specUrl);
+  if (!urlCheck.valid) {
+    return { success: false, errorMessage: urlCheck.reason };
+  }
+
+  try {
+    const res = await fetch(specUrl, {
+      headers: {
+        Accept: "application/openapi+json",
+        Authorization: buildAuthHeader(token, authMethod),
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (res.ok) {
+      await res.json();
+      return { success: true };
+    }
+    return { success: false, errorMessage: `HTTP ${res.status}: ${res.statusText}` };
+  } catch (err) {
+    logger.error({ err, dataSourceId }, "Data source connection test failed");
+    return {
+      success: false,
+      errorMessage: err instanceof Error ? err.message : "Connection test failed",
+    };
+  }
+}
 
 export async function POST(request: NextRequest, ctx: RouteContext) {
   const result = await resolveSiteForRequest(request);
@@ -27,10 +82,10 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    logger.info({ dataSourceId, config: { ...ds.config, encryptedClientSecret: ds.config?.authMethod === "OAUTH" ? "[REDACTED]" : undefined, encryptedToken: ds.config?.authMethod === "TOKEN" ? "[REDACTED]" : undefined } }, "Test: resolved data source config");
+    logger.info({ dataSourceId, config: buildDebugConfig(ds.config) }, "Test: resolved data source config");
 
     const bearerResult = await resolveBearerToken(ds.config, dataSourceId);
-    logger.info({ dataSourceId, ok: bearerResult.ok, error: !bearerResult.ok ? bearerResult.error : undefined, authMethod: bearerResult.ok ? bearerResult.authMethod : undefined }, "Test: bearer token result");
+    logger.info(buildBearerLogFields(dataSourceId, bearerResult), "Test: bearer token result");
 
     if (!bearerResult.ok) {
       const now = new Date().toISOString();
@@ -47,39 +102,9 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       });
     }
 
-    let success = false;
-    let errorMessage: string | undefined;
-
-    try {
-      const specUrl = `${ds.url}/`;
-
-      const urlCheck = await validateTargetUrl(specUrl);
-      if (!urlCheck.valid) {
-        return NextResponse.json(
-          { success: false, error: urlCheck.reason },
-          { status: 400 }
-        );
-      }
-
-      const res = await fetch(specUrl, {
-        headers: {
-          Accept: "application/openapi+json",
-          Authorization: buildAuthHeader(bearerResult.token, bearerResult.authMethod),
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-
-      if (res.ok) {
-        await res.json();
-        success = true;
-      } else {
-        errorMessage = `HTTP ${res.status}: ${res.statusText}`;
-      }
-    } catch (err) {
-      errorMessage =
-        err instanceof Error ? err.message : "Connection test failed";
-      logger.error({ err, dataSourceId }, "Data source connection test failed");
-    }
+    const { success, errorMessage } = await testPostgrestConnection(
+      ds.url, bearerResult.token, bearerResult.authMethod, dataSourceId
+    );
 
     const now = new Date().toISOString();
     const updatePayload: Record<string, unknown> = {

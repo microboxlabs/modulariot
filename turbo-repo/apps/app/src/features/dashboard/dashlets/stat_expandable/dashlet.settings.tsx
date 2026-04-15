@@ -67,7 +67,9 @@ export function DashletSettings(
   const [details, setDetails] = useState(initializeDetails);
   const [valueColor, setValueColor] = useState(config.valueColor ?? "");
 
-  const colorRules = useValueColorSettings({ valueColorRules: config.valueColorRules });
+  const colorRules = useValueColorSettings({
+    valueColorRules: config.valueColorRules,
+  });
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 

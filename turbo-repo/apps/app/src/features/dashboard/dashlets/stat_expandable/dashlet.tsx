@@ -46,7 +46,11 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
-const FIELD_DEFAULTS: Record<string, string> = { title: "Conversion Rate", value: "3.24", unit: "%" };
+const FIELD_DEFAULTS: Record<string, string> = {
+  title: "Conversion Rate",
+  value: "3.24",
+  unit: "%",
+};
 
 // ============================================================================
 // Component - Style 6: Expandable Details
@@ -61,7 +65,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [expanded, setExpanded] = useState(false);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError } = useDashletPgrest(
+    config,
+    FIELD_DEFAULTS,
+    refreshIntervalMs
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -69,11 +77,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const title = resolved.title || "Conversion Rate";
   const unit = resolved.unit ?? "%";
   const valueColor = config.valueColor;
-  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
-  const displayValue = Number.isFinite(parsedValue) ? parsedValue : resolved.value;
+  const parsedValue =
+    resolved.value === "" || resolved.value == null
+      ? Number.NaN
+      : Number(resolved.value);
+  const displayValue = Number.isFinite(parsedValue)
+    ? parsedValue
+    : resolved.value;
 
   // Evaluate value color rules
-  const colorRulesConfig = normalizeValueColorRulesConfig(config.valueColorRules);
+  const colorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
   let ruleTextColor: string | undefined;
   let ruleBgColor: string | undefined;
 
@@ -141,7 +156,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </p>
         <p
           className={`mt-1 text-3xl font-bold ${!ruleTextColor && !valueColor ? "text-gray-900 dark:text-white" : ""}`}
-          style={ruleTextColor ? { color: `#${ruleTextColor}` } : (valueColor ? { color: `#${valueColor}` } : undefined)}
+          style={
+            ruleTextColor
+              ? { color: `#${ruleTextColor}` }
+              : valueColor
+                ? { color: `#${valueColor}` }
+                : undefined
+          }
         >
           {displayValue}
           <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>

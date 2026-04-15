@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "flowbite-react";
-import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { SettingsDrawer } from "./settings-drawer";
 import type { UseDataProviderReturn } from "./use-data-provider";
 import { DataProviderEntries } from "./data-provider-entries";
+import { SettingsTabButton } from "./settings-tab-button";
 
 // ============================================================================
 // Types
@@ -27,35 +27,6 @@ interface TabbedSettingsWrapperProps {
   plannerContent?: ReactNode;
   /** Optional title shown in the header */
   title?: string;
-}
-
-// ============================================================================
-// Private sub-components
-// ============================================================================
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: Readonly<{
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={twMerge(
-        "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer",
-        active
-          ? "border-blue-500 text-blue-600 dark:text-blue-400"
-          : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
-      )}
-    >
-      {children}
-    </button>
-  );
 }
 
 // ============================================================================
@@ -81,18 +52,18 @@ export function TabbedSettingsWrapper({
       <div className="flex h-full flex-col gap-3">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <TabButton
+          <SettingsTabButton
             active={activeTab === "visualization"}
             onClick={() => setActiveTab("visualization")}
           >
             {tr("dashboard.settings.visualization", dictionary)}
-          </TabButton>
-          <TabButton
+          </SettingsTabButton>
+          <SettingsTabButton
             active={activeTab === "data"}
             onClick={() => setActiveTab("data")}
           >
             {tr("dashboard.settings.dataProvider", dictionary)}
-          </TabButton>
+          </SettingsTabButton>
         </div>
 
         {/* Tab content */}

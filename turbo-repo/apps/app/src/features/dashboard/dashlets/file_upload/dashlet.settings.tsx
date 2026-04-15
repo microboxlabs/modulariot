@@ -9,6 +9,7 @@ import { SettingsSelectField } from "../common/settings-fields";
 import { PgrestFunctionAutocomplete } from "../common/pgrest-function-autocomplete";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
 import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -25,14 +26,14 @@ export function DashletSettings({
     (ds) => ds.isActive === true && ds.lastTestResult === true
   );
 
-  const [title, setTitle] = useState(config.title || "Upload File");
+  const [title, setTitle] = useState(config.title || "");
   const [pgrestFunctionName, setPgrestFunctionName] = useState(config.pgrestFunctionName || "");
   const [dataSourceId, setDataSourceId] = useState(config.dataSourceId || "");
   const [acceptedFileTypes, setAcceptedFileTypes] = useState(config.acceptedFileTypes || "");
 
   const handleSave = () => {
     onSave({
-      title: title.trim() || "Upload File",
+      title: title.trim(),
       pgrestFunctionName: pgrestFunctionName.trim(),
       dataSourceId: dataSourceId || undefined,
       acceptedFileTypes: acceptedFileTypes.trim() || undefined,
@@ -45,30 +46,30 @@ export function DashletSettings({
       <div className="flex h-full flex-col gap-3">
         <div>
           <Label htmlFor="upload-title" className="mb-1 block text-sm">
-            Button Label
+            {tr("dashboard.settings.fileUpload.buttonLabel", dictionary)}
           </Label>
           <TextInput
             id="upload-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Upload File"
+            placeholder={tr("dashboard.settings.fileUpload.buttonLabelPlaceholder", dictionary)}
           />
         </div>
 
         <SettingsSelectField
           id="upload-datasource"
-          label="Data Source"
+          label={tr("dashboard.settings.dataSource", dictionary)}
           value={dataSourceId}
           onChange={setDataSourceId}
           options={[
-            { value: "", label: "Default (env)" },
+            { value: "", label: tr("dashboard.settings.fileUpload.defaultEnv", dictionary) },
             ...activeProviders.map((ds) => ({ value: ds.id, label: ds.name })),
           ]}
         />
 
         <div>
           <Label className="mb-1 block text-sm">
-            Upload Endpoint
+            {tr("dashboard.settings.fileUpload.uploadEndpoint", dictionary)}
           </Label>
           <PgrestFunctionAutocomplete
             value={pgrestFunctionName}
@@ -81,7 +82,7 @@ export function DashletSettings({
 
         <div>
           <Label htmlFor="upload-accept" className="mb-1 block text-sm">
-            Accepted File Types
+            {tr("dashboard.settings.fileUpload.acceptedFileTypes", dictionary)}
           </Label>
           <TextInput
             id="upload-accept"
@@ -90,7 +91,7 @@ export function DashletSettings({
             placeholder=".csv,.xlsx,.json"
           />
           <p className="mt-1 text-xs text-gray-500">
-            Comma-separated extensions or MIME types. Leave empty to accept all.
+            {tr("dashboard.settings.fileUpload.acceptedFileTypesHint", dictionary)}
           </p>
         </div>
 
@@ -101,7 +102,7 @@ export function DashletSettings({
             className="no-drag w-full"
             onMouseDown={stopPropagation}
           >
-            Cancel
+            {tr("common.cancel", dictionary)}
           </Button>
           <Button
             color="blue"
@@ -109,7 +110,7 @@ export function DashletSettings({
             className="no-drag w-full"
             onMouseDown={stopPropagation}
           >
-            Save
+            {tr("common.save", dictionary)}
           </Button>
         </div>
       </div>

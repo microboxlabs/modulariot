@@ -199,6 +199,7 @@ export function SettingsSelectField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         sizing="sm"
+        className="[&>select]:cursor-pointer"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>

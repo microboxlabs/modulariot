@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Label, ToggleSwitch } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType } from "./dashlet";
@@ -13,6 +13,7 @@ import {
   useSimplePgrestSettings,
   useThresholdSettings,
   ThresholdEditor,
+  DeleteItemButton,
 } from "../common";
 import { usePlannerContext } from "../../context/planner-context";
 import {
@@ -281,17 +282,10 @@ export function DashletSettings({
               onChange={(c) => updateItem(item.id, "color", c)}
               title="Color"
             />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeItem(item.id);
-              }}
-              onMouseDown={handleMouseDown}
-              className="no-drag cursor-pointer rounded p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-            >
-              <HiTrash className="h-4 w-4" />
-            </button>
+            <DeleteItemButton
+              onClick={() => removeItem(item.id)}
+              ariaLabel={tr("dashboard.settings.deleteItem", dictionary)}
+            />
           </div>
         ))}
       </div>

@@ -90,7 +90,7 @@ export function SettingsDrawer({
             type="button"
             onClick={onClose}
             onMouseDown={(e) => e.stopPropagation()}
-            className="no-drag ml-auto rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            className="no-drag cursor-pointer ml-auto rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
             aria-label="Close"
           >
             <HiXMark className="h-5 w-5" />

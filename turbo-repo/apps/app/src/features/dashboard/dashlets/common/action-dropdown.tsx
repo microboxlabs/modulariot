@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { HiEllipsisVertical, HiArrowTopRightOnSquare, HiLink } from "react-icons/hi2";
 import type { ActionItem } from "./action-types";
+import { usePortalDropdown } from "./use-portal-dropdown";
 
 interface ResolvedAction {
   action: ActionItem;
@@ -16,55 +16,8 @@ interface ActionDropdownProps {
 }
 
 export function ActionDropdown({ items, ariaLabel }: Readonly<ActionDropdownProps>) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  const close = useCallback(() => setOpen(false), []);
-
-  // Compute position when opening
-  useEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    setPos({
-      top: rect.bottom + 4,
-      left: rect.right,
-    });
-  }, [open]);
-
-  // Close on click outside
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        buttonRef.current?.contains(target) ||
-        menuRef.current?.contains(target)
-      ) return;
-      close();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open, close]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, close]);
-
-  // Close on scroll of any ancestor (the table container scrolls)
-  useEffect(() => {
-    if (!open) return;
-    const handler = () => close();
-    window.addEventListener("scroll", handler, true);
-    return () => window.removeEventListener("scroll", handler, true);
-  }, [open, close]);
+  const { open, pos, buttonRef, menuRef, close, toggle } =
+    usePortalDropdown();
 
   if (items.length === 0) return null;
 
@@ -73,11 +26,11 @@ export function ActionDropdown({ items, ariaLabel }: Readonly<ActionDropdownProp
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggle}
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+        className="cursor-pointer rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
       >
         <HiEllipsisVertical className="h-5 w-5" />
       </button>

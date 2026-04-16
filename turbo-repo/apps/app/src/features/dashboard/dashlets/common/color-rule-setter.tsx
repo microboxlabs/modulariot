@@ -191,6 +191,48 @@ export function normalizeColorRulesConfig<
 
 let nextId = 0;
 
+/** Helper to update a rule's field */
+function updateRuleById<TTarget extends string, TCompareField extends string>(
+  rules: ColorRuleItem<TTarget, TCompareField>[],
+  id: string,
+  field: string,
+  value: string | TTarget[],
+  defaultCompareField?: TCompareField
+): ColorRuleItem<TTarget, TCompareField>[] {
+  return rules.map((r) => {
+    if (r._id !== id) return r;
+    const updated = { ...r, [field]: value };
+    // When switching to field mode, ensure compareField has a default value
+    const needsDefaultField =
+      field === "compareMode" &&
+      value === "field" &&
+      !r.compareField &&
+      defaultCompareField;
+    if (needsDefaultField) {
+      updated.compareField = defaultCompareField;
+    }
+    return updated;
+  });
+}
+
+/** Helper to toggle a target in a rule */
+function toggleRuleTarget<TTarget extends string, TCompareField extends string>(
+  rules: ColorRuleItem<TTarget, TCompareField>[],
+  id: string,
+  target: TTarget
+): ColorRuleItem<TTarget, TCompareField>[] {
+  return rules.map((r) => {
+    if (r._id !== id) return r;
+    const has = r.targets.includes(target);
+    // If removing and it's the last one, keep it (at least one must be selected)
+    if (has && r.targets.length === 1) return r;
+    const newTargets = has
+      ? r.targets.filter((t) => t !== target)
+      : [...r.targets, target];
+    return { ...r, targets: newTargets };
+  });
+}
+
 export interface UseColorRuleSettingsOptions<
   TTarget extends string,
   TCompareField extends string,
@@ -246,38 +288,14 @@ export function useColorRuleSettings<
   const updateRule = useCallback(
     (id: string, field: string, value: string | TTarget[]) => {
       setRules((prev) =>
-        prev.map((r) => {
-          if (r._id !== id) return r;
-          const updated = { ...r, [field]: value };
-          // When switching to field mode, ensure compareField has a default value
-          if (
-            field === "compareMode" &&
-            value === "field" &&
-            !r.compareField &&
-            defaultCompareField
-          ) {
-            updated.compareField = defaultCompareField;
-          }
-          return updated;
-        })
+        updateRuleById(prev, id, field, value, defaultCompareField)
       );
     },
     [defaultCompareField]
   );
 
   const toggleTarget = useCallback((id: string, target: TTarget) => {
-    setRules((prev) =>
-      prev.map((r) => {
-        if (r._id !== id) return r;
-        const has = r.targets.includes(target);
-        // If removing and it's the last one, keep it (at least one must be selected)
-        if (has && r.targets.length === 1) return r;
-        const newTargets = has
-          ? r.targets.filter((t) => t !== target)
-          : [...r.targets, target];
-        return { ...r, targets: newTargets };
-      })
-    );
+    setRules((prev) => toggleRuleTarget(prev, id, target));
   }, []);
 
   const buildSavePayload = (): {

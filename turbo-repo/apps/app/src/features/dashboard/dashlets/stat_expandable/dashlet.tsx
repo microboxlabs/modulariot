@@ -4,8 +4,14 @@ import { useState } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
-import { useDashletPgrest, DashletLoading, DashletError } from "../common";
-import { evaluateRule } from "../common/color-rule-engine";
+import {
+  useDashletPgrest,
+  DashletLoading,
+  DashletError,
+  evaluateColorRulesGeneric,
+  buildTextStyle,
+  getConditionalClasses,
+} from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type {
   ValueColorRulesConfig,
@@ -59,55 +65,22 @@ const FIELD_DEFAULTS: Record<string, string> = {
 // Color Rules Helpers
 // ============================================================================
 
-interface EvaluatedColors {
-  textColor: string | undefined;
-  bgColor: string | undefined;
-}
-
-function isGreaterOperator(op: string): boolean {
-  return op === "greater_than" || op === "greater_than_or_equal";
-}
-
-function isLessOperator(op: string): boolean {
-  return op === "less_than" || op === "less_than_or_equal";
-}
-
-function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
-  return [...rules].sort((a, b) => {
-    const aVal = Number(a.value) || 0;
-    const bVal = Number(b.value) || 0;
-    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
-      return bVal - aVal;
-    }
-    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
-      return aVal - bVal;
-    }
-    return 0;
-  });
-}
+const TARGET_KEYS = ["text", "bg"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
 
 function evaluateColorRules(
   rules: ValueColorRule[],
   evalValue: string
-): EvaluatedColors {
-  let textColor: string | undefined;
-  let bgColor: string | undefined;
-
-  const sortedRules = sortColorRules(rules);
-
-  for (const rule of sortedRules) {
-    const matches = evaluateRule(
-      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
-      evalValue
-    );
-    if (!matches) continue;
-
-    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
-    if (rule.targets.includes("bg") && !bgColor) bgColor = rule.color;
-    if (textColor && bgColor) break;
-  }
-
-  return { textColor, bgColor };
+): { textColor: string | undefined; bgColor: string | undefined } {
+  const colors = evaluateColorRulesGeneric<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    [...TARGET_KEYS]
+  );
+  return {
+    textColor: colors.text,
+    bgColor: colors.bg,
+  };
 }
 
 /** Determine value text style based on rule or manual color */
@@ -115,9 +88,7 @@ function getValueTextStyle(
   ruleTextColor: string | undefined,
   valueColor: string | undefined
 ): React.CSSProperties | undefined {
-  if (ruleTextColor) return { color: `#${ruleTextColor}` };
-  if (valueColor) return { color: `#${valueColor}` };
-  return undefined;
+  return buildTextStyle(ruleTextColor, valueColor);
 }
 
 /** Determine value text classes when no color override */
@@ -125,8 +96,10 @@ function getValueTextClasses(
   ruleTextColor: string | undefined,
   valueColor: string | undefined
 ): string {
-  if (ruleTextColor || valueColor) return "";
-  return "text-gray-900 dark:text-white";
+  return getConditionalClasses(
+    Boolean(ruleTextColor || valueColor),
+    "text-gray-900 dark:text-white"
+  );
 }
 
 // ============================================================================

@@ -175,16 +175,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
   const defaultBarColor = config.barColor ?? "2563eb";
 
+  // Determine evaluation value based on mode
+  const evalValue =
+    barColorRulesConfig.evalMode === "percentage"
+      ? String(percentage)
+      : String(value);
+
   // Evaluate bar color rules (based on percentage or count)
   const barColor =
     barColorRulesConfig.enabled && barColorRulesConfig.rules.length > 0
-      ? evaluateBarColor(
-          barColorRulesConfig.rules,
-          barColorRulesConfig.evalMode === "percentage"
-            ? String(percentage)
-            : String(value),
-          defaultBarColor
-        )
+      ? evaluateBarColor(barColorRulesConfig.rules, evalValue, defaultBarColor)
       : defaultBarColor;
 
   return (

@@ -1,14 +1,11 @@
 "use client";
 
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
 import {
   type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
-  normalizeColorRulesConfig,
-  ColorRuleSetter,
-  useColorRuleSettings,
+  createValueColorRulesUtils,
+  textBgTargets,
 } from "../common";
 
 // ============================================================================
@@ -28,83 +25,21 @@ export type ValueColorRuleItem = ColorRuleItem<ValueColorTarget, string>;
 export type ValueColorRulesConfig = ColorRulesConfig<ValueColorTarget, string>;
 
 // ============================================================================
-// Constants
+// Create utilities using factory
 // ============================================================================
 
-const VALID_TARGETS = new Set<string>(["text", "bg"]);
+const {
+  normalizeValueColorRulesConfig,
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} = createValueColorRulesUtils<ValueColorTarget>({
+  targets: textBgTargets,
+  defaultTarget: "text",
+  labelKey: "dashboard.settings.valueColorRules",
+});
 
-// ============================================================================
-// Normalization helper
-// ============================================================================
-
-export function normalizeValueColorRulesConfig(
-  raw: unknown
-): ValueColorRulesConfig {
-  return normalizeColorRulesConfig<ValueColorTarget, string>(raw, {
-    validTargets: VALID_TARGETS,
-    defaultTarget: "text",
-  });
-}
-
-// ============================================================================
-// Hook for settings state
-// ============================================================================
-
-export function useValueColorSettings(config: {
-  valueColorRules?: ColorRulesConfig<ValueColorTarget, string>;
-}) {
-  return useColorRuleSettings<ValueColorTarget, string>({
-    config,
-    validTargets: VALID_TARGETS,
-    defaultTarget: "text",
-  });
-}
-
-function getTargetOptions(dictionary: I18nRecord) {
-  return [
-    {
-      value: "text" as const,
-      label: tr("dashboard.settings.targetText", dictionary),
-    },
-    {
-      value: "bg" as const,
-      label: tr("dashboard.settings.targetBg", dictionary),
-    },
-  ];
-}
-
-// ============================================================================
-// Editor Component
-// ============================================================================
-
-interface ValueColorRulesEditorProps {
-  rules: ColorRuleItem<ValueColorTarget, string>[];
-  dictionary: I18nRecord;
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, field: string, value: string) => void;
-  onToggleTarget: (id: string, target: ValueColorTarget) => void;
-}
-
-export function ValueColorRulesEditor({
-  rules,
-  dictionary,
-  onAdd,
-  onRemove,
-  onUpdate,
-  onToggleTarget,
-}: Readonly<ValueColorRulesEditorProps>) {
-  return (
-    <ColorRuleSetter<ValueColorTarget, string>
-      rules={rules}
-      dictionary={dictionary}
-      targetOptions={getTargetOptions(dictionary)}
-      enableCompareMode={false}
-      onAdd={onAdd}
-      onRemove={onRemove}
-      onUpdate={onUpdate}
-      onToggleTarget={onToggleTarget}
-      label={tr("dashboard.settings.valueColorRules", dictionary)}
-    />
-  );
-}
+export {
+  normalizeValueColorRulesConfig,
+  useValueColorSettings,
+  ValueColorRulesEditor,
+};

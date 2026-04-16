@@ -11,8 +11,9 @@ import {
   useHybridPgrestContext,
   DashletLoading,
   DashletError,
+  evaluateColorRulesGeneric,
+  getConditionalClasses,
 } from "../common";
-import { evaluateRule } from "../common/color-rule-engine";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import type {
@@ -139,83 +140,27 @@ const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
 // Color Rules Helpers
 // ============================================================================
 
-interface EvaluatedColors {
-  borderColor: string | undefined;
-  iconColor: string | undefined;
-  textColor: string | undefined;
-}
-
-function isGreaterOperator(op: string): boolean {
-  return op === "greater_than" || op === "greater_than_or_equal";
-}
-
-function isLessOperator(op: string): boolean {
-  return op === "less_than" || op === "less_than_or_equal";
-}
-
-function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
-  return [...rules].sort((a, b) => {
-    const aVal = Number(a.value) || 0;
-    const bVal = Number(b.value) || 0;
-    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
-      return bVal - aVal;
-    }
-    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
-      return aVal - bVal;
-    }
-    return 0;
-  });
-}
+const TARGET_KEYS = ["border", "icon", "text"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
 
 function evaluateColorRules(
   rules: ValueColorRule[],
   evalValue: string
-): EvaluatedColors {
-  let borderColor: string | undefined;
-  let iconColor: string | undefined;
-  let textColor: string | undefined;
-
-  const sortedRules = sortColorRules(rules);
-
-  for (const rule of sortedRules) {
-    const matches = evaluateRule(
-      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
-      evalValue
-    );
-    if (!matches) continue;
-
-    if (rule.targets.includes("border") && !borderColor)
-      borderColor = rule.color;
-    if (rule.targets.includes("icon") && !iconColor) iconColor = rule.color;
-    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
-    if (borderColor && iconColor && textColor) break;
-  }
-
-  return { borderColor, iconColor, textColor };
-}
-
-/** Get border classes when no custom color is applied */
-function getBorderClasses(effectiveColor: string | undefined): string {
-  if (effectiveColor) return "";
-  return DEFAULT_COLORS.border;
-}
-
-/** Get icon background classes when no custom color is applied */
-function getIconBgClasses(effectiveColor: string | undefined): string {
-  if (effectiveColor) return "";
-  return DEFAULT_COLORS.iconBg;
-}
-
-/** Get icon text classes when no custom color is applied */
-function getIconTextClasses(effectiveColor: string | undefined): string {
-  if (effectiveColor) return "";
-  return DEFAULT_COLORS.iconText;
-}
-
-/** Get value text classes when no custom color is applied */
-function getValueTextClasses(effectiveColor: string | undefined): string {
-  if (effectiveColor) return "";
-  return DEFAULT_COLORS.valueText;
+): {
+  borderColor: string | undefined;
+  iconColor: string | undefined;
+  textColor: string | undefined;
+} {
+  const colors = evaluateColorRulesGeneric<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    [...TARGET_KEYS]
+  );
+  return {
+    borderColor: colors.border,
+    iconColor: colors.icon,
+    textColor: colors.text,
+  };
 }
 
 // ============================================================================
@@ -295,10 +240,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     : undefined;
 
   // Pre-compute classes using helpers (avoids negated conditions in JSX)
-  const borderClasses = getBorderClasses(effectiveBorderColor);
-  const iconBgClasses = getIconBgClasses(effectiveIconColor);
-  const iconTextClasses = getIconTextClasses(effectiveIconColor);
-  const valueTextClasses = getValueTextClasses(effectiveTextColor);
+  const borderClasses = getConditionalClasses(
+    !!effectiveBorderColor,
+    DEFAULT_COLORS.border
+  );
+  const iconBgClasses = getConditionalClasses(
+    !!effectiveIconColor,
+    DEFAULT_COLORS.iconBg
+  );
+  const iconTextClasses = getConditionalClasses(
+    !!effectiveIconColor,
+    DEFAULT_COLORS.iconText
+  );
+  const valueTextClasses = getConditionalClasses(
+    !!effectiveTextColor,
+    DEFAULT_COLORS.valueText
+  );
 
   return (
     <div

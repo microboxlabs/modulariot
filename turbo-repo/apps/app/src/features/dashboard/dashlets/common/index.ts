@@ -197,3 +197,31 @@ export {
   type RowColorRuleSetterProps,
   RowColorRuleSetter,
 } from "./row-color-rule-setter";
+export {
+  type TargetConfig,
+  type ValueColorRulesFactoryConfig,
+  createValueColorRulesUtils,
+  textIconTargets,
+  textBgTargets,
+  textBgIconTargets,
+  borderIconTextTargets,
+  textBarBadgeTargets,
+} from "./value-color-rules-factory";
+export {
+  isGreaterOperator,
+  isLessOperator,
+  type EvaluatableRule,
+  type ComparableRule,
+  type EvaluatedColors,
+  sortColorRules,
+  sortColorRulesWithFields,
+  getCompareValue,
+  evaluateColorRulesGeneric,
+  evaluateColorRulesWithFields,
+  hexToRgba,
+  buildTextStyle,
+  buildBgStyle,
+  buildIconStyle,
+  getConditionalClasses,
+  getBadgeClasses as getStatBadgeClasses,
+} from "./color-rule-evaluation";

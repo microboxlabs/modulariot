@@ -1,7 +1,7 @@
 "use client";
 
-import { Dropdown, DropdownItem } from "flowbite-react";
-import { HiChevronDown, HiTrash } from "react-icons/hi2";
+import { Button, Label, Dropdown, DropdownItem, ToggleSwitch } from "flowbite-react";
+import { HiChevronDown, HiTrash, HiPlus } from "react-icons/hi2";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import type { PresetColor } from "@/features/common/components/advanced-color-picker";
 import type { ColorRuleOperator } from "./color-rule-types";
@@ -22,6 +22,110 @@ export const DEFAULT_COLOR_PRESETS: PresetColor[] = [
   { value: "8b5cf6", label: "Purple" },
   { value: "6b7280", label: "Gray" },
 ];
+
+// ============================================================================
+// ToggleSectionHeader - reusable header with label and toggle
+// ============================================================================
+
+interface ToggleSectionHeaderProps {
+  label: string;
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+}
+
+export function ToggleSectionHeader({
+  label,
+  enabled,
+  onToggle,
+}: Readonly<ToggleSectionHeaderProps>) {
+  return (
+    <div className="flex items-center justify-between">
+      <Label className="text-sm font-medium">{label}</Label>
+      <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
+    </div>
+  );
+}
+
+// ============================================================================
+// AddRuleButton - reusable add button
+// ============================================================================
+
+interface AddRuleButtonProps {
+  onClick: () => void;
+  label: string;
+  className?: string;
+}
+
+export function AddRuleButton({
+  onClick,
+  label,
+  className = "",
+}: Readonly<AddRuleButtonProps>) {
+  return (
+    <Button
+      color="light"
+      size="xs"
+      onClick={onClick}
+      onMouseDown={stopPropagation}
+      className={`no-drag ${className}`}
+    >
+      <HiPlus className="mr-1 h-3 w-3" />
+      {label}
+    </Button>
+  );
+}
+
+// ============================================================================
+// ColumnDropdown - reusable column selector dropdown
+// ============================================================================
+
+export interface ColumnDropdownOption {
+  key: string;
+  label: string;
+  _id?: string;
+}
+
+interface ColumnDropdownProps {
+  value: string;
+  options: ColumnDropdownOption[];
+  onChange: (key: string) => void;
+  className?: string;
+}
+
+export function ColumnDropdown({
+  value,
+  options,
+  onChange,
+  className = "min-w-0 flex-1",
+}: Readonly<ColumnDropdownProps>) {
+  const displayLabel = options.find((c) => c.key === value)?.label || value;
+
+  return (
+    <Dropdown
+      label=""
+      dismissOnClick
+      renderTrigger={() => (
+        <button
+          type="button"
+          className={`flex h-7 ${className} cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600`}
+        >
+          <span className="truncate">{displayLabel}</span>
+          <HiChevronDown className="h-3 w-3 shrink-0" />
+        </button>
+      )}
+    >
+      {options.map((col) => (
+        <DropdownItem
+          key={col._id ?? col.key}
+          onClick={() => onChange(col.key)}
+          className="text-xs"
+        >
+          {col.label || col.key}
+        </DropdownItem>
+      ))}
+    </Dropdown>
+  );
+}
 
 // ============================================================================
 // Operator Dropdown - extracted for reuse

@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  Button,
-  Textarea,
-  Label,
-  ToggleSwitch,
-  TextInput,
-  Select,
-  Dropdown,
-  DropdownItem,
-} from "flowbite-react";
-import { HiPlus, HiChevronDown } from "react-icons/hi2";
+import { Textarea, Label, TextInput, Select } from "flowbite-react";
 import type { ColumnItem } from "./column-helpers";
 import { DeleteItemButton } from "./delete-item-button";
 import type { FilterItem } from "./filter-helpers";
@@ -23,15 +13,14 @@ import { COLUMN_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
 import type { ColorRuleOperator } from "./color-rule-types";
 import { COLOR_RULE_PRESETS } from "./color-rule-types";
-import { ColorRuleRow } from "./color-rule-row";
+import {
+  ColorRuleRow,
+  ToggleSectionHeader,
+  AddRuleButton,
+  ColumnDropdown,
+} from "./color-rule-row";
 import type { ActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
-
-// ============================================================================
-// Shared mouse-down handler (prevents drag on settings modals)
-// ============================================================================
-
-const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
 // ============================================================================
 // ColumnEditor
@@ -169,31 +158,16 @@ export function ColumnEditor({
                       deleteAriaLabel="Delete color mapping"
                     />
                   ))}
-                  <Button
-                    color="light"
-                    size="xs"
+                  <AddRuleButton
                     onClick={() => onAddColorMapping(col._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag"
-                  >
-                    <HiPlus className="mr-1 h-3 w-3" />
-                    {labels.addMapping}
-                  </Button>
+                    label={labels.addMapping}
+                  />
                 </div>
               )}
           </div>
         ))}
       </div>
-      <Button
-        color="light"
-        size="xs"
-        onClick={onAdd}
-        onMouseDown={stopPropagation}
-        className="no-drag mt-2"
-      >
-        <HiPlus className="mr-1 h-3 w-3" />
-        {labels.addColumn}
-      </Button>
+      <AddRuleButton onClick={onAdd} label={labels.addColumn} className="mt-2" />
     </div>
   );
 }
@@ -232,10 +206,11 @@ export function FilterEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{labels.filter}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={labels.filter}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -278,16 +253,11 @@ export function FilterEditor({
                 </div>
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {labels.addFilter}
-            </Button>
+              label={labels.addFilter}
+              className="mt-2"
+            />
           </div>
         )}
       </div>
@@ -320,10 +290,11 @@ export function SortEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{labels.sort}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={labels.sort}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -494,14 +465,20 @@ export function ColorRuleEditor({
   onUpdate,
   labels,
 }: Readonly<ColorRuleEditorProps>) {
+  const columnOptions = columnsWithKeys.map((c) => ({
+    key: c.key,
+    label: c.label || c.key,
+  }));
+
   return (
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{title}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={title}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -524,46 +501,20 @@ export function ColorRuleEditor({
                   colorPresets={COLOR_RULE_PRESETS}
                   valueInputClassName="w-20 shrink-0"
                   prefixElement={
-                    <Dropdown
-                      label=""
-                      dismissOnClick
-                      renderTrigger={() => (
-                        <button
-                          type="button"
-                          className="flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                        >
-                          <span className="truncate">
-                            {columnsWithKeys.find((c) => c.key === rule.column)
-                              ?.label || rule.column}
-                          </span>
-                          <HiChevronDown className="h-3 w-3 shrink-0" />
-                        </button>
-                      )}
-                    >
-                      {columnsWithKeys.map((c) => (
-                        <DropdownItem
-                          key={c._id}
-                          onClick={() => onUpdate(rule._id, "column", c.key)}
-                          className="text-xs"
-                        >
-                          {c.label || c.key}
-                        </DropdownItem>
-                      ))}
-                    </Dropdown>
+                    <ColumnDropdown
+                      value={rule.column ?? ""}
+                      options={columnOptions}
+                      onChange={(key) => onUpdate(rule._id, "column", key)}
+                    />
                   }
                 />
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {labels.addRule}
-            </Button>
+              label={labels.addRule}
+              className="mt-2"
+            />
           </div>
         )}
       </div>
@@ -610,10 +561,11 @@ export function ActionsEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{labels.actions}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={labels.actions}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -673,16 +625,11 @@ export function ActionsEditor({
                 </div>
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {labels.addAction}
-            </Button>
+              label={labels.addAction}
+              className="mt-2"
+            />
           </div>
         )}
       </div>

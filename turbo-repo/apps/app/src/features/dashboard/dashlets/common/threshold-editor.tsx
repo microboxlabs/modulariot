@@ -1,15 +1,12 @@
 "use client";
 
-import { Button, Label, ToggleSwitch } from "flowbite-react";
-import { HiPlus } from "react-icons/hi2";
+import { Label } from "flowbite-react";
 import { COLOR_RULE_PRESETS } from "./color-rule-types";
 import type { ColorRuleOperator } from "./color-rule-types";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
 import { HbTextField } from "./settings-fields";
-import { ColorRuleRow } from "./color-rule-row";
-
-const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
+import { ColorRuleRow, ToggleSectionHeader, AddRuleButton } from "./color-rule-row";
 
 interface ThresholdEditorProps {
   enabled: boolean;
@@ -52,10 +49,11 @@ export function ThresholdEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Thresholds</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label="Thresholds"
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div className="space-y-3">
@@ -119,16 +117,7 @@ export function ThresholdEditor({
               ))}
             </div>
 
-            <Button
-              color="light"
-              size="xs"
-              onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              Add rule
-            </Button>
+            <AddRuleButton onClick={onAdd} label="Add rule" />
           </div>
         )}
       </div>

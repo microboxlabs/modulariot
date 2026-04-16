@@ -270,7 +270,7 @@ function ListCard({
           type="button"
           aria-hidden="true"
           tabIndex={-1}
-          className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+          className="no-drag shrink-0 cursor-pointer rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
         >
           <HiEllipsisVertical className="h-5 w-5" />
         </button>
@@ -403,8 +403,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // ── Title bar data ──────────────────────────────────────────────────────────
   const titleBarData = buildTitleBarData({
-    title, showRowCount, showExport, columns,
-    displayRows, resolveValue, resolveLabel, dictionary,
+    title,
+    showRowCount,
+    showExport,
+    columns,
+    displayRows,
+    resolveValue,
+    resolveLabel,
+    dictionary,
   });
 
   // ── Render ──────────────────────────────────────────────────────────────────

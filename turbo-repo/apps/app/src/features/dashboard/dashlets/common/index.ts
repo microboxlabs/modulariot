@@ -133,6 +133,7 @@ export {
   type SimpleDashletSettingsProps,
   SimpleDashletSettings,
   createSimpleDashletSettings,
+  createSettingsField,
   useFieldState,
 } from "./simple-dashlet-settings";
 export {
@@ -147,11 +148,16 @@ export {
   evaluateThreshold,
   getThresholdBgClasses,
   getThresholdTextClasses,
+  getThresholdTextStyle,
   getThresholdIconClasses,
   getThresholdBorderClasses,
   getThresholdStrokeClass,
+  getThresholdStrokeStyle,
   getThresholdBarClass,
+  getThresholdBarStyle,
   getThresholdGradientClasses,
+  isLegacyColor,
+  isHexColor,
 } from "./threshold-engine";
 export {
   DEFAULT_THRESHOLD_CONFIG,
@@ -161,6 +167,7 @@ export {
 } from "./threshold-helpers";
 export {
   type ThresholdResult,
+  type ThresholdOptions,
   useThreshold,
   useRowThreshold,
 } from "./use-threshold";
@@ -171,3 +178,64 @@ export { buildCsvContent, downloadCsv } from "./export-csv";
 export { ExportDropdown } from "./export-dropdown";
 export { usePortalDropdown } from "./use-portal-dropdown";
 export { DashletTitleBar } from "./dashlet-title-bar";
+export {
+  type CompareMode,
+  type TargetOption,
+  type CompareFieldOption,
+  type ColorRule,
+  type ColorRuleItem,
+  type ColorRulesConfig,
+  type NormalizeOptions,
+  type UseColorRuleSettingsOptions,
+  type ColorRuleSetterProps,
+  normalizeColorRulesConfig,
+  useColorRuleSettings,
+  ColorRuleSetter,
+} from "./color-rule-setter";
+export {
+  type ColumnOption,
+  type RowColorRuleItem,
+  type RowColorRuleSetterProps,
+  RowColorRuleSetter,
+} from "./row-color-rule-setter";
+export {
+  type TargetConfig,
+  type ValueColorRulesFactoryConfig,
+  createValueColorRulesUtils,
+  textIconTargets,
+  textBgTargets,
+  textBgIconTargets,
+  borderIconTextTargets,
+  textBarBadgeTargets,
+} from "./value-color-rules-factory";
+export {
+  isGreaterOperator,
+  isLessOperator,
+  type SortableRule,
+  type ColorableRule,
+  type EvaluatableRule,
+  type ComparableRule,
+  type EvaluatedColors,
+  sortColorRules,
+  sortColorRulesWithFields,
+  getCompareValue,
+  evaluateColorRulesGeneric,
+  evaluateColorRulesWithFields,
+  hexToRgba,
+  buildTextStyle,
+  buildBgStyle,
+  buildIconStyle,
+  getConditionalClasses,
+  getBadgeClasses as getStatBadgeClasses,
+} from "./color-rule-evaluation";
+export {
+  ColorRuleRow,
+  OperatorDropdown,
+  ValueInput,
+  DeleteButton,
+  ToggleSectionHeader,
+  AddRuleButton,
+  ColumnDropdown,
+  type ColumnDropdownOption,
+  DEFAULT_COLOR_PRESETS,
+} from "./color-rule-row";

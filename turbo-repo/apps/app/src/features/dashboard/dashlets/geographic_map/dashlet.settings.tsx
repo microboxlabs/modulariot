@@ -17,6 +17,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   widgetId,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [showFilters, setShowFilters] = useState(config.showFilters ?? true);
   const [showStyleSelector, setShowStyleSelector] = useState(
@@ -44,7 +45,12 @@ export function DashletSettings({
   };
 
   return (
-    <SettingsDrawer open={isOpen} onClose={onClose} widgetId={widgetId}>
+    <SettingsDrawer
+      open={isOpen}
+      onClose={onClose}
+      title={dashletName}
+      widgetId={widgetId}
+    >
       <div className="flex h-full flex-col gap-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           {tr("dashboard.settings.mapSettings", dictionary) || "Map Settings"}

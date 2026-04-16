@@ -1,16 +1,75 @@
 "use client";
 
-import { createSimpleDashletSettings } from "../common";
+import { SimpleDashletSettings, createSettingsField } from "../common";
+import type { DashletSettingsProps } from "../types";
+import type { DashletConfig } from "./dashlet";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
-export const DashletSettings = createSimpleDashletSettings(
-  [
-    { id: "sd-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Monthly Revenue" },
-    { id: "sd-value", labelKey: "common.value", state: "value", hbPlaceholder: "{{row.current}}", staticPlaceholder: "84500" },
-    { id: "sd-prev", labelKey: "common.previousValue", state: "previousValue", hbPlaceholder: "{{row.previous}}", staticPlaceholder: "72000" },
-    { id: "sd-unit", labelKey: "common.unit", state: "unit", hbPlaceholder: "{{row.unit}}", staticPlaceholder: "$" },
-    { id: "sd-desc", labelKey: "common.description", state: "description", hbPlaceholder: "{{row.description}}", staticPlaceholder: "Total monthly revenue across all products" },
-    { id: "sd-target", labelKey: "common.target", state: "target", hbPlaceholder: "{{row.target}}", staticPlaceholder: "100000" },
-  ],
-  "sd",
-  { thresholds: true },
-);
+const FIELDS = [
+  createSettingsField(
+    "sd-title",
+    "common.title",
+    "title",
+    "{{row.label}}",
+    "Monthly Revenue"
+  ),
+  createSettingsField(
+    "sd-value",
+    "common.value",
+    "value",
+    "{{row.current}}",
+    "84500"
+  ),
+  createSettingsField(
+    "sd-prev",
+    "common.previousValue",
+    "previousValue",
+    "{{row.previous}}",
+    "72000"
+  ),
+  createSettingsField("sd-unit", "common.unit", "unit", "{{row.unit}}", "$"),
+  createSettingsField(
+    "sd-desc",
+    "common.description",
+    "description",
+    "{{row.description}}",
+    "Total monthly revenue across all products"
+  ),
+  createSettingsField(
+    "sd-target",
+    "common.target",
+    "target",
+    "{{row.target}}",
+    "100000"
+  ),
+];
+
+export function DashletSettings(
+  props: Readonly<DashletSettingsProps<DashletConfig>>
+) {
+  const valueColorRules = useValueColorSettings(props.config);
+
+  return (
+    <SimpleDashletSettings
+      fields={FIELDS}
+      idPrefix="sd"
+      settingsProps={props}
+      extraSaveFields={{
+        ...valueColorRules.buildSavePayload(),
+      }}
+      extraVisualization={
+        <ValueColorRulesEditor
+          rules={valueColorRules.rules}
+          dictionary={props.dictionary}
+          onAdd={valueColorRules.addRule}
+          onRemove={valueColorRules.removeRule}
+          onUpdate={valueColorRules.updateRule}
+          onToggleTarget={valueColorRules.toggleTarget}
+        />
+      }
+    />
+  );
+}

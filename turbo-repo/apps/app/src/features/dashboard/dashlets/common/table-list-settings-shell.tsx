@@ -9,12 +9,12 @@ import {
   ColumnEditor,
   FilterEditor,
   SortEditor,
-  ColorRuleEditor,
   ActionsEditor,
   DataProviderTab,
 } from "./settings-sections";
 import { SettingsModalShell } from "./settings-modal-shell";
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
+import { RowColorRuleSetter } from "./row-color-rule-setter";
+import type { ColorRuleOperator } from "./color-rule-types";
 
 // ============================================================================
 // Types
@@ -82,16 +82,6 @@ export function TableListSettingsShell({
     ),
   };
 
-  const colorLabels: Record<RuleColor, string> = {
-    red: tr("dashboard.settings.colorRed", dictionary),
-    yellow: tr("dashboard.settings.colorYellow", dictionary),
-    green: tr("dashboard.settings.colorGreen", dictionary),
-    blue: tr("dashboard.settings.colorBlue", dictionary),
-    gray: tr("dashboard.settings.colorGray", dictionary),
-    orange: tr("dashboard.settings.colorOrange", dictionary),
-    purple: tr("dashboard.settings.colorPurple", dictionary),
-  };
-
   const valuePlaceholder = tr("dashboard.settings.value", dictionary);
 
   const visualizationTab = (
@@ -134,7 +124,6 @@ export function TableListSettingsShell({
           addMapping: tr("dashboard.settings.addRule", dictionary),
           valuePlaceholder,
           operatorLabels,
-          colorLabels,
         }}
       />
 
@@ -168,21 +157,16 @@ export function TableListSettingsShell({
         }}
       />
 
-      <ColorRuleEditor
+      <RowColorRuleSetter
         title={tr("dashboard.settings.rowColorRules", dictionary)}
         enabled={s.rowColorRulesEnabled}
         onToggle={s.setRowColorRulesEnabled}
         rules={s.rowColorRuleItems}
-        columnsWithKeys={s.columnsWithKeys}
+        columns={s.columnsWithKeys}
+        dictionary={dictionary}
         onAdd={s.addRowColorRule}
         onRemove={s.removeRowColorRule}
         onUpdate={s.updateRowColorRule}
-        labels={{
-          addRule: tr("dashboard.settings.addRule", dictionary),
-          valuePlaceholder,
-          operatorLabels,
-          colorLabels,
-        }}
       />
 
       <ActionsEditor

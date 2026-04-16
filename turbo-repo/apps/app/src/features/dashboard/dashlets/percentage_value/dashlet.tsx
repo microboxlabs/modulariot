@@ -6,6 +6,11 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
+import { evaluateRule } from "../common/color-rule-engine";
+import { sortColorRules } from "../common/color-rule-evaluation";
+import type { ColorRuleOperator } from "../common/color-rule-types";
+import type { ProgressBarColorConfig } from "./progress-bar-color-rules";
+import { normalizeProgressBarColorConfig } from "./progress-bar-color-rules";
 
 const EMPTY_PARAMS: PgrestParam[] = [];
 
@@ -26,6 +31,8 @@ export interface DashletConfig {
   pgrestHttpMethod?: PgrestHttpMethod;
   plannerVariableName?: string;
   dataSourceId?: string;
+  /** Bar color rules configuration */
+  barColorRules?: ProgressBarColorConfig;
 }
 
 /** Default configuration */
@@ -47,6 +54,32 @@ export const layoutDefaults: DashletLayoutDefaults = {
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
+}
+
+// ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+interface ProgressBarRule {
+  operator: ColorRuleOperator;
+  value: string;
+  color: string;
+}
+
+function evaluateBarColor(
+  rules: ProgressBarRule[],
+  evalValue: string,
+  defaultColor: string
+): string {
+  const sortedRules = sortColorRules(rules);
+  for (const rule of sortedRules) {
+    const matches = evaluateRule(
+      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
+      evalValue
+    );
+    if (matches) return rule.color;
+  }
+  return defaultColor;
 }
 
 // ============================================================================
@@ -81,6 +114,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     refreshIntervalMs,
   });
 
+  // ── Bar color rules evaluation ───
+  const barColorRulesConfig = useMemo(
+    () => normalizeProgressBarColorConfig(config.barColorRules),
+    [config.barColorRules]
+  );
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
@@ -113,7 +152,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
-  const barColor = config.barColor ?? "2563eb";
+  const defaultBarColor = config.barColor ?? "2563eb";
+
+  // Determine evaluation value based on mode
+  const evalValue =
+    barColorRulesConfig.evalMode === "percentage"
+      ? String(percentage)
+      : String(value);
+
+  // Evaluate bar color rules (based on percentage or count)
+  const barColor =
+    barColorRulesConfig.enabled && barColorRulesConfig.rules.length > 0
+      ? evaluateBarColor(barColorRulesConfig.rules, evalValue, defaultBarColor)
+      : defaultBarColor;
 
   return (
     <div

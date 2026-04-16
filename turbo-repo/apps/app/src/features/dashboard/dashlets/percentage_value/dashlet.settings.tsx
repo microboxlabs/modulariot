@@ -19,6 +19,10 @@ import {
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  useProgressBarColorSettings,
+  ProgressBarColorRulesEditor,
+} from "./progress-bar-color-rules";
 
 type SimpleDataMode = "static" | "pgrest" | "planner";
 
@@ -80,6 +84,8 @@ export function DashletSettings({
     config.dataSourceId ?? ""
   );
 
+  const barColorRules = useProgressBarColorSettings(config);
+
   // Snapshot of static field values, saved when entering pgrest mode
   const staticSnapshot = useRef({ title: title, value: value, max: max });
 
@@ -133,6 +139,7 @@ export function DashletSettings({
         dataMode === "planner" ? plannerVariableName : undefined,
       dataSourceId: dataSourceId || undefined,
       ...refresh.savePayload,
+      ...barColorRules.buildSavePayload(),
     });
     onClose();
   };
@@ -167,6 +174,15 @@ export function DashletSettings({
           title={tr("dashboard.settings.selectColor", dictionary)}
         />
       </div>
+      <ProgressBarColorRulesEditor
+        evalMode={barColorRules.evalMode}
+        onEvalModeChange={barColorRules.setEvalMode}
+        rules={barColorRules.rules}
+        onAdd={barColorRules.addRule}
+        onRemove={barColorRules.removeRule}
+        onUpdate={barColorRules.updateRule}
+        dictionary={dictionary}
+      />
     </>
   );
 

@@ -52,6 +52,7 @@ export function SettingsModalShell({
       className={className}
       title={title}
       widgetId={widgetId}
+      dictionary={dictionary}
     >
       <div className="flex h-full flex-col gap-3">
         {/* Tabs */}

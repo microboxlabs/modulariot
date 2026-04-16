@@ -15,6 +15,7 @@ export function DashletSettings({
   config,
   onSave,
   widgetId,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   // Add state for each config field
   const [title, setTitle] = useState(config.title || "");
@@ -32,7 +33,12 @@ export function DashletSettings({
   };
 
   return (
-    <SettingsDrawer open={isOpen} onClose={onClose} widgetId={widgetId}>
+    <SettingsDrawer
+      open={isOpen}
+      onClose={onClose}
+      widgetId={widgetId}
+      dictionary={dictionary}
+    >
       <div className="flex h-full flex-col gap-3">
         {/* Add your form fields here */}
         <div>

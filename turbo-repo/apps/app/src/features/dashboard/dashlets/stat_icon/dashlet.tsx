@@ -99,6 +99,7 @@ const FIELD_DEFAULTS: Record<string, string> = {
   value: "0",
   unit: "",
   subtitle: "",
+  goToUrl: "",
 };
 
 /** Get the icon component from the icon key */
@@ -192,14 +193,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const secondaryColorHex = config.secondaryColor ?? "6b7280";
   const expandable = config.expandable === true;
   const showGoTo = config.showGoTo === true;
-  const rawGoToUrl = config.goToUrl ?? "";
+  // Use resolved goToUrl (supports Handlebars templates like {{row.url}})
+  const rawGoToUrl = resolved.goToUrl ?? "";
   // Ensure internal paths start with / to prevent relative navigation
+  // Only prepend "/" if it's a relative path (no scheme and not protocol-relative)
+  const trimmedUrl = rawGoToUrl.trim();
+  // Check for valid URL scheme (letter followed by letters/digits/+/./- then colon)
+  // or protocol-relative URL (starts with //) or absolute path (starts with /)
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmedUrl);
+  const isProtocolRelative = trimmedUrl.startsWith("//");
+  const isAbsolutePath = trimmedUrl.startsWith("/");
   const goToUrl =
-    rawGoToUrl.trim() &&
-    !rawGoToUrl.startsWith("http") &&
-    !rawGoToUrl.startsWith("/")
-      ? `/${rawGoToUrl.trim()}`
-      : rawGoToUrl.trim();
+    trimmedUrl && !hasScheme && !isProtocolRelative && !isAbsolutePath
+      ? `/${trimmedUrl}`
+      : trimmedUrl;
   const IconComponent = getIconFromKey(iconKey);
 
   // Evaluate value color rules

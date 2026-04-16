@@ -10,6 +10,10 @@ import {
   DASHLET_ICON_OPTIONS,
   type DashletIconKey,
 } from "../common";
+import {
+  getHandlebarsStatus,
+  getFlowbiteColor,
+} from "../common/handlebars-helpers";
 import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
 import {
   AdvancedColorPicker,
@@ -314,6 +318,7 @@ export function DashletSettings(
                   "dashboard.settings.goToUrlPlaceholder",
                   dictionary
                 )}
+                color={getFlowbiteColor(getHandlebarsStatus(goToUrl))}
               />
             </div>
           </div>

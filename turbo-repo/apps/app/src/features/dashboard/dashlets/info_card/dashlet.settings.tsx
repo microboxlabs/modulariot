@@ -29,6 +29,10 @@ import {
 } from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
@@ -50,6 +54,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -97,6 +102,10 @@ export function DashletSettings({
       }
     ).dataProvider || DEFAULT_DATA_ENTRIES
   );
+
+  const colorRules = useValueColorSettings({
+    valueColorRules: config.valueColorRules,
+  });
 
   const staticSnapshot = useRef({
     title,
@@ -178,6 +187,7 @@ export function DashletSettings({
       plannerVariableName:
         dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
+      ...colorRules.buildSavePayload(),
     } as DashletConfig);
     onClose();
   };
@@ -295,6 +305,14 @@ export function DashletSettings({
           />
         </div>
       </div>
+      <ValueColorRulesEditor
+        rules={colorRules.rules}
+        dictionary={dictionary}
+        onAdd={colorRules.addRule}
+        onRemove={colorRules.removeRule}
+        onUpdate={colorRules.updateRule}
+        onToggleTarget={colorRules.toggleTarget}
+      />
     </>
   );
 
@@ -325,6 +343,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      title={dashletName}
     />
   );
 }

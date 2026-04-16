@@ -16,6 +16,10 @@ import {
   type PresetColor,
 } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
 /** Text-appropriate presets (darker, readable colors) */
 const TEXT_PRESETS: PresetColor[] = [
@@ -99,6 +103,8 @@ export function DashletSettings(
     props.config.expandable === true
   );
 
+  const valueColorRules = useValueColorSettings(props.config);
+
   return (
     <SimpleDashletSettings
       fields={FIELDS}
@@ -116,6 +122,7 @@ export function DashletSettings(
         secondaryColor,
         showSecondaryColor,
         expandable,
+        ...valueColorRules.buildSavePayload(),
       }}
       extraVisualization={
         <div className="space-y-3">
@@ -274,6 +281,16 @@ export function DashletSettings(
               />
             </div>
           </div>
+
+          {/* Value Color Rules */}
+          <ValueColorRulesEditor
+            rules={valueColorRules.rules}
+            dictionary={dictionary}
+            onAdd={valueColorRules.addRule}
+            onRemove={valueColorRules.removeRule}
+            onUpdate={valueColorRules.updateRule}
+            onToggleTarget={valueColorRules.toggleTarget}
+          />
         </div>
       }
     />

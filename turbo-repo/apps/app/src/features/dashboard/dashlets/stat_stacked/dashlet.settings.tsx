@@ -301,6 +301,7 @@ export function DashletSettings({
         onRemove={threshold.removeThresholdRule}
         onUpdate={threshold.updateThresholdRule}
         schemaSuggestions={schemaSuggestions}
+        dictionary={dictionary}
       />
     </>
   );

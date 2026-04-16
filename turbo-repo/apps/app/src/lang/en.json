@@ -1461,6 +1461,9 @@
     "value": "Value",
     "max": "Max",
     "unit": "Unit",
+    "description": "Description",
+    "target": "Target",
+    "previousValue": "Previous Value",
     "all": "All",
     "delete": "Delete",
     "yes": "Yes",
@@ -1523,6 +1526,10 @@
       "new": "new",
       "borderColor": "Border Color",
       "barColor": "Bar Color",
+      "ringColor": "Ring Color",
+      "ringColorRules": "Ring Color Rules",
+      "barColorRules": "Bar Color Rules",
+      "evalModeCount": "Count",
       "seeMoreUrl": "\"See more\" Link URL",
       "items": "Items",
       "details": "Details",
@@ -1593,6 +1600,21 @@
       "colorGray": "gray",
       "colorOrange": "orange",
       "colorPurple": "purple",
+      "valueColorRules": "Value Color Rules",
+      "targetText": "Text",
+      "targetBar": "Bar",
+      "targetBadge": "Badge",
+      "targetBg": "BG",
+      "targetBorder": "Border",
+      "targetIcon": "Icon",
+      "compareModeValue": "Value",
+      "compareModeField": "Field",
+      "compareFieldPrevious": "Previous",
+      "compareFieldTarget": "Target",
+      "selectRuleColor": "Select rule color",
+      "thresholds": "Thresholds",
+      "evaluateField": "Evaluate field",
+      "applyTo": "Apply to",
       "actions": "Actions",
       "addAction": "Add action",
       "actionName": "Name",
@@ -2843,7 +2865,54 @@
           "intensityLastDays": "Intensity last 30 days",
           "exceeded": "Exceeded",
           "nearLimit": "Near limit",
-          "usageLabel": "usage"
+          "usageLabel": "usage",
+          "activeDaysLabel": "Days with data",
+          "activeDaysValue": "{active}/{total} days",
+          "useType": "Use type",
+          "useTypeUnknown": "Unclassified",
+          "useTypeDesc": "Contract category",
+          "annualProjection": "Annual projection",
+          "projectionBasis": "Estimated from the last 30 days",
+          "contractStatus": {
+            "NORMAL": {
+              "label": "{pct} – normal use",
+              "bannerTitle": "Usage within contract",
+              "bannerDesc": "The vehicle is consuming mileage within the expected contractual range."
+            },
+            "SOBREUSO": {
+              "label": "{pct} – overuse",
+              "bannerTitle": "Contract overuse",
+              "bannerDesc": "Accumulated mileage exceeds the contractual target. Review contract terms or vehicle reassignment."
+            },
+            "SUBUTILIZADO": {
+              "label": "{pct} – underused",
+              "bannerTitle": "Vehicle underused",
+              "bannerDesc": "The vehicle is consuming mileage well below the contractual target. Consider reassignment or fleet rebalancing."
+            },
+            "SIN_DATOS": {
+              "label": "No data",
+              "bannerTitle": "No usage data",
+              "bannerDesc": "No recent odometer readings for this vehicle. The section will update once new telemetry arrives."
+            }
+          },
+          "intensity": {
+            "ALTA": {
+              "label": "High intensity"
+            },
+            "MEDIA": {
+              "label": "Medium intensity"
+            },
+            "BAJA": {
+              "label": "Low intensity"
+            },
+            "SIN_DATO": {
+              "label": "No intensity data"
+            }
+          },
+          "loading": "Loading usage…",
+          "errorTitle": "Could not load usage",
+          "errorDesc": "There was a problem fetching usage data. Please try again.",
+          "retry": "Retry"
         },
         "general": {
           "title": "General Information",

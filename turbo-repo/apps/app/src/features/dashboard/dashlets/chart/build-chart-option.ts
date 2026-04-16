@@ -52,6 +52,10 @@ function buildCartesianOption(
     color: colors,
     tooltip: {
       trigger: "axis",
+      appendToBody: true,
+      enterable: false,
+      hideDelay: 0,
+      triggerOn: "mousemove",
       backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
       borderWidth: 0,
       textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
@@ -122,6 +126,10 @@ function buildPieOption(
     color: colors,
     tooltip: {
       trigger: "item",
+      appendToBody: true,
+      enterable: false,
+      hideDelay: 0,
+      triggerOn: "mousemove",
       backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
       borderWidth: 0,
       textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
@@ -161,6 +169,10 @@ function buildGaugeOption(
     color: colors,
     tooltip: {
       trigger: "item",
+      appendToBody: true,
+      enterable: false,
+      hideDelay: 0,
+      triggerOn: "mousemove",
       backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
       borderWidth: 0,
       textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },

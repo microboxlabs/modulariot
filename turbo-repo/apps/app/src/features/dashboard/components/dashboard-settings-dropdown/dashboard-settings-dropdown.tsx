@@ -34,18 +34,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption =
-  | "rename"
-  | "order"
-  | "export"
-  | "import"
-  | "planner"
-  | "filters"
-  | "refresh"
-  | "access"
-  | "share"
-  | "delete"
-  | null;
+type SettingOption = "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "share" | "delete" | null;
 
 type ImportMethod = "text" | "file";
 
@@ -226,56 +215,6 @@ function SettingsSection({
 // ============================================================================
 // Form Components
 // ============================================================================
-
-interface RenameFormProps {
-  currentName: string;
-  onSave: (name: string) => void;
-  onClose: () => void;
-}
-
-function RenameForm({
-  currentName,
-  onSave,
-  onClose,
-}: Readonly<RenameFormProps>) {
-  const [name, setName] = useState(currentName);
-
-  useEffect(() => {
-    setName(currentName);
-  }, [currentName]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onSave(name.trim());
-      onClose();
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-4">
-      <div>
-        <Label htmlFor="dashboard-name">Dashboard Name</Label>
-        <TextInput
-          id="dashboard-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter dashboard name"
-          className="mt-1"
-          autoFocus
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" color="gray" size="sm" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={!name.trim()}>
-          Save
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 interface ExportFormProps {
   onExport: () => void;
@@ -815,7 +754,6 @@ function OrderForm() {
 export default function DashboardSettingsDropdown() {
   const {
     dashboardName,
-    setDashboardName,
     filters,
     setFilters,
     exportDashboard,
@@ -900,17 +838,6 @@ export default function DashboardSettingsDropdown() {
       });
   }, [exportDashboard, dictionary]);
 
-  const handleSaveName = useCallback(
-    (name: string) => {
-      setDashboardName(name);
-      ShowNotification({
-        type: "success",
-        message: tr("dashboard.settings.renameSuccess", dictionary),
-      });
-    },
-    [setDashboardName, dictionary]
-  );
-
   const handleDeleteClick = useCallback(() => {
     setShowDeleteConfirm(true);
     closePanel();
@@ -956,20 +883,6 @@ export default function DashboardSettingsDropdown() {
             description="Copy link or download snapshot"
           >
             <ShareForm dashboardName={dashboardName} onClose={closePanel} />
-          </SettingsSection>
-
-          <SettingsSection
-            option="rename"
-            selected={selected}
-            setSelected={setSelected}
-            title="Rename Dashboard"
-            description="Change the dashboard display name"
-          >
-            <RenameForm
-              currentName={dashboardName}
-              onSave={handleSaveName}
-              onClose={closePanel}
-            />
           </SettingsSection>
 
           <SettingsSection

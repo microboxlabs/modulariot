@@ -49,6 +49,7 @@ export function DashletSettingsWrapper({
       onClose={onClose}
       title={title}
       widgetId={widgetId}
+      dictionary={dictionary}
     >
       <div className="flex h-full flex-col gap-3">
         {children}

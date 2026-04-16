@@ -1448,6 +1448,8 @@
     "edit": "Edit",
     "save": "Save",
     "cancel": "Cancel",
+    "copy": "Copy",
+    "copiedToClipboard": "Copied to clipboard",
     "import": "Import",
     "saving": "Saving...",
     "retry": "Retry",
@@ -1525,7 +1527,7 @@
       "expandable": "Expandable",
       "goTo": "Go to",
       "goToUrl": "URL path",
-      "goToUrlPlaceholder": "/app/es/home/testing?param=1#anchor",
+      "goToUrlPlaceholder": "/app/es/page?param=1#anchor",
       "variant": "Variant",
       "label": "Label",
       "categoryAriaLabel": "Category {name} {field}",
@@ -1722,6 +1724,7 @@
       "importPastePlaceholder": "Paste your dashboard JSON here...",
       "importPasteError": "Paste a valid JSON configuration to import",
       "importSuccess": "Dashboard imported successfully",
+      "importFailed": "Failed to import dashboard",
       "importFileError": "Failed to read file",
       "plannerTitle": "Request Planner",
       "plannerDescription": "Define shared data queries",
@@ -1846,15 +1849,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Upload File",
-        "configureHint": "Configure an endpoint in settings",
-        "noEndpoint": "No endpoint configured",
-        "uploading": "Uploading {fileName}...",
-        "uploaded": "{fileName} uploaded",
-        "uploadFailed": "Upload failed",
-        "tryAgain": "Try again"
-      },
-      "defaults": {
+      "defaultTitle": "Upload File",
+      "configureHint": "Configure an endpoint in settings",
+      "noEndpoint": "No endpoint configured",
+      "uploading": "Uploading {fileName}...",
+      "uploaded": "{fileName} uploaded",
+      "uploadFailed": "Upload failed",
+      "tryAgain": "Try again"
+    },
+    "defaults": {
       "pageViews": "Page Views",
       "storageUsed": "Storage Used",
       "orders": "Orders",

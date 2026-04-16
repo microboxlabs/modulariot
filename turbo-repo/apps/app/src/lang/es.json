@@ -1473,6 +1473,8 @@
     "edit": "Editar",
     "save": "Guardar",
     "cancel": "Cancelar",
+    "copy": "Copiar",
+    "copiedToClipboard": "Copiado al portapapeles",
     "import": "Importar",
     "saving": "Guardando...",
     "retry": "Reintentar",
@@ -1550,7 +1552,7 @@
       "expandable": "Expandible",
       "goTo": "Ir a",
       "goToUrl": "Ruta URL",
-      "goToUrlPlaceholder": "/app/es/home/testing?param=1#anchor",
+      "goToUrlPlaceholder": "/app/es/page?param=1#anchor",
       "variant": "Variante",
       "label": "Etiqueta",
       "categoryAriaLabel": "Categoría {name} {field}",
@@ -1748,6 +1750,7 @@
       "importPastePlaceholder": "Pega tu JSON de dashboard aquí...",
       "importPasteError": "Pega una configuración JSON válida para importar",
       "importSuccess": "Dashboard importado exitosamente",
+      "importFailed": "Error al importar dashboard",
       "importFileError": "Error al leer archivo",
       "plannerTitle": "Planificador de Solicitudes",
       "plannerDescription": "Define consultas de datos compartidos",
@@ -1871,15 +1874,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Subir archivo",
-        "configureHint": "Configura un endpoint en ajustes",
-        "noEndpoint": "No hay endpoint configurado",
-        "uploading": "Subiendo {fileName}...",
-        "uploaded": "{fileName} subido",
-        "uploadFailed": "Error al subir",
-        "tryAgain": "Intentar de nuevo"
-      },
-      "defaults": {
+      "defaultTitle": "Subir archivo",
+      "configureHint": "Configura un endpoint en ajustes",
+      "noEndpoint": "No hay endpoint configurado",
+      "uploading": "Subiendo {fileName}...",
+      "uploaded": "{fileName} subido",
+      "uploadFailed": "Error al subir",
+      "tryAgain": "Intentar de nuevo"
+    },
+    "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",
       "orders": "Pedidos",

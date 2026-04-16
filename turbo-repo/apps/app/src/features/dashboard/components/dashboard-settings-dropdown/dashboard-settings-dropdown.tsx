@@ -298,7 +298,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
       });
       onClose();
     } else {
-      setImportError(result.error || t("importSuccess"));
+      setImportError(result.error || t("importFailed"));
     }
   };
 
@@ -317,7 +317,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
           });
           onClose();
         } else {
-          setImportError(result.error || t("importSuccess"));
+          setImportError(result.error || t("importFailed"));
         }
       })
       .catch(() => {

@@ -50,6 +50,7 @@ export function DashletSettings({
       onClose={onClose}
       title={dashletName}
       widgetId={widgetId}
+      dictionary={dictionary}
     >
       <div className="flex h-full flex-col gap-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">

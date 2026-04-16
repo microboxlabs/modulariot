@@ -1692,6 +1692,14 @@
       "noActiveProviders": "No hay proveedores activos disponibles",
       "failedToLoadFunctions": "Error al cargar funciones",
       "invalidResponseFormat": "Formato de respuesta inválido",
+      "fileUpload": {
+        "buttonLabel": "Etiqueta del botón",
+        "buttonLabelPlaceholder": "Subir archivo",
+        "uploadEndpoint": "Endpoint de carga",
+        "acceptedFileTypes": "Tipos de archivo aceptados",
+        "acceptedFileTypesHint": "Extensiones o tipos MIME separados por coma. Dejar vacío para aceptar todos.",
+        "defaultEnv": "Por defecto (env)"
+      },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
       "noFiltersConfigured": "No hay filtros configurados. Agregue filtros para habilitar la barra de filtros del dashboard.",
@@ -1812,7 +1820,16 @@
         "load_failed": "Error al cargar datos del mapa"
       }
     },
-    "defaults": {
+    "fileUpload": {
+        "defaultTitle": "Subir archivo",
+        "configureHint": "Configura un endpoint en ajustes",
+        "noEndpoint": "No hay endpoint configurado",
+        "uploading": "Subiendo {fileName}...",
+        "uploaded": "{fileName} subido",
+        "uploadFailed": "Error al subir",
+        "tryAgain": "Intentar de nuevo"
+      },
+      "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",
       "orders": "Pedidos",

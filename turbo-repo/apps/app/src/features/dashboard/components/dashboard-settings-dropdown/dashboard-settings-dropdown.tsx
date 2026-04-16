@@ -34,7 +34,17 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Types
 // ============================================================================
 
-type SettingOption = "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "share" | "delete" | null;
+type SettingOption =
+  | "order"
+  | "export"
+  | "import"
+  | "planner"
+  | "filters"
+  | "refresh"
+  | "access"
+  | "share"
+  | "delete"
+  | null;
 
 type ImportMethod = "text" | "file";
 
@@ -227,6 +237,8 @@ function ExportForm({
   onDownload,
   onClose,
 }: Readonly<ExportFormProps>) {
+  const { dictionary } = useDashboard();
+
   const handleCopy = () => {
     onExport();
     onClose();
@@ -240,15 +252,15 @@ function ExportForm({
   return (
     <div className="p-4 space-y-4">
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        Export your dashboard configuration to share or backup.
+        {tr("dashboard.settings.exportInfo", dictionary)}
       </p>
       <div className="flex flex-col gap-2">
         <Button color="light" size="sm" onClick={handleDownload}>
           <HiArrowDownTray className="mr-2 h-4 w-4" />
-          Download as JSON file
+          {tr("dashboard.settings.exportDownloadJson", dictionary)}
         </Button>
         <Button color="gray" size="sm" onClick={handleCopy}>
-          Copy to clipboard
+          {tr("dashboard.settings.exportCopyToClipboard", dictionary)}
         </Button>
       </div>
     </div>
@@ -265,6 +277,9 @@ interface ImportFormProps {
 }
 
 function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
+  const { dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
+
   const [method, setMethod] = useState<ImportMethod>("file");
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -272,18 +287,18 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
 
   const handleTextImport = () => {
     if (!importText.trim()) {
-      setImportError("Paste a valid JSON configuration to import");
+      setImportError(t("importPasteError"));
       return;
     }
     const result = onImport(importText);
     if (result.success) {
       ShowNotification({
         type: "success",
-        message: "Dashboard imported successfully",
+        message: t("importSuccess"),
       });
       onClose();
     } else {
-      setImportError(result.error || "Failed to import dashboard");
+      setImportError(result.error || t("importSuccess"));
     }
   };
 
@@ -298,15 +313,15 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
         if (result.success) {
           ShowNotification({
             type: "success",
-            message: "Dashboard imported successfully",
+            message: t("importSuccess"),
           });
           onClose();
         } else {
-          setImportError(result.error || "Failed to import dashboard");
+          setImportError(result.error || t("importSuccess"));
         }
       })
       .catch(() => {
-        setImportError("Failed to read file");
+        setImportError(t("importFileError"));
       });
   };
 
@@ -324,7 +339,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
           )}
         >
-          Upload File
+          {t("importUploadFile")}
         </button>
         <button
           type="button"
@@ -336,7 +351,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
           )}
         >
-          Paste JSON
+          {t("importPasteJson")}
         </button>
       </div>
 
@@ -344,7 +359,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
       {method === "file" ? (
         <div className="space-y-3">
           <div>
-            <Label htmlFor="dashboard-file">Select JSON file</Label>
+            <Label htmlFor="dashboard-file">{t("importSelectFile")}</Label>
             <FileInput
               ref={fileInputRef}
               id="dashboard-file"
@@ -355,7 +370,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
           </div>
           <div className="flex justify-end">
             <Button type="button" color="gray" size="sm" onClick={onClose}>
-              Cancel
+              {tr("common.cancel", dictionary)}
             </Button>
           </div>
         </div>
@@ -367,16 +382,16 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
               setImportText(e.target.value);
               setImportError(null);
             }}
-            placeholder="Paste your dashboard JSON here..."
+            placeholder={t("importPastePlaceholder")}
             rows={8}
             className="font-mono text-sm"
           />
           <div className="flex justify-end gap-2">
             <Button type="button" color="gray" size="sm" onClick={onClose}>
-              Cancel
+              {tr("common.cancel", dictionary)}
             </Button>
             <Button size="sm" onClick={handleTextImport}>
-              Import
+              {tr("common.import", dictionary)}
             </Button>
           </div>
         </div>
@@ -879,8 +894,11 @@ export default function DashboardSettingsDropdown() {
             option="share"
             selected={selected}
             setSelected={setSelected}
-            title="Share Dashboard"
-            description="Copy link or download snapshot"
+            title={tr("dashboard.settings.shareDashboardTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.shareDashboardDescription",
+              dictionary
+            )}
           >
             <ShareForm dashboardName={dashboardName} onClose={closePanel} />
           </SettingsSection>
@@ -899,8 +917,11 @@ export default function DashboardSettingsDropdown() {
             option="export"
             selected={selected}
             setSelected={setSelected}
-            title="Export Dashboard"
-            description="Download or copy configuration"
+            title={tr("dashboard.settings.exportDashboardTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.exportDashboardDescription",
+              dictionary
+            )}
           >
             <ExportForm
               onExport={handleExportToClipboard}
@@ -913,8 +934,11 @@ export default function DashboardSettingsDropdown() {
             option="import"
             selected={selected}
             setSelected={setSelected}
-            title="Import Dashboard"
-            description="Restore from JSON file or text"
+            title={tr("dashboard.settings.importDashboardTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.importDashboardDescription",
+              dictionary
+            )}
           >
             <ImportForm onImport={importDashboard} onClose={closePanel} />
           </SettingsSection>
@@ -949,8 +973,11 @@ export default function DashboardSettingsDropdown() {
             option="planner"
             selected={selected}
             setSelected={setSelected}
-            title="Request Planner"
-            description="Define shared data queries"
+            title={tr("dashboard.settings.plannerTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.plannerDescription",
+              dictionary
+            )}
             maxHeight="max-h-[60vh]"
           >
             <PlannerManagerForm />

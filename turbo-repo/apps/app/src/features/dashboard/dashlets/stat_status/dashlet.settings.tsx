@@ -2,11 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { DashletSettingsProps } from "../types";
-import type {
-  DashletConfig,
-  StatusColor,
-  StatusIcon,
-} from "./dashlet";
+import type { DashletConfig, StatusColor, StatusIcon } from "./dashlet";
 import { ICON_OPTIONS, COLOR_OPTIONS } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -24,7 +20,10 @@ import {
   useThresholdSettings,
   ThresholdEditor,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 import { usePlannerContext } from "../../context/planner-context";
 
 export function DashletSettings({
@@ -33,6 +32,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -44,9 +44,11 @@ export function DashletSettings({
   const [color, setColor] = useState<StatusColor>(config.color ?? "gray");
   const [icon, setIcon] = useState<StatusIcon>(config.icon ?? "check");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
@@ -72,11 +74,14 @@ export function DashletSettings({
   };
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
-      if (detected.length >= 3) setSubtitle(`{{row.${detected[2].key}}}`);
-    }),
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
+        if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
+        if (detected.length >= 3) setSubtitle(`{{row.${detected[2].key}}}`);
+      }
+    ),
   });
 
   const schemaSuggestions =
@@ -97,7 +102,8 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
       ...threshold.buildThresholdSavePayload(),
     } as DashletConfig);
@@ -187,6 +193,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      widgetId={widgetId}
     />
   );
 }

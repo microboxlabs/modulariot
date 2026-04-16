@@ -41,6 +41,8 @@ interface TableListSettingsShellProps {
   title?: string;
   /** Additional display options rendered next to "Row count" toggle */
   displayOptionsChildren?: ReactNode;
+  /** Widget ID for anchor navigation */
+  widgetId?: string;
 }
 
 // ============================================================================
@@ -61,6 +63,7 @@ export function TableListSettingsShell({
   refreshSelect,
   title,
   displayOptionsChildren,
+  widgetId,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -244,6 +247,7 @@ export function TableListSettingsShell({
       className="w-[28rem]"
       refreshSelect={refreshSelect}
       title={title}
+      widgetId={widgetId}
     />
   );
 }

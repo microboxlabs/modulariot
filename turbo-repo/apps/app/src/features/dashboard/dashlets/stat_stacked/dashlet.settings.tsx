@@ -68,6 +68,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
@@ -330,6 +331,7 @@ export function DashletSettings({
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
     />
   );
 }

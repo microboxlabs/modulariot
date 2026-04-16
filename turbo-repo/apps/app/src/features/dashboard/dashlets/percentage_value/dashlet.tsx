@@ -7,6 +7,7 @@ import type { PgrestParam, PgrestHttpMethod } from "../common";
 import { usePgrestResolvedFields } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { evaluateRule } from "../common/color-rule-engine";
+import { sortColorRules } from "../common/color-rule-evaluation";
 import type { ColorRuleOperator } from "../common/color-rule-types";
 import type { ProgressBarColorConfig } from "./progress-bar-color-rules";
 import { normalizeProgressBarColorConfig } from "./progress-bar-color-rules";
@@ -65,34 +66,12 @@ interface ProgressBarRule {
   color: string;
 }
 
-function isGreaterOperator(op: ColorRuleOperator): boolean {
-  return op === "greater_than" || op === "greater_than_or_equal";
-}
-
-function isLessOperator(op: ColorRuleOperator): boolean {
-  return op === "less_than" || op === "less_than_or_equal";
-}
-
-function sortBarColorRules<T extends ProgressBarRule>(rules: T[]): T[] {
-  return [...rules].sort((a, b) => {
-    const aVal = Number(a.value) || 0;
-    const bVal = Number(b.value) || 0;
-    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
-      return bVal - aVal;
-    }
-    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
-      return aVal - bVal;
-    }
-    return 0;
-  });
-}
-
 function evaluateBarColor(
   rules: ProgressBarRule[],
   evalValue: string,
   defaultColor: string
 ): string {
-  const sortedRules = sortBarColorRules(rules);
+  const sortedRules = sortColorRules(rules);
   for (const rule of sortedRules) {
     const matches = evaluateRule(
       { column: "", operator: rule.operator, value: rule.value, color: "blue" },

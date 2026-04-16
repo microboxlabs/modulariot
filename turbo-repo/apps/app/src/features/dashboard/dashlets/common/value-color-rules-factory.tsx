@@ -15,7 +15,11 @@ import {
   useColorRuleSettings,
 } from "./color-rule-setter";
 
-export type { ColorRule, ColorRuleItem, ColorRulesConfig } from "./color-rule-setter";
+export type {
+  ColorRule,
+  ColorRuleItem,
+  ColorRulesConfig,
+} from "./color-rule-setter";
 
 // ============================================================================
 // Target Configuration Types

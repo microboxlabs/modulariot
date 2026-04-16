@@ -10,7 +10,7 @@ import { THRESHOLD_TARGETS } from "./threshold-types";
 export const DEFAULT_THRESHOLD_CONFIG: ThresholdConfig = {
   enabled: false,
   field: "",
-  applyTo: ["background"],
+  applyTo: ["text"],
   rules: [],
 };
 

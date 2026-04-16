@@ -211,6 +211,8 @@ export {
 export {
   isGreaterOperator,
   isLessOperator,
+  type SortableRule,
+  type ColorableRule,
   type EvaluatableRule,
   type ComparableRule,
   type EvaluatedColors,

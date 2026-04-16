@@ -17,6 +17,8 @@ interface SettingsDrawerProps {
   className?: string;
   /** Drawer content */
   children: ReactNode;
+  /** Widget ID for anchor navigation (displayed automatically at top) */
+  widgetId?: string;
 }
 
 /**
@@ -29,6 +31,7 @@ export function SettingsDrawer({
   title,
   className,
   children,
+  widgetId,
 }: Readonly<SettingsDrawerProps>) {
   const mouseDownOnBackdrop = useRef(false);
 
@@ -98,6 +101,15 @@ export function SettingsDrawer({
         </div>
 
         <div className="h-[calc(100%-3rem)] overflow-y-auto p-4">
+          {/* Widget anchor ID - shown automatically at the top */}
+          {widgetId && (
+            <div className="mb-3 flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              <span className="font-medium">Anchor:</span>
+              <code className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
+                #widget-{widgetId}
+              </code>
+            </div>
+          )}
           {open && children}
         </div>
       </dialog>

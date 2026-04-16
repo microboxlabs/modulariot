@@ -49,6 +49,10 @@ export interface DashletConfig extends PgrestDashletFields {
   /** Whether to scale text and icons based on container size */
   expandable?: boolean;
   thresholds?: ThresholdConfig;
+  /** Whether to enable navigation on click */
+  showGoTo?: boolean;
+  /** URL path to navigate to (e.g., "/app/es/home/testing?param=1#anchor") */
+  goToUrl?: string;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -67,6 +71,8 @@ export const defaultConfig: DashletConfig = {
   showSecondaryColor: false,
   secondaryColor: "6b7280",
   expandable: false,
+  showGoTo: false,
+  goToUrl: "",
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -137,6 +143,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const showSecondaryColor = config.showSecondaryColor === true;
   const secondaryColorHex = config.secondaryColor ?? "6b7280";
   const expandable = config.expandable === true;
+  const showGoTo = config.showGoTo === true;
+  const rawGoToUrl = config.goToUrl ?? "";
+  // Ensure internal paths start with / to prevent relative navigation
+  const goToUrl =
+    rawGoToUrl.trim() &&
+    !rawGoToUrl.startsWith("http") &&
+    !rawGoToUrl.startsWith("/")
+      ? `/${rawGoToUrl.trim()}`
+      : rawGoToUrl.trim();
   const IconComponent = getIconFromKey(iconKey);
 
   // Build icon config: show icon with selected color, or undefined if hidden
@@ -176,7 +191,35 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { text: subtitle, style: descriptionStyle }
     : undefined;
 
+  // Interactive hover classes for KpiStat when goTo is enabled
+  const interactiveClasses =
+    showGoTo && goToUrl.trim()
+      ? "cursor-pointer transition-colors duration-200 hover:border-primary-500"
+      : "";
+
   if (expandable) {
+    if (showGoTo && goToUrl.trim()) {
+      return (
+        <a
+          href={goToUrl}
+          className="block h-full w-full"
+          style={{ containerType: "size" }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <KpiStat
+            icon={iconConfig}
+            title={titleConfig}
+            value={{ text: value, style: valueStyle }}
+            unit={unit}
+            description={descriptionConfig}
+            variant={cardVariant}
+            className={`h-full ${interactiveClasses}`}
+            containerStyle={bgStyle}
+            scalable
+          />
+        </a>
+      );
+    }
     return (
       <div className="h-full w-full" style={{ containerType: "size" }}>
         <KpiStat
@@ -191,6 +234,27 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           scalable
         />
       </div>
+    );
+  }
+
+  if (showGoTo && goToUrl.trim()) {
+    return (
+      <a
+        href={goToUrl}
+        className="block h-full w-full"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <KpiStat
+          icon={iconConfig}
+          title={titleConfig}
+          value={{ text: value, style: valueStyle }}
+          unit={unit}
+          description={descriptionConfig}
+          variant={cardVariant}
+          className={`h-full text-2xl ${interactiveClasses}`}
+          containerStyle={bgStyle}
+        />
+      </a>
     );
   }
 

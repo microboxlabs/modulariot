@@ -34,6 +34,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const activeProviders = useActiveProviders();
@@ -278,6 +279,7 @@ export function DashletSettings({
       refreshSelect={refresh.selectNode}
       title={dashletName}
       displayOptionsChildren={exportToggle}
+      widgetId={widgetId}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

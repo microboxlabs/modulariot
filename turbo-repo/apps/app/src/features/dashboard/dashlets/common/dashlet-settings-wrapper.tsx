@@ -20,6 +20,8 @@ interface DashletSettingsWrapperProps {
   dictionary: I18nRecord;
   /** Optional title shown in the header */
   title?: string;
+  /** Widget ID for anchor navigation */
+  widgetId?: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export function DashletSettingsWrapper({
   children,
   dictionary,
   title,
+  widgetId,
 }: Readonly<DashletSettingsWrapperProps>) {
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -41,7 +44,12 @@ export function DashletSettingsWrapper({
   const saveLabel = tr("common.save", dictionary);
 
   return (
-    <SettingsDrawer open={isOpen} onClose={onClose} title={title}>
+    <SettingsDrawer
+      open={isOpen}
+      onClose={onClose}
+      title={title}
+      widgetId={widgetId}
+    >
       <div className="flex h-full flex-col gap-3">
         {children}
         <div className="flex gap-2 pt-2">

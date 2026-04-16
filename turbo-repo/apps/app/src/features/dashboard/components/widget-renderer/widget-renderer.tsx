@@ -173,7 +173,7 @@ export function WidgetRenderer({
   ));
 
   return (
-    <div className="widget-wrapper relative h-full">
+    <div id={`widget-${widget.id}`} className="widget-wrapper relative h-full">
       {/* Edit mode controls */}
       {editMode && (
         <WidgetControls
@@ -218,6 +218,7 @@ export function WidgetRenderer({
           onSave={handleSaveSettings}
           dictionary={dictionary}
           dashletName={meta.name}
+          widgetId={widget.id}
         />
       )}
 

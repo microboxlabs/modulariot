@@ -333,8 +333,8 @@ function buildEnumValues(
 /** Strip non-numeric characters (except minus, dot) and parse.
  *  Handles locale formats: "47,400 km" → 47400, "1,5" → 1.5, "$1,234.56" → 1234.56 */
 function parseNumericString(value: string): number {
-  // Strip currency symbols, whitespace, and unit suffixes (Unicode-aware)
-  let s = value.replaceAll(/[€$£¥\s]/g, "").replace(/[\p{L}%°]+$/u, "");
+  // Strip currency symbols, whitespace, and trailing unit suffixes
+  let s = value.replaceAll(/[€$£¥\s]/g, "").replace(/[^\d.,-]+$/, "");
 
   if (s.includes(",") && !s.includes(".")) {
     // No dot present: decide whether comma is decimal or thousands separator.

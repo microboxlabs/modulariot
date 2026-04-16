@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { EChartsOption } from "echarts";
+import type EChartsReactCore from "echarts-for-react/lib/core";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestDashletFields } from "../common";
 import { useDashletPgrest, DashletLoading, DashletError } from "../common";
@@ -95,11 +96,25 @@ function DonutChart({
   unit,
   darkMode,
 }: Readonly<{ items: ChartSegment[]; unit: string; darkMode: boolean }>) {
+  const chartRef = useRef<EChartsReactCore>(null);
+
+  // Force-hide tooltip when mouse leaves chart area
+  const handleGlobalOut = useCallback(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (instance) {
+      instance.dispatchAction({ type: "hideTip" });
+      instance.dispatchAction({ type: "downplay" });
+    }
+  }, []);
+
   const option: EChartsOption = useMemo(
     () => ({
       tooltip: {
         trigger: "item",
         appendToBody: true,
+        enterable: false,
+        hideDelay: 0,
+        triggerOn: "mousemove",
         backgroundColor: darkMode ? "#374151" : "#ffffff",
         borderWidth: 0,
         textStyle: {
@@ -152,9 +167,11 @@ function DonutChart({
 
   return (
     <ReactECharts
+      ref={chartRef}
       option={option}
       style={{ width: "100%", height: "100%" }}
       opts={{ renderer: "svg" }}
+      onEvents={{ globalout: handleGlobalOut }}
     />
   );
 }
@@ -174,11 +191,25 @@ function StackedBarChart({
   total: number;
   darkMode: boolean;
 }>) {
+  const chartRef = useRef<EChartsReactCore>(null);
+
+  // Force-hide tooltip when mouse leaves chart area
+  const handleGlobalOut = useCallback(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (instance) {
+      instance.dispatchAction({ type: "hideTip" });
+      instance.dispatchAction({ type: "downplay" });
+    }
+  }, []);
+
   const option: EChartsOption = useMemo(
     () => ({
       tooltip: {
         trigger: "item",
         appendToBody: true,
+        enterable: false,
+        hideDelay: 0,
+        triggerOn: "mousemove",
         backgroundColor: darkMode ? "#374151" : "#ffffff",
         borderWidth: 0,
         textStyle: {
@@ -235,9 +266,11 @@ function StackedBarChart({
 
   return (
     <ReactECharts
+      ref={chartRef}
       option={option}
       style={{ width: "100%", height: "100%" }}
       opts={{ renderer: "svg" }}
+      onEvents={{ globalout: handleGlobalOut }}
     />
   );
 }

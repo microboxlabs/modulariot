@@ -10,11 +10,13 @@ import {
   parseResolvedNumber,
   DASHLET_ICON_OPTIONS,
   type DashletIconKey,
+  evaluateColorRulesGeneric,
+  buildIconStyle,
+  buildBgStyle,
 } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { ThresholdConfig } from "../common/threshold-types";
 import { KpiStat } from "@/features/common/components/kpi-stat";
-import { evaluateRule } from "../common/color-rule-engine";
 import type {
   ValueColorRulesConfig,
   ValueColorRule,
@@ -105,78 +107,27 @@ function getIconFromKey(key: DashletIconKey | undefined): IconType | undefined {
 // Color Rules Helpers
 // ============================================================================
 
-interface EvaluatedColors {
-  textColor: string | undefined;
-  bgColor: string | undefined;
-  iconColor: string | undefined;
-}
-
-function isGreaterOperator(op: string): boolean {
-  return op === "greater_than" || op === "greater_than_or_equal";
-}
-
-function isLessOperator(op: string): boolean {
-  return op === "less_than" || op === "less_than_or_equal";
-}
-
-function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
-  return [...rules].sort((a, b) => {
-    const aVal = Number(a.value) || 0;
-    const bVal = Number(b.value) || 0;
-    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
-      return bVal - aVal;
-    }
-    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
-      return aVal - bVal;
-    }
-    return 0;
-  });
-}
+const TARGET_KEYS = ["text", "bg", "icon"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
 
 function evaluateColorRules(
   rules: ValueColorRule[],
   evalValue: string
-): EvaluatedColors {
-  let textColor: string | undefined;
-  let bgColor: string | undefined;
-  let iconColor: string | undefined;
-
-  const sortedRules = sortColorRules(rules);
-
-  for (const rule of sortedRules) {
-    const matches = evaluateRule(
-      { column: "", operator: rule.operator, value: rule.value, color: "blue" },
-      evalValue
-    );
-    if (!matches) continue;
-
-    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
-    if (rule.targets.includes("bg") && !bgColor) bgColor = rule.color;
-    if (rule.targets.includes("icon") && !iconColor) iconColor = rule.color;
-    if (textColor && bgColor && iconColor) break;
-  }
-
-  return { textColor, bgColor, iconColor };
-}
-
-/** Build icon style from rule color or manual color */
-function buildIconStyle(
-  ruleIconColor: string | undefined,
-  iconColorHex: string
-): React.CSSProperties {
-  const hex = ruleIconColor ?? iconColorHex;
-  return { backgroundColor: `#${hex}20`, color: `#${hex}` };
-}
-
-/** Build background style from rule color, manual setting, or undefined */
-function buildBgStyle(
-  ruleBgColor: string | undefined,
-  showBgColor: boolean,
-  bgColorHex: string
-): React.CSSProperties | undefined {
-  if (ruleBgColor) return { backgroundColor: `#${ruleBgColor}CC` };
-  if (showBgColor) return { backgroundColor: `#${bgColorHex}CC` };
-  return undefined;
+): {
+  textColor: string | undefined;
+  bgColor: string | undefined;
+  iconColor: string | undefined;
+} {
+  const colors = evaluateColorRulesGeneric<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    [...TARGET_KEYS]
+  );
+  return {
+    textColor: colors.text,
+    bgColor: colors.bg,
+    iconColor: colors.icon,
+  };
 }
 
 /** Build value text style from rule color, manual setting, or undefined */

@@ -222,12 +222,12 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+)?/;
 /**
  * Matches values that are genuinely numeric, optionally with:
  * - Leading currency symbols ($, €, etc.)
- * - Thousand separators (commas)
- * - Trailing units (km, kg, días, %, etc.)
+ * - Thousand separators (commas) or decimal commas (European locales)
+ * - Trailing units (km, kg, días, %, etc.) — uses \p{L} for Unicode letters
  * Does NOT match alphanumeric IDs like "DHLP19" or "VF7YF1T3B20123".
  */
 const NUMERIC_VALUE_RE =
-  /^[€$£¥]?\s*-?\d[\d,]*\.?\d*\s*[a-zA-Z%°]*$/;
+  /^[€$£¥]?\s*-?\d[\d.,]*\s*[\p{L}%°]*$/u;
 
 /** Max distinct values (relative or absolute) to classify as enum. */
 const ENUM_MAX_DISTINCT = 20;
@@ -330,8 +330,25 @@ function buildEnumValues(
   return result;
 }
 
-/** Strip non-numeric characters (except minus, dot) and parse. Handles "47,400 km" → 47400 */
+/** Strip non-numeric characters (except minus, dot) and parse.
+ *  Handles locale formats: "47,400 km" → 47400, "1,5" → 1.5, "$1,234.56" → 1234.56 */
 function parseNumericString(value: string): number {
-  const cleaned = value.replaceAll(/[^0-9.-]/g, "");
-  return Number.parseFloat(cleaned);
+  // Strip currency symbols, whitespace, and unit suffixes (Unicode-aware)
+  let s = value.replaceAll(/[€$£¥\s]/g, "").replace(/[\p{L}%°]+$/u, "");
+
+  if (s.includes(",") && !s.includes(".")) {
+    // No dot present: decide whether comma is decimal or thousands separator.
+    // Thousands separators are followed by exactly 3 digits (e.g. "47,400").
+    // Decimal commas have a different digit count (e.g. "1,5" or "3,14").
+    if (/,\d{3}$/.test(s)) {
+      s = s.replaceAll(",", "");
+    } else {
+      s = s.replace(",", ".");
+    }
+  } else {
+    // Dot present (or no comma) → commas are thousands separators
+    s = s.replaceAll(",", "");
+  }
+
+  return Number.parseFloat(s);
 }

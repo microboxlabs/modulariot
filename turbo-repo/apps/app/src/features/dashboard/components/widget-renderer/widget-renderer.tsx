@@ -217,7 +217,7 @@ export function WidgetRenderer({
           config={widget.config}
           onSave={handleSaveSettings}
           dictionary={dictionary}
-          dashletName={meta.name}
+          dashletName={tr(meta.name, dictionary)}
         />
       )}
 

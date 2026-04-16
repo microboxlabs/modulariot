@@ -11,6 +11,12 @@ import {
   getFlowbiteColor,
   DeleteItemButton,
 } from "../common";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { tr } from "@/features/i18n/tr.service";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
 interface DetailWithId {
   id: string;
@@ -45,7 +51,7 @@ const FIELDS = [
 export function DashletSettings(
   props: Readonly<DashletSettingsProps<DashletConfig>>
 ) {
-  const { config } = props;
+  const { config, dictionary } = props;
 
   const initializeDetails = (): DetailWithId[] => {
     const defaultDetails = [
@@ -59,6 +65,11 @@ export function DashletSettings(
   };
 
   const [details, setDetails] = useState(initializeDetails);
+  const [valueColor, setValueColor] = useState(config.valueColor ?? "");
+
+  const colorRules = useValueColorSettings({
+    valueColorRules: config.valueColorRules,
+  });
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -77,12 +88,34 @@ export function DashletSettings(
       fields={FIELDS}
       idPrefix="se"
       settingsProps={props}
-      thresholds
       extraSaveFields={{
         details: details.map(({ label, value }) => ({ label, value })),
+        valueColor,
+        ...colorRules.buildSavePayload(),
       }}
       extraVisualization={
         <div className="space-y-2">
+          {/* Value color picker */}
+          <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+            <Label className="text-sm font-medium">
+              {tr("dashboard.settings.valueColor", dictionary)}
+            </Label>
+            <AdvancedColorPicker
+              value={valueColor}
+              onChange={setValueColor}
+              title={tr("dashboard.settings.selectColor", dictionary)}
+            />
+          </div>
+          {/* Color rules */}
+          <ValueColorRulesEditor
+            rules={colorRules.rules}
+            dictionary={dictionary}
+            onAdd={colorRules.addRule}
+            onRemove={colorRules.removeRule}
+            onUpdate={colorRules.updateRule}
+            onToggleTarget={colorRules.toggleTarget}
+          />
+          {/* Expandable Details */}
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Expandable Details</Label>
             <Button

@@ -4,13 +4,26 @@ import type { FilterConfig, FilterItemConfig } from "./filter-types";
 import type { ColumnItem } from "./column-helpers";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
-import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "./filter-helpers";
+import {
+  normalizeFilterConfig,
+  toFilterItems,
+  fromFilterItems,
+} from "./filter-helpers";
 import type { ColorRulesConfig } from "./color-rule-types";
+import { DEFAULT_RULE_COLOR } from "./color-rule-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
-import { toColorRuleItems, fromColorRuleItems, normalizeColorRulesConfig } from "./color-rule-helpers";
+import {
+  toColorRuleItems,
+  fromColorRuleItems,
+  normalizeColorRulesConfig,
+} from "./color-rule-helpers";
 import type { ActionsConfig } from "./action-types";
 import type { ActionItemWithId } from "./action-helpers";
-import { toActionItems, fromActionItems, normalizeActionsConfig } from "./action-helpers";
+import {
+  toActionItems,
+  fromActionItems,
+  normalizeActionsConfig,
+} from "./action-helpers";
 
 export interface SettingsStateConfig {
   title: string;
@@ -36,12 +49,30 @@ let _cmCounter = 0;
 
 function appendColorMapping(col: ColumnItem, targetId: string): ColumnItem {
   if (col._id !== targetId) return col;
-  return { ...col, colorMap: [...(col.colorMap ?? []), { _id: `cm-${Date.now()}-${_cmCounter++}`, operator: "equals", value: "", color: "gray" }] };
+  return {
+    ...col,
+    colorMap: [
+      ...(col.colorMap ?? []),
+      {
+        _id: `cm-${Date.now()}-${_cmCounter++}`,
+        operator: "equals",
+        value: "",
+        color: DEFAULT_RULE_COLOR,
+      },
+    ],
+  };
 }
 
-function dropColorMapping(col: ColumnItem, targetId: string, mappingId: string): ColumnItem {
+function dropColorMapping(
+  col: ColumnItem,
+  targetId: string,
+  mappingId: string
+): ColumnItem {
   if (col._id !== targetId) return col;
-  return { ...col, colorMap: (col.colorMap ?? []).filter((m) => m._id !== mappingId) };
+  return {
+    ...col,
+    colorMap: (col.colorMap ?? []).filter((m) => m._id !== mappingId),
+  };
 }
 
 function patchColorMapping(
@@ -49,59 +80,69 @@ function patchColorMapping(
   targetId: string,
   mappingId: string,
   field: string,
-  val: string,
+  val: string
 ): ColumnItem {
   if (col._id !== targetId) return col;
-  return { ...col, colorMap: (col.colorMap ?? []).map((m) => (m._id === mappingId ? { ...m, [field]: val } : m)) };
+  return {
+    ...col,
+    colorMap: (col.colorMap ?? []).map((m) =>
+      m._id === mappingId ? { ...m, [field]: val } : m
+    ),
+  };
 }
 
 // ============================================================================
 
 export function useSettingsState(cfg: SettingsStateConfig) {
-  const [dataMode, setDataMode] = useState<DataMode>(
-    cfg.dataMode ?? "static",
-  );
+  const [dataMode, setDataMode] = useState<DataMode>(cfg.dataMode ?? "static");
   const [title, setTitle] = useState(cfg.title ?? cfg.defaultTitle);
   const [showRowCount, setShowRowCount] = useState(cfg.showRowCount ?? true);
   const [columns, setColumns] = useState<ColumnItem[]>(
-    toColumnItems(cfg.columns ?? cfg.defaultColumns),
+    toColumnItems(cfg.columns ?? cfg.defaultColumns)
   );
 
   // Filter config (normalize legacy shapes)
   const normalizedFilter = normalizeFilterConfig(cfg.filter, cfg.defaultFilter);
   const [filterEnabled, setFilterEnabled] = useState(normalizedFilter.enabled);
   const [filterItems, setFilterItems] = useState<FilterItem[]>(
-    toFilterItems(normalizedFilter.items),
+    toFilterItems(normalizedFilter.items)
   );
 
   // Sort config
   const [sortEnabled, setSortEnabled] = useState(
-    cfg.sort?.enabled ?? cfg.defaultSort.enabled,
+    cfg.sort?.enabled ?? cfg.defaultSort.enabled
   );
   const [sortColumns, setSortColumns] = useState<string[]>(
-    cfg.sort?.columns ?? cfg.defaultSort.columns,
+    cfg.sort?.columns ?? cfg.defaultSort.columns
   );
 
   // Color rules
   const defaultColorRules: ColorRulesConfig = { enabled: false, rules: [] };
-  const normalizedRowColorRules = normalizeColorRulesConfig(cfg.rowColorRules, defaultColorRules);
+  const normalizedRowColorRules = normalizeColorRulesConfig(
+    cfg.rowColorRules,
+    defaultColorRules
+  );
 
-  const [rowColorRulesEnabled, setRowColorRulesEnabled] = useState(normalizedRowColorRules.enabled);
+  const [rowColorRulesEnabled, setRowColorRulesEnabled] = useState(
+    normalizedRowColorRules.enabled
+  );
   const [rowColorRuleItems, setRowColorRuleItems] = useState<ColorRuleItem[]>(
-    toColorRuleItems(normalizedRowColorRules.rules),
+    toColorRuleItems(normalizedRowColorRules.rules)
   );
 
   // Actions config
   const defaultActions: ActionsConfig = { enabled: false, items: [] };
   const normalizedActions = normalizeActionsConfig(cfg.actions, defaultActions);
-  const [actionsEnabled, setActionsEnabled] = useState(normalizedActions.enabled);
+  const [actionsEnabled, setActionsEnabled] = useState(
+    normalizedActions.enabled
+  );
   const [actionItems, setActionItems] = useState<ActionItemWithId[]>(
-    toActionItems(normalizedActions.items),
+    toActionItems(normalizedActions.items)
   );
 
   // Data provider fields
   const [rowsJson, setRowsJson] = useState(() =>
-    JSON.stringify(cfg.rows ?? cfg.defaultRows, null, 2),
+    JSON.stringify(cfg.rows ?? cfg.defaultRows, null, 2)
   );
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
   const [apiUrl, setApiUrl] = useState(cfg.apiUrl ?? "");
@@ -109,7 +150,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   // Columns that have a key set (for selects / checkbox lists)
   const columnsWithKeys = useMemo(
     () => columns.filter((c) => c.key),
-    [columns],
+    [columns]
   );
 
   // ── Column helpers ────────────────────────────────────────────────────────
@@ -128,10 +169,10 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   const updateColumn = (
     id: string,
     field: keyof TableColumn,
-    value: string,
+    value: string
   ) => {
     setColumns((prev) =>
-      prev.map((c) => (c._id === id ? { ...c, [field]: value } : c)),
+      prev.map((c) => (c._id === id ? { ...c, [field]: value } : c))
     );
   };
 
@@ -142,11 +183,20 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   };
 
   const removeColorMapping = (colId: string, mappingId: string) => {
-    setColumns((prev) => prev.map((c) => dropColorMapping(c, colId, mappingId)));
+    setColumns((prev) =>
+      prev.map((c) => dropColorMapping(c, colId, mappingId))
+    );
   };
 
-  const updateColorMapping = (colId: string, mappingId: string, field: "operator" | "value" | "color", val: string) => {
-    setColumns((prev) => prev.map((c) => patchColorMapping(c, colId, mappingId, field, val)));
+  const updateColorMapping = (
+    colId: string,
+    mappingId: string,
+    field: "operator" | "value" | "color",
+    val: string
+  ) => {
+    setColumns((prev) =>
+      prev.map((c) => patchColorMapping(c, colId, mappingId, field, val))
+    );
   };
 
   // ── Filter item helpers ─────────────────────────────────────────────────
@@ -166,10 +216,10 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   const updateFilterItem = (
     id: string,
     field: keyof FilterItemConfig,
-    value: string,
+    value: string
   ) => {
     setFilterItems((prev) =>
-      prev.map((f) => (f._id === id ? { ...f, [field]: value } : f)),
+      prev.map((f) => (f._id === id ? { ...f, [field]: value } : f))
     );
   };
 
@@ -177,7 +227,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
 
   const handleSortColumnToggle = (checked: boolean, key: string) => {
     setSortColumns((prev) =>
-      checked ? [...prev, key] : prev.filter((k) => k !== key),
+      checked ? [...prev, key] : prev.filter((k) => k !== key)
     );
   };
 
@@ -187,7 +237,13 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     const firstCol = columns.find((c) => c.key)?.key ?? "";
     setRowColorRuleItems((prev) => [
       ...prev,
-      { _id: `cr-${Date.now()}`, column: firstCol, operator: "equals" as const, value: "", color: "red" as const },
+      {
+        _id: `cr-${Date.now()}`,
+        column: firstCol,
+        operator: "equals" as const,
+        value: "",
+        color: DEFAULT_RULE_COLOR,
+      },
     ]);
   };
 
@@ -196,7 +252,9 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   };
 
   const updateRowColorRule = (id: string, field: string, value: string) => {
-    setRowColorRuleItems((prev) => prev.map((r) => (r._id === id ? { ...r, [field]: value } : r)));
+    setRowColorRuleItems((prev) =>
+      prev.map((r) => (r._id === id ? { ...r, [field]: value } : r))
+    );
   };
 
   // ── Action helpers ─────────────────────────────────────────────────────
@@ -204,7 +262,12 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   const addAction = () => {
     setActionItems((prev) => [
       ...prev,
-      { _id: `act-${Date.now()}`, name: "", link: "", target: "_blank" as const },
+      {
+        _id: `act-${Date.now()}`,
+        name: "",
+        link: "",
+        target: "_blank" as const,
+      },
     ]);
   };
 
@@ -212,17 +275,28 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     setActionItems((prev) => prev.filter((a) => a._id !== id));
   };
 
-  const updateAction = (id: string, field: "name" | "link" | "target", value: string) => {
-    setActionItems((prev) => prev.map((a) => (a._id === id ? { ...a, [field]: value } : a)));
+  const updateAction = (
+    id: string,
+    field: "name" | "link" | "target",
+    value: string
+  ) => {
+    setActionItems((prev) =>
+      prev.map((a) => (a._id === id ? { ...a, [field]: value } : a))
+    );
   };
 
   // ── Rows JSON parse ──────────────────────────────────────────────────────
 
   const parseRows = (
     errorMustBeArray: string,
-    errorInvalidJson: string,
+    errorInvalidJson: string
   ): Record<string, string>[] | null => {
-    if (dataMode === "dynamic" || dataMode === "pgrest" || dataMode === "planner") return cfg.rows ?? cfg.defaultRows;
+    if (
+      dataMode === "dynamic" ||
+      dataMode === "pgrest" ||
+      dataMode === "planner"
+    )
+      return cfg.rows ?? cfg.defaultRows;
     try {
       const parsed = JSON.parse(rowsJson);
       if (!Array.isArray(parsed)) {
@@ -246,7 +320,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     const filter: FilterConfig = {
       enabled: filterEnabled,
       items: fromFilterItems(filterItems).filter((fi) =>
-        validKeys.has(fi.column),
+        validKeys.has(fi.column)
       ),
     };
     const sort: SortConfig = {
@@ -257,7 +331,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
     const rowColorRules: ColorRulesConfig = {
       enabled: rowColorRulesEnabled,
       rules: fromColorRuleItems(rowColorRuleItems).filter((r) =>
-        validKeys.has(r.column),
+        validKeys.has(r.column)
       ),
     };
 

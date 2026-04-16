@@ -1,6 +1,27 @@
-import type { RuleColor } from "./color-rule-types";
 import type { ThresholdConfig } from "./threshold-types";
 import { evaluateRule } from "./color-rule-engine";
+
+// ============================================================================
+// Helper functions for hex color support
+// ============================================================================
+
+const LEGACY_NAMED_COLORS = new Set([
+  "red",
+  "yellow",
+  "green",
+  "blue",
+  "gray",
+  "orange",
+  "purple",
+]);
+
+export function isLegacyColor(color: string): boolean {
+  return LEGACY_NAMED_COLORS.has(color);
+}
+
+export function isHexColor(color: string): boolean {
+  return /^[0-9a-fA-F]{6}$/.test(color);
+}
 
 // ============================================================================
 // Evaluation
@@ -12,13 +33,18 @@ import { evaluateRule } from "./color-rule-engine";
  */
 export function evaluateThreshold(
   config: ThresholdConfig,
-  resolvedFieldValue: string,
-): RuleColor | null {
+  resolvedFieldValue: string
+): string | null {
   if (!config.enabled || config.rules.length === 0) return null;
 
   for (const rule of config.rules) {
     // Reuse evaluateRule by constructing a synthetic ColorRule
-    const syntheticRule = { column: "", operator: rule.operator, value: rule.value, color: rule.color };
+    const syntheticRule = {
+      column: "",
+      operator: rule.operator,
+      value: rule.value,
+      color: rule.color,
+    };
     if (evaluateRule(syntheticRule, resolvedFieldValue)) {
       return rule.color;
     }
@@ -30,7 +56,8 @@ export function evaluateThreshold(
 // Tailwind class mappings (static strings — safe for Tailwind purge)
 // ============================================================================
 
-export function getThresholdBgClasses(color: RuleColor): string {
+export function getThresholdBgClasses(color: string): string {
+  if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
       return "bg-red-100 dark:bg-red-900/30";
@@ -46,10 +73,13 @@ export function getThresholdBgClasses(color: RuleColor): string {
       return "bg-purple-100 dark:bg-purple-900/30";
     case "gray":
       return "bg-gray-100 dark:bg-gray-700";
+    default:
+      return "";
   }
 }
 
-export function getThresholdTextClasses(color: RuleColor): string {
+export function getThresholdTextClasses(color: string): string {
+  if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
       return "text-red-600 dark:text-red-400";
@@ -65,17 +95,34 @@ export function getThresholdTextClasses(color: RuleColor): string {
       return "text-purple-600 dark:text-purple-400";
     case "gray":
       return "text-gray-600 dark:text-gray-400";
+    default:
+      return "";
   }
 }
 
-export function getThresholdIconClasses(color: RuleColor): { bg: string; text: string } {
+/**
+ * Get inline text color style for hex colors.
+ * Returns undefined for legacy colors (use getThresholdTextClasses instead).
+ */
+export function getThresholdTextStyle(
+  color: string
+): React.CSSProperties | undefined {
+  if (!isHexColor(color)) return undefined;
+  return { color: `#${color}` };
+}
+
+export function getThresholdIconClasses(color: string): {
+  bg: string;
+  text: string;
+} {
   return {
     bg: getThresholdBgClasses(color),
     text: getThresholdTextClasses(color),
   };
 }
 
-export function getThresholdBorderClasses(color: RuleColor): string {
+export function getThresholdBorderClasses(color: string): string {
+  if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
       return "border-l-red-500";
@@ -91,10 +138,13 @@ export function getThresholdBorderClasses(color: RuleColor): string {
       return "border-l-purple-500";
     case "gray":
       return "border-l-gray-400";
+    default:
+      return "";
   }
 }
 
-export function getThresholdStrokeClass(color: RuleColor): string {
+export function getThresholdStrokeClass(color: string): string {
+  if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
       return "stroke-red-500";
@@ -110,10 +160,24 @@ export function getThresholdStrokeClass(color: RuleColor): string {
       return "stroke-purple-500";
     case "gray":
       return "stroke-gray-500";
+    default:
+      return "";
   }
 }
 
-export function getThresholdBarClass(color: RuleColor): string {
+/**
+ * Get inline stroke style for hex colors.
+ * Returns undefined for legacy colors (use getThresholdStrokeClass instead).
+ */
+export function getThresholdStrokeStyle(
+  color: string
+): React.CSSProperties | undefined {
+  if (!isHexColor(color)) return undefined;
+  return { stroke: `#${color}` };
+}
+
+export function getThresholdBarClass(color: string): string {
+  if (!isLegacyColor(color)) return "";
   switch (color) {
     case "red":
       return "bg-red-500";
@@ -129,10 +193,27 @@ export function getThresholdBarClass(color: RuleColor): string {
       return "bg-purple-500";
     case "gray":
       return "bg-gray-500";
+    default:
+      return "";
   }
 }
 
-export function getThresholdGradientClasses(color: RuleColor): { from: string; to: string } {
+/**
+ * Get inline background style for hex colors.
+ * Returns undefined for legacy colors (use getThresholdBarClass instead).
+ */
+export function getThresholdBarStyle(
+  color: string
+): React.CSSProperties | undefined {
+  if (!isHexColor(color)) return undefined;
+  return { backgroundColor: `#${color}` };
+}
+
+export function getThresholdGradientClasses(color: string): {
+  from: string;
+  to: string;
+} {
+  if (!isLegacyColor(color)) return { from: "", to: "" };
   switch (color) {
     case "red":
       return { from: "from-red-500", to: "to-red-600" };
@@ -148,5 +229,7 @@ export function getThresholdGradientClasses(color: RuleColor): { from: string; t
       return { from: "from-purple-500", to: "to-purple-600" };
     case "gray":
       return { from: "from-gray-500", to: "to-gray-600" };
+    default:
+      return { from: "", to: "" };
   }
 }

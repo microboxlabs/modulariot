@@ -10,10 +10,18 @@ import {
   parseResolvedNumber,
   DASHLET_ICON_OPTIONS,
   type DashletIconKey,
+  evaluateColorRulesGeneric,
+  buildIconStyle,
+  buildBgStyle,
 } from "../common";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { ThresholdConfig } from "../common/threshold-types";
 import { KpiStat } from "@/features/common/components/kpi-stat";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -49,6 +57,8 @@ export interface DashletConfig extends PgrestDashletFields {
   /** Whether to scale text and icons based on container size */
   expandable?: boolean;
   thresholds?: ThresholdConfig;
+  /** Value-based color rules for text and background */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -91,6 +101,44 @@ function getIconFromKey(key: DashletIconKey | undefined): IconType | undefined {
   const found = DASHLET_ICON_OPTIONS.find((opt) => opt.value === key);
   // Cast to IconType since react-icons/hi2 icons are compatible
   return found?.icon as IconType | undefined;
+}
+
+// ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+const TARGET_KEYS = ["text", "bg", "icon"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string
+): {
+  textColor: string | undefined;
+  bgColor: string | undefined;
+  iconColor: string | undefined;
+} {
+  const colors = evaluateColorRulesGeneric<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    [...TARGET_KEYS]
+  );
+  return {
+    textColor: colors.text,
+    bgColor: colors.bg,
+    iconColor: colors.icon,
+  };
+}
+
+/** Build value text style from rule color, manual setting, or undefined */
+function buildValueStyle(
+  ruleTextColor: string | undefined,
+  showValueColor: boolean,
+  valueColorHex: string
+): React.CSSProperties | undefined {
+  if (ruleTextColor) return { color: `#${ruleTextColor}` };
+  if (showValueColor) return { color: `#${valueColorHex}` };
+  return undefined;
 }
 
 // ============================================================================
@@ -139,27 +187,37 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const expandable = config.expandable === true;
   const IconComponent = getIconFromKey(iconKey);
 
+  // Evaluate value color rules
+  const valueColorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
+
+  const {
+    textColor: ruleTextColor,
+    bgColor: ruleBgColor,
+    iconColor: ruleIconColor,
+  } = valueColorRulesConfig.rules.length > 0
+    ? evaluateColorRules(valueColorRulesConfig.rules, String(value))
+    : { textColor: undefined, bgColor: undefined, iconColor: undefined };
+
   // Build icon config: show icon with selected color, or undefined if hidden
   const iconConfig =
     showIcon && IconComponent
       ? {
           icon: IconComponent,
-          style: {
-            backgroundColor: `#${iconColorHex}20`,
-            color: `#${iconColorHex}`,
-          },
+          style: buildIconStyle(ruleIconColor, iconColorHex),
         }
       : undefined;
 
   // Build inline style for custom background color (80% opacity)
-  const bgStyle = showBgColor
-    ? { backgroundColor: `#${bgColorHex}CC` }
-    : undefined;
+  const bgStyle = buildBgStyle(ruleBgColor, showBgColor, bgColorHex);
 
-  // Build text styles (only apply custom color when checkbox is on)
-  const valueStyle = showValueColor
-    ? { color: `#${valueColorHex}` }
-    : undefined;
+  // Build text styles (rule color takes priority over manual setting)
+  const valueStyle = buildValueStyle(
+    ruleTextColor,
+    showValueColor,
+    valueColorHex
+  );
   const titleStyle = showSecondaryColor
     ? { color: `#${secondaryColorHex}` }
     : undefined;

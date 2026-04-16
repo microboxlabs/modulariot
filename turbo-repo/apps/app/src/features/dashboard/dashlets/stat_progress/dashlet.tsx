@@ -15,6 +15,9 @@ import {
   getThresholdTextClasses,
 } from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
+import { evaluateRule } from "../common/color-rule-engine";
+import type { BarColorRulesConfig } from "./value-color-rules";
+import { normalizeBarColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -26,6 +29,8 @@ export interface DashletConfig extends PgrestDashletFields {
   target: string;
   unit: string;
   thresholds?: ThresholdConfig;
+  /** Bar color rules */
+  barColorRules?: BarColorRulesConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -66,6 +71,34 @@ function getBarColor(percentage: number): string {
 }
 
 /**
+ * Evaluate bar color rules and return the matching color
+ */
+function evaluateBarColorRules(
+  config: DashletConfig,
+  value: number
+): string | null {
+  const normalized = normalizeBarColorRulesConfig(config.barColorRules);
+  if (normalized.rules.length === 0) return null;
+
+  for (const rule of normalized.rules) {
+    if (
+      evaluateRule(
+        {
+          column: "",
+          operator: rule.operator,
+          value: rule.value,
+          color: rule.color,
+        },
+        String(value)
+      )
+    ) {
+      return rule.color;
+    }
+  }
+  return null;
+}
+
+/**
  * Progress Bar Card - Horizontal progress with milestones
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
@@ -93,10 +126,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const percentage =
     target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
-  const barColor =
-    thresholdColor && appliesTo("background")
-      ? getThresholdBarClass(thresholdColor)
-      : getBarColor(percentage);
+
+  // Priority: barColorRules > thresholds > default
+  const ruleColor = evaluateBarColorRules(config, value);
+  let barColor: string;
+  if (ruleColor) {
+    barColor = `bg-[#${ruleColor}]`;
+  } else if (thresholdColor && appliesTo("background")) {
+    barColor = getThresholdBarClass(thresholdColor);
+  } else {
+    barColor = getBarColor(percentage);
+  }
 
   return (
     <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

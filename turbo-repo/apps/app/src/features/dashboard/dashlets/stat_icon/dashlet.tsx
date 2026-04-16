@@ -148,6 +148,42 @@ function buildValueStyle(
   return undefined;
 }
 
+/** Normalize a URL: prepend "/" only for relative paths (no scheme, not protocol-relative, not absolute) */
+function normalizeGoToUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+  // Check for valid URL scheme (letter followed by letters/digits/+/./- then colon)
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
+  const isProtocolRelative = trimmed.startsWith("//");
+  const isAbsolutePath = trimmed.startsWith("/");
+  if (hasScheme || isProtocolRelative || isAbsolutePath) return trimmed;
+  return `/${trimmed}`;
+}
+
+/** Common KpiStat props builder */
+interface KpiStatPropsInput {
+  iconConfig: { icon: IconType; style: React.CSSProperties } | undefined;
+  titleConfig: { text: string; style?: React.CSSProperties } | undefined;
+  value: string | number;
+  valueStyle: React.CSSProperties | undefined;
+  unit: string;
+  descriptionConfig: { text: string; style: React.CSSProperties } | undefined;
+  cardVariant: CardVariant;
+  bgStyle: React.CSSProperties | undefined;
+}
+
+function buildKpiStatProps(input: KpiStatPropsInput) {
+  return {
+    icon: input.iconConfig,
+    title: input.titleConfig,
+    value: { text: String(input.value), style: input.valueStyle },
+    unit: input.unit,
+    description: input.descriptionConfig,
+    variant: input.cardVariant,
+    containerStyle: input.bgStyle,
+  };
+}
+
 // ============================================================================
 // Component - Stat Card
 // ============================================================================
@@ -165,13 +201,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     FIELD_DEFAULTS,
     refreshIntervalMs
   );
-
-  /*
-    const { color: thresholdColor, appliesTo } = useRowThreshold(
-      config.thresholds,
-      firstRow
-    );
-  */
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -193,20 +222,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const secondaryColorHex = config.secondaryColor ?? "6b7280";
   const expandable = config.expandable === true;
   const showGoTo = config.showGoTo === true;
-  // Use resolved goToUrl (supports Handlebars templates like {{row.url}})
-  const rawGoToUrl = resolved.goToUrl ?? "";
-  // Ensure internal paths start with / to prevent relative navigation
-  // Only prepend "/" if it's a relative path (no scheme and not protocol-relative)
-  const trimmedUrl = rawGoToUrl.trim();
-  // Check for valid URL scheme (letter followed by letters/digits/+/./- then colon)
-  // or protocol-relative URL (starts with //) or absolute path (starts with /)
-  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmedUrl);
-  const isProtocolRelative = trimmedUrl.startsWith("//");
-  const isAbsolutePath = trimmedUrl.startsWith("/");
-  const goToUrl =
-    trimmedUrl && !hasScheme && !isProtocolRelative && !isAbsolutePath
-      ? `/${trimmedUrl}`
-      : trimmedUrl;
+  const goToUrl = normalizeGoToUrl(resolved.goToUrl ?? "");
+  const hasGoToLink = showGoTo && goToUrl.length > 0;
   const IconComponent = getIconFromKey(iconKey);
 
   // Evaluate value color rules
@@ -243,7 +260,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const titleStyle = showSecondaryColor
     ? { color: `#${secondaryColorHex}` }
     : undefined;
-  // Description always has reduced opacity, with optional color
   const descriptionStyle = showSecondaryColor
     ? { color: `#${secondaryColorHex}`, opacity: 0.7 }
     : { opacity: 0.7 };
@@ -256,53 +272,67 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ? { text: subtitle, style: descriptionStyle }
     : undefined;
 
-  // Interactive hover classes for KpiStat when goTo is enabled
-  const interactiveClasses =
-    showGoTo && goToUrl.trim()
-      ? "cursor-pointer transition-colors duration-200 hover:border-primary-500"
-      : "";
+  // Build common KpiStat props
+  const kpiProps = buildKpiStatProps({
+    iconConfig,
+    titleConfig,
+    value,
+    valueStyle,
+    unit,
+    descriptionConfig,
+    cardVariant,
+    bgStyle,
+  });
 
-  if (expandable) {
-    if (showGoTo && goToUrl.trim()) {
-      return (
-        <a
-          href={goToUrl}
-          className="block h-full w-full"
-          style={{ containerType: "size" }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <KpiStat
-            icon={iconConfig}
-            title={titleConfig}
-            value={{ text: value, style: valueStyle }}
-            unit={unit}
-            description={descriptionConfig}
-            variant={cardVariant}
-            className={`h-full ${interactiveClasses}`}
-            containerStyle={bgStyle}
-            scalable
-          />
-        </a>
-      );
-    }
+  // Interactive hover classes for KpiStat when goTo is enabled
+  const interactiveClasses = hasGoToLink
+    ? "cursor-pointer transition-colors duration-200 hover:border-primary-500"
+    : "";
+
+  // Render based on expandable and goTo settings
+  return renderStatCard(
+    expandable,
+    hasGoToLink,
+    goToUrl,
+    kpiProps,
+    interactiveClasses
+  );
+}
+
+/** Render the stat card with appropriate wrapper based on settings */
+function renderStatCard(
+  expandable: boolean,
+  hasGoToLink: boolean,
+  goToUrl: string,
+  kpiProps: ReturnType<typeof buildKpiStatProps>,
+  interactiveClasses: string
+): React.ReactNode {
+  if (expandable && hasGoToLink) {
     return (
-      <div className="h-full w-full" style={{ containerType: "size" }}>
+      <a
+        href={goToUrl}
+        className="block h-full w-full"
+        style={{ containerType: "size" }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <KpiStat
-          icon={iconConfig}
-          title={titleConfig}
-          value={{ text: value, style: valueStyle }}
-          unit={unit}
-          description={descriptionConfig}
-          variant={cardVariant}
-          className="h-full"
-          containerStyle={bgStyle}
+          {...kpiProps}
+          className={`h-full ${interactiveClasses}`}
           scalable
         />
+      </a>
+    );
+  }
+
+  if (expandable) {
+    return (
+      <div className="h-full w-full" style={{ containerType: "size" }}>
+        <KpiStat {...kpiProps} className="h-full" scalable />
       </div>
     );
   }
 
-  if (showGoTo && goToUrl.trim()) {
+  if (hasGoToLink) {
     return (
       <a
         href={goToUrl}
@@ -310,29 +340,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <KpiStat
-          icon={iconConfig}
-          title={titleConfig}
-          value={{ text: value, style: valueStyle }}
-          unit={unit}
-          description={descriptionConfig}
-          variant={cardVariant}
+          {...kpiProps}
           className={`h-full text-2xl ${interactiveClasses}`}
-          containerStyle={bgStyle}
         />
       </a>
     );
   }
 
-  return (
-    <KpiStat
-      icon={iconConfig}
-      title={titleConfig}
-      value={{ text: value, style: valueStyle }}
-      unit={unit}
-      description={descriptionConfig}
-      variant={cardVariant}
-      className="h-full text-2xl"
-      containerStyle={bgStyle}
-    />
-  );
+  return <KpiStat {...kpiProps} className="h-full text-2xl" />;
 }

@@ -1,22 +1,13 @@
 "use client";
 
-import {
-  Button,
-  Label,
-  ToggleSwitch,
-  Dropdown,
-  DropdownItem,
-} from "flowbite-react";
-import { HiPlus, HiChevronDown, HiTrash } from "react-icons/hi2";
-import {
-  COLOR_RULE_OPERATORS,
-  OPERATOR_LABELS,
-  COLOR_RULE_PRESETS,
-} from "./color-rule-types";
+import { Button, Label, ToggleSwitch } from "flowbite-react";
+import { HiPlus } from "react-icons/hi2";
+import { COLOR_RULE_PRESETS } from "./color-rule-types";
+import type { ColorRuleOperator } from "./color-rule-types";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
 import { HbTextField } from "./settings-fields";
-import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import { ColorRuleRow } from "./color-rule-row";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -110,66 +101,21 @@ export function ThresholdEditor({
             {/* Rules */}
             <div className="space-y-2">
               {rules.map((rule) => (
-                <div
+                <ColorRuleRow
                   key={rule._id}
-                  className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1.5 dark:border-gray-600 dark:bg-gray-700/50"
-                >
-                  {/* Operator dropdown */}
-                  <Dropdown
-                    label=""
-                    dismissOnClick
-                    renderTrigger={() => (
-                      <button
-                        type="button"
-                        className="flex h-7 w-16 shrink-0 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                      >
-                        <span className="truncate">
-                          {OPERATOR_LABELS[rule.operator]}
-                        </span>
-                        <HiChevronDown className="h-3 w-3 shrink-0" />
-                      </button>
-                    )}
-                  >
-                    {COLOR_RULE_OPERATORS.map((op) => (
-                      <DropdownItem
-                        key={op}
-                        onClick={() => onUpdate(rule._id, "operator", op)}
-                        className="text-xs"
-                      >
-                        {OPERATOR_LABELS[op]}
-                      </DropdownItem>
-                    ))}
-                  </Dropdown>
-                  {/* Value input */}
-                  <input
-                    type="text"
-                    className="no-drag h-7 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                    placeholder="Value"
-                    value={rule.value}
-                    onChange={(e) =>
-                      onUpdate(rule._id, "value", e.target.value)
-                    }
-                  />
-                  {/* Color picker */}
-                  <AdvancedColorPicker
-                    value={rule.color}
-                    onChange={(newColor) =>
-                      onUpdate(rule._id, "color", newColor)
-                    }
-                    presets={COLOR_RULE_PRESETS}
-                    title="Select rule color"
-                  />
-                  {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => onRemove(rule._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                    aria-label="Delete rule"
-                  >
-                    <HiTrash className="h-4 w-4" />
-                  </button>
-                </div>
+                  operator={rule.operator}
+                  value={rule.value}
+                  color={rule.color}
+                  onOperatorChange={(op: ColorRuleOperator) =>
+                    onUpdate(rule._id, "operator", op)
+                  }
+                  onValueChange={(val: string) =>
+                    onUpdate(rule._id, "value", val)
+                  }
+                  onColorChange={(c: string) => onUpdate(rule._id, "color", c)}
+                  onDelete={() => onRemove(rule._id)}
+                  colorPresets={COLOR_RULE_PRESETS}
+                />
               ))}
             </div>
 

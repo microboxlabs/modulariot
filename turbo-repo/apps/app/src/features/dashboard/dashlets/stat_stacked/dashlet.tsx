@@ -82,6 +82,50 @@ function useDarkMode(): boolean {
 }
 
 // ============================================================================
+// ECharts Tooltip and Event Helpers
+// ============================================================================
+
+interface TooltipBaseConfig {
+  trigger: "item";
+  appendToBody: true;
+  enterable: false;
+  hideDelay: 0;
+  triggerOn: "mousemove";
+  backgroundColor: string;
+  borderWidth: 0;
+  textStyle: { color: string };
+}
+
+function buildTooltipConfig(darkMode: boolean): TooltipBaseConfig {
+  return {
+    trigger: "item",
+    appendToBody: true,
+    enterable: false,
+    hideDelay: 0,
+    triggerOn: "mousemove",
+    backgroundColor: darkMode ? "#374151" : "#ffffff",
+    borderWidth: 0,
+    textStyle: {
+      color: darkMode ? "#f3f4f6" : "#111827",
+    },
+  };
+}
+
+function useEChartsGlobalOut() {
+  const chartRef = useRef<EChartsReactCore>(null);
+
+  const handleGlobalOut = useCallback(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (instance) {
+      instance.dispatchAction({ type: "hideTip" });
+      instance.dispatchAction({ type: "downplay" });
+    }
+  }, []);
+
+  return { chartRef, handleGlobalOut };
+}
+
+// ============================================================================
 // Donut Chart Component (ECharts)
 // ============================================================================
 
@@ -96,30 +140,12 @@ function DonutChart({
   unit,
   darkMode,
 }: Readonly<{ items: ChartSegment[]; unit: string; darkMode: boolean }>) {
-  const chartRef = useRef<EChartsReactCore>(null);
-
-  // Force-hide tooltip when mouse leaves chart area
-  const handleGlobalOut = useCallback(() => {
-    const instance = chartRef.current?.getEchartsInstance();
-    if (instance) {
-      instance.dispatchAction({ type: "hideTip" });
-      instance.dispatchAction({ type: "downplay" });
-    }
-  }, []);
+  const { chartRef, handleGlobalOut } = useEChartsGlobalOut();
 
   const option: EChartsOption = useMemo(
     () => ({
       tooltip: {
-        trigger: "item",
-        appendToBody: true,
-        enterable: false,
-        hideDelay: 0,
-        triggerOn: "mousemove",
-        backgroundColor: darkMode ? "#374151" : "#ffffff",
-        borderWidth: 0,
-        textStyle: {
-          color: darkMode ? "#f3f4f6" : "#111827",
-        },
+        ...buildTooltipConfig(darkMode),
         formatter: (params: unknown) => {
           const p = params as {
             name?: string;
@@ -191,30 +217,12 @@ function StackedBarChart({
   total: number;
   darkMode: boolean;
 }>) {
-  const chartRef = useRef<EChartsReactCore>(null);
-
-  // Force-hide tooltip when mouse leaves chart area
-  const handleGlobalOut = useCallback(() => {
-    const instance = chartRef.current?.getEchartsInstance();
-    if (instance) {
-      instance.dispatchAction({ type: "hideTip" });
-      instance.dispatchAction({ type: "downplay" });
-    }
-  }, []);
+  const { chartRef, handleGlobalOut } = useEChartsGlobalOut();
 
   const option: EChartsOption = useMemo(
     () => ({
       tooltip: {
-        trigger: "item",
-        appendToBody: true,
-        enterable: false,
-        hideDelay: 0,
-        triggerOn: "mousemove",
-        backgroundColor: darkMode ? "#374151" : "#ffffff",
-        borderWidth: 0,
-        textStyle: {
-          color: darkMode ? "#f3f4f6" : "#111827",
-        },
+        ...buildTooltipConfig(darkMode),
         formatter: (params: unknown) => {
           const p = params as {
             seriesName?: string;

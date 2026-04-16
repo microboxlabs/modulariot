@@ -15,6 +15,8 @@ import {
   useColorRuleSettings,
 } from "./color-rule-setter";
 
+export type { ColorRule, ColorRuleItem, ColorRulesConfig } from "./color-rule-setter";
+
 // ============================================================================
 // Target Configuration Types
 // ============================================================================
@@ -48,8 +50,6 @@ export interface ValueColorRulesFactoryConfig<
 // ============================================================================
 // Re-export types for convenience
 // ============================================================================
-
-export type { ColorRule, ColorRuleItem, ColorRulesConfig };
 
 /** Generic props for value color rules editor */
 export interface ValueColorRulesEditorProps<

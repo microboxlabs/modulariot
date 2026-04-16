@@ -133,6 +133,7 @@ export {
   type SimpleDashletSettingsProps,
   SimpleDashletSettings,
   createSimpleDashletSettings,
+  createSettingsField,
   useFieldState,
 } from "./simple-dashlet-settings";
 export {

@@ -1,40 +1,34 @@
 "use client";
 
-import { SimpleDashletSettings } from "../common";
+import { SimpleDashletSettings, createSettingsField } from "../common";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { useBarColorSettings, BarColorRulesEditor } from "./value-color-rules";
 
 const FIELDS = [
-  {
-    id: "sp-title",
-    labelKey: "common.title",
-    state: "title",
-    hbPlaceholder: "{{row.label}}",
-    staticPlaceholder: "Quarterly Goal",
-  },
-  {
-    id: "sp-value",
-    labelKey: "common.value",
-    state: "value",
-    hbPlaceholder: "{{row.current}}",
-    staticPlaceholder: "78",
-  },
-  {
-    id: "sp-target",
-    labelKey: "common.target",
-    state: "target",
-    hbPlaceholder: "{{row.target}}",
-    staticPlaceholder: "100",
-  },
-  {
-    id: "sp-unit",
-    labelKey: "common.unit",
-    state: "unit",
-    hbPlaceholder: "{{row.unit}}",
-    staticPlaceholder: "%",
-  },
-] as const;
+  createSettingsField(
+    "sp-title",
+    "common.title",
+    "title",
+    "{{row.label}}",
+    "Quarterly Goal"
+  ),
+  createSettingsField(
+    "sp-value",
+    "common.value",
+    "value",
+    "{{row.current}}",
+    "78"
+  ),
+  createSettingsField(
+    "sp-target",
+    "common.target",
+    "target",
+    "{{row.target}}",
+    "100"
+  ),
+  createSettingsField("sp-unit", "common.unit", "unit", "{{row.unit}}", "%"),
+];
 
 export function DashletSettings(
   props: Readonly<DashletSettingsProps<DashletConfig>>

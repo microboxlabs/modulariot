@@ -137,6 +137,7 @@ export default function VehicleDetailHeader({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
+            disabled={!hasPrevious}
             onClick={onPrevious}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label={tr("fleetManagement.previous", dict)}
@@ -145,6 +146,7 @@ export default function VehicleDetailHeader({
           </button>
           <button
             type="button"
+            disabled={!hasNext}
             onClick={onNext}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label={tr("fleetManagement.next", dict)}

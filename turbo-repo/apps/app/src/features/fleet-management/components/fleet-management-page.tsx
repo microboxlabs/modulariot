@@ -157,9 +157,11 @@ export default function FleetManagementPage({
 
   const handleSelectVehicle = useCallback(
     (plate: string) => {
-      router.push(`${pathname}/${encodeURIComponent(plate)}`);
+      const qs = searchParams.toString();
+      const base = `${pathname}/${encodeURIComponent(plate)}`;
+      router.push(qs ? `${base}?${qs}` : base);
     },
-    [router, pathname]
+    [router, pathname, searchParams]
   );
 
   return (

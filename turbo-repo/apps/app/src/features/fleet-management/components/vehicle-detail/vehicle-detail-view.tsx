@@ -9,16 +9,28 @@ interface VehicleDetailViewProps {
   readonly vehicle: Vehicle;
   readonly dict: I18nRecord;
   readonly onBack: () => void;
+  readonly previous?: { hasPrevious: boolean; onPrevious: () => void };
+  readonly next?: { hasNext: boolean; onNext: () => void };
 }
 
 export default function VehicleDetailView({
   vehicle,
   dict,
   onBack,
+  previous,
+  next,
 }: VehicleDetailViewProps) {
   return (
     <div className="flex flex-col h-full items-center w-full">
-      <VehicleDetailHeader vehicle={vehicle} dict={dict} onBack={onBack} />
+      <VehicleDetailHeader
+        vehicle={vehicle}
+        dict={dict}
+        onBack={onBack}
+        onPrevious={previous?.onPrevious}
+        onNext={next?.onNext}
+        hasPrevious={previous?.hasPrevious ?? false}
+        hasNext={next?.hasNext ?? false}
+      />
       <div className="flex-1 min-h-0 overflow-y-auto w-[70vw] max-w-screen-2xl">
         <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
       </div>

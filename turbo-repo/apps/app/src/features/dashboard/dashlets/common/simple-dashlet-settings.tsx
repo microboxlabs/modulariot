@@ -180,6 +180,7 @@ export function SimpleDashletSettings<C extends object>({
       onRemove={threshold.removeThresholdRule}
       onUpdate={threshold.updateThresholdRule}
       schemaSuggestions={schemaSuggestions}
+      dictionary={dictionary}
     />
   ) : null;
 

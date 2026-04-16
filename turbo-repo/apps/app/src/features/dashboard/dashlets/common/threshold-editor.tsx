@@ -1,12 +1,18 @@
 "use client";
 
 import { Label } from "flowbite-react";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { COLOR_RULE_PRESETS } from "./color-rule-types";
 import type { ColorRuleOperator } from "./color-rule-types";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
 import { HbTextField } from "./settings-fields";
-import { ColorRuleRow, ToggleSectionHeader, AddRuleButton } from "./color-rule-row";
+import {
+  ColorRuleRow,
+  ToggleSectionHeader,
+  AddRuleButton,
+} from "./color-rule-row";
 
 interface ThresholdEditorProps {
   enabled: boolean;
@@ -20,6 +26,7 @@ interface ThresholdEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: string, value: string) => void;
   schemaSuggestions?: string[];
+  dictionary: I18nRecord;
 }
 
 export function ThresholdEditor({
@@ -34,6 +41,7 @@ export function ThresholdEditor({
   onRemove,
   onUpdate,
   schemaSuggestions,
+  dictionary,
 }: Readonly<ThresholdEditorProps>) {
   const addTarget = (target: ThresholdTarget) => {
     onApplyToChange([...applyTo, target]);
@@ -50,7 +58,7 @@ export function ThresholdEditor({
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
         <ToggleSectionHeader
-          label="Thresholds"
+          label={tr("dashboard.settings.thresholds", dictionary)}
           enabled={enabled}
           onToggle={onToggle}
         />
@@ -60,7 +68,7 @@ export function ThresholdEditor({
             {/* Field to evaluate */}
             <HbTextField
               id="threshold-field"
-              label="Evaluate field"
+              label={tr("dashboard.settings.evaluateField", dictionary)}
               value={field}
               onChange={onFieldChange}
               placeholder="{{row.value}}"
@@ -70,7 +78,7 @@ export function ThresholdEditor({
             {/* Apply to checkboxes */}
             <div>
               <Label className="mb-1.5 block text-xs font-medium">
-                Apply to
+                {tr("dashboard.settings.applyTo", dictionary)}
               </Label>
               <div className="flex gap-3">
                 {THRESHOLD_TARGETS.map((target) => (
@@ -117,7 +125,10 @@ export function ThresholdEditor({
               ))}
             </div>
 
-            <AddRuleButton onClick={onAdd} label="Add rule" />
+            <AddRuleButton
+              onClick={onAdd}
+              label={tr("dashboard.settings.addRule", dictionary)}
+            />
           </div>
         )}
       </div>

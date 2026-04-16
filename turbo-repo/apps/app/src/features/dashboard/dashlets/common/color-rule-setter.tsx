@@ -9,7 +9,11 @@ import type { PresetColor } from "@/features/common/components/advanced-color-pi
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { ColorRuleOperator } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, OPERATOR_LABELS } from "./color-rule-types";
+import {
+  COLOR_RULE_OPERATORS,
+  OPERATOR_LABELS,
+  DEFAULT_RULE_COLOR,
+} from "./color-rule-types";
 
 // ============================================================================
 // Types
@@ -67,8 +71,6 @@ export interface ColorRulesConfig<
 // ============================================================================
 // Constants
 // ============================================================================
-
-const DEFAULT_RULE_COLOR = "3b82f6";
 
 const COLOR_RULE_PRESETS: PresetColor[] = [
   { value: "ef4444", label: "Red" },
@@ -162,6 +164,10 @@ export function normalizeColorRulesConfig<
     if (typeof rec.operator !== "string" || typeof rec.color !== "string")
       continue;
 
+    // Validate operator against allowed values
+    if (!(COLOR_RULE_OPERATORS as string[]).includes(rec.operator)) continue;
+    const operator = rec.operator as ColorRuleOperator;
+
     const targets = extractTargets(rec, validTargets, defaultTarget);
     const compareMode: CompareMode =
       rec.compareMode === "field" ? "field" : "static";
@@ -174,7 +180,7 @@ export function normalizeColorRulesConfig<
     const value = typeof rec.value === "string" ? rec.value : "";
 
     rules.push({
-      operator: rec.operator as ColorRuleOperator,
+      operator,
       value,
       compareMode,
       compareField,

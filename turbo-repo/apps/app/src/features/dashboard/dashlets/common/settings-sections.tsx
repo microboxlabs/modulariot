@@ -167,7 +167,11 @@ export function ColumnEditor({
           </div>
         ))}
       </div>
-      <AddRuleButton onClick={onAdd} label={labels.addColumn} className="mt-2" />
+      <AddRuleButton
+        onClick={onAdd}
+        label={labels.addColumn}
+        className="mt-2"
+      />
     </div>
   );
 }

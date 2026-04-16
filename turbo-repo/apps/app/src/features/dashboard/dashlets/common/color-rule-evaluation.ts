@@ -22,11 +22,19 @@ export function isLessOperator(op: string): boolean {
 // Generic rule interface for evaluation
 // ============================================================================
 
-/** Minimal rule interface for sorting and evaluation */
-export interface EvaluatableRule {
+/** Minimal rule interface for sorting (only needs operator and value) */
+export interface SortableRule {
   operator: ColorRuleOperator;
   value: string;
+}
+
+/** Minimal rule interface for color evaluation */
+export interface ColorableRule extends SortableRule {
   color: string;
+}
+
+/** Minimal rule interface for sorting and evaluation */
+export interface EvaluatableRule extends ColorableRule {
   targets: string[];
 }
 
@@ -41,7 +49,7 @@ export interface ComparableRule extends EvaluatableRule {
 // ============================================================================
 
 /** Sort rules so most specific matches win */
-export function sortColorRules<T extends EvaluatableRule>(rules: T[]): T[] {
+export function sortColorRules<T extends SortableRule>(rules: T[]): T[] {
   return [...rules].sort((a, b) => {
     const aVal = Number(a.value) || 0;
     const bVal = Number(b.value) || 0;

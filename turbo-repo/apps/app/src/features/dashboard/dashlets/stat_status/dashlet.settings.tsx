@@ -158,15 +158,15 @@ export function DashletSettings({
             {tr("dashboard.settings.color", dictionary)}
           </Label>
         </div>
-        <div
-          className={`flex items-center gap-2 ${showColor ? "" : "opacity-40 pointer-events-none"}`}
-        >
-          <AdvancedColorPicker
-            value={color}
-            onChange={setColor}
-            title={tr("dashboard.settings.selectColor", dictionary)}
-          />
-        </div>
+        {showColor && (
+          <div className="flex items-center gap-2">
+            <AdvancedColorPicker
+              value={color}
+              onChange={setColor}
+              title={tr("dashboard.settings.selectColor", dictionary)}
+            />
+          </div>
+        )}
       </div>
       <SettingsSelectField
         id="ss-icon"

@@ -1,6 +1,12 @@
 "use client";
 
-import { Button, Label, Dropdown, DropdownItem, ToggleSwitch } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Dropdown,
+  DropdownItem,
+  ToggleSwitch,
+} from "flowbite-react";
 import { HiChevronDown, HiTrash, HiPlus } from "react-icons/hi2";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import type { PresetColor } from "@/features/common/components/advanced-color-picker";

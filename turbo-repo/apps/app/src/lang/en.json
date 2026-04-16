@@ -1468,6 +1468,7 @@
   },
   "dashboard": {
     "editMode": "Edit Mode",
+    "dragToMoveWidget": "Drag to move this widget",
     "kioskMode": "Kiosk Mode",
     "landing": {
       "title": "Dashboards",
@@ -1516,8 +1517,6 @@
       "secondaryColor": "Secondary Color",
       "secondaryTextColor": "Secondary Text",
       "expandable": "Expandable",
-      "showTitle": "Show Title",
-      "showSubtitle": "Show Description",
       "variant": "Variant",
       "label": "Label",
       "categoryAriaLabel": "Category {name} {field}",
@@ -1675,12 +1674,9 @@
       "orderDescription": "Set the sidebar position. Lower numbers appear first.",
       "orderUpdated": "Display order updated",
       "orderInvalid": "Please enter a valid non-negative number",
-      "accessControlTitle": "Access Control",
-      "accessControlDescription": "Restrict this dashboard to specific user groups",
-      "noGroupRestrictions": "No group restrictions — visible to all dashboard users",
-      "allowedGroupsUpdated": "Allowed groups updated",
-      "loadingGroups": "Loading groups…",
-      "noGroupsAvailable": "No groups available.",
+      "copySuccess": "Dashboard copied to clipboard",
+      "copyError": "Failed to copy dashboard to clipboard",
+      "renameSuccess": "Dashboard renamed successfully",
       "deleteDescription": "Permanently remove this dashboard",
       "chartType": "Chart Type",
       "line": "Line",
@@ -1703,7 +1699,11 @@
       "seriesColors": "Series Colors",
       "smooth": "Smooth Lines",
       "stacked": "Stacked",
-      "duplicate": "Duplicate"
+      "duplicate": "Duplicate",
+      "mapSettings": "Map Settings",
+      "showFilters": "Show Filters",
+      "showSidebar": "Show Sidebar",
+      "showStyleSelector": "Show Style Selector"
     },
     "filterBar": {
       "search": "Search...",
@@ -1766,6 +1766,11 @@
         "loading": "Loading...",
         "error": "Error: {message}",
         "noData": "No data"
+      },
+      "geographic_map": {
+        "name": "Geographic Map",
+        "description": "Interactive map with position markers and filters",
+        "load_failed": "Failed to load map data"
       }
     },
     "fileUpload": {
@@ -2466,8 +2471,6 @@
   "searchbar": {
     "service": "Service",
     "licensePlate": "License Plate",
-    "client": "Client",
-    "state": "State",
     "driverId": "Driver RUT",
     "carrierId": "Carrier RUT",
     "carrierName": "Carrier Name",
@@ -2487,12 +2490,7 @@
     "date": "Date",
     "symptom_name": "Symptom Name",
     "name": "Name",
-    "rut": "RUT",
-    "allOption": "—",
-    "stateActive": "Active",
-    "stateMaintenance": "In Maintenance",
-    "stateAlert": "Alert",
-    "stateInactive": "Inactive"
+    "rut": "RUT"
   },
   "comments": {
     "title": "Comments",
@@ -2656,7 +2654,7 @@
       "totalFleet": "Total Fleet",
       "active": "Active",
       "inMaintenance": "In Maintenance",
-      "symptoms": "Symptoms",
+      "alerts": "Alerts",
       "inactive": "Inactive"
     },
     "specialViews": {
@@ -2686,18 +2684,16 @@
       "driver": "Driver",
       "location": "Location",
       "model": "Model",
-      "transportist": "Client",
+      "transportist": "Carrier",
       "fuel": "Fuel",
       "maintenance": "Next Maint.",
       "kmTraveled": "Total Km",
       "loading": "Loading...",
-      "emptyTitle": "No vehicles in this fleet",
+      "emptyTile": "No vehicles in this fleet",
       "emptyDescription": "When vehicles are assigned to this fleet, they will appear here.",
       "plate": "Plate",
       "lastSignal": "Last signal",
       "status": "Status",
-      "emptyTitle": "No vehicles found",
-      "emptyDescription": "There are no vehicles to display at this time",
       "tabs": {
         "trucks": "Trucks",
         "trailers": "Trailers",
@@ -2727,15 +2723,6 @@
     "vehicleDetail": {
       "title": "Vehicle Details",
       "back": "Back to fleet",
-      "lastSignalMap": {
-        "title": "Last signal location",
-        "snapshot": "Snapshot",
-        "share": "Share",
-        "copyLink": "Copy link",
-        "copied": "Copied",
-        "unavailable": "No location available",
-        "openInMaps": "Open in Google Maps"
-      },
       "sections": {
         "health": {
           "title": "Health",
@@ -2774,50 +2761,13 @@
           "kmSinceService": "Km Since Maintenance",
           "kmSinceServiceDesc": "Distance since last service",
           "kmRemaining": "{km} km remaining (est: {days} days)",
-          "kmRemainingNoDays": "{km} km remaining",
           "atKm": "At {km} km",
           "intervalPercent": "{percent}% of interval ({interval})",
-          "neverServiced": "Never serviced",
-          "errorTitle": "Couldn't load maintenance data",
-          "errorDesc": "Something went wrong fetching the maintenance detail. Try again in a moment.",
-          "retry": "Retry",
-          "criticality": {
-            "AL_DIA": {
-              "label": "Up to date",
-              "bannerTitle": "Maintenance up to date",
-              "bannerDesc": "The vehicle complies with the preventive maintenance plan."
-            },
-            "POR_VENCER": {
-              "label": "Due soon",
-              "bannerTitle": "Maintenance due soon",
-              "bannerDesc": "Less than 2,000 km remaining until the next scheduled service. Plan a workshop visit."
-            },
-            "CRITICO": {
-              "label": "Critical",
-              "bannerTitle": "Critical maintenance window",
-              "bannerDesc": "Less than 500 km remaining. Schedule the service immediately to avoid overrun."
-            },
-            "VENCIDO": {
-              "label": "Overdue",
-              "bannerTitle": "Maintenance overdue",
-              "bannerDesc": "The vehicle has passed the scheduled service odometer. Take it out of service until the maintenance is completed."
-            },
-            "EN_TALLER": {
-              "label": "In workshop",
-              "bannerTitle": "Vehicle in workshop",
-              "bannerDesc": "A maintenance work order is currently in progress for this vehicle."
-            },
-            "AGENDADO": {
-              "label": "Scheduled",
-              "bannerTitle": "Maintenance scheduled",
-              "bannerDesc": "A maintenance work order has been created and is waiting to start."
-            },
-            "SIN_INFO": {
-              "label": "No data",
-              "bannerTitle": "No odometer signal",
-              "bannerDesc": "We don't have enough recent odometer data for this vehicle to compute its maintenance state. Check that the GPS device is reporting."
-            }
-          }
+          "upToDate": "Maintenance up to date",
+          "upToDateDesc": "The vehicle complies with the preventive maintenance plan.",
+          "upToDateBadge": "Up to date",
+          "dueSoon": "Due soon",
+          "overdue": "Overdue"
         },
         "technicalHealth": {
           "title": "Technical Health",
@@ -2830,136 +2780,87 @@
           "brakePadWear": "Brake pad wear detected (28%)",
           "noIssues": "No failures",
           "criticalIssues": "{count} critical failure(s)",
-          "warningIssues": "{count} warning(s)",
-          "adBlue": "AdBlue",
-          "dpf": "DPF",
-          "engineFailure": "Engine Failure",
-          "ok": "OK"
+          "warningIssues": "{count} warning(s)"
         },
         "telemetry": {
           "title": "Devices & Telemetry",
-          "description": "Devices, telemetry, and GPS connection",
-          "headerSubtitle": "Score: {score}/100 · Provider: {provider}",
-          "headerSubtitleNoProvider": "Score: {score}/100",
+          "description": "Connected devices and sensor data",
+          "connected": "Connected",
+          "disconnected": "Disconnected",
           "lastDataReceived": "Last data received",
+          "installedDevices": "Installed devices",
+          "fuelSensor": "Fuel Sensor",
+          "tempSensor": "Temp Sensor (calibrating)",
+          "lastUpdate": "Last Update",
+          "signalStrength": "Signal Strength",
           "odometer": "Odometer",
-          "dateTime": "Date & time",
-          "statusLabel": "Status",
-          "statusMoving": "Moving",
-          "statusStopped": "Stopped",
-          "motor": "Engine",
-          "motorRunning": "Running",
-          "motorOff": "Off",
+          "dateTime": "Date and time",
+          "status": "Status",
+          "onRoute": "On route",
+          "engine": "Engine",
+          "running": "Running",
+          "notRunning": "Off",
           "speed": "Speed",
           "rpm": "RPM",
           "battery": "Battery",
           "engineTemp": "Engine temp",
           "location": "Location",
           "transmissionInterval": "Transmission interval",
-          "pulsesPerMinute": "{pulses} pulses/min",
-          "hoursSinceSignal": "Hours since signal",
-          "signalsPerDay": "Signals / day",
-          "stability": "Stability",
-          "errorTitle": "Couldn't load telemetry data",
-          "errorDesc": "Something went wrong fetching the signal detail. Try again in a moment.",
-          "retry": "Retry",
-          "freshness": {
-            "connected": {
-              "label": "Connected",
-              "bannerTitle": "GPS signal active",
-              "bannerDesc": "The device is reporting recent signals. Telemetry data is up to date."
-            },
-            "unstable": {
-              "label": "Unstable",
-              "bannerTitle": "Signal unstable",
-              "bannerDesc": "The device is reporting but the signal is stale or the GPS health is degraded. Check the installation or the provider."
-            },
-            "noSignal": {
-              "label": "No signal",
-              "bannerTitle": "No recent signal",
-              "bannerDesc": "We haven't received any signal from this vehicle in the last 7 days. Check that the GPS device is installed and powered on."
-            }
-          }
+          "every30Seconds": "Every 30 seconds",
+          "acumulatedUptime": "Accumulated Uptime",
+          "dataProcessedToday": "Data Processed Today",
+          "signalLost": "Signal Lost (30d)",
+          "everySeconds": "Every {seconds} seconds"
         },
         "events": {
           "title": "Operational Events",
           "description": "Recent alerts and incidents",
+          "hardBraking": "Hard braking event detected",
+          "routeCompleted": "Route completed successfully",
+          "incidentsThisMonth": "Incidents This Month",
+          "hoursAgo": "{count}h ago",
           "noIssues": "No issues",
-          "criticalCount": "{count} critical",
-          "warningCount": "{count} warning",
-          "speedExceeded": "{speed} km/h in a {limit} km/h zone",
-          "durationMinutes": "{minutes} min",
-          "emptyTitle": "No events",
-          "emptyDesc": "No operational events were recorded in the last 30 days.",
-          "errorTitle": "Couldn't load events",
-          "errorDesc": "Something went wrong fetching the event feed. Try again in a moment.",
-          "retry": "Retry",
           "urgency": {
             "critical": "Critical",
             "warning": "Warning",
             "info": "Info"
           },
           "category": {
-            "SEÑAL": "Signal",
-            "VELOCIDAD": "Speed",
-            "OTROS": "Other"
+            "falla_tecnica": "Technical Failure",
+            "evento": "Event",
+            "uso": "Usage",
+            "cambio_datos": "Data Change",
+            "mantencion": "Maintenance"
           }
         },
         "usage": {
           "title": "Fleet Usage",
           "description": "Utilization and mileage statistics",
-          "currentOdometer": "Current odometer",
-          "odometerSinceOrigin": "Accumulated odometer since origin",
-          "contractConsumption": "Contract consumption",
-          "contractMaxLabel": "Contract target: {km} km",
-          "kmLast30Days": "Km in last 30 days",
-          "lookbackWindowLabel": "{days}-day window",
-          "kmRemainingContract": "Km remaining on contract",
-          "withinContract": "Within contract",
-          "overuseAmount": "+{km} km overuse",
-          "noDataShort": "No data",
-          "avgDailyKm": "Daily average",
+          "totalKm": "Total Kilometers",
+          "avgDailyKm": "Average Daily Km",
+          "utilizationRate": "Utilization Rate",
+          "idleTime": "Idle Time",
+          "weeklyGoal": "Weekly Goal Progress",
+          "totalKilometrage": "Total Kilometrage of the vehicle",
+          "odometerSinceOrigin": "Odometer since origin",
+          "monthlyContractualConsumption": "Monthly contractual consumption",
+          "deviationFromAverage": "Deviation from average",
+          "kmTraveledThisMonth": "Km traveled this month",
+          "kmRemainingThisMonth": "Km remaining this month",
+          "avgDaily": "Average daily",
+          "operationHours": "Operation hours",
+          "activeDays": "Active days",
+          "annualTotalKm": "Annual total km",
           "kmPerDay": "{km} km/day",
-          "activeDaysLabel": "Days with data",
-          "activeDaysValue": "{active}/{total} days",
-          "utilization": "{percentage}% coverage",
-          "useType": "Use type",
-          "useTypeUnknown": "Unclassified",
-          "useTypeDesc": "Contract category",
-          "annualProjection": "Annual projection",
-          "projectionBasis": "Estimated from the last 30 days",
-          "contractStatus": {
-            "NORMAL": {
-              "label": "{pct} – normal use",
-              "bannerTitle": "Usage within contract",
-              "bannerDesc": "The vehicle is consuming mileage within the expected contractual range."
-            },
-            "SOBREUSO": {
-              "label": "{pct} – overuse",
-              "bannerTitle": "Contract overuse",
-              "bannerDesc": "Accumulated mileage exceeds the contractual target. Review contract terms or vehicle reassignment."
-            },
-            "SUBUTILIZADO": {
-              "label": "{pct} – underused",
-              "bannerTitle": "Vehicle underused",
-              "bannerDesc": "The vehicle is consuming mileage well below the contractual target. Consider reassignment or fleet rebalancing."
-            },
-            "SIN_DATOS": {
-              "label": "No data",
-              "bannerTitle": "No usage data",
-              "bannerDesc": "No recent odometer readings for this vehicle. The section will update once new telemetry arrives."
-            }
-          },
-          "intensity": {
-            "ALTA": { "label": "High intensity" },
-            "MEDIA": { "label": "Medium intensity" },
-            "BAJA": { "label": "Low intensity" },
-            "SIN_DATO": { "label": "No intensity data" }
-          },
-          "loading": "Loading usage…",
-          "errorTitle": "Could not load usage",
-          "errorDesc": "There was a problem fetching usage data. Please try again.",
-          "retry": "Retry"
+          "projectedDays": "Projected days: {days}",
+          "limitKmMonthly": "Limit {km} km/month",
+          "avgDailyOperationHours": "Average daily: {hours}",
+          "utilization": "{percentage}% Utilization",
+          "estimatedProjection": "Estimated projection",
+          "intensityLastDays": "Intensity last 30 days",
+          "exceeded": "Exceeded",
+          "nearLimit": "Near limit",
+          "usageLabel": "usage"
         },
         "general": {
           "title": "General Information",
@@ -3021,12 +2922,7 @@
     "grid": {
       "title": "Collaborators",
       "collaboratorCount": "{count} collaborators",
-      "loading": "Loading...",
-      "emptyTitle": "No results",
-      "emptyDesc": "No collaborators match the current search criteria.",
-      "errorTitle": "Failed to load collaborators",
-      "errorDesc": "Something went wrong while querying the data source. Please try again.",
-      "retry": "Retry"
+      "loading": "Loading..."
     },
     "rank": {
       "conductor-senior": "Senior Driver",
@@ -3086,12 +2982,7 @@
         "operationalEvents": "Operational Events"
       },
       "noData": "Could not load detail data for this collaborator.",
-      "backToList": "Back to list",
-      "notFoundTitle": "Collaborator not found",
-      "notFoundDesc": "No expediente is associated with the provided identifier.",
-      "errorTitle": "Failed to load expediente",
-      "errorDesc": "Something went wrong while querying the data source. Please try again.",
-      "retry": "Retry"
+      "backToList": "Back to list"
     },
     "behaviorHistory": {
       "title": "Behavior History",

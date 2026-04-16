@@ -200,6 +200,7 @@ export function DashletSettings({
             sizing="sm"
             value={titleColumn}
             onChange={(e) => setTitleColumn(e.target.value)}
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {tr("dashboard.settings.none", dictionary)}
@@ -224,6 +225,7 @@ export function DashletSettings({
             sizing="sm"
             value={subtitleColumn}
             onChange={(e) => setSubtitleColumn(e.target.value)}
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {tr("dashboard.settings.none", dictionary)}

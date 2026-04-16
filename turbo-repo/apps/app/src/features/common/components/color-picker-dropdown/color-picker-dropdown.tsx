@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { HiCheck } from "react-icons/hi";
+import { Button } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import { usePickerDropdown } from "../../hooks";
 
@@ -46,17 +47,13 @@ export function ColorPickerDropdown<T extends string = string>({
 
   return (
     <>
-      <button
+      <Button
         ref={triggerRef}
         type="button"
+        color="gray"
+        size="sm"
         onClick={toggle}
-        className={twMerge(
-          "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
-          "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600",
-          "hover:border-gray-400 dark:hover:border-gray-500",
-          "focus:outline-none focus:ring-2 focus:ring-primary-300",
-          className
-        )}
+        className={twMerge("!p-1.5 w-7 h-7", className)}
         title={title}
       >
         <span
@@ -65,7 +62,7 @@ export function ColorPickerDropdown<T extends string = string>({
             selectedOption?.dotClass ?? "bg-gray-400"
           )}
         />
-      </button>
+      </Button>
       {isOpen &&
         position &&
         createPortal(

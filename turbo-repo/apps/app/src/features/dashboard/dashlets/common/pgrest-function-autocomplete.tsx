@@ -168,7 +168,7 @@ export function PgrestFunctionAutocomplete({
           {fetchError}{" "}
           <button
             type="button"
-            className="underline hover:no-underline"
+            className="cursor-pointer underline hover:no-underline"
             onClick={retryFetch}
           >
             {tr("common.retry", dictionary)}

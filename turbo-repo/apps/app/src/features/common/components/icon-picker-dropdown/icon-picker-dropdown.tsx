@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { HiCheck } from "react-icons/hi";
+import { Button } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import { usePickerDropdown } from "../../hooks";
 
@@ -47,12 +48,14 @@ export function IconPickerDropdown<T extends string = string>({
 
   return (
     <>
-      <button
+      <Button
         ref={triggerRef}
         type="button"
+        color="alternative"
+        size="sm"
         onClick={toggle}
         className={twMerge(
-          "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+          "p-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
           "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600",
           "hover:border-gray-400 dark:hover:border-gray-500",
           "focus:outline-none focus:ring-2 focus:ring-primary-300",
@@ -63,7 +66,7 @@ export function IconPickerDropdown<T extends string = string>({
         {SelectedIcon && (
           <SelectedIcon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
         )}
-      </button>
+      </Button>
       {isOpen &&
         position &&
         createPortal(

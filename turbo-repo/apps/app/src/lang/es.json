@@ -1487,6 +1487,9 @@
     "value": "Valor",
     "max": "Máx",
     "unit": "Unidad",
+    "description": "Descripción",
+    "target": "Objetivo",
+    "previousValue": "Valor Anterior",
     "all": "Todos",
     "delete": "Eliminar",
     "yes": "Sí",
@@ -1554,6 +1557,10 @@
       "new": "nueva",
       "borderColor": "Color del Borde",
       "barColor": "Color de la Barra",
+      "ringColor": "Color del Anillo",
+      "ringColorRules": "Reglas de Color del Anillo",
+      "barColorRules": "Reglas de Color de la Barra",
+      "evalModeCount": "Conteo",
       "seeMoreUrl": "URL \"Ver más\"",
       "items": "Elementos",
       "details": "Detalles",
@@ -1626,6 +1633,21 @@
       "colorGray": "gris",
       "colorOrange": "naranja",
       "colorPurple": "morado",
+      "valueColorRules": "Reglas de Color por Valor",
+      "targetText": "Texto",
+      "targetBar": "Barra",
+      "targetBadge": "Badge",
+      "targetBg": "Fondo",
+      "targetBorder": "Borde",
+      "targetIcon": "Ícono",
+      "compareModeValue": "Valor",
+      "compareModeField": "Campo",
+      "compareFieldPrevious": "Anterior",
+      "compareFieldTarget": "Objetivo",
+      "selectRuleColor": "Seleccionar color de regla",
+      "thresholds": "Umbrales",
+      "evaluateField": "Evaluar campo",
+      "applyTo": "Aplicar a",
       "actions": "Acciones",
       "addAction": "Agregar acción",
       "actionName": "Nombre",
@@ -1677,6 +1699,14 @@
       "noActiveProviders": "No hay proveedores activos disponibles",
       "failedToLoadFunctions": "Error al cargar funciones",
       "invalidResponseFormat": "Formato de respuesta inválido",
+      "fileUpload": {
+        "buttonLabel": "Etiqueta del botón",
+        "buttonLabelPlaceholder": "Subir archivo",
+        "uploadEndpoint": "Endpoint de carga",
+        "acceptedFileTypes": "Tipos de archivo aceptados",
+        "acceptedFileTypesHint": "Extensiones o tipos MIME separados por coma. Dejar vacío para aceptar todos.",
+        "defaultEnv": "Por defecto (env)"
+      },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
       "noFiltersConfigured": "No hay filtros configurados. Agregue filtros para habilitar la barra de filtros del dashboard.",
@@ -1745,7 +1775,32 @@
       "mapSettings": "Ajustes del Mapa",
       "showFilters": "Mostrar Filtros",
       "showSidebar": "Mostrar Barra Lateral",
-      "showStyleSelector": "Mostrar Selector de Estilo"
+      "showStyleSelector": "Mostrar Selector de Estilo",
+      "dataType": "Tipo de dato",
+      "columnFilter": "Filtrar",
+      "columnFilterClear": "Limpiar filtro",
+      "columnFilterClearAll": "Limpiar todo",
+      "columnFilterShowing": "Mostrando {filtered} de {total}",
+      "columnFilterSearch": "Buscar...",
+      "columnFilterEquals": "Igual a",
+      "columnFilterGreaterThan": "Mayor que",
+      "columnFilterLessThan": "Menor que",
+      "columnFilterBetween": "Entre",
+      "columnFilterMin": "Mínimo",
+      "columnFilterMax": "Máximo",
+      "columnFilterFrom": "Desde",
+      "columnFilterTo": "Hasta",
+      "columnFilterAll": "Todos",
+      "columnFilterYes": "Sí",
+      "columnFilterNo": "No",
+      "columnFilterEmpty": "vacío",
+      "columnFilterNotEmpty": "no vacío",
+      "columnFilterNoValues": "Sin valores",
+      "columnFilterTitle": "Filtrar: {column}",
+      "columnFilterValue": "Valor",
+      "columnFilterDateRange": "{from} → {to}",
+      "columnFilterFromDate": "desde {date}",
+      "columnFilterToDate": "hasta {date}"
     },
     "filterBar": {
       "search": "Buscar...",
@@ -1810,12 +1865,21 @@
         "noData": "Sin datos"
       },
       "geographic_map": {
-        "name": "Mapa Geográfico",
+        "name": "Vista Geográfica",
         "description": "Mapa interactivo con marcadores de posición y filtros",
         "load_failed": "Error al cargar datos del mapa"
       }
     },
-    "defaults": {
+    "fileUpload": {
+        "defaultTitle": "Subir archivo",
+        "configureHint": "Configura un endpoint en ajustes",
+        "noEndpoint": "No hay endpoint configurado",
+        "uploading": "Subiendo {fileName}...",
+        "uploaded": "{fileName} subido",
+        "uploadFailed": "Error al subir",
+        "tryAgain": "Intentar de nuevo"
+      },
+      "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",
       "orders": "Pedidos",
@@ -2902,7 +2966,54 @@
           "intensityLastDays": "Intensidad últimos 30 días",
           "exceeded": "Excedido",
           "nearLimit": "Próximo al límite",
-          "usageLabel": "uso"
+          "usageLabel": "uso",
+          "activeDaysLabel": "Días con datos",
+          "activeDaysValue": "{active}/{total} días",
+          "useType": "Tipo de uso",
+          "useTypeUnknown": "Sin clasificar",
+          "useTypeDesc": "Categoría del contrato",
+          "annualProjection": "Proyección anual",
+          "projectionBasis": "Estimación basada en los últimos 30 días",
+          "contractStatus": {
+            "NORMAL": {
+              "label": "{pct} – uso normal",
+              "bannerTitle": "Uso dentro del contrato",
+              "bannerDesc": "El vehículo consume kilometraje dentro del rango contractual esperado."
+            },
+            "SOBREUSO": {
+              "label": "{pct} – sobreuso",
+              "bannerTitle": "Sobreuso del contrato",
+              "bannerDesc": "El kilometraje acumulado supera la meta contractual. Revisar condiciones del contrato o reasignación del vehículo."
+            },
+            "SUBUTILIZADO": {
+              "label": "{pct} – subutilizado",
+              "bannerTitle": "Vehículo subutilizado",
+              "bannerDesc": "El vehículo consume muy por debajo de la meta contractual. Evaluar reasignación o rebalance de flota."
+            },
+            "SIN_DATOS": {
+              "label": "Sin datos",
+              "bannerTitle": "Sin datos de uso",
+              "bannerDesc": "No se registran lecturas de odómetro recientes para este vehículo. La sección se actualizará cuando llegue nueva telemetría."
+            }
+          },
+          "intensity": {
+            "ALTA": {
+              "label": "Intensidad alta"
+            },
+            "MEDIA": {
+              "label": "Intensidad media"
+            },
+            "BAJA": {
+              "label": "Intensidad baja"
+            },
+            "SIN_DATO": {
+              "label": "Sin intensidad"
+            }
+          },
+          "loading": "Cargando uso…",
+          "errorTitle": "No se pudo cargar el uso",
+          "errorDesc": "Hubo un problema al obtener los datos de uso. Intenta nuevamente.",
+          "retry": "Reintentar"
         },
         "general": {
           "title": "Información General",

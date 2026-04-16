@@ -1462,6 +1462,9 @@
     "value": "Value",
     "max": "Max",
     "unit": "Unit",
+    "description": "Description",
+    "target": "Target",
+    "previousValue": "Previous Value",
     "all": "All",
     "delete": "Delete",
     "yes": "Yes",
@@ -1529,6 +1532,10 @@
       "new": "new",
       "borderColor": "Border Color",
       "barColor": "Bar Color",
+      "ringColor": "Ring Color",
+      "ringColorRules": "Ring Color Rules",
+      "barColorRules": "Bar Color Rules",
+      "evalModeCount": "Count",
       "seeMoreUrl": "\"See more\" Link URL",
       "items": "Items",
       "details": "Details",
@@ -1600,6 +1607,21 @@
       "colorGray": "gray",
       "colorOrange": "orange",
       "colorPurple": "purple",
+      "valueColorRules": "Value Color Rules",
+      "targetText": "Text",
+      "targetBar": "Bar",
+      "targetBadge": "Badge",
+      "targetBg": "BG",
+      "targetBorder": "Border",
+      "targetIcon": "Icon",
+      "compareModeValue": "Value",
+      "compareModeField": "Field",
+      "compareFieldPrevious": "Previous",
+      "compareFieldTarget": "Target",
+      "selectRuleColor": "Select rule color",
+      "thresholds": "Thresholds",
+      "evaluateField": "Evaluate field",
+      "applyTo": "Apply to",
       "actions": "Actions",
       "addAction": "Add action",
       "actionName": "Name",
@@ -1651,6 +1673,14 @@
       "noActiveProviders": "No active providers available",
       "failedToLoadFunctions": "Failed to load functions",
       "invalidResponseFormat": "Invalid response format",
+      "fileUpload": {
+        "buttonLabel": "Button Label",
+        "buttonLabelPlaceholder": "Upload File",
+        "uploadEndpoint": "Upload Endpoint",
+        "acceptedFileTypes": "Accepted File Types",
+        "acceptedFileTypesHint": "Comma-separated extensions or MIME types. Leave empty to accept all.",
+        "defaultEnv": "Default (env)"
+      },
       "filterBarTitle": "Filter Bar",
       "filterBarDescription": "Configure dashboard filter parameters",
       "noFiltersConfigured": "No filters configured. Add filters to enable the dashboard filter bar.",
@@ -1720,7 +1750,32 @@
       "mapSettings": "Map Settings",
       "showFilters": "Show Filters",
       "showSidebar": "Show Sidebar",
-      "showStyleSelector": "Show Style Selector"
+      "showStyleSelector": "Show Style Selector",
+      "dataType": "Data Type",
+      "columnFilter": "Filter",
+      "columnFilterClear": "Clear filter",
+      "columnFilterClearAll": "Clear all",
+      "columnFilterShowing": "Showing {filtered} of {total}",
+      "columnFilterSearch": "Search...",
+      "columnFilterEquals": "Equals",
+      "columnFilterGreaterThan": "Greater than",
+      "columnFilterLessThan": "Less than",
+      "columnFilterBetween": "Between",
+      "columnFilterMin": "Min",
+      "columnFilterMax": "Max",
+      "columnFilterFrom": "From",
+      "columnFilterTo": "To",
+      "columnFilterAll": "All",
+      "columnFilterYes": "Yes",
+      "columnFilterNo": "No",
+      "columnFilterEmpty": "empty",
+      "columnFilterNotEmpty": "not empty",
+      "columnFilterNoValues": "No values",
+      "columnFilterTitle": "Filter: {column}",
+      "columnFilterValue": "Value",
+      "columnFilterDateRange": "{from} → {to}",
+      "columnFilterFromDate": "from {date}",
+      "columnFilterToDate": "to {date}"
     },
     "filterBar": {
       "search": "Search...",
@@ -1790,7 +1845,16 @@
         "load_failed": "Failed to load map data"
       }
     },
-    "defaults": {
+    "fileUpload": {
+        "defaultTitle": "Upload File",
+        "configureHint": "Configure an endpoint in settings",
+        "noEndpoint": "No endpoint configured",
+        "uploading": "Uploading {fileName}...",
+        "uploaded": "{fileName} uploaded",
+        "uploadFailed": "Upload failed",
+        "tryAgain": "Try again"
+      },
+      "defaults": {
       "pageViews": "Page Views",
       "storageUsed": "Storage Used",
       "orders": "Orders",
@@ -2869,7 +2933,54 @@
           "intensityLastDays": "Intensity last 30 days",
           "exceeded": "Exceeded",
           "nearLimit": "Near limit",
-          "usageLabel": "usage"
+          "usageLabel": "usage",
+          "activeDaysLabel": "Days with data",
+          "activeDaysValue": "{active}/{total} days",
+          "useType": "Use type",
+          "useTypeUnknown": "Unclassified",
+          "useTypeDesc": "Contract category",
+          "annualProjection": "Annual projection",
+          "projectionBasis": "Estimated from the last 30 days",
+          "contractStatus": {
+            "NORMAL": {
+              "label": "{pct} – normal use",
+              "bannerTitle": "Usage within contract",
+              "bannerDesc": "The vehicle is consuming mileage within the expected contractual range."
+            },
+            "SOBREUSO": {
+              "label": "{pct} – overuse",
+              "bannerTitle": "Contract overuse",
+              "bannerDesc": "Accumulated mileage exceeds the contractual target. Review contract terms or vehicle reassignment."
+            },
+            "SUBUTILIZADO": {
+              "label": "{pct} – underused",
+              "bannerTitle": "Vehicle underused",
+              "bannerDesc": "The vehicle is consuming mileage well below the contractual target. Consider reassignment or fleet rebalancing."
+            },
+            "SIN_DATOS": {
+              "label": "No data",
+              "bannerTitle": "No usage data",
+              "bannerDesc": "No recent odometer readings for this vehicle. The section will update once new telemetry arrives."
+            }
+          },
+          "intensity": {
+            "ALTA": {
+              "label": "High intensity"
+            },
+            "MEDIA": {
+              "label": "Medium intensity"
+            },
+            "BAJA": {
+              "label": "Low intensity"
+            },
+            "SIN_DATO": {
+              "label": "No intensity data"
+            }
+          },
+          "loading": "Loading usage…",
+          "errorTitle": "Could not load usage",
+          "errorDesc": "There was a problem fetching usage data. Please try again.",
+          "retry": "Retry"
         },
         "general": {
           "title": "General Information",

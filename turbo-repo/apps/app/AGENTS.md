@@ -99,6 +99,255 @@ return normalizeError(error);
 
 Note: Method calls are free (don't add complexity), but recursive calls do increment the score.
 
+## Color Rules Evaluation Pattern
+
+When evaluating color rules in dashlets (matching values against rules to determine colors), **always extract the logic into helper functions** to reduce cognitive complexity:
+
+1. **Extract operator check helpers** - `isGreaterOperator()`, `isLessOperator()`
+2. **Extract sorting logic** - `sortColorRules()` function
+3. **Extract evaluation logic** - `evaluateColorRules()` returning an object with all colors
+4. **Extract style builders** - `buildBgStyle()`, `buildTextStyle()`, etc.
+
+**Example - Pattern for color rule evaluation:**
+
+```typescript
+interface EvaluatedColors {
+  textColor: string | undefined;
+  bgColor: string | undefined;
+  iconColor: string | undefined;
+}
+
+function isGreaterOperator(op: string): boolean {
+  return op === "greater_than" || op === "greater_than_or_equal";
+}
+
+function isLessOperator(op: string): boolean {
+  return op === "less_than" || op === "less_than_or_equal";
+}
+
+function sortColorRules(rules: ValueColorRule[]): ValueColorRule[] {
+  return [...rules].sort((a, b) => {
+    const aVal = Number(a.value) || 0;
+    const bVal = Number(b.value) || 0;
+    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
+      return bVal - aVal;
+    }
+    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}
+
+function evaluateColorRules(rules: ValueColorRule[], evalValue: string): EvaluatedColors {
+  let textColor: string | undefined;
+  let bgColor: string | undefined;
+  let iconColor: string | undefined;
+
+  for (const rule of sortColorRules(rules)) {
+    const matches = evaluateRule(/* ... */, evalValue);
+    if (!matches) continue;
+
+    if (rule.targets.includes("text") && !textColor) textColor = rule.color;
+    if (rule.targets.includes("bg") && !bgColor) bgColor = rule.color;
+    if (rule.targets.includes("icon") && !iconColor) iconColor = rule.color;
+    if (textColor && bgColor && iconColor) break;
+  }
+
+  return { textColor, bgColor, iconColor };
+}
+```
+
+Then in the component:
+
+```typescript
+const { textColor, bgColor, iconColor } =
+  rules.length > 0
+    ? evaluateColorRules(rules, String(value))
+    : { textColor: undefined, bgColor: undefined, iconColor: undefined };
+```
+
+## Negated Conditions
+
+- **Avoid negated conditions in if-else statements** when the else branch is not empty
+- SonarQube enforces: "Unexpected negated condition"
+- Reorder conditions so the positive check comes first
+
+**Example - Avoid:**
+
+```typescript
+if (options?.fallbackValue !== undefined) {
+  resolvedValue = String(options.fallbackValue);
+} else {
+  return { color: null };
+}
+```
+
+**Example - Correct:**
+
+```typescript
+if (options?.fallbackValue === undefined) {
+  return { color: null };
+} else {
+  resolvedValue = String(options.fallbackValue);
+}
+```
+
+- **For conditional CSS classes in JSX**, pre-compute the classes using helper functions instead of inline negations:
+
+**Example - Avoid (negated condition in JSX):**
+
+```tsx
+<div className={`container ${!effectiveColor ? "bg-gray-100" : ""}`}>
+```
+
+**Example - Correct (pre-computed with helper):**
+
+```typescript
+function getBgClasses(effectiveColor: string | undefined): string {
+  if (effectiveColor) return "";
+  return "bg-gray-100";
+}
+
+// In component:
+const bgClasses = getBgClasses(effectiveColor);
+return <div className={`container ${bgClasses}`}>;
+```
+
+## Nested Ternary Operations
+
+- **Never use nested ternary operators** - Extract to a helper function with sequential if statements
+- SonarQube enforces: "Extract this nested ternary operation into an independent statement"
+
+**Example - Avoid:**
+
+```typescript
+const style = ruleColor
+  ? { color: `#${ruleColor}` }
+  : manualColor
+    ? { color: `#${manualColor}` }
+    : undefined;
+```
+
+**Example - Correct:**
+
+```typescript
+function buildTextStyle(
+  ruleColor: string | undefined,
+  manualColor: string | undefined
+): React.CSSProperties | undefined {
+  if (ruleColor) return { color: `#${ruleColor}` };
+  if (manualColor) return { color: `#${manualColor}` };
+  return undefined;
+}
+
+const style = buildTextStyle(ruleColor, manualColor);
+```
+
+## Number Methods
+
+- **Use `Number.parseInt()` and `Number.parseFloat()`** instead of global `parseInt()` and `parseFloat()`
+- ESLint enforces: "Prefer `Number.parseInt` over `parseInt`"
+
+**Example - Avoid:**
+
+```typescript
+const r = parseInt(hex.slice(0, 2), 16);
+```
+
+**Example - Correct:**
+
+```typescript
+const r = Number.parseInt(hex.slice(0, 2), 16);
+```
+
+## Unused Variables and State
+
+- **Remove unused state variables** - If a setter is never called, remove the state
+- **Remove unused imports** - Especially deprecated ones
+- If state is never modified, use the config value directly in calculations
+
+**Example - Avoid:**
+
+```typescript
+const [barColor, setBarColor] = useState(config.barColor ?? DEFAULT_COLOR);
+// setBarColor is never called anywhere
+```
+
+**Example - Correct:**
+
+```typescript
+// Use config value directly in save payload
+const handleSave = () => {
+  onSave({ barColor: config.barColor ?? DEFAULT_COLOR /* ... */ });
+};
+```
+
+## Unnecessary Type Assertions
+
+- **Don't cast types when the type is already correct**
+- TypeScript/ESLint enforces: "This assertion is unnecessary since it does not change the type of the expression"
+
+**Example - Avoid:**
+
+```typescript
+// mapping.operator is already ColorRuleOperator
+OPERATOR_LABELS[mapping.operator as ColorRuleOperator];
+```
+
+**Example - Correct:**
+
+```typescript
+OPERATOR_LABELS[mapping.operator];
+```
+
+## Redundant Type Aliases
+
+- **Don't create type aliases that just alias primitive types**
+- SonarQube enforces: "Remove this redundant type alias and replace its occurrences with 'string'"
+
+**Example - Avoid:**
+
+```typescript
+export type RuleColor = string;
+
+interface ColorRule {
+  color: RuleColor;
+}
+```
+
+**Example - Correct:**
+
+```typescript
+interface ColorRule {
+  color: string;
+}
+```
+
+## Deprecated Exports
+
+- **Never import deprecated constants or types** - Check JSDoc for `@deprecated` annotations
+- Use the recommended replacement or inline the values
+
+**Example - Avoid:**
+
+```typescript
+import { RULE_COLORS } from "./color-rule-types"; // @deprecated
+
+if ((RULE_COLORS as string[]).includes(color)) {
+  /* ... */
+}
+```
+
+**Example - Correct:**
+
+```typescript
+// For validation, just check it's a string (colors can be any hex value now)
+if (typeof color === "string") {
+  /* ... */
+}
+```
+
 ## React Component Rules
 
 - Never define components inside other components (nested components)

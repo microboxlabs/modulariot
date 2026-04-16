@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Button,
-  Textarea,
-  Label,
-  ToggleSwitch,
-  TextInput,
-  Select,
-} from "flowbite-react";
-import { HiPlus } from "react-icons/hi2";
+import { Textarea, Label, TextInput, Select } from "flowbite-react";
 import type { ColumnItem } from "./column-helpers";
 import { DeleteItemButton } from "./delete-item-button";
 import type { FilterItem } from "./filter-helpers";
@@ -17,20 +9,18 @@ import type { DataMode } from "./column-types";
 import { SettingsTextField, SettingsSelectField } from "./settings-fields";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
-import { COLUMN_TYPES } from "./column-types";
+import { COLUMN_TYPES, DATA_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
-import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
-import { getColorDotClass } from "./color-rule-engine";
+import type { ColorRuleOperator } from "./color-rule-types";
+import { COLOR_RULE_PRESETS } from "./color-rule-types";
+import {
+  ColorRuleRow,
+  ToggleSectionHeader,
+  AddRuleButton,
+  ColumnDropdown,
+} from "./color-rule-row";
 import type { ActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
-import { RuleRowControls } from "./rule-row-controls";
-
-// ============================================================================
-// Shared mouse-down handler (prevents drag on settings modals)
-// ============================================================================
-
-const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
 // ============================================================================
 // ColumnEditor
@@ -42,7 +32,7 @@ interface ColumnEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (
     id: string,
-    field: "key" | "label" | "type",
+    field: "key" | "label" | "type" | "dataType",
     value: string
   ) => void;
   onAddColorMapping?: (colId: string) => void;
@@ -61,7 +51,6 @@ interface ColumnEditorProps {
     addMapping: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
-    colorLabels: Record<RuleColor, string>;
   };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
@@ -123,6 +112,15 @@ export function ColumnEditor({
                   color={getFlowbiteColor(getHandlebarsStatus(col.type))}
                 />
               </div>
+              <div className="w-24 shrink-0">
+                <SuggestionInput
+                  sizing="sm"
+                  placeholder="text"
+                  value={col.dataType ?? "text"}
+                  onChange={(v) => onUpdate(col._id, "dataType", v)}
+                  suggestions={DATA_TYPES}
+                />
+              </div>
               <DeleteItemButton
                 onClick={() => onRemove(col._id)}
                 ariaLabel="Delete column"
@@ -134,105 +132,55 @@ export function ColumnEditor({
               onAddColorMapping &&
               onRemoveColorMapping &&
               onUpdateColorMapping && (
-                <div className="ml-4 space-y-1 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
+                <div className="ml-4 space-y-1.5 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
                   {(col.colorMap ?? []).map((mapping) => (
-                    <div
+                    <ColorRuleRow
                       key={`${col._id}-cm-${mapping._id}`}
-                      className="flex items-center gap-1"
-                    >
-                      <div className="w-24 shrink-0">
-                        <Select
-                          sizing="sm"
-                          value={mapping.operator}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "operator",
-                              e.target.value
-                            )
-                          }
-                          className="[&>select]:cursor-pointer"
-                        >
-                          {COLOR_RULE_OPERATORS.map((op) => (
-                            <option key={op} value={op}>
-                              {labels.operatorLabels[op]}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <TextInput
-                          sizing="sm"
-                          placeholder={labels.valuePlaceholder}
-                          value={mapping.value}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "value",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="w-24 shrink-0">
-                        <Select
-                          sizing="sm"
-                          value={mapping.color}
-                          onChange={(e) =>
-                            onUpdateColorMapping(
-                              col._id,
-                              mapping._id!,
-                              "color",
-                              e.target.value
-                            )
-                          }
-                          className="[&>select]:cursor-pointer"
-                        >
-                          {RULE_COLORS.map((c) => (
-                            <option key={c} value={c}>
-                              {labels.colorLabels[c]}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <span
-                        className={`inline-block h-3 w-3 shrink-0 rounded-full ${getColorDotClass(mapping.color)}`}
-                      />
-                      <DeleteItemButton
-                        onClick={() =>
-                          onRemoveColorMapping(col._id, mapping._id!)
-                        }
-                        ariaLabel="Delete color mapping"
-                      />
-                    </div>
+                      operator={mapping.operator}
+                      value={mapping.value}
+                      color={mapping.color}
+                      onOperatorChange={(op: ColorRuleOperator) =>
+                        onUpdateColorMapping(
+                          col._id,
+                          mapping._id!,
+                          "operator",
+                          op
+                        )
+                      }
+                      onValueChange={(val: string) =>
+                        onUpdateColorMapping(
+                          col._id,
+                          mapping._id!,
+                          "value",
+                          val
+                        )
+                      }
+                      onColorChange={(c: string) =>
+                        onUpdateColorMapping(col._id, mapping._id!, "color", c)
+                      }
+                      onDelete={() =>
+                        onRemoveColorMapping(col._id, mapping._id!)
+                      }
+                      valuePlaceholder={labels.valuePlaceholder}
+                      colorPresets={COLOR_RULE_PRESETS}
+                      colorPickerTitle="Select mapping color"
+                      deleteAriaLabel="Delete color mapping"
+                    />
                   ))}
-                  <Button
-                    color="light"
-                    size="xs"
+                  <AddRuleButton
                     onClick={() => onAddColorMapping(col._id)}
-                    onMouseDown={stopPropagation}
-                    className="no-drag"
-                  >
-                    <HiPlus className="mr-1 h-3 w-3" />
-                    {labels.addMapping}
-                  </Button>
+                    label={labels.addMapping}
+                  />
                 </div>
               )}
           </div>
         ))}
       </div>
-      <Button
-        color="light"
-        size="xs"
+      <AddRuleButton
         onClick={onAdd}
-        onMouseDown={stopPropagation}
-        className="no-drag mt-2"
-      >
-        <HiPlus className="mr-1 h-3 w-3" />
-        {labels.addColumn}
-      </Button>
+        label={labels.addColumn}
+        className="mt-2"
+      />
     </div>
   );
 }
@@ -271,10 +219,11 @@ export function FilterEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{labels.filter}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={labels.filter}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -317,16 +266,11 @@ export function FilterEditor({
                 </div>
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {labels.addFilter}
-            </Button>
+              label={labels.addFilter}
+              className="mt-2"
+            />
           </div>
         )}
       </div>
@@ -359,10 +303,11 @@ export function SortEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{labels.sort}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={labels.sort}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -519,7 +464,6 @@ interface ColorRuleEditorProps {
     addRule: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
-    colorLabels: Record<RuleColor, string>;
   };
 }
 
@@ -534,61 +478,56 @@ export function ColorRuleEditor({
   onUpdate,
   labels,
 }: Readonly<ColorRuleEditorProps>) {
+  const columnOptions = columnsWithKeys.map((c) => ({
+    key: c.key,
+    label: c.label || c.key,
+  }));
+
   return (
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{title}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={title}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
             <div className="space-y-2">
               {rules.map((rule) => (
-                <div key={rule._id} className="flex items-center gap-1">
-                  {/* Column select */}
-                  <div className="min-w-0 flex-1">
-                    <Select
-                      sizing="sm"
-                      value={rule.column}
-                      onChange={(e) =>
-                        onUpdate(rule._id, "column", e.target.value)
-                      }
-                      className="[&>select]:cursor-pointer"
-                    >
-                      {columnsWithKeys.map((c) => (
-                        <option key={c._id} value={c.key}>
-                          {c.label || c.key}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <RuleRowControls
-                    ruleId={rule._id}
-                    operator={rule.operator}
-                    value={rule.value}
-                    color={rule.color}
-                    onUpdate={onUpdate}
-                    onRemove={onRemove}
-                    operatorLabels={labels.operatorLabels}
-                    colorLabels={labels.colorLabels}
-                    valuePlaceholder={labels.valuePlaceholder}
-                  />
-                </div>
+                <ColorRuleRow
+                  key={rule._id}
+                  operator={rule.operator}
+                  value={rule.value}
+                  color={rule.color}
+                  onOperatorChange={(op: ColorRuleOperator) =>
+                    onUpdate(rule._id, "operator", op)
+                  }
+                  onValueChange={(val: string) =>
+                    onUpdate(rule._id, "value", val)
+                  }
+                  onColorChange={(c: string) => onUpdate(rule._id, "color", c)}
+                  onDelete={() => onRemove(rule._id)}
+                  valuePlaceholder={labels.valuePlaceholder}
+                  colorPresets={COLOR_RULE_PRESETS}
+                  valueInputClassName="w-20 shrink-0"
+                  prefixElement={
+                    <ColumnDropdown
+                      value={rule.column ?? ""}
+                      options={columnOptions}
+                      onChange={(key) => onUpdate(rule._id, "column", key)}
+                    />
+                  }
+                />
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {labels.addRule}
-            </Button>
+              label={labels.addRule}
+              className="mt-2"
+            />
           </div>
         )}
       </div>
@@ -635,10 +574,11 @@ export function ActionsEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{labels.actions}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={labels.actions}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -698,16 +638,11 @@ export function ActionsEditor({
                 </div>
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {labels.addAction}
-            </Button>
+              label={labels.addAction}
+              className="mt-2"
+            />
           </div>
         )}
       </div>

@@ -1,17 +1,15 @@
 "use client";
 
-import {
-  Button,
-  Label,
-  Dropdown,
-  DropdownItem,
-  ToggleSwitch,
-} from "flowbite-react";
-import { HiPlus, HiChevronDown } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { ColorRuleOperator } from "./color-rule-types";
-import { ColorRuleRow, DEFAULT_COLOR_PRESETS } from "./color-rule-row";
+import {
+  ColorRuleRow,
+  ColumnDropdown,
+  ToggleSectionHeader,
+  AddRuleButton,
+  DEFAULT_COLOR_PRESETS,
+} from "./color-rule-row";
 
 // ============================================================================
 // Types
@@ -35,12 +33,6 @@ export interface RowColorRuleItem {
   /** The color to apply (hex without #) */
   color: string;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
 // ============================================================================
 // Component
@@ -82,10 +74,11 @@ export function RowColorRuleSetter({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">{title}</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={title}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div>
@@ -113,46 +106,20 @@ export function RowColorRuleSetter({
                   deleteAriaLabel={tr("common.delete", dictionary)}
                   valueInputClassName="w-20 shrink-0"
                   prefixElement={
-                    <Dropdown
-                      label=""
-                      dismissOnClick
-                      renderTrigger={() => (
-                        <button
-                          type="button"
-                          className="flex h-7 min-w-0 flex-1 cursor-pointer items-center justify-between gap-0.5 rounded-lg border border-gray-300 bg-gray-50 px-1.5 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                        >
-                          <span className="truncate">
-                            {columns.find((c) => c.key === rule.column)
-                              ?.label || rule.column}
-                          </span>
-                          <HiChevronDown className="h-3 w-3 shrink-0" />
-                        </button>
-                      )}
-                    >
-                      {columns.map((col) => (
-                        <DropdownItem
-                          key={col.key}
-                          onClick={() => onUpdate(rule._id, "column", col.key)}
-                          className="text-xs"
-                        >
-                          {col.label || col.key}
-                        </DropdownItem>
-                      ))}
-                    </Dropdown>
+                    <ColumnDropdown
+                      value={rule.column}
+                      options={columns}
+                      onChange={(key) => onUpdate(rule._id, "column", key)}
+                    />
                   }
                 />
               ))}
             </div>
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag mt-2"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              {tr("dashboard.settings.addRule", dictionary)}
-            </Button>
+              label={tr("dashboard.settings.addRule", dictionary)}
+              className="mt-2"
+            />
           </div>
         )}
       </div>

@@ -230,5 +230,9 @@ export {
   OperatorDropdown,
   ValueInput,
   DeleteButton,
+  ToggleSectionHeader,
+  AddRuleButton,
+  ColumnDropdown,
+  type ColumnDropdownOption,
   DEFAULT_COLOR_PRESETS,
 } from "./color-rule-row";

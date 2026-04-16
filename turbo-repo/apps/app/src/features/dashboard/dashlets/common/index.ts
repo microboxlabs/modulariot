@@ -225,3 +225,10 @@ export {
   getConditionalClasses,
   getBadgeClasses as getStatBadgeClasses,
 } from "./color-rule-evaluation";
+export {
+  ColorRuleRow,
+  OperatorDropdown,
+  ValueInput,
+  DeleteButton,
+  DEFAULT_COLOR_PRESETS,
+} from "./color-rule-row";

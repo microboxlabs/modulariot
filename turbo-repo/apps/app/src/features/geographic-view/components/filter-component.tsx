@@ -77,7 +77,7 @@ export default function FilterComponent({
         </div>
       </div>
       <div
-        className={`h-10 transition-all duration-300 ease-in-out !flex justify-center items-center flex-row gap-2 w-fit ${expanded ? "animate-show" : "animate-hide-width"}  `}
+        className={`h-10 transition-all duration-300 ease-in-out !flex justify-center items-center flex-row gap-2 w-fit ${expanded ? "animate-show pointer-events-auto" : "animate-hide-width pointer-events-none"}  `}
       >
         {options.map((option, index) => (
           <div

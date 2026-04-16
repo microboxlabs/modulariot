@@ -6,13 +6,9 @@ import type { DashletSettingsProps } from "../types";
 import {
   type DashletConfig,
   type ContainerVariant,
-  type LabelBorderColor,
   defaultConfig,
 } from "./dashlet";
-import {
-  ColorPickerDropdown,
-  type ColorOption,
-} from "@/features/common/components/color-picker-dropdown";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
   SettingsTextField,
   SettingsTextareaField,
@@ -31,20 +27,6 @@ import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 
 type ContainerDataMode = "static" | "pgrest" | "planner";
-
-/** Color options for labeled-group border using ColorPickerDropdown */
-const BORDER_COLOR_OPTIONS: ColorOption<LabelBorderColor>[] = [
-  { value: "gray", label: "Gray", dotClass: "bg-gray-400" },
-  { value: "red", label: "Red", dotClass: "bg-red-400" },
-  { value: "orange", label: "Orange", dotClass: "bg-orange-400" },
-  { value: "yellow", label: "Yellow", dotClass: "bg-yellow-400" },
-  { value: "green", label: "Green", dotClass: "bg-green-400" },
-  { value: "teal", label: "Teal", dotClass: "bg-teal-400" },
-  { value: "blue", label: "Blue", dotClass: "bg-blue-400" },
-  { value: "indigo", label: "Indigo", dotClass: "bg-indigo-400" },
-  { value: "purple", label: "Purple", dotClass: "bg-purple-400" },
-  { value: "pink", label: "Pink", dotClass: "bg-pink-400" },
-];
 
 /**
  * Settings modal for Container dashlet
@@ -76,8 +58,8 @@ export function DashletSettings({
     config.openInSameTab ?? false
   );
   const [label, setLabel] = useState(config.label ?? defaultConfig.label);
-  const [borderColor, setBorderColor] = useState<LabelBorderColor>(
-    config.borderColor ?? defaultConfig.borderColor ?? "gray"
+  const [borderColor, setBorderColor] = useState<string>(
+    config.borderColor ?? defaultConfig.borderColor ?? "6b7280"
   );
 
   // Data settings state
@@ -113,7 +95,7 @@ export function DashletSettings({
     setVerMasUrl(config.verMasUrl ?? defaultConfig.verMasUrl);
     setOpenInSameTab(config.openInSameTab ?? false);
     setLabel(config.label ?? defaultConfig.label);
-    setBorderColor(config.borderColor ?? defaultConfig.borderColor ?? "gray");
+    setBorderColor(config.borderColor ?? defaultConfig.borderColor ?? "6b7280");
     setDataMode(config.dataMode || "static");
     setPlannerVariableName(config.plannerVariableName ?? "");
     setDataSourceId(config.dataSourceId ?? "");
@@ -250,10 +232,9 @@ export function DashletSettings({
           <SettingsPickerItem
             label={tr("dashboard.settings.borderColor", dictionary)}
           >
-            <ColorPickerDropdown
+            <AdvancedColorPicker
               value={borderColor}
               onChange={setBorderColor}
-              options={BORDER_COLOR_OPTIONS}
               title={tr("dashboard.settings.selectBorderColor", dictionary)}
             />
           </SettingsPickerItem>

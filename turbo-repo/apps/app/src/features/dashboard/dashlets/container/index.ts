@@ -33,8 +33,6 @@ export {
   Dashlet as Container,
   defaultConfig,
   getLayoutDefaults as getContainerLayoutDefaults,
-  BORDER_COLOR_CLASSES,
-  LABEL_BORDER_COLORS,
 } from "./dashlet";
 export { DashletSettings as ContainerSettings } from "./dashlet.settings";
 export { dashletMeta as containerMeta } from "./dashlet.meta";
@@ -48,5 +46,4 @@ export const containerDefinition = dashletDefinition;
 export type {
   DashletConfig as ContainerConfig,
   ContainerVariant,
-  LabelBorderColor,
 } from "./dashlet";

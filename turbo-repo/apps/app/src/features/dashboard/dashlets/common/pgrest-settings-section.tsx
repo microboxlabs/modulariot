@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, TextInput, Label, Select } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsSelectField } from "./settings-fields";
@@ -10,6 +10,7 @@ import { HbParamValueInput } from "./hb-param-value-input";
 import { useFilterSuggestions } from "./use-filter-suggestions";
 import { useDashboard } from "../../context/dashboard-context";
 import type { usePgrestSettingsState } from "./use-pgrest-settings-state";
+import { DeleteItemButton } from "./delete-item-button";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -63,6 +64,7 @@ export function PgrestSettingsSection({
               onDataSourceIdChange(e.target.value);
               pg.setPgrestFunctionName("");
             }}
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {activeProviders?.length === 0
@@ -132,14 +134,10 @@ export function PgrestSettingsSection({
                   filterSuggestions={filterSuggestions}
                 />
               </div>
-              <button
-                type="button"
+              <DeleteItemButton
                 onClick={() => pg.removePgrestParam(p._id)}
-                onMouseDown={stopPropagation}
-                className="no-drag cursor-pointer shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-              >
-                <HiTrash className="h-4 w-4" />
-              </button>
+                ariaLabel="Delete parameter"
+              />
             </div>
           ))}
         </div>

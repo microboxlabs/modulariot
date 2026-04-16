@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
-import { TextInput } from "flowbite-react";
+import { TextInput, Button } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import { usePickerDropdown } from "../../hooks";
 
@@ -256,12 +256,14 @@ export function AdvancedColorPicker({
 
   return (
     <>
-      <button
+      <Button
         ref={triggerRef}
         type="button"
+        color="alternative"
+        size="sm"
         onClick={toggle}
         className={twMerge(
-          "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+          "p-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
           "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600",
           "hover:border-gray-400 dark:hover:border-gray-500",
           "focus:outline-none focus:ring-2 focus:ring-primary-300",
@@ -273,7 +275,7 @@ export function AdvancedColorPicker({
           className="w-4 h-4 rounded-full border border-gray-200 dark:border-gray-600"
           style={{ backgroundColor: `#${value}` }}
         />
-      </button>
+      </Button>
       {isOpen &&
         position &&
         createPortal(

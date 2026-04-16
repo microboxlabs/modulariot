@@ -220,8 +220,11 @@ interface FilterComponentProps {
     columnKey: string,
     filter: ColumnFilter | null,
   ) => void;
-  readonly cancelDebounceRef?: React.RefObject<(() => void) | undefined>;
   readonly dictionary: I18nRecord;
+}
+
+interface DebouncedFilterComponentProps extends FilterComponentProps {
+  readonly cancelDebounceRef?: React.RefObject<(() => void) | undefined>;
 }
 
 const inputClass =
@@ -237,7 +240,7 @@ function TextFilter({
   onFilterChange,
   cancelDebounceRef,
   dictionary,
-}: FilterComponentProps) {
+}: DebouncedFilterComponentProps) {
   const [localValue, setLocalValue] = useState(
     (currentFilter?.value as string) || "",
   );
@@ -294,7 +297,7 @@ function NumberFilter({
   onFilterChange,
   cancelDebounceRef,
   dictionary,
-}: FilterComponentProps) {
+}: DebouncedFilterComponentProps) {
   const [operator, setOperator] = useState<FilterOperator>(
     currentFilter?.operator || "equals",
   );

@@ -89,24 +89,24 @@ function getBadgeState(
 
 // --- Value formatting + derivations for the 10-cell grid. ---
 
-function fmtKm(n: number | undefined): string {
-  return n === undefined ? "—" : `${n.toLocaleString()} km`;
+function fmtKm(n: number | null | undefined): string {
+  return n == null ? "—" : `${n.toLocaleString()} km`;
 }
 
-function fmtKph(n: number | undefined): string {
-  return n === undefined ? "—" : `${n} km/h`;
+function fmtKph(n: number | null | undefined): string {
+  return n == null ? "—" : `${n} km/h`;
 }
 
-function fmtRpm(n: number | undefined): string {
-  return n === undefined ? "—" : `${n.toLocaleString()} RPM`;
+function fmtRpm(n: number | null | undefined): string {
+  return n == null ? "—" : `${n.toLocaleString()} RPM`;
 }
 
-function fmtVolts(n: number | undefined): string {
-  return n === undefined ? "—" : `${n.toFixed(2)} V`;
+function fmtVolts(n: number | null | undefined): string {
+  return n == null ? "—" : `${n.toFixed(2)} V`;
 }
 
-function fmtCelsius(n: number | undefined): string {
-  return n === undefined ? "—" : `${n} °C`;
+function fmtCelsius(n: number | null | undefined): string {
+  return n == null ? "—" : `${n} °C`;
 }
 
 function fmtHoursSinceSignal(hours: number | null): string {
@@ -127,7 +127,7 @@ function deriveStatusLabel(
   dict: I18nRecord
 ): string {
   const speed = caps.vehicle_speed_kph;
-  if (speed === undefined) return "—";
+  if (speed == null) return "—";
   return speed > 0
     ? tr("vehicleDetail.sections.telemetry.statusMoving", dict)
     : tr("vehicleDetail.sections.telemetry.statusStopped", dict);
@@ -142,7 +142,7 @@ function deriveMotorLabel(
   dict: I18nRecord
 ): string {
   const rpm = caps.engine_rpm;
-  if (rpm === undefined) return "—";
+  if (rpm == null) return "—";
   return rpm > 0
     ? tr("vehicleDetail.sections.telemetry.motorRunning", dict)
     : tr("vehicleDetail.sections.telemetry.motorOff", dict);

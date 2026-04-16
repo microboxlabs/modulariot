@@ -18,6 +18,9 @@ import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filt
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { SortPillRow } from "@/features/dashboard/dashlets/common/sort-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
+import { useColumnFilters } from "@/features/dashboard/dashlets/common/use-column-filters";
+import { ColumnFilterPopover } from "@/features/dashboard/dashlets/common/column-filter-popover";
+import { ColumnFilterToolbar } from "@/features/dashboard/dashlets/common/column-filter-toolbar";
 import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
@@ -30,6 +33,7 @@ import { tr } from "@/features/i18n/tr.service";
 
 export type {
   ColumnType,
+  DataType,
   TableColumn,
   SortConfig,
 } from "@/features/dashboard/dashlets/common/column-types";
@@ -236,19 +240,33 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const allRows =
     dataMode === "pgrest" || dataMode === "planner" ? fetchedRows : staticRows;
 
-  // ── Filter & sort (shared hook) ───────────────────────────────────────────
+  // ── Legacy filter & sort (pill-based) ────────────────────────────────────
   const {
     filterValues,
     sortKey,
     sortDir,
     filterOptionsByColumn,
-    displayRows,
+    displayRows: legacyDisplayRows,
     validSortColumns,
     getColumnLabel,
     handleFilterClear,
     handleFilterSelect,
     handleSortClick,
   } = useFilterAndSort(filter, sort, allRows, columns);
+
+  // ── Per-column filters ─────────────────────────────────────────────────────
+  const {
+    filters: columnFilters,
+    filteredData: displayRows,
+    enumValues,
+    resolvedDataTypes,
+    setFilter: setColumnFilter,
+    removeFilter: removeColumnFilter,
+    clearAllFilters: clearAllColumnFilters,
+    activeFilterCount,
+    totalCount: columnFilterTotal,
+    filteredCount: columnFilteredCount,
+  } = useColumnFilters(legacyDisplayRows, columns);
 
   // ── Handlebars template compilation ────────────────────────────────────────
   const { resolveValue, resolveLabel, resolveType } = useCompiledColumns(
@@ -308,6 +326,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         />
       )}
 
+      {/* Per-column filter toolbar */}
+      {activeFilterCount > 0 && (
+        <ColumnFilterToolbar
+          filters={columnFilters}
+          columns={columns}
+          totalCount={columnFilterTotal}
+          filteredCount={columnFilteredCount}
+          onRemove={removeColumnFilter}
+          onClearAll={clearAllColumnFilters}
+        />
+      )}
+
       {/* Table card */}
       <div className="flex-1 overflow-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         {loading && (
@@ -329,7 +359,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     key={col.key}
                     className="sticky top-0 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                   >
-                    {resolveLabel(col.key)}
+                    <div className="flex items-center gap-1">
+                      <span>{resolveLabel(col.key)}</span>
+                      <ColumnFilterPopover
+                        columnKey={col.key}
+                        columnLabel={resolveLabel(col.key)}
+                        dataType={resolvedDataTypes[col.key] ?? "text"}
+                        currentFilter={columnFilters[col.key]}
+                        enumValues={enumValues[col.key] ?? []}
+                        onFilterChange={setColumnFilter}
+                      />
+                    </div>
                   </th>
                 ))}
                 {hasActions && (

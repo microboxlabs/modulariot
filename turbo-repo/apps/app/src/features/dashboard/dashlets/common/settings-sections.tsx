@@ -9,7 +9,7 @@ import type { DataMode } from "./column-types";
 import { SettingsTextField, SettingsSelectField } from "./settings-fields";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
-import { COLUMN_TYPES } from "./column-types";
+import { COLUMN_TYPES, DATA_TYPES } from "./column-types";
 import type { ColorRuleItem } from "./color-rule-helpers";
 import type { ColorRuleOperator } from "./color-rule-types";
 import { COLOR_RULE_PRESETS } from "./color-rule-types";
@@ -32,7 +32,7 @@ interface ColumnEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (
     id: string,
-    field: "key" | "label" | "type",
+    field: "key" | "label" | "type" | "dataType",
     value: string
   ) => void;
   onAddColorMapping?: (colId: string) => void;
@@ -110,6 +110,15 @@ export function ColumnEditor({
                   onChange={(v) => onUpdate(col._id, "type", v)}
                   suggestions={COLUMN_TYPES}
                   color={getFlowbiteColor(getHandlebarsStatus(col.type))}
+                />
+              </div>
+              <div className="w-24 shrink-0">
+                <SuggestionInput
+                  sizing="sm"
+                  placeholder="text"
+                  value={col.dataType ?? "text"}
+                  onChange={(v) => onUpdate(col._id, "dataType", v)}
+                  suggestions={DATA_TYPES}
                 />
               </div>
               <DeleteItemButton

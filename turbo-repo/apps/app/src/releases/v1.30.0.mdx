@@ -1,0 +1,101 @@
+# 🔔 Release Notes v1.30.0 — ModularIoT
+
+### Fecha: 16/04/2026
+
+**Objetivo**: Esta versión amplía las capacidades analíticas de los dashboards con nuevos dashlets (mapa geográfico, tabla con exportación, carga de archivos, compartir), introduce filtrado por columna y renombrado inline, incorpora mejoras de calidad de datos en el pipeline de enriquecimiento GPS con nuevos síntomas operativos para el cliente **Gamma**, y resuelve problemas críticos del flujo OAuth en fuentes de datos.
+
+## 🚀 Evolutivos
+
+- **🗺️ Nuevo Dashlet Geographic Map**
+  - **Visualización geográfica**: Nuevo dashlet interactivo con marcadores agrupados por clusters, filtros y selector de estilo de mapa. *(Integración OSS — MIOT-0.5.1)*
+  - **Estilo de cluster**: Los badges de conteo de clusters incorporan fondo redondeado con borde blanco mediante una extensión GLSL personalizada para deck.gl (SDF-based rounded rectangle con edges anti-aliased).
+  - **Ordenamiento por latitud**: Los pines cercanos a la cámara se renderizan sobre los más lejanos para una superposición visual coherente.
+  - **Redimensionado responsivo**: Ajuste automático del viewport del mapa ante cambios de tamaño del contenedor.
+  - **Normalización de UI**: Unificación de estilos de botón de eliminar, affordances de cursor, selector de color avanzado (hex) y controles consolidados reutilizables en todos los dashlets existentes.
+  - **Localización**: Nuevas claves de traducción EN/ES para el dashlet de mapa y ajustes generales del dashboard.
+
+- **📊 Dashlet de Tabla con Exportación CSV**
+  - **Exportar a CSV**: Nueva acción en el encabezado del widget de tabla que exporta los datos preservando el formato de columnas (fechas, números) y respetando filtros y ordenamiento activos. *(Integración OSS — MIOT-0.5.1)*
+
+- **🔎 Filtrado por Columna en Tablas de Dashboard**
+  - **Popover por columna**: Filtros individuales accesibles desde cada encabezado, con soporte para cinco tipos de datos — texto (contiene/igual), número (igual, mayor, menor, entre), fecha (rango), enum (multi-selección) y booleano. *(Integración OSS — MIOT-0.5.1)*
+  - **Detección automática de tipo**: Heurísticas que reconocen booleanos (incluyendo "sí" con acento), fechas ISO, patrones numéricos con moneda y sufijos Unicode (p. ej. "12 días"), y enums por umbral de cardinalidad.
+  - **Parseo numérico localizado**: Soporte para coma decimal europea ("1,5"), separadores de miles ("47,400"), prefijos de moneda y sufijos de unidad.
+  - **Toolbar de filtros activos**: Contadores "Mostrando X de Y", chips por columna con valores formateados y botón de limpiar todo.
+  - **Debounce con limpieza segura**: Inputs de texto y número con debounce de 300 ms, cancelación de timers pendientes al desmontar y guardas contra NaN en rangos abiertos.
+  - **i18n completa**: Todas las cadenas ruteadas vía `tr()` con traducciones EN/ES del diccionario del dashboard.
+
+- **🚦 Herramienta de Semáforo para Dashlets (Traffic Light)**
+  - **Configuración reutilizable**: Nueva herramienta estandarizada para definir umbrales de color por valor en la mayoría de dashlets, construida sobre la infraestructura compartida de reglas de color (`color-rule-evaluation`, `color-rule-row`, `threshold-editor`). *(Integración OSS — MIOT-0.5.1)*
+  - **Presets**: Plantillas "Standard" (verde/amarillo/rojo), "Invertido", "Binario" y constructor personalizado.
+  - **Targets múltiples**: Aplicable a texto, fondo, icono, badge, borde o barra simultáneamente.
+  - **Integración amplia**: Soporte para `stat_detailed`, `stat_progress`, `stat_stacked`, `percentage_value`, `stat_status` y `table`.
+  - **Campos Handlebars**: Evaluación de cualquier campo vía `{{row.fieldName}}` con autocompletado del schema del proveedor de datos.
+
+- **✏️ Renombrado Inline de Dashboards desde el Header**
+  - **Interacción directa**: Clic sobre el nombre del dashboard en modo edición lo convierte en input editable con auto-focus y selección completa. *(Integración OSS — MIOT-0.5.1)*
+  - **Atajos de teclado**: Enter guarda, Escape descarta, blur confirma; nombres vacíos se rechazan y revierten al valor previo.
+  - **Hint visual**: Subrayado punteado sutil en hover indica editabilidad cuando está activo el modo edición.
+  - **Limpieza del dropdown**: Eliminación de la opción "Renombrar Dashboard" del menú de configuración, ahora redundante.
+
+- **📤 Widget de Carga de Archivos con API Configurable**
+  - **Widget de upload**: Nuevo dashlet que abre un modal para seleccionar o arrastrar un archivo y enviarlo a un endpoint configurable por instancia. *(Integración OSS — MIOT-0.5.1)*
+  - **Feedback de progreso**: Estados de progreso y resultado (éxito/error) visibles al usuario.
+  - **Caso de uso inicial**: Procesamiento de cargas de combustible ("cargas de bencina") mediante upload de archivos al backend.
+
+- **🔗 Compartir Dashboards (Imagen, PDF o Link)**
+  - **Acción de compartir**: Nueva acción accesible desde la vista del dashboard con opciones de exportación como imagen, PDF o URL compartible. *(Integración OSS — MIOT-0.5.1)*
+  - **Control de acceso**: Consideraciones de permisos para el modo de enlace (público o autenticado).
+
+- **📍 Navegación Lateral en Registros de Flota**
+  - **Prev/next sin recarga**: Nuevos controles en la vista de detalle que permiten navegar al registro anterior/siguiente de flota sin volver al listado. *(Integración OSS — MIOT-0.5.1)*
+  - **Respeto a filtros y orden**: La navegación respeta el ordenamiento y filtros actuales del listado, con transición fluida.
+
+- **🎛️ Visibilidad Configurable en Stat Icon Dashlets**
+  - **Ocultar título y descripción**: Nuevos checkboxes en la configuración permiten ocultar el título y/o la descripción del dashlet, dejando visible sólo el icono y el valor para layouts más limpios. *(Integración OSS — MIOT-0.5.1)*
+  - **i18n**: Nuevas entradas EN/ES para las opciones de visibilidad.
+
+## 🔧 Integraciones
+
+- **🔌 Pipeline de Enriquecimiento GPS y Síntomas Gamma**
+  - **Modelo de datos Redis**: Se persiste ahora la señal cruda `speed`, `timestamp`, `location`, `order`, `direction`, además de `prev_speed` y `prev_timestamp`, habilitando análisis temporal entre señales. *(Integración OSS — MIOT-0.5.1)*
+  - **Servicio de enriquecimiento**: `callAccumulateProcessSignal` reenvía el contexto histórico, eliminando la dependencia de velocidad computada y refactorizando la lectura/escritura de Redis.
+  - **Modelos actualizados**: `GpsValidationModel` elimina `computeSpeed` y serializa velocidad GPS cruda; `DataValidationModel` expone valores históricos parseados.
+  - **Nuevo síntoma — Ralenti (motor en marcha lenta)**: Función `process_symptoms_engine_idle_gamma` con severidades escalonadas por duración (20–35 min ICU 1, 35–50 min ICU 2, 50–70 min ICU 3, ≥ 70 min ICU 4).
+  - **Nuevo síntoma — Frenado brusco**: Función `process_symptoms_harsh_breaking_gamma` con regla de detección Δv/Δt ≥ 3,5 m/s² usando contexto histórico.
+  - **Nuevo síntoma — Pérdida de señal en frontera**: Función `process_symptoms_lost_signal_cross_border_gamma` que extiende la lógica previa con acumulación de eventos.
+  - **Patrón de procesamiento**: Todos los síntomas siguen el mismo patrón — actualizar si la severidad no cambia, desactivar e insertar si escala.
+  - **Geocodificación inversa**: Migración `V1.38.0__reverse_geocoding_function.sql` habilita resolución de dirección/vía desde coordenadas GPS con radio configurable y soporte potencial para caché.
+  - **Migraciones de base de datos**: Nueva estructura de mantenimiento y migraciones asociadas al cliente Gamma.
+
+## 🐛 Correcciones
+
+- **🐛 Test de Conexión rompe la configuración OAuth y oculta errores**
+  - **Impacto**: Al probar una fuente de datos OAuth, el objeto `config` era sobrescrito con sólo `{ tokenRequestFormat }`, borrando `authMethod`, `clientId`, `encryptedClientSecret`, `tokenUrl`, `scope` y `audience` — la fuente revertía silenciosamente de OAuth a Token. Además, `buildAuthHeader` enviaba el JWT sin prefijo `Bearer`, haciendo que PostgREST siempre rechazara la conexión. Los errores de intercambio OAuth mostraban un mensaje genérico "OAuth token exchange failed" sin detalles del proveedor, y el frontend tragaba las respuestas 400 con un toast i18n genérico. *(Integración OSS — MIOT-0.5.1)*
+  - **Solución**: Preservación completa del `config` al persistir `tokenRequestFormat` (spread de campos existentes); header `Authorization: Bearer <token>` en todos los métodos de auth; propagación del status HTTP y `error_description` del proveedor al usuario; retorno 200 con `success: false` en fallos de resolución de token para que el frontend muestre el error real; registro de `lastTestedAt` / `lastTestResult` también en fallos de auth.
+
+- **🐛 Intercambio OAuth sólo soporta form-urlencoded — proveedores JSON fallan**
+  - **Impacto**: `exchangeOAuthToken` en la API de fuentes de datos construía únicamente un cuerpo `application/x-www-form-urlencoded`. Cuando el endpoint de token requería `application/json` (p. ej. `https://api.microboxlabs.com/api/v1/login`), el intercambio fallaba con 400/415 sin feedback accionable. *(Integración OSS — MIOT-0.5.1)*
+  - **Solución**: Auto-detección con fallback — primer intento en `form-urlencoded` (default RFC 6749), reintento en `application/json` si la respuesta indica media type no soportado, y persistencia del formato que funcionó en el config de la fuente (`tokenRequestFormat: 'form' | 'json'`) para llamadas subsecuentes. Transparente para el usuario, sin cambios en el formulario.
+
+- **🐛 Selector `state` en Fleet Management muestra síntomas en vez de opciones propias**
+  - **Impacto**: El selector `state` en el searchbar de fleet-management mostraba opciones provenientes de localStorage del módulo de síntomas (p. ej. "pérdida de reportabilidad gps") en lugar de sus opciones predefinidas (All, Active, Maintenance, Alert, Inactive). *(Integración OSS — MIOT-0.5.1)*
+  - **Solución**: En `parametrized-searchbar.tsx`, la condición que activaba opciones dinámicas desde localStorage (`if (dynamicOptions.length > 0)`) aplicaba a todos los selectores en cualquier página. Se acotó a `param.param.key === "symptom_name"` para que las opciones dinámicas sólo apliquen al selector correcto, dejando el resto con sus opciones predefinidas.
+
+## 📊 Beneficios
+
+- 🗺️ **Visualización geográfica nativa**: El nuevo dashlet de mapa con clustering, filtros y estilos configurables transforma los dashboards en herramientas de análisis espacial sin depender de módulos externos.
+- 📈 **Tablas más potentes**: El filtrado por columna, la exportación CSV y la configuración de semáforo elevan el widget de tabla a una herramienta analítica comparable a hojas de cálculo, sin sacrificar la integración con la plataforma.
+- ⚡ **Mejor UX de edición de dashboards**: El renombrado inline, la configuración granular de visibilidad en stat icons y la navegación lateral en flota reducen la fricción en interacciones cotidianas.
+- 🛰️ **Calidad de datos mejorada en GPS**: El nuevo modelo Redis con contexto histórico y los síntomas operativos Gamma (ralenti, frenado brusco, pérdida en frontera) permiten análisis más precisos y detección temprana de anomalías en flota.
+- 🌐 **Geocodificación inversa disponible**: La nueva función SQL abre el camino para enriquecer datos GPS con direcciones y vías sin depender de servicios externos en el hot path.
+- 🔐 **Flujo OAuth robusto**: Las correcciones al test de conexión y al intercambio de tokens eliminan fallos silenciosos en fuentes de datos autenticadas, con mensajes de error claros y compatibilidad automática con proveedores JSON o form-urlencoded.
+- 🧰 **Infraestructura compartida reforzada**: Las nuevas utilidades de reglas de color, componentes reutilizables y extensiones deck.gl consolidan patrones que aceleran la creación de futuros dashlets y visualizaciones.
+
+## 📌 Conclusión
+
+La versión 1.30.0 marca un avance sustancial en la madurez del sistema de dashboards, consolidando a ModularIoT como una plataforma analítica completa. La incorporación del dashlet geográfico con clustering y shaders personalizados, junto con las capacidades de filtrado por columna, exportación CSV y configuración de semáforo, cierra la brecha entre los dashboards de la plataforma y las herramientas analíticas tradicionales del mercado.
+
+En paralelo, las mejoras en el pipeline de enriquecimiento GPS y la incorporación de nuevos síntomas operativos para el cliente Gamma — ralenti, frenado brusco y pérdida de señal en frontera — refuerzan la capa de observabilidad de flota con análisis temporal basado en contexto histórico, habilitando decisiones operativas más informadas y detección temprana de comportamientos anómalos. La función de geocodificación inversa complementa estas capacidades abriendo la puerta a enriquecimientos espaciales nativos.
+
+Finalmente, las correcciones críticas al flujo OAuth de fuentes de datos — preservación del config, header Bearer correcto, propagación de errores reales del proveedor y soporte automático de formatos JSON/form-urlencoded — eliminan una clase entera de fallos silenciosos que afectaban la adopción de integraciones autenticadas. Esta release posiciona a la plataforma para una próxima iteración centrada en analítica avanzada, personalización de dashboards y mayor integración con fuentes de datos externas.

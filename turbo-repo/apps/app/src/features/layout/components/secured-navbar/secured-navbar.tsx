@@ -172,9 +172,7 @@ export function SecuredNavbar({
   );
 
   function handleToggleSidebar() {
-    if (isDesktop) {
-      sidebar.desktop.toggle();
-    } else {
+    if (!isDesktop) {
       sidebar.mobile.toggle();
     }
   }
@@ -191,28 +189,21 @@ export function SecuredNavbar({
               <button
                 onClick={handleToggleSidebar}
                 className={twMerge(
-                  "cursor-pointer rounded p-2 text-gray-600 ",
+                  "cursor-pointer rounded p-2 text-gray-600 lg:hidden",
                   "hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400",
                   "dark:hover:bg-gray-700 dark:hover:text-white"
                 )}
               >
                 <span className="sr-only">Toggle sidebar</span>
-                {/* mobile */}
-                <div className="lg:hidden">
-                  {sidebar.mobile.isOpen ? (
-                    <HiX className="h-6 w-6" />
-                  ) : (
-                    <HiMenuAlt1 className="h-6 w-6" />
-                  )}
-                </div>
-                {/* desktop */}
-                <div className="hidden lg:block">
+                {sidebar.mobile.isOpen ? (
+                  <HiX className="h-6 w-6" />
+                ) : (
                   <HiMenuAlt1 className="h-6 w-6" />
-                </div>
+                )}
               </button>
             )}
             {isSeachEnabled && (
-              <form className="hidden lg:block lg:pl-2">
+              <form className="hidden lg:block">
                 <Label htmlFor="search" className="sr-only">
                   {messages.search}
                 </Label>
@@ -226,7 +217,12 @@ export function SecuredNavbar({
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
             <NavbarBrand as={Link} href="/">
-              <NavbarLogo isLoading={isLoadingLogo} logoUrlLight={logoUrlLight} logoUrlDark={logoUrlDark} initialOrgLogo={initialOrgLogo} />
+              <NavbarLogo
+                isLoading={isLoadingLogo}
+                logoUrlLight={logoUrlLight}
+                logoUrlDark={logoUrlDark}
+                initialOrgLogo={initialOrgLogo}
+              />
             </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">

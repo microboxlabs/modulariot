@@ -15,36 +15,10 @@ export const pages: SidebarItem[] = [
     label: "home",
     totals: {},
     dynamicItemsSource: "dashboards",
-    items: [
-      {
-        href: "/home",
-        label: "dashboardOverview",
-        requiredGroups: ["GROUP_DASHBOARD"],
-      },
-    ],
+    searchable: true,
+    createAction: { href: "/home", label: "createDashboard" },
+    items: [],
     requiredGroups: ["GROUP_DASHBOARD"],
-  },
-  {
-    href: "/collaborators-management",
-    icon: PeopleIcon,
-    label: "collaboratorsManagement",
-    totals: {},
-    // Legacy group name kept for backward compat during the colaborator→collaborator
-    // typo migration. Remove GROUP_COLABORATORS_MANAGEMENT once the Alfresco side
-    // has been renamed (see Phase 6 of settings_module_multitenancy.plan.md).
-    requiredGroups: [
-      "GROUP_COLLABORATORS_MANAGEMENT",
-      "GROUP_COLABORATORS_MANAGEMENT",
-    ],
-    blockedGroups: [],
-  },
-  {
-    href: "/fleet-management",
-    icon: TruckIcon,
-    label: "fleetManagement",
-    totals: {},
-    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
-    blockedGroups: [],
   },
   {
     icon: CalendarIcon,
@@ -204,6 +178,28 @@ export const pages: SidebarItem[] = [
     ],
     totals: {},
     requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
+  },
+  {
+    href: "/collaborators-management",
+    icon: PeopleIcon,
+    label: "collaboratorsManagement",
+    totals: {},
+    // Legacy group name kept for backward compat during the colaborator→collaborator
+    // typo migration. Remove GROUP_COLABORATORS_MANAGEMENT once the Alfresco side
+    // has been renamed (see Phase 6 of settings_module_multitenancy.plan.md).
+    requiredGroups: [
+      "GROUP_COLLABORATORS_MANAGEMENT",
+      "GROUP_COLABORATORS_MANAGEMENT",
+    ],
+    blockedGroups: [],
+  },
+  {
+    href: "/fleet-management",
+    icon: TruckIcon,
+    label: "fleetManagement",
+    totals: {},
+    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
+    blockedGroups: [],
   },
 ];
 // cpd-on

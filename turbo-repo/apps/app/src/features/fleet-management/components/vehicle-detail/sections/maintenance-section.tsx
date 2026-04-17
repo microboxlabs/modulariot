@@ -75,8 +75,7 @@ const CRITICALITY_UI: Record<MaintenanceCriticality, CriticalityUi> = {
     bannerIcon: HiOutlineClock,
   },
   SIN_INFO: {
-    badgeClass:
-      "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+    badgeClass: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
     bannerVariant: "info",
     bannerIcon: HiOutlineInformationCircle,
   },
@@ -232,6 +231,7 @@ export default function MaintenanceSection({
           }}
           icon={{}}
           className="bg-blue-100/40 dark:bg-blue-600/10 border border-blue-500/50"
+          tooltip
           variant="vertical"
         />
         <KpiStat
@@ -250,6 +250,7 @@ export default function MaintenanceSection({
             text: kpiNextDesc,
             className: "text-gray-500 dark:text-gray-300/60",
           }}
+          tooltip
           variant="vertical"
         />
         <KpiStat
@@ -264,11 +265,16 @@ export default function MaintenanceSection({
             // else: actually never serviced (km_os was 0).
             text: (() => {
               if (lastServiceAt) return formatDateString(lastServiceAt);
-              if (lastServiceKm === null) return tr("vehicleDetail.sections.maintenance.neverServiced", dict);
+              if (lastServiceKm === null)
+                return tr(
+                  "vehicleDetail.sections.maintenance.neverServiced",
+                  dict
+                );
               return "—";
             })(),
           }}
           description={{ text: kpiLastServiceDesc }}
+          tooltip
           variant="vertical"
         />
         <KpiStat
@@ -285,6 +291,7 @@ export default function MaintenanceSection({
               dict
             ),
           }}
+          tooltip
           variant="vertical"
         />
         <KpiStat
@@ -309,20 +316,19 @@ export default function MaintenanceSection({
               dict
             ),
           }}
+          tooltip
           variant="vertical"
         />
         <KpiStat
           title={{
-            text: tr(
-              "vehicleDetail.sections.maintenance.kmSinceService",
-              dict
-            ),
+            text: tr("vehicleDetail.sections.maintenance.kmSinceService", dict),
           }}
           value={{
             text: formatKm(maintenance.plan.km_since_last_service),
             className: "text-green-500 dark:text-green-400",
           }}
           description={{ text: kpiKmSinceDesc }}
+          tooltip
           variant="vertical"
         />
       </div>

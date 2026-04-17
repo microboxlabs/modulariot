@@ -1846,15 +1846,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Subir archivo",
-        "configureHint": "Configura un endpoint en ajustes",
-        "noEndpoint": "No hay endpoint configurado",
-        "uploading": "Subiendo {fileName}...",
-        "uploaded": "{fileName} subido",
-        "uploadFailed": "Error al subir",
-        "tryAgain": "Intentar de nuevo"
-      },
-      "defaults": {
+      "defaultTitle": "Subir archivo",
+      "configureHint": "Configura un endpoint en ajustes",
+      "noEndpoint": "No hay endpoint configurado",
+      "uploading": "Subiendo {fileName}...",
+      "uploaded": "{fileName} subido",
+      "uploadFailed": "Error al subir",
+      "tryAgain": "Intentar de nuevo"
+    },
+    "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",
       "orders": "Pedidos",
@@ -2802,6 +2802,8 @@
     "vehicleDetail": {
       "title": "Detalles del Vehículo",
       "back": "Volver a la flota",
+      "previous": "Anterior",
+      "next": "Siguiente",
       "sections": {
         "health": {
           "title": "Salud",
@@ -2846,7 +2848,49 @@
           "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva.",
           "upToDateBadge": "Al día",
           "dueSoon": "Próxima",
-          "overdue": "Vencida"
+          "overdue": "Vencida",
+          "errorTitle": "No se pudo cargar mantención",
+          "errorDesc": "Hubo un problema al obtener los datos de mantención. Intenta nuevamente.",
+          "retry": "Reintentar",
+          "kmRemainingNoDays": "Faltan {km} km",
+          "neverServiced": "Sin servicio previo",
+          "criticality": {
+            "AL_DIA": {
+              "label": "Al día",
+              "bannerTitle": "Mantención al día",
+              "bannerDesc": "El vehículo cumple con el plan de mantención preventiva."
+            },
+            "POR_VENCER": {
+              "label": "Por vencer",
+              "bannerTitle": "Mantención próxima",
+              "bannerDesc": "Quedan menos de 2,000 km para la próxima mantención programada."
+            },
+            "CRITICO": {
+              "label": "Crítico",
+              "bannerTitle": "Mantención crítica",
+              "bannerDesc": "Quedan menos de 500 km. Agendar mantención inmediatamente."
+            },
+            "VENCIDO": {
+              "label": "Vencida",
+              "bannerTitle": "Mantención vencida",
+              "bannerDesc": "El vehículo ha superado el intervalo de mantención programado."
+            },
+            "EN_TALLER": {
+              "label": "En taller",
+              "bannerTitle": "En mantención",
+              "bannerDesc": "El vehículo está siendo atendido en el taller."
+            },
+            "AGENDADO": {
+              "label": "Agendado",
+              "bannerTitle": "Mantención agendada",
+              "bannerDesc": "Se ha programado una orden de trabajo de mantención."
+            },
+            "SIN_INFO": {
+              "label": "Sin datos",
+              "bannerTitle": "Sin datos de mantención",
+              "bannerDesc": "No hay señal de odómetro disponible para calcular el estado de mantención."
+            }
+          }
         },
         "technicalHealth": {
           "title": "Salud Técnica",
@@ -2859,7 +2903,11 @@
           "brakePadWear": "Desgaste de pastillas de freno (28%)",
           "noIssues": "Sin fallas",
           "criticalIssues": "{count} falla(s) crítica(s)",
-          "warningIssues": "{count} alerta(s)"
+          "warningIssues": "{count} alerta(s)",
+          "adBlue": "AdBlue",
+          "dpf": "Filtro DPF",
+          "engineFailure": "Falla de Motor",
+          "ok": "OK"
         },
         "telemetry": {
           "title": "Dispositivos y Telemetría",
@@ -2890,11 +2938,53 @@
           "dataProcesedToday": "Datos procesados hoy",
           "signalLost": "Pérdidas de señal (30d)",
           "everySeconds": "Cada {seconds} segundos",
-          "dataProcessedToday": "Datos procesados hoy"
+          "dataProcessedToday": "Datos procesados hoy",
+          "statusMoving": "En movimiento",
+          "statusStopped": "Detenido",
+          "statusLabel": "Estado",
+          "motorRunning": "En marcha",
+          "motorOff": "Apagado",
+          "motor": "Motor",
+          "pulsesPerMinute": "{pulses} pulsos/min",
+          "headerSubtitle": "Puntaje telemetría: {score}% • Proveedor: {provider}",
+          "headerSubtitleNoProvider": "Puntaje telemetría: {score}%",
+          "errorTitle": "No se pudo cargar telemetría",
+          "errorDesc": "Hubo un problema al obtener los datos de telemetría. Intenta nuevamente.",
+          "retry": "Reintentar",
+          "stability": "Estabilidad",
+          "signalsPerDay": "Señales por día",
+          "hoursSinceSignal": "Horas desde última señal",
+          "freshness": {
+            "connected": {
+              "label": "Conectado",
+              "bannerTitle": "Señal activa",
+              "bannerDesc": "El GPS está enviando datos normalmente."
+            },
+            "unstable": {
+              "label": "Inestable",
+              "bannerTitle": "Señal inestable",
+              "bannerDesc": "El GPS está experimentando problemas de conectividad o retrasos en los datos."
+            },
+            "noSignal": {
+              "label": "Sin señal",
+              "bannerTitle": "Sin señal",
+              "bannerDesc": "No se han recibido datos del GPS recientemente."
+            }
+          }
         },
         "events": {
           "title": "Eventos Operativos",
           "description": "Alertas e incidentes recientes",
+          "errorTitle": "No se pudieron cargar los eventos",
+          "errorDesc": "Hubo un problema al obtener los eventos operativos. Intenta nuevamente.",
+          "errorBadge": "Error",
+          "retry": "Reintentar",
+          "emptyTitle": "Sin eventos recientes",
+          "emptyDesc": "No se han registrado eventos operativos en la ventana de tiempo reciente.",
+          "criticalCount": "{count} críticos",
+          "warningCount": "{count} alertas",
+          "durationMinutes": "{minutes} min",
+          "speedExceeded": "{speed} km/h (límite {limit})",
           "hardBraking": "Frenado brusco detectado",
           "routeCompleted": "Ruta completada exitosamente",
           "incidentsThisMonth": "Incidentes Este Mes",
@@ -2910,7 +3000,10 @@
             "evento": "Evento",
             "uso": "Uso",
             "cambio_datos": "Cambio de datos",
-            "mantencion": "Mantención"
+            "mantencion": "Mantención",
+            "SEÑAL": "Señal",
+            "VELOCIDAD": "Velocidad",
+            "OTROS": "Otros"
           }
         },
         "usage": {
@@ -2987,7 +3080,16 @@
           "loading": "Cargando uso…",
           "errorTitle": "No se pudo cargar el uso",
           "errorDesc": "Hubo un problema al obtener los datos de uso. Intenta nuevamente.",
-          "retry": "Reintentar"
+          "retry": "Reintentar",
+          "currentOdometer": "Odómetro Actual",
+          "contractConsumption": "Consumo Contractual",
+          "contractMaxLabel": "Contrato: {km} km",
+          "kmLast30Days": "Km Últimos 30 Días",
+          "lookbackWindowLabel": "Últimos {days} días",
+          "kmRemainingContract": "Km Restantes (Contrato)",
+          "noDataShort": "Sin datos",
+          "overuseAmount": "+{km} km sobreuso",
+          "withinContract": "Dentro del contrato"
         },
         "general": {
           "title": "Información General",

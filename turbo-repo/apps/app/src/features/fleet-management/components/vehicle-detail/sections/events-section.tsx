@@ -143,7 +143,13 @@ export default function EventsSection({
         icon={HiOutlineExclamationTriangle}
         title={title}
         description={description}
-        status="warning"
+        status="critical"
+        badge={
+          <CustomBadge
+            text={tr("vehicleDetail.sections.events.errorBadge", dict)}
+            className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+          />
+        }
       >
         <MessageBanner
           icon={HiOutlineExclamationTriangle}

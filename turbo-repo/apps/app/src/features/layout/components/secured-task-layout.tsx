@@ -1,6 +1,5 @@
 import React from "react";
 import { SidebarProvider } from "@/features/sidebar/context/sidebar-context";
-import { sidebarCookie } from "@/features/sidebar/services/sidebar-cookie.service";
 import type { PropsWithChildren } from "react";
 import { SecuredNavbar } from "./secured-navbar/secured-navbar";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -15,11 +14,10 @@ export default async function SecuredTaskLayout({
 }: PropsWithChildren<ParamsWithLang>) {
   const { lang } = await params;
   const [dict] = await getDictionary(lang);
-  const cookie = await sidebarCookie.get();
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const initialOrgLogo = await getPublicOrgLogo();
   return (
-    <SidebarProvider initialCollapsed={cookie?.isCollapsed ?? false}>
+    <SidebarProvider>
       <SecuredNavbar
         messages={navBarMessages}
         isSidebarToggleEnabled={false}

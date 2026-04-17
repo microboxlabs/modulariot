@@ -1,14 +1,19 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useState } from "react";
-import { SidebarCookie } from "../services/sidebar-cookie.service.types";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 interface SidebarContextProps {
   desktop: {
-    isCollapsed: boolean;
-    setCollapsed(value: boolean): void;
-    toggle(): void;
+    activeSection: string | null;
+    setActiveSection(label: string | null): void;
+    toggleSection(label: string): void;
   };
   mobile: {
     isOpen: boolean;
@@ -19,47 +24,35 @@ interface SidebarContextProps {
 
 const SidebarContext = createContext<SidebarContextProps | null>(null);
 
-export function SidebarProvider({
-  initialCollapsed,
-  children,
-}: PropsWithChildren<{ initialCollapsed: boolean }>) {
+export function SidebarProvider({ children }: PropsWithChildren) {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
-  const [isCollapsed, setCollapsed] = useState(initialCollapsed);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
-  function handleSetCollapsed(value: boolean) {
-    setCollapsed(value);
-    setCookie(value);
-  }
+  const toggleSection = useCallback((label: string) => {
+    setActiveSection((prev) => (prev === label ? null : label));
+  }, []);
 
-  function setCookie(value: boolean) {
-    fetch("/app/api/sidebar", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  const closeMobile = useCallback(() => setIsOpenMobile(false), []);
+  const toggleMobile = useCallback(() => setIsOpenMobile((s) => !s), []);
+
+  const value = useMemo<SidebarContextProps>(
+    () => ({
+      desktop: {
+        activeSection,
+        setActiveSection,
+        toggleSection,
       },
-      body: JSON.stringify({
-        isCollapsed: value,
-      } satisfies SidebarCookie),
-    });
-  }
+      mobile: {
+        isOpen: isOpenMobile,
+        close: closeMobile,
+        toggle: toggleMobile,
+      },
+    }),
+    [activeSection, toggleSection, isOpenMobile, closeMobile, toggleMobile]
+  );
 
   return (
-    <SidebarContext.Provider
-      value={{
-        desktop: {
-          isCollapsed,
-          setCollapsed: handleSetCollapsed,
-          toggle: () => handleSetCollapsed(!isCollapsed),
-        },
-        mobile: {
-          isOpen: isOpenMobile,
-          close: () => setIsOpenMobile(false),
-          toggle: () => setIsOpenMobile((state) => !state),
-        },
-      }}
-    >
-      {children}
-    </SidebarContext.Provider>
+    <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>
   );
 }
 

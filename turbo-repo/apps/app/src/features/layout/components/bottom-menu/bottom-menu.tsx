@@ -6,21 +6,14 @@ import { tr } from "@/features/i18n/tr.service";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 
 export default function BottomMenu({
-  isCollapsed,
   dict,
   pathname,
 }: {
-  isCollapsed: boolean;
   dict: PropsWithI18nDict["dict"];
   pathname: string;
 }) {
   return (
-    <div
-      className={twMerge(
-        "flex items-center justify-center gap-4 mb-9",
-        isCollapsed && "flex-col"
-      )}
-    >
+    <div className="flex items-center justify-center gap-4 mb-9">
       <SidebarItemGroup>
         <SidebarItem
           href="/app/users/settings"

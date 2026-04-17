@@ -1330,7 +1330,10 @@
         "truckBeds": "Truck Beds",
         "allDevices": "All Devices",
         "fleetManagement": "Fleet",
-        "collaboratorsManagement": "Collaborators"
+        "collaboratorsManagement": "Collaborators",
+        "searchPlaceholder": "Search...",
+        "createDashboard": "New dashboard",
+        "closePanel": "Close panel"
       }
     },
     "calendar": {
@@ -1821,15 +1824,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Upload File",
-        "configureHint": "Configure an endpoint in settings",
-        "noEndpoint": "No endpoint configured",
-        "uploading": "Uploading {fileName}...",
-        "uploaded": "{fileName} uploaded",
-        "uploadFailed": "Upload failed",
-        "tryAgain": "Try again"
-      },
-      "defaults": {
+      "defaultTitle": "Upload File",
+      "configureHint": "Configure an endpoint in settings",
+      "noEndpoint": "No endpoint configured",
+      "uploading": "Uploading {fileName}...",
+      "uploaded": "{fileName} uploaded",
+      "uploadFailed": "Upload failed",
+      "tryAgain": "Try again"
+    },
+    "defaults": {
       "pageViews": "Page Views",
       "storageUsed": "Storage Used",
       "orders": "Orders",

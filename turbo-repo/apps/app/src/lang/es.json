@@ -1355,7 +1355,10 @@
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
         "fleetManagement": "Flotas",
-        "collaboratorsManagement": "Colaboradores"
+        "collaboratorsManagement": "Colaboradores",
+        "searchPlaceholder": "Buscar...",
+        "createDashboard": "Nuevo dashboard",
+        "closePanel": "Cerrar panel"
       }
     },
     "calendar": {
@@ -1846,15 +1849,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Subir archivo",
-        "configureHint": "Configura un endpoint en ajustes",
-        "noEndpoint": "No hay endpoint configurado",
-        "uploading": "Subiendo {fileName}...",
-        "uploaded": "{fileName} subido",
-        "uploadFailed": "Error al subir",
-        "tryAgain": "Intentar de nuevo"
-      },
-      "defaults": {
+      "defaultTitle": "Subir archivo",
+      "configureHint": "Configura un endpoint en ajustes",
+      "noEndpoint": "No hay endpoint configurado",
+      "uploading": "Subiendo {fileName}...",
+      "uploaded": "{fileName} subido",
+      "uploadFailed": "Error al subir",
+      "tryAgain": "Intentar de nuevo"
+    },
+    "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",
       "orders": "Pedidos",

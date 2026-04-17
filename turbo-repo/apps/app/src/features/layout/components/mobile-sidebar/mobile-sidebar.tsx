@@ -93,7 +93,7 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
               {items.map((item) => {
                 const hasChildren = Boolean(
                   (item.items && item.items.length > 0) ||
-                    item.dynamicItemsSource
+                  item.dynamicItemsSource
                 );
                 const active = isItemActive(item, pathname);
                 const isSectionOpen = activeSection === item.label;

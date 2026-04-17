@@ -2688,7 +2688,20 @@
       "new_features_appeared": "Hay nuevas funcionalidades.",
       "test_pulse_historic_feature": "¡Prueba el nuevo Histórico de pulsos!",
       "description": "Filtra pulsos por patente y rango de fechas para obtener un reporte descargable basado en posiciones pasadas de los vehículos.",
-      "learn_more": "Aprende más sobre lo que se cambió en esta última actualización."
+      "learn_more": "Aprende más sobre lo que se cambió en esta última actualización.",
+      "sidebar": {
+        "slide1_title": "Nueva Barra Lateral",
+        "slide1_subtitle": "Rediseñamos la experiencia de navegación.",
+        "slide2_title": "Navegación en Dos Niveles",
+        "slide2_icon_bar": "Barra de Íconos",
+        "slide2_icon_bar_desc": "Acceso rápido a cada sección con un solo toque.",
+        "slide2_secondary_panel": "Panel de Detalle",
+        "slide2_secondary_panel_desc": "Expande cualquier sección para ver sus páginas, buscar y crear.",
+        "slide3_title": "Buscar y Crear",
+        "slide3_desc": "Encuentra dashboards al instante y crea nuevos sin salir de la barra lateral.",
+        "slide4_title": "Funciona en Todas Partes",
+        "slide4_desc": "La misma experiencia en escritorio y móvil — íconos primero, detalles a demanda."
+      }
     }
   },
   "calendar": {

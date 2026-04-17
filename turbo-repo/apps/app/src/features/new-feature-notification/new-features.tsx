@@ -1,5 +1,5 @@
 import { I18nRecord } from "../i18n/i18n.service.types";
-import Slider from "./slider-components/slider";
+import SidebarSlider from "./slider-components/sidebar-slider";
 
 export enum typeDescriptor {
   Slidable, // It has multiple "Slides" of information
@@ -30,7 +30,7 @@ export enum typeDescriptor {
 //
 function getFeatureDescriptors({ dict }: { dict: I18nRecord }) {
   return {
-    "": Slider(dict),
+    "": SidebarSlider(dict),
   };
 }
 

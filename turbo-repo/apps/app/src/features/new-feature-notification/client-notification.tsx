@@ -61,7 +61,6 @@ export default function ClientNotification({
 
     if (
       parsed_stored === null ||
-      parsed_stored.state === FeatureState.Declined.toString() ||
       parsed_stored.state === FeatureState.Dismissed.toString() ||
       parsed_stored.id != features[this_path as keyof typeof features].id
     ) {
@@ -83,7 +82,7 @@ export default function ClientNotification({
   function handle_accept() {
     localStorage.setItem(
       `${this_path}`,
-      stringifiedValue(features[""].id, FeatureState.Accepted)
+      stringifiedValue(selected_feature.id, FeatureState.Accepted)
     );
     setShowModal(null);
   }
@@ -91,7 +90,7 @@ export default function ClientNotification({
   function handle_decline() {
     localStorage.setItem(
       `${this_path}`,
-      stringifiedValue(features[""].id, FeatureState.Declined)
+      stringifiedValue(selected_feature.id, FeatureState.Declined)
     );
     setShowModal(null);
   }

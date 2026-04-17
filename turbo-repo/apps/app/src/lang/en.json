@@ -1821,15 +1821,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Upload File",
-        "configureHint": "Configure an endpoint in settings",
-        "noEndpoint": "No endpoint configured",
-        "uploading": "Uploading {fileName}...",
-        "uploaded": "{fileName} uploaded",
-        "uploadFailed": "Upload failed",
-        "tryAgain": "Try again"
-      },
-      "defaults": {
+      "defaultTitle": "Upload File",
+      "configureHint": "Configure an endpoint in settings",
+      "noEndpoint": "No endpoint configured",
+      "uploading": "Uploading {fileName}...",
+      "uploaded": "{fileName} uploaded",
+      "uploadFailed": "Upload failed",
+      "tryAgain": "Try again"
+    },
+    "defaults": {
       "pageViews": "Page Views",
       "storageUsed": "Storage Used",
       "orders": "Orders",
@@ -2770,6 +2770,8 @@
     "vehicleDetail": {
       "title": "Vehicle Details",
       "back": "Back to fleet",
+      "previous": "Previous",
+      "next": "Next",
       "sections": {
         "health": {
           "title": "Health",
@@ -2814,7 +2816,49 @@
           "upToDateDesc": "The vehicle complies with the preventive maintenance plan.",
           "upToDateBadge": "Up to date",
           "dueSoon": "Due soon",
-          "overdue": "Overdue"
+          "overdue": "Overdue",
+          "errorTitle": "Could not load maintenance",
+          "errorDesc": "There was a problem fetching maintenance data. Please try again.",
+          "retry": "Retry",
+          "kmRemainingNoDays": "{km} km remaining",
+          "neverServiced": "Never serviced",
+          "criticality": {
+            "AL_DIA": {
+              "label": "Up to date",
+              "bannerTitle": "Maintenance up to date",
+              "bannerDesc": "The vehicle complies with the preventive maintenance plan."
+            },
+            "POR_VENCER": {
+              "label": "Due soon",
+              "bannerTitle": "Maintenance due soon",
+              "bannerDesc": "Less than 2,000 km remaining until next scheduled maintenance."
+            },
+            "CRITICO": {
+              "label": "Critical",
+              "bannerTitle": "Maintenance critical",
+              "bannerDesc": "Less than 500 km remaining. Schedule maintenance immediately."
+            },
+            "VENCIDO": {
+              "label": "Overdue",
+              "bannerTitle": "Maintenance overdue",
+              "bannerDesc": "The vehicle has exceeded the scheduled maintenance interval."
+            },
+            "EN_TALLER": {
+              "label": "In workshop",
+              "bannerTitle": "Currently in maintenance",
+              "bannerDesc": "The vehicle is undergoing maintenance work."
+            },
+            "AGENDADO": {
+              "label": "Scheduled",
+              "bannerTitle": "Maintenance scheduled",
+              "bannerDesc": "A maintenance work order has been scheduled."
+            },
+            "SIN_INFO": {
+              "label": "No data",
+              "bannerTitle": "No maintenance data",
+              "bannerDesc": "No odometer signal available to calculate maintenance status."
+            }
+          }
         },
         "technicalHealth": {
           "title": "Technical Health",
@@ -2827,7 +2871,11 @@
           "brakePadWear": "Brake pad wear detected (28%)",
           "noIssues": "No failures",
           "criticalIssues": "{count} critical failure(s)",
-          "warningIssues": "{count} warning(s)"
+          "warningIssues": "{count} warning(s)",
+          "adBlue": "AdBlue",
+          "dpf": "DPF Filter",
+          "engineFailure": "Engine Failure",
+          "ok": "OK"
         },
         "telemetry": {
           "title": "Devices & Telemetry",
@@ -2857,11 +2905,53 @@
           "acumulatedUptime": "Accumulated Uptime",
           "dataProcessedToday": "Data Processed Today",
           "signalLost": "Signal Lost (30d)",
-          "everySeconds": "Every {seconds} seconds"
+          "everySeconds": "Every {seconds} seconds",
+          "statusMoving": "Moving",
+          "statusStopped": "Stopped",
+          "statusLabel": "Status",
+          "motorRunning": "Running",
+          "motorOff": "Off",
+          "motor": "Engine",
+          "pulsesPerMinute": "{pulses} pulses/min",
+          "headerSubtitle": "Telemetry score: {score}% • Provider: {provider}",
+          "headerSubtitleNoProvider": "Telemetry score: {score}%",
+          "errorTitle": "Could not load telemetry",
+          "errorDesc": "There was a problem fetching telemetry data. Please try again.",
+          "retry": "Retry",
+          "stability": "Stability",
+          "signalsPerDay": "Signals per day",
+          "hoursSinceSignal": "Hours since signal",
+          "freshness": {
+            "connected": {
+              "label": "Connected",
+              "bannerTitle": "Signal active",
+              "bannerDesc": "The GPS is sending data normally."
+            },
+            "unstable": {
+              "label": "Unstable",
+              "bannerTitle": "Unstable signal",
+              "bannerDesc": "The GPS is experiencing connectivity issues or data delays."
+            },
+            "noSignal": {
+              "label": "No signal",
+              "bannerTitle": "No signal",
+              "bannerDesc": "No GPS data has been received recently."
+            }
+          }
         },
         "events": {
           "title": "Operational Events",
           "description": "Recent alerts and incidents",
+          "errorTitle": "Could not load events",
+          "errorDesc": "There was a problem fetching operational events. Please try again.",
+          "errorBadge": "Error",
+          "retry": "Retry",
+          "emptyTitle": "No recent events",
+          "emptyDesc": "No operational events have been recorded in the recent time window.",
+          "criticalCount": "{count} critical",
+          "warningCount": "{count} warnings",
+          "durationMinutes": "{minutes} min",
+          "speedExceeded": "{speed} km/h (limit {limit})",
           "hardBraking": "Hard braking event detected",
           "routeCompleted": "Route completed successfully",
           "incidentsThisMonth": "Incidents This Month",
@@ -2877,7 +2967,10 @@
             "evento": "Event",
             "uso": "Usage",
             "cambio_datos": "Data Change",
-            "mantencion": "Maintenance"
+            "mantencion": "Maintenance",
+            "SEÑAL": "Signal",
+            "VELOCIDAD": "Speed",
+            "OTROS": "Others"
           }
         },
         "usage": {
@@ -2954,7 +3047,16 @@
           "loading": "Loading usage…",
           "errorTitle": "Could not load usage",
           "errorDesc": "There was a problem fetching usage data. Please try again.",
-          "retry": "Retry"
+          "retry": "Retry",
+          "currentOdometer": "Current Odometer",
+          "contractConsumption": "Contract Consumption",
+          "contractMaxLabel": "Contract: {km} km",
+          "kmLast30Days": "Km Last 30 Days",
+          "lookbackWindowLabel": "Last {days} days",
+          "kmRemainingContract": "Km Remaining (Contract)",
+          "noDataShort": "No data",
+          "overuseAmount": "+{km} km overuse",
+          "withinContract": "Within contract"
         },
         "general": {
           "title": "General Information",

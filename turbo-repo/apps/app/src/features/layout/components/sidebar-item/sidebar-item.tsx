@@ -84,7 +84,8 @@ export default function SidebarItem({
                       "justify-center [&>*]:font-normal",
                       (pathname === child.href?.split("?")[0] ||
                         (searchParams.toString() &&
-                          child.href === pathname + "?" + searchParams.toString())) &&
+                          child.href ===
+                            pathname + "?" + searchParams.toString())) &&
                         "bg-gray-100 dark:bg-gray-700"
                     )}
                   >
@@ -97,7 +98,9 @@ export default function SidebarItem({
 
           const itemTotal = item.totals?.[item.label] ?? totals?.[item.label];
           const badgeProps =
-            isHomeSection || itemTotal === undefined || typeof itemTotal === "string"
+            isHomeSection ||
+            itemTotal === undefined ||
+            typeof itemTotal === "string"
               ? {}
               : (() => {
                   const count = getTotalCountBadges(itemTotal);
@@ -112,9 +115,7 @@ export default function SidebarItem({
               as={Link}
               icon={item.icon}
               className={twMerge(
-                "justify-center [&>*]:font-normal",
-                isHomeSection &&
-                  "[&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
+                "justify-start [&>*]:font-normal [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
                 (pathname === item.href ||
                   (searchParams.toString() &&
                     item.href === pathname + "?" + searchParams.toString())) &&

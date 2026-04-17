@@ -164,26 +164,34 @@ export default function VehicleDetailAccordion({
   // extra calls here dedup to a single network fetch each. While loading
   // or on 404/error we fall back to "ok" so the health overview doesn't
   // flicker or go red on transient states.
-  const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
-  const { telemetry } = useFleetTruckTelemetry(vehicle.plate);
-  const { eventsDetail } = useFleetTruckEvents(vehicle.plate);
-  const { usage } = useFleetTruckUsage(vehicle.plate);
+  const { maintenance, error: maintenanceError } = useFleetTruckMaintenance(vehicle.plate);
+  const { telemetry, error: telemetryError } = useFleetTruckTelemetry(vehicle.plate);
+  const { eventsDetail, error: eventsError } = useFleetTruckEvents(vehicle.plate);
+  const { usage, error: usageError } = useFleetTruckUsage(vehicle.plate);
 
-  const maintenanceStatus: SectionStatus = maintenance
-    ? getMaintenanceSectionStatus(maintenance.status.criticality)
-    : "ok";
-  const telemetryStatus: SectionStatus = telemetry
+  const maintenanceStatus: SectionStatus = maintenanceError
+    ? "critical"
+    : maintenance
+      ? getMaintenanceSectionStatus(maintenance.status.criticality)
+      : "ok";
+  const telemetryStatus: SectionStatus = telemetryError
+    ? "critical"
+    : telemetry
     ? getTelemetrySectionStatus(
         telemetry.signal.freshness,
         telemetry.gps.health
       )
     : "ok";
-  const eventsStatus: SectionStatus = eventsDetail
-    ? getEventsSectionStatus(eventsDetail.events)
-    : "ok";
-  const usageStatus: SectionStatus = usage
-    ? getUsageSectionStatus(usage.contract.status, usage.contract.pct_consumed)
-    : "ok";
+  const eventsStatus: SectionStatus = eventsError
+    ? "critical"
+    : eventsDetail
+      ? getEventsSectionStatus(eventsDetail.events)
+      : "ok";
+  const usageStatus: SectionStatus = usageError
+    ? "critical"
+    : usage
+      ? getUsageSectionStatus(usage.contract.status, usage.contract.pct_consumed)
+      : "ok";
 
   const statuses: SectionStatuses = {
     ...getMockSectionStatuses(),
@@ -195,8 +203,12 @@ export default function VehicleDetailAccordion({
   const healthScore = getOverallHealthScore(statuses);
 
   return (
-    <div className="flex flex-col gap-3 py-4 overflow-y-auto">
-      <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
+    <div className="flex flex-col gap-3 py-4 w-full max-w-6xl">
+      <HealthSection
+        dict={dict}
+        healthScore={healthScore}
+        statuses={statuses}
+      />
       <MaintenanceSection vehicle={vehicle} dict={dict} />
       <TechnicalHealthSection dict={dict} status={statuses.technicalHealth} />
       <TelemetrySection vehicle={vehicle} dict={dict} />

@@ -31,7 +31,7 @@ export default function VehicleDetailView({
         hasPrevious={previous?.hasPrevious ?? false}
         hasNext={next?.hasNext ?? false}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto w-[70vw] max-w-screen-2xl">
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto w-full items-center bg-gray-50 dark:bg-gray-900 px-4 xl:px-0">
         <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { Select } from "flowbite-react";
 import dynamic from "next/dynamic";
+import dayjs from "dayjs";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -23,6 +24,8 @@ const TIPO_EVENTO_OPTIONS = [
 interface EventsFilterHeaderProps {
   readonly limit: number;
   readonly tipoEvento: string;
+  readonly desde?: string;
+  readonly hasta?: string;
   readonly onLimitChange: (limit: number) => void;
   readonly onTipoEventoChange: (tipo: string) => void;
   readonly onDateChange: (desde: string, hasta: string) => void;
@@ -46,6 +49,8 @@ function getTipoEventoLabel(tipo: string, dict: I18nRecord): string {
 export default function EventsFilterHeader({
   limit,
   tipoEvento,
+  desde,
+  hasta,
   onLimitChange,
   onTipoEventoChange,
   onDateChange,
@@ -58,12 +63,14 @@ export default function EventsFilterHeader({
         <DateRangePicker
           label={tr("vehicleDetail.sections.events.filters.dateRange", dict)}
           onDateChange={onDateChange}
+          defaultStartDate={desde ? dayjs(desde) : undefined}
+          defaultEndDate={hasta ? dayjs(hasta) : undefined}
           className="text-gray-700 dark:text-gray-300"
         />
       </div>
 
       {/* Event type */}
-      <div className="min-w-36 [&_select]:!h-7 [&_select]:!py-0 [&_select]:!text-xs">
+      <div className="min-w-36 [&_select]:h-7! [&_select]:py-0! [&_select]:text-xs!">
         <label
           htmlFor="events-tipo-evento"
           className="mb-1 block text-sm font-light text-gray-700 dark:text-gray-300"
@@ -85,7 +92,7 @@ export default function EventsFilterHeader({
       </div>
 
       {/* Limit */}
-      <div className="min-w-24 [&_select]:!h-7 [&_select]:!py-0 [&_select]:!text-xs">
+      <div className="min-w-24 [&_select]:h-7! [&_select]:py-0! [&_select]:text-xs!">
         <label
           htmlFor="events-limit"
           className="mb-1 block text-sm font-light text-gray-700 dark:text-gray-300"

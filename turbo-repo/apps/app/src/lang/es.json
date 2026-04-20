@@ -2863,7 +2863,7 @@
             "POR_VENCER": {
               "label": "Por vencer",
               "bannerTitle": "Mantención próxima",
-              "bannerDesc": "Quedan menos de 2,000 km para la próxima mantención programada."
+              "bannerDesc": "Quedan menos de 2.000 km para la próxima mantención programada."
             },
             "CRITICO": {
               "label": "Crítico",
@@ -2982,7 +2982,9 @@
           "emptyTitle": "Sin eventos recientes",
           "emptyDesc": "No se han registrado eventos operativos en la ventana de tiempo reciente.",
           "criticalCount": "{count} críticos",
+          "criticalCount_one": "{count} crítico",
           "warningCount": "{count} alertas",
+          "warningCount_one": "{count} alerta",
           "durationMinutes": "{minutes} min",
           "speedExceeded": "{speed} km/h (límite {limit})",
           "hardBraking": "Frenado brusco detectado",
@@ -3003,6 +3005,8 @@
             "mantencion": "Mantención",
             "SEÑAL": "Señal",
             "VELOCIDAD": "Velocidad",
+            "HORARIO": "Horario",
+            "MANTENIMIENTO": "Mantenimiento",
             "OTROS": "Otros"
           },
           "filters": {

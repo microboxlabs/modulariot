@@ -16,6 +16,7 @@ interface AuthorityAutocompleteProps {
 }
 
 const DEBOUNCE_MS = 250;
+const MIN_SEARCH_LENGTH = 3;
 
 export function AuthorityAutocomplete({
   kind,
@@ -34,7 +35,7 @@ export function AuthorityAutocomplete({
 
   useEffect(() => {
     const trimmed = term.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < MIN_SEARCH_LENGTH) {
       setSuggestions([]);
       setLoading(false);
       return;
@@ -94,7 +95,7 @@ export function AuthorityAutocomplete({
     setOpen(false);
   };
 
-  const showPanel = open && term.trim().length >= 2;
+  const showPanel = open && term.trim().length >= MIN_SEARCH_LENGTH;
 
   const renderPanelContent = () => {
     if (loading) {

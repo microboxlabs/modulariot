@@ -1810,6 +1810,27 @@ export async function getDashboardNodePermissions(
 }
 
 /**
+ * Resolves the nodeId of the dashboard config file for the given site/slug
+ * via its canonical path. Used by routes that must authoritatively identify
+ * the dashboard node server-side (never trust a client-supplied nodeId).
+ */
+export async function resolveDashboardNodeId(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<string> {
+  const relativePath = `Sites/${site}/documentLibrary/dashboard/${slug}-config.json`;
+  const params = new URLSearchParams({ relativePath });
+  const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/-root-?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<{ entry: { id: string } }>(url, {
+    method: "GET",
+    headers,
+  });
+  return result.entry.id;
+}
+
+/**
  * Resolves the dashboard node and returns the `allowableOperations` array
  * Alfresco computes for the current user. Operations: `delete`, `update`,
  * `updatePermissions`, `create`. Used by the UI to gate edit/settings

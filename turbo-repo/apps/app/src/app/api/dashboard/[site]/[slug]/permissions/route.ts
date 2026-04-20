@@ -26,89 +26,105 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-type ValidationResult =
-  | { ok: true; update: NodePermissionsUpdate }
+type ValidationResult<T> =
+  | { ok: true; value: T }
   | { ok: false; message: string };
+
+function fail(message: string): { ok: false; message: string } {
+  return { ok: false, message };
+}
+
+function validateAccessStatus(
+  value: unknown,
+  index: number
+): ValidationResult<AlfrescoPermissionEntry["accessStatus"]> {
+  if (value === undefined) return { ok: true, value: "ALLOWED" };
+  if (value === "ALLOWED" || value === "DENIED") {
+    return { ok: true, value };
+  }
+  return fail(
+    `'permissions.locallySet[${index}].accessStatus' must be 'ALLOWED' or 'DENIED'`
+  );
+}
+
+function validateLocallySetEntry(
+  entry: unknown,
+  index: number
+): ValidationResult<AlfrescoPermissionEntry> {
+  if (!isRecord(entry)) {
+    return fail(`'permissions.locallySet[${index}]' must be an object`);
+  }
+  const { authorityId, name, accessStatus } = entry;
+  if (!isNonEmptyString(authorityId)) {
+    return fail(
+      `'permissions.locallySet[${index}].authorityId' must be a non-empty string`
+    );
+  }
+  if (!isNonEmptyString(name)) {
+    return fail(
+      `'permissions.locallySet[${index}].name' must be a non-empty string`
+    );
+  }
+  if (!isDashboardRole(name)) {
+    return fail(
+      `Unsupported role '${name}' in locallySet[${index}]. Allowed: Consumer, Contributor, Editor, Coordinator`
+    );
+  }
+  const status = validateAccessStatus(accessStatus, index);
+  if (!status.ok) return status;
+  return { ok: true, value: { authorityId, name, accessStatus: status.value } };
+}
+
+function validateLocallySet(
+  value: unknown
+): ValidationResult<AlfrescoPermissionEntry[] | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!Array.isArray(value)) {
+    return fail("'permissions.locallySet' must be an array");
+  }
+  const validated: AlfrescoPermissionEntry[] = [];
+  for (let i = 0; i < value.length; i++) {
+    const entry = validateLocallySetEntry(value[i], i);
+    if (!entry.ok) return entry;
+    validated.push(entry.value);
+  }
+  return { ok: true, value: validated };
+}
+
+function validateInheritanceEnabled(
+  value: unknown
+): ValidationResult<boolean | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (typeof value === "boolean") return { ok: true, value };
+  return fail("'permissions.isInheritanceEnabled' must be a boolean");
+}
 
 /**
  * Validates the PUT body shape at the API boundary. Input comes from an
  * untrusted client, so shapes cannot be trusted — reject anything that
  * doesn't match NodePermissionsUpdate before forwarding to Alfresco.
  */
-function validatePermissionsUpdate(raw: unknown): ValidationResult {
+function validatePermissionsUpdate(
+  raw: unknown
+): ValidationResult<NodePermissionsUpdate> {
   if (!isRecord(raw)) {
-    return { ok: false, message: "'permissions' must be an object" };
+    return fail("'permissions' must be an object");
   }
 
-  const { isInheritanceEnabled, locallySet } = raw;
+  const inheritance = validateInheritanceEnabled(raw.isInheritanceEnabled);
+  if (!inheritance.ok) return inheritance;
 
-  if (
-    isInheritanceEnabled !== undefined &&
-    typeof isInheritanceEnabled !== "boolean"
-  ) {
-    return {
-      ok: false,
-      message: "'permissions.isInheritanceEnabled' must be a boolean",
-    };
-  }
-
-  if (locallySet !== undefined && !Array.isArray(locallySet)) {
-    return {
-      ok: false,
-      message: "'permissions.locallySet' must be an array",
-    };
-  }
+  const locally = validateLocallySet(raw.locallySet);
+  if (!locally.ok) return locally;
 
   const update: NodePermissionsUpdate = {};
-  if (typeof isInheritanceEnabled === "boolean") {
-    update.isInheritanceEnabled = isInheritanceEnabled;
+  if (inheritance.value !== undefined) {
+    update.isInheritanceEnabled = inheritance.value;
   }
-
-  if (Array.isArray(locallySet)) {
-    const validated: AlfrescoPermissionEntry[] = [];
-    for (let i = 0; i < locallySet.length; i++) {
-      const entry = locallySet[i];
-      if (!isRecord(entry)) {
-        return {
-          ok: false,
-          message: `'permissions.locallySet[${i}]' must be an object`,
-        };
-      }
-      const { authorityId, name, accessStatus } = entry;
-      if (!isNonEmptyString(authorityId)) {
-        return {
-          ok: false,
-          message: `'permissions.locallySet[${i}].authorityId' must be a non-empty string`,
-        };
-      }
-      if (!isNonEmptyString(name)) {
-        return {
-          ok: false,
-          message: `'permissions.locallySet[${i}].name' must be a non-empty string`,
-        };
-      }
-      if (!isDashboardRole(name)) {
-        return {
-          ok: false,
-          message: `Unsupported role '${name}' in locallySet[${i}]. Allowed: Consumer, Contributor, Editor, Coordinator`,
-        };
-      }
-      let status: AlfrescoPermissionEntry["accessStatus"] = "ALLOWED";
-      if (accessStatus !== undefined) {
-        if (accessStatus !== "ALLOWED" && accessStatus !== "DENIED") {
-          return {
-            ok: false,
-            message: `'permissions.locallySet[${i}].accessStatus' must be 'ALLOWED' or 'DENIED'`,
-          };
-        }
-        status = accessStatus;
-      }
-      validated.push({ authorityId, name, accessStatus: status });
-    }
-    update.locallySet = validated;
+  if (locally.value !== undefined) {
+    update.locallySet = locally.value;
   }
-
-  return { ok: true, update };
+  return { ok: true, value: update };
 }
 
 /**
@@ -176,7 +192,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     const updated = await updateNodePermissions(
       session,
       nodeId,
-      validation.update
+      validation.value
     );
     return NextResponse.json({ nodeId, permissions: updated });
   } catch (error) {

@@ -693,7 +693,18 @@ function ManagePermissionsForm({
 // Main Component
 // ============================================================================
 
-export default function DashboardSettingsDropdown() {
+interface DashboardSettingsDropdownProps {
+  /**
+   * Whether the current user can manage node permissions (Alfresco
+   * `updatePermissions`, i.e. Coordinator). Controls visibility of the
+   * Access Control section and the underlying permissions modal.
+   */
+  canManagePermissions: boolean;
+}
+
+export default function DashboardSettingsDropdown({
+  canManagePermissions,
+}: Readonly<DashboardSettingsDropdownProps>) {
   const {
     dashboardName,
     filters,
@@ -899,23 +910,25 @@ export default function DashboardSettingsDropdown() {
             <PlannerManagerForm />
           </SettingsSection>
 
-          <SettingsSection
-            option="access"
-            selected={selected}
-            setSelected={setSelected}
-            title={tr("dashboard.settings.accessControlTitle", dictionary)}
-            description={tr(
-              "dashboard.settings.accessControlDescription",
-              dictionary
-            )}
-          >
-            <ManagePermissionsForm
-              onOpenModal={() => {
-                setShowPermissionsModal(true);
-                closePanel();
-              }}
-            />
-          </SettingsSection>
+          {canManagePermissions && (
+            <SettingsSection
+              option="access"
+              selected={selected}
+              setSelected={setSelected}
+              title={tr("dashboard.settings.accessControlTitle", dictionary)}
+              description={tr(
+                "dashboard.settings.accessControlDescription",
+                dictionary
+              )}
+            >
+              <ManagePermissionsForm
+                onOpenModal={() => {
+                  setShowPermissionsModal(true);
+                  closePanel();
+                }}
+              />
+            </SettingsSection>
+          )}
 
           <SettingsSection
             option="delete"
@@ -948,7 +961,7 @@ export default function DashboardSettingsDropdown() {
         confirmText={tr("dashboard.landing.delete_confirm_title", dictionary)}
       />
 
-      {siteId && params.slug && (
+      {canManagePermissions && siteId && params.slug && (
         <DashboardPermissionsModal
           isOpen={showPermissionsModal}
           onClose={() => setShowPermissionsModal(false)}

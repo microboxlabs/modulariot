@@ -27,6 +27,7 @@ export default function SecondaryPanelSearch({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          aria-label={placeholder}
           className={twMerge(
             "w-full rounded-lg border border-gray-300 py-1.5 pl-8 pr-3 text-sm",
             "text-gray-900 placeholder:text-gray-400",

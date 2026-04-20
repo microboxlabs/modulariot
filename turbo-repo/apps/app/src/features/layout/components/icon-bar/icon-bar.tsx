@@ -74,6 +74,7 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
       <div className="flex flex-col items-center gap-1 border-t border-gray-200 pt-3 dark:border-gray-700">
         <Link
           href="/users/settings"
+          onClick={() => setActiveSection(null)}
           className={twMerge(
             "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
             "text-gray-500 dark:text-gray-400",

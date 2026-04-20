@@ -156,7 +156,7 @@ export default function SecondaryPanelItemList({
         const translatedLabel = tr(item.label, dict);
 
         // Nested group (item has children)
-        if (item.items) {
+        if (item.items && item.items.length > 0) {
           return (
             <PanelNestedGroup
               key={item.label}

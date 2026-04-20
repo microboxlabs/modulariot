@@ -145,6 +145,7 @@ export function DashboardPermissionsModal({
   };
 
   const handleSave = async () => {
+    if (!swrKey) return;
     if (!data?.nodeId) return;
 
     setSaving(true);
@@ -156,7 +157,7 @@ export function DashboardPermissionsModal({
     };
 
     try {
-      const response = await fetch(swrKey!, {
+      const response = await fetch(swrKey, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -174,7 +175,12 @@ export function DashboardPermissionsModal({
       );
       ShowNotification({ type: "success", message: t("saveSuccess") });
       onClose();
-    } catch {
+    } catch (err) {
+      console.error(
+        "Failed to save permissions for node",
+        data?.nodeId,
+        err
+      );
       ShowNotification({ type: "error", message: t("saveError") });
     } finally {
       setSaving(false);

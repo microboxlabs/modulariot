@@ -36,7 +36,9 @@ function findActiveSectionLabel(
   pathname: string
 ): string | null {
   for (const item of items) {
-    const hasChildren = Boolean(item.items && item.items.length > 0);
+    const hasChildren = Boolean(
+      (item.items && item.items.length > 0) || item.dynamicItemsSource
+    );
     if (hasChildren && isItemActive(item, pathname)) return item.label;
   }
   return null;

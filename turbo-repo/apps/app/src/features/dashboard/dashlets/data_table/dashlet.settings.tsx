@@ -32,6 +32,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
@@ -173,6 +174,7 @@ export function DashletSettings({
       refreshSelect={refresh.selectNode}
       title={dashletName}
       displayOptionsChildren={displayOptions}
+      widgetId={widgetId}
     />
   );
 }

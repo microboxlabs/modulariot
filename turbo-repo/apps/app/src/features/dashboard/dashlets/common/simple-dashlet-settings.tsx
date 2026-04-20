@@ -115,7 +115,15 @@ export function useFieldState(
 export function SimpleDashletSettings<C extends object>({
   fields,
   idPrefix,
-  settingsProps: { isOpen, onClose, config, onSave, dictionary, dashletName },
+  settingsProps: {
+    isOpen,
+    onClose,
+    config,
+    onSave,
+    dictionary,
+    dashletName,
+    widgetId,
+  },
   extraVisualization,
   extraSaveFields,
   thresholds: showThresholds = false,
@@ -224,6 +232,7 @@ export function SimpleDashletSettings<C extends object>({
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
     />
   );
 }

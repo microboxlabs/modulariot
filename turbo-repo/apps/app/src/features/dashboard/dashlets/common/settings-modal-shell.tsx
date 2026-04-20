@@ -26,6 +26,8 @@ interface SettingsModalShellProps {
   refreshSelect?: ReactNode;
   /** Optional title shown in the header */
   title?: string;
+  /** Widget ID for anchor navigation */
+  widgetId?: string;
 }
 
 export function SettingsModalShell({
@@ -38,6 +40,7 @@ export function SettingsModalShell({
   className,
   refreshSelect,
   title,
+  widgetId,
 }: Readonly<SettingsModalShellProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
@@ -48,6 +51,8 @@ export function SettingsModalShell({
       onClose={onClose}
       className={className}
       title={title}
+      widgetId={widgetId}
+      dictionary={dictionary}
     >
       <div className="flex h-full flex-col gap-3">
         {/* Tabs */}

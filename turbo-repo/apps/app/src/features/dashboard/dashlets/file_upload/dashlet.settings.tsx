@@ -19,6 +19,7 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const { siteId } = useDashboard();
   const { dataSources } = useDataSources(siteId ?? undefined);
@@ -27,9 +28,13 @@ export function DashletSettings({
   );
 
   const [title, setTitle] = useState(config.title || "");
-  const [pgrestFunctionName, setPgrestFunctionName] = useState(config.pgrestFunctionName || "");
+  const [pgrestFunctionName, setPgrestFunctionName] = useState(
+    config.pgrestFunctionName || ""
+  );
   const [dataSourceId, setDataSourceId] = useState(config.dataSourceId || "");
-  const [acceptedFileTypes, setAcceptedFileTypes] = useState(config.acceptedFileTypes || "");
+  const [acceptedFileTypes, setAcceptedFileTypes] = useState(
+    config.acceptedFileTypes || ""
+  );
 
   const handleSave = () => {
     onSave({
@@ -42,7 +47,12 @@ export function DashletSettings({
   };
 
   return (
-    <SettingsDrawer open={isOpen} onClose={onClose}>
+    <SettingsDrawer
+      open={isOpen}
+      onClose={onClose}
+      widgetId={widgetId}
+      dictionary={dictionary}
+    >
       <div className="flex h-full flex-col gap-3">
         <div>
           <Label htmlFor="upload-title" className="mb-1 block text-sm">
@@ -52,7 +62,10 @@ export function DashletSettings({
             id="upload-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={tr("dashboard.settings.fileUpload.buttonLabelPlaceholder", dictionary)}
+            placeholder={tr(
+              "dashboard.settings.fileUpload.buttonLabelPlaceholder",
+              dictionary
+            )}
           />
         </div>
 
@@ -62,7 +75,10 @@ export function DashletSettings({
           value={dataSourceId}
           onChange={setDataSourceId}
           options={[
-            { value: "", label: tr("dashboard.settings.fileUpload.defaultEnv", dictionary) },
+            {
+              value: "",
+              label: tr("dashboard.settings.fileUpload.defaultEnv", dictionary),
+            },
             ...activeProviders.map((ds) => ({ value: ds.id, label: ds.name })),
           ]}
         />
@@ -91,7 +107,10 @@ export function DashletSettings({
             placeholder=".csv,.xlsx,.json"
           />
           <p className="mt-1 text-xs text-gray-500">
-            {tr("dashboard.settings.fileUpload.acceptedFileTypesHint", dictionary)}
+            {tr(
+              "dashboard.settings.fileUpload.acceptedFileTypesHint",
+              dictionary
+            )}
           </p>
         </div>
 

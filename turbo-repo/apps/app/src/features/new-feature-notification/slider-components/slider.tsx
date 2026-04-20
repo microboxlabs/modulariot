@@ -8,7 +8,7 @@ import signal_historic_gif from "@assets/images/new_features/signal-historic.gif
 
 export default function Slider(dict: I18nRecord) {
   return {
-    id: "0.0",
+    id: "0.1",
     image: signal_historic_gif,
     description: (isActive: boolean) => [
       <div

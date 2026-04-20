@@ -54,7 +54,10 @@ export function DashboardView() {
   const pathname = usePathname();
   const params = useParams<{ slug: string }>();
 
-  const { canEdit } = useDashboardAccess(siteId, params.slug);
+  const { canEdit, canManagePermissions } = useDashboardAccess(
+    siteId,
+    params.slug
+  );
 
   // Force edit mode off for read-only users so they can never accidentally
   // stay in edit mode if their role was downgraded mid-session.
@@ -307,7 +310,11 @@ export function DashboardView() {
                   label={tr("dashboard.editMode", dictionary)}
                 />
               )}
-              {canEdit && <DashboardSettingsDropdown />}
+              {canEdit && (
+                <DashboardSettingsDropdown
+                  canManagePermissions={canManagePermissions}
+                />
+              )}
               <Link
                 href={kioskUrl}
                 target="_blank"

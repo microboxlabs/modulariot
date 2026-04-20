@@ -59,6 +59,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -496,6 +497,7 @@ export function DashletSettings({
       className="w-[28rem]"
       refreshSelect={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
     />
   );
 }

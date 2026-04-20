@@ -1,7 +1,6 @@
 import React from "react";
 import { auth } from "@/auth";
 import { SidebarProvider } from "@/features/sidebar/context/sidebar-context";
-import { sidebarCookie } from "@/features/sidebar/services/sidebar-cookie.service";
 import { LayoutContent } from "@/features/layout/components/layout-content";
 import type { PropsWithChildren } from "react";
 import { SecuredNavbar } from "./secured-navbar/secured-navbar";
@@ -26,29 +25,32 @@ export default async function SecuredLayout({
   const initialOrgLogo = await getPublicOrgLogo();
   return (
     <RuntimeConfigProvider>
-    <SidebarProvider initialCollapsed={(await sidebarCookie.get()).isCollapsed}>
-      <KioskShell>
-        <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
-        <SecuredNavbar
-          messages={navBarMessages}
-          dict={dictionary as I18nRecord}
-          initialOrgLogo={initialOrgLogo}
-        />
-        <div
-          data-testid="content-with-sidebar"
-          className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"
-        >
-          <SecuredSidebar
-            dict={
-              ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
-                ?.sidebar as I18nRecord
-            }
+      <SidebarProvider>
+        <KioskShell>
+          <SseListener
+            dictionary={dictionary}
+            tenantId={session!.user!.email}
           />
-          <LayoutContent>{children}</LayoutContent>
-        </div>
-        <FooterSecuredLayout messages={dict} />
-      </KioskShell>
-    </SidebarProvider>
+          <SecuredNavbar
+            messages={navBarMessages}
+            dict={dictionary as I18nRecord}
+            initialOrgLogo={initialOrgLogo}
+          />
+          <div
+            data-testid="content-with-sidebar"
+            className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"
+          >
+            <SecuredSidebar
+              dict={
+                ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
+                  ?.sidebar as I18nRecord
+              }
+            />
+            <LayoutContent>{children}</LayoutContent>
+          </div>
+          <FooterSecuredLayout messages={dict} />
+        </KioskShell>
+      </SidebarProvider>
     </RuntimeConfigProvider>
   );
 }

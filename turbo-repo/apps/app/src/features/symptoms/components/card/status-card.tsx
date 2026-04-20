@@ -2,11 +2,9 @@
 
 import React from "react";
 import { twMerge } from "tailwind-merge";
-import Link from "next/link";
 import StatusCardSkeleton from "./status-card-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { usePathname, useRouter } from "next/navigation";
-import { FeatureState } from "@/features/new-feature-notification/client-notification";
+import { useRouter } from "next/navigation";
 
 interface StatusCardProps {
   icon: React.ReactNode;
@@ -26,8 +24,6 @@ export default function StatusCard({
   icu_condition = "CODE_BLACK",
   loading = false,
 }: StatusCardProps) {
-  const pathname = usePathname();
-  const this_path = pathname.split("/")[2];
   const router = useRouter();
 
   const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
@@ -37,8 +33,6 @@ export default function StatusCard({
   if (loading) {
     return <StatusCardSkeleton />;
   }
-
-  const new_condition_filtering = localStorage.getItem(this_path);
 
   return (
     <div
@@ -59,73 +53,40 @@ export default function StatusCard({
         "w-full"
       )}
     >
-      {new_condition_filtering === FeatureState.Accepted.toString() ? (
-        <button
-          className="w-full text-left"
-          onClick={() => {
-            // add to the route params icu_code with the icu_condition value
-            const url = new URLSearchParams(window.location.search);
-            url.set("icu_code", icu_condition);
-            router.push(`?${url.toString()}`);
-          }}
-        >
-          <div className="flex flex-row justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div
-                className={twMerge(
-                  "w-6 h-6",
-                  bgColor,
-                  "rounded-full",
-                  "border",
-                  borderColor,
-                  "flex items-center justify-center"
-                )}
-              >
-                <span className="text-white text-[8px] font-medium">
-                  {icon}
-                </span>
-              </div>
-              <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap first-letter:uppercase">
-                {title}
-              </span>
+      <button
+        className="w-full text-left"
+        onClick={() => {
+          // add to the route params icu_code with the icu_condition value
+          const url = new URLSearchParams(window.location.search);
+          url.set("icu_code", icu_condition);
+          router.push(`?${url.toString()}`);
+        }}
+      >
+        <div className="flex flex-row justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div
+              className={twMerge(
+                "w-6 h-6",
+                bgColor,
+                "rounded-full",
+                "border",
+                borderColor,
+                "flex items-center justify-center"
+              )}
+            >
+              <span className="text-white text-[8px] font-medium">{icon}</span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="text-gray-500 dark:text-white text-2xl font-medium">
-                {count}
-              </span>
-            </div>
+            <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap first-letter:uppercase">
+              {title}
+            </span>
           </div>
-        </button>
-      ) : (
-        <Link href={`/symptoms/symptoms-list/${icu_condition}`}>
-          <div className="flex flex-row justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div
-                className={twMerge(
-                  "w-6 h-6",
-                  bgColor,
-                  "rounded-full",
-                  "border",
-                  borderColor,
-                  "flex items-center justify-center"
-                )}
-              >
-                <span className="text-white text-[8px] font-medium">
-                  {icon}
-                </span>
-              </div>
-              <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap first-letter:uppercase">
-                {title}
-              </span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="text-gray-500 dark:text-white text-2xl font-medium">
-                {count}
-              </span>
-            </div>
+          <div className="flex items-end gap-2">
+            <span className="text-gray-500 dark:text-white text-2xl font-medium">
+              {count}
+            </span>
           </div>
-        </Link>
-      )}
+        </div>
+      </button>
     </div>
   );
 }

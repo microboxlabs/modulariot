@@ -1,10 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
-import { HiXMark } from "react-icons/hi2";
+import { HiXMark, HiClipboardDocument, HiCheck } from "react-icons/hi2";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
 
 interface SettingsDrawerProps {
   /** Whether the drawer is open */
@@ -17,6 +20,10 @@ interface SettingsDrawerProps {
   className?: string;
   /** Drawer content */
   children: ReactNode;
+  /** Widget ID for anchor navigation (displayed automatically at top) */
+  widgetId?: string;
+  /** i18n dictionary for translations */
+  dictionary?: I18nRecord;
 }
 
 /**
@@ -29,8 +36,24 @@ export function SettingsDrawer({
   title,
   className,
   children,
+  widgetId,
+  dictionary,
 }: Readonly<SettingsDrawerProps>) {
   const mouseDownOnBackdrop = useRef(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAnchor = useCallback(() => {
+    if (!widgetId) return;
+    const anchor = `#widget-${widgetId}`;
+    navigator.clipboard.writeText(anchor).then(() => {
+      setCopied(true);
+      ShowNotification({
+        type: "success",
+        message: tr("common.copiedToClipboard", dictionary ?? {}),
+      });
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [widgetId, dictionary]);
 
   useEffect(() => {
     if (globalThis.window === undefined || !open) return;
@@ -98,6 +121,33 @@ export function SettingsDrawer({
         </div>
 
         <div className="h-[calc(100%-3rem)] overflow-y-auto p-4">
+          {/* Widget anchor ID - shown automatically at the top */}
+          {widgetId && (
+            <button
+              type="button"
+              onClick={handleCopyAnchor}
+              title={tr("common.copy", dictionary ?? {})}
+              className="mb-3 flex h-8 w-full cursor-pointer items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 text-xs transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+            >
+              <span className="relative h-3.5 w-3.5 shrink-0">
+                <HiClipboardDocument
+                  className={twMerge(
+                    "absolute inset-0 h-3.5 w-3.5 text-gray-400 transition-all duration-200",
+                    copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
+                  )}
+                />
+                <HiCheck
+                  className={twMerge(
+                    "absolute inset-0 h-3.5 w-3.5 text-green-500 transition-all duration-200",
+                    copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                  )}
+                />
+              </span>
+              <code className="truncate font-mono text-gray-500 dark:text-gray-400">
+                #widget-{widgetId}
+              </code>
+            </button>
+          )}
           {open && children}
         </div>
       </dialog>

@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
-import { tr } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
-import SecondaryPanelHeader from "./secondary-panel-header";
-import SecondaryPanelSearch from "./secondary-panel-search";
-import SecondaryPanelItemList from "./secondary-panel-item-list";
+import SecondaryPanelContent from "./secondary-panel-content";
 
 function findSection(
   items: SidebarItem[],
@@ -22,15 +19,9 @@ export default function SecondaryPanel({ dict }: Readonly<PropsWithI18nDict>) {
   const { desktop } = useSidebarContext();
   const { activeSection } = desktop;
   const { items, totals } = useSidebarNavigation();
-  const [searchQuery, setSearchQuery] = useState("");
 
   const section = activeSection ? findSection(items, activeSection) : undefined;
   const isOpen = Boolean(section);
-
-  // Reset search when section changes
-  useEffect(() => {
-    setSearchQuery("");
-  }, [activeSection]);
 
   // Keep last section so content stays visible during close animation
   const lastSectionRef = useRef<SidebarItem | undefined>(section);
@@ -55,40 +46,13 @@ export default function SecondaryPanel({ dict }: Readonly<PropsWithI18nDict>) {
         )}
       >
         {displayedSection && (
-          <div
-            className={twMerge(
-              "flex h-full flex-col transition-opacity duration-100 ease-out",
-              isOpen ? "opacity-100" : "pointer-events-none opacity-0"
-            )}
-          >
-            <SecondaryPanelHeader
-              icon={displayedSection.icon}
-              label={tr(displayedSection.label, dict)}
-            />
-
-            {displayedSection.searchable && (
-              <SecondaryPanelSearch
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder={tr("searchPlaceholder", dict)}
-                createAction={
-                  displayedSection.createAction
-                    ? {
-                        href: displayedSection.createAction.href,
-                        label: tr(displayedSection.createAction.label, dict),
-                      }
-                    : undefined
-                }
-              />
-            )}
-
-            <SecondaryPanelItemList
-              items={displayedSection.items ?? []}
-              searchQuery={searchQuery}
-              totals={totals}
-              dict={dict}
-            />
-          </div>
+          <SecondaryPanelContent
+            section={displayedSection}
+            sectionKey={activeSection ?? ""}
+            isOpen={isOpen}
+            totals={totals}
+            dict={dict}
+          />
         )}
       </div>
     </div>

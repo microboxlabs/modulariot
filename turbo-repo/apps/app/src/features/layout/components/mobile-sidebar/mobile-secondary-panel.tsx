@@ -1,13 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { tr } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
-import SecondaryPanelHeader from "../secondary-panel/secondary-panel-header";
-import SecondaryPanelSearch from "../secondary-panel/secondary-panel-search";
-import SecondaryPanelItemList from "../secondary-panel/secondary-panel-item-list";
+import SecondaryPanelContent from "../secondary-panel/secondary-panel-content";
 
 interface MobileSecondaryPanelProps {
   section: SidebarItem | undefined;
@@ -23,15 +19,6 @@ export default function MobileSecondaryPanel({
   dict,
   onNavigate,
 }: Readonly<PropsWithI18nDict<MobileSecondaryPanelProps>>) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Reset search when section changes
-  useEffect(() => {
-    setSearchQuery("");
-  }, [section?.label]);
-
-  const displayedSection = section;
-
   return (
     <div
       className={twMerge(
@@ -45,42 +32,15 @@ export default function MobileSecondaryPanel({
           "bg-white dark:bg-gray-800"
         )}
       >
-        {displayedSection && (
-          <div
-            className={twMerge(
-              "flex h-full flex-col transition-opacity duration-100 ease-out",
-              isOpen ? "opacity-100" : "pointer-events-none opacity-0"
-            )}
-          >
-            <SecondaryPanelHeader
-              icon={displayedSection.icon}
-              label={tr(displayedSection.label, dict)}
-            />
-
-            {displayedSection.searchable && (
-              <SecondaryPanelSearch
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder={tr("searchPlaceholder", dict)}
-                createAction={
-                  displayedSection.createAction
-                    ? {
-                        href: displayedSection.createAction.href,
-                        label: tr(displayedSection.createAction.label, dict),
-                      }
-                    : undefined
-                }
-              />
-            )}
-
-            <SecondaryPanelItemList
-              items={displayedSection.items ?? []}
-              searchQuery={searchQuery}
-              totals={totals}
-              dict={dict}
-              onNavigate={onNavigate}
-            />
-          </div>
+        {section && (
+          <SecondaryPanelContent
+            section={section}
+            sectionKey={section.label}
+            isOpen={isOpen}
+            totals={totals}
+            dict={dict}
+            onNavigate={onNavigate}
+          />
         )}
       </div>
     </div>

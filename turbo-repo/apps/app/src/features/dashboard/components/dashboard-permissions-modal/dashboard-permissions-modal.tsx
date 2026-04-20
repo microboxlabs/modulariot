@@ -189,58 +189,68 @@ export function DashboardPermissionsModal({
 
   if (!isOpen) return null;
 
+  const renderBody = () => {
+    if (isLoading) {
+      return (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t("loading")}
+        </p>
+      );
+    }
+    if (error) {
+      return (
+        <p className="text-sm text-red-600 dark:text-red-400">
+          {error.status === 403 ? t("notAuthorized") : t("loadError")}
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-5">
+        <InheritanceToggle
+          checked={isInheritanceEnabled}
+          onChange={setIsInheritanceEnabled}
+          label={t("inheritanceLabel")}
+          help={t("inheritanceHelp")}
+        />
+
+        <InheritedList
+          entries={inheritedEntries}
+          heading={t("inheritedHeading")}
+          emptyLabel={t("noInherited")}
+          badgeLabel={t("inheritedBadge")}
+          roleLabel={(role) => tr(ROLE_LABEL_KEYS[fallbackRole(role)], dictionary)}
+        />
+
+        <LocalList
+          entries={localEntries}
+          heading={t("localHeading")}
+          emptyLabel={t("noLocalEntries")}
+          removeAriaLabel={(id) => t("removeAriaLabel", { authority: id })}
+          onChangeRole={handleChangeRole}
+          onRemove={handleRemove}
+          dictionary={dictionary}
+        />
+
+        <AddAuthoritySection
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          pendingRole={pendingRole}
+          onChangeRole={setPendingRole}
+          onAdd={handleAddAuthority}
+          t={t}
+          dictionary={dictionary}
+        />
+      </div>
+    );
+  };
+
   return (
     <Modal show={isOpen} size="2xl" onClose={onClose} dismissible>
       <ModalHeader>
         {t("modalTitle", { name: dashboardName })}
       </ModalHeader>
       <ModalBody>
-        {isLoading ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {t("loading")}
-          </p>
-        ) : error ? (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {error.status === 403 ? t("notAuthorized") : t("loadError")}
-          </p>
-        ) : (
-          <div className="space-y-5">
-            <InheritanceToggle
-              checked={isInheritanceEnabled}
-              onChange={setIsInheritanceEnabled}
-              label={t("inheritanceLabel")}
-              help={t("inheritanceHelp")}
-            />
-
-            <InheritedList
-              entries={inheritedEntries}
-              heading={t("inheritedHeading")}
-              emptyLabel={t("noInherited")}
-              badgeLabel={t("inheritedBadge")}
-              roleLabel={(role) => tr(ROLE_LABEL_KEYS[fallbackRole(role)], dictionary)}
-            />
-
-            <LocalList
-              entries={localEntries}
-              heading={t("localHeading")}
-              emptyLabel={t("noLocalEntries")}
-              removeAriaLabel={(id) => t("removeAriaLabel", { authority: id })}
-              onChangeRole={handleChangeRole}
-              onRemove={handleRemove}
-              dictionary={dictionary}
-            />
-
-            <AddAuthoritySection
-              activeTab={activeTab}
-              onChangeTab={setActiveTab}
-              pendingRole={pendingRole}
-              onChangeRole={setPendingRole}
-              onAdd={handleAddAuthority}
-              t={t}
-              dictionary={dictionary}
-            />
-          </div>
-        )}
+        {renderBody()}
 
         <div className="mt-6 flex justify-end gap-2">
           <Button color="gray" size="sm" onClick={onClose} disabled={saving}>

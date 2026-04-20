@@ -15,12 +15,11 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import Link from "next/link";
-import { useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname, useParams } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboardAccess } from "@/features/common/providers/client-api.provider";
-import { useParams } from "next/navigation";
 import { EmptyState } from "../empty-state";
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";

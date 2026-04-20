@@ -1798,10 +1798,10 @@ export async function getDashboardNodePermissions(
   });
   const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/-root-?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = (await fetcher(url, {
+  const result = await fetcher<NodeEntryWithPermissions>(url, {
     method: "GET",
     headers,
-  })) as NodeEntryWithPermissions;
+  });
 
   return {
     nodeId: result.entry.id,
@@ -1827,12 +1827,12 @@ export async function getDashboardAllowableOperations(
   });
   const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/-root-?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = (await fetcher(url, {
+  const result = await fetcher<{
+    entry: { id: string; allowableOperations?: string[] };
+  }>(url, {
     method: "GET",
     headers,
-  })) as {
-    entry: { id: string; allowableOperations?: string[] };
-  };
+  });
 
   return {
     nodeId: result.entry.id,
@@ -1852,14 +1852,14 @@ export async function updateNodePermissions(
   const params = new URLSearchParams({ include: "permissions" });
   const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/${nodeId}?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = (await fetcher(url, {
+  const result = await fetcher<NodeEntryWithPermissions>(url, {
     method: "PUT",
     headers: {
       ...headers,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ permissions }),
-  })) as NodeEntryWithPermissions;
+  });
 
   return result.entry.permissions ?? { isInheritanceEnabled: true };
 }
@@ -1883,10 +1883,12 @@ export async function searchPeople(
   });
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/people?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = (await fetcher(url, {
+  const result = await fetcher<
+    import("./alfresco-api.types").LegacyPeopleSearchResponse
+  >(url, {
     method: "GET",
     headers,
-  })) as import("./alfresco-api.types").LegacyPeopleSearchResponse;
+  });
 
   return (result.people ?? []).map((person) => {
     const fullName = [person.firstName, person.lastName]
@@ -1925,10 +1927,12 @@ export async function searchGroups(
   });
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/groups?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = (await fetcher(url, {
+  const result = await fetcher<
+    import("./alfresco-api.types").LegacyGroupSearchResponse
+  >(url, {
     method: "GET",
     headers,
-  })) as import("./alfresco-api.types").LegacyGroupSearchResponse;
+  });
 
   return (result.data ?? []).map((group) => ({
     id: group.fullName,

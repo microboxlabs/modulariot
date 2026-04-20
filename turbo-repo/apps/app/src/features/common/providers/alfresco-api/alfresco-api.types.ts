@@ -474,3 +474,102 @@ export type UserSiteResponse = {
   /** Logo for dark theme (logo-white or fallback to logo) */
   logoUrlDark: string | null;
 };
+
+/**
+ * A single permission entry on an Alfresco node (mirrors the v1 REST shape).
+ * `name` is the Alfresco permission/role name (e.g. "Consumer", "Editor").
+ */
+export type AlfrescoPermissionEntry = {
+  authorityId: string;
+  name: string;
+  accessStatus: "ALLOWED" | "DENIED";
+};
+
+export type AlfrescoNodePermissions = {
+  isInheritanceEnabled: boolean;
+  inherited?: AlfrescoPermissionEntry[];
+  locallySet?: AlfrescoPermissionEntry[];
+  settable?: string[];
+};
+
+export type NodePermissionsResponse = {
+  entry: {
+    id: string;
+    name: string;
+    nodeType: string;
+    permissions?: AlfrescoNodePermissions;
+  };
+};
+
+export type NodePermissionsUpdate = {
+  isInheritanceEnabled?: boolean;
+  locallySet?: AlfrescoPermissionEntry[];
+};
+
+export type AuthoritySuggestion = {
+  id: string;
+  displayName: string;
+  kind: "user" | "group";
+};
+
+export type PeopleSearchResponse = {
+  list: {
+    entries: Array<{
+      entry: {
+        id: string;
+        firstName?: string;
+        lastName?: string;
+        displayName?: string;
+        email?: string;
+      };
+    }>;
+  };
+};
+
+export type GroupSearchResponse = {
+  list: {
+    entries: Array<{
+      entry: {
+        id: string;
+        displayName?: string;
+      };
+    }>;
+  };
+};
+
+/**
+ * Response of Alfresco's legacy group-search webscript, used by Share's own
+ * people picker: `GET /alfresco/s/api/groups?shortNameFilter=*term*`.
+ * Filters against the authority shortName (e.g. "DASHBOARD"), which is what
+ * users see in Share admin — more reliable than the v1 SOLR-backed query.
+ */
+export type LegacyGroupSearchResponse = {
+  data: Array<{
+    shortName: string;
+    fullName: string;
+    displayName?: string;
+    authorityType: string;
+    zones?: string[];
+  }>;
+  paging?: {
+    maxItems: number;
+    skipCount: number;
+    totalItems: number;
+  };
+};
+
+/**
+ * Response of Alfresco's legacy people-search webscript, used by Share's
+ * people picker: `GET /alfresco/s/api/people?filter=term`.
+ * Filters against firstName, lastName, userName, email.
+ */
+export type LegacyPeopleSearchResponse = {
+  people: Array<{
+    userName: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    jobtitle?: string;
+    organization?: string;
+  }>;
+};

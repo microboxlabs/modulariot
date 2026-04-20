@@ -17,11 +17,9 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ConfirmModal } from "../confirm-modal";
-import {
-  deleteDashboardConfigClient,
-  useUserGroups,
-} from "@/features/common/providers/client-api.provider";
+import { deleteDashboardConfigClient } from "@/features/common/providers/client-api.provider";
 import { ShareForm } from "./share-form";
+import { DashboardPermissionsModal } from "../dashboard-permissions-modal";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import type {
@@ -613,88 +611,6 @@ function RefreshForm() {
 }
 
 // ============================================================================
-// Allowed Groups Form
-// ============================================================================
-
-function AllowedGroupsForm() {
-  const { allowedGroups, setAllowedGroups, dictionary } = useDashboard();
-  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
-  const { data: userGroups, isLoading } = useUserGroups();
-  const [localGroups, setLocalGroups] = useState<string[]>(allowedGroups);
-
-  useEffect(() => {
-    setLocalGroups(allowedGroups);
-  }, [allowedGroups]);
-
-  const toggleGroup = (group: string) => {
-    setLocalGroups((prev) =>
-      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
-    );
-  };
-
-  const handleSave = () => {
-    setAllowedGroups(localGroups);
-    ShowNotification({
-      type: "success",
-      message: t("allowedGroupsUpdated"),
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t("loadingGroups")}
-        </p>
-      </div>
-    );
-  }
-
-  const availableGroups = userGroups ?? [];
-
-  return (
-    <div className="p-4 space-y-3">
-      {availableGroups.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t("noGroupsAvailable")}
-        </p>
-      ) : (
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {availableGroups.map((group) => (
-            <label
-              key={group}
-              className="flex items-center gap-2 cursor-pointer rounded-lg border border-gray-200 dark:border-gray-600 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              <input
-                type="checkbox"
-                checked={localGroups.includes(group)}
-                onChange={() => toggleGroup(group)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                {group.replace(/^GROUP_/, "")}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {localGroups.length === 0 && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-          {t("noGroupRestrictions")}
-        </p>
-      )}
-
-      <div className="flex justify-end">
-        <Button type="button" size="sm" onClick={handleSave}>
-          {tr("common.save", dictionary)}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
 // Order Form
 // ============================================================================
 
@@ -748,10 +664,47 @@ function OrderForm() {
 }
 
 // ============================================================================
+// Manage Permissions Button
+// ============================================================================
+
+interface ManagePermissionsFormProps {
+  onOpenModal: () => void;
+}
+
+function ManagePermissionsForm({
+  onOpenModal,
+}: Readonly<ManagePermissionsFormProps>) {
+  const { dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.permissions.${key}`, dictionary);
+
+  return (
+    <div className="p-4 space-y-3">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {t("manageButtonDescription")}
+      </p>
+      <Button type="button" size="sm" onClick={onOpenModal}>
+        {t("manageButton")}
+      </Button>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
-export default function DashboardSettingsDropdown() {
+interface DashboardSettingsDropdownProps {
+  /**
+   * Whether the current user can manage node permissions (Alfresco
+   * `updatePermissions`, i.e. Coordinator). Controls visibility of the
+   * Access Control section and the underlying permissions modal.
+   */
+  canManagePermissions: boolean;
+}
+
+export default function DashboardSettingsDropdown({
+  canManagePermissions,
+}: Readonly<DashboardSettingsDropdownProps>) {
   const {
     dashboardName,
     filters,
@@ -769,6 +722,7 @@ export default function DashboardSettingsDropdown() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const togglePanel = () => {
@@ -956,18 +910,25 @@ export default function DashboardSettingsDropdown() {
             <PlannerManagerForm />
           </SettingsSection>
 
-          <SettingsSection
-            option="access"
-            selected={selected}
-            setSelected={setSelected}
-            title={tr("dashboard.settings.accessControlTitle", dictionary)}
-            description={tr(
-              "dashboard.settings.accessControlDescription",
-              dictionary
-            )}
-          >
-            <AllowedGroupsForm />
-          </SettingsSection>
+          {canManagePermissions && (
+            <SettingsSection
+              option="access"
+              selected={selected}
+              setSelected={setSelected}
+              title={tr("dashboard.settings.accessControlTitle", dictionary)}
+              description={tr(
+                "dashboard.settings.accessControlDescription",
+                dictionary
+              )}
+            >
+              <ManagePermissionsForm
+                onOpenModal={() => {
+                  setShowPermissionsModal(true);
+                  closePanel();
+                }}
+              />
+            </SettingsSection>
+          )}
 
           <SettingsSection
             option="delete"
@@ -999,6 +960,17 @@ export default function DashboardSettingsDropdown() {
         )}
         confirmText={tr("dashboard.landing.delete_confirm_title", dictionary)}
       />
+
+      {canManagePermissions && siteId && params.slug && (
+        <DashboardPermissionsModal
+          isOpen={showPermissionsModal}
+          onClose={() => setShowPermissionsModal(false)}
+          site={siteId}
+          slug={params.slug}
+          dashboardName={dashboardName}
+          dictionary={dictionary}
+        />
+      )}
     </div>
   );
 }

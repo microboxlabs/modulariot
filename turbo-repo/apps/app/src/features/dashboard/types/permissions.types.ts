@@ -1,5 +1,6 @@
-import type {
-  AlfrescoNodePermissions,
+import type { AlfrescoNodePermissions } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+
+export type {
   AlfrescoPermissionEntry,
   AuthoritySuggestion,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
@@ -21,5 +22,3 @@ export type DashboardPermissionsResponse = {
   nodeId: string;
   permissions: AlfrescoNodePermissions;
 };
-
-export type { AlfrescoPermissionEntry, AuthoritySuggestion };

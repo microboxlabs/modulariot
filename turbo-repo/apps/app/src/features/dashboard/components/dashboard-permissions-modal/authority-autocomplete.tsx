@@ -45,7 +45,7 @@ export function AuthorityAutocomplete({
     abortRef.current = controller;
 
     setLoading(true);
-    const handle = window.setTimeout(() => {
+    const handle = globalThis.setTimeout(() => {
       const endpoint =
         kind === "user"
           ? "/app/api/alfresco/people/search"
@@ -69,7 +69,7 @@ export function AuthorityAutocomplete({
     }, DEBOUNCE_MS);
 
     return () => {
-      window.clearTimeout(handle);
+      globalThis.clearTimeout(handle);
       controller.abort();
     };
   }, [term, kind]);
@@ -96,6 +96,42 @@ export function AuthorityAutocomplete({
 
   const showPanel = open && term.trim().length >= 2;
 
+  const renderPanelContent = () => {
+    if (loading) {
+      return (
+        <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+          {searchingLabel}
+        </p>
+      );
+    }
+    if (suggestions.length === 0) {
+      return (
+        <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+          {noResultsLabel}
+        </p>
+      );
+    }
+    return (
+      <ul className="py-1">
+        {suggestions.map((s) => (
+          <li key={`${s.kind}:${s.id}`}>
+            <button
+              type="button"
+              onClick={() => handleSelect(s)}
+              className={twMerge(
+                "w-full text-left px-3 py-1.5 text-sm text-gray-700",
+                "hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+              )}
+            >
+              <span className="font-medium">{s.displayName}</span>
+              <span className="ml-2 text-xs text-gray-400">{s.id}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <TextInput
@@ -116,33 +152,7 @@ export function AuthorityAutocomplete({
             "dark:border-gray-600 dark:bg-gray-800 max-h-56 overflow-y-auto"
           )}
         >
-          {loading ? (
-            <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-              {searchingLabel}
-            </p>
-          ) : suggestions.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-              {noResultsLabel}
-            </p>
-          ) : (
-            <ul className="py-1">
-              {suggestions.map((s) => (
-                <li key={`${s.kind}:${s.id}`}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(s)}
-                    className={twMerge(
-                      "w-full text-left px-3 py-1.5 text-sm text-gray-700",
-                      "hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                    )}
-                  >
-                    <span className="font-medium">{s.displayName}</span>
-                    <span className="ml-2 text-xs text-gray-400">{s.id}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          {renderPanelContent()}
         </div>
       )}
     </div>

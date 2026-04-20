@@ -3004,6 +3004,17 @@
             "SEÑAL": "Señal",
             "VELOCIDAD": "Velocidad",
             "OTROS": "Otros"
+          },
+          "filters": {
+            "dateRange": "Rango de fechas",
+            "eventType": "Tipo de evento",
+            "limit": "Cantidad",
+            "allTypes": "Todos",
+            "tipoVelocidad": "Velocidad",
+            "tipoSenal": "Señal",
+            "tipoHorario": "Horario",
+            "tipoMantenimiento": "Mantenimiento",
+            "tipoOtros": "Otros"
           }
         },
         "usage": {

@@ -27,6 +27,8 @@ interface TabbedSettingsWrapperProps {
   plannerContent?: ReactNode;
   /** Optional title shown in the header */
   title?: string;
+  /** Widget ID for anchor navigation */
+  widgetId?: string;
 }
 
 // ============================================================================
@@ -42,13 +44,20 @@ export function TabbedSettingsWrapper({
   children,
   plannerContent,
   title,
+  widgetId,
 }: Readonly<TabbedSettingsWrapperProps>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
-    <SettingsDrawer open={isOpen} onClose={onClose} title={title}>
+    <SettingsDrawer
+      open={isOpen}
+      onClose={onClose}
+      title={title}
+      widgetId={widgetId}
+      dictionary={dictionary}
+    >
       <div className="flex h-full flex-col gap-3">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">

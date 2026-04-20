@@ -7,6 +7,8 @@ import PeopleIcon from "@/features/icons/people";
 import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
+import { FaTruckLoading } from "react-icons/fa";
+import { LuTowerControl } from "react-icons/lu";
 
 // cpd-off — sidebar configuration data, structural repetition is intentional
 export const pages: SidebarItem[] = [
@@ -115,7 +117,7 @@ export const pages: SidebarItem[] = [
   },
   {
     href: "/reports",
-    icon: ChartMixedIcon,
+    icon: LuTowerControl,
     label: "controlTower",
 
     items: [
@@ -146,14 +148,6 @@ export const pages: SidebarItem[] = [
 
     totals: {},
     requiredGroups: [],
-    blockedGroups: [], // Hide reports section from revisors
-  },
-  {
-    href: "/where-is-my-load",
-    icon: ChartMixedIcon,
-    label: "whereIsMyLoad",
-    totals: {},
-    requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
     blockedGroups: [], // Hide reports section from revisors
   },
   {
@@ -200,6 +194,14 @@ export const pages: SidebarItem[] = [
     totals: {},
     requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
     blockedGroups: [],
+  },
+  {
+    href: "/where-is-my-load",
+    icon: FaTruckLoading,
+    label: "whereIsMyLoad",
+    totals: {},
+    requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
+    blockedGroups: [], // Hide reports section from revisors
   },
 ];
 // cpd-on

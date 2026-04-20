@@ -7,7 +7,7 @@ import { HiCog } from "react-icons/hi";
 import Link from "next/link";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
-import { pathNameWithoutLanguage } from "../../utils/utils";
+import { pathNameWithoutLanguage, isSegmentPrefix } from "../../utils/utils";
 import { tr } from "@/features/i18n/tr.service";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
 import type { SidebarItem } from "../../types/common.types";
@@ -16,15 +16,13 @@ import MobileSecondaryPanel from "./mobile-secondary-panel";
 import LifeSaver from "../bottom-menu/LifeSaver";
 
 function isItemActive(item: SidebarItem, pathname: string): boolean {
-  if (item.href && pathname.startsWith(item.href)) return true;
+  if (item.href && isSegmentPrefix(item.href, pathname)) return true;
   if (item.items) {
     return item.items.some((child) => {
-      const childPath = child.href?.split("?")[0];
-      if (childPath && pathname.startsWith(childPath)) return true;
+      if (child.href && isSegmentPrefix(child.href, pathname)) return true;
       if (child.items) {
         return child.items.some((nested) => {
-          const nestedPath = nested.href?.split("?")[0];
-          return nestedPath ? pathname.startsWith(nestedPath) : false;
+          return nested.href ? isSegmentPrefix(nested.href, pathname) : false;
         });
       }
       return false;

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
-import { pathNameWithoutLanguage } from "../../utils/utils";
+import { pathNameWithoutLanguage, isSegmentPrefix } from "../../utils/utils";
 import { tr } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
@@ -13,11 +13,10 @@ import { HiCog } from "react-icons/hi";
 import Link from "next/link";
 
 function isItemActive(item: SidebarItem, pathname: string): boolean {
-  if (item.href && pathname.startsWith(item.href)) return true;
+  if (item.href && isSegmentPrefix(item.href, pathname)) return true;
   if (item.items) {
     return item.items.some((child) => {
-      const childPath = child.href?.split("?")[0];
-      return childPath ? pathname.startsWith(childPath) : false;
+      return child.href ? isSegmentPrefix(child.href, pathname) : false;
     });
   }
   return false;

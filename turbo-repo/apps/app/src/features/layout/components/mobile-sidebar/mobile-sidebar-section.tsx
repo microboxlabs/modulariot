@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps, type FC } from "react";
+import { useEffect, useState, type ComponentProps, type FC } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
@@ -9,6 +9,7 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import { tr } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
+import { isSegmentPrefix } from "../../utils/utils";
 
 interface MobileSidebarSectionProps {
   item: SidebarItem;
@@ -31,15 +32,13 @@ function isChildActive(
 }
 
 function isSectionActive(item: SidebarItem, pathname: string): boolean {
-  if (item.href && pathname.startsWith(item.href)) return true;
+  if (item.href && isSegmentPrefix(item.href, pathname)) return true;
   if (item.items) {
     return item.items.some((child) => {
-      const childPath = child.href?.split("?")[0];
-      if (childPath && pathname.startsWith(childPath)) return true;
+      if (child.href && isSegmentPrefix(child.href, pathname)) return true;
       if (child.items) {
         return child.items.some((nested) => {
-          const nestedPath = nested.href?.split("?")[0];
-          return nestedPath ? pathname.startsWith(nestedPath) : false;
+          return nested.href ? isSegmentPrefix(nested.href, pathname) : false;
         });
       }
       return false;
@@ -234,6 +233,10 @@ function ExpandableSection({
   onNavigate: () => void;
 }>) {
   const [isExpanded, setIsExpanded] = useState(active);
+
+  useEffect(() => {
+    if (active) setIsExpanded(true);
+  }, [active]);
 
   const visibleItems = (item.items ?? []).filter((child) => {
     const hasBlocked = (child.blockedGroups ?? []).some((g) =>

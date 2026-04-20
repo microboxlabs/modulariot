@@ -24,7 +24,7 @@ interface SidebarContextProps {
 
 const SidebarContext = createContext<SidebarContextProps | null>(null);
 
-export function SidebarProvider({ children }: PropsWithChildren) {
+export function SidebarProvider({ children }: Readonly<PropsWithChildren>) {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
 

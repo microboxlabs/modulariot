@@ -1,5 +1,4 @@
 import CalendarIcon from "@/features/icons/calendar";
-import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
 import TruckIcon from "@/features/icons/truck";

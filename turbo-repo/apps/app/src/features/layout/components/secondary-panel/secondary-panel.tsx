@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
@@ -20,12 +20,17 @@ function findSection(
 
 export default function SecondaryPanel({ dict }: Readonly<PropsWithI18nDict>) {
   const { desktop } = useSidebarContext();
-  const { activeSection, setActiveSection } = desktop;
+  const { activeSection } = desktop;
   const { items, totals } = useSidebarNavigation();
   const [searchQuery, setSearchQuery] = useState("");
 
   const section = activeSection ? findSection(items, activeSection) : undefined;
   const isOpen = Boolean(section);
+
+  // Reset search when section changes
+  useEffect(() => {
+    setSearchQuery("");
+  }, [activeSection]);
 
   // Keep last section so content stays visible during close animation
   const lastSectionRef = useRef<SidebarItem | undefined>(section);

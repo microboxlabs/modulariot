@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
@@ -26,6 +26,10 @@ export default function MobileSecondaryPanel({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Reset search when section changes
+  useEffect(() => {
+    setSearchQuery("");
+  }, [section?.label]);
+
   const displayedSection = section;
 
   return (

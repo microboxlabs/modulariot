@@ -1423,6 +1423,41 @@ export async function deleteDashboardConfigClient(
   }
 }
 
+/**
+ * SWR hook for the current user's capabilities on a dashboard node.
+ * Drives UI gating for edit mode and the settings dropdown.
+ */
+export type DashboardAccess = {
+  canEdit: boolean;
+  canManagePermissions: boolean;
+};
+
+export function useDashboardAccess(
+  site: string | null | undefined,
+  slug: string | null | undefined
+) {
+  const key =
+    site && slug
+      ? `/app/api/dashboard/${encodeURIComponent(site)}/${encodeURIComponent(slug)}/access`
+      : null;
+
+  const { data, error, isLoading } = useSWR<DashboardAccess, FetcherError>(
+    key,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  return {
+    canEdit: data?.canEdit ?? false,
+    canManagePermissions: data?.canManagePermissions ?? false,
+    isLoading,
+    error,
+  };
+}
+
 // ============================================================================
 // Calendar Hooks
 // ============================================================================

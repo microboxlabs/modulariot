@@ -15,10 +15,11 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import Link from "next/link";
-import { useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname, useParams } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
+import { useDashboardAccess } from "@/features/common/providers/client-api.provider";
 import { EmptyState } from "../empty-state";
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
@@ -40,7 +41,9 @@ export function DashboardView() {
     dashboardName,
     setDashboardName,
     dictionary,
+    siteId,
     toggleEditMode,
+    setEditMode,
     updateWidgetLayouts,
     undo,
     redo,
@@ -49,6 +52,20 @@ export function DashboardView() {
   } = useDashboard();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const params = useParams<{ slug: string }>();
+
+  const { canEdit, canManagePermissions } = useDashboardAccess(
+    siteId,
+    params.slug
+  );
+
+  // Force edit mode off for read-only users so they can never accidentally
+  // stay in edit mode if their role was downgraded mid-session.
+  useEffect(() => {
+    if (!canEdit && editMode) {
+      setEditMode(false);
+    }
+  }, [canEdit, editMode, setEditMode]);
 
   const kioskUrl = useMemo(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -286,14 +303,18 @@ export function DashboardView() {
                   </Button>
                 </div>
               )}
-              {hasWidgets && (
+              {hasWidgets && canEdit && (
                 <ToggleSwitch
                   checked={editMode}
                   onChange={toggleEditMode}
                   label={tr("dashboard.editMode", dictionary)}
                 />
               )}
-              <DashboardSettingsDropdown />
+              {canEdit && (
+                <DashboardSettingsDropdown
+                  canManagePermissions={canManagePermissions}
+                />
+              )}
               <Link
                 href={kioskUrl}
                 target="_blank"

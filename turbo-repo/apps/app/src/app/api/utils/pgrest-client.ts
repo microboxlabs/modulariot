@@ -325,11 +325,18 @@ export interface DecodedPoint {
  *
  * Returns null on malformed input instead of throwing.
  */
-export function decodeEwkbPoint(hex: string | null | undefined): DecodedPoint | null {
+export function decodeEwkbPoint(
+  hex: string | null | undefined
+): DecodedPoint | null {
   if (!hex) return null;
   // Strip PostgreSQL bytea hex-escape prefix (\x, 0x) if present.
   const clean = hex.replace(/^(\\x|0x)/i, "");
-  if (clean.length < 50 || clean.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(clean)) return null;
+  if (
+    clean.length < 50 ||
+    clean.length % 2 !== 0 ||
+    !/^[0-9a-f]+$/i.test(clean)
+  )
+    return null;
   const buf = Buffer.from(clean, "hex");
   if (buf.length < 25) return null;
   const littleEndian = buf.readUInt8(0) === 1;
@@ -382,7 +389,9 @@ async function pgrestFetch(
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(`pgrest request timed out after ${PGREST_FETCH_TIMEOUT_MS}ms: ${input}`);
+      throw new Error(
+        `pgrest request timed out after ${PGREST_FETCH_TIMEOUT_MS}ms: ${input}`
+      );
     }
     throw error;
   } finally {
@@ -453,7 +462,9 @@ export async function fetchTruckCatalogByIdOrPlate(
  * Uses the `Accept-Profile: ams` header (PostgREST schema selection) since
  * this table lives outside the default `public` schema.
  */
-export async function fetchSpecialViews(): Promise<PgrestFleetSpecialViewRow[]> {
+export async function fetchSpecialViews(): Promise<
+  PgrestFleetSpecialViewRow[]
+> {
   const token = await bearerToken();
   const url = `${pgrestBaseUrl()}/fleet_special_views?active=eq.true&order=position`;
   const response = await pgrestFetch(url, {
@@ -607,7 +618,8 @@ function addPositionMetrics(
   if (position.timestamp) metrics.timestamp = position.timestamp;
   if (position.speed != null) metrics.vehicle_speed_kph = position.speed;
   if (position.heading != null) metrics.heading = position.heading;
-  if (position.gps_provider != null) metrics.gps_provider = position.gps_provider;
+  if (position.gps_provider != null)
+    metrics.gps_provider = position.gps_provider;
   const point = decodeEwkbPoint(position.location);
   if (point) {
     metrics.latitude = point.latitude;
@@ -722,7 +734,9 @@ export function maintenanceRowToDto(
     odometer: {
       current_km: row.km_actual,
       km_per_day_7d:
-        row.km_por_dia !== null && row.km_por_dia > 0 ? Number(row.km_por_dia) : null,
+        row.km_por_dia !== null && row.km_por_dia > 0
+          ? Number(row.km_por_dia)
+          : null,
     },
     plan: {
       interval_km: intervalKm,
@@ -781,17 +795,56 @@ function addCapability<K extends keyof TelemetryCapabilities>(
   }
 }
 
-function buildTelemetryCapabilities(row: PgrestSignalRow): TelemetryCapabilities {
+function buildTelemetryCapabilities(
+  row: PgrestSignalRow
+): TelemetryCapabilities {
   const caps: TelemetryCapabilities = {};
-  addCapability(caps, "vehicle_speed_kph", row.has_vehicle_speed, row.last_vehicle_speed_kph);
+  addCapability(
+    caps,
+    "vehicle_speed_kph",
+    row.has_vehicle_speed,
+    row.last_vehicle_speed_kph
+  );
   addCapability(caps, "odometer_km", row.has_odometer, row.last_odometer_km);
   addCapability(caps, "engine_rpm", row.has_engine_rpm, row.last_engine_rpm);
-  addCapability(caps, "fuel_level_pct", row.has_fuel_level, row.last_fuel_level_pct, Number);
-  addCapability(caps, "coolant_temp_c", row.has_coolant_temp, row.last_coolant_temp_c);
-  addCapability(caps, "battery_voltage_v", row.has_battery_v, row.last_battery_voltage_mv, (mv) => mv / 1000);
-  addCapability(caps, "engine_load_pct", row.has_engine_load, row.last_engine_load_pct);
-  addCapability(caps, "throttle_pos_pct", row.has_throttle, row.last_throttle_pos_pct);
-  addCapability(caps, "engine_runtime_h", row.has_engine_runtime, row.last_engine_runtime_h);
+  addCapability(
+    caps,
+    "fuel_level_pct",
+    row.has_fuel_level,
+    row.last_fuel_level_pct,
+    Number
+  );
+  addCapability(
+    caps,
+    "coolant_temp_c",
+    row.has_coolant_temp,
+    row.last_coolant_temp_c
+  );
+  addCapability(
+    caps,
+    "battery_voltage_v",
+    row.has_battery_v,
+    row.last_battery_voltage_mv,
+    (mv) => mv / 1000
+  );
+  addCapability(
+    caps,
+    "engine_load_pct",
+    row.has_engine_load,
+    row.last_engine_load_pct
+  );
+  addCapability(
+    caps,
+    "throttle_pos_pct",
+    row.has_throttle,
+    row.last_throttle_pos_pct
+  );
+  addCapability(
+    caps,
+    "engine_runtime_h",
+    row.has_engine_runtime,
+    row.last_engine_runtime_h
+  );
   return caps;
 }
 
@@ -996,13 +1049,29 @@ export function usageRowToDto(row: PgrestUsageRow): TruckUsageDetail {
  */
 export async function fetchTruckEventsDetailByPlate(
   plate: string,
-  opts?: { minIcuCode?: number; limit?: number }
+  opts?: {
+    minIcuCode?: number;
+    limit?: number;
+    pDesde?: string;
+    pHasta?: string;
+    pTipoEvento?: string;
+  }
 ): Promise<PgrestEventRow[]> {
-  const minIcu = opts?.minIcuCode ?? 2;
+  const minIcu = opts?.minIcuCode ?? 1;
   const limit = opts?.limit ?? 50;
   const token = await bearerToken();
   const clientId = getPgrestClientId();
   const url = `${pgrestBaseUrl()}/rpc/fn_dx_eventos_detalle`;
+
+  const body: Record<string, unknown> = {
+    p_shared_client_id: clientId,
+    p_patente: plate,
+    p_min_icu_code: minIcu,
+  };
+  if (opts?.pDesde) body.p_desde = opts.pDesde;
+  if (opts?.pHasta) body.p_hasta = opts.pHasta;
+  if (opts?.pTipoEvento) body.p_tipo_evento = opts.pTipoEvento;
+
   const response = await pgrestFetch(url, {
     method: "POST",
     headers: {
@@ -1010,11 +1079,7 @@ export async function fetchTruckEventsDetailByPlate(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      p_shared_client_id: clientId,
-      p_patente: plate,
-      p_min_icu_code: minIcu,
-    }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
   if (!response.ok) {

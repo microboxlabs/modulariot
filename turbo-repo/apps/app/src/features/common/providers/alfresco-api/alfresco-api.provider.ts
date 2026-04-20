@@ -1760,3 +1760,204 @@ export async function deleteDashboardConfig(
   });
   return result as { success: boolean };
 }
+
+// ============================================================================
+// Dashboard node permissions (public Alfresco v1 REST API)
+// ============================================================================
+
+const ALF_PUBLIC_V1 = "/alfresco/api/-default-/public/alfresco/versions/1";
+
+type NodeEntryWithPermissions = {
+  entry: {
+    id: string;
+    name: string;
+    nodeType: string;
+    permissions?: import("./alfresco-api.types").AlfrescoNodePermissions;
+  };
+};
+
+/**
+ * Resolves the Alfresco nodeId of a dashboard config file and returns its
+ * permissions in a single round trip, using the public v1 REST API.
+ *
+ * The file path convention is defined by the miot-dashboards backend:
+ *   Sites/{site}/documentLibrary/dashboard/{slug}-config.json
+ */
+export async function getDashboardNodePermissions(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<{
+  nodeId: string;
+  permissions: import("./alfresco-api.types").AlfrescoNodePermissions;
+}> {
+  const relativePath = `Sites/${site}/documentLibrary/dashboard/${slug}-config.json`;
+  const params = new URLSearchParams({
+    relativePath,
+    include: "permissions",
+  });
+  const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/-root-?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<NodeEntryWithPermissions>(url, {
+    method: "GET",
+    headers,
+  });
+
+  return {
+    nodeId: result.entry.id,
+    permissions: result.entry.permissions ?? { isInheritanceEnabled: true },
+  };
+}
+
+/**
+ * Resolves the nodeId of the dashboard config file for the given site/slug
+ * via its canonical path. Used by routes that must authoritatively identify
+ * the dashboard node server-side (never trust a client-supplied nodeId).
+ */
+export async function resolveDashboardNodeId(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<string> {
+  const relativePath = `Sites/${site}/documentLibrary/dashboard/${slug}-config.json`;
+  const params = new URLSearchParams({ relativePath });
+  const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/-root-?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<{ entry: { id: string } }>(url, {
+    method: "GET",
+    headers,
+  });
+  return result.entry.id;
+}
+
+/**
+ * Resolves the dashboard node and returns the `allowableOperations` array
+ * Alfresco computes for the current user. Operations: `delete`, `update`,
+ * `updatePermissions`, `create`. Used by the UI to gate edit/settings
+ * controls based on the user's effective role.
+ */
+export async function getDashboardAllowableOperations(
+  session: Session,
+  site: string,
+  slug: string
+): Promise<{ nodeId: string; allowableOperations: string[] }> {
+  const relativePath = `Sites/${site}/documentLibrary/dashboard/${slug}-config.json`;
+  const params = new URLSearchParams({
+    relativePath,
+    include: "allowableOperations",
+  });
+  const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/-root-?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<{
+    entry: { id: string; allowableOperations?: string[] };
+  }>(url, {
+    method: "GET",
+    headers,
+  });
+
+  return {
+    nodeId: result.entry.id,
+    allowableOperations: result.entry.allowableOperations ?? [],
+  };
+}
+
+/**
+ * Updates the permissions of a node using the public v1 REST API.
+ * Returns the updated permissions snapshot.
+ */
+export async function updateNodePermissions(
+  session: Session,
+  nodeId: string,
+  permissions: import("./alfresco-api.types").NodePermissionsUpdate
+): Promise<import("./alfresco-api.types").AlfrescoNodePermissions> {
+  const params = new URLSearchParams({ include: "permissions" });
+  const baseUrl = `${process.env.ECM_API_URL}${ALF_PUBLIC_V1}/nodes/${nodeId}?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<NodeEntryWithPermissions>(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ permissions }),
+  });
+
+  return result.entry.permissions ?? { isInheritanceEnabled: true };
+}
+
+/**
+ * Searches Alfresco people using the same webscript Alfresco Share's people
+ * picker uses: `GET /alfresco/s/api/people?filter=<term>`.
+ * Filter matches firstName, lastName, userName, and email (substring).
+ */
+export async function searchPeople(
+  session: Session,
+  term: string,
+  maxItems = 25
+): Promise<import("./alfresco-api.types").AuthoritySuggestion[]> {
+  const trimmed = term.trim();
+  if (trimmed.length === 0) return [];
+
+  const params = new URLSearchParams({
+    filter: trimmed,
+    maxResults: String(maxItems),
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/people?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<
+    import("./alfresco-api.types").LegacyPeopleSearchResponse
+  >(url, {
+    method: "GET",
+    headers,
+  });
+
+  return (result.people ?? []).map((person) => {
+    const fullName = [person.firstName, person.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    return {
+      id: person.userName,
+      displayName: fullName || person.email || person.userName,
+      kind: "user" as const,
+    };
+  });
+}
+
+/**
+ * Searches Alfresco groups using the same webscript Alfresco Share's people
+ * picker uses: `GET /alfresco/s/api/groups?shortNameFilter=*term*&zone=APP.DEFAULT`.
+ *
+ * This filters directly against the authority shortName (e.g. "DASHBOARD"),
+ * which is what users see in Share's admin console. More reliable than the
+ * v1 `/queries/groups` endpoint, which is SOLR-backed and only matches
+ * displayName within the default zone.
+ */
+export async function searchGroups(
+  session: Session,
+  term: string,
+  maxItems = 25
+): Promise<import("./alfresco-api.types").AuthoritySuggestion[]> {
+  const trimmed = term.trim();
+  if (trimmed.length === 0) return [];
+
+  const params = new URLSearchParams({
+    shortNameFilter: `*${trimmed}*`,
+    zone: "APP.DEFAULT",
+    maxItems: String(maxItems),
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/groups?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher<
+    import("./alfresco-api.types").LegacyGroupSearchResponse
+  >(url, {
+    method: "GET",
+    headers,
+  });
+
+  return (result.data ?? []).map((group) => ({
+    id: group.fullName,
+    displayName: group.displayName || group.shortName,
+    kind: "group" as const,
+  }));
+}

@@ -31,7 +31,7 @@ export default function ClientNotification({
   const pathname = usePathname();
   const this_path = pathname.split("/")[2];
 
-  const features = getFeatureDescriptors({ dict });
+  const features = getFeatureDescriptors({ dict }); // This is the one the user should change if he wants new features notified
   const selected_feature = features[this_path as keyof typeof features];
 
   // console.log("")
@@ -61,7 +61,6 @@ export default function ClientNotification({
 
     if (
       parsed_stored === null ||
-      parsed_stored.state === FeatureState.Declined.toString() ||
       parsed_stored.state === FeatureState.Dismissed.toString() ||
       parsed_stored.id != features[this_path as keyof typeof features].id
     ) {
@@ -83,7 +82,7 @@ export default function ClientNotification({
   function handle_accept() {
     localStorage.setItem(
       `${this_path}`,
-      stringifiedValue(features[""].id, FeatureState.Accepted)
+      stringifiedValue(selected_feature.id, FeatureState.Accepted)
     );
     setShowModal(null);
   }
@@ -91,7 +90,7 @@ export default function ClientNotification({
   function handle_decline() {
     localStorage.setItem(
       `${this_path}`,
-      stringifiedValue(features[""].id, FeatureState.Declined)
+      stringifiedValue(selected_feature.id, FeatureState.Declined)
     );
     setShowModal(null);
   }
@@ -141,11 +140,14 @@ export default function ClientNotification({
       >
         <div className="max-w-[700px] flex flex-col text-gray-700 overflow-hidden">
           <div className="w-full h-60 bg-blue-300 flex justify-center items-start text-blue-600 overflow-hidden p-4">
-            <Image
-              src={selected_feature.image}
-              alt="New Functionality"
-              className="rounded-lg"
-            />
+            {selected_feature.image !== null &&
+              selected_feature.image !== undefined && (
+                <Image
+                  src={selected_feature.image}
+                  alt="New Functionality"
+                  className="rounded-lg"
+                />
+              )}
           </div>
           <div className="flex flex-col p-4 gap-2">
             <div className="flex flex-row justify-center items-center p-1 px-2 text-sm bg-blue-300 w-fit rounded-full gap-1 text-blue-800">
@@ -153,7 +155,10 @@ export default function ClientNotification({
             </div>
             <div className="flex flex-col gap-2 dark:text-gray-200">
               <h1 className="text-2xl text-left w-full font-bold leading-tight">
-                {"title" in selected_feature ? selected_feature.title : ""}
+                {"title" in selected_feature &&
+                typeof selected_feature.title === "string"
+                  ? selected_feature.title
+                  : ""}
               </h1>
               {typeof selected_feature.description === "function"
                 ? selected_feature.description(true)

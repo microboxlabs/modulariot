@@ -18,7 +18,10 @@ import {
   type SimpleDataMode,
   isRemoteDataMode,
 } from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import {
+  SettingsModalShell,
+  useWidgetRefreshSettings,
+} from "../common/settings-modal-shell";
 
 export function DashletSettings({
   isOpen,
@@ -26,17 +29,22 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
 
-  const [text, setText] = useState(config.text ?? "Add your text or quote here...");
+  const [text, setText] = useState(
+    config.text ?? "Add your text or quote here..."
+  );
   const [italic, setItalic] = useState(config.italic ?? true);
   const [align, setAlign] = useState<TextAlign>(config.align ?? "left");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
@@ -59,9 +67,12 @@ export function DashletSettings({
   };
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setText(`{{row.${detected[0].key}}}`);
-    }),
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) setText(`{{row.${detected[0].key}}}`);
+      }
+    ),
   });
 
   const handleSave = () => {
@@ -75,7 +86,8 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     } as DashletConfig);
     onClose();
@@ -112,11 +124,7 @@ export function DashletSettings({
       />
       <div className="flex items-center justify-between">
         <Label className="text-sm">Italic</Label>
-        <ToggleSwitch
-          checked={italic}
-          onChange={setItalic}
-          label=""
-        />
+        <ToggleSwitch checked={italic} onChange={setItalic} label="" />
       </div>
     </>
   );
@@ -148,6 +156,7 @@ export function DashletSettings({
       visualizationTab={visualizationTab}
       dataTab={dataTab}
       refreshSelect={refresh.selectNode}
+      widgetId={widgetId}
     />
   );
 }

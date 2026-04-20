@@ -38,6 +38,8 @@ function severityToUrgency(icuCode: number): EventUrgency {
 const CATEGORY_I18N: Record<string, string> = {
   SEÑAL: "vehicleDetail.sections.events.category.SEÑAL",
   VELOCIDAD: "vehicleDetail.sections.events.category.VELOCIDAD",
+  HORARIO: "vehicleDetail.sections.events.category.HORARIO",
+  MANTENIMIENTO: "vehicleDetail.sections.events.category.MANTENIMIENTO",
   OTROS: "vehicleDetail.sections.events.category.OTROS",
 };
 
@@ -54,6 +56,16 @@ const URGENCY_I18N: Record<EventUrgency, string> = {
 
 // --- Badge. ---
 
+function getCriticalKey(count: number): string {
+  if (count === 1) return "vehicleDetail.sections.events.criticalCount_one";
+  return "vehicleDetail.sections.events.criticalCount";
+}
+
+function getWarningKey(count: number): string {
+  if (count === 1) return "vehicleDetail.sections.events.warningCount_one";
+  return "vehicleDetail.sections.events.warningCount";
+}
+
 function getEventsBadge(events: TruckEventItem[], dict: I18nRecord) {
   const criticalCount = events.filter((e) => e.icu_code >= 3).length;
   const warningCount = events.filter((e) => e.icu_code === 2).length;
@@ -61,7 +73,7 @@ function getEventsBadge(events: TruckEventItem[], dict: I18nRecord) {
   if (criticalCount > 0) {
     return (
       <CustomBadge
-        text={tr("vehicleDetail.sections.events.criticalCount", dict, {
+        text={tr(getCriticalKey(criticalCount), dict, {
           count: String(criticalCount),
         })}
         className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -72,7 +84,7 @@ function getEventsBadge(events: TruckEventItem[], dict: I18nRecord) {
   if (warningCount > 0) {
     return (
       <CustomBadge
-        text={tr("vehicleDetail.sections.events.warningCount", dict, {
+        text={tr(getWarningKey(warningCount), dict, {
           count: String(warningCount),
         })}
         className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
@@ -205,6 +217,8 @@ export default function EventsSection({ vehicle, dict }: EventsSectionProps) {
           <EventsFilterHeader
             limit={filters.limit ?? DEFAULT_LIMIT}
             tipoEvento={filters.pTipoEvento ?? ""}
+            desde={filters.pDesde}
+            hasta={filters.pHasta}
             onLimitChange={handleLimitChange}
             onTipoEventoChange={handleTipoEventoChange}
             onDateChange={handleDateChange}
@@ -234,6 +248,8 @@ export default function EventsSection({ vehicle, dict }: EventsSectionProps) {
         <EventsFilterHeader
           limit={filters.limit ?? DEFAULT_LIMIT}
           tipoEvento={filters.pTipoEvento ?? ""}
+          desde={filters.pDesde}
+          hasta={filters.pHasta}
           onLimitChange={handleLimitChange}
           onTipoEventoChange={handleTipoEventoChange}
           onDateChange={handleDateChange}

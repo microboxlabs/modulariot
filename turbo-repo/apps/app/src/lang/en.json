@@ -2949,7 +2949,9 @@
           "emptyTitle": "No recent events",
           "emptyDesc": "No operational events have been recorded in the recent time window.",
           "criticalCount": "{count} critical",
+          "criticalCount_one": "{count} critical",
           "warningCount": "{count} warnings",
+          "warningCount_one": "{count} warning",
           "durationMinutes": "{minutes} min",
           "speedExceeded": "{speed} km/h (limit {limit})",
           "hardBraking": "Hard braking event detected",
@@ -2970,6 +2972,8 @@
             "mantencion": "Maintenance",
             "SEÑAL": "Signal",
             "VELOCIDAD": "Speed",
+            "HORARIO": "Schedule",
+            "MANTENIMIENTO": "Maintenance",
             "OTROS": "Others"
           },
           "filters": {

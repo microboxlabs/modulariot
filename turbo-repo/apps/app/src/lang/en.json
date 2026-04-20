@@ -1330,7 +1330,10 @@
         "truckBeds": "Truck Beds",
         "allDevices": "All Devices",
         "fleetManagement": "Fleet",
-        "collaboratorsManagement": "Collaborators"
+        "collaboratorsManagement": "Collaborators",
+        "searchPlaceholder": "Search...",
+        "createDashboard": "New dashboard",
+        "closePanel": "Close panel"
       }
     },
     "calendar": {
@@ -1821,15 +1824,15 @@
       }
     },
     "fileUpload": {
-        "defaultTitle": "Upload File",
-        "configureHint": "Configure an endpoint in settings",
-        "noEndpoint": "No endpoint configured",
-        "uploading": "Uploading {fileName}...",
-        "uploaded": "{fileName} uploaded",
-        "uploadFailed": "Upload failed",
-        "tryAgain": "Try again"
-      },
-      "defaults": {
+      "defaultTitle": "Upload File",
+      "configureHint": "Configure an endpoint in settings",
+      "noEndpoint": "No endpoint configured",
+      "uploading": "Uploading {fileName}...",
+      "uploaded": "{fileName} uploaded",
+      "uploadFailed": "Upload failed",
+      "tryAgain": "Try again"
+    },
+    "defaults": {
       "pageViews": "Page Views",
       "storageUsed": "Storage Used",
       "orders": "Orders",
@@ -2654,7 +2657,20 @@
       "new_features_appeared": "A new feature has appeared.",
       "test_pulse_historic_feature": "Test the new Pulse Historic feature!!!",
       "description": "Filter pulses by license plate and date range to get a downloadable report based by past positions of the vehicles.",
-      "learn_more": "Learn more about what was changed in this update."
+      "learn_more": "Learn more about what was changed in this update.",
+      "sidebar": {
+        "slide1_title": "New Sidebar",
+        "slide1_subtitle": "We redesigned the navigation experience.",
+        "slide2_title": "Two-Level Navigation",
+        "slide2_icon_bar": "Icon Bar",
+        "slide2_icon_bar_desc": "Quick access to every section with a single tap.",
+        "slide2_secondary_panel": "Detail Panel",
+        "slide2_secondary_panel_desc": "Expand any section to see its pages, search, and create.",
+        "slide3_title": "Search & Create",
+        "slide3_desc": "Find dashboards instantly and create new ones without leaving the sidebar.",
+        "slide4_title": "Works Everywhere",
+        "slide4_desc": "The same experience on desktop and mobile — icons first, details on demand."
+      }
     }
   },
   "calendar": {

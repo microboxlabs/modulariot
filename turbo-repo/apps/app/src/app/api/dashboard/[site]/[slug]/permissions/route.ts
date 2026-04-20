@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   getDashboardNodePermissions,
+  resolveDashboardNodeId,
   updateNodePermissions,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
@@ -136,10 +137,14 @@ export async function GET(_request: NextRequest, ctx: RouteContext) {
 /**
  * PUT /app/api/dashboard/{site}/{slug}/permissions
  *
- * Body: { nodeId: string, permissions: NodePermissionsUpdate }
+ * Body: { permissions: NodePermissionsUpdate }
  *
- * `nodeId` must be taken from the GET response to avoid a second lookup here;
- * the Alfresco backend enforces permission to modify ACLs (Coordinator role).
+ * The target nodeId is always resolved server-side from the `{site}/{slug}`
+ * path — any `nodeId` sent in the body is ignored. This keeps the endpoint
+ * strictly scoped to the dashboard identified in the URL, so a caller with
+ * Coordinator rights on some other node cannot use this route to mutate that
+ * node's ACL. The Alfresco backend still enforces per-node ACL (Coordinator
+ * required to change permissions).
  */
 export async function PUT(request: NextRequest, ctx: RouteContext) {
   const session = await auth();
@@ -161,17 +166,13 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     return badRequestResponse("Request body must be a JSON object");
   }
 
-  const { nodeId, permissions } = body;
-  if (!isNonEmptyString(nodeId)) {
-    return badRequestResponse("'nodeId' must be a non-empty string");
-  }
-
-  const validation = validatePermissionsUpdate(permissions);
+  const validation = validatePermissionsUpdate(body.permissions);
   if (!validation.ok) {
     return badRequestResponse(validation.message);
   }
 
   try {
+    const nodeId = await resolveDashboardNodeId(session, site, slug);
     const updated = await updateNodePermissions(
       session,
       nodeId,

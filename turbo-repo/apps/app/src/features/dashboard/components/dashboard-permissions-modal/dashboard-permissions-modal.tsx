@@ -148,11 +148,7 @@ export function DashboardPermissionsModal({
     if (!data?.nodeId) return;
 
     setSaving(true);
-    const payload: {
-      nodeId: string;
-      permissions: NodePermissionsUpdate;
-    } = {
-      nodeId: data.nodeId,
+    const payload: { permissions: NodePermissionsUpdate } = {
       permissions: {
         isInheritanceEnabled,
         locallySet: localEntries,

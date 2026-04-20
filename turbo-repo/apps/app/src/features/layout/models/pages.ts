@@ -1,5 +1,4 @@
 import CalendarIcon from "@/features/icons/calendar";
-import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
 import TruckIcon from "@/features/icons/truck";
@@ -7,6 +6,8 @@ import PeopleIcon from "@/features/icons/people";
 import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
+import { FaTruckLoading } from "react-icons/fa";
+import { LuTowerControl } from "react-icons/lu";
 
 // cpd-off — sidebar configuration data, structural repetition is intentional
 export const pages: SidebarItem[] = [
@@ -15,36 +16,10 @@ export const pages: SidebarItem[] = [
     label: "home",
     totals: {},
     dynamicItemsSource: "dashboards",
-    items: [
-      {
-        href: "/home",
-        label: "dashboardOverview",
-        requiredGroups: ["GROUP_DASHBOARD"],
-      },
-    ],
+    searchable: true,
+    createAction: { href: "/home", label: "createDashboard" },
+    items: [],
     requiredGroups: ["GROUP_DASHBOARD"],
-  },
-  {
-    href: "/collaborators-management",
-    icon: PeopleIcon,
-    label: "collaboratorsManagement",
-    totals: {},
-    // Legacy group name kept for backward compat during the colaborator→collaborator
-    // typo migration. Remove GROUP_COLABORATORS_MANAGEMENT once the Alfresco side
-    // has been renamed (see Phase 6 of settings_module_multitenancy.plan.md).
-    requiredGroups: [
-      "GROUP_COLLABORATORS_MANAGEMENT",
-      "GROUP_COLABORATORS_MANAGEMENT",
-    ],
-    blockedGroups: [],
-  },
-  {
-    href: "/fleet-management",
-    icon: TruckIcon,
-    label: "fleetManagement",
-    totals: {},
-    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
-    blockedGroups: [],
   },
   {
     icon: CalendarIcon,
@@ -141,7 +116,7 @@ export const pages: SidebarItem[] = [
   },
   {
     href: "/reports",
-    icon: ChartMixedIcon,
+    icon: LuTowerControl,
     label: "controlTower",
 
     items: [
@@ -175,14 +150,6 @@ export const pages: SidebarItem[] = [
     blockedGroups: [], // Hide reports section from revisors
   },
   {
-    href: "/where-is-my-load",
-    icon: ChartMixedIcon,
-    label: "whereIsMyLoad",
-    totals: {},
-    requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
-    blockedGroups: [], // Hide reports section from revisors
-  },
-  {
     icon: VideoCameraIcon,
     label: "liveStreams",
     items: [
@@ -204,6 +171,36 @@ export const pages: SidebarItem[] = [
     ],
     totals: {},
     requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
+  },
+  {
+    href: "/collaborators-management",
+    icon: PeopleIcon,
+    label: "collaboratorsManagement",
+    totals: {},
+    // Legacy group name kept for backward compat during the colaborator→collaborator
+    // typo migration. Remove GROUP_COLABORATORS_MANAGEMENT once the Alfresco side
+    // has been renamed (see Phase 6 of settings_module_multitenancy.plan.md).
+    requiredGroups: [
+      "GROUP_COLLABORATORS_MANAGEMENT",
+      "GROUP_COLABORATORS_MANAGEMENT",
+    ],
+    blockedGroups: [],
+  },
+  {
+    href: "/fleet-management",
+    icon: TruckIcon,
+    label: "fleetManagement",
+    totals: {},
+    requiredGroups: ["GROUP_FLEET_MANAGEMENT"],
+    blockedGroups: [],
+  },
+  {
+    href: "/where-is-my-load",
+    icon: FaTruckLoading,
+    label: "whereIsMyLoad",
+    totals: {},
+    requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
+    blockedGroups: [], // Hide reports section from revisors
   },
 ];
 // cpd-on

@@ -77,12 +77,12 @@ export function useBatchImporter({
       const parsed = parseDocument(text);
       const cache = readCache(sourceKey);
       parsed.rows = parsed.rows.map((r) => {
-        const cached = cache.status[r.index];
+        const cached = cache.status[r.fingerprint];
         if (cached && (isResolved(cached) || cached === "failed")) {
           return {
             ...r,
             status: cached,
-            errorMessage: cache.errorlog[r.index],
+            errorMessage: cache.errorlog[r.fingerprint],
           };
         }
         return r;
@@ -120,10 +120,10 @@ export function useBatchImporter({
 
         updateRow(i, { ...row, status: "wait" });
         const result = await submit(row, strategy);
-        cache.status[row.index] = result.status;
+        cache.status[row.fingerprint] = result.status;
         if (result.errorMessage)
-          cache.errorlog[row.index] = result.errorMessage;
-        else delete cache.errorlog[row.index];
+          cache.errorlog[row.fingerprint] = result.errorMessage;
+        else delete cache.errorlog[row.fingerprint];
         writeCache(sourceKey, cache);
         updateRow(i, {
           ...row,

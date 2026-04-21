@@ -94,8 +94,20 @@ export function parseDocument(content: string): ParsedDocument {
     headers.forEach((key, ci) => {
       fields[key] = (cells[ci] ?? "").trim();
     });
-    return { index, status: "unprocessed", fields };
+    return {
+      index,
+      fingerprint: fingerprintRow(fields),
+      status: "unprocessed",
+      fields,
+    };
   });
 
   return { headers, rows };
+}
+
+function fingerprintRow(fields: Record<string, string>): string {
+  const keys = Object.keys(fields).sort();
+  const sorted: Record<string, string> = {};
+  for (const k of keys) sorted[k] = fields[k];
+  return JSON.stringify(sorted);
 }

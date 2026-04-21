@@ -14,19 +14,34 @@ export function isResolved(status: RowStatus): boolean {
   return RESOLVED.has(status);
 }
 
+/** Bump when the shape changes; older blobs are ignored on read so stale
+ *  numeric-index caches from pre-fingerprint versions don't pollute lookups. */
+const CACHE_VERSION = 2 as const;
+
 export interface CacheBlob {
-  status: Record<number, RowStatus>;
-  errorlog: Record<number, string>;
+  version: typeof CACHE_VERSION;
+  status: Record<string, RowStatus>;
+  errorlog: Record<string, string>;
+}
+
+function emptyCache(): CacheBlob {
+  return { version: CACHE_VERSION, status: {}, errorlog: {} };
 }
 
 export function readCache(key: string): CacheBlob {
-  if (typeof localStorage === "undefined") return { status: {}, errorlog: {} };
+  if (typeof localStorage === "undefined") return emptyCache();
   try {
     const raw = localStorage.getItem(CACHE_PREFIX + key);
-    if (!raw) return { status: {}, errorlog: {} };
-    return JSON.parse(raw) as CacheBlob;
+    if (!raw) return emptyCache();
+    const parsed = JSON.parse(raw) as Partial<CacheBlob>;
+    if (parsed.version !== CACHE_VERSION) return emptyCache();
+    return {
+      version: CACHE_VERSION,
+      status: parsed.status ?? {},
+      errorlog: parsed.errorlog ?? {},
+    };
   } catch {
-    return { status: {}, errorlog: {} };
+    return emptyCache();
   }
 }
 
@@ -42,12 +57,12 @@ export function clearCache(key: string) {
 
 export function clearFailed(key: string) {
   const cache = readCache(key);
-  Object.keys(cache.status).forEach((k) => {
-    if (cache.status[Number(k)] === "failed") {
-      delete cache.status[Number(k)];
-      delete cache.errorlog[Number(k)];
+  for (const k of Object.keys(cache.status)) {
+    if (cache.status[k] === "failed") {
+      delete cache.status[k];
+      delete cache.errorlog[k];
     }
-  });
+  }
   writeCache(key, cache);
 }
 

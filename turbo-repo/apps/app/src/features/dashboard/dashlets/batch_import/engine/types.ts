@@ -10,6 +10,11 @@ export type DuplicateStrategy = "create" | "upsert" | "skip";
 
 export interface ParsedRow {
   index: number;
+  /** Deterministic hash of the row's fields — stable across re-uploads of the
+   *  same content, independent of row position. Used as the cache key so the
+   *  "already processed" skip logic survives edits that reorder rows but is
+   *  also not fooled by a completely different document sharing a sourceKey. */
+  fingerprint: string;
   status: RowStatus;
   errorMessage?: string;
   fields: Record<string, string>;

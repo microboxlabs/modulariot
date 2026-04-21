@@ -146,6 +146,17 @@ For GPS devices that send sensor data directly (without OBD-II or CAN BUS connec
 
 ```json
 {
+  "acceleration": {
+    "x_axis": 1.5,
+    "y_axis": -0.5,
+    "z_axis": 2.0,
+    "g_force": 1.2
+  },
+  "gyroscope": {
+    "rotation_rate_x": 5.5,
+    "rotation_rate_y": -3.2,
+    "rotation_rate_z": 1.8
+  },
   "odometer": 125432.5,
   "engine_status": 1
 }
@@ -153,10 +164,37 @@ For GPS devices that send sensor data directly (without OBD-II or CAN BUS connec
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `acceleration` | object | Linear acceleration from the device's accelerometer (see below) |
+| `gyroscope` | object | Angular rotation rates from the device's gyroscope (see below) |
 | `odometer` | number | Total distance traveled in kilometers |
 | `engine_status` | integer | Engine state: `1` = on, `0` = off |
 
-> Use this object when the GPS device provides odometer and engine status readings directly, without relying on the vehicle's diagnostic bus.
+> Use this object when the GPS device provides inertial, odometer or engine status readings directly, without relying on the vehicle's diagnostic bus. All sub-fields are optional — send only what the device reports.
+
+#### Acceleration
+
+Linear acceleration on each axis of the device's accelerometer, plus the total magnitude. Used to detect harsh braking, hard acceleration, sharp cornering, impacts and crash events.
+
+| Field | Type | Unit | Range | Description |
+|-------|------|------|-------|-------------|
+| `x_axis` | number | g | -3.0 to 3.0 | Acceleration along the X axis (typically lateral) |
+| `y_axis` | number | g | -3.0 to 3.0 | Acceleration along the Y axis (typically longitudinal) |
+| `z_axis` | number | g | -3.0 to 3.0 | Acceleration along the Z axis (typically vertical) |
+| `g_force` | number | g | 0.0 to 5.0 | Total acceleration magnitude, including gravity |
+
+> Values are reported in units of **g** (standard gravity, 1 g ≈ 9.80665 m/s²). Axis orientation depends on how the device is mounted — refer to the device datasheet for the sensor frame.
+
+#### Gyroscope
+
+Angular rotation rate around each axis of the device's gyroscope. Used to detect rollover, aggressive maneuvers and orientation changes.
+
+| Field | Type | Unit | Range | Description |
+|-------|------|------|-------|-------------|
+| `rotation_rate_x` | number | rad/s | -10.0 to 10.0 | Rotation rate around the X axis (roll) |
+| `rotation_rate_y` | number | rad/s | -10.0 to 10.0 | Rotation rate around the Y axis (pitch) |
+| `rotation_rate_z` | number | rad/s | -10.0 to 10.0 | Rotation rate around the Z axis (yaw) |
+
+> Values are reported in **radians per second**. Multiply by `180/π` (≈ 57.2958) to convert to degrees per second if your downstream pipeline expects °/s.
 
 ---
 
@@ -406,6 +444,45 @@ curl --request POST \
       "heading": 180
     },
     "sensors": {
+      "odometer": 125432.5,
+      "engine_status": 1
+    }
+  }'
+```
+
+### With Accelerometer and Gyroscope (IMU Sensors)
+
+For GPS devices equipped with an inertial measurement unit that reports acceleration and rotation:
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-006' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 65.5,
+      "heading": 180
+    },
+    "sensors": {
+      "acceleration": {
+        "x_axis": 1.5,
+        "y_axis": -0.5,
+        "z_axis": 2.0,
+        "g_force": 1.2
+      },
+      "gyroscope": {
+        "rotation_rate_x": 5.5,
+        "rotation_rate_y": -3.2,
+        "rotation_rate_z": 1.8
+      },
       "odometer": 125432.5,
       "engine_status": 1
     }

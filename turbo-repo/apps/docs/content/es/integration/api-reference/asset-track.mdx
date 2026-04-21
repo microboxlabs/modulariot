@@ -146,6 +146,17 @@ Para dispositivos GPS que envían datos de sensores directamente (sin conexión 
 
 ```json
 {
+  "acceleration": {
+    "x_axis": 1.5,
+    "y_axis": -0.5,
+    "z_axis": 2.0,
+    "g_force": 1.2
+  },
+  "gyroscope": {
+    "rotation_rate_x": 5.5,
+    "rotation_rate_y": -3.2,
+    "rotation_rate_z": 1.8
+  },
   "odometer": 125432.5,
   "engine_status": 1
 }
@@ -153,10 +164,37 @@ Para dispositivos GPS que envían datos de sensores directamente (sin conexión 
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
+| `acceleration` | object | Aceleración lineal del acelerómetro del dispositivo (ver abajo) |
+| `gyroscope` | object | Velocidades de rotación angular del giroscopio del dispositivo (ver abajo) |
 | `odometer` | number | Distancia total recorrida en kilómetros |
 | `engine_status` | integer | Estado del motor: `1` = encendido, `0` = apagado |
 
-> Use este objeto cuando el dispositivo GPS proporciona lecturas de odómetro y estado del motor directamente, sin depender del bus de diagnóstico del vehículo.
+> Use este objeto cuando el dispositivo GPS entrega lecturas inerciales, de odómetro o de estado del motor directamente, sin depender del bus de diagnóstico del vehículo. Todos los subcampos son opcionales — envíe sólo los que el dispositivo reporte.
+
+#### Aceleración
+
+Aceleración lineal en cada eje del acelerómetro del dispositivo, más la magnitud total. Se utiliza para detectar frenadas bruscas, aceleraciones fuertes, giros cerrados, impactos y eventos de choque.
+
+| Campo | Tipo | Unidad | Rango | Descripción |
+|-------|------|--------|-------|-------------|
+| `x_axis` | number | g | -3.0 a 3.0 | Aceleración en el eje X (típicamente lateral) |
+| `y_axis` | number | g | -3.0 a 3.0 | Aceleración en el eje Y (típicamente longitudinal) |
+| `z_axis` | number | g | -3.0 a 3.0 | Aceleración en el eje Z (típicamente vertical) |
+| `g_force` | number | g | 0.0 a 5.0 | Magnitud total de la aceleración, incluyendo la gravedad |
+
+> Los valores se reportan en unidades de **g** (gravedad estándar, 1 g ≈ 9,80665 m/s²). La orientación de los ejes depende de cómo esté montado el dispositivo — consulte el datasheet del equipo para conocer el marco del sensor.
+
+#### Giroscopio
+
+Velocidad de rotación angular alrededor de cada eje del giroscopio del dispositivo. Se utiliza para detectar volcamientos, maniobras agresivas y cambios de orientación.
+
+| Campo | Tipo | Unidad | Rango | Descripción |
+|-------|------|--------|-------|-------------|
+| `rotation_rate_x` | number | rad/s | -10.0 a 10.0 | Velocidad de rotación alrededor del eje X (roll) |
+| `rotation_rate_y` | number | rad/s | -10.0 a 10.0 | Velocidad de rotación alrededor del eje Y (pitch) |
+| `rotation_rate_z` | number | rad/s | -10.0 a 10.0 | Velocidad de rotación alrededor del eje Z (yaw) |
+
+> Los valores se reportan en **radianes por segundo**. Multiplique por `180/π` (≈ 57,2958) para convertir a grados por segundo si su pipeline espera °/s.
 
 ---
 
@@ -406,6 +444,45 @@ curl --request POST \
       "heading": 180
     },
     "sensors": {
+      "odometer": 125432.5,
+      "engine_status": 1
+    }
+  }'
+```
+
+### Con Acelerómetro y Giroscopio (Sensores IMU)
+
+Para dispositivos GPS equipados con una unidad de medición inercial que reporta aceleración y rotación:
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-006' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 65.5,
+      "heading": 180
+    },
+    "sensors": {
+      "acceleration": {
+        "x_axis": 1.5,
+        "y_axis": -0.5,
+        "z_axis": 2.0,
+        "g_force": 1.2
+      },
+      "gyroscope": {
+        "rotation_rate_x": 5.5,
+        "rotation_rate_y": -3.2,
+        "rotation_rate_z": 1.8
+      },
       "odometer": 125432.5,
       "engine_status": 1
     }

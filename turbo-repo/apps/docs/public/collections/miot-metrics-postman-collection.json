@@ -197,6 +197,41 @@
           "response": []
         },
         {
+          "name": "Track with GPS Sensors (Acceleration/Gyroscope)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"TTBJ72\",\n  \"type\": \"Truck\",\n  \"owner\": \"Transportes Pilar Diaz\",\n  \"timestamp\": \"2026-02-13T13:48:57Z\",\n  \"gps\": {\n    \"latitude\": -29.810218,\n    \"longitude\": -71.282617,\n    \"speed\": 78,\n    \"heading\": 315,\n    \"satellites\": 15\n  },\n  \"sensors\": {\n    \"acceleration\": {\n      \"x_axis\": 1.5,\n      \"y_axis\": -0.5,\n      \"z_axis\": 2.0,\n      \"g_force\": 1.2\n    },\n    \"gyroscope\": {\n      \"rotation_rate_x\": 5.5,\n      \"rotation_rate_y\": -3.2,\n      \"rotation_rate_z\": 1.8\n    },\n    \"odometer\": 125432.5,\n    \"engine_status\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Inertial sensor data from a GPS device IMU: three-axis acceleration in g (with total g-force magnitude) and three-axis angular rotation in rad/s. Used to detect harsh braking, hard cornering, impacts and rollover events when no OBD-II/CAN bus is available."
+          },
+          "response": []
+        },
+        {
           "name": "Track with Full Telemetry",
           "request": {
             "method": "POST",

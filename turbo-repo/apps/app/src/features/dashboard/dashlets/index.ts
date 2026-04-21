@@ -32,6 +32,7 @@ import { dashletDefinition as statStatusDefinition } from "./stat_status";
 import { dashletDefinition as textCardDefinition } from "./text_card";
 import { dashletDefinition as chartDefinition } from "./chart";
 import { dashletDefinition as fileUploadDefinition } from "./file_upload";
+import { dashletDefinition as batchImportDefinition } from "./batch_import";
 import { dashletDefinition as geographicMapDefinition } from "./geographic_map";
 
 // ============================================================================
@@ -54,6 +55,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   textCardDefinition,
   chartDefinition,
   fileUploadDefinition,
+  batchImportDefinition,
   geographicMapDefinition,
 ];
 

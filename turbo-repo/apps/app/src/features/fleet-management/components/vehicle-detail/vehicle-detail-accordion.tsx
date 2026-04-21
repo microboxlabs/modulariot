@@ -2,13 +2,23 @@
 
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import type { MaintenanceCriticality } from "../../types/truck-maintenance.types";
+import type {
+  MaintenanceCriticality,
+  TruckMaintenanceDetail,
+} from "../../types/truck-maintenance.types";
 import type {
   GpsHealth,
   SignalFreshness,
+  TruckTelemetryDetail,
 } from "../../types/truck-telemetry.types";
-import type { TruckEventItem } from "../../types/truck-events.types";
-import type { ContractDeviation } from "../../types/truck-usage.types";
+import type {
+  TruckEventItem,
+  TruckEventsDetail,
+} from "../../types/truck-events.types";
+import type {
+  ContractDeviation,
+  TruckUsageDetail,
+} from "../../types/truck-usage.types";
 import { useFleetTruckMaintenance } from "../../hooks/use-fleet-truck-maintenance";
 import { useFleetTruckTelemetry } from "../../hooks/use-fleet-truck-telemetry";
 import { useFleetTruckEvents } from "../../hooks/use-fleet-truck-events";
@@ -136,6 +146,44 @@ export interface SectionStatuses {
   usage: SectionStatus;
 }
 
+// --- Section status resolvers (avoid nested ternaries). ---
+
+function resolveMaintenanceStatus(
+  error: Error | undefined,
+  data: TruckMaintenanceDetail | null
+): SectionStatus {
+  if (error) return "critical";
+  if (data) return getMaintenanceSectionStatus(data.status.criticality);
+  return "ok";
+}
+
+function resolveTelemetryStatus(
+  error: Error | undefined,
+  data: TruckTelemetryDetail | null
+): SectionStatus {
+  if (error) return "critical";
+  if (data) return getTelemetrySectionStatus(data.signal.freshness, data.gps.health);
+  return "ok";
+}
+
+function resolveEventsStatus(
+  error: Error | undefined,
+  data: TruckEventsDetail | null
+): SectionStatus {
+  if (error) return "critical";
+  if (data) return getEventsSectionStatus(data.events);
+  return "ok";
+}
+
+function resolveUsageStatus(
+  error: Error | undefined,
+  data: TruckUsageDetail | null
+): SectionStatus {
+  if (error) return "critical";
+  if (data) return getUsageSectionStatus(data.contract.status, data.contract.pct_consumed);
+  return "ok";
+}
+
 /**
  * Computes statuses for the mock-backed sections only. The maintenance,
  * telemetry, events, and usage statuses come from async hooks and are
@@ -164,26 +212,15 @@ export default function VehicleDetailAccordion({
   // extra calls here dedup to a single network fetch each. While loading
   // or on 404/error we fall back to "ok" so the health overview doesn't
   // flicker or go red on transient states.
-  const { maintenance } = useFleetTruckMaintenance(vehicle.plate);
-  const { telemetry } = useFleetTruckTelemetry(vehicle.plate);
-  const { eventsDetail } = useFleetTruckEvents(vehicle.plate);
-  const { usage } = useFleetTruckUsage(vehicle.plate);
+  const { maintenance, error: maintenanceError } = useFleetTruckMaintenance(vehicle.plate);
+  const { telemetry, error: telemetryError } = useFleetTruckTelemetry(vehicle.plate);
+  const { eventsDetail, error: eventsError } = useFleetTruckEvents(vehicle.plate);
+  const { usage, error: usageError } = useFleetTruckUsage(vehicle.plate);
 
-  const maintenanceStatus: SectionStatus = maintenance
-    ? getMaintenanceSectionStatus(maintenance.status.criticality)
-    : "ok";
-  const telemetryStatus: SectionStatus = telemetry
-    ? getTelemetrySectionStatus(
-        telemetry.signal.freshness,
-        telemetry.gps.health
-      )
-    : "ok";
-  const eventsStatus: SectionStatus = eventsDetail
-    ? getEventsSectionStatus(eventsDetail.events)
-    : "ok";
-  const usageStatus: SectionStatus = usage
-    ? getUsageSectionStatus(usage.contract.status, usage.contract.pct_consumed)
-    : "ok";
+  const maintenanceStatus: SectionStatus = resolveMaintenanceStatus(maintenanceError, maintenance);
+  const telemetryStatus: SectionStatus = resolveTelemetryStatus(telemetryError, telemetry);
+  const eventsStatus: SectionStatus = resolveEventsStatus(eventsError, eventsDetail);
+  const usageStatus: SectionStatus = resolveUsageStatus(usageError, usage);
 
   const statuses: SectionStatuses = {
     ...getMockSectionStatuses(),
@@ -195,8 +232,12 @@ export default function VehicleDetailAccordion({
   const healthScore = getOverallHealthScore(statuses);
 
   return (
-    <div className="flex flex-col gap-3 py-4 overflow-y-auto">
-      <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
+    <div className="flex flex-col gap-3 py-4 w-full max-w-6xl">
+      <HealthSection
+        dict={dict}
+        healthScore={healthScore}
+        statuses={statuses}
+      />
       <MaintenanceSection vehicle={vehicle} dict={dict} />
       <TechnicalHealthSection dict={dict} status={statuses.technicalHealth} />
       <TelemetrySection vehicle={vehicle} dict={dict} />

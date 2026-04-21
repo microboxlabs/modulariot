@@ -252,10 +252,9 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
     activeDays === null
       ? tr("vehicleDetail.sections.usage.noDataShort", dict)
       : tr("vehicleDetail.sections.usage.utilization", dict, {
-          percentage: (
-            (activeDays / usage.period.lookback_days) *
-            100
-          ).toFixed(0),
+          percentage: ((activeDays / usage.period.lookback_days) * 100).toFixed(
+            0
+          ),
         });
 
   return (
@@ -283,15 +282,22 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
                 "font-bold !text-xl text-purple-500 dark:text-purple-400",
             }}
             description={{
-              text: tr("vehicleDetail.sections.usage.odometerSinceOrigin", dict),
+              text: tr(
+                "vehicleDetail.sections.usage.odometerSinceOrigin",
+                dict
+              ),
             }}
             className="w-full bg-purple-50 border border-purple-500 dark:bg-purple-900/30 dark:border-purple-500"
+            tooltip
             variant="horizontal"
           />
           <ProgressBar
             progress={progressValue}
             label={{
-              text: tr("vehicleDetail.sections.usage.contractConsumption", dict),
+              text: tr(
+                "vehicleDetail.sections.usage.contractConsumption",
+                dict
+              ),
               className: "text-sm text-gray-600 dark:text-gray-400",
             }}
             value={{
@@ -314,16 +320,24 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
             }}
             value={{ text: formatKm(usage.period.km_traveled) }}
             description={{
-              text: tr("vehicleDetail.sections.usage.lookbackWindowLabel", dict, {
-                days: String(usage.period.lookback_days),
-              }),
+              text: tr(
+                "vehicleDetail.sections.usage.lookbackWindowLabel",
+                dict,
+                {
+                  days: String(usage.period.lookback_days),
+                }
+              ),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
+            tooltip
             variant="vertical"
           />
           <KpiStat
             title={{
-              text: tr("vehicleDetail.sections.usage.kmRemainingContract", dict),
+              text: tr(
+                "vehicleDetail.sections.usage.kmRemainingContract",
+                dict
+              ),
               className: "text-gray-500 dark:text-gray-300",
             }}
             value={{ text: remainingCellValue }}
@@ -331,6 +345,7 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
               text: remainingCellDesc,
               className: "text-gray-500 dark:text-gray-300/60",
             }}
+            tooltip
             variant="vertical"
           />
           <KpiStat
@@ -350,6 +365,7 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
               text: intensityLabel,
               className: "text-gray-500 dark:text-gray-300/60",
             }}
+            tooltip
             variant="vertical"
           />
           <KpiStat
@@ -362,6 +378,7 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
               text: activeDaysDesc,
               className: "text-gray-500 dark:text-gray-300/60",
             }}
+            tooltip
             variant="vertical"
           />
           <KpiStat
@@ -378,6 +395,7 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
               text: tr("vehicleDetail.sections.usage.useTypeDesc", dict),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
+            tooltip
             variant="vertical"
           />
           <KpiStat
@@ -390,6 +408,7 @@ export default function UsageSection({ vehicle, dict }: UsageSectionProps) {
               text: tr("vehicleDetail.sections.usage.projectionBasis", dict),
               className: "text-gray-500 dark:text-gray-300/60",
             }}
+            tooltip
             variant="vertical"
           />
         </div>

@@ -138,12 +138,7 @@ export function useBatchImporter({
           if (result.errorMessage)
             cache.errorlog[row.fingerprint] = result.errorMessage;
           else delete cache.errorlog[row.fingerprint];
-          try {
-            writeCache(sourceKey, cache);
-          } catch {
-            // LocalStorage write failed (quota / disabled). UI state still
-            // reflects the result; persistence across reloads is lost.
-          }
+          writeCache(sourceKey, cache);
 
           updateRow(i, {
             ...row,

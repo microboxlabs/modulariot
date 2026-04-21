@@ -6,31 +6,44 @@ function detectDelimiter(firstLine: string): string {
   return commas > tabs ? "," : "\t";
 }
 
+interface QuotedStep {
+  append: string;
+  advance: number;
+  endQuote: boolean;
+}
+
+function consumeQuotedChar(content: string, pos: number): QuotedStep {
+  const c = content[pos];
+  if (c === '"') {
+    if (content[pos + 1] === '"') {
+      return { append: '"', advance: 2, endQuote: false };
+    }
+    return { append: "", advance: 1, endQuote: true };
+  }
+  return { append: c, advance: 1, endQuote: false };
+}
+
+function newlineAdvance(content: string, pos: number): number {
+  return content[pos] === "\r" && content[pos + 1] === "\n" ? 2 : 1;
+}
+
 function tokenize(content: string, delimiter: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
   let inQuotes = false;
-  let i = 0;
   const len = content.length;
+  let i = 0;
 
   while (i < len) {
-    const c = content[i];
     if (inQuotes) {
-      if (c === '"') {
-        if (content[i + 1] === '"') {
-          cell += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
-      }
-      cell += c;
-      i++;
+      const step = consumeQuotedChar(content, i);
+      cell += step.append;
+      i += step.advance;
+      if (step.endQuote) inQuotes = false;
       continue;
     }
+    const c = content[i];
     if (c === '"') {
       inQuotes = true;
       i++;
@@ -47,8 +60,7 @@ function tokenize(content: string, delimiter: string): string[][] {
       rows.push(row);
       row = [];
       cell = "";
-      if (c === "\r" && content[i + 1] === "\n") i += 2;
-      else i++;
+      i += newlineAdvance(content, i);
       continue;
     }
     cell += c;

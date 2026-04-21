@@ -3,16 +3,15 @@ import type {
   ParsedRow,
   RowStatus,
   SubmitFn,
-  SubmitResult,
 } from "./types";
 import { buildPgrestFetch } from "../../common/pgrest-utils";
 import type { PgrestParam } from "../../common/pgrest-types";
 
 const CACHE_PREFIX = "batch-importer-cache:";
-const RESOLVED: RowStatus[] = ["processed", "updated", "skipped"];
+const RESOLVED = new Set<RowStatus>(["processed", "updated", "skipped"]);
 
 export function isResolved(status: RowStatus): boolean {
-  return RESOLVED.includes(status);
+  return RESOLVED.has(status);
 }
 
 export interface CacheBlob {
@@ -64,11 +63,11 @@ function rowToParams(
   return out;
 }
 
-const SUCCESS_STATUSES: readonly RowStatus[] = [
+const SUCCESS_STATUSES = new Set<RowStatus>([
   "processed",
   "updated",
   "skipped",
-];
+]);
 
 function coerceStatus(
   body: unknown,
@@ -76,7 +75,7 @@ function coerceStatus(
 ): RowStatus {
   if (body && typeof body === "object" && "status" in body) {
     const s = (body as { status?: unknown }).status;
-    if (typeof s === "string" && SUCCESS_STATUSES.includes(s as RowStatus)) {
+    if (typeof s === "string" && SUCCESS_STATUSES.has(s as RowStatus)) {
       return s as RowStatus;
     }
   }
@@ -126,4 +125,4 @@ export function makePgrestSubmit(
   };
 }
 
-export type { SubmitResult };
+export type { SubmitResult } from "./types";

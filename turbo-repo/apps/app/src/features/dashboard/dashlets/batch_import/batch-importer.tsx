@@ -55,7 +55,7 @@ export interface BatchImporterState {
   hasFailed: boolean;
   hasResolved: boolean;
   load: (text: string) => void;
-  loadFile: (file: File) => void;
+  loadFile: (file: File) => Promise<void>;
   onImport: () => Promise<void>;
   onRetryFailed: () => void;
   onReset: () => void;
@@ -93,10 +93,8 @@ export function useBatchImporter({
   );
 
   const loadFile = useCallback(
-    (file: File) => {
-      const reader = new FileReader();
-      reader.onload = () => load(String(reader.result ?? ""));
-      reader.readAsText(file);
+    async (file: File) => {
+      load(await file.text());
     },
     [load],
   );
@@ -174,8 +172,7 @@ export function useBatchImporter({
       failed: 0,
       wait: 0,
     };
-    if (!doc) return c;
-    doc.rows.forEach((r) => {
+    doc?.rows.forEach((r) => {
       c.total++;
       c[r.status]++;
     });
@@ -254,7 +251,7 @@ export function BatchImporterView({
           className="hidden"
           onChange={(e: ChangeEvent<HTMLInputElement>) => {
             const f = e.target.files?.[0];
-            if (f) loadFile(f);
+            if (f) void loadFile(f);
             e.target.value = "";
           }}
         />

@@ -1700,6 +1700,18 @@
         "acceptedFileTypesHint": "Extensiones o tipos MIME separados por coma. Dejar vacío para aceptar todos.",
         "defaultEnv": "Por defecto (env)"
       },
+      "batchImport": {
+        "buttonLabel": "Etiqueta del botón",
+        "buttonLabelPlaceholder": "Importar datos",
+        "endpoint": "Endpoint de importación",
+        "defaultEnv": "Por defecto (env)",
+        "defaultStrategy": "Estrategia de duplicados por defecto",
+        "acceptedFileTypes": "Tipos de archivo aceptados",
+        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt).",
+        "cacheKey": "Clave de caché",
+        "cacheKeyPlaceholder": "Opcional",
+        "cacheKeyHint": "Namespace en localStorage para el caché de estado. Dejar vacío para generar uno automáticamente."
+      },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
       "noFiltersConfigured": "No hay filtros configurados. Agregue filtros para habilitar la barra de filtros del dashboard.",
@@ -1843,6 +1855,39 @@
         "name": "Vista Geográfica",
         "description": "Mapa interactivo con marcadores de posición y filtros",
         "load_failed": "Error al cargar datos del mapa"
+      },
+      "batchImport": {
+        "defaultTitle": "Importar datos",
+        "title": "Importar datos",
+        "subtitle": "Pegue o cargue un CSV / TSV. Los encabezados de la primera fila se usan como claves del registro.",
+        "configureHint": "Configura un endpoint en ajustes",
+        "loadSample": "Cargar ejemplo",
+        "loadFile": "Cargar archivo…",
+        "pasteHint": "Pegue contenido tab-separado o separado por comas (copiar desde Excel funciona):",
+        "headerError": {
+          "empty": "El archivo está vacío.",
+          "no_headers": "La primera fila no tiene encabezados válidos."
+        },
+        "statusCol": "Estado",
+        "total": "Total",
+        "duplicates": "Duplicados:",
+        "retryFailed": "Reintentar fallidos ({count})",
+        "clearCache": "Limpiar caché",
+        "importing": "Importando…",
+        "importN": "Importar {count} filas",
+        "status": {
+          "unprocessed": "Listo",
+          "wait": "Procesando…",
+          "processed": "Creado",
+          "updated": "Actualizado",
+          "skipped": "Omitido",
+          "failed": "Fallido"
+        },
+        "strategy": {
+          "upsert": "Actualizar (upsert)",
+          "skip": "Omitir",
+          "create": "Solo crear (falla si existe)"
+        }
       }
     },
     "fileUpload": {

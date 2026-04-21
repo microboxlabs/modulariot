@@ -1,0 +1,85 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Button } from "flowbite-react";
+import { HiArrowUpTray } from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
+import { makePgrestSubmit } from "./engine/importer";
+import { BatchImporterModal } from "./batch-importer-modal";
+import { SAMPLE_TSV } from "./sample";
+import type { DuplicateStrategy } from "./engine/types";
+
+export interface DashletConfig {
+  title: string;
+  pgrestFunctionName: string;
+  dataSourceId?: string;
+  defaultStrategy: DuplicateStrategy;
+  cacheKey?: string;
+  acceptedFileTypes?: string;
+}
+
+export const defaultConfig: DashletConfig = {
+  title: "",
+  pgrestFunctionName: "",
+  defaultStrategy: "upsert",
+};
+
+export const layoutDefaults: DashletLayoutDefaults = {
+  minW: 3,
+  minH: 2,
+};
+
+export function getLayoutDefaults(): DashletLayoutDefaults {
+  return layoutDefaults;
+}
+
+export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+  const config = widget.config as unknown as DashletConfig;
+  const { dictionary } = useDashboard();
+  const [open, setOpen] = useState(false);
+
+  const isConfigured = !!config.pgrestFunctionName;
+  const title =
+    config.title?.trim() ||
+    tr("dashboard.dashlets.batchImport.defaultTitle", dictionary);
+
+  const submit = useMemo(
+    () =>
+      isConfigured
+        ? makePgrestSubmit(config.pgrestFunctionName, config.dataSourceId)
+        : null,
+    [isConfigured, config.pgrestFunctionName, config.dataSourceId],
+  );
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      {!isConfigured && (
+        <p className="text-sm text-gray-400">
+          {tr("dashboard.dashlets.batchImport.configureHint", dictionary)}
+        </p>
+      )}
+
+      {isConfigured && submit && (
+        <>
+          <Button color="blue" onClick={() => setOpen(true)}>
+            <HiArrowUpTray className="mr-2 h-5 w-5" />
+            {title}
+          </Button>
+          <BatchImporterModal
+            isOpen={open}
+            onClose={() => setOpen(false)}
+            submit={submit}
+            sourceKey={config.cacheKey || `${widget.id}:${config.pgrestFunctionName}`}
+            title={title}
+            defaultStrategy={config.defaultStrategy}
+            sample={SAMPLE_TSV}
+            acceptedFileTypes={config.acceptedFileTypes}
+            dictionary={dictionary}
+          />
+        </>
+      )}
+    </div>
+  );
+}

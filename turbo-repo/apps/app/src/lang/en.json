@@ -1674,6 +1674,18 @@
         "acceptedFileTypesHint": "Comma-separated extensions or MIME types. Leave empty to accept all.",
         "defaultEnv": "Default (env)"
       },
+      "batchImport": {
+        "buttonLabel": "Button Label",
+        "buttonLabelPlaceholder": "Import data",
+        "endpoint": "Import Endpoint",
+        "defaultEnv": "Default (env)",
+        "defaultStrategy": "Default duplicate strategy",
+        "acceptedFileTypes": "Accepted File Types",
+        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt).",
+        "cacheKey": "Cache key",
+        "cacheKeyPlaceholder": "Optional",
+        "cacheKeyHint": "LocalStorage namespace for the row-status cache. Leave empty for an auto-generated one."
+      },
       "filterBarTitle": "Filter Bar",
       "filterBarDescription": "Configure dashboard filter parameters",
       "noFiltersConfigured": "No filters configured. Add filters to enable the dashboard filter bar.",
@@ -1818,6 +1830,39 @@
         "name": "Geographic Map",
         "description": "Interactive map with position markers and filters",
         "load_failed": "Failed to load map data"
+      },
+      "batchImport": {
+        "defaultTitle": "Import data",
+        "title": "Import data",
+        "subtitle": "Paste or upload a CSV / TSV. Headers in the first row become the record keys.",
+        "configureHint": "Configure an endpoint in settings",
+        "loadSample": "Load sample",
+        "loadFile": "Load file…",
+        "pasteHint": "Paste tab-separated or comma-separated content (copy from Excel works):",
+        "headerError": {
+          "empty": "The file is empty.",
+          "no_headers": "The first row has no valid headers."
+        },
+        "statusCol": "Status",
+        "total": "Total",
+        "duplicates": "Duplicates:",
+        "retryFailed": "Retry failed ({count})",
+        "clearCache": "Clear cache",
+        "importing": "Importing…",
+        "importN": "Import {count} rows",
+        "status": {
+          "unprocessed": "Ready",
+          "wait": "Processing…",
+          "processed": "Created",
+          "updated": "Updated",
+          "skipped": "Skipped",
+          "failed": "Failed"
+        },
+        "strategy": {
+          "upsert": "Update (upsert)",
+          "skip": "Skip",
+          "create": "Create only (fail if exists)"
+        }
       }
     },
     "fileUpload": {

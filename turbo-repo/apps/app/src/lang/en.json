@@ -277,6 +277,7 @@
           "occupancy": "Occupancy",
           "information": "Information",
           "client": "Client",
+          "clientRut": "Client RUT",
           "route": "Route",
           "loadingPlace": "Loading Place",
           "tripType": "Trip Type",

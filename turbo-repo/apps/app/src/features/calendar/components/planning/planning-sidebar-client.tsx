@@ -118,6 +118,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
   return {
     id: serviceId,
     cliente: task.client || task.clientCode || "",
+    mintral_clientRut: task.mintral_clientRut,
     origen: task.origin || "",
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import type {
   DashletComponentProps,
   DashletLayoutDefaults,
@@ -69,6 +69,97 @@ import {
   DashletTitleBar,
   buildTitleBarData,
 } from "@/features/dashboard/dashlets/common/dashlet-title-bar";
+
+// ============================================================================
+// Sticky column helpers
+// ============================================================================
+
+function buildStickyThClass(
+  colIdx: number,
+  lastStickyIdx: number,
+  firstStickyRightIdx: number
+): string {
+  const base =
+    "sticky top-0 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
+  if (colIdx <= lastStickyIdx) {
+    const shadow =
+      colIdx === lastStickyIdx
+        ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
+        : "";
+    return `${base} left-0 z-30${shadow}`;
+  }
+  if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
+    const shadow =
+      colIdx === firstStickyRightIdx
+        ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
+        : "";
+    return `${base} right-0 z-30${shadow}`;
+  }
+  return base;
+}
+
+function buildStickyTdClass(
+  colIdx: number,
+  lastStickyIdx: number,
+  firstStickyRightIdx: number,
+  showColumnDividers: boolean,
+  columnsLength: number,
+  rowBgClass: string
+): string {
+  const divider =
+    showColumnDividers && colIdx < columnsLength - 1
+      ? " relative after:absolute after:right-0 after:top-3 after:bottom-3 after:w-px after:bg-gray-200/30 dark:after:bg-gray-600/25"
+      : "";
+  const rowBorder = "border-t border-gray-200 dark:border-gray-600";
+  const base = `${rowBorder} px-4 py-4 text-gray-700 dark:text-gray-300${divider}`;
+  if (colIdx <= lastStickyIdx) {
+    const shadow =
+      colIdx === lastStickyIdx
+        ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
+        : "";
+    return `${base} sticky left-0 z-10 ${rowBgClass}${shadow}`;
+  }
+  if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
+    const shadow =
+      colIdx === firstStickyRightIdx
+        ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
+        : "";
+    return `${base} sticky right-0 z-10 ${rowBgClass}${shadow}`;
+  }
+  return base;
+}
+
+function buildStickyStyle(
+  colIdx: number,
+  leftOffsets: Record<number, number>,
+  rightOffsets: Record<number, number>,
+  lastStickyIdx: number,
+  firstStickyRightIdx: number
+): React.CSSProperties | undefined {
+  if (colIdx <= lastStickyIdx && leftOffsets[colIdx] !== undefined) {
+    const style: React.CSSProperties = { left: leftOffsets[colIdx] };
+    if (colIdx < lastStickyIdx) {
+      style.paddingRight = "calc(1rem + 0.1px)";
+    }
+    return style;
+  }
+  if (
+    firstStickyRightIdx >= 0 &&
+    colIdx >= firstStickyRightIdx &&
+    rightOffsets[colIdx] !== undefined
+  ) {
+    const style: React.CSSProperties = { right: rightOffsets[colIdx] };
+    if (colIdx > firstStickyRightIdx) {
+      style.paddingLeft = "calc(1rem + 0.1px)";
+    }
+    return style;
+  }
+  return undefined;
+}
+
+// ============================================================================
+// Config & Defaults
+// ============================================================================
 
 export interface DashletConfig {
   title: string;
@@ -276,9 +367,85 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // ── Title bar data ──────────────────────────────────────────────────────────
   const titleBarData = buildTitleBarData({
-    title, showRowCount, showExport, columns,
-    displayRows, resolveValue, resolveLabel, dictionary,
+    title,
+    showRowCount,
+    showExport,
+    columns,
+    displayRows,
+    resolveValue,
+    resolveLabel,
+    dictionary,
   });
+
+  // ── Sticky column left offsets ──────────────────────────────────────────────
+  const headerRowRef = useRef<HTMLTableRowElement>(null);
+  const [stickyLeftOffsets, setStickyLeftOffsets] = useState<
+    Record<number, number>
+  >({});
+  const [stickyRightOffsets, setStickyRightOffsets] = useState<
+    Record<number, number>
+  >({});
+
+  const measureStickyOffsets = useCallback(() => {
+    const row = headerRowRef.current;
+    if (!row) return;
+    const cells = row.children;
+
+    // Left offsets (contiguous from index 0)
+    const leftOff: Record<number, number> = {};
+    let left = 0;
+    for (let i = 0; i < columns.length; i++) {
+      if (!columns[i].sticky) break;
+      leftOff[i] = left;
+      const cell = cells[i] as HTMLElement | undefined;
+      if (cell) left += cell.offsetWidth;
+    }
+    setStickyLeftOffsets(leftOff);
+
+    // Measure actions column width (last child if actions exist)
+    let actionsWidth = 0;
+    if (hasActions && cells.length > columns.length) {
+      const actionsCell = cells[cells.length - 1] as HTMLElement | undefined;
+      if (actionsCell) actionsWidth = actionsCell.offsetWidth;
+    }
+
+    // Right offsets (contiguous from last index), shifted by actions width
+    const rightOff: Record<number, number> = {};
+    let right = actionsWidth;
+    for (let i = columns.length - 1; i >= 0; i--) {
+      if (!columns[i].sticky) break;
+      // Skip if already counted as left-sticky
+      if (leftOff[i] !== undefined) break;
+      rightOff[i] = right;
+      const cell = cells[i] as HTMLElement | undefined;
+      if (cell) right += cell.offsetWidth;
+    }
+    setStickyRightOffsets(rightOff);
+  }, [columns, hasActions]);
+
+  useEffect(() => {
+    measureStickyOffsets();
+  }, [measureStickyOffsets, displayRows]);
+
+  const lastStickyIdx = useMemo(() => {
+    let last = -1;
+    for (let i = 0; i < columns.length; i++) {
+      if (!columns[i].sticky) break;
+      last = i;
+    }
+    return last;
+  }, [columns]);
+
+  const firstStickyRightIdx = useMemo(() => {
+    let first = -1;
+    for (let i = columns.length - 1; i >= 0; i--) {
+      if (!columns[i].sticky) break;
+      // Don't double-count left-sticky columns
+      if (i <= lastStickyIdx) break;
+      first = i;
+    }
+    return first;
+  }, [columns, lastStickyIdx]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -351,13 +518,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           </div>
         )}
         {!loading && !fetchError && (
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-gray-50 dark:bg-gray-700">
-                {columns.map((col) => (
+          <table className="w-full border-separate border-spacing-0 text-sm">
+            <thead className="sticky top-0 z-20">
+              <tr ref={headerRowRef} className="bg-gray-50 dark:bg-gray-700">
+                {columns.map((col, colIdx) => (
                   <th
                     key={col.key}
-                    className="sticky top-0 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                    className={buildStickyThClass(
+                      colIdx,
+                      lastStickyIdx,
+                      firstStickyRightIdx
+                    )}
+                    style={buildStickyStyle(
+                      colIdx,
+                      stickyLeftOffsets,
+                      stickyRightOffsets,
+                      lastStickyIdx,
+                      firstStickyRightIdx
+                    )}
                   >
                     <div className="flex items-center gap-1">
                       <span>{resolveLabel(col.key)}</span>
@@ -373,7 +551,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </th>
                 ))}
                 {hasActions && (
-                  <th className="sticky right-0 w-10 border-l border-gray-200 bg-gray-50 px-2 py-3 dark:border-gray-600 dark:bg-gray-700/50">
+                  <th
+                    className={`sticky right-0 z-30 w-10 bg-gray-50 px-2 py-3 dark:bg-gray-700 ${firstStickyRightIdx < 0 ? "border-l border-gray-200 dark:border-gray-600" : ""}`}
+                  >
                     <span className="sr-only">
                       {tr("dashboard.settings.actions", dictionary)}
                     </span>
@@ -402,16 +582,31 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         displayRows.length
                       )
                     : null;
-                  const trClass = rowColor
-                    ? `border-t border-gray-200 ${getRowColorClasses(rowColor)} dark:border-gray-600`
-                    : "border-t border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800";
+                  const rowBgClass = rowColor
+                    ? getRowColorClasses(rowColor)
+                    : "bg-white dark:bg-gray-800";
+                  const trClass = rowBgClass;
 
                   return (
                     <tr key={row.id ?? row._id ?? rowIdx} className={trClass}>
                       {columns.map((col, colIdx) => (
                         <td
                           key={col.key}
-                          className={`px-4 py-4 text-gray-700 dark:text-gray-300${showColumnDividers && colIdx < columns.length - 1 ? " relative after:absolute after:right-0 after:top-3 after:bottom-3 after:w-px after:bg-gray-200/30 dark:after:bg-gray-600/25" : ""}`}
+                          className={buildStickyTdClass(
+                            colIdx,
+                            lastStickyIdx,
+                            firstStickyRightIdx,
+                            showColumnDividers ?? true,
+                            columns.length,
+                            rowBgClass
+                          )}
+                          style={buildStickyStyle(
+                            colIdx,
+                            stickyLeftOffsets,
+                            stickyRightOffsets,
+                            lastStickyIdx,
+                            firstStickyRightIdx
+                          )}
                         >
                           {renderCell(
                             resolveValue(
@@ -432,7 +627,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                       ))}
                       {hasActions && (
                         <td
-                          className={`sticky right-0 border-l border-gray-200 px-2 py-4 dark:border-gray-600 ${rowColor ? getRowColorClasses(rowColor) : "bg-white dark:bg-gray-800"}`}
+                          className={`sticky right-0 border-t border-gray-200 px-2 py-4 dark:border-gray-600 ${firstStickyRightIdx < 0 ? "border-l" : ""} ${rowBgClass}`}
                         >
                           <ActionDropdown
                             items={safeActions.items

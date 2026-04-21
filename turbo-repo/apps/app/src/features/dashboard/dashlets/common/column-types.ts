@@ -19,7 +19,13 @@ export function isColumnType(value: string): value is ColumnType {
 /** Semantic data type used for per-column filtering. */
 export type DataType = "text" | "number" | "date" | "enum" | "boolean";
 
-export const DATA_TYPES: DataType[] = ["text", "number", "date", "enum", "boolean"];
+export const DATA_TYPES: DataType[] = [
+  "text",
+  "number",
+  "date",
+  "enum",
+  "boolean",
+];
 
 export function isDataType(value: string): value is DataType {
   return (DATA_TYPES as string[]).includes(value);
@@ -40,6 +46,8 @@ export interface TableColumn {
   dataType?: DataType;
   /** Value-to-color mappings for badge columns. Falls back to keyword matching if absent. */
   colorMap?: BadgeColorMapping[];
+  /** When true the column sticks to the left edge during horizontal scroll. */
+  sticky?: boolean;
 }
 
 export interface SortConfig {

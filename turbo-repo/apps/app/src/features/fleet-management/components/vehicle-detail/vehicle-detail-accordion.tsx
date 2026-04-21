@@ -196,7 +196,11 @@ export default function VehicleDetailAccordion({
 
   return (
     <div className="flex flex-col gap-3 py-4 overflow-y-auto">
-      <HealthSection dict={dict} healthScore={healthScore} statuses={statuses} />
+      <HealthSection
+        dict={dict}
+        healthScore={healthScore}
+        statuses={statuses}
+      />
       <MaintenanceSection vehicle={vehicle} dict={dict} />
       <TechnicalHealthSection dict={dict} status={statuses.technicalHealth} />
       <TelemetrySection vehicle={vehicle} dict={dict} />

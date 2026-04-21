@@ -1577,6 +1577,7 @@
       "columns": "Columns",
       "detectColumns": "Detect columns",
       "addColumn": "Add column",
+      "stickyColumn": "Sticky column",
       "cardLayout": "Card Layout",
       "horizontal": "Horizontal",
       "vertical": "Vertical",

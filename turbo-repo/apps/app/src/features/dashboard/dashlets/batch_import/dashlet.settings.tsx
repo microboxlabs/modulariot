@@ -74,7 +74,11 @@ export function DashletSettings({
           id="batch-import-datasource"
           label={tr("dashboard.settings.dataSource", dictionary)}
           value={dataSourceId}
-          onChange={setDataSourceId}
+          onChange={(v) => {
+            if (v === dataSourceId) return;
+            setDataSourceId(v);
+            setPgrestFunctionName("");
+          }}
           options={[
             {
               value: "",

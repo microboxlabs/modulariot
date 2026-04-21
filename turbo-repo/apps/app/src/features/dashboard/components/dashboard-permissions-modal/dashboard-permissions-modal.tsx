@@ -40,6 +40,22 @@ const ROLE_LABEL_KEYS: Record<DashboardRole, string> = {
   Coordinator: "dashboard.permissions.roleCoordinator",
 };
 
+// The four site-role groups that every dashboard inherits by default. They
+// add no signal to the UI (same on every dashboard in the site), so they get
+// collapsed into a count and any inherited entry outside this set is surfaced.
+const SITE_ROLE_GROUP_SUFFIXES = new Set([
+  "SiteConsumer",
+  "SiteCollaborator",
+  "SiteContributor",
+  "SiteManager",
+]);
+
+function isDefaultSiteGroup(authorityId: string, site: string): boolean {
+  const prefix = `GROUP_site_${site}_`;
+  if (!authorityId.startsWith(prefix)) return false;
+  return SITE_ROLE_GROUP_SUFFIXES.has(authorityId.slice(prefix.length));
+}
+
 function fallbackRole(name: string): DashboardRole {
   return isDashboardRole(name) ? name : "Consumer";
 }
@@ -99,6 +115,19 @@ export function DashboardPermissionsModal({
     () => data?.permissions.inherited ?? [],
     [data]
   );
+
+  const { inheritedAtypical, inheritedDefaultCount } = useMemo(() => {
+    let defaultCount = 0;
+    const atypical: AlfrescoPermissionEntry[] = [];
+    for (const entry of inheritedEntries) {
+      if (isDefaultSiteGroup(entry.authorityId, site)) defaultCount++;
+      else atypical.push(entry);
+    }
+    return {
+      inheritedAtypical: atypical,
+      inheritedDefaultCount: defaultCount,
+    };
+  }, [inheritedEntries, site]);
 
   const existingAuthorityIds = useMemo(
     () => new Set(localEntries.map((e) => e.authorityId)),
@@ -209,8 +238,9 @@ export function DashboardPermissionsModal({
         />
 
         <InheritedList
-          entries={inheritedEntries}
+          entries={inheritedAtypical}
           heading={t("inheritedHeading")}
+          defaultCount={inheritedDefaultCount}
           emptyLabel={t("noInherited")}
           badgeLabel={t("inheritedBadge")}
           roleLabel={(role) => tr(ROLE_LABEL_KEYS[fallbackRole(role)], dictionary)}
@@ -289,24 +319,34 @@ function InheritanceToggle({
 function InheritedList({
   entries,
   heading,
+  defaultCount,
   emptyLabel,
   badgeLabel,
   roleLabel,
 }: Readonly<{
   entries: AlfrescoPermissionEntry[];
   heading: string;
+  /** Site-default inherited entries are collapsed into a count shown beside
+   *  the heading; only `entries` (atypical ones) are rendered as list items. */
+  defaultCount: number;
   emptyLabel: string;
   badgeLabel: string;
   roleLabel: (role: string) => string;
 }>) {
+  const headingText =
+    defaultCount > 0 ? `${heading} (${defaultCount})` : heading;
+  // Only render the "nothing inherited" copy when there truly is nothing —
+  // i.e. no atypical entries AND no collapsed defaults.
+  const hasNothing = entries.length === 0 && defaultCount === 0;
   return (
     <section>
       <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {heading}
+        {headingText}
       </h4>
-      {entries.length === 0 ? (
+      {hasNothing && (
         <p className="text-sm text-gray-500 dark:text-gray-400">{emptyLabel}</p>
-      ) : (
+      )}
+      {entries.length > 0 && (
         <ul className="space-y-1">
           {entries.map((entry) => (
             <li

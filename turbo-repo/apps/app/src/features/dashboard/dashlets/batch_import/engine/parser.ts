@@ -83,17 +83,23 @@ export function parseDocument(content: string): ParsedDocument {
   }
 
   const [header, ...dataRows] = grid;
-  const headers = header.map((h) => h.trim()).filter((h) => h.length > 0);
+  // Preserve each surviving header's original column index so downstream rows
+  // read from the correct cell even when the header row has empty columns.
+  const headerEntries = header
+    .map((h, index) => ({ name: h.trim(), index }))
+    .filter((e) => e.name.length > 0);
 
-  if (headers.length === 0) {
+  if (headerEntries.length === 0) {
     return { headers: [], rows: [], headerError: "no_headers" };
   }
 
+  const headers = headerEntries.map((e) => e.name);
+
   const rows: ParsedRow[] = dataRows.map((cells, index) => {
     const fields: Record<string, string> = {};
-    headers.forEach((key, ci) => {
-      fields[key] = (cells[ci] ?? "").trim();
-    });
+    for (const { name, index: originalIndex } of headerEntries) {
+      fields[name] = (cells[originalIndex] ?? "").trim();
+    }
     return {
       index,
       fingerprint: fingerprintRow(fields),

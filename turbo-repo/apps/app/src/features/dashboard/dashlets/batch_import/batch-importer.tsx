@@ -14,6 +14,7 @@ import type {
   ParsedRow,
   RowStatus,
   SubmitFn,
+  SubmitResult,
 } from "./engine/types";
 import { parseDocument } from "./engine/parser";
 import {
@@ -109,29 +110,50 @@ export function useBatchImporter({
   }, []);
 
   const runImport = useCallback(
-    async (targetIndexes?: Set<number>) => {
-      if (!doc) return;
+    async (targetIndexes?: Set<number>, rowsOverride?: ParsedRow[]) => {
+      const rows = rowsOverride ?? doc?.rows;
+      if (!rows) return;
       setImporting(true);
-      const cache = readCache(sourceKey);
-      for (let i = 0; i < doc.rows.length; i++) {
-        const row = doc.rows[i];
-        if (targetIndexes && !targetIndexes.has(row.index)) continue;
-        if (row.status !== "unprocessed") continue;
+      try {
+        const cache = readCache(sourceKey);
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          if (targetIndexes && !targetIndexes.has(row.index)) continue;
+          if (row.status !== "unprocessed") continue;
 
-        updateRow(i, { ...row, status: "wait" });
-        const result = await submit(row, strategy);
-        cache.status[row.fingerprint] = result.status;
-        if (result.errorMessage)
-          cache.errorlog[row.fingerprint] = result.errorMessage;
-        else delete cache.errorlog[row.fingerprint];
-        writeCache(sourceKey, cache);
-        updateRow(i, {
-          ...row,
-          status: result.status,
-          errorMessage: result.errorMessage,
-        });
+          updateRow(i, { ...row, status: "wait" });
+
+          let result: SubmitResult;
+          try {
+            result = await submit(row, strategy);
+          } catch (err) {
+            result = {
+              status: "failed",
+              errorMessage:
+                err instanceof Error ? err.message : "Submit threw",
+            };
+          }
+
+          cache.status[row.fingerprint] = result.status;
+          if (result.errorMessage)
+            cache.errorlog[row.fingerprint] = result.errorMessage;
+          else delete cache.errorlog[row.fingerprint];
+          try {
+            writeCache(sourceKey, cache);
+          } catch {
+            // LocalStorage write failed (quota / disabled). UI state still
+            // reflects the result; persistence across reloads is lost.
+          }
+
+          updateRow(i, {
+            ...row,
+            status: result.status,
+            errorMessage: result.errorMessage,
+          });
+        }
+      } finally {
+        setImporting(false);
       }
-      setImporting(false);
     },
     [doc, sourceKey, strategy, submit, updateRow],
   );
@@ -154,7 +176,9 @@ export function useBatchImporter({
       return r;
     });
     setDoc({ ...doc, rows: resetRows });
-    queueMicrotask(() => runImport(failedIndexes));
+    // Pass resetRows explicitly so the import loop doesn't read the stale
+    // closure's `doc` — setDoc hasn't committed yet when runImport starts.
+    void runImport(failedIndexes, resetRows);
   }, [doc, sourceKey, runImport]);
 
   const onReset = useCallback(() => {

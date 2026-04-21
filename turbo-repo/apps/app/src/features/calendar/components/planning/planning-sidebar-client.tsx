@@ -601,6 +601,11 @@ export function PlanningSidebarClient({
               displayState.selectedService
                 ? {
                     ...displayState.selectedService,
+                    mintral_clientRut:
+                      displayState.selectedService.mintral_clientRut ??
+                      allServices.find(
+                        (s) => s.id === displayState.selectedService?.id
+                      )?.mintral_clientRut,
                     slot: displayState.formattedSlot?.full,
                   }
                 : undefined

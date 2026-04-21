@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { HiOutlineExclamationTriangle } from "react-icons/hi2";
 import { useParams } from "next/navigation";
 import type { Vehicle } from "../../../types/fleet.types";
@@ -13,7 +14,11 @@ import { TimelineEvent } from "@/features/common/components/timeline-event";
 import type { EventUrgency } from "@/features/common/components/timeline-event";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { useFleetTruckEvents } from "../../../hooks/use-fleet-truck-events";
+import type { EventFilters } from "../../../hooks/use-fleet-truck-events";
 import { getEventsSectionStatus } from "../vehicle-detail-accordion";
+import EventsFilterHeader from "./events-filter-header";
+
+const DEFAULT_LIMIT = 50;
 
 interface EventsSectionProps {
   readonly vehicle: Vehicle;
@@ -33,6 +38,8 @@ function severityToUrgency(icuCode: number): EventUrgency {
 const CATEGORY_I18N: Record<string, string> = {
   SEÑAL: "vehicleDetail.sections.events.category.SEÑAL",
   VELOCIDAD: "vehicleDetail.sections.events.category.VELOCIDAD",
+  HORARIO: "vehicleDetail.sections.events.category.HORARIO",
+  MANTENIMIENTO: "vehicleDetail.sections.events.category.MANTENIMIENTO",
   OTROS: "vehicleDetail.sections.events.category.OTROS",
 };
 
@@ -49,17 +56,24 @@ const URGENCY_I18N: Record<EventUrgency, string> = {
 
 // --- Badge. ---
 
-function getEventsBadge(
-  events: TruckEventItem[],
-  dict: I18nRecord
-) {
+function getCriticalKey(count: number): string {
+  if (count === 1) return "vehicleDetail.sections.events.criticalCount_one";
+  return "vehicleDetail.sections.events.criticalCount";
+}
+
+function getWarningKey(count: number): string {
+  if (count === 1) return "vehicleDetail.sections.events.warningCount_one";
+  return "vehicleDetail.sections.events.warningCount";
+}
+
+function getEventsBadge(events: TruckEventItem[], dict: I18nRecord) {
   const criticalCount = events.filter((e) => e.icu_code >= 3).length;
   const warningCount = events.filter((e) => e.icu_code === 2).length;
 
   if (criticalCount > 0) {
     return (
       <CustomBadge
-        text={tr("vehicleDetail.sections.events.criticalCount", dict, {
+        text={tr(getCriticalKey(criticalCount), dict, {
           count: String(criticalCount),
         })}
         className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -70,7 +84,7 @@ function getEventsBadge(
   if (warningCount > 0) {
     return (
       <CustomBadge
-        text={tr("vehicleDetail.sections.events.warningCount", dict, {
+        text={tr(getWarningKey(warningCount), dict, {
           count: String(warningCount),
         })}
         className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
@@ -102,15 +116,31 @@ function fmtDuration(minutes: number | null, dict: I18nRecord): string | null {
 
 // --- Component. ---
 
-export default function EventsSection({
-  vehicle,
-  dict,
-}: EventsSectionProps) {
+export default function EventsSection({ vehicle, dict }: EventsSectionProps) {
   const { lang } = useParams<{ lang: string }>();
   const isSpanish = lang === "es";
 
+  const [filters, setFilters] = useState<EventFilters>({
+    limit: DEFAULT_LIMIT,
+  });
+
+  const handleLimitChange = useCallback((limit: number) => {
+    setFilters((prev) => ({ ...prev, limit }));
+  }, []);
+
+  const handleTipoEventoChange = useCallback((pTipoEvento: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      pTipoEvento: pTipoEvento || undefined,
+    }));
+  }, []);
+
+  const handleDateChange = useCallback((desde: string, hasta: string) => {
+    setFilters((prev) => ({ ...prev, pDesde: desde, pHasta: hasta }));
+  }, []);
+
   const { eventsDetail, notFound, error, isLoading, mutate } =
-    useFleetTruckEvents(vehicle.plate);
+    useFleetTruckEvents(vehicle.plate, filters);
 
   const title = tr("vehicleDetail.sections.events.title", dict);
   const description = tr("vehicleDetail.sections.events.description", dict);
@@ -143,7 +173,13 @@ export default function EventsSection({
         icon={HiOutlineExclamationTriangle}
         title={title}
         description={description}
-        status="warning"
+        status="critical"
+        badge={
+          <CustomBadge
+            text={tr("vehicleDetail.sections.events.errorBadge", dict)}
+            className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+          />
+        }
       >
         <MessageBanner
           icon={HiOutlineExclamationTriangle}
@@ -163,7 +199,8 @@ export default function EventsSection({
   }
 
   const events = eventsDetail?.events ?? [];
-  const sectionStatus = events.length > 0 ? getEventsSectionStatus(events) : "ok";
+  const sectionStatus =
+    events.length > 0 ? getEventsSectionStatus(events) : "ok";
   const badge = getEventsBadge(events, dict);
 
   // No events in the window — clean state.
@@ -176,6 +213,18 @@ export default function EventsSection({
         status="ok"
         badge={badge}
       >
+        <div>
+          <EventsFilterHeader
+            limit={filters.limit ?? DEFAULT_LIMIT}
+            tipoEvento={filters.pTipoEvento ?? ""}
+            desde={filters.pDesde}
+            hasta={filters.pHasta}
+            onLimitChange={handleLimitChange}
+            onTipoEventoChange={handleTipoEventoChange}
+            onDateChange={handleDateChange}
+            dict={dict}
+          />
+        </div>
         <MessageBanner
           icon={HiOutlineExclamationTriangle}
           title={tr("vehicleDetail.sections.events.emptyTitle", dict)}
@@ -195,6 +244,18 @@ export default function EventsSection({
       status={sectionStatus}
       badge={badge}
     >
+      <div>
+        <EventsFilterHeader
+          limit={filters.limit ?? DEFAULT_LIMIT}
+          tipoEvento={filters.pTipoEvento ?? ""}
+          desde={filters.pDesde}
+          hasta={filters.pHasta}
+          onLimitChange={handleLimitChange}
+          onTipoEventoChange={handleTipoEventoChange}
+          onDateChange={handleDateChange}
+          dict={dict}
+        />
+      </div>
       <div className="pt-4 max-h-150 overflow-y-auto">
         {events.map((event, index) => {
           const urgency = severityToUrgency(event.icu_code);
@@ -222,14 +283,10 @@ export default function EventsSection({
                 <>
                   <span>•</span>
                   <span>
-                    {tr(
-                      "vehicleDetail.sections.events.speedExceeded",
-                      dict,
-                      {
-                        speed: String(event.speed_detected),
-                        limit: String(event.speed_limit),
-                      }
-                    )}
+                    {tr("vehicleDetail.sections.events.speedExceeded", dict, {
+                      speed: String(event.speed_detected),
+                      limit: String(event.speed_limit),
+                    })}
                   </span>
                 </>
               )}

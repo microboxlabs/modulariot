@@ -1,17 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Badge,
-  Button,
-  Modal,
-  ModalBody,
-  ModalHeader,
-  Select,
-  ToggleSwitch,
-} from "flowbite-react";
+import { Badge, Button, Select, ToggleSwitch } from "flowbite-react";
 import { HiOutlineTrash, HiOutlineUserGroup, HiOutlineUser } from "react-icons/hi2";
 import useSWR from "swr";
+import FormModal from "@/features/common/components/form-modal/form-modal";
 import fetcher from "@/features/common/providers/fetcher";
 import type { FetcherError } from "@/features/common/providers/fetcher.types";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -247,23 +240,21 @@ export function DashboardPermissionsModal({
   };
 
   return (
-    <Modal show={isOpen} size="2xl" onClose={onClose} dismissible>
-      <ModalHeader>
-        {t("modalTitle", { name: dashboardName })}
-      </ModalHeader>
-      <ModalBody>
-        {renderBody()}
-
-        <div className="mt-6 flex justify-end gap-2">
-          <Button color="gray" size="sm" onClick={onClose} disabled={saving}>
-            {t("cancel")}
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={!canSave}>
-            {t("save")}
-          </Button>
-        </div>
-      </ModalBody>
-    </Modal>
+    <FormModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("modalTitle", { name: dashboardName })}
+      size="2xl"
+      submitLabel={t("save")}
+      cancelLabel={t("cancel")}
+      showCancelButton
+      isProcessing={saving || !canSave}
+      onSubmit={() => {
+        void handleSave();
+      }}
+    >
+      {renderBody()}
+    </FormModal>
   );
 }
 

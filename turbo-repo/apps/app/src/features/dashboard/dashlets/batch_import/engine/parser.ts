@@ -111,8 +111,12 @@ export function parseDocument(content: string): ParsedDocument {
   return { headers, rows };
 }
 
+// Pinned-locale collator so fingerprints are reproducible across runtimes /
+// CI / user locales. Kept at module scope to avoid rebuilding per row.
+const FINGERPRINT_COLLATOR = new Intl.Collator("en", { sensitivity: "variant" });
+
 function fingerprintRow(fields: Record<string, string>): string {
-  const keys = Object.keys(fields).sort((a, b) => a.localeCompare(b));
+  const keys = Object.keys(fields).sort(FINGERPRINT_COLLATOR.compare);
   const sorted: Record<string, string> = {};
   for (const k of keys) sorted[k] = fields[k];
   return JSON.stringify(sorted);

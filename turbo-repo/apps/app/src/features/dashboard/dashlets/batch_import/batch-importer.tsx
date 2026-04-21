@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -56,6 +57,9 @@ export interface BatchImporterState {
   hasFailed: boolean;
   hasResolved: boolean;
   load: (text: string) => void;
+  /** Debounced variant for the textarea: updates the visible buffer
+   *  immediately but delays the (non-trivial) parse until typing pauses. */
+  loadDebounced: (text: string) => void;
   loadFile: (file: File) => Promise<void>;
   onImport: () => Promise<void>;
   onRetryFailed: () => void;
@@ -72,9 +76,10 @@ export function useBatchImporter({
   const [importing, setImporting] = useState(false);
   const [strategy, setStrategy] = useState<DuplicateStrategy>(defaultStrategy);
 
-  const load = useCallback(
+  const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyParse = useCallback(
     (text: string) => {
-      setRaw(text);
       const parsed = parseDocument(text);
       const cache = readCache(sourceKey);
       parsed.rows = parsed.rows.map((r) => {
@@ -92,6 +97,36 @@ export function useBatchImporter({
     },
     [sourceKey],
   );
+
+  const cancelPendingParse = () => {
+    if (parseTimer.current) {
+      clearTimeout(parseTimer.current);
+      parseTimer.current = null;
+    }
+  };
+
+  const load = useCallback(
+    (text: string) => {
+      cancelPendingParse();
+      setRaw(text);
+      applyParse(text);
+    },
+    [applyParse],
+  );
+
+  const loadDebounced = useCallback(
+    (text: string) => {
+      setRaw(text);
+      cancelPendingParse();
+      parseTimer.current = setTimeout(() => {
+        parseTimer.current = null;
+        applyParse(text);
+      }, 250);
+    },
+    [applyParse],
+  );
+
+  useEffect(() => cancelPendingParse, []);
 
   const loadFile = useCallback(
     async (file: File) => {
@@ -209,6 +244,7 @@ export function useBatchImporter({
     hasFailed: summary.failed > 0,
     hasResolved: RESOLVED.reduce((n, s) => n + summary[s], 0) > 0,
     load,
+    loadDebounced,
     loadFile,
     onImport,
     onRetryFailed,
@@ -240,6 +276,7 @@ export function BatchImporterView({
     hasFailed,
     hasResolved,
     load,
+    loadDebounced,
     loadFile,
     onRetryFailed,
     onReset,
@@ -282,7 +319,7 @@ export function BatchImporterView({
         </span>
         <textarea
           value={raw}
-          onChange={(e) => load(e.target.value)}
+          onChange={(e) => loadDebounced(e.target.value)}
           rows={4}
           className="w-full rounded-md border border-gray-200 bg-white p-2 font-mono text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
         />

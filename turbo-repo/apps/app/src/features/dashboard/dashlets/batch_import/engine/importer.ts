@@ -9,6 +9,14 @@ import type { PgrestParam } from "../../common/pgrest-types";
 
 const CACHE_PREFIX = "batch-importer-cache:";
 const RESOLVED = new Set<RowStatus>(["processed", "updated", "skipped"]);
+const ALL_STATUSES = new Set<RowStatus>([
+  "unprocessed",
+  "processed",
+  "updated",
+  "skipped",
+  "failed",
+  "wait",
+]);
 
 export function isResolved(status: RowStatus): boolean {
   return RESOLVED.has(status);
@@ -28,18 +36,35 @@ function emptyCache(): CacheBlob {
   return { version: CACHE_VERSION, status: {}, errorlog: {} };
 }
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function sanitizeCache(raw: unknown): CacheBlob {
+  if (!isPlainObject(raw) || raw.version !== CACHE_VERSION) return emptyCache();
+  const status: Record<string, RowStatus> = {};
+  const errorlog: Record<string, string> = {};
+  if (isPlainObject(raw.status)) {
+    for (const [k, v] of Object.entries(raw.status)) {
+      if (typeof v === "string" && ALL_STATUSES.has(v as RowStatus)) {
+        status[k] = v as RowStatus;
+      }
+    }
+  }
+  if (isPlainObject(raw.errorlog)) {
+    for (const [k, v] of Object.entries(raw.errorlog)) {
+      if (typeof v === "string") errorlog[k] = v;
+    }
+  }
+  return { version: CACHE_VERSION, status, errorlog };
+}
+
 export function readCache(key: string): CacheBlob {
   if (typeof localStorage === "undefined") return emptyCache();
   try {
     const raw = localStorage.getItem(CACHE_PREFIX + key);
     if (!raw) return emptyCache();
-    const parsed = JSON.parse(raw) as Partial<CacheBlob>;
-    if (parsed.version !== CACHE_VERSION) return emptyCache();
-    return {
-      version: CACHE_VERSION,
-      status: parsed.status ?? {},
-      errorlog: parsed.errorlog ?? {},
-    };
+    return sanitizeCache(JSON.parse(raw));
   } catch {
     return emptyCache();
   }
@@ -47,7 +72,12 @@ export function readCache(key: string): CacheBlob {
 
 export function writeCache(key: string, cache: CacheBlob) {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cache));
+  try {
+    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cache));
+  } catch {
+    // QuotaExceededError / private-mode / disabled storage. Persistence is
+    // best-effort; the in-memory UI state is authoritative within a session.
+  }
 }
 
 export function clearCache(key: string) {

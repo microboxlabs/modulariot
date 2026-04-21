@@ -120,7 +120,7 @@ export function SettingsDrawer({
           </button>
         </div>
 
-        <div className="h-[calc(100%-3rem)] overflow-y-auto p-4">
+        <div className="flex h-[calc(100%-3rem)] flex-col overflow-hidden p-4">
           {/* Widget anchor ID - shown automatically at the top */}
           {widgetId && (
             <button

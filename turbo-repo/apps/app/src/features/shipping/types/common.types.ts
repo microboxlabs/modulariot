@@ -29,6 +29,7 @@ export type KanbanBoardTask = {
   destination?: string;
   client?: string;
   clientCode?: string;
+  mintral_clientRut?: string;
   expectedDepartureDate?: string;
   serviceKind: string;
   executionType: string;

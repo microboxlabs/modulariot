@@ -112,7 +112,7 @@ export function parseDocument(content: string): ParsedDocument {
 }
 
 function fingerprintRow(fields: Record<string, string>): string {
-  const keys = Object.keys(fields).sort();
+  const keys = Object.keys(fields).sort((a, b) => a.localeCompare(b));
   const sorted: Record<string, string> = {};
   for (const k of keys) sorted[k] = fields[k];
   return JSON.stringify(sorted);

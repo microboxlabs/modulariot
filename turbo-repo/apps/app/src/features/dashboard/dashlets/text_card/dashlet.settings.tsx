@@ -18,10 +18,10 @@ import {
   type SimpleDataMode,
   isRemoteDataMode,
 } from "../common";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
+import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
   isOpen,
@@ -73,6 +73,20 @@ export function DashletSettings({
         if (detected.length >= 1) setText(`{{row.${detected[0].key}}}`);
       }
     ),
+  });
+
+  const isDirty = useSettingsDirty(isOpen, {
+    text,
+    italic,
+    align,
+    dpEntries: dp.dataProvider,
+    dataMode,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
   });
 
   const handleSave = () => {
@@ -148,15 +162,26 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
+      footer={refresh.selectNode}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

@@ -2,8 +2,12 @@
  * Common components for dashlet settings
  */
 
-export { DashletSettingsWrapper } from "./dashlet-settings-wrapper";
-export { TabbedSettingsWrapper } from "./tabbed-settings-wrapper";
+export {
+  SettingsShell,
+  type SettingsTab,
+  type SettingsShellProps,
+} from "./settings-shell";
+export { useWidgetRefreshSettings } from "./use-widget-refresh-settings";
 export { SettingsTabButton } from "./settings-tab-button";
 export { useDataProvider } from "./use-data-provider";
 export {

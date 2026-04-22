@@ -19,10 +19,9 @@ import {
   buildSimplePgrestConfig,
   useActiveProviders,
 } from "../common";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -101,6 +100,23 @@ export function DashletSettings({
     setPlannerVariableName(config.plannerVariableName ?? "");
     setDataSourceId(config.dataSourceId ?? "");
   }, [config, isOpen]);
+
+  const isDirty = useSettingsDirty(isOpen, {
+    variant,
+    name,
+    description,
+    verMasUrl,
+    openInSameTab,
+    label,
+    borderColor,
+    dataMode,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    plannerVariableName,
+    dataSourceId,
+    refreshValue: refresh.value,
+  });
 
   const handleSave = () => {
     const newConfig: Record<string, unknown> = {
@@ -287,16 +303,27 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

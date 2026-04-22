@@ -1796,7 +1796,14 @@
       "columnFilterFromDate": "from {date}",
       "columnFilterToDate": "to {date}",
       "accessControlTitle": "Access Control",
-      "accessControlDescription": "Manage who can view and edit this dashboard"
+      "accessControlDescription": "Manage who can view and edit this dashboard",
+      "unsavedChanges": {
+        "title": "Unsaved changes",
+        "description": "You have unsaved changes that will be lost if you close now.",
+        "discard": "Discard changes",
+        "saveAndClose": "Save & close",
+        "keepEditing": "Keep editing"
+      }
     },
     "permissions": {
       "modalTitle": "Manage permissions — {name}",

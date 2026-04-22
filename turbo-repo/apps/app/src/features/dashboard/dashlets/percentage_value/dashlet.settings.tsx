@@ -12,10 +12,9 @@ import {
   PgrestDataTab,
   useActiveProviders,
 } from "../common";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
@@ -125,6 +124,21 @@ export function DashletSettings({
     ),
   });
 
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    value,
+    max,
+    barColor,
+    dataMode,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    plannerVariableName,
+    dataSourceId,
+    refreshValue: refresh.value,
+    barColorRulesState: barColorRules.rules,
+  });
+
   const handleSave = () => {
     onSave({
       title: title.trim() || "Progress",
@@ -202,16 +216,27 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

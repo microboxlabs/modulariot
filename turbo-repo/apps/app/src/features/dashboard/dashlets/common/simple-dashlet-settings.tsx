@@ -5,14 +5,14 @@ import { useMemo, useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "./settings-modal-shell";
+import { useWidgetRefreshSettings } from "./use-widget-refresh-settings";
+import { SettingsShell } from "./settings-shell";
+import { tr } from "@/features/i18n/tr.service";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useThresholdSettings } from "./use-threshold-settings";
 import { ThresholdEditor } from "./threshold-editor";
+import { useSettingsDirty } from "./use-settings-dirty";
 import type { ThresholdConfig } from "./threshold-types";
 
 // ============================================================================
@@ -164,6 +164,15 @@ export function SimpleDashletSettings<C extends object>({
       ? schemas.get(plannerVariableName)
       : undefined;
 
+  // ── Dirty tracking ──────────────────────────────────────────────────
+  const isDirty = useSettingsDirty(isOpen, {
+    ...buildSaveValues(),
+    ...extraSaveFields,
+    ...pgrestSaveFields,
+    ...refresh.savePayload,
+    ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
+  });
+
   const handleSave = () => {
     onSave({
       ...buildSaveValues(),
@@ -223,16 +232,27 @@ export function SimpleDashletSettings<C extends object>({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

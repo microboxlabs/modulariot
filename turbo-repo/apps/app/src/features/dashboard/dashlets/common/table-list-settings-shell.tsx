@@ -12,7 +12,7 @@ import {
   ActionsEditor,
   DataProviderTab,
 } from "./settings-sections";
-import { SettingsModalShell } from "./settings-modal-shell";
+import { SettingsShell } from "./settings-shell";
 import { RowColorRuleSetter } from "./row-color-rule-setter";
 import type { ColorRuleOperator } from "./color-rule-types";
 
@@ -43,6 +43,8 @@ interface TableListSettingsShellProps {
   displayOptionsChildren?: ReactNode;
   /** Widget ID for anchor navigation */
   widgetId?: string;
+  /** Whether the settings form has unsaved changes */
+  isDirty?: boolean;
 }
 
 // ============================================================================
@@ -64,6 +66,7 @@ export function TableListSettingsShell({
   title,
   displayOptionsChildren,
   widgetId,
+  isDirty,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -221,17 +224,28 @@ export function TableListSettingsShell({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={onSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
       className="w-[28rem]"
-      refreshSelect={refreshSelect}
+      footer={refreshSelect}
       title={title}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

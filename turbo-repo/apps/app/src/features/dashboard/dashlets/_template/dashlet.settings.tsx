@@ -8,7 +8,27 @@ import { SettingsShell } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 
 /**
- * Settings Modal
+ * Settings drawer for this dashlet.
+ *
+ * ## Dirty tracking (unsaved-changes protection)
+ *
+ * Every settings component **must** wire dirty tracking so that:
+ * - The Save button is disabled until the user changes something.
+ * - Closing the drawer with unsaved changes shows a confirmation modal.
+ *
+ * ### How it works
+ * 1. Call `useSettingsDirty(isOpen, snapshot)` with an object containing
+ *    **every** field that should participate in change detection.
+ * 2. Pass the returned `isDirty` to `<SettingsShell isDirty={isDirty}>`.
+ *
+ * ### Adding a new field
+ * When you add a new setting you must update **three** places:
+ *   a) Add a `useState` for the field.
+ *   b) Add the field to the snapshot object passed to `useSettingsDirty`.
+ *   c) Include the field in `handleSave` → `onSave(...)`.
+ *
+ * Forgetting step (b) means the Save button won't react to changes in
+ * that field and the unsaved-changes modal won't appear.
  */
 export function DashletSettings({
   isOpen,
@@ -18,11 +38,17 @@ export function DashletSettings({
   widgetId,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  // Add state for each config field
+  // ── State ──────────────────────────────────────────────────────────
+  // Add a useState for each config field.
   const [title, setTitle] = useState(config.title || "");
 
+  // ── Dirty tracking ────────────────────────────────────────────────
+  // Every field listed here enables Save-button toggling and the
+  // unsaved-changes modal. When you add a new field, add it here too.
   const isDirty = useSettingsDirty(isOpen, { title });
 
+  // ── Save handler ───────────────────────────────────────────────────
+  // Include every field here. This is what gets persisted.
   const handleSave = () => {
     onSave({
       title: title.trim() || "Default Title",

@@ -10,6 +10,8 @@ This document explains how to create custom dashlets for the dashboard system. D
 4. [Detailed File Reference](#detailed-file-reference)
 5. [Configuration & Types](#configuration--types)
 6. [Settings Modal](#settings-modal)
+   - [SettingsShell](#settingsshell)
+   - [Dirty Tracking](#dirty-tracking-unsaved-changes-protection)
 7. [Handlebars Template Support](#handlebars-template-support)
 8. [Container Dashlets](#container-dashlets)
 9. [Registering Your Dashlet](#registering-your-dashlet)
@@ -135,9 +137,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 }
 ```
 
-### Step 5: Create Settings Modal
+### Step 5: Create Settings Drawer
 
 Edit `dashlet.settings.tsx` (see [Settings Modal](#settings-modal) section).
+
+> **Important:** Every settings component must implement dirty tracking via `useSettingsDirty` so that the Save button and unsaved-changes modal work correctly. See [Dirty Tracking](#dirty-tracking-unsaved-changes-protection).
 
 ### Step 6: Register the Dashlet
 
@@ -258,76 +262,70 @@ export const dashletMeta: DashletMeta = {
 
 ### dashlet.settings.tsx
 
-The settings modal allows users to configure the dashlet:
+The settings drawer allows users to configure the dashlet. It uses `SettingsShell` for consistent UI and **must** implement dirty tracking for unsaved-changes protection.
 
 ```typescript
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label } from "flowbite-react";
-import { createPortal } from "react-dom";
+import { TextInput, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 
 export function DashletSettings({
   isOpen,
   onClose,
   config,
   onSave,
+  widgetId,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  // State for each config field
+  // 1️⃣ State — add a useState for each config field
   const [title, setTitle] = useState(config.title || "");
   const [value, setValue] = useState(config.value || "");
 
+  // 2️⃣ Dirty tracking — list every field here.
+  //    This enables the Save button and unsaved-changes modal.
+  const isDirty = useSettingsDirty(isOpen, { title, value });
+
+  // 3️⃣ Save handler — include every field here
   const handleSave = () => {
     onSave({ title, value });
     onClose();
   };
 
-  // Required for SSR compatibility
-  if (globalThis.window === undefined) return null;
-
-  // Prevent drag events from propagating
-  const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
-
-  const modalContent = (
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(selected) => {
-        if (!selected) onClose();
-      }}
-      className="no-drag w-80 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+  return (
+    <SettingsShell
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
+      widgetId={widgetId}
+      isDirty={isDirty}
     >
-      <div className="flex flex-col gap-3">
-        <div>
-          <Label htmlFor="title">Title</Label>
-          <TextInput
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sizing="sm"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="value">Value</Label>
-          <TextInput
-            id="value"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            sizing="sm"
-          />
-        </div>
-
-        <Button onClick={handleSave} onMouseDown={handleMouseDown} size="sm">
-          Save
-        </Button>
+      <div>
+        <Label htmlFor="title">Title</Label>
+        <TextInput
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          sizing="sm"
+        />
       </div>
-    </AbsoluteModal>
-  );
 
-  return createPortal(modalContent, document.body);
+      <div>
+        <Label htmlFor="value">Value</Label>
+        <TextInput
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          sizing="sm"
+        />
+      </div>
+    </SettingsShell>
+  );
 }
 ```
 
@@ -404,6 +402,115 @@ interface DashletLayoutDefaults {
 ---
 
 ## Settings Modal
+
+### SettingsShell
+
+All dashlet settings **must** use `SettingsShell` from `../common/settings-shell`. It provides:
+
+- A slide-out drawer with consistent header, body, and footer
+- Tab support for dashlets with multiple sections (`tabs` prop)
+- A Save button that is **disabled until changes are detected**
+- An **unsaved-changes confirmation modal** when the user tries to close with pending changes
+
+```typescript
+import { SettingsShell } from "../common/settings-shell";
+
+<SettingsShell
+  isOpen={isOpen}
+  onClose={onClose}
+  onSave={handleSave}
+  dictionary={dictionary}
+  widgetId={widgetId}
+  isDirty={isDirty}        // ← required for unsaved-changes protection
+>
+  {/* form fields */}
+</SettingsShell>
+```
+
+For multi-tab settings, pass `tabs` instead of `children`:
+
+```typescript
+<SettingsShell
+  isOpen={isOpen}
+  onClose={onClose}
+  onSave={handleSave}
+  dictionary={dictionary}
+  widgetId={widgetId}
+  isDirty={isDirty}
+  tabs={[
+    { id: "visualization", label: "Visualization", content: visualizationTab },
+    { id: "data", label: "Data", content: dataTab },
+  ]}
+  footer={refresh.selectNode}
+/>
+```
+
+### Dirty Tracking (Unsaved-Changes Protection)
+
+Every settings component **must** implement dirty tracking. This ensures:
+
+1. The **Save button stays disabled** until the user modifies at least one field.
+2. An **unsaved-changes modal** appears when the user tries to close the drawer with pending changes, offering three options: Keep Editing, Discard, or Save & Close.
+
+#### How it works
+
+```typescript
+import { useSettingsDirty } from "../common/use-settings-dirty";
+
+// Pass isOpen and a snapshot object with every tracked field
+const isDirty = useSettingsDirty(isOpen, { title, value, color });
+```
+
+`useSettingsDirty` captures a baseline snapshot when the drawer opens and compares it against the current values on every render using JSON serialization.
+
+#### Adding a new field — the three places to update
+
+When you add a new setting to a dashlet, you **must** update three places:
+
+| #   | What                                  | Where                    | What happens if you forget                                                 |
+| --- | ------------------------------------- | ------------------------ | -------------------------------------------------------------------------- |
+| 1   | `useState` declaration                | Top of the component     | Field has no state                                                         |
+| 2   | Snapshot object in `useSettingsDirty` | After the useState calls | Save button won't react to this field; unsaved-changes modal won't trigger |
+| 3   | `onSave(...)` payload in `handleSave` | Save handler             | Field value won't be persisted                                             |
+
+**Example — adding a `description` field to an existing dashlet:**
+
+```diff
+  const [title, setTitle] = useState(config.title || "");
++ const [description, setDescription] = useState(config.description || "");
+
+- const isDirty = useSettingsDirty(isOpen, { title });
++ const isDirty = useSettingsDirty(isOpen, { title, description });
+
+  const handleSave = () => {
+    onSave({
+      title: title.trim(),
++     description: description.trim(),
+    });
+    onClose();
+  };
+```
+
+#### Complex dashlets with sub-hooks
+
+For dashlets that use shared hooks like `usePgrestSettingsState`, `useWidgetRefreshSettings`, or `useValueColorSettings`, include the sub-hook state in the snapshot:
+
+```typescript
+const pg = usePgrestSettingsState({ ... });
+const refresh = useWidgetRefreshSettings(config, dictionary);
+const colorRules = useValueColorSettings({ ... });
+
+const isDirty = useSettingsDirty(isOpen, {
+  // Local fields
+  title, value, dataMode, dataSourceId, plannerVariableName,
+  // Sub-hook state — must be included for full dirty tracking
+  pgFn: pg.pgrestFunctionName,
+  pgParams: pg.pgrestParams,
+  pgMethod: pg.pgrestHttpMethod,
+  refreshValue: refresh.value,
+  colorRulesState: colorRules.rules,
+});
+```
 
 ### Common UI Components
 
@@ -617,10 +724,10 @@ That's it! Your dashlet will now appear in the "Add Widget" selector.
 
 ### Settings Modal
 
-1. **Prevent drag propagation** - Use `onMouseDown={(e) => e.stopPropagation()}`
-2. **Add `no-drag` class** - To interactive elements
-3. **Use SSR guard** - `if (globalThis.window === undefined) return null;`
-4. **Use createPortal** - Render modals in `document.body`
+1. **Use `SettingsShell`** - Never use `AbsoluteModal` or `createPortal` directly for settings
+2. **Wire dirty tracking** - Always call `useSettingsDirty` and pass `isDirty` to `SettingsShell`
+3. **Keep the three places in sync** - `useState`, snapshot object, and `handleSave` must all include every field
+4. **Use `Readonly<Props>`** - For component props
 
 ### Performance
 

@@ -162,7 +162,8 @@ function resolveTelemetryStatus(
   data: TruckTelemetryDetail | null
 ): SectionStatus {
   if (error) return "critical";
-  if (data) return getTelemetrySectionStatus(data.signal.freshness, data.gps.health);
+  if (data)
+    return getTelemetrySectionStatus(data.signal.freshness, data.gps.health);
   return "ok";
 }
 
@@ -180,7 +181,11 @@ function resolveUsageStatus(
   data: TruckUsageDetail | null
 ): SectionStatus {
   if (error) return "critical";
-  if (data) return getUsageSectionStatus(data.contract.status, data.contract.pct_consumed);
+  if (data)
+    return getUsageSectionStatus(
+      data.contract.status,
+      data.contract.pct_consumed
+    );
   return "ok";
 }
 
@@ -212,14 +217,29 @@ export default function VehicleDetailAccordion({
   // extra calls here dedup to a single network fetch each. While loading
   // or on 404/error we fall back to "ok" so the health overview doesn't
   // flicker or go red on transient states.
-  const { maintenance, error: maintenanceError } = useFleetTruckMaintenance(vehicle.plate);
-  const { telemetry, error: telemetryError } = useFleetTruckTelemetry(vehicle.plate);
-  const { eventsDetail, error: eventsError } = useFleetTruckEvents(vehicle.plate);
+  const { maintenance, error: maintenanceError } = useFleetTruckMaintenance(
+    vehicle.plate
+  );
+  const { telemetry, error: telemetryError } = useFleetTruckTelemetry(
+    vehicle.plate
+  );
+  const { eventsDetail, error: eventsError } = useFleetTruckEvents(
+    vehicle.plate
+  );
   const { usage, error: usageError } = useFleetTruckUsage(vehicle.plate);
 
-  const maintenanceStatus: SectionStatus = resolveMaintenanceStatus(maintenanceError, maintenance);
-  const telemetryStatus: SectionStatus = resolveTelemetryStatus(telemetryError, telemetry);
-  const eventsStatus: SectionStatus = resolveEventsStatus(eventsError, eventsDetail);
+  const maintenanceStatus: SectionStatus = resolveMaintenanceStatus(
+    maintenanceError,
+    maintenance
+  );
+  const telemetryStatus: SectionStatus = resolveTelemetryStatus(
+    telemetryError,
+    telemetry
+  );
+  const eventsStatus: SectionStatus = resolveEventsStatus(
+    eventsError,
+    eventsDetail
+  );
   const usageStatus: SectionStatus = resolveUsageStatus(usageError, usage);
 
   const statuses: SectionStatuses = {

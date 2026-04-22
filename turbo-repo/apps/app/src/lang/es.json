@@ -1603,6 +1603,7 @@
       "columns": "Columnas",
       "detectColumns": "Detectar columnas",
       "addColumn": "Agregar columna",
+      "stickyColumn": "Columna fija",
       "cardLayout": "Diseño de Tarjeta",
       "horizontal": "Horizontal",
       "vertical": "Vertical",

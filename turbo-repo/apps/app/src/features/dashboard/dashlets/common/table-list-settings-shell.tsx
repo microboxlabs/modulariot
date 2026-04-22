@@ -111,6 +111,7 @@ export function TableListSettingsShell({
         columns={s.columns}
         onAdd={s.addColumn}
         onRemove={s.removeColumn}
+        onReorder={s.setColumns}
         onUpdate={s.updateColumn}
         onAddColorMapping={s.addColorMapping}
         onRemoveColorMapping={s.removeColorMapping}
@@ -122,6 +123,8 @@ export function TableListSettingsShell({
           label: tr("dashboard.settings.label", dictionary),
           addColumn: tr("dashboard.settings.addColumn", dictionary),
           addMapping: tr("dashboard.settings.addRule", dictionary),
+          stickyColumn: tr("dashboard.settings.stickyColumn", dictionary),
+          rulesLabel: tr("dashboard.settings.badgeColorRules", dictionary),
           valuePlaceholder,
           operatorLabels,
         }}

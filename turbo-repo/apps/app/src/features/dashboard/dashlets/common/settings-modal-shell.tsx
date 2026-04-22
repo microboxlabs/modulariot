@@ -54,7 +54,7 @@ export function SettingsModalShell({
       widgetId={widgetId}
       dictionary={dictionary}
     >
-      <div className="flex h-full flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <SettingsTabButton
@@ -72,22 +72,22 @@ export function SettingsModalShell({
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 space-y-3 overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           {activeTab === "visualization" ? visualizationTab : dataTab}
         </div>
 
-        {/* Optional refresh interval */}
-        {refreshSelect}
-
-        {/* Save button */}
-        <Button
-          onClick={onSave}
-          onMouseDown={handleMouseDown}
-          size="sm"
-          className="no-drag w-full shrink-0"
-        >
-          {tr("common.save", dictionary)}
-        </Button>
+        {/* Fixed bottom: refresh interval + save button */}
+        <div className="shrink-0 space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+          {refreshSelect}
+          <Button
+            onClick={onSave}
+            onMouseDown={handleMouseDown}
+            size="sm"
+            className="no-drag w-full"
+          >
+            {tr("common.save", dictionary)}
+          </Button>
+        </div>
       </div>
     </SettingsDrawer>
   );

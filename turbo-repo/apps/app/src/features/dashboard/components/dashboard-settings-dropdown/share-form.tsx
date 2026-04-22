@@ -219,7 +219,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
       if (!canvas) return;
 
       const pdf = await buildDashboardPdf(canvas);
-      const blob = pdf.output("blob") as Blob;
+      const blob = pdf.output("blob");
       const filename = `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const file = new File([blob], filename, { type: "application/pdf" });
 

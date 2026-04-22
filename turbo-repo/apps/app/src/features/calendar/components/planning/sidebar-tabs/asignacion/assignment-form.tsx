@@ -7,6 +7,10 @@ import type { MapRef } from "react-map-gl";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  useAccreditedResources,
+  type AccreditedResource,
+} from "@/features/calendar/services/accredited-resources.service";
 import { DriverSearchDropdown } from "./driver-search-dropdown";
 import {
   TransportistaSearchDropdown,
@@ -21,28 +25,6 @@ import {
   type RemolqueOption,
 } from "./remolque-search-dropdown";
 
-// Mock data - replace with actual API data
-const TRANSPORTISTA_OPTIONS: TransportistaOption[] = [
-  {
-    id: "tnl",
-    name: "Transportes Nacionales Libertadores Ltda",
-    rut: "76.123.456-7",
-    estado: "habilitado",
-  },
-  {
-    id: "trn",
-    name: "Transporte Rápido del Norte S.A.",
-    rut: "77.234.567-8",
-    estado: "habilitado",
-  },
-  {
-    id: "lis",
-    name: "Logística Integral del Sur Ltda",
-    rut: "78.345.678-9",
-    estado: "no habilitado",
-  },
-];
-
 export interface ConductorOption {
   id: string;
   name: string;
@@ -53,137 +35,6 @@ export interface ConductorOption {
   excesoVelocidad: number;
   faltasDescanso: number;
 }
-
-const CONDUCTOR_OPTIONS: ConductorOption[] = [
-  {
-    id: "c1",
-    name: "Juan Pérez González",
-    rut: "12.345.678-9",
-    estado: "habilitado",
-    viajesPrevios: 142,
-    ultimoViaje: "2026-03-10",
-    excesoVelocidad: 2,
-    faltasDescanso: 1,
-  },
-  {
-    id: "c2",
-    name: "Carlos Rodríguez Silva",
-    rut: "11.222.333-4",
-    estado: "habilitado",
-    viajesPrevios: 89,
-    ultimoViaje: "2026-03-08",
-    excesoVelocidad: 0,
-    faltasDescanso: 0,
-  },
-  {
-    id: "c3",
-    name: "Miguel Ángel Torres",
-    rut: "9.876.543-2",
-    estado: "no habilitado",
-    viajesPrevios: 56,
-    ultimoViaje: "2026-02-15",
-    excesoVelocidad: 5,
-    faltasDescanso: 3,
-  },
-  {
-    id: "c4",
-    name: "Roberto Fernández López",
-    rut: "15.678.901-K",
-    estado: "habilitado",
-    viajesPrevios: 203,
-    ultimoViaje: "2026-03-11",
-    excesoVelocidad: 1,
-    faltasDescanso: 0,
-  },
-  {
-    id: "c5",
-    name: "Andrés Morales Vega",
-    rut: "18.765.432-1",
-    estado: "habilitado",
-    viajesPrevios: 67,
-    ultimoViaje: "2026-03-09",
-    excesoVelocidad: 0,
-    faltasDescanso: 2,
-  },
-];
-
-const CAMION_OPTIONS: CamionOption[] = [
-  {
-    id: "t1",
-    plate: "BBCC12",
-    marca: "Volvo FH16",
-    tipo: "camion",
-    estado: "disponible",
-    gpsIntegrado: true,
-    estadoGps: "online",
-    viajesPrevios: 234,
-    ultimoViaje: "2026-03-11",
-    perdidasSenal: 2,
-    latitude: -33.4489,
-    longitude: -70.6693,
-    heading: 45,
-  },
-  {
-    id: "t2",
-    plate: "DDEE34",
-    marca: "Scania R500",
-    tipo: "camion",
-    estado: "ocupado",
-    gpsIntegrado: true,
-    estadoGps: "offline",
-    viajesPrevios: 156,
-    ultimoViaje: "2026-03-08",
-    perdidasSenal: 8,
-    latitude: -33.4372,
-    longitude: -70.6506,
-    heading: 120,
-  },
-  {
-    id: "t3",
-    plate: "FFGG56",
-    marca: "Mercedes Actros",
-    tipo: "furgon",
-    estado: "disponible",
-    gpsIntegrado: false,
-    estadoGps: "offline",
-    viajesPrevios: 89,
-    ultimoViaje: "2026-03-05",
-    perdidasSenal: 0,
-    latitude: -33.4569,
-    longitude: -70.6483,
-    heading: 200,
-  },
-  {
-    id: "t4",
-    plate: "HHII78",
-    marca: "MAN TGX",
-    tipo: "camion",
-    estado: "disponible",
-    gpsIntegrado: true,
-    estadoGps: "online",
-    viajesPrevios: 312,
-    ultimoViaje: "2026-03-10",
-    perdidasSenal: 1,
-    latitude: -33.4255,
-    longitude: -70.6142,
-    heading: 90,
-  },
-  {
-    id: "t5",
-    plate: "JJKK90",
-    marca: "DAF XF",
-    tipo: "camioneta",
-    estado: "ocupado",
-    gpsIntegrado: true,
-    estadoGps: "online",
-    viajesPrevios: 178,
-    ultimoViaje: "2026-03-09",
-    perdidasSenal: 5,
-    latitude: -33.4103,
-    longitude: -70.5665,
-    heading: 270,
-  },
-];
 
 const REMOLQUE_OPTIONS: RemolqueOption[] = [
   {
@@ -328,16 +179,164 @@ interface AssignmentFormProps {
   readonly value: AssignmentFormData;
   readonly onChange: (data: AssignmentFormData) => void;
   readonly dict: I18nRecord;
+  /** Client RUT of the mandante — drives the `p_rut_mandante` filter. */
+  readonly mintralClientRut?: string;
+  /** Delegation/origin code — drives the `p_delegacion` filter. */
+  readonly mintralDelegacionOrigen?: string;
 }
 
-export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
-  const selectedCamion = CAMION_OPTIONS.find((c) => c.id === value.camion);
+/**
+ * Map an `ams.fn_rd_accredited_resources` CARRIER row to the shape expected by
+ * `TransportistaSearchDropdown`. The upstream function returns both accredited
+ * and non-accredited carriers; `is_acredited` drives the UI badge. Both states
+ * are surfaced and selectable — the planner sees accreditation as context, not
+ * as a hard block.
+ */
+function carrierRowToOption(row: AccreditedResource): TransportistaOption {
+  const rut = row.identifier ?? "";
+  return {
+    id: row.resource_id,
+    name: row.resource_name ?? rut,
+    rut,
+    estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
+  };
+}
+
+/**
+ * Map an `ams.fn_rd_accredited_resources` TRUCK row onto the existing
+ * `CamionOption` shape. The upstream function does not carry GPS/telemetry
+ * fields, so `gpsIntegrado`, `estadoGps`, lat/lng and `heading` default to a
+ * "no signal" baseline. `estado` piggybacks on `is_acredited` (ACREDITED →
+ * `disponible`, NOT ACREDITED → `ocupado`) to reuse the existing UI badge
+ * without introducing a parallel state flag.
+ */
+function truckRowToOption(row: AccreditedResource): CamionOption {
+  const plate = row.identifier ?? "";
+  const symptoms = row.symptoms ?? {};
+  const ultimoViaje = row.last_trip ? row.last_trip.slice(0, 10) : "-";
+  return {
+    id: row.resource_id,
+    plate,
+    marca: row.resource_name ?? "",
+    tipo: "camion",
+    estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
+    gpsIntegrado: false,
+    estadoGps: "offline",
+    viajesPrevios: row.trip_count ?? 0,
+    ultimoViaje,
+    perdidasSenal: symptoms["Lost Signal"] ?? 0,
+    latitude: null,
+    longitude: null,
+    heading: 0,
+  };
+}
+
+/**
+ * Map an `ams.fn_rd_accredited_resources` DRIVER row onto the existing
+ * `ConductorOption` shape. The upstream row carries `trip_count`, `last_trip`
+ * (ISO timestamp) and a free-form `symptoms` JSON keyed by symptom name;
+ * the two counters the driver card renders today are derived from the
+ * matching symptom buckets — defaulting to 0 when missing.
+ */
+function driverRowToOption(row: AccreditedResource): ConductorOption {
+  const rut = row.identifier ?? "";
+  const symptoms = row.symptoms ?? {};
+  const ultimoViaje = row.last_trip ? row.last_trip.slice(0, 10) : "-";
+  return {
+    id: row.resource_id,
+    name: row.resource_name ?? rut,
+    rut,
+    estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
+    viajesPrevios: row.trip_count ?? 0,
+    ultimoViaje,
+    excesoVelocidad: symptoms["Speed Limit Standard"] ?? 0,
+    faltasDescanso:
+      (symptoms["Continuous Drive Check"] ?? 0) +
+      (symptoms["Continuous Resting Check"] ?? 0),
+  };
+}
+
+export function AssignmentForm({
+  value,
+  onChange,
+  dict,
+  mintralClientRut,
+  mintralDelegacionOrigen,
+}: AssignmentFormProps) {
+  const [carrierQuery, setCarrierQuery] = useState("");
+  const [driverQuery, setDriverQuery] = useState("");
+  const [truckQuery, setTruckQuery] = useState("");
+
+  const {
+    resources: accreditedCarriers,
+    loadMore: loadMoreCarriers,
+    isLoadingMore: isLoadingMoreCarriers,
+  } = useAccreditedResources({
+    rutMandante: mintralClientRut,
+    delegacion: mintralDelegacionOrigen,
+    resourceType: "CARRIER",
+    query: carrierQuery,
+  });
+
+  const {
+    resources: accreditedDrivers,
+    loadMore: loadMoreDrivers,
+    isLoadingMore: isLoadingMoreDrivers,
+  } = useAccreditedResources({
+    rutMandante: mintralClientRut,
+    delegacion: mintralDelegacionOrigen,
+    resourceType: "DRIVER",
+    carrierId: value.transportista,
+    query: driverQuery,
+    enabled: Boolean(value.transportista),
+  });
+
+  const {
+    resources: accreditedTrucks,
+    loadMore: loadMoreTrucks,
+    isLoadingMore: isLoadingMoreTrucks,
+  } = useAccreditedResources({
+    rutMandante: mintralClientRut,
+    delegacion: mintralDelegacionOrigen,
+    resourceType: "TRUCK",
+    carrierId: value.transportista,
+    query: truckQuery,
+    enabled: Boolean(value.transportista),
+  });
+
+  const transportistaOptions = useMemo(
+    () => accreditedCarriers.map(carrierRowToOption),
+    [accreditedCarriers]
+  );
+
+  const driverOptions = useMemo(
+    () => accreditedDrivers.map(driverRowToOption),
+    [accreditedDrivers]
+  );
+
+  const truckOptions = useMemo(
+    () => accreditedTrucks.map(truckRowToOption),
+    [accreditedTrucks]
+  );
+
+  const selectedCamion = truckOptions.find((c) => c.id === value.camion);
 
   const handleChange = (
     field: keyof AssignmentFormData,
     fieldValue: string | boolean
   ) => {
     const updated = { ...value, [field]: fieldValue };
+
+    // Drivers/trucks are scoped to the selected carrier — clear those slots
+    // when the carrier changes so a stale (carrier, child) pair can't silently
+    // survive. `remolque` uses the same rule for symmetry.
+    if (field === "transportista" && fieldValue !== value.transportista) {
+      updated.conductor = "";
+      updated.segundoConductor = "";
+      updated.camion = "";
+      setDriverQuery("");
+      setTruckQuery("");
+    }
 
     // When changing conductor, clear segundoConductor if it matches the new value
     // or if the second driver section is disabled
@@ -368,7 +367,7 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
       {/* Transportista Dropdown */}
       <TransportistaSearchDropdown
         label={tr("pages.planning.sidebar.assignment.transportista", dict)}
-        transportistas={TRANSPORTISTA_OPTIONS}
+        transportistas={transportistaOptions}
         selectedTransportistaId={value.transportista}
         onSelect={(v: string) => handleChange("transportista", v)}
         placeholder={tr(
@@ -376,12 +375,15 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
           dict
         )}
         dict={dict}
+        onQueryChange={setCarrierQuery}
+        onReachEnd={loadMoreCarriers}
+        isLoadingMore={isLoadingMoreCarriers}
       />
 
       {/* Conductor Dropdown */}
       <DriverSearchDropdown
         label={tr("pages.planning.sidebar.assignment.conductor", dict)}
-        drivers={CONDUCTOR_OPTIONS}
+        drivers={driverOptions}
         selectedDriverId={value.conductor}
         onSelect={(v: string) => handleChange("conductor", v)}
         placeholder={tr(
@@ -389,6 +391,10 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
           dict
         )}
         dict={dict}
+        disabled={!value.transportista}
+        onQueryChange={setDriverQuery}
+        onReachEnd={loadMoreDrivers}
+        isLoadingMore={isLoadingMoreDrivers}
         labelRightElement={
           <label className="flex items-center gap-1 cursor-pointer">
             <span className="text-[10px] text-gray-500 dark:text-gray-400">
@@ -413,7 +419,7 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
       {value.hasSegundoConductor && (
         <DriverSearchDropdown
           label={tr("pages.planning.sidebar.assignment.secondConductor", dict)}
-          drivers={CONDUCTOR_OPTIONS}
+          drivers={driverOptions}
           selectedDriverId={value.segundoConductor}
           onSelect={(v: string) => handleChange("segundoConductor", v)}
           placeholder={tr(
@@ -421,6 +427,10 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
             dict
           )}
           dict={dict}
+          disabled={!value.transportista}
+          onQueryChange={setDriverQuery}
+          onReachEnd={loadMoreDrivers}
+          isLoadingMore={isLoadingMoreDrivers}
           excludeDriverId={value.conductor}
         />
       )}
@@ -429,7 +439,7 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
       <div>
         <TruckSearchDropdown
           label={tr("pages.planning.sidebar.assignment.camion", dict)}
-          trucks={CAMION_OPTIONS}
+          trucks={truckOptions}
           selectedTruckId={value.camion}
           onSelect={(v: string) => handleChange("camion", v)}
           placeholder={tr(
@@ -437,6 +447,10 @@ export function AssignmentForm({ value, onChange, dict }: AssignmentFormProps) {
             dict
           )}
           dict={dict}
+          disabled={!value.transportista}
+          onQueryChange={setTruckQuery}
+          onReachEnd={loadMoreTrucks}
+          isLoadingMore={isLoadingMoreTrucks}
           labelRightElement={
             <label className="flex items-center gap-1 cursor-pointer">
               <span className="text-[10px] text-gray-500 dark:text-gray-400">

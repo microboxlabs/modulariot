@@ -61,6 +61,12 @@ interface TruckSearchDropdownProps {
   readonly disabled?: boolean;
   readonly dict: I18nRecord;
   readonly labelRightElement?: React.ReactNode;
+  /** Server-mode: forward debounced search query to the data source. */
+  readonly onQueryChange?: (query: string) => void;
+  /** Server-mode: fetch the next page when the list scrolls near the bottom. */
+  readonly onReachEnd?: () => void;
+  /** Server-mode: show a trailing "loading more" hint during pagination. */
+  readonly isLoadingMore?: boolean;
 }
 
 // ============================================================================
@@ -248,6 +254,9 @@ export function TruckSearchDropdown({
   disabled = false,
   dict,
   labelRightElement,
+  onQueryChange,
+  onReachEnd,
+  isLoadingMore,
 }: TruckSearchDropdownProps) {
   return (
     <BaseSearchDropdown<CamionOption, TruckMatchType>
@@ -266,7 +275,9 @@ export function TruckSearchDropdown({
       }}
       renderCard={(props) => <TruckCard {...props} />}
       renderSelectedButton={renderSelectedTruckButton}
-      canSelect={(truck) => truck.estado === "disponible"}
+      onQueryChange={onQueryChange}
+      onReachEnd={onReachEnd}
+      isLoadingMore={isLoadingMore}
     />
   );
 }

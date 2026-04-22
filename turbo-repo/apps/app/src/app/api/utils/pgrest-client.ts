@@ -455,6 +455,157 @@ export async function fetchTruckCatalogByIdOrPlate(
 }
 
 /**
+ * Row shape returned by `ams.fn_rd_accredited_resources`. One row per
+ * resource (driver / truck / trailer / carrier) known to the tenant for the
+ * given (rut_mandante, delegacion) pair. The `is_acredited` column flags
+ * whether that resource actually holds an ACCREDITED record — the function
+ * also returns NOT ACCREDITED rows so the UI can surface both states.
+ *
+ * `trip_count` / `last_trip` are derived from `public.historical_trip`,
+ * `symptoms` is a JSON rollup of `public.symptoms` over the last 90 days
+ * (key: symptom_name, value: count).
+ */
+export type AccreditedResourceType = "DRIVER" | "TRUCK" | "TRAILER" | "CARRIER";
+
+export interface PgrestAccreditedResourceRow {
+  resource_type: AccreditedResourceType;
+  resource_id: string;
+  resource_name: string | null;
+  identifier: string | null;
+  faena: string | null;
+  rut_mandante: string | null;
+  is_acredited: "ACREDITED" | "NOT ACREDITED";
+  trip_count: number | null;
+  last_trip: string | null;
+  symptoms: Record<string, number> | null;
+  updated_at: string | null;
+}
+
+/**
+ * Resolve the AMS-schema ingress base URL for the pgrest host. Prod exposes
+ * two APISIX routes on `pgrest.streamhub.cl`:
+ *
+ *   - `/api/v1/pgrest/*`      → public schema
+ *   - `/api/v1/pgrest-ams/*`  → ams schema (APISIX injects `Accept-Profile: ams`
+ *                                and `Content-Profile: ams` for us)
+ *
+ * `STREAMHUB_URL` is inconsistent across envs — sometimes the bare host,
+ * sometimes with the public-schema prefix. Swap the prefix if present,
+ * otherwise append `/api/v1/pgrest-ams`.
+ */
+function amsRouteBaseUrl(): string {
+  const base = pgrestBaseUrl();
+  if (base.endsWith("/api/v1/pgrest")) {
+    return `${base.slice(0, -"/api/v1/pgrest".length)}/api/v1/pgrest-ams`;
+  }
+  if (base.endsWith("/api/v1/pgrest-ams")) return base;
+  return `${base}/api/v1/pgrest-ams`;
+}
+
+const ACCREDITED_RESOURCES_TTL_MS = 5 * 60 * 1000;
+const ACCREDITED_RESOURCES_MAX_ENTRIES = 32;
+
+interface AccreditedCacheEntry {
+  rows: PgrestAccreditedResourceRow[];
+  fetchedAt: number;
+}
+
+const accreditedResourcesCache = new Map<string, AccreditedCacheEntry>();
+
+function accreditedCacheKey(opts: {
+  rutMandante: string;
+  delegacion: string;
+  resourceType?: AccreditedResourceType;
+  carrierId?: string;
+}): string {
+  return [
+    opts.rutMandante,
+    opts.delegacion,
+    opts.resourceType ?? "*",
+    opts.carrierId ?? "*",
+  ].join("|");
+}
+
+/**
+ * Fetch the *full* accredited-resources set for the given scope. Bypasses
+ * pagination — the server-side slicing happens in the route handler on top of
+ * this cached array, since the upstream function does not take `limit/offset`
+ * and re-running the heavy JSONB aggregation per scroll tick would be wasteful.
+ *
+ * Results are cached in-process for {@link ACCREDITED_RESOURCES_TTL_MS}. The
+ * cache is a tiny bounded Map (eldest entry evicted once full) — accreditation
+ * changes rarely, so staleness up to 5 min is acceptable.
+ *
+ * `p_client_id` is pinned to `"mintral"` at the source — the tenant split is
+ * not yet modeled on the ams function and hardcoding matches what the rest of
+ * this feature expects.
+ */
+export async function fetchAccreditedResources(opts: {
+  rutMandante: string;
+  delegacion: string;
+  resourceType?: AccreditedResourceType;
+  /**
+   * Optional CARRIER `resource_id` that scopes child rows (e.g. DRIVER) to a
+   * specific transportist. Maps to the upstream function's `p_carrier_id`.
+   */
+  carrierId?: string;
+}): Promise<PgrestAccreditedResourceRow[]> {
+  const key = accreditedCacheKey(opts);
+  const cached = accreditedResourcesCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < ACCREDITED_RESOURCES_TTL_MS) {
+    return cached.rows;
+  }
+
+  const token = await bearerToken();
+  const url = `${amsRouteBaseUrl()}/rpc/fn_rd_accredited_resources`;
+  const body: Record<string, unknown> = {
+    p_client_id: "mintral",
+    p_rut_mandante: opts.rutMandante,
+    p_delegacion: opts.delegacion,
+  };
+  if (opts.resourceType) body.p_resource_type = opts.resourceType;
+  if (opts.carrierId) body.p_carrier_id = opts.carrierId;
+  const response = await pgrestFetch(url, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest POST rpc/fn_rd_accredited_resources failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const rows = (await response.json()) as PgrestAccreditedResourceRow[];
+
+  // Bounded LRU-ish eviction: drop eldest insertion when full.
+  if (accreditedResourcesCache.size >= ACCREDITED_RESOURCES_MAX_ENTRIES) {
+    const eldest = accreditedResourcesCache.keys().next().value;
+    if (eldest !== undefined) accreditedResourcesCache.delete(eldest);
+  }
+  accreditedResourcesCache.set(key, { rows, fetchedAt: Date.now() });
+  return rows;
+}
+
+/** Drop the cached entry — used when the route wants to bypass TTL on demand. */
+export function invalidateAccreditedResourcesCache(opts?: {
+  rutMandante: string;
+  delegacion: string;
+  resourceType?: AccreditedResourceType;
+  carrierId?: string;
+}): void {
+  if (!opts) {
+    accreditedResourcesCache.clear();
+    return;
+  }
+  accreditedResourcesCache.delete(accreditedCacheKey(opts));
+}
+
+/**
  * Fetch the active special-view cards for the current tenant from
  * `ams.fleet_special_views`. Tenant filtering is enforced server-side via
  * the table's RLS policy on the JWT `azp` claim, so no client_id is sent.

@@ -146,6 +146,9 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
     return pdf;
   };
 
+  const buildExportFilename = (ext: string) =>
+    `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.${ext}`;
+
   const handleDownloadImage = async () => {
     setExporting("image");
     try {

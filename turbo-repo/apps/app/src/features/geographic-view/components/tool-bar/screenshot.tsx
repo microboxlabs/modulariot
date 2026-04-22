@@ -4,7 +4,7 @@ import { FaCamera, FaDownload, FaShare } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { Button, Label } from "flowbite-react";
 import Image from "next/image";
-import { handleScreenshot } from "./screenshot-utils";
+import { handleScreenshot, shareScreenshot } from "./screenshot-utils";
 
 export default function Screenshot() {
   const [openScreenshot, setOpenScreenshot] = useState(false);
@@ -15,31 +15,21 @@ export default function Screenshot() {
     null
   );
 
-  // Function to share the screenshot (could be expanded)
-  const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop event from bubbling up
-    // Basic share implementation (could be expanded)
-    if (navigator.share && screenshotDataUrl) {
-      navigator
-        .share({
-          title: "Previsualización de la vista geográfica",
-          text: "Compartir la vista geográfica",
-          //url: screenshotDataUrl, // TODO: Add this when we have a URL
-          files: [
-            new File([screenshotDataUrl], "vista-geografica.png", {
-              type: "image/png",
-            }),
-          ],
-        })
-        .then(() => {
-          setStatus("Screenshot shared!");
-        })
-        .catch((error) => {
-          console.error("Share error:", error);
-          setStatus("Error sharing screenshot");
-        });
-    } else {
-      console.error("Sharing is not supported on this device/browser");
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!screenshotDataUrl) return;
+    try {
+      const result = await shareScreenshot(
+        screenshotDataUrl,
+        `vista-geografica-${new Date().toISOString().slice(0, 10)}.png`,
+        "Previsualización de la vista geográfica",
+        "Compartir la vista geográfica",
+      );
+      if (result === "shared") setStatus("Screenshot shared!");
+      else if (result === "unsupported") setStatus("Sharing is not supported on this device");
+    } catch (error) {
+      console.error("Share error:", error);
+      setStatus("Error sharing screenshot");
     }
   };
 

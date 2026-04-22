@@ -72,6 +72,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     clientCode,
     client,
     mintral_clientRut: task.mintral_clientRut as string,
+    mintral_delegacionOrigen: task.mintral_delegacionOrigen as string,
     expectedDepartureDate,
     serviceKind: task.mintral_serviceKind as string,
     executionType: task.mintral_executionType as string,

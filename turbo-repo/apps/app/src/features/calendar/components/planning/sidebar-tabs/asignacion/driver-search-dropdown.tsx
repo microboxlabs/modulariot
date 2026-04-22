@@ -38,6 +38,12 @@ interface DriverSearchDropdownProps {
   readonly dict: I18nRecord;
   readonly labelRightElement?: React.ReactNode;
   readonly excludeDriverId?: string;
+  /** Server-mode: forward debounced search query to the data source. */
+  readonly onQueryChange?: (query: string) => void;
+  /** Server-mode: fetch the next page when the list scrolls near the bottom. */
+  readonly onReachEnd?: () => void;
+  /** Server-mode: show a trailing "loading more" hint during pagination. */
+  readonly isLoadingMore?: boolean;
 }
 
 // ============================================================================
@@ -110,31 +116,33 @@ function DriverCard({
       className={twMerge(
         "w-full text-left p-3 transition-colors",
         isHighlighted && "bg-blue-50 dark:bg-blue-900/30",
-        isSelected && !isHighlighted && "bg-gray-50 dark:bg-gray-700/50",
-        !isEnabled && "opacity-60"
+        isSelected && !isHighlighted && "bg-gray-50 dark:bg-gray-700/50"
       )}
     >
-      {/* Header: Name + RUT + Status */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            {isSelected && (
-              <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-            )}
-            <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
-              {driver.name}
-            </span>
-          </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {driver.rut}
-          </span>
-        </div>
-        {isEnabled && (
+      {/* Row 1: Name spans the row so long driver names have room. */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {isSelected && (
+          <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+        )}
+        <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+          {driver.name}
+        </span>
+      </div>
+      {/* Row 2: RUT left, accreditation badge right. */}
+      <div className="mt-0.5 mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+          {driver.rut}
+        </span>
+        {isEnabled ? (
           <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
             <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-200 dark:bg-green-800/50">
               <HiCheck className="w-2.5 h-2.5" />
             </span>
             {tr("pages.planning.sidebar.assignment.enabled", dict)}
+          </span>
+        ) : (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            {tr("pages.planning.sidebar.assignment.notEnabled", dict)}
           </span>
         )}
       </div>
@@ -190,25 +198,27 @@ function renderSelectedDriverButton(driver: ConductorOption, dict: I18nRecord) {
   const isEnabled = driver.estado === "habilitado";
 
   return (
-    <div className="flex items-start justify-between gap-2">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
-            {driver.name}
-          </span>
-        </div>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {driver.rut}
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+        <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+          {driver.name}
         </span>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        {isEnabled && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+          {driver.rut}
+        </span>
+        {isEnabled ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">
             <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-200 dark:bg-green-800/50">
               <HiCheck className="w-2.5 h-2.5" />
             </span>
             {tr("pages.planning.sidebar.assignment.enabled", dict)}
+          </span>
+        ) : (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
+            {tr("pages.planning.sidebar.assignment.notEnabled", dict)}
           </span>
         )}
       </div>
@@ -230,6 +240,9 @@ export function DriverSearchDropdown({
   dict,
   labelRightElement,
   excludeDriverId,
+  onQueryChange,
+  onReachEnd,
+  isLoadingMore,
 }: DriverSearchDropdownProps) {
   return (
     <BaseSearchDropdown<ConductorOption, DriverMatchType>
@@ -249,7 +262,9 @@ export function DriverSearchDropdown({
       }}
       renderCard={(props) => <DriverCard {...props} />}
       renderSelectedButton={renderSelectedDriverButton}
-      canSelect={(driver) => driver.estado === "habilitado"}
+      onQueryChange={onQueryChange}
+      onReachEnd={onReachEnd}
+      isLoadingMore={isLoadingMore}
     />
   );
 }

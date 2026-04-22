@@ -169,7 +169,7 @@ export function useSettingsState(cfg: SettingsStateConfig) {
   const updateColumn = (
     id: string,
     field: keyof TableColumn,
-    value: string
+    value: string | boolean
   ) => {
     setColumns((prev) =>
       prev.map((c) => (c._id === id ? { ...c, [field]: value } : c))

@@ -472,7 +472,8 @@
             "gps": "GPS",
             "capacity": "Capacidad",
             "mileage": "Kilometraje"
-          }
+          },
+          "loadingMore": "Cargando más…"
         }
       }
     },

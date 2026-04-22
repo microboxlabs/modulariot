@@ -119,6 +119,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     id: serviceId,
     cliente: task.client || task.clientCode || "",
     mintral_clientRut: task.mintral_clientRut,
+    mintral_delegacionOrigen: task.mintral_delegacionOrigen,
     origen: task.origin || "",
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
@@ -606,6 +607,11 @@ export function PlanningSidebarClient({
                       allServices.find(
                         (s) => s.id === displayState.selectedService?.id
                       )?.mintral_clientRut,
+                    mintral_delegacionOrigen:
+                      displayState.selectedService.mintral_delegacionOrigen ??
+                      allServices.find(
+                        (s) => s.id === displayState.selectedService?.id
+                      )?.mintral_delegacionOrigen,
                     slot: displayState.formattedSlot?.full,
                   }
                 : undefined

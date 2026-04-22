@@ -50,10 +50,19 @@ const SITE_ROLE_GROUP_SUFFIXES = new Set([
   "SiteManager",
 ]);
 
-function isDefaultSiteGroup(authorityId: string, site: string): boolean {
+function isDefaultSiteGroup(
+  entry: AlfrescoPermissionEntry,
+  site: string
+): boolean {
+  if (entry.accessStatus !== "ALLOWED") return false;
   const prefix = `GROUP_site_${site}_`;
-  if (!authorityId.startsWith(prefix)) return false;
-  return SITE_ROLE_GROUP_SUFFIXES.has(authorityId.slice(prefix.length));
+  if (!entry.authorityId.startsWith(prefix)) return false;
+  const suffix = entry.authorityId.slice(prefix.length);
+  if (!SITE_ROLE_GROUP_SUFFIXES.has(suffix)) return false;
+  // Alfresco's default ACL grants each site-role group the role whose name
+  // matches the suffix (SiteManager → SiteManager, etc.). Any mismatch is an
+  // atypical entry worth surfacing instead of collapsing.
+  return entry.name === suffix;
 }
 
 function fallbackRole(name: string): DashboardRole {

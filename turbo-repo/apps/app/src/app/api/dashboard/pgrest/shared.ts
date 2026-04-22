@@ -23,6 +23,11 @@ interface OpenApiParameter {
   in: string;
   format?: string;
   type?: string;
+  required?: boolean;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  pattern?: string;
 }
 
 interface OpenApiOperation {

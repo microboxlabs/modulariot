@@ -111,16 +111,14 @@ export function useAccreditedResources(opts: UseAccreditedResourcesOpts) {
     [data]
   );
 
-  const lastPage = data && data.length > 0 ? data[data.length - 1] : null;
+  const lastPage = data && data.length > 0 ? data.at(-1) : null;
   const hasMore = lastPage ? lastPage.hasMore : false;
   const filteredTotal = lastPage ? lastPage.filteredTotal : 0;
   const total = lastPage ? lastPage.total : 0;
 
   // `isValidating` + extra pages beyond `size` means we're loading the next page
   const isLoadingMore =
-    canFetch &&
-    (isLoading ||
-      (size > 0 && data !== undefined && typeof data[size - 1] === "undefined"));
+    canFetch && (isLoading || (size > 0 && data?.[size - 1] === undefined));
 
   const loadMore = useCallback(() => {
     if (!hasMore || isLoadingMore) return;

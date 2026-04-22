@@ -434,11 +434,33 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       if (actionsCell) actionsWidth = actionsCell.offsetWidth;
     }
 
-    setStickyRightOffsets(measureRightOffsets(columns, cells, leftOff, actionsWidth));
+    setStickyRightOffsets(
+      measureRightOffsets(columns, cells, leftOff, actionsWidth)
+    );
   }, [columns, hasActions]);
 
   useEffect(() => {
     measureStickyOffsets();
+
+    const row = headerRowRef.current;
+
+    // Re-measure on window resize
+    window.addEventListener("resize", measureStickyOffsets);
+
+    // Re-measure when header row cells change size (e.g. content reflow)
+    let observer: ResizeObserver | undefined;
+    if (row) {
+      observer = new ResizeObserver(measureStickyOffsets);
+      observer.observe(row);
+    }
+
+    // Re-measure after fonts finish loading (can shift column widths)
+    document.fonts?.ready.then(measureStickyOffsets);
+
+    return () => {
+      window.removeEventListener("resize", measureStickyOffsets);
+      observer?.disconnect();
+    };
   }, [measureStickyOffsets, displayRows]);
 
   const lastStickyIdx = useMemo(() => {

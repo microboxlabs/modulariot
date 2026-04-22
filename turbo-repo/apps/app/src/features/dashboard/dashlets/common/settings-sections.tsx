@@ -102,15 +102,19 @@ export function ColumnEditor({
         className="space-y-2"
       >
         {sortableColumns.map((col, idx) => {
-          const connectedLeft = idx === 0 || !!sortableColumns[idx - 1]?.sticky;
+          const prevSticky = !!sortableColumns[idx - 1]?.sticky;
+          const nextSticky = !!sortableColumns[idx + 1]?.sticky;
+          const connectedLeft = idx === 0 || prevSticky;
           const connectedRight =
-            idx === sortableColumns.length - 1 ||
-            !!sortableColumns[idx + 1]?.sticky;
+            idx === sortableColumns.length - 1 || nextSticky;
+          const canEnableSticky = connectedLeft || connectedRight;
+          const canDisableSticky = !col.sticky || !(prevSticky && nextSticky);
           return (
             <ColumnCard
               key={col._id}
               col={col}
-              canBeSticky={connectedLeft || connectedRight}
+              canBeSticky={canEnableSticky}
+              canDisableSticky={canDisableSticky}
               onUpdate={onUpdate}
               onRemove={onRemove}
               onAddColorMapping={onAddColorMapping}
@@ -138,6 +142,8 @@ export function ColumnEditor({
 interface ColumnCardProps {
   col: SortableColumnItem;
   canBeSticky: boolean;
+  /** Whether this column can be un-stuck (false for interior sticky columns). */
+  canDisableSticky: boolean;
   onUpdate: ColumnEditorProps["onUpdate"];
   onRemove: (id: string) => void;
   onAddColorMapping?: ColumnEditorProps["onAddColorMapping"];
@@ -156,6 +162,7 @@ function getStickyBtnClass(disabled: boolean, active: boolean): string {
 function ColumnCard({
   col,
   canBeSticky,
+  canDisableSticky,
   onUpdate,
   onRemove,
   onAddColorMapping,
@@ -187,7 +194,7 @@ function ColumnCard({
 
   const displayName = col.label || col.key || labels.label;
 
-  const stickyDisabled = !canBeSticky && !col.sticky;
+  const stickyDisabled = col.sticky ? !canDisableSticky : !canBeSticky;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800">

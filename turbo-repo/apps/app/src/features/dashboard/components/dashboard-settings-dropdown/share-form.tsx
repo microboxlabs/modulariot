@@ -59,15 +59,16 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
     ]);
     const PDF_PROBE = new TextEncoder().encode("%PDF-1.4\n%%EOF\n");
 
-    try {
-      const pngFile = new File([PNG_PROBE], "probe.png", { type: "image/png" });
-      if (navigator.canShare({ files: [pngFile] })) setCanShareImage(true);
-    } catch { /* unsupported */ }
+    const probeCanShare = (bytes: Uint8Array<ArrayBuffer>, name: string, type: string) => {
+      try {
+        return navigator.canShare({ files: [new File([bytes], name, { type })] });
+      } catch {
+        return false;
+      }
+    };
 
-    try {
-      const pdfFile = new File([PDF_PROBE], "probe.pdf", { type: "application/pdf" });
-      if (navigator.canShare({ files: [pdfFile] })) setCanSharePdf(true);
-    } catch { /* unsupported */ }
+    if (probeCanShare(PNG_PROBE, "probe.png", "image/png")) setCanShareImage(true);
+    if (probeCanShare(PDF_PROBE, "probe.pdf", "application/pdf")) setCanSharePdf(true);
   }, []);
 
   const handleCopyKioskLink = () => {
@@ -152,7 +153,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
       if (!canvas) return;
 
       const link = document.createElement("a");
-      link.download = `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.download = buildExportFilename("png");
       link.href = canvas.toDataURL("image/png");
       link.click();
 
@@ -172,7 +173,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
       if (!canvas) return;
 
       const pdf = await buildDashboardPdf(canvas);
-      pdf.save(`${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      pdf.save(buildExportFilename("pdf"));
       ShowNotification({ type: "success", message: "PDF downloaded" });
       onClose();
     } catch {
@@ -182,18 +183,24 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
     }
   };
 
-  const handleShareImage = async () => {
-    setExporting("share-image");
-    try {
-      const canvas = await captureElement();
-      if (!canvas) return;
+  const buildExportFilename = (ext: string) =>
+    `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.${ext}`;
 
-      const blob = await canvasToBlob(canvas);
-      const filename = `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.png`;
-      const file = new File([blob], filename, { type: "image/png" });
+  const shareBlob = async (
+    state: Exclude<ExportState, null>,
+    produceBlob: () => Promise<Blob | null>,
+    ext: string,
+    mimeType: string,
+    unsupportedMessage: string,
+  ) => {
+    setExporting(state);
+    try {
+      const blob = await produceBlob();
+      if (!blob) return;
+      const file = new File([blob], buildExportFilename(ext), { type: mimeType });
 
       if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
-        ShowNotification({ type: "error", message: "Sharing this file is not supported" });
+        ShowNotification({ type: "error", message: unsupportedMessage });
         return;
       }
 
@@ -212,36 +219,31 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
     }
   };
 
-  const handleSharePdf = async () => {
-    setExporting("share-pdf");
-    try {
-      const canvas = await captureElement();
-      if (!canvas) return;
+  const handleShareImage = () =>
+    shareBlob(
+      "share-image",
+      async () => {
+        const canvas = await captureElement();
+        return canvas ? canvasToBlob(canvas) : null;
+      },
+      "png",
+      "image/png",
+      "Sharing this file is not supported",
+    );
 
-      const pdf = await buildDashboardPdf(canvas);
-      const blob = pdf.output("blob");
-      const filename = `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const file = new File([blob], filename, { type: "application/pdf" });
-
-      if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
-        ShowNotification({ type: "error", message: "Sharing PDFs is not supported on this device" });
-        return;
-      }
-
-      await navigator.share({
-        files: [file],
-        title: dashboardName,
-        text: `Dashboard snapshot: ${dashboardName}`,
-      });
-      ShowNotification({ type: "success", message: "Shared" });
-      onClose();
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      ShowNotification({ type: "error", message: "Failed to share dashboard" });
-    } finally {
-      setExporting(null);
-    }
-  };
+  const handleSharePdf = () =>
+    shareBlob(
+      "share-pdf",
+      async () => {
+        const canvas = await captureElement();
+        if (!canvas) return null;
+        const pdf = await buildDashboardPdf(canvas);
+        return pdf.output("blob");
+      },
+      "pdf",
+      "application/pdf",
+      "Sharing PDFs is not supported on this device",
+    );
 
   return (
     <div className="p-4 space-y-4">

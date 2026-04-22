@@ -181,6 +181,27 @@ function PlanningTabContent({
   );
 }
 
+/**
+ * Build the initial `AssignmentFormData` from a service, hydrating the
+ * carrier / driver / truck / trailer slots from the values persisted on the
+ * previous `confirmService` call. Missing fields collapse to empty strings;
+ * `hasSegundoConductor` / `hasRemolque` toggle on when the matching slot is
+ * set so the conditional UI opens automatically on reassign.
+ */
+function assignmentDataFromService(
+  service: SelectedService | undefined
+): AssignmentFormData {
+  return {
+    transportista: service?.assignedTransportista ?? "",
+    conductor: service?.assignedDriver ?? "",
+    segundoConductor: service?.assignedDriver2 ?? "",
+    hasSegundoConductor: Boolean(service?.assignedDriver2),
+    camion: service?.assignedCamion ?? "",
+    remolque: service?.assignedRemolque ?? "",
+    hasRemolque: Boolean(service?.assignedRemolque),
+  };
+}
+
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
   readonly isActive: boolean;
@@ -213,15 +234,17 @@ export function PlanningSidebarForm({
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
   const [selectedServiceCategory, setSelectedServiceCategory] =
     useState<string>(selectedService?.serviceCategory ?? "");
-  const [assignmentData, setAssignmentData] = useState<AssignmentFormData>({
-    transportista: "",
-    conductor: "",
-    segundoConductor: "",
-    hasSegundoConductor: false,
-    camion: "",
-    remolque: "",
-    hasRemolque: false,
-  });
+  const [assignmentData, setAssignmentData] = useState<AssignmentFormData>(() =>
+    assignmentDataFromService(selectedService)
+  );
+
+  // Re-hydrate the assignment form when the user reopens the sidebar for a
+  // different planned service — otherwise a stale (carrier, driver) pair from
+  // the previous selection would leak into the new one. Keyed off service id
+  // so typing/selecting within the same service doesn't thrash.
+  useEffect(() => {
+    setAssignmentData(assignmentDataFromService(selectedService));
+  }, [selectedService?.id]);
 
   const { serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes();
   const serviceCategoryOptions = serviceTypes.map((t) => ({
@@ -237,7 +260,7 @@ export function PlanningSidebarForm({
     assigningService,
     cancelAssignment,
     getOccupiedAndenes,
-    updateServiceDrivers,
+    updateServiceAssignment,
   } = usePlanningSelection();
 
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
@@ -388,16 +411,28 @@ export function PlanningSidebarForm({
     }
 
     const wasReassigning = reassigningService !== null;
-    // Pass the final slot directly to confirmService, along with service category and driver overrides
+    // Pass the final slot directly to confirmService, along with the service
+    // category and the full assignment tuple. Each slot is stored only when
+    // the user filled it in (or kept its conditional section open) so
+    // partial assignments don't overwrite previously-saved fields with "".
     const serviceOverrides: Partial<SelectedService> = {};
     if (selectedServiceCategory) {
       serviceOverrides.serviceCategory = selectedServiceCategory;
+    }
+    if (assignmentData.transportista) {
+      serviceOverrides.assignedTransportista = assignmentData.transportista;
     }
     if (assignmentData.conductor) {
       serviceOverrides.assignedDriver = assignmentData.conductor;
     }
     if (assignmentData.hasSegundoConductor && assignmentData.segundoConductor) {
       serviceOverrides.assignedDriver2 = assignmentData.segundoConductor;
+    }
+    if (assignmentData.camion) {
+      serviceOverrides.assignedCamion = assignmentData.camion;
+    }
+    if (assignmentData.hasRemolque && assignmentData.remolque) {
+      serviceOverrides.assignedRemolque = assignmentData.remolque;
     }
     const finalOverrides: Partial<SelectedService> | undefined =
       Object.keys(serviceOverrides).length > 0 ? serviceOverrides : undefined;
@@ -434,14 +469,24 @@ export function PlanningSidebarForm({
     }
 
     const serviceId = assigningService.service.service.id;
-    const driver1 = assignmentData.conductor || undefined;
-    const driver2 =
-      assignmentData.hasSegundoConductor && assignmentData.segundoConductor
-        ? assignmentData.segundoConductor
-        : undefined;
 
-    // Client-side only update - no backend calls
-    updateServiceDrivers(serviceId, driver1, driver2);
+    // Client-side only update — reassignment still goes through confirmService
+    // (which persists via StoredServiceSchema). Here we just mirror the full
+    // tuple onto the in-memory plannedService so the card badges and a
+    // subsequent reopen-the-form both see the new values immediately.
+    updateServiceAssignment(serviceId, {
+      assignedTransportista: assignmentData.transportista || undefined,
+      assignedDriver: assignmentData.conductor || undefined,
+      assignedDriver2:
+        assignmentData.hasSegundoConductor && assignmentData.segundoConductor
+          ? assignmentData.segundoConductor
+          : undefined,
+      assignedCamion: assignmentData.camion || undefined,
+      assignedRemolque:
+        assignmentData.hasRemolque && assignmentData.remolque
+          ? assignmentData.remolque
+          : undefined,
+    });
 
     ShowNotification({
       type: "success",

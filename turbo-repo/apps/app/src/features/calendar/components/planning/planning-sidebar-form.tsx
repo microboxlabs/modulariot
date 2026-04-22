@@ -182,6 +182,29 @@ function PlanningTabContent({
 }
 
 /**
+ * Build the service-override patch that travels with `confirmService` so the
+ * booking payload reflects the user's current selections. Each slot is only
+ * written when the user actually filled it in (or kept its conditional
+ * section open) — partial assignments shouldn't wipe previously-saved fields
+ * with empty strings.
+ */
+function assignmentOverrides(
+  data: AssignmentFormData
+): Partial<SelectedService> {
+  const out: Partial<SelectedService> = {};
+  if (data.transportista) out.assignedTransportista = data.transportista;
+  if (data.conductor) out.assignedDriver = data.conductor;
+  if (data.hasSegundoConductor && data.segundoConductor) {
+    out.assignedDriver2 = data.segundoConductor;
+  }
+  if (data.camion) out.assignedCamion = data.camion;
+  if (data.hasRemolque && data.remolque) {
+    out.assignedRemolque = data.remolque;
+  }
+  return out;
+}
+
+/**
  * Build the initial `AssignmentFormData` from a service, hydrating the
  * carrier / driver / truck / trailer slots from the values persisted on the
  * previous `confirmService` call. Missing fields collapse to empty strings;
@@ -260,7 +283,6 @@ export function PlanningSidebarForm({
     assigningService,
     cancelAssignment,
     getOccupiedAndenes,
-    updateServiceAssignment,
   } = usePlanningSelection();
 
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
@@ -411,28 +433,11 @@ export function PlanningSidebarForm({
     }
 
     const wasReassigning = reassigningService !== null;
-    // Pass the final slot directly to confirmService, along with the service
-    // category and the full assignment tuple. Each slot is stored only when
-    // the user filled it in (or kept its conditional section open) so
-    // partial assignments don't overwrite previously-saved fields with "".
-    const serviceOverrides: Partial<SelectedService> = {};
+    const serviceOverrides: Partial<SelectedService> = {
+      ...assignmentOverrides(assignmentData),
+    };
     if (selectedServiceCategory) {
       serviceOverrides.serviceCategory = selectedServiceCategory;
-    }
-    if (assignmentData.transportista) {
-      serviceOverrides.assignedTransportista = assignmentData.transportista;
-    }
-    if (assignmentData.conductor) {
-      serviceOverrides.assignedDriver = assignmentData.conductor;
-    }
-    if (assignmentData.hasSegundoConductor && assignmentData.segundoConductor) {
-      serviceOverrides.assignedDriver2 = assignmentData.segundoConductor;
-    }
-    if (assignmentData.camion) {
-      serviceOverrides.assignedCamion = assignmentData.camion;
-    }
-    if (assignmentData.hasRemolque && assignmentData.remolque) {
-      serviceOverrides.assignedRemolque = assignmentData.remolque;
     }
     const finalOverrides: Partial<SelectedService> | undefined =
       Object.keys(serviceOverrides).length > 0 ? serviceOverrides : undefined;
@@ -460,44 +465,42 @@ export function PlanningSidebarForm({
   };
 
   /**
-   * Handle assignment-only action (Asignar button in Asignación tab)
-   * This persists assignmentData without affecting planning state
+   * Handle the "Asignar" action in the Asignación tab. The sidebar opens on
+   * an already-planned service (slot unchanged), and we want the new
+   * carrier / driver / truck / trailer tuple to round-trip through the
+   * booking backend — otherwise a refresh would wipe the assignment.
+   *
+   * We therefore go through `confirmService` (just like the planning tab's
+   * reassignment flow) with `finalSlot = undefined` so the existing slot is
+   * preserved. `confirmService` updates plannedServices locally, writes a
+   * new booking, and cancels the previous one atomically.
    */
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!assigningService) {
       return;
     }
 
-    const serviceId = assigningService.service.service.id;
-
-    // Client-side only update — reassignment still goes through confirmService
-    // (which persists via StoredServiceSchema). Here we just mirror the full
-    // tuple onto the in-memory plannedService so the card badges and a
-    // subsequent reopen-the-form both see the new values immediately.
-    updateServiceAssignment(serviceId, {
-      assignedTransportista: assignmentData.transportista || undefined,
-      assignedDriver: assignmentData.conductor || undefined,
-      assignedDriver2:
-        assignmentData.hasSegundoConductor && assignmentData.segundoConductor
-          ? assignmentData.segundoConductor
-          : undefined,
-      assignedCamion: assignmentData.camion || undefined,
-      assignedRemolque:
-        assignmentData.hasRemolque && assignmentData.remolque
-          ? assignmentData.remolque
-          : undefined,
-    });
-
-    ShowNotification({
-      type: "success",
-      message: tr(
-        "pages.planning.sidebar.notifications.assignmentCompleted",
-        dict
-      ),
-    });
-
-    // Clear assignment mode
-    cancelAssignment();
+    const overrides = assignmentOverrides(assignmentData);
+    try {
+      await confirmService(
+        undefined,
+        Object.keys(overrides).length > 0 ? overrides : undefined
+      );
+      ShowNotification({
+        type: "success",
+        message: tr(
+          "pages.planning.sidebar.notifications.assignmentCompleted",
+          dict
+        ),
+      });
+      cancelAssignment();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : tr("pages.planning.sidebar.notifications.assignError", dict);
+      ShowNotification({ type: "error", message });
+    }
   };
 
   // Check if the selected time has available andenes

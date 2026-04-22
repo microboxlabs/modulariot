@@ -1,12 +1,16 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   HiTruck,
   HiLocationMarker,
   HiStatusOnline,
   HiClock,
   HiChevronDown,
+  HiCheck,
+  HiExclamation,
 } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -17,11 +21,7 @@ import {
 import {
   VehicleCardButton,
   VehicleHeader,
-  GpsStatusColumn,
   StatRow,
-  WarningBadge,
-  GpsBadge,
-  OnlineStatus,
 } from "./vehicle-card-shared";
 
 // ============================================================================
@@ -131,6 +131,111 @@ const TRUCK_FIELDS: readonly FieldConfig<CamionOption, TruckMatchType>[] = [
 // Truck Card Component
 // ============================================================================
 
+/**
+ * Renders a label/value row where the value is a colored chip (icon + text).
+ * Used for GPS Integrado, Estado GPS and Pérdidas de señal so the list layout
+ * stays a single scannable column per the planning mockup.
+ */
+interface RichStatRowProps {
+  readonly label: string;
+  readonly value: ReactNode;
+}
+
+function RichStatRow({ label, value }: RichStatRowProps) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}
+
+function GpsIntegrationValue({
+  isGpsIntegrado,
+  dict,
+}: {
+  readonly isGpsIntegrado: boolean;
+  readonly dict: I18nRecord;
+}) {
+  const tone = isGpsIntegrado
+    ? "text-green-600 dark:text-green-400"
+    : "text-gray-500 dark:text-gray-400";
+  const Icon = isGpsIntegrado ? HiCheck : HiExclamation;
+  return (
+    <span className={twMerge("inline-flex items-center gap-1", tone)}>
+      <Icon className="w-3.5 h-3.5" />
+      {tr(
+        isGpsIntegrado
+          ? "pages.planning.sidebar.assignment.integrated"
+          : "pages.planning.sidebar.assignment.notIntegrated",
+        dict
+      )}
+    </span>
+  );
+}
+
+function GpsStateValue({
+  isGpsIntegrado,
+  isOnline,
+  dict,
+}: {
+  readonly isGpsIntegrado: boolean;
+  readonly isOnline: boolean;
+  readonly dict: I18nRecord;
+}) {
+  // Can't be online if the device isn't integrated in the first place — in
+  // that case the row collapses to a neutral dash so the user doesn't see a
+  // contradictory "Offline" next to "No Integrado".
+  if (!isGpsIntegrado) {
+    return <span className="text-gray-500 dark:text-gray-400">—</span>;
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span
+        className={twMerge(
+          "w-2 h-2 rounded-full",
+          isOnline ? "bg-green-500" : "bg-gray-400"
+        )}
+      />
+      <span
+        className={twMerge(
+          "font-medium",
+          isOnline
+            ? "text-green-600 dark:text-green-400"
+            : "text-gray-500 dark:text-gray-400"
+        )}
+      >
+        {tr(
+          isOnline
+            ? "pages.planning.sidebar.assignment.online"
+            : "pages.planning.sidebar.assignment.offline",
+          dict
+        )}
+      </span>
+    </span>
+  );
+}
+
+function SignalLossValue({
+  count,
+  dict,
+}: {
+  readonly count: number;
+  readonly dict: I18nRecord;
+}) {
+  if (count <= 0) {
+    return <span className="text-gray-900 dark:text-white">0</span>;
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+      <HiExclamation className="w-3.5 h-3.5" />
+      {tr("pages.planning.sidebar.assignment.losses", dict, {
+        count: String(count),
+      })}
+    </span>
+  );
+}
+
 function TruckCard({
   item: truck,
   isSelected,
@@ -146,7 +251,7 @@ function TruckCard({
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
     dict
   );
-  const subtitle = `${truck.marca} · ${truckTypeLabel}`;
+  const subtitle = `${truck.marca || "—"} · ${truckTypeLabel}`;
 
   return (
     <VehicleCardButton
@@ -156,22 +261,48 @@ function TruckCard({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
     >
-      {/* Header: Plate + Brand + Type + GPS Status */}
+      {/* Header: plate + subtitle (marca · tipo). */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <VehicleHeader
           plate={truck.plate}
           subtitle={subtitle}
           isSelected={isSelected}
         />
-        <GpsStatusColumn
-          isGpsIntegrado={isGpsIntegrado}
-          isOnline={isOnline}
-          dict={dict}
-        />
+        {isAvailable ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-200 dark:bg-green-800/50">
+              <HiCheck className="w-2.5 h-2.5" />
+            </span>
+            {tr("pages.planning.sidebar.assignment.enabled", dict)}
+          </span>
+        ) : (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            {tr("pages.planning.sidebar.assignment.notEnabled", dict)}
+          </span>
+        )}
       </div>
 
-      {/* Stats Column */}
+      {/* 5-row stats block, always visible (mockup). */}
       <div className="flex flex-col gap-0.5 text-[11px]">
+        <RichStatRow
+          label={tr("pages.planning.sidebar.assignment.gpsIntegrated", dict)}
+          value={
+            <GpsIntegrationValue
+              isGpsIntegrado={isGpsIntegrado}
+              dict={dict}
+            />
+          }
+        />
+        <RichStatRow
+          label={tr("pages.planning.sidebar.assignment.gpsStatus", dict)}
+          value={
+            <GpsStateValue
+              isGpsIntegrado={isGpsIntegrado}
+              isOnline={isOnline}
+              dict={dict}
+            />
+          }
+        />
         <StatRow
           label={tr("pages.planning.sidebar.assignment.previousTrips", dict)}
           value={truck.viajesPrevios}
@@ -180,14 +311,11 @@ function TruckCard({
           label={tr("pages.planning.sidebar.assignment.lastTrip", dict)}
           value={truck.ultimoViaje}
         />
+        <RichStatRow
+          label={tr("pages.planning.sidebar.assignment.signalLosses", dict)}
+          value={<SignalLossValue count={truck.perdidasSenal} dict={dict} />}
+        />
       </div>
-
-      {/* Signal losses - only show if there are any */}
-      <WarningBadge
-        count={truck.perdidasSenal}
-        labelKey="pages.planning.sidebar.assignment.signalLosses"
-        dict={dict}
-      />
     </VehicleCardButton>
   );
 }
@@ -203,24 +331,34 @@ function renderSelectedTruckButton(truck: CamionOption, dict: I18nRecord) {
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
     dict
   );
-  const subtitle = `${truck.marca} · ${truckTypeLabel}`;
+  const subtitle = `${truck.marca || "—"} · ${truckTypeLabel}`;
 
   return (
     <div className="flex flex-col">
-      {/* Header with plate, brand, type, GPS status, and chevron */}
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <VehicleHeader plate={truck.plate} subtitle={subtitle} isSelected />
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <GpsBadge isGpsIntegrado={isGpsIntegrado} dict={dict} />
-            <HiChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
-          </div>
-          {isGpsIntegrado && <OnlineStatus isOnline={isOnline} dict={dict} />}
-        </div>
+        <HiChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
       </div>
-
-      {/* Stats */}
       <div className="flex flex-col gap-0.5 text-[11px] pt-1 border-t border-gray-100 dark:border-gray-700">
+        <RichStatRow
+          label={tr("pages.planning.sidebar.assignment.gpsIntegrated", dict)}
+          value={
+            <GpsIntegrationValue
+              isGpsIntegrado={isGpsIntegrado}
+              dict={dict}
+            />
+          }
+        />
+        <RichStatRow
+          label={tr("pages.planning.sidebar.assignment.gpsStatus", dict)}
+          value={
+            <GpsStateValue
+              isGpsIntegrado={isGpsIntegrado}
+              isOnline={isOnline}
+              dict={dict}
+            />
+          }
+        />
         <StatRow
           label={tr("pages.planning.sidebar.assignment.previousTrips", dict)}
           value={truck.viajesPrevios}
@@ -229,14 +367,11 @@ function renderSelectedTruckButton(truck: CamionOption, dict: I18nRecord) {
           label={tr("pages.planning.sidebar.assignment.lastTrip", dict)}
           value={truck.ultimoViaje}
         />
+        <RichStatRow
+          label={tr("pages.planning.sidebar.assignment.signalLosses", dict)}
+          value={<SignalLossValue count={truck.perdidasSenal} dict={dict} />}
+        />
       </div>
-
-      {/* Signal losses - only show if there are any */}
-      <WarningBadge
-        count={truck.perdidasSenal}
-        labelKey="pages.planning.sidebar.assignment.signalLosses"
-        dict={dict}
-      />
     </div>
   );
 }

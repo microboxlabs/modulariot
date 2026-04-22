@@ -129,7 +129,7 @@ export function DashboardPermissionsModal({
     let defaultCount = 0;
     const atypical: AlfrescoPermissionEntry[] = [];
     for (const entry of inheritedEntries) {
-      if (isDefaultSiteGroup(entry.authorityId, site)) defaultCount++;
+      if (isDefaultSiteGroup(entry, site)) defaultCount++;
       else atypical.push(entry);
     }
     return {

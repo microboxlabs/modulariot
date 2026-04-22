@@ -551,6 +551,7 @@ export const TEST_SERVICE: SelectedService = TEST_SERVICES[0];
 export interface SelectedService {
   id: string;
   cliente: string;
+  mintral_clientRut?: string;
   origen: string;
   lugarCarguio: string;
   destino: string;
@@ -688,6 +689,7 @@ const MAX_SERVICES_PER_SLOT = 99;
  */
 const StoredServiceSchema = z
   .object({
+    mintral_clientRut: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),

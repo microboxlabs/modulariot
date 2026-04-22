@@ -678,6 +678,12 @@ export function PlanningSidebarForm({
           label={tr("pages.planning.sidebar.form.client", dict)}
           value={client}
         />
+        {selectedService.mintral_clientRut && (
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.clientRut", dict)}
+            value={selectedService.mintral_clientRut}
+          />
+        )}
         <InfoRow
           label={tr("pages.planning.sidebar.form.route", dict)}
           value={`${origin} → ${destination}`}

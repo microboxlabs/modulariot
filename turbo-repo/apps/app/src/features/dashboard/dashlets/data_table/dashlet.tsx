@@ -74,6 +74,39 @@ import {
 // Sticky column helpers
 // ============================================================================
 
+function measureLeftOffsets(
+  columns: TableColumn[],
+  cells: HTMLCollection
+): Record<number, number> {
+  const offsets: Record<number, number> = {};
+  let left = 0;
+  for (let i = 0; i < columns.length; i++) {
+    if (!columns[i].sticky) break;
+    offsets[i] = left;
+    const cell = cells[i] as HTMLElement | undefined;
+    if (cell) left += cell.offsetWidth;
+  }
+  return offsets;
+}
+
+function measureRightOffsets(
+  columns: TableColumn[],
+  cells: HTMLCollection,
+  leftOff: Record<number, number>,
+  actionsWidth: number
+): Record<number, number> {
+  const offsets: Record<number, number> = {};
+  let right = actionsWidth;
+  for (let i = columns.length - 1; i >= 0; i--) {
+    if (!columns[i].sticky) break;
+    if (leftOff[i] !== undefined) break;
+    offsets[i] = right;
+    const cell = cells[i] as HTMLElement | undefined;
+    if (cell) right += cell.offsetWidth;
+  }
+  return offsets;
+}
+
 function buildStickyThClass(
   colIdx: number,
   lastStickyIdx: number,
@@ -391,15 +424,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     if (!row) return;
     const cells = row.children;
 
-    // Left offsets (contiguous from index 0)
-    const leftOff: Record<number, number> = {};
-    let left = 0;
-    for (let i = 0; i < columns.length; i++) {
-      if (!columns[i].sticky) break;
-      leftOff[i] = left;
-      const cell = cells[i] as HTMLElement | undefined;
-      if (cell) left += cell.offsetWidth;
-    }
+    const leftOff = measureLeftOffsets(columns, cells);
     setStickyLeftOffsets(leftOff);
 
     // Measure actions column width (last child if actions exist)
@@ -409,18 +434,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       if (actionsCell) actionsWidth = actionsCell.offsetWidth;
     }
 
-    // Right offsets (contiguous from last index), shifted by actions width
-    const rightOff: Record<number, number> = {};
-    let right = actionsWidth;
-    for (let i = columns.length - 1; i >= 0; i--) {
-      if (!columns[i].sticky) break;
-      // Skip if already counted as left-sticky
-      if (leftOff[i] !== undefined) break;
-      rightOff[i] = right;
-      const cell = cells[i] as HTMLElement | undefined;
-      if (cell) right += cell.offsetWidth;
-    }
-    setStickyRightOffsets(rightOff);
+    setStickyRightOffsets(measureRightOffsets(columns, cells, leftOff, actionsWidth));
   }, [columns, hasActions]);
 
   useEffect(() => {

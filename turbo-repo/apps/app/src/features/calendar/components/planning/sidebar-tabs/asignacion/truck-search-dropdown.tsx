@@ -236,6 +236,54 @@ function SignalLossValue({
   );
 }
 
+/**
+ * Shared 5-row stats block rendered both inside the dropdown list card and
+ * the currently-selected button, per the planning mockup. Keeping it as a
+ * single component keeps the two views in lock-step — adding or reordering
+ * a row happens in one place.
+ */
+interface TruckStatsRowsProps {
+  readonly truck: CamionOption;
+  readonly dict: I18nRecord;
+}
+
+function TruckStatsRows({ truck, dict }: TruckStatsRowsProps) {
+  const isGpsIntegrado = truck.gpsIntegrado;
+  const isOnline = truck.estadoGps === "online";
+  return (
+    <>
+      <RichStatRow
+        label={tr("pages.planning.sidebar.assignment.gpsIntegrated", dict)}
+        value={
+          <GpsIntegrationValue isGpsIntegrado={isGpsIntegrado} dict={dict} />
+        }
+      />
+      <RichStatRow
+        label={tr("pages.planning.sidebar.assignment.gpsStatus", dict)}
+        value={
+          <GpsStateValue
+            isGpsIntegrado={isGpsIntegrado}
+            isOnline={isOnline}
+            dict={dict}
+          />
+        }
+      />
+      <StatRow
+        label={tr("pages.planning.sidebar.assignment.previousTrips", dict)}
+        value={truck.viajesPrevios}
+      />
+      <StatRow
+        label={tr("pages.planning.sidebar.assignment.lastTrip", dict)}
+        value={truck.ultimoViaje}
+      />
+      <RichStatRow
+        label={tr("pages.planning.sidebar.assignment.signalLosses", dict)}
+        value={<SignalLossValue count={truck.perdidasSenal} dict={dict} />}
+      />
+    </>
+  );
+}
+
 function TruckCard({
   item: truck,
   isSelected,
@@ -245,8 +293,6 @@ function TruckCard({
   onMouseEnter,
 }: CardRenderProps<CamionOption>) {
   const isAvailable = truck.estado === "disponible";
-  const isGpsIntegrado = truck.gpsIntegrado;
-  const isOnline = truck.estadoGps === "online";
   const truckTypeLabel = tr(
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
     dict
@@ -284,37 +330,7 @@ function TruckCard({
 
       {/* 5-row stats block, always visible (mockup). */}
       <div className="flex flex-col gap-0.5 text-[11px]">
-        <RichStatRow
-          label={tr("pages.planning.sidebar.assignment.gpsIntegrated", dict)}
-          value={
-            <GpsIntegrationValue
-              isGpsIntegrado={isGpsIntegrado}
-              dict={dict}
-            />
-          }
-        />
-        <RichStatRow
-          label={tr("pages.planning.sidebar.assignment.gpsStatus", dict)}
-          value={
-            <GpsStateValue
-              isGpsIntegrado={isGpsIntegrado}
-              isOnline={isOnline}
-              dict={dict}
-            />
-          }
-        />
-        <StatRow
-          label={tr("pages.planning.sidebar.assignment.previousTrips", dict)}
-          value={truck.viajesPrevios}
-        />
-        <StatRow
-          label={tr("pages.planning.sidebar.assignment.lastTrip", dict)}
-          value={truck.ultimoViaje}
-        />
-        <RichStatRow
-          label={tr("pages.planning.sidebar.assignment.signalLosses", dict)}
-          value={<SignalLossValue count={truck.perdidasSenal} dict={dict} />}
-        />
+        <TruckStatsRows truck={truck} dict={dict} />
       </div>
     </VehicleCardButton>
   );
@@ -325,8 +341,6 @@ function TruckCard({
 // ============================================================================
 
 function renderSelectedTruckButton(truck: CamionOption, dict: I18nRecord) {
-  const isGpsIntegrado = truck.gpsIntegrado;
-  const isOnline = truck.estadoGps === "online";
   const truckTypeLabel = tr(
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
     dict
@@ -340,37 +354,7 @@ function renderSelectedTruckButton(truck: CamionOption, dict: I18nRecord) {
         <HiChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
       </div>
       <div className="flex flex-col gap-0.5 text-[11px] pt-1 border-t border-gray-100 dark:border-gray-700">
-        <RichStatRow
-          label={tr("pages.planning.sidebar.assignment.gpsIntegrated", dict)}
-          value={
-            <GpsIntegrationValue
-              isGpsIntegrado={isGpsIntegrado}
-              dict={dict}
-            />
-          }
-        />
-        <RichStatRow
-          label={tr("pages.planning.sidebar.assignment.gpsStatus", dict)}
-          value={
-            <GpsStateValue
-              isGpsIntegrado={isGpsIntegrado}
-              isOnline={isOnline}
-              dict={dict}
-            />
-          }
-        />
-        <StatRow
-          label={tr("pages.planning.sidebar.assignment.previousTrips", dict)}
-          value={truck.viajesPrevios}
-        />
-        <StatRow
-          label={tr("pages.planning.sidebar.assignment.lastTrip", dict)}
-          value={truck.ultimoViaje}
-        />
-        <RichStatRow
-          label={tr("pages.planning.sidebar.assignment.signalLosses", dict)}
-          value={<SignalLossValue count={truck.perdidasSenal} dict={dict} />}
-        />
+        <TruckStatsRows truck={truck} dict={dict} />
       </div>
     </div>
   );

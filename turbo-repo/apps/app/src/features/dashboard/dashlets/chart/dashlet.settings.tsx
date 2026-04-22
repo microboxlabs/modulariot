@@ -21,10 +21,9 @@ import {
   type SimpleDataMode,
 } from "../common";
 import { usePlannerContext } from "../../context/planner-context";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 
 // ============================================================================
 // Chart type options
@@ -238,6 +237,27 @@ export function DashletSettings({
   };
 
   // Save handler
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    chartType,
+    xAxisColumn,
+    series,
+    xAxisLabel,
+    yAxisLabel,
+    showLegend,
+    customColors,
+    smooth,
+    stacked,
+    dataMode,
+    rowsJson,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
+  });
+
   const handleSave = () => {
     let parsedRows = config.rows ?? [];
     if (dataMode === "static") {
@@ -487,17 +507,28 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
       className="w-[28rem]"
-      refreshSelect={refresh.selectNode}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

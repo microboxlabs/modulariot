@@ -8,6 +8,11 @@ import { HiXMark, HiClipboardDocument, HiCheck } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
+import {
+  DirtySettingsProvider,
+  useDirtySettings,
+} from "./dirty-settings-context";
+import { UnsavedChangesModal } from "./unsaved-changes-modal";
 
 interface SettingsDrawerProps {
   /** Whether the drawer is open */
@@ -29,6 +34,7 @@ interface SettingsDrawerProps {
 /**
  * Right-side sliding drawer for dashlet settings.
  * Renders via portal to document.body to escape grid layout z-index.
+ * Wraps children in DirtySettingsProvider to enable unsaved-changes tracking.
  */
 export function SettingsDrawer({
   open,
@@ -39,8 +45,64 @@ export function SettingsDrawer({
   widgetId,
   dictionary,
 }: Readonly<SettingsDrawerProps>) {
+  if (globalThis.window === undefined) return null;
+
+  return (
+    <DirtySettingsProvider>
+      <SettingsDrawerInner
+        open={open}
+        onClose={onClose}
+        title={title}
+        className={className}
+        widgetId={widgetId}
+        dictionary={dictionary}
+      >
+        {children}
+      </SettingsDrawerInner>
+    </DirtySettingsProvider>
+  );
+}
+
+// ============================================================================
+// Inner component — reads dirty context to intercept close
+// ============================================================================
+
+function SettingsDrawerInner({
+  open,
+  onClose,
+  title,
+  className,
+  children,
+  widgetId,
+  dictionary,
+}: Readonly<SettingsDrawerProps>) {
   const mouseDownOnBackdrop = useRef(false);
   const [copied, setCopied] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const { isDirty, onSaveAndClose } = useDirtySettings();
+
+  /** If dirty, show confirmation modal instead of closing immediately */
+  const handleAttemptClose = useCallback(() => {
+    if (isDirty) {
+      setShowUnsavedModal(true);
+    } else {
+      onClose();
+    }
+  }, [isDirty, onClose]);
+
+  const handleDiscard = useCallback(() => {
+    setShowUnsavedModal(false);
+    onClose();
+  }, [onClose]);
+
+  const handleSaveAndClose = useCallback(() => {
+    setShowUnsavedModal(false);
+    onSaveAndClose?.();
+  }, [onSaveAndClose]);
+
+  const handleKeepEditing = useCallback(() => {
+    setShowUnsavedModal(false);
+  }, []);
 
   const handleCopyAnchor = useCallback(() => {
     if (!widgetId) return;
@@ -60,12 +122,12 @@ export function SettingsDrawer({
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        handleAttemptClose();
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, handleAttemptClose]);
 
   if (globalThis.window === undefined) return null;
 
@@ -87,7 +149,7 @@ export function SettingsDrawer({
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
-            onClose();
+            handleAttemptClose();
           }
           mouseDownOnBackdrop.current = false;
         }}
@@ -111,7 +173,7 @@ export function SettingsDrawer({
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleAttemptClose}
             onMouseDown={(e) => e.stopPropagation()}
             className="no-drag cursor-pointer ml-auto rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
             aria-label="Close"
@@ -151,6 +213,15 @@ export function SettingsDrawer({
           {open && children}
         </div>
       </dialog>
+
+      {/* Unsaved changes confirmation */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onKeepEditing={handleKeepEditing}
+        onDiscard={handleDiscard}
+        onSaveAndClose={onSaveAndClose ? handleSaveAndClose : undefined}
+        dictionary={dictionary ?? {}}
+      />
     </div>,
     document.body
   );

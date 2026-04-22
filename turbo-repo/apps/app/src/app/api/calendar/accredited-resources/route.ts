@@ -131,8 +131,7 @@ function applyQuery(
     const name = row.resource_name?.toLowerCase();
     const identifier = row.identifier?.toLowerCase();
     return (
-      (name !== undefined && name.includes(needle)) ||
-      (identifier !== undefined && identifier.includes(needle))
+      name?.includes(needle) === true || identifier?.includes(needle) === true
     );
   });
 }

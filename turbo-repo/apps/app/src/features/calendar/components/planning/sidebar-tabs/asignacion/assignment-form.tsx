@@ -186,6 +186,42 @@ interface AssignmentFormProps {
 }
 
 /**
+ * Upstream symptom names emitted by `public.symptoms.symptom_name` and
+ * aggregated into the `symptoms` JSONB by `ams.fn_rd_accredited_resources`.
+ * Kept as typed constants so the handful of literal keys the mappers look
+ * up — rather than being sprinkled as magic strings — live in one place and
+ * fail typecheck the moment the upstream contract is renamed. See
+ * `db-scripts/outputs/erick/modular_recursos/fn_rd_accredited_resources_v2.sql`
+ * for the source enumeration.
+ */
+const SYMPTOM_LOST_SIGNAL = "Lost Signal" as const;
+const SYMPTOM_SPEED_LIMIT = "Speed Limit Standard" as const;
+const SYMPTOM_CONT_DRIVE = "Continuous Drive Check" as const;
+const SYMPTOM_CONT_REST = "Continuous Resting Check" as const;
+
+/**
+ * Format a `last_trip` ISO-8601 timestamp (as returned by PostgREST) for the
+ * "Último viaje" row on carrier/driver/truck cards.
+ *
+ * Uses `es-CL` + the browser's local timezone so a 2026-04-10T01:40Z trip in
+ * Santiago renders as April 9 — which matches the planner's day instead of
+ * the upstream UTC date. Returns `"-"` when the value is missing or not
+ * parseable, so a malformed string from the API can't leak into the UI.
+ */
+const LAST_TRIP_FORMATTER = new Intl.DateTimeFormat("es-CL", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+function formatLastTrip(raw: string | null | undefined): string {
+  if (!raw) return "-";
+  const t = Date.parse(raw);
+  if (Number.isNaN(t)) return "-";
+  return LAST_TRIP_FORMATTER.format(new Date(t));
+}
+
+/**
  * Map an `ams.fn_rd_accredited_resources` CARRIER row to the shape expected by
  * `TransportistaSearchDropdown`. The upstream function returns both accredited
  * and non-accredited carriers; `is_acredited` drives the UI badge. Both states
@@ -213,7 +249,6 @@ function carrierRowToOption(row: AccreditedResource): TransportistaOption {
 function truckRowToOption(row: AccreditedResource): CamionOption {
   const plate = row.identifier ?? "";
   const symptoms = row.symptoms ?? {};
-  const ultimoViaje = row.last_trip ? row.last_trip.slice(0, 10) : "-";
   return {
     id: row.resource_id,
     plate,
@@ -223,8 +258,8 @@ function truckRowToOption(row: AccreditedResource): CamionOption {
     gpsIntegrado: false,
     estadoGps: "offline",
     viajesPrevios: row.trip_count ?? 0,
-    ultimoViaje,
-    perdidasSenal: symptoms["Lost Signal"] ?? 0,
+    ultimoViaje: formatLastTrip(row.last_trip),
+    perdidasSenal: symptoms[SYMPTOM_LOST_SIGNAL] ?? 0,
     latitude: null,
     longitude: null,
     heading: 0,
@@ -241,18 +276,16 @@ function truckRowToOption(row: AccreditedResource): CamionOption {
 function driverRowToOption(row: AccreditedResource): ConductorOption {
   const rut = row.identifier ?? "";
   const symptoms = row.symptoms ?? {};
-  const ultimoViaje = row.last_trip ? row.last_trip.slice(0, 10) : "-";
   return {
     id: row.resource_id,
     name: row.resource_name ?? rut,
     rut,
     estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
     viajesPrevios: row.trip_count ?? 0,
-    ultimoViaje,
-    excesoVelocidad: symptoms["Speed Limit Standard"] ?? 0,
+    ultimoViaje: formatLastTrip(row.last_trip),
+    excesoVelocidad: symptoms[SYMPTOM_SPEED_LIMIT] ?? 0,
     faltasDescanso:
-      (symptoms["Continuous Drive Check"] ?? 0) +
-      (symptoms["Continuous Resting Check"] ?? 0),
+      (symptoms[SYMPTOM_CONT_DRIVE] ?? 0) + (symptoms[SYMPTOM_CONT_REST] ?? 0),
   };
 }
 

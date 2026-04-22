@@ -59,7 +59,7 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
     ]);
     const PDF_PROBE = new TextEncoder().encode("%PDF-1.4\n%%EOF\n");
 
-    const probeCanShare = (bytes: Uint8Array<ArrayBuffer>, name: string, type: string) => {
+    const probeCanShare = (bytes: BlobPart, name: string, type: string) => {
       try {
         return navigator.canShare({ files: [new File([bytes], name, { type })] });
       } catch {
@@ -185,9 +185,6 @@ export function ShareForm({ dashboardName, onClose }: Readonly<ShareFormProps>) 
       setExporting(null);
     }
   };
-
-  const buildExportFilename = (ext: string) =>
-    `${sanitizeBaseName(dashboardName)}_${new Date().toISOString().slice(0, 10)}.${ext}`;
 
   const shareBlob = async (
     state: Exclude<ExportState, null>,

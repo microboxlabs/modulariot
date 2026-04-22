@@ -41,7 +41,8 @@ export default function FleetManagementPage({
   const { trucks, isLoading } = useFleetTrucks({
     size: 9999,
     includeMetrics: true,
-    metricFields: "timestamp,odometer_km,fuel_volume_ml,fuel_level_pct,latitude,longitude",
+    metricFields:
+      "timestamp,odometer_km,fuel_volume_ml,fuel_level_pct,latitude,longitude",
   });
 
   const vehicles = useMemo(() => trucks.map(truckToVehicle), [trucks]);
@@ -53,7 +54,9 @@ export default function FleetManagementPage({
     const plateFilter = (searchParams.get("licensePlate") ?? "")
       .trim()
       .toLowerCase();
-    const clientFilter = (searchParams.get("client") ?? "").trim().toLowerCase();
+    const clientFilter = (searchParams.get("client") ?? "")
+      .trim()
+      .toLowerCase();
     const stateFilter = (searchParams.get("state") ?? "").trim().toLowerCase();
 
     if (!plateFilter && !clientFilter && !stateFilter) return vehicles;
@@ -108,8 +111,8 @@ export default function FleetManagementPage({
         state: "maintenance",
       },
       {
-        id: "symptoms",
-        labelKey: "symptoms",
+        id: "alerts",
+        labelKey: "alerts",
         value: vehicles.filter((v) => v.status === "alert").length,
         icon: HiOutlineExclamationTriangle,
         color: "text-red-600 bg-red-100",

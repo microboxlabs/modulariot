@@ -71,8 +71,7 @@ const BADGE_UI: Record<TelemetryBadgeState, BadgeUi> = {
   },
   no_signal: {
     i18nKey: "vehicleDetail.sections.telemetry.freshness.noSignal",
-    badgeClass:
-      "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+    badgeClass: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
     bannerVariant: "info",
     bannerIcon: HiOutlineInformationCircle,
   },
@@ -249,7 +248,10 @@ export default function TelemetrySection({
   if (notFound || !telemetry || telemetry.signal.freshness === "SIN_SENAL") {
     const ui = BADGE_UI.no_signal;
     const badge = (
-      <CustomBadge text={tr(`${ui.i18nKey}.label`, dict)} className={ui.badgeClass} />
+      <CustomBadge
+        text={tr(`${ui.i18nKey}.label`, dict)}
+        className={ui.badgeClass}
+      />
     );
     return (
       <ExpandableSection
@@ -285,7 +287,10 @@ export default function TelemetrySection({
   );
 
   const badge = (
-    <CustomBadge text={tr(`${ui.i18nKey}.label`, dict)} className={ui.badgeClass} />
+    <CustomBadge
+      text={tr(`${ui.i18nKey}.label`, dict)}
+      className={ui.badgeClass}
+    />
   );
 
   const stabilityText =
@@ -320,9 +325,11 @@ export default function TelemetrySection({
               }}
               value={{
                 text: fmtKm(caps.odometer_km),
-                className: "text-blue-600 dark:text-blue-400 font-bold text-base",
+                className:
+                  "text-blue-600 dark:text-blue-400 font-bold text-base",
               }}
               className="bg-blue-100/40 dark:bg-blue-600/10 border border-blue-500/50"
+              tooltip
               variant="horizontal"
             />
             <div className="col-span-2 grid grid-cols-2 gap-3 w-full">
@@ -342,6 +349,7 @@ export default function TelemetrySection({
                     : "—",
                   className: "text-base",
                 }}
+                tooltip
                 variant="horizontal"
               />
               <KpiStat
@@ -351,13 +359,18 @@ export default function TelemetrySection({
                     "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
                 }}
                 title={{
-                  text: tr("vehicleDetail.sections.telemetry.statusLabel", dict),
+                  text: tr(
+                    "vehicleDetail.sections.telemetry.statusLabel",
+                    dict
+                  ),
                   className: "text-gray-500 dark:text-gray-300",
                 }}
                 value={{
                   text: deriveStatusLabel(caps, dict),
-                  className: "text-green-500 dark:text-green-400 font-bold text-base",
+                  className:
+                    "text-green-500 dark:text-green-400 font-bold text-base",
                 }}
+                tooltip
                 variant="horizontal"
               />
             </div>
@@ -373,8 +386,10 @@ export default function TelemetrySection({
               }}
               value={{
                 text: deriveMotorLabel(caps, dict),
-                className: "text-green-500 dark:text-green-400 font-bold text-base",
+                className:
+                  "text-green-500 dark:text-green-400 font-bold text-base",
               }}
+              tooltip
               variant="horizontal"
             />
             <KpiStat
@@ -387,7 +402,11 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.speed", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: fmtKph(caps.vehicle_speed_kph), className: "text-base" }}
+              value={{
+                text: fmtKph(caps.vehicle_speed_kph),
+                className: "text-base",
+              }}
+              tooltip
               variant="horizontal"
             />
             <KpiStat
@@ -402,6 +421,7 @@ export default function TelemetrySection({
               }}
               value={{ text: fmtRpm(caps.engine_rpm), className: "text-base" }}
               className="col-span-2"
+              tooltip
               variant="horizontal"
             />
             <KpiStat
@@ -416,8 +436,10 @@ export default function TelemetrySection({
               }}
               value={{
                 text: fmtVolts(caps.battery_voltage_v),
-                className: "text-green-500 dark:text-green-400 font-bold text-base",
+                className:
+                  "text-green-500 dark:text-green-400 font-bold text-base",
               }}
+              tooltip
               variant="horizontal"
             />
             <KpiStat
@@ -430,7 +452,11 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.engineTemp", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: fmtCelsius(caps.coolant_temp_c), className: "text-base" }}
+              value={{
+                text: fmtCelsius(caps.coolant_temp_c),
+                className: "text-base",
+              }}
+              tooltip
               variant="horizontal"
             />
             <KpiStat
@@ -443,8 +469,12 @@ export default function TelemetrySection({
                 text: tr("vehicleDetail.sections.telemetry.location", dict),
                 className: "text-gray-500 dark:text-gray-300",
               }}
-              value={{ text: telemetry.location ?? "—", className: "text-base" }}
+              value={{
+                text: telemetry.location ?? "—",
+                className: "text-base",
+              }}
               className="col-span-2"
+              tooltip
               variant="horizontal"
             />
             <KpiStat
@@ -467,6 +497,7 @@ export default function TelemetrySection({
                 ),
                 className: "text-base",
               }}
+              tooltip
               variant="horizontal"
             />
           </div>
@@ -483,6 +514,7 @@ export default function TelemetrySection({
               className: "font-bold !text-xl",
             }}
             className="w-full text-center"
+            tooltip
             variant="vertical"
           />
           <KpiStat
@@ -490,10 +522,13 @@ export default function TelemetrySection({
               text: tr("vehicleDetail.sections.telemetry.signalsPerDay", dict),
             }}
             value={{
-              text: Math.round(telemetry.signal.signals_per_day).toLocaleString(),
+              text: Math.round(
+                telemetry.signal.signals_per_day
+              ).toLocaleString(),
               className: "font-bold !text-xl",
             }}
             className="w-full text-center"
+            tooltip
             variant="vertical"
           />
           <KpiStat
@@ -508,6 +543,7 @@ export default function TelemetrySection({
               className: "font-bold !text-xl",
             }}
             className="w-full text-center"
+            tooltip
             variant="vertical"
           />
         </div>

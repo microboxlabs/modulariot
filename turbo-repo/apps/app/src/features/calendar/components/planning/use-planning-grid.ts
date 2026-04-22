@@ -48,22 +48,15 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     startReassignment,
     startAssignment,
     reassigningService,
-    updateServiceAssignment,
+    updateServiceDrivers,
   } = usePlanningSelection();
 
-  // Clear every assignment slot on the planned service — carrier, drivers,
-  // truck and trailer — so reopening the sidebar for this entry starts clean.
+  // Create removeAssignment wrapper that clears driver assignments
   const removeAssignment = useCallback(
     async (serviceId: string) => {
-      updateServiceAssignment(serviceId, {
-        assignedTransportista: undefined,
-        assignedDriver: undefined,
-        assignedDriver2: undefined,
-        assignedCamion: undefined,
-        assignedRemolque: undefined,
-      });
+      updateServiceDrivers(serviceId, undefined, undefined);
     },
-    [updateServiceAssignment]
+    [updateServiceDrivers]
   );
 
   // Use shared hook for context menu and delete modal

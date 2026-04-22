@@ -40,6 +40,46 @@ export const handleScreenshot = async (
   }
 };
 
+export type ShareScreenshotResult = "shared" | "cancelled" | "unsupported";
+
+/**
+ * Share a screenshot via the Web Share API.
+ *
+ * The `dataUrl` must be a `data:image/png;base64,…` string (what the capture
+ * helpers produce). We convert it to a real `Blob` via `fetch`, so the shared
+ * file contains decoded PNG bytes — not the raw data-URL text.
+ *
+ * Returns `"cancelled"` when the user dismisses the native sheet (AbortError),
+ * `"unsupported"` when the platform can't share a file of this type, and
+ * `"shared"` on success. Throws on unexpected share errors.
+ */
+export const shareScreenshot = async (
+  dataUrl: string,
+  filename: string,
+  title: string,
+  text: string,
+): Promise<ShareScreenshotResult> => {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+    return "unsupported";
+  }
+
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const file = new File([blob], filename, { type: blob.type || "image/png" });
+
+  if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+    return "unsupported";
+  }
+
+  try {
+    await navigator.share({ files: [file], title, text });
+    return "shared";
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") return "cancelled";
+    throw err;
+  }
+};
+
 // Capture the entire map container
 export const captureMapContainer = async () => {
   try {

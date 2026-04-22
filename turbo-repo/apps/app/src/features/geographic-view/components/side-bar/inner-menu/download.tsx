@@ -12,7 +12,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
 import DownloadCSV from "./components/download_csv";
 import { MapPosition } from "@/features/geographic-view/types/map";
-import { handleScreenshot } from "../../tool-bar/screenshot-utils";
+import { handleScreenshot, shareScreenshot } from "../../tool-bar/screenshot-utils";
 
 export default function Download({
   dict,
@@ -41,30 +41,20 @@ export default function Download({
     }
   };
 
-  // Function to share the screenshot (could be expanded)
-  const handleShare = () => {
-    // Basic share implementation (could be expanded)
-    if (navigator.share && screenshotDataUrl) {
-      navigator
-        .share({
-          title: "Previsualización de la vista geográfica",
-          text: "Compartir la vista geográfica",
-          //url: screenshotDataUrl, // TODO: Add this when we have a URL
-          files: [
-            new File([screenshotDataUrl], "vista-geografica.png", {
-              type: "image/png",
-            }),
-          ],
-        })
-        .then(() => {
-          setStatus("Screenshot shared!");
-        })
-        .catch((error) => {
-          console.error("Share error:", error);
-          setStatus("Error sharing screenshot");
-        });
-    } else {
-      console.error("Sharing is not supported on this device/browser");
+  const handleShare = async () => {
+    if (!screenshotDataUrl) return;
+    try {
+      const result = await shareScreenshot(
+        screenshotDataUrl,
+        `vista-geografica-${new Date().toISOString().slice(0, 10)}.png`,
+        "Previsualización de la vista geográfica",
+        "Compartir la vista geográfica",
+      );
+      if (result === "shared") setStatus("Screenshot shared!");
+      else if (result === "unsupported") setStatus("Sharing is not supported on this device");
+    } catch (error) {
+      console.error("Share error:", error);
+      setStatus("Error sharing screenshot");
     }
   };
 

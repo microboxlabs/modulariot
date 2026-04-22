@@ -472,7 +472,8 @@
             "gps": "GPS",
             "capacity": "Capacidad",
             "mileage": "Kilometraje"
-          }
+          },
+          "loadingMore": "Cargando más…"
         }
       }
     },
@@ -1603,6 +1604,7 @@
       "columns": "Columnas",
       "detectColumns": "Detectar columnas",
       "addColumn": "Agregar columna",
+      "stickyColumn": "Columna fija",
       "cardLayout": "Diseño de Tarjeta",
       "horizontal": "Horizontal",
       "vertical": "Vertical",

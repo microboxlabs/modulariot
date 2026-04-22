@@ -80,6 +80,27 @@ export interface BaseSearchDropdownProps<
 
   // Optional: exclude certain items from the list
   readonly excludeId?: string;
+
+  /**
+   * When provided, the dropdown switches to **server-backed** mode:
+   *
+   * - Client-side filtering and grouped-results UI are skipped; `items` is
+   *   rendered as-is.
+   * - The debounced search query is surfaced via {@link onQueryChange} so the
+   *   caller can forward it to the server (typically as `?q=`).
+   * - {@link onReachEnd} fires when the list is scrolled near the bottom so
+   *   the caller can append the next page.
+   * - {@link isLoadingMore} shows a subtle "loading" hint at the end of the
+   *   list while more rows are being fetched.
+   *
+   * All three props are optional and only activate together: pass
+   * `onQueryChange` to opt into server search, `onReachEnd` to opt into
+   * infinite scroll. Omitting them preserves the original client-side
+   * behavior — no consumer breakage.
+   */
+  readonly onQueryChange?: (query: string) => void;
+  readonly onReachEnd?: () => void;
+  readonly isLoadingMore?: boolean;
 }
 
 export interface CardRenderProps<TOption extends BaseOption> {
@@ -478,7 +499,11 @@ export function BaseSearchDropdown<
   renderSelectedButton,
   canSelect,
   excludeId,
+  onQueryChange,
+  onReachEnd,
+  isLoadingMore = false,
 }: Readonly<BaseSearchDropdownProps<TOption, TMatchType>>) {
+  const isServerMode = onQueryChange !== undefined;
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -502,6 +527,11 @@ export function BaseSearchDropdown<
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Forward the debounced query to the server-side caller when in server mode.
+  useEffect(() => {
+    if (onQueryChange) onQueryChange(debouncedQuery);
+  }, [onQueryChange, debouncedQuery]);
+
   // Calculate grouped results when no filter is active
   const groupedResults = useMemo(
     () =>
@@ -511,6 +541,11 @@ export function BaseSearchDropdown<
 
   // Filter items when a field filter is active
   const filteredItems = useMemo(() => {
+    // Server-mode: `items` is already the authoritative list for the current
+    // query, so skip local filtering entirely.
+    if (isServerMode) {
+      return excludeId ? items.filter((item) => item.id !== excludeId) : items;
+    }
     if (!activeFilter) {
       return excludeId ? items.filter((item) => item.id !== excludeId) : items;
     }
@@ -522,11 +557,12 @@ export function BaseSearchDropdown<
       dict,
       excludeId
     );
-  }, [items, activeFilter, fields, dict, excludeId]);
+  }, [isServerMode, items, activeFilter, fields, dict, excludeId]);
 
-  // Determine if we're in "grouped mode" (showing field types) or "list mode"
+  // Determine if we're in "grouped mode" (showing field types) or "list mode".
+  // Server mode never shows grouped results — the backend is the source of truth.
   const isGroupedMode =
-    debouncedQuery.length >= MIN_CHARACTERS && !activeFilter;
+    !isServerMode && debouncedQuery.length >= MIN_CHARACTERS && !activeFilter;
 
   // Reset highlighted index when results change
   useEffect(() => {
@@ -576,6 +612,18 @@ export function BaseSearchDropdown<
       isKeyboardNavigation.current = false;
     }
   }, [highlightedIndex, isOpen]);
+
+  // Infinite-scroll trigger: when the list is scrolled near the bottom and
+  // we're in server-mode with an `onReachEnd` handler, request the next page.
+  // The 80px threshold leaves a little room so the user doesn't have to hit
+  // the very last pixel — matches common combobox UX.
+  const handleListScroll = useCallback(() => {
+    if (!onReachEnd || !listRef.current) return;
+    const el = listRef.current;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+      onReachEnd();
+    }
+  }, [onReachEnd]);
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -745,6 +793,7 @@ export function BaseSearchDropdown<
         role="presentation"
         className="max-h-75 overflow-y-auto"
         onMouseLeave={() => setHighlightedIndex(-1)}
+        onScroll={handleListScroll}
       >
         {isGroupedMode ? (
           <GroupedResultsContent
@@ -758,17 +807,24 @@ export function BaseSearchDropdown<
             onMouseEnter={setHighlightedIndex}
           />
         ) : (
-          <FilteredItemsList
-            filteredItems={filteredItems}
-            selectedId={selectedId}
-            highlightedIndex={highlightedIndex}
-            dict={dict}
-            noResultsText={tr(translations.noResults, dict)}
-            canSelect={canSelect}
-            renderCard={renderCard}
-            onSelect={handleSelect}
-            onHighlight={setHighlightedIndex}
-          />
+          <>
+            <FilteredItemsList
+              filteredItems={filteredItems}
+              selectedId={selectedId}
+              highlightedIndex={highlightedIndex}
+              dict={dict}
+              noResultsText={tr(translations.noResults, dict)}
+              canSelect={canSelect}
+              renderCard={renderCard}
+              onSelect={handleSelect}
+              onHighlight={setHighlightedIndex}
+            />
+            {isServerMode && isLoadingMore && (
+              <div className="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                {tr("pages.planning.sidebar.assignment.loadingMore", dict)}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

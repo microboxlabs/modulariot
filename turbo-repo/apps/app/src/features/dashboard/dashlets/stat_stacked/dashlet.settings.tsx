@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus } from "react-icons/hi2";
+import { ReactSortable } from "react-sortablejs";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType } from "./dashlet";
@@ -252,56 +253,84 @@ export function DashletSettings({
             Add
           </Button>
         </div>
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
-          >
-            <HbInlineInput
-              value={item.label}
-              onChange={(v) => updateItem(item.id, "label", v)}
-              placeholder={
-                isPgrest
-                  ? "{{row.label}}"
-                  : tr("dashboard.settings.label", dictionary)
-              }
-              className="flex-1"
-              schemaSuggestions={schemaSuggestions}
-              aria-label={tr(
-                "dashboard.settings.categoryAriaLabel",
-                dictionary,
-                {
-                  name: item.label || tr("dashboard.settings.new", dictionary),
-                  field: tr("dashboard.settings.label", dictionary),
+        <ReactSortable
+          list={items}
+          setList={setItems}
+          animation={150}
+          handle=".drag-handle"
+          className="space-y-2"
+        >
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
+            >
+              <button
+                type="button"
+                className="drag-handle shrink-0 cursor-grab p-0.5 text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:text-gray-500 dark:hover:text-gray-300"
+                aria-label="Drag to reorder"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M2 3.75A.75.75 0 0 1 2.75 3h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 3.75ZM2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Zm0 4.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+              <HbInlineInput
+                value={item.label}
+                onChange={(v) => updateItem(item.id, "label", v)}
+                placeholder={
+                  isPgrest
+                    ? "{{row.label}}"
+                    : tr("dashboard.settings.label", dictionary)
                 }
-              )}
-            />
-            <HbInlineInput
-              value={item.value}
-              onChange={(v) => updateItem(item.id, "value", v)}
-              placeholder={isPgrest ? "{{row.value}}" : "0"}
-              className="w-20"
-              schemaSuggestions={schemaSuggestions}
-              aria-label={tr(
-                "dashboard.settings.categoryAriaLabel",
-                dictionary,
-                {
-                  name: item.label || tr("dashboard.settings.new", dictionary),
-                  field: tr("common.value", dictionary),
-                }
-              )}
-            />
-            <AdvancedColorPicker
-              value={item.color}
-              onChange={(c) => updateItem(item.id, "color", c)}
-              title="Color"
-            />
-            <DeleteItemButton
-              onClick={() => removeItem(item.id)}
-              ariaLabel={tr("dashboard.settings.deleteItem", dictionary)}
-            />
-          </div>
-        ))}
+                className="flex-1"
+                schemaSuggestions={schemaSuggestions}
+                aria-label={tr(
+                  "dashboard.settings.categoryAriaLabel",
+                  dictionary,
+                  {
+                    name:
+                      item.label || tr("dashboard.settings.new", dictionary),
+                    field: tr("dashboard.settings.label", dictionary),
+                  }
+                )}
+              />
+              <HbInlineInput
+                value={item.value}
+                onChange={(v) => updateItem(item.id, "value", v)}
+                placeholder={isPgrest ? "{{row.value}}" : "0"}
+                className="w-20"
+                schemaSuggestions={schemaSuggestions}
+                aria-label={tr(
+                  "dashboard.settings.categoryAriaLabel",
+                  dictionary,
+                  {
+                    name:
+                      item.label || tr("dashboard.settings.new", dictionary),
+                    field: tr("common.value", dictionary),
+                  }
+                )}
+              />
+              <AdvancedColorPicker
+                value={item.color}
+                onChange={(c) => updateItem(item.id, "color", c)}
+                title="Color"
+              />
+              <DeleteItemButton
+                onClick={() => removeItem(item.id)}
+                ariaLabel={tr("dashboard.settings.deleteItem", dictionary)}
+              />
+            </div>
+          ))}
+        </ReactSortable>
       </div>
       <ThresholdEditor
         enabled={threshold.thresholdEnabled}

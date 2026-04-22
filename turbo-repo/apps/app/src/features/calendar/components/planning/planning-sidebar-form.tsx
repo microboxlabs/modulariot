@@ -785,6 +785,11 @@ export function PlanningSidebarForm({
               value={assignmentData}
               onChange={setAssignmentData}
               dict={dict}
+              mintralClientRut={selectedService?.mintral_clientRut}
+              mintralDelegacionOrigen={
+                selectedService?.mintral_delegacionOrigen ??
+                selectedService?.origen
+              }
             />
             <div className="flex gap-2 pt-2">
               <Button

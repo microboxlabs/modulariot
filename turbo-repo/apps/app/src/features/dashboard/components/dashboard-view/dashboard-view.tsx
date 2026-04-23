@@ -31,6 +31,14 @@ import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
+
+/**
+ * Fixed grid width (px) calibrated for a 1080p screen (1920px viewport
+ * minus sidebar and padding). The grid always renders at this width and
+ * CSS-scales to match the actual container: scale < 1 on smaller screens,
+ * scale > 1 on larger ones.
+ */
+const DESIGN_WIDTH = 1600;
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
@@ -80,8 +88,9 @@ export function DashboardView() {
   }, [searchParams, pathname]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
 
   // Inline name editing
   const [isEditingName, setIsEditingName] = useState(false);
@@ -168,31 +177,36 @@ export function DashboardView() {
       return;
     }
 
-    const updateWidth = () => {
-      const width = container.offsetWidth;
-      if (width > 0) {
-        setContainerWidth(width);
-      }
+    const updateScale = (width: number) => {
+      if (!gridRef.current || !clipRef.current) return;
+      const scale = width > 0 ? width / DESIGN_WIDTH : 1;
+      gridRef.current.style.transform = `scale(${scale})`;
+      clipRef.current.style.width = `${width}px`;
     };
 
-    // Initial measurement after a small delay to ensure layout is complete
-    requestAnimationFrame(updateWidth);
+    // Initial measurement after layout is complete
+    requestAnimationFrame(() => {
+      const style = getComputedStyle(container);
+      const px =
+        Number.parseFloat(style.paddingLeft) +
+        Number.parseFloat(style.paddingRight);
+      const width = container.clientWidth - px;
+      if (width > 0) {
+        updateScale(width);
+      }
+    });
 
-    // Use ResizeObserver for reactive updates
+    // Use ResizeObserver — mutate DOM directly, no React state.
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
+        updateScale(entry.contentRect.width);
       }
     });
 
     resizeObserver.observe(container);
 
-    // Also listen to window resize as fallback
-    window.addEventListener("resize", updateWidth);
-
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateWidth);
     };
   }, [isLoaded]); // Re-run when isLoaded changes
 
@@ -265,16 +279,7 @@ export function DashboardView() {
     [updateWidgetLayouts, editMode, widgets]
   );
 
-  // Show loading state while data loads from localStorage
-  if (!isLoaded) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-      </div>
-    );
-  }
-
-  const hasWidgets = widgets.length > 0;
+  const hasWidgets = isLoaded && widgets.length > 0;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -285,7 +290,11 @@ export function DashboardView() {
       {!isKiosk && (
         <div className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between gap-4 p-4">
-            {renderDashboardName()}
+            {isLoaded ? (
+              renderDashboardName()
+            ) : (
+              <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+            )}
             <div className="flex shrink-0 items-center gap-4">
               {editMode && (
                 <div className="flex items-center gap-1">
@@ -335,21 +344,29 @@ export function DashboardView() {
       )}
 
       {/* Content */}
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-auto p-4">
-        <div className="w-full min-h-[200px] max-w-screen-2xl mx-auto">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+        <div
+          ref={containerRef}
+          className="w-full min-h-full max-w-screen-2xl mx-auto"
+        >
           {hasWidgets ? (
-            <>
-              {/* Root-level grid - only render when width is measured */}
-              {containerWidth > 0 ? (
+            <div ref={clipRef} style={{ overflow: "visible" }}>
+              <div
+                style={{
+                  width: DESIGN_WIDTH,
+                  transformOrigin: "top left",
+                }}
+                ref={gridRef}
+              >
                 <GridLayout
                   className="dashboard-root-grid w-full"
                   layout={layout}
-                  width={containerWidth}
+                  width={DESIGN_WIDTH}
                   gridConfig={{
                     cols: GRID_COLS,
                     rowHeight: 55,
                     margin: [16, 16] as const,
-                    containerPadding: [0, 16] as const,
+                    containerPadding: [0, 0] as const,
                     maxRows: Infinity,
                   }}
                   dragConfig={{
@@ -370,22 +387,37 @@ export function DashboardView() {
                     </div>
                   ))}
                 </GridLayout>
-              ) : (
-                <div className="text-gray-500">
-                  Measuring container width...
-                </div>
-              )}
 
-              {/* Add new widget button */}
-              {editMode && (
-                <div className=" flex justify-center">
-                  <Button color="light" onClick={() => setIsAddModalOpen(true)}>
-                    <HiPlus className="mr-2 h-4 w-4" />
-                    Add Widget
-                  </Button>
-                </div>
-              )}
-            </>
+                {/* Add new widget button */}
+                {editMode && (
+                  <div className="flex justify-center">
+                    <Button
+                      color="light"
+                      onClick={() => setIsAddModalOpen(true)}
+                    >
+                      <HiPlus className="mr-2 h-4 w-4" />
+                      Add Widget
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : !isLoaded ? (
+            <div
+              className="grid gap-4"
+              style={{
+                gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+                gridAutoRows: "minmax(150px, 1fr)",
+              }}
+            >
+              <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="col-span-16 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+            </div>
           ) : (
             <EmptyState onAdd={() => setIsAddModalOpen(true)} />
           )}

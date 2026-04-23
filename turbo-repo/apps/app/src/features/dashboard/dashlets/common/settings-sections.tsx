@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Textarea, Label, TextInput, Select } from "flowbite-react";
-import { HiChevronDown } from "react-icons/hi2";
+import { HiChevronDown, HiQuestionMarkCircle } from "react-icons/hi2";
 import { ReactSortable } from "react-sortablejs";
 import type { ColumnItem } from "./column-helpers";
 import { DeleteItemButton } from "./delete-item-button";
@@ -41,8 +41,8 @@ interface ColumnEditorProps {
   onReorder: (reordered: ColumnItem[]) => void;
   onUpdate: (
     id: string,
-    field: "key" | "label" | "type" | "dataType" | "sticky",
-    value: string | boolean
+    field: "key" | "label" | "type" | "dataType" | "sticky" | "descriptionEnabled" | "description",
+    value: string | boolean | undefined
   ) => void;
   onAddColorMapping?: (colId: string) => void;
   onRemoveColorMapping?: (colId: string, mappingId: string) => void;
@@ -172,6 +172,7 @@ function ColumnCard({
   handlebarsColorKeys,
 }: Readonly<ColumnCardProps>) {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const descEnabled = !!col.descriptionEnabled;
   const [editingLabel, setEditingLabel] = useState(false);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
@@ -244,6 +245,14 @@ function ColumnCard({
 
         <button
           type="button"
+          title="Description"
+          onClick={() => onUpdate(col._id, "descriptionEnabled", !descEnabled)}
+          className={`shrink-0 rounded p-1 transition-colors ${descEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
+        >
+          <HiQuestionMarkCircle className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
           title={labels.stickyColumn}
           disabled={stickyDisabled}
           onClick={() => onUpdate(col._id, "sticky", !col.sticky)}
@@ -305,6 +314,19 @@ function ColumnCard({
           </div>
         </div>
       </div>
+
+      {/* Collapsible description textarea */}
+      {descEnabled && (
+        <div className="border-t border-gray-200 px-2 py-1.5 dark:border-gray-600">
+          <Textarea
+            rows={3}
+            className="text-sm"
+            placeholder="Column description (markdown supported)"
+            value={col.description ?? ""}
+            onChange={(e) => onUpdate(col._id, "description", e.target.value)}
+          />
+        </div>
+      )}
 
       {/* Collapsible badge color rules */}
       {hasBadgeRules && (

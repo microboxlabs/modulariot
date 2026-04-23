@@ -289,6 +289,7 @@
           "confirm": "Confirmar",
           "cancelReassignment": "Cancelar",
           "confirmReassignment": "Reasignar",
+          "readOnlyBanner": "Servicio pasado — solo lectura",
           "loadUtilization": "Utilización de carga",
           "constraint": "Restricción",
           "maxUtilization": "Total",

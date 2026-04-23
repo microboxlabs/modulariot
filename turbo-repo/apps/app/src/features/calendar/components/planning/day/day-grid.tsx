@@ -54,6 +54,7 @@ interface DayGridSlotCellProps {
   } | null;
   onCellClick: (slot: { hour: number; minutes: number }) => void;
   onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  onChipClick: (ps: PlannedService) => void;
   dict: I18nDictionary;
 }
 
@@ -68,6 +69,7 @@ function DayGridSlotCell({
   reassigningService,
   onCellClick,
   onContextMenu,
+  onChipClick,
   dict,
 }: Readonly<DayGridSlotCellProps>) {
   const { slotBlocked, isDisabled } = state;
@@ -85,6 +87,7 @@ function DayGridSlotCell({
       disabled={isDisabled}
       className={getSlotCellClassName(state, isPastDay, selected, {
         isLastSlot,
+        isFirstEditable: !isPastDay,
       })}
     >
       <SlotCellContent
@@ -93,6 +96,7 @@ function DayGridSlotCell({
         services={slotServices}
         reassigningServiceId={reassigningService?.service.service.id}
         onContextMenu={onContextMenu}
+        onChipClick={onChipClick}
         dict={dict}
         servicesLayout="row"
       />
@@ -136,6 +140,7 @@ export default function DayGrid({
     handleDeleteAssignmentRequest,
     handleConfirmDeleteAssignment,
     handleCancelDeleteAssignment,
+    viewPlannedService,
   } = usePlanningGrid({ startHour, endHour });
 
   const dayInfo = useMemo(
@@ -187,15 +192,21 @@ export default function DayGrid({
             className={twMerge(
               "h-20 flex flex-col items-center justify-center",
               "border-l border-t border-r border-gray-200 dark:border-gray-700",
-              "bg-gray-50 dark:bg-gray-900 rounded-tr-lg"
+              "bg-gray-50 dark:bg-gray-900 rounded-tr-lg",
+              !isPastDay &&
+                "border-l-2 border-l-primary-500 dark:border-l-primary-400"
             )}
           >
             <span
               className={twMerge(
                 "text-sm font-medium capitalize",
-                dayInfo.isToday
-                  ? "text-primary-600 dark:text-primary-400"
-                  : "text-gray-500 dark:text-gray-400"
+                dayInfo.isToday && "text-primary-600 dark:text-primary-400",
+                !dayInfo.isToday &&
+                  !isPastDay &&
+                  "text-gray-500 dark:text-gray-400",
+                !dayInfo.isToday &&
+                  isPastDay &&
+                  "text-gray-400 dark:text-gray-500 italic"
               )}
             >
               {dayInfo.dayName}
@@ -203,9 +214,14 @@ export default function DayGrid({
             <span
               className={twMerge(
                 "text-2xl font-bold",
-                dayInfo.isToday
-                  ? "bg-primary-600 text-white rounded-full w-10 h-10 flex items-center justify-center"
-                  : "text-gray-900 dark:text-white"
+                dayInfo.isToday &&
+                  "bg-primary-600 text-white rounded-full w-10 h-10 flex items-center justify-center",
+                !dayInfo.isToday &&
+                  !isPastDay &&
+                  "text-gray-900 dark:text-white",
+                !dayInfo.isToday &&
+                  isPastDay &&
+                  "text-gray-400 dark:text-gray-500 font-normal"
               )}
             >
               {dayInfo.dayNumber}
@@ -242,6 +258,7 @@ export default function DayGrid({
                 reassigningService={reassigningService}
                 onCellClick={handleCellClick}
                 onContextMenu={handleContextMenu}
+                onChipClick={viewPlannedService}
                 dict={dict}
               />
             </Fragment>

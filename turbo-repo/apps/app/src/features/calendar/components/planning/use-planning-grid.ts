@@ -49,6 +49,7 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     startAssignment,
     reassigningService,
     updateServiceAssignment,
+    viewPlannedService,
   } = usePlanningSelection();
 
   // Clear every assignment slot on the planned service — carrier, drivers,
@@ -141,6 +142,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
 
     // Reassignment
     reassigningService,
+
+    // View-only inspection of a planned service (left-click on chip)
+    viewPlannedService,
 
     // Service actions (context menu, delete modals)
     ...serviceActions,

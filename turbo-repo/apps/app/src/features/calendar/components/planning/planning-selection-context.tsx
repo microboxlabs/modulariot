@@ -10,6 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -25,6 +26,7 @@ import {
   listBookings,
   updateServiceCategory,
 } from "@/features/common/providers/client-api.provider";
+import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
@@ -674,6 +676,12 @@ interface PlanningSelectionContextType {
   /** Cancel assignment-only mode */
   cancelAssignment: () => void;
   /**
+   * Open the sidebar in view-only mode for an already-planned service. Sets
+   * the service and slot without entering reassign/assign mode — the form
+   * renders the existing values and suppresses its action buttons.
+   */
+  viewPlannedService: (plannedService: PlannedService) => void;
+  /**
    * Patch the assignment tuple (carrier/drivers/truck/trailer) on a planned
    * service. Any omitted field is left untouched; passing `undefined`
    * explicitly clears that slot. Client-side only — persistence travels on
@@ -860,6 +868,19 @@ export function PlanningSelectionProvider({
     }
   }, [apiTimeWindows, timeSlotsError]);
 
+  // The upstream bookings endpoint returns an empty list when no date range is
+  // passed, so derive a ±30-day window around the URL `date` param (the same
+  // param the week/day views consume). Stays well inside the backend's 90-day
+  // cap and covers any reasonable week navigation without refetching mid-view.
+  const searchParams = useSearchParams();
+  const bookingsRange = useMemo(() => {
+    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
+    return {
+      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
+      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
+    };
+  }, [searchParams]);
+
   // Load existing bookings from the backend when a calendar is selected.
   // An AbortController cancels the in-flight request when calendarId changes
   // or the component unmounts, preventing stale responses from overwriting state.
@@ -868,7 +889,14 @@ export function PlanningSelectionProvider({
 
     const controller = new AbortController();
 
-    listBookings({ calendarId }, controller.signal)
+    listBookings(
+      {
+        calendarId,
+        startDate: bookingsRange.startDate,
+        endDate: bookingsRange.endDate,
+      },
+      controller.signal
+    )
       .then((result) => {
         // Discard the response if the effect was cleaned up before it resolved.
         if (controller.signal.aborted) return;
@@ -942,7 +970,7 @@ export function PlanningSelectionProvider({
     return () => {
       controller.abort();
     };
-  }, [calendarId]);
+  }, [calendarId, bookingsRange.startDate, bookingsRange.endDate]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -1528,6 +1556,17 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
+  // Open the sidebar to inspect a planned service without entering an edit
+  // mode. Left-clicking a chip routes here; the form reads `selectedSlot` and
+  // `selectedService`, sees no reassign/assign mode, and (when the slot is
+  // past) renders with mutations disabled.
+  const viewPlannedService = useCallback((plannedService: PlannedService) => {
+    setReassigningService(null);
+    setAssigningService(null);
+    setSelectedService(plannedService.service);
+    setSelectedSlot(plannedService.slot);
+  }, []);
+
   /**
    * Patch a planned service's assignment tuple client-side.
    *
@@ -1602,6 +1641,7 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
+      viewPlannedService,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
@@ -1645,6 +1685,7 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
+      viewPlannedService,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,

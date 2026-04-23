@@ -53,6 +53,8 @@ interface PlannedServiceChipProps {
   readonly plannedService: PlannedService;
   readonly isBeingReassigned?: boolean;
   readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  /** Optional left-click handler — opens the sidebar in view/read-only mode. */
+  readonly onClick?: (ps: PlannedService) => void;
   /** Additional size/layout classes to apply */
   readonly className?: string;
   readonly dict: I18nRecord;
@@ -66,6 +68,7 @@ export function PlannedServiceChip({
   plannedService,
   isBeingReassigned = false,
   onContextMenu,
+  onClick,
   className,
   dict,
 }: PlannedServiceChipProps) {
@@ -76,6 +79,15 @@ export function PlannedServiceChip({
   return (
     <button
       type="button"
+      onClick={
+        onClick
+          ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClick(plannedService);
+            }
+          : undefined
+      }
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -96,7 +108,8 @@ export function PlannedServiceChip({
       }}
       className={twMerge(
         "min-w-0 w-full",
-        "rounded flex items-center cursor-context-menu",
+        "rounded flex items-center",
+        onClick ? "cursor-pointer" : "cursor-context-menu",
         "text-xs font-medium px-1.5 py-1 border-l-4",
         getPlannedServiceChipClassName(hasUrgencia),
         isBeingReassigned &&

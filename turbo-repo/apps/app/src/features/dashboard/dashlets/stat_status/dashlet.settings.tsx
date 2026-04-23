@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Checkbox, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, StatusIcon } from "./dashlet";
@@ -61,6 +61,19 @@ export function DashletSettings({
   const [plannerVariableName, setPlannerVariableName] = useState(
     config.plannerVariableName ?? ""
   );
+
+  // Reset form state when drawer opens so useSettingsDirty sees fresh baselines
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle(config.title ?? "Status");
+    setValue(config.value ?? "0");
+    setSubtitle(config.subtitle ?? "");
+    setShowColor(config.showColor === true);
+    setColor(config.color ?? "3b82f6");
+    setIcon(config.icon ?? "check");
+    setDataSourceId(config.dataSourceId ?? "");
+    setPlannerVariableName(config.plannerVariableName ?? "");
+  }, [isOpen, config]);
 
   const dp = useDataProvider(config.dataProvider ?? []);
   const colorRules = useValueColorSettings({

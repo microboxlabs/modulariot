@@ -13,19 +13,19 @@ import {
 } from "@/features/calendar/services/accredited-resources.service";
 import { DriverSearchDropdown } from "./driver-search-dropdown";
 import {
-  TransportistaSearchDropdown,
-  type TransportistaOption,
-} from "./transportista-search-dropdown";
+  CarrierSearchDropdown,
+  type CarrierOption,
+} from "./carrier-search-dropdown";
 import {
   TruckSearchDropdown,
-  type CamionOption,
+  type TruckOption,
 } from "./truck-search-dropdown";
 import {
-  RemolqueSearchDropdown,
-  type RemolqueOption,
-} from "./remolque-search-dropdown";
+  TrailerSearchDropdown,
+  type TrailerOption,
+} from "./trailer-search-dropdown";
 
-export interface ConductorOption {
+export interface DriverOption {
   id: string;
   name: string;
   rut: string;
@@ -36,7 +36,7 @@ export interface ConductorOption {
   faltasDescanso: number;
 }
 
-const REMOLQUE_OPTIONS: RemolqueOption[] = [
+const REMOLQUE_OPTIONS: TrailerOption[] = [
   {
     id: "r1",
     plate: "AABB11",
@@ -100,50 +100,50 @@ const REMOLQUE_OPTIONS: RemolqueOption[] = [
 ];
 
 interface TruckMapDisplayProps {
-  readonly camion: CamionOption;
+  readonly truck: TruckOption;
 }
 
-function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
+function TruckMapDisplay({ truck }: TruckMapDisplayProps) {
   const mapRef = useRef<MapRef | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   // Create pin layer for truck location
   const layers = useMemo(() => {
-    if (camion.latitude == null || camion.longitude == null) return [];
+    if (truck.latitude == null || truck.longitude == null) return [];
 
     return [
       new PinLayer({
         id: "truck-pin-layer",
         data: [
           {
-            assetid: camion.id,
-            latitude: camion.latitude,
-            longitude: camion.longitude,
-            heading: camion.heading,
+            assetid: truck.id,
+            latitude: truck.latitude,
+            longitude: truck.longitude,
+            heading: truck.heading,
             speed: 0,
-            location: camion.plate,
+            location: truck.plate,
             timestamp: new Date().toISOString(),
           },
         ],
       }),
     ];
-  }, [camion]);
+  }, [truck]);
 
   // Center map on truck location when map is loaded or truck changes
   useEffect(() => {
     if (
       isMapLoaded &&
       mapRef.current &&
-      camion.latitude != null &&
-      camion.longitude != null
+      truck.latitude != null &&
+      truck.longitude != null
     ) {
       mapRef.current.flyTo({
-        center: [camion.longitude, camion.latitude],
+        center: [truck.longitude, truck.latitude],
         zoom: 14,
         duration: 500,
       });
     }
-  }, [camion, isMapLoaded]);
+  }, [truck, isMapLoaded]);
 
   // Handle map load to trigger initial centering
   const handleZoomChange = useCallback(() => {
@@ -166,13 +166,13 @@ function TruckMapDisplay({ camion }: TruckMapDisplayProps) {
 }
 
 export interface AssignmentFormData {
-  transportista: string;
-  conductor: string;
-  segundoConductor: string;
-  hasSegundoConductor: boolean;
-  camion: string;
-  remolque: string;
-  hasRemolque: boolean;
+  carrier: string;
+  driver: string;
+  secondDriver: string;
+  hasSecondDriver: boolean;
+  truck: string;
+  trailer: string;
+  hasTrailer: boolean;
 }
 
 interface AssignmentFormProps {
@@ -223,12 +223,12 @@ function formatLastTrip(raw: string | null | undefined): string {
 
 /**
  * Map an `ams.fn_rd_accredited_resources` CARRIER row to the shape expected by
- * `TransportistaSearchDropdown`. The upstream function returns both accredited
+ * `CarrierSearchDropdown`. The upstream function returns both accredited
  * and non-accredited carriers; `is_acredited` drives the UI badge. Both states
  * are surfaced and selectable — the planner sees accreditation as context, not
  * as a hard block.
  */
-function carrierRowToOption(row: AccreditedResource): TransportistaOption {
+function carrierRowToOption(row: AccreditedResource): CarrierOption {
   const rut = row.identifier ?? "";
   return {
     id: row.resource_id,
@@ -240,20 +240,20 @@ function carrierRowToOption(row: AccreditedResource): TransportistaOption {
 
 /**
  * Map an `ams.fn_rd_accredited_resources` TRUCK row onto the existing
- * `CamionOption` shape. The upstream function does not carry GPS/telemetry
+ * `TruckOption` shape. The upstream function does not carry GPS/telemetry
  * fields, so `gpsIntegrado`, `estadoGps`, lat/lng and `heading` default to a
  * "no signal" baseline. `estado` piggybacks on `is_acredited` (ACREDITED →
  * `disponible`, NOT ACREDITED → `ocupado`) to reuse the existing UI badge
  * without introducing a parallel state flag.
  */
-function truckRowToOption(row: AccreditedResource): CamionOption {
+function truckRowToOption(row: AccreditedResource): TruckOption {
   const plate = row.identifier ?? "";
   const symptoms = row.symptoms ?? {};
   return {
     id: row.resource_id,
     plate,
     marca: row.resource_name ?? "",
-    tipo: "camion",
+    tipo: "truck",
     estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
     gpsIntegrado: false,
     estadoGps: "offline",
@@ -268,12 +268,12 @@ function truckRowToOption(row: AccreditedResource): CamionOption {
 
 /**
  * Map an `ams.fn_rd_accredited_resources` DRIVER row onto the existing
- * `ConductorOption` shape. The upstream row carries `trip_count`, `last_trip`
+ * `DriverOption` shape. The upstream row carries `trip_count`, `last_trip`
  * (ISO timestamp) and a free-form `symptoms` JSON keyed by symptom name;
  * the two counters the driver card renders today are derived from the
  * matching symptom buckets — defaulting to 0 when missing.
  */
-function driverRowToOption(row: AccreditedResource): ConductorOption {
+function driverRowToOption(row: AccreditedResource): DriverOption {
   const rut = row.identifier ?? "";
   const symptoms = row.symptoms ?? {};
   return {
@@ -319,9 +319,9 @@ export function AssignmentForm({
     rutMandante: mintralClientRut,
     delegacion: mintralDelegacionOrigen,
     resourceType: "DRIVER",
-    carrierId: value.transportista,
+    carrierId: value.carrier,
     query: driverQuery,
-    enabled: Boolean(value.transportista),
+    enabled: Boolean(value.carrier),
   });
 
   const {
@@ -332,12 +332,12 @@ export function AssignmentForm({
     rutMandante: mintralClientRut,
     delegacion: mintralDelegacionOrigen,
     resourceType: "TRUCK",
-    carrierId: value.transportista,
+    carrierId: value.carrier,
     query: truckQuery,
-    enabled: Boolean(value.transportista),
+    enabled: Boolean(value.carrier),
   });
 
-  const transportistaOptions = useMemo(
+  const carrierOptions = useMemo(
     () => accreditedCarriers.map(carrierRowToOption),
     [accreditedCarriers]
   );
@@ -352,7 +352,7 @@ export function AssignmentForm({
     [accreditedTrucks]
   );
 
-  const selectedCamion = truckOptions.find((c) => c.id === value.camion);
+  const selectedCamion = truckOptions.find((c) => c.id === value.truck);
 
   const handleChange = (
     field: keyof AssignmentFormData,
@@ -362,34 +362,34 @@ export function AssignmentForm({
 
     // Drivers/trucks are scoped to the selected carrier — clear those slots
     // when the carrier changes so a stale (carrier, child) pair can't silently
-    // survive. `remolque` uses the same rule for symmetry.
-    if (field === "transportista" && fieldValue !== value.transportista) {
-      updated.conductor = "";
-      updated.segundoConductor = "";
-      updated.camion = "";
+    // survive. `trailer` uses the same rule for symmetry.
+    if (field === "carrier" && fieldValue !== value.carrier) {
+      updated.driver = "";
+      updated.secondDriver = "";
+      updated.truck = "";
       setDriverQuery("");
       setTruckQuery("");
     }
 
-    // When changing conductor, clear segundoConductor if it matches the new value
+    // When changing driver, clear secondDriver if it matches the new value
     // or if the second driver section is disabled
-    if (field === "conductor" && typeof fieldValue === "string") {
+    if (field === "driver" && typeof fieldValue === "string") {
       if (
-        updated.segundoConductor === fieldValue ||
-        !updated.hasSegundoConductor
+        updated.secondDriver === fieldValue ||
+        !updated.hasSecondDriver
       ) {
-        updated.segundoConductor = "";
+        updated.secondDriver = "";
       }
     }
 
-    // When disabling second conductor section, clear the selection
-    if (field === "hasSegundoConductor" && fieldValue === false) {
-      updated.segundoConductor = "";
+    // When disabling second driver section, clear the selection
+    if (field === "hasSecondDriver" && fieldValue === false) {
+      updated.secondDriver = "";
     }
 
-    // When disabling remolque section, clear the selection
-    if (field === "hasRemolque" && fieldValue === false) {
-      updated.remolque = "";
+    // When disabling trailer section, clear the selection
+    if (field === "hasTrailer" && fieldValue === false) {
+      updated.trailer = "";
     }
 
     onChange(updated);
@@ -398,13 +398,13 @@ export function AssignmentForm({
   return (
     <div className="rounded-lg flex flex-col gap-4">
       {/* Transportista Dropdown */}
-      <TransportistaSearchDropdown
-        label={tr("pages.planning.sidebar.assignment.transportista", dict)}
-        transportistas={transportistaOptions}
-        selectedTransportistaId={value.transportista}
-        onSelect={(v: string) => handleChange("transportista", v)}
+      <CarrierSearchDropdown
+        label={tr("pages.planning.sidebar.assignment.carrier", dict)}
+        carriers={carrierOptions}
+        selectedCarrierId={value.carrier}
+        onSelect={(v: string) => handleChange("carrier", v)}
         placeholder={tr(
-          "pages.planning.sidebar.assignment.selectTransportista",
+          "pages.planning.sidebar.assignment.selectCarrier",
           dict
         )}
         dict={dict}
@@ -415,16 +415,16 @@ export function AssignmentForm({
 
       {/* Conductor Dropdown */}
       <DriverSearchDropdown
-        label={tr("pages.planning.sidebar.assignment.conductor", dict)}
+        label={tr("pages.planning.sidebar.assignment.driver", dict)}
         drivers={driverOptions}
-        selectedDriverId={value.conductor}
-        onSelect={(v: string) => handleChange("conductor", v)}
+        selectedDriverId={value.driver}
+        onSelect={(v: string) => handleChange("driver", v)}
         placeholder={tr(
-          "pages.planning.sidebar.assignment.selectConductor",
+          "pages.planning.sidebar.assignment.selectDriver",
           dict
         )}
         dict={dict}
-        disabled={!value.transportista}
+        disabled={!value.carrier}
         onQueryChange={setDriverQuery}
         onReachEnd={loadMoreDrivers}
         isLoadingMore={isLoadingMoreDrivers}
@@ -432,15 +432,15 @@ export function AssignmentForm({
           <label className="flex items-center gap-1 cursor-pointer">
             <span className="text-[10px] text-gray-500 dark:text-gray-400">
               {tr(
-                "pages.planning.sidebar.assignment.secondConductorLabel",
+                "pages.planning.sidebar.assignment.secondDriverLabel",
                 dict
               )}
             </span>
             <Checkbox
-              id="segundo-conductor-check"
-              checked={value.hasSegundoConductor}
+              id="segundo-driver-check"
+              checked={value.hasSecondDriver}
               onChange={(e) =>
-                handleChange("hasSegundoConductor", e.target.checked)
+                handleChange("hasSecondDriver", e.target.checked)
               }
               className="w-3 h-3"
             />
@@ -449,67 +449,67 @@ export function AssignmentForm({
       />
 
       {/* Second Conductor Dropdown (conditional) */}
-      {value.hasSegundoConductor && (
+      {value.hasSecondDriver && (
         <DriverSearchDropdown
-          label={tr("pages.planning.sidebar.assignment.secondConductor", dict)}
+          label={tr("pages.planning.sidebar.assignment.secondDriver", dict)}
           drivers={driverOptions}
-          selectedDriverId={value.segundoConductor}
-          onSelect={(v: string) => handleChange("segundoConductor", v)}
+          selectedDriverId={value.secondDriver}
+          onSelect={(v: string) => handleChange("secondDriver", v)}
           placeholder={tr(
-            "pages.planning.sidebar.assignment.selectSecondConductor",
+            "pages.planning.sidebar.assignment.selectSecondDriver",
             dict
           )}
           dict={dict}
-          disabled={!value.transportista}
+          disabled={!value.carrier}
           onQueryChange={setDriverQuery}
           onReachEnd={loadMoreDrivers}
           isLoadingMore={isLoadingMoreDrivers}
-          excludeDriverId={value.conductor}
+          excludeDriverId={value.driver}
         />
       )}
 
       {/* Camión Dropdown */}
       <div>
         <TruckSearchDropdown
-          label={tr("pages.planning.sidebar.assignment.camion", dict)}
+          label={tr("pages.planning.sidebar.assignment.truck", dict)}
           trucks={truckOptions}
-          selectedTruckId={value.camion}
-          onSelect={(v: string) => handleChange("camion", v)}
+          selectedTruckId={value.truck}
+          onSelect={(v: string) => handleChange("truck", v)}
           placeholder={tr(
-            "pages.planning.sidebar.assignment.selectCamion",
+            "pages.planning.sidebar.assignment.selectTruck",
             dict
           )}
           dict={dict}
-          disabled={!value.transportista}
+          disabled={!value.carrier}
           onQueryChange={setTruckQuery}
           onReachEnd={loadMoreTrucks}
           isLoadingMore={isLoadingMoreTrucks}
           labelRightElement={
             <label className="flex items-center gap-1 cursor-pointer">
               <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                {tr("pages.planning.sidebar.assignment.remolqueLabel", dict)}
+                {tr("pages.planning.sidebar.assignment.trailerLabel", dict)}
               </span>
               <Checkbox
-                id="remolque-check"
-                checked={value.hasRemolque}
-                onChange={(e) => handleChange("hasRemolque", e.target.checked)}
+                id="trailer-check"
+                checked={value.hasTrailer}
+                onChange={(e) => handleChange("hasTrailer", e.target.checked)}
                 className="w-3 h-3"
               />
             </label>
           }
         />
-        {selectedCamion && <TruckMapDisplay camion={selectedCamion} />}
+        {selectedCamion && <TruckMapDisplay truck={selectedCamion} />}
       </div>
 
       {/* Remolque Dropdown (conditional) */}
-      {value.hasRemolque && (
-        <RemolqueSearchDropdown
-          label={tr("pages.planning.sidebar.assignment.remolque", dict)}
-          remolques={REMOLQUE_OPTIONS}
-          selectedRemolqueId={value.remolque}
-          onSelect={(v: string) => handleChange("remolque", v)}
+      {value.hasTrailer && (
+        <TrailerSearchDropdown
+          label={tr("pages.planning.sidebar.assignment.trailer", dict)}
+          trailers={REMOLQUE_OPTIONS}
+          selectedTrailerId={value.trailer}
+          onSelect={(v: string) => handleChange("trailer", v)}
           placeholder={tr(
-            "pages.planning.sidebar.assignment.selectRemolque",
+            "pages.planning.sidebar.assignment.selectTrailer",
             dict
           )}
           dict={dict}

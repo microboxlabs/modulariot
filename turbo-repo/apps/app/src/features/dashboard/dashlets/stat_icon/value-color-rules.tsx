@@ -4,9 +4,8 @@ import {
   type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
-  createValueColorRulesUtils,
-  textBgIconTargets,
-} from "../common";
+} from "../common/color-rule-setter";
+import { createValueColorRulesUtils, textBgIconTargets } from "../common/value-color-rules-factory";
 
 // ============================================================================
 // Types specific to stat_icon

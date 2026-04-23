@@ -20,20 +20,20 @@ import {
 // Types
 // ============================================================================
 
-export interface TransportistaOption {
+export interface CarrierOption {
   id: string;
   name: string;
   rut: string;
   estado: "habilitado" | "no habilitado";
 }
 
-type TransportistaMatchType = "name" | "rut" | "estado";
+type CarrierMatchType = "name" | "rut" | "estado";
 
-interface TransportistaSearchDropdownProps {
+interface CarrierSearchDropdownProps {
   readonly label: string;
-  readonly transportistas: TransportistaOption[];
-  readonly selectedTransportistaId: string;
-  readonly onSelect: (transportistaId: string) => void;
+  readonly carriers: CarrierOption[];
+  readonly selectedCarrierId: string;
+  readonly onSelect: (carrierId: string) => void;
   readonly placeholder?: string;
   readonly disabled?: boolean;
   readonly dict: I18nRecord;
@@ -51,39 +51,39 @@ interface TransportistaSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const TRANSPORTISTA_FIELDS: readonly FieldConfig<
-  TransportistaOption,
-  TransportistaMatchType
+const CARRIER_FIELDS: readonly FieldConfig<
+  CarrierOption,
+  CarrierMatchType
 >[] = [
   {
     field: "name",
-    getValue: (transportista) => transportista.name,
+    getValue: (carrier) => carrier.name,
     getLabel: (dict) =>
       tr(
-        "pages.planning.sidebar.assignment.transportistaSearchFields.name",
+        "pages.planning.sidebar.assignment.carrierSearchFields.name",
         dict
       ),
     getIcon: () => <HiOfficeBuilding className={ICON_CLASS} />,
   },
   {
     field: "rut",
-    getValue: (transportista) => transportista.rut,
+    getValue: (carrier) => carrier.rut,
     getLabel: (dict) =>
       tr(
-        "pages.planning.sidebar.assignment.transportistaSearchFields.rut",
+        "pages.planning.sidebar.assignment.carrierSearchFields.rut",
         dict
       ),
     getIcon: () => <HiIdentification className={ICON_CLASS} />,
   },
   {
     field: "estado",
-    getValue: (transportista, dict) =>
-      transportista.estado === "habilitado"
+    getValue: (carrier, dict) =>
+      carrier.estado === "habilitado"
         ? tr("pages.planning.sidebar.assignment.enabled", dict)
         : tr("pages.planning.sidebar.assignment.notEnabled", dict),
     getLabel: (dict) =>
       tr(
-        "pages.planning.sidebar.assignment.transportistaSearchFields.status",
+        "pages.planning.sidebar.assignment.carrierSearchFields.status",
         dict
       ),
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
@@ -94,15 +94,15 @@ const TRANSPORTISTA_FIELDS: readonly FieldConfig<
 // Transportista Card Component
 // ============================================================================
 
-function TransportistaCard({
-  item: transportista,
+function CarrierCard({
+  item: carrier,
   isSelected,
   isHighlighted,
   dict,
   onClick,
   onMouseEnter,
-}: CardRenderProps<TransportistaOption>) {
-  const isEnabled = transportista.estado === "habilitado";
+}: CardRenderProps<CarrierOption>) {
+  const isEnabled = carrier.estado === "habilitado";
 
   return (
     <button
@@ -121,13 +121,13 @@ function TransportistaCard({
           <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
         )}
         <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
-          {transportista.name}
+          {carrier.name}
         </span>
       </div>
       {/* Row 2: RUT on the left, accreditation badge on the right. */}
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-          {transportista.rut}
+          {carrier.rut}
         </span>
         {isEnabled ? (
           <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
@@ -150,11 +150,11 @@ function TransportistaCard({
 // Selected Button Renderer
 // ============================================================================
 
-function renderSelectedTransportistaButton(
-  transportista: TransportistaOption,
+function renderSelectedCarrierButton(
+  carrier: CarrierOption,
   dict: I18nRecord
 ) {
-  const isEnabled = transportista.estado === "habilitado";
+  const isEnabled = carrier.estado === "habilitado";
 
   return (
     <div className="flex items-center gap-2">
@@ -163,13 +163,13 @@ function renderSelectedTransportistaButton(
         <div className="flex items-center gap-1.5 min-w-0">
           <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
           <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
-            {transportista.name}
+            {carrier.name}
           </span>
         </div>
         {/* Row 2: RUT on the left, badge on the right. */}
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-            {transportista.rut}
+            {carrier.rut}
           </span>
           {isEnabled ? (
             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">
@@ -194,10 +194,10 @@ function renderSelectedTransportistaButton(
 // Main Component
 // ============================================================================
 
-export function TransportistaSearchDropdown({
+export function CarrierSearchDropdown({
   label,
-  transportistas,
-  selectedTransportistaId,
+  carriers,
+  selectedCarrierId,
   onSelect,
   placeholder,
   disabled = false,
@@ -205,23 +205,23 @@ export function TransportistaSearchDropdown({
   onQueryChange,
   onReachEnd,
   isLoadingMore,
-}: TransportistaSearchDropdownProps) {
+}: CarrierSearchDropdownProps) {
   return (
-    <BaseSearchDropdown<TransportistaOption, TransportistaMatchType>
+    <BaseSearchDropdown<CarrierOption, CarrierMatchType>
       label={label}
-      items={transportistas}
-      selectedId={selectedTransportistaId}
+      items={carriers}
+      selectedId={selectedCarrierId}
       onSelect={onSelect}
       placeholder={placeholder}
       disabled={disabled}
       dict={dict}
-      fields={TRANSPORTISTA_FIELDS}
+      fields={CARRIER_FIELDS}
       translations={{
-        search: "pages.planning.sidebar.assignment.searchTransportista",
-        noResults: "pages.planning.sidebar.assignment.noTransportistasFound",
+        search: "pages.planning.sidebar.assignment.searchCarrier",
+        noResults: "pages.planning.sidebar.assignment.noCarriersFound",
       }}
-      renderCard={(props) => <TransportistaCard {...props} />}
-      renderSelectedButton={renderSelectedTransportistaButton}
+      renderCard={(props) => <CarrierCard {...props} />}
+      renderSelectedButton={renderSelectedCarrierButton}
       onQueryChange={onQueryChange}
       onReachEnd={onReachEnd}
       isLoadingMore={isLoadingMore}

@@ -13,13 +13,13 @@ import {
   SettingsFieldGrid,
   HbTextField,
   HbInlineInput,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  type SimpleDataMode,
-} from "../common";
+} from "../common/settings-fields";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";

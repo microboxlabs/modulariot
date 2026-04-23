@@ -4,9 +4,8 @@ import {
   type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
-  createValueColorRulesUtils,
-  borderIconTextTargets,
-} from "../common";
+} from "../common/color-rule-setter";
+import { createValueColorRulesUtils, borderIconTextTargets } from "../common/value-color-rules-factory";
 
 // ============================================================================
 // Types specific to stat_status

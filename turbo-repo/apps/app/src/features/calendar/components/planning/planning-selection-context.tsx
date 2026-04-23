@@ -578,6 +578,16 @@ export interface SelectedService {
   assignedDriver?: string;
   /** Secondary driver assigned to this service (frontend-only for now) */
   assignedDriver2?: string;
+  /**
+   * Accredited-resources `carrier_id` chosen in the Asignación tab. Persisted
+   * on the booking payload so reopening the sidebar for a planned service
+   * hydrates the dropdowns with the previously confirmed selection.
+   */
+  assignedCarrier?: string;
+  /** Accredited-resources TRUCK `resource_id` assigned in the Asignación tab. */
+  assignedTruck?: string;
+  /** Assigned trailer id — placeholder until the trailer feed is wired. */
+  assignedTrailer?: string;
 }
 
 /**
@@ -663,11 +673,24 @@ interface PlanningSelectionContextType {
   startAssignment: (plannedService: PlannedService) => void;
   /** Cancel assignment-only mode */
   cancelAssignment: () => void;
-  /** Update driver assignments on a planned service (client-side only) */
-  updateServiceDrivers: (
+  /**
+   * Patch the assignment tuple (carrier/drivers/truck/trailer) on a planned
+   * service. Any omitted field is left untouched; passing `undefined`
+   * explicitly clears that slot. Client-side only — persistence travels on
+   * the next `confirmService` call via `StoredServiceSchema`.
+   */
+  updateServiceAssignment: (
     serviceId: string,
-    assignedDriver?: string,
-    assignedDriver2?: string
+    patch: Partial<
+      Pick<
+        SelectedService,
+        | "assignedCarrier"
+        | "assignedDriver"
+        | "assignedDriver2"
+        | "assignedTruck"
+        | "assignedTrailer"
+      >
+    >
   ) => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
@@ -721,6 +744,9 @@ const StoredServiceSchema = z
     presentationDate: z.string().optional(),
     assignedDriver: z.string().optional(),
     assignedDriver2: z.string().optional(),
+    assignedCarrier: z.string().optional(),
+    assignedTruck: z.string().optional(),
+    assignedTrailer: z.string().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -1503,26 +1529,35 @@ export function PlanningSelectionProvider({
   }, []);
 
   /**
-   * Update driver assignments on a planned service (client-side only, no backend calls)
+   * Patch a planned service's assignment tuple client-side.
+   *
+   * Any key present in `patch` — even with value `undefined` — is merged onto
+   * the service, so callers clear a slot by passing `{ assignedDriver:
+   * undefined }`. Keys absent from `patch` are untouched. No backend round-
+   * trip; persistence rides on the next `confirmService` via the extended
+   * `StoredServiceSchema`.
    */
-  const updateServiceDrivers = useCallback(
-    (serviceId: string, assignedDriver?: string, assignedDriver2?: string) => {
-      setPlannedServices((prev) => {
-        const updated = prev.map((ps) => {
-          if (ps.service.id === serviceId) {
-            return {
-              ...ps,
-              service: {
-                ...ps.service,
-                assignedDriver,
-                assignedDriver2,
-              },
-            };
-          }
-          return ps;
-        });
-        return updated;
-      });
+  const updateServiceAssignment = useCallback(
+    (
+      serviceId: string,
+      patch: Partial<
+        Pick<
+          SelectedService,
+          | "assignedCarrier"
+          | "assignedDriver"
+          | "assignedDriver2"
+          | "assignedTruck"
+          | "assignedTrailer"
+        >
+      >
+    ) => {
+      setPlannedServices((prev) =>
+        prev.map((ps) =>
+          ps.service.id === serviceId
+            ? { ...ps, service: { ...ps.service, ...patch } }
+            : ps
+        )
+      );
     },
     []
   );
@@ -1567,7 +1602,7 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      updateServiceDrivers,
+      updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,
@@ -1610,7 +1645,7 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      updateServiceDrivers,
+      updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,

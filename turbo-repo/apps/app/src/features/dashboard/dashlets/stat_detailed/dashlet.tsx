@@ -2,17 +2,19 @@
 
 import { HiArrowTrendingUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestDashletFields } from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useDashletPgrest } from "../common/use-dashlet-pgrest";
 import {
-  useDashletPgrest,
   DashletLoading,
   DashletError,
   parseResolvedNumber,
+} from "../common/dashlet-states";
+import {
   evaluateColorRulesWithFields,
   hexToRgba,
-  getStatBadgeClasses,
+  getBadgeClasses as getStatBadgeClasses,
   getConditionalClasses,
-} from "../common";
+} from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type {
   ValueColorRulesConfig,

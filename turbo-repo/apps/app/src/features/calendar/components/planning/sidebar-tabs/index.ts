@@ -4,8 +4,8 @@ export {
   type TimeSlotOption,
 } from "./planificacion/time-slot-assignment";
 
-// Asignación tab components
+// Assignment tab components
 export {
   AssignmentForm,
   type AssignmentFormData,
-} from "./asignacion/assignment-form";
+} from "./assignment/assignment-form";

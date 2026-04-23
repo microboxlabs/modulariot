@@ -36,6 +36,11 @@ export async function GET(req: NextRequest) {
         name: p.name,
         type: p.type ?? "string",
         format: p.format ?? p.type ?? "text",
+        required: p.required === true,
+        enum: Array.isArray(p.enum) ? p.enum.map(String) : undefined,
+        minimum: typeof p.minimum === "number" ? p.minimum : undefined,
+        maximum: typeof p.maximum === "number" ? p.maximum : undefined,
+        pattern: typeof p.pattern === "string" ? p.pattern : undefined,
       }));
 
     return NextResponse.json({ methods, parameters });

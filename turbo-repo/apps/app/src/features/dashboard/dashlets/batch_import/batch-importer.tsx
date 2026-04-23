@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -522,7 +523,7 @@ export function BatchImporterView({
   acceptedFileTypes,
   dictionary,
 }: Readonly<ViewProps>) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
   const {
     raw,
     doc,

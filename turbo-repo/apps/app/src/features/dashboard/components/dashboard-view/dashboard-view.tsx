@@ -26,7 +26,7 @@ import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
-import { DashboardShareDropdown } from "../dashboard-share-dropdown";
+import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
 /**

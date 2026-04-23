@@ -28,11 +28,11 @@ import {
 // Types
 // ============================================================================
 
-export interface CamionOption {
+export interface TruckOption {
   id: string;
   plate: string;
   marca: string;
-  tipo: "camion" | "furgon" | "camioneta";
+  tipo: "truck" | "furgon" | "trucketa";
   estado: "disponible" | "ocupado";
   gpsIntegrado: boolean;
   estadoGps: "online" | "offline";
@@ -54,7 +54,7 @@ type TruckMatchType =
 
 interface TruckSearchDropdownProps {
   readonly label: string;
-  readonly trucks: CamionOption[];
+  readonly trucks: TruckOption[];
   readonly selectedTruckId: string;
   readonly onSelect: (truckId: string) => void;
   readonly placeholder?: string;
@@ -75,7 +75,7 @@ interface TruckSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const TRUCK_FIELDS: readonly FieldConfig<CamionOption, TruckMatchType>[] = [
+const TRUCK_FIELDS: readonly FieldConfig<TruckOption, TruckMatchType>[] = [
   {
     field: "plate",
     getValue: (truck) => truck.plate,
@@ -243,7 +243,7 @@ function SignalLossValue({
  * a row happens in one place.
  */
 interface TruckStatsRowsProps {
-  readonly truck: CamionOption;
+  readonly truck: TruckOption;
   readonly dict: I18nRecord;
 }
 
@@ -291,7 +291,7 @@ function TruckCard({
   dict,
   onClick,
   onMouseEnter,
-}: CardRenderProps<CamionOption>) {
+}: CardRenderProps<TruckOption>) {
   const isAvailable = truck.estado === "disponible";
   const truckTypeLabel = tr(
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
@@ -340,7 +340,7 @@ function TruckCard({
 // Selected Button Renderer
 // ============================================================================
 
-function renderSelectedTruckButton(truck: CamionOption, dict: I18nRecord) {
+function renderSelectedTruckButton(truck: TruckOption, dict: I18nRecord) {
   const truckTypeLabel = tr(
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
     dict
@@ -378,7 +378,7 @@ export function TruckSearchDropdown({
   isLoadingMore,
 }: TruckSearchDropdownProps) {
   return (
-    <BaseSearchDropdown<CamionOption, TruckMatchType>
+    <BaseSearchDropdown<TruckOption, TruckMatchType>
       label={label}
       items={trucks}
       selectedId={selectedTruckId}

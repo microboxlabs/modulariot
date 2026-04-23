@@ -10,7 +10,7 @@ import {
 import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import type { ConductorOption } from "./assignment-form";
+import type { DriverOption } from "./assignment-form";
 import {
   BaseSearchDropdown,
   type FieldConfig,
@@ -30,7 +30,7 @@ type DriverMatchType =
 
 interface DriverSearchDropdownProps {
   readonly label: string;
-  readonly drivers: ConductorOption[];
+  readonly drivers: DriverOption[];
   readonly selectedDriverId: string;
   readonly onSelect: (driverId: string) => void;
   readonly placeholder?: string;
@@ -52,7 +52,7 @@ interface DriverSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const DRIVER_FIELDS: readonly FieldConfig<ConductorOption, DriverMatchType>[] =
+const DRIVER_FIELDS: readonly FieldConfig<DriverOption, DriverMatchType>[] =
   [
     {
       field: "name",
@@ -105,7 +105,7 @@ function DriverCard({
   dict,
   onClick,
   onMouseEnter,
-}: CardRenderProps<ConductorOption>) {
+}: CardRenderProps<DriverOption>) {
   const isEnabled = driver.estado === "habilitado";
 
   return (
@@ -194,7 +194,7 @@ function DriverCard({
 // Selected Button Renderer
 // ============================================================================
 
-function renderSelectedDriverButton(driver: ConductorOption, dict: I18nRecord) {
+function renderSelectedDriverButton(driver: DriverOption, dict: I18nRecord) {
   const isEnabled = driver.estado === "habilitado";
 
   return (
@@ -245,7 +245,7 @@ export function DriverSearchDropdown({
   isLoadingMore,
 }: DriverSearchDropdownProps) {
   return (
-    <BaseSearchDropdown<ConductorOption, DriverMatchType>
+    <BaseSearchDropdown<DriverOption, DriverMatchType>
       label={label}
       items={drivers}
       selectedId={selectedDriverId}

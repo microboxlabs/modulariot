@@ -44,6 +44,10 @@ export interface UseBatchImporterArgs {
   submit: SubmitFn;
   sourceKey: string;
   defaultStrategy?: DuplicateStrategy;
+  /** Optional pre-flight validator. Runs on every parse for rows that have no
+   *  cached terminal status, so schema mismatches surface in the preview and
+   *  gate the Import button instead of showing up one-by-one during submit. */
+  validate?: (fields: Record<string, string>) => string | null;
 }
 
 export interface BatchImporterState {
@@ -70,6 +74,7 @@ export function useBatchImporter({
   submit,
   sourceKey,
   defaultStrategy = "upsert",
+  validate,
 }: UseBatchImporterArgs): BatchImporterState {
   const [raw, setRaw] = useState<string>("");
   const [doc, setDoc] = useState<ParsedDocument | null>(null);
@@ -91,11 +96,21 @@ export function useBatchImporter({
             errorMessage: cache.errorlog[r.fingerprint],
           };
         }
+        if (validate) {
+          const err = validate(r.fields);
+          if (err) {
+            return {
+              ...r,
+              status: "failed" as RowStatus,
+              errorMessage: err,
+            };
+          }
+        }
         return r;
       });
       setDoc(parsed);
     },
-    [sourceKey],
+    [sourceKey, validate],
   );
 
   const cancelPendingParse = () => {
@@ -127,6 +142,15 @@ export function useBatchImporter({
   );
 
   useEffect(() => cancelPendingParse, []);
+
+  // If the schema arrives after the user has already pasted data, re-validate
+  // the existing rows so the preview and Import button reflect schema errors.
+  useEffect(() => {
+    if (raw) applyParse(raw);
+    // Intentionally only reruns on validator identity change; `raw` updates
+    // already trigger a parse via load/loadDebounced and would double-run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validate]);
 
   const loadFile = useCallback(
     async (file: File) => {

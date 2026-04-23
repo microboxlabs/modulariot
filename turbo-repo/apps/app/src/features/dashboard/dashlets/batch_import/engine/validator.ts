@@ -76,10 +76,11 @@ export function validateRow(
 ): string | null {
   const result = schema.safeParse(fields);
   if (result.success) return null;
+  // Newline-delimited so UI tooltips can render one error per line.
   return result.error.issues
     .map((i) => {
       const path = i.path.length > 0 ? i.path.join(".") : "row";
       return `${path}: ${i.message}`;
     })
-    .join("; ");
+    .join("\n");
 }

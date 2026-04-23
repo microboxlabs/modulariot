@@ -1922,7 +1922,8 @@
         "pasteHint": "Paste tab-separated or comma-separated content (copy from Excel works):",
         "headerError": {
           "empty": "The file is empty.",
-          "no_headers": "The first row has no valid headers."
+          "no_headers": "The first row has no valid headers.",
+          "duplicate_mapping": "Two columns are mapped to the same target name. Rename one of them to continue."
         },
         "statusCol": "Status",
         "total": "Total",

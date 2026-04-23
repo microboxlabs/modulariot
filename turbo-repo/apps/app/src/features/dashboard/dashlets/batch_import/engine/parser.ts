@@ -147,6 +147,27 @@ export function applyHeaderMap(
   }
   if (!anyChange) return doc;
   const mappedHeaders = doc.headers.map((h) => map[h] ?? h);
+  // Detect duplicate targets — two source headers mapped to the same target
+  // would silently overwrite each other inside the row `fields` object
+  // (object keys are unique), losing one column of data with no UI signal.
+  // Surface it as a headerError so the preview can show an explanatory
+  // banner instead of proceeding with a malformed row shape.
+  const freq = new Map<string, number>();
+  for (const h of mappedHeaders) freq.set(h, (freq.get(h) ?? 0) + 1);
+  let hasCollision = false;
+  for (const count of freq.values()) {
+    if (count > 1) {
+      hasCollision = true;
+      break;
+    }
+  }
+  if (hasCollision) {
+    return {
+      headers: doc.headers,
+      rows: doc.rows,
+      headerError: doc.headerError ?? "duplicate_mapping",
+    };
+  }
   const rows: ParsedRow[] = doc.rows.map((r) => {
     const fields: Record<string, string> = {};
     for (const h of doc.headers) fields[map[h] ?? h] = r.fields[h] ?? "";

@@ -13,12 +13,12 @@ import {
   SettingsTextField,
   SettingsTextareaField,
   SettingsPickerItem,
-  usePgrestSettingsState,
-  PgrestDataTab,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  useActiveProviders,
-} from "../common";
+} from "../common/settings-fields";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { useActiveProviders } from "../common/use-active-providers";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SimpleDashletSettings } from "../common";
+import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
 import {

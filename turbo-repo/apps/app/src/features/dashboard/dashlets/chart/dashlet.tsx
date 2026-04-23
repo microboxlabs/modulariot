@@ -4,12 +4,9 @@ import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
-import {
-  useDashletData,
-  DashletLoading,
-  DashletError,
-  resolveHandlebarsField,
-} from "../common";
+import { useDashletData } from "../common/use-dashlet-data";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
 import { useDashboard } from "../../context/dashboard-context";

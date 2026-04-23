@@ -5,12 +5,9 @@ import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import {
-  SimpleDashletSettings,
-  getHandlebarsStatus,
-  getFlowbiteColor,
-  DeleteItemButton,
-} from "../common";
+import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
+import { getHandlebarsStatus, getFlowbiteColor } from "../common/handlebars-helpers";
+import { DeleteItemButton } from "../common/delete-item-button";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
 import {

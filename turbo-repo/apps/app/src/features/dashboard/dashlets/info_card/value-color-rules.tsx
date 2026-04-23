@@ -4,9 +4,8 @@ import {
   type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
-  createValueColorRulesUtils,
-  textIconTargets,
-} from "../common";
+} from "../common/color-rule-setter";
+import { createValueColorRulesUtils, textIconTargets } from "../common/value-color-rules-factory";
 
 // ============================================================================
 // Types specific to info_card

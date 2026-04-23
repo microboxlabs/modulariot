@@ -10,19 +10,16 @@ import {
   IconPickerDropdown,
   type IconOption,
 } from "@/features/common/components/icon-picker-dropdown";
-import {
-  HbTextField,
-  HbTextareaField,
-  useDataProvider,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  DataProviderEntries,
-  type SimpleDataMode,
-  isRemoteDataMode,
-} from "../common";
+import { HbTextField, HbTextareaField } from "../common/settings-fields";
+import { useDataProvider } from "../common/use-data-provider";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { DataProviderEntries } from "../common/data-provider-entries";
+import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
+import { isRemoteDataMode } from "../common/use-simple-pgrest-settings";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";

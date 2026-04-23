@@ -827,7 +827,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                               rowIdx,
                               displayRows.length
                             ),
-                            col.colorMap
+                            col.colorRulesEnabled ? col.colorMap : undefined
                           )}
                         </td>
                       ))}

@@ -236,7 +236,7 @@ function ListCard({
 }: Readonly<ListCardProps>) {
   function resolveColorMap(key: string): BadgeColorMapping[] | undefined {
     const col = columns.find((c) => c.key === key);
-    return col?.colorMap;
+    return col?.colorRulesEnabled ? col.colorMap : undefined;
   }
 
   const titleValue = resolveValue(

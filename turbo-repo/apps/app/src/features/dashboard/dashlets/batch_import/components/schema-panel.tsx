@@ -123,7 +123,7 @@ export const SchemaPanel = memo(function SchemaPanel({
                       {present ? (
                         <HiCheck
                           className="inline h-4 w-4 text-green-600 dark:text-green-400"
-                          aria-label="present"
+                          aria-label={labels.present}
                         />
                       ) : (
                         <HiXMark
@@ -132,7 +132,7 @@ export const SchemaPanel = memo(function SchemaPanel({
                               ? "text-red-600 dark:text-red-400"
                               : "text-gray-400 dark:text-gray-500"
                           }`}
-                          aria-label="missing"
+                          aria-label={labels.missing}
                         />
                       )}
                     </td>

@@ -5,7 +5,6 @@ import {
   Modal,
   ModalBody,
   ModalFooter,
-  ModalHeader,
   Button,
   Alert,
 } from "flowbite-react";
@@ -88,14 +87,15 @@ export default function FormModal({
   return (
     <Modal dismissible show={isOpen} onClose={onClose} size={size}>
       <form onSubmit={handleSubmit}>
-        <ModalHeader className="border-none">
-          <div className="flex flex-col items-start">
-            <h2 className="text-base font-semibold">{title}</h2>
-            {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
-            )}
-          </div>
-        </ModalHeader>
+        {/* Plain div instead of flowbite's <ModalHeader> — ModalHeader renders
+            a built-in close (X) button that the app's modal convention doesn't
+            use. Exit is via the Cancel/Close button in the footer. */}
+        <div className="flex flex-col items-start p-4 md:p-5">
+          <h2 className="text-base font-semibold">{title}</h2>
+          {subtitle && (
+            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+          )}
+        </div>
         <ModalBody className="max-h-[70vh] overflow-y-auto">
           <div className="flex flex-col my-4">{children}</div>
           {error && (

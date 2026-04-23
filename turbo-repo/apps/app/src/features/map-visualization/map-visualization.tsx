@@ -5,6 +5,12 @@ import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
 import { Spinner } from "flowbite-react";
 import type { RefObject } from "react";
+import type {
+  MapDataProvider,
+  MapDataProviderDefaults,
+} from "./map-data-provider.types";
+import { useMapDataProvider } from "./use-map-data-provider";
+import { buildDataProviderLayers } from "./layers/build-layers";
 
 const mapStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -40,16 +46,31 @@ export default function MapVisualization({
   isLoading = false,
   mapRef,
   onZoomChange,
+  dataProvider,
+  dataProviderDefaults,
 }: {
   mapStyle: keyof typeof mapStyles;
   layers: LayersList;
   isLoading?: boolean;
   mapRef: RefObject<MapRef | null>;
   onZoomChange?: (zoom: number) => void;
+  dataProvider?: MapDataProvider;
+  dataProviderDefaults?: MapDataProviderDefaults;
 }) {
   const [cursor, setCursor] = useState<string>("grab");
   const [isMapDragging, setIsMapDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data: providerData } = useMapDataProvider(dataProvider);
+
+  const mergedLayers = useMemo(() => {
+    if (!providerData) return layers;
+    const dpLayers = buildDataProviderLayers(
+      providerData,
+      dataProviderDefaults
+    );
+    return [...dpLayers, ...layers];
+  }, [providerData, dataProviderDefaults, layers]);
 
   // Resize map when container size changes
   useEffect(() => {
@@ -121,7 +142,7 @@ export default function MapVisualization({
           </div>
         )}
         <DeckGLOverlay
-          layers={layers}
+          layers={mergedLayers}
           getCursor={({ isHovering }) => {
             let newCursor: string;
             if (isMapDragging) {

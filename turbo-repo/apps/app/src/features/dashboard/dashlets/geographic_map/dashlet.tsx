@@ -21,6 +21,10 @@ import {
   center_in_bounds,
   flyTo,
 } from "@/features/map-visualization/map-view-utils";
+import type {
+  MapDataProvider,
+  MapDataProviderDefaults,
+} from "@/features/map-visualization/map-data-provider.types";
 import type { MapRef } from "react-map-gl";
 import { Spinner } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
@@ -34,12 +38,16 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 export interface DashletConfig {
   showFilters: boolean;
   showStyleSelector: boolean;
+  dataProvider?: MapDataProvider;
+  dataProviderDefaults?: MapDataProviderDefaults;
 }
 
 /** Zod schema for runtime validation */
 const dashletConfigSchema = z.object({
   showFilters: z.boolean(),
   showStyleSelector: z.boolean(),
+  dataProvider: z.any().optional(),
+  dataProviderDefaults: z.any().optional(),
 });
 
 /** Default configuration */
@@ -103,6 +111,55 @@ function MapLoadingSkeleton() {
       </div>
       <Spinner size="xl" />
     </div>
+  );
+}
+
+// ============================================================================
+// Data Provider Map Content Component
+// ============================================================================
+
+interface DataProviderMapContentProps {
+  dataProvider: MapDataProvider;
+  dataProviderDefaults?: MapDataProviderDefaults;
+  showStyleSelector: boolean;
+}
+
+function DataProviderMapContent({
+  dataProvider,
+  dataProviderDefaults,
+  showStyleSelector,
+}: Readonly<DataProviderMapContentProps>) {
+  const { dictionary } = useDashboard();
+  const [mapStyle, setMapStyle] = useState("satellite");
+  const mapRef = useRef<MapRef>(null);
+
+  return (
+    <>
+      <MapVisualizationGeneric
+        mapStyle={
+          mapStyle as
+            | "satellite"
+            | "streets"
+            | "dark"
+            | "light"
+            | "outdoors"
+            | "hybrid"
+        }
+        layers={[]}
+        mapRef={mapRef}
+        dataProvider={dataProvider}
+        dataProviderDefaults={dataProviderDefaults}
+      />
+      {showStyleSelector && (
+        <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
+          <MapStyleSelector
+            dict={dictionary}
+            selectedStyle={mapStyle}
+            setSelectedStyle={setMapStyle}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -288,6 +345,8 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
   const showStyleSelector = config.showStyleSelector;
 
   const { dictionary } = useDashboard();
+  const hasDataProvider = config.dataProvider !== undefined;
+
   const {
     positions: mapPositions,
     isLoading,
@@ -295,7 +354,7 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
     mutate,
   } = useMapPositions();
 
-  if (error) {
+  if (!hasDataProvider && error) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
         <span className="text-sm font-medium text-red-600 dark:text-red-400">
@@ -308,6 +367,19 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
         >
           {tr("common.retry", dictionary)}
         </button>
+      </div>
+    );
+  }
+
+  if (hasDataProvider) {
+    return (
+      <div className="h-full w-full relative overflow-hidden rounded-lg">
+        <DataProviderMapContent
+          dataProvider={config.dataProvider!}
+          dataProviderDefaults={config.dataProviderDefaults}
+          showStyleSelector={showStyleSelector}
+        />
+        {editMode && <EditModeOverlay dictionary={dictionary} />}
       </div>
     );
   }

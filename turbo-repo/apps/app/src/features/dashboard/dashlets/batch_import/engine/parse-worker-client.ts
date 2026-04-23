@@ -43,7 +43,10 @@ function runInline(
 }
 
 function getHandle(): WorkerHandle | null {
-  if (typeof window === "undefined" || typeof Worker === "undefined") {
+  // Worker is undefined in SSR / Node test envs, which is what we really
+  // guard against here — checking the global `Worker` ctor avoids a separate
+  // window check and keeps us clear of environment-specific globals.
+  if (typeof Worker === "undefined") {
     return null;
   }
   if (handle) return handle;

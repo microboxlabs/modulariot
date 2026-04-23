@@ -57,7 +57,6 @@ export function StatusIcon({
       title={title}
       className={`inline-flex h-6 w-6 cursor-help items-center justify-center rounded-full text-sm font-bold leading-none ${style.className}`}
       aria-label={label}
-      tabIndex={0}
     >
       {style.glyph}
     </span>

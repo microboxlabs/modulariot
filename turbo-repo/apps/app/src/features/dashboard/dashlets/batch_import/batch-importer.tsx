@@ -422,10 +422,11 @@ export function useBatchImporter({
       failed: 0,
       wait: 0,
     };
-    if (!doc) return c;
-    for (const r of doc.rows) {
-      c.total++;
-      c[getRowState(rowStates, r.index).status]++;
+    if (doc) {
+      for (const r of doc.rows) {
+        c.total++;
+        c[getRowState(rowStates, r.index).status]++;
+      }
     }
     return c;
   }, [doc, rowStates]);

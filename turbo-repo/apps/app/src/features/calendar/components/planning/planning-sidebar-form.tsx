@@ -192,14 +192,14 @@ function assignmentOverrides(
   data: AssignmentFormData
 ): Partial<SelectedService> {
   const out: Partial<SelectedService> = {};
-  if (data.transportista) out.assignedCarrier = data.transportista;
-  if (data.conductor) out.assignedDriver = data.conductor;
-  if (data.hasSegundoConductor && data.segundoConductor) {
-    out.assignedDriver2 = data.segundoConductor;
+  if (data.carrier) out.assignedCarrier = data.carrier;
+  if (data.driver) out.assignedDriver = data.driver;
+  if (data.hasSecondDriver && data.secondDriver) {
+    out.assignedDriver2 = data.secondDriver;
   }
-  if (data.camion) out.assignedTruck = data.camion;
-  if (data.hasRemolque && data.remolque) {
-    out.assignedTrailer = data.remolque;
+  if (data.truck) out.assignedTruck = data.truck;
+  if (data.hasTrailer && data.trailer) {
+    out.assignedTrailer = data.trailer;
   }
   return out;
 }
@@ -208,20 +208,20 @@ function assignmentOverrides(
  * Build the initial `AssignmentFormData` from a service, hydrating the
  * carrier / driver / truck / trailer slots from the values persisted on the
  * previous `confirmService` call. Missing fields collapse to empty strings;
- * `hasSegundoConductor` / `hasRemolque` toggle on when the matching slot is
+ * `hasSecondDriver` / `hasTrailer` toggle on when the matching slot is
  * set so the conditional UI opens automatically on reassign.
  */
 function assignmentDataFromService(
   service: SelectedService | undefined
 ): AssignmentFormData {
   return {
-    transportista: service?.assignedCarrier ?? "",
-    conductor: service?.assignedDriver ?? "",
-    segundoConductor: service?.assignedDriver2 ?? "",
-    hasSegundoConductor: Boolean(service?.assignedDriver2),
-    camion: service?.assignedTruck ?? "",
-    remolque: service?.assignedTrailer ?? "",
-    hasRemolque: Boolean(service?.assignedTrailer),
+    carrier: service?.assignedCarrier ?? "",
+    driver: service?.assignedDriver ?? "",
+    secondDriver: service?.assignedDriver2 ?? "",
+    hasSecondDriver: Boolean(service?.assignedDriver2),
+    truck: service?.assignedTruck ?? "",
+    trailer: service?.assignedTrailer ?? "",
+    hasTrailer: Boolean(service?.assignedTrailer),
   };
 }
 
@@ -292,22 +292,22 @@ export function PlanningSidebarForm({
   const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
 
   // Tab state management
-  type TabType = "planificacion" | "asignacion";
+  type TabType = "planificacion" | "assignment";
   const [activeTab, setActiveTab] = useState<TabType>("planificacion");
 
   // Set initial tab based on permissions once loaded (fail-closed)
   useEffect(() => {
     if (isLoadingPermissions) return;
 
-    // Auto-switch to asignacion when assignment mode is triggered
+    // Auto-switch to assignment tab when assignment mode is triggered
     if (assigningService && canAssign) {
-      setActiveTab("asignacion");
+      setActiveTab("assignment");
       return;
     }
 
     // Default to first available tab based on permissions
     if (!canPlan && canAssign) {
-      setActiveTab("asignacion");
+      setActiveTab("assignment");
     }
   }, [isLoadingPermissions, assigningService, canAssign, canPlan]);
 
@@ -799,7 +799,7 @@ export function PlanningSidebarForm({
                 disabled: !canPlan,
               },
               {
-                id: "asignacion",
+                id: "assignment",
                 label: tr("pages.planning.sidebar.form.assignmentTab", dict),
                 icon: <HiUserAdd />,
                 disabled: !canAssign,
@@ -827,7 +827,7 @@ export function PlanningSidebarForm({
             reassigningService={reassigningService}
           />
         )}
-        {activeTab === "asignacion" && canAssign && (
+        {activeTab === "assignment" && canAssign && (
           <>
             <AssignmentForm
               value={assignmentData}
@@ -847,9 +847,9 @@ export function PlanningSidebarForm({
                 onClick={handleAssign}
                 disabled={
                   !assigningService ||
-                  !assignmentData.transportista ||
-                  !assignmentData.conductor ||
-                  !assignmentData.camion
+                  !assignmentData.carrier ||
+                  !assignmentData.driver ||
+                  !assignmentData.truck
                 }
               >
                 {tr("pages.planning.sidebar.form.assign", dict)}

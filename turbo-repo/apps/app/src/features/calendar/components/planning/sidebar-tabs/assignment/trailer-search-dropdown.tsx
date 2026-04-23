@@ -61,7 +61,7 @@ export type RemolqueTipo =
   | "SIDE"
   | "SIL";
 
-export interface RemolqueOption {
+export interface TrailerOption {
   id: string;
   plate: string;
   tipo: RemolqueTipo;
@@ -74,7 +74,7 @@ export interface RemolqueOption {
   problemasReportados: number;
 }
 
-type RemolqueMatchType =
+type TrailerMatchType =
   | "plate"
   | "tipo"
   | "estado"
@@ -82,11 +82,11 @@ type RemolqueMatchType =
   | "capacidadKg"
   | "kilometraje";
 
-interface RemolqueSearchDropdownProps {
+interface TrailerSearchDropdownProps {
   readonly label: string;
-  readonly remolques: RemolqueOption[];
-  readonly selectedRemolqueId: string;
-  readonly onSelect: (remolqueId: string) => void;
+  readonly trailers: TrailerOption[];
+  readonly selectedTrailerId: string;
+  readonly onSelect: (trailerId: string) => void;
   readonly placeholder?: string;
   readonly disabled?: boolean;
   readonly dict: I18nRecord;
@@ -98,64 +98,64 @@ interface RemolqueSearchDropdownProps {
 
 const ICON_CLASS = "w-4 h-4 text-gray-600 dark:text-gray-400";
 
-const REMOLQUE_FIELDS: readonly FieldConfig<
-  RemolqueOption,
-  RemolqueMatchType
+const TRAILER_FIELDS: readonly FieldConfig<
+  TrailerOption,
+  TrailerMatchType
 >[] = [
   {
     field: "plate",
-    getValue: (remolque) => remolque.plate,
+    getValue: (trailer) => trailer.plate,
     getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.remolqueSearchFields.plate", dict),
+      tr("pages.planning.sidebar.assignment.trailerSearchFields.plate", dict),
     getIcon: () => <HiTruck className={ICON_CLASS} />,
   },
   {
     field: "tipo",
-    getValue: (remolque, dict) =>
+    getValue: (trailer, dict) =>
       tr(
-        `pages.planning.sidebar.assignment.remolqueType.${remolque.tipo}`,
+        `pages.planning.sidebar.assignment.trailerType.${trailer.tipo}`,
         dict
       ),
     getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.remolqueSearchFields.type", dict),
+      tr("pages.planning.sidebar.assignment.trailerSearchFields.type", dict),
     getIcon: () => <HiTruck className={ICON_CLASS} />,
   },
   {
     field: "estado",
-    getValue: (remolque, dict) =>
-      remolque.estado === "disponible"
+    getValue: (trailer, dict) =>
+      trailer.estado === "disponible"
         ? tr("pages.planning.sidebar.assignment.available", dict)
         : tr("pages.planning.sidebar.assignment.busy", dict),
     getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.remolqueSearchFields.status", dict),
+      tr("pages.planning.sidebar.assignment.trailerSearchFields.status", dict),
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
   },
   {
     field: "gpsIntegrado",
-    getValue: (remolque, dict) =>
-      remolque.gpsIntegrado
+    getValue: (trailer, dict) =>
+      trailer.gpsIntegrado
         ? tr("pages.planning.sidebar.assignment.integrated", dict)
         : tr("pages.planning.sidebar.assignment.notIntegrated", dict),
     getLabel: (dict) =>
-      tr("pages.planning.sidebar.assignment.remolqueSearchFields.gps", dict),
+      tr("pages.planning.sidebar.assignment.trailerSearchFields.gps", dict),
     getIcon: () => <HiLocationMarker className={ICON_CLASS} />,
   },
   {
     field: "capacidadKg",
-    getValue: (remolque) => String(remolque.capacidadKg),
+    getValue: (trailer) => String(trailer.capacidadKg),
     getLabel: (dict) =>
       tr(
-        "pages.planning.sidebar.assignment.remolqueSearchFields.capacity",
+        "pages.planning.sidebar.assignment.trailerSearchFields.capacity",
         dict
       ),
     getIcon: () => <HiScale className={ICON_CLASS} />,
   },
   {
     field: "kilometraje",
-    getValue: (remolque) => String(remolque.kilometraje),
+    getValue: (trailer) => String(trailer.kilometraje),
     getLabel: (dict) =>
       tr(
-        "pages.planning.sidebar.assignment.remolqueSearchFields.mileage",
+        "pages.planning.sidebar.assignment.trailerSearchFields.mileage",
         dict
       ),
     getIcon: () => <HiClock className={ICON_CLASS} />,
@@ -166,19 +166,19 @@ const REMOLQUE_FIELDS: readonly FieldConfig<
 // Remolque Card Component
 // ============================================================================
 
-function RemolqueCard({
-  item: remolque,
+function TrailerCard({
+  item: trailer,
   isSelected,
   isHighlighted,
   dict,
   onClick,
   onMouseEnter,
-}: CardRenderProps<RemolqueOption>) {
-  const isAvailable = remolque.estado === "disponible";
-  const isGpsIntegrado = remolque.gpsIntegrado;
-  const isOnline = remolque.estadoGps === "online";
+}: CardRenderProps<TrailerOption>) {
+  const isAvailable = trailer.estado === "disponible";
+  const isGpsIntegrado = trailer.gpsIntegrado;
+  const isOnline = trailer.estadoGps === "online";
   const subtitle = tr(
-    `pages.planning.sidebar.assignment.remolqueType.${remolque.tipo}`,
+    `pages.planning.sidebar.assignment.trailerType.${trailer.tipo}`,
     dict
   );
 
@@ -193,7 +193,7 @@ function RemolqueCard({
       {/* Header: Plate + Type + GPS Status */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <VehicleHeader
-          plate={remolque.plate}
+          plate={trailer.plate}
           subtitle={subtitle}
           isSelected={isSelected}
         />
@@ -208,21 +208,21 @@ function RemolqueCard({
       <div className="flex flex-col gap-0.5 text-[11px]">
         <StatRow
           label={tr("pages.planning.sidebar.assignment.capacity", dict)}
-          value={`${remolque.capacidadKg.toLocaleString()} kg`}
+          value={`${trailer.capacidadKg.toLocaleString()} kg`}
         />
         <StatRow
           label={tr("pages.planning.sidebar.assignment.lastMaintenance", dict)}
-          value={remolque.ultimoMantenimiento}
+          value={trailer.ultimoMantenimiento}
         />
         <StatRow
           label={tr("pages.planning.sidebar.assignment.mileage", dict)}
-          value={`${remolque.kilometraje.toLocaleString()} km`}
+          value={`${trailer.kilometraje.toLocaleString()} km`}
         />
       </div>
 
       {/* Reported problems - only show if there are any */}
       <WarningBadge
-        count={remolque.problemasReportados}
+        count={trailer.problemasReportados}
         labelKey="pages.planning.sidebar.assignment.reportedProblems"
         dict={dict}
       />
@@ -234,14 +234,14 @@ function RemolqueCard({
 // Selected Button Renderer
 // ============================================================================
 
-function renderSelectedRemolqueButton(
-  remolque: RemolqueOption,
+function renderSelectedTrailerButton(
+  trailer: TrailerOption,
   dict: I18nRecord
 ) {
-  const isGpsIntegrado = remolque.gpsIntegrado;
-  const isOnline = remolque.estadoGps === "online";
+  const isGpsIntegrado = trailer.gpsIntegrado;
+  const isOnline = trailer.estadoGps === "online";
   const subtitle = tr(
-    `pages.planning.sidebar.assignment.remolqueType.${remolque.tipo}`,
+    `pages.planning.sidebar.assignment.trailerType.${trailer.tipo}`,
     dict
   );
 
@@ -249,7 +249,7 @@ function renderSelectedRemolqueButton(
     <div className="flex flex-col">
       {/* Header with plate, type, GPS status, and chevron */}
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <VehicleHeader plate={remolque.plate} subtitle={subtitle} isSelected />
+        <VehicleHeader plate={trailer.plate} subtitle={subtitle} isSelected />
         <div className="flex flex-col items-end gap-1 shrink-0">
           <div className="flex items-center gap-1.5">
             <GpsBadge isGpsIntegrado={isGpsIntegrado} dict={dict} />
@@ -263,21 +263,21 @@ function renderSelectedRemolqueButton(
       <div className="flex flex-col gap-0.5 text-[11px] pt-1 border-t border-gray-100 dark:border-gray-700">
         <StatRow
           label={tr("pages.planning.sidebar.assignment.capacity", dict)}
-          value={`${remolque.capacidadKg.toLocaleString()} kg`}
+          value={`${trailer.capacidadKg.toLocaleString()} kg`}
         />
         <StatRow
           label={tr("pages.planning.sidebar.assignment.lastMaintenance", dict)}
-          value={remolque.ultimoMantenimiento}
+          value={trailer.ultimoMantenimiento}
         />
         <StatRow
           label={tr("pages.planning.sidebar.assignment.mileage", dict)}
-          value={`${remolque.kilometraje.toLocaleString()} km`}
+          value={`${trailer.kilometraje.toLocaleString()} km`}
         />
       </div>
 
       {/* Reported problems - only show if there are any */}
       <WarningBadge
-        count={remolque.problemasReportados}
+        count={trailer.problemasReportados}
         labelKey="pages.planning.sidebar.assignment.reportedProblems"
         dict={dict}
       />
@@ -289,32 +289,32 @@ function renderSelectedRemolqueButton(
 // Main Component
 // ============================================================================
 
-export function RemolqueSearchDropdown({
+export function TrailerSearchDropdown({
   label,
-  remolques,
-  selectedRemolqueId,
+  trailers,
+  selectedTrailerId,
   onSelect,
   placeholder,
   disabled = false,
   dict,
-}: RemolqueSearchDropdownProps) {
+}: TrailerSearchDropdownProps) {
   return (
-    <BaseSearchDropdown<RemolqueOption, RemolqueMatchType>
+    <BaseSearchDropdown<TrailerOption, TrailerMatchType>
       label={label}
-      items={remolques}
-      selectedId={selectedRemolqueId}
+      items={trailers}
+      selectedId={selectedTrailerId}
       onSelect={onSelect}
       placeholder={placeholder}
       disabled={disabled}
       dict={dict}
-      fields={REMOLQUE_FIELDS}
+      fields={TRAILER_FIELDS}
       translations={{
-        search: "pages.planning.sidebar.assignment.searchRemolque",
-        noResults: "pages.planning.sidebar.assignment.noRemolquesFound",
+        search: "pages.planning.sidebar.assignment.searchTrailer",
+        noResults: "pages.planning.sidebar.assignment.noTrailersFound",
       }}
-      renderCard={(props) => <RemolqueCard {...props} />}
-      renderSelectedButton={renderSelectedRemolqueButton}
-      canSelect={(remolque) => remolque.estado === "disponible"}
+      renderCard={(props) => <TrailerCard {...props} />}
+      renderSelectedButton={renderSelectedTrailerButton}
+      canSelect={(trailer) => trailer.estado === "disponible"}
     />
   );
 }

@@ -160,8 +160,6 @@ export function useBatchImporter({
   /** Separate token for validation passes so a rename that triggers a new
    *  validation doesn't have to wait on an in-flight parse (or vice-versa). */
   const validateToken = useRef(0);
-  const paramsRef = useRef<IntrospectedParam[] | null>(params ?? null);
-  paramsRef.current = params ?? null;
 
   /** Apply header renames to the raw parse. Memoized so consumers — including
    *  React.memo'd row children — don't churn on unrelated state updates. */

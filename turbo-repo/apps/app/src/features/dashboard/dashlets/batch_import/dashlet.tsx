@@ -66,7 +66,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     fetch(`/app/api/dashboard/pgrest/openapi?${qs.toString()}`, {
       signal: ac.signal,
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((res) =>
+        res.ok
+          ? res.json()
+          : Promise.reject(
+              new Error(
+                `OpenAPI introspection failed: ${res.status} ${res.statusText}`,
+              ),
+            ),
+      )
       .then((data: { parameters?: IntrospectedParam[] }) => {
         setParams(data.parameters ?? []);
       })

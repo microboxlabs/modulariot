@@ -11,6 +11,17 @@ export interface IntrospectedParam {
   pattern?: string;
 }
 
+const TRUTHY_STRINGS = ["true", "1", "yes"];
+const FALSY_STRINGS = ["false", "0", "no"];
+
+function coerceBooleanString(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  const lower = v.toLowerCase();
+  if (TRUTHY_STRINGS.includes(lower)) return true;
+  if (FALSY_STRINGS.includes(lower)) return false;
+  return v;
+}
+
 function buildFieldSchema(p: IntrospectedParam): z.ZodTypeAny {
   if (p.enum && p.enum.length > 0) {
     return z.enum(p.enum as [string, ...string[]]);
@@ -25,17 +36,7 @@ function buildFieldSchema(p: IntrospectedParam): z.ZodTypeAny {
   }
 
   if (p.type === "boolean") {
-    return z.preprocess(
-      (v) =>
-        typeof v === "string"
-          ? ["true", "1", "yes"].includes(v.toLowerCase())
-            ? true
-            : ["false", "0", "no"].includes(v.toLowerCase())
-              ? false
-              : v
-          : v,
-      z.boolean(),
-    );
+    return z.preprocess(coerceBooleanString, z.boolean());
   }
 
   let s: z.ZodString = z.string();

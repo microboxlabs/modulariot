@@ -820,6 +820,7 @@ function VirtualPreview({
                       displayName={displayName}
                       expectedNames={expectedNames}
                       onRename={renameHeader}
+                      dictionary={dictionary}
                     />
                   );
                 })}

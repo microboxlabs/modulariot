@@ -4,9 +4,8 @@ import {
   type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
-  createValueColorRulesUtils,
-  textBgTargets,
-} from "../common";
+} from "../common/color-rule-setter";
+import { createValueColorRulesUtils, textBgTargets } from "../common/value-color-rules-factory";
 
 // ============================================================================
 // Types specific to stat_expandable

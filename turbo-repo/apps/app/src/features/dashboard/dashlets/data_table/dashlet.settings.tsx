@@ -13,7 +13,8 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
-import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import {
   buildPgrestSettingsConfig,
@@ -78,6 +79,30 @@ export function DashletSettings({
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
+  });
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title: s.title,
+    showRowCount: s.showRowCount,
+    dataMode: s.dataMode,
+    columns: s.columns,
+    rowsJson: s.rowsJson,
+    filterEnabled: s.filterEnabled,
+    filterItems: s.filterItems,
+    sortEnabled: s.sortEnabled,
+    sortColumns: s.sortColumns,
+    rowColorRulesEnabled: s.rowColorRulesEnabled,
+    rowColorRuleItems: s.rowColorRuleItems,
+    actionsEnabled: s.actionsEnabled,
+    actionItems: s.actionItems,
+    showColumnDividers,
+    showExport,
+    dataSourceId,
+    plannerVariableName,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    refreshValue: refresh.value,
   });
 
   const handleSave = () => {
@@ -175,6 +200,7 @@ export function DashletSettings({
       title={dashletName}
       displayOptionsChildren={displayOptions}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

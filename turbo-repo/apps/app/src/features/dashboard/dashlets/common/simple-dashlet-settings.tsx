@@ -5,14 +5,13 @@ import { useMemo, useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "./settings-modal-shell";
+import { useWidgetRefreshSettings } from "./use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "./settings-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useThresholdSettings } from "./use-threshold-settings";
 import { ThresholdEditor } from "./threshold-editor";
+import { useSettingsDirty } from "./use-settings-dirty";
 import type { ThresholdConfig } from "./threshold-types";
 
 // ============================================================================
@@ -143,15 +142,9 @@ export function SimpleDashletSettings<C extends object>({
 
   const {
     isPgrest,
-    activeProviders,
     dataMode,
-    dataSourceId,
-    setDataSourceId,
-    plannerVariableName,
-    setPlannerVariableName,
-    pg,
-    handleDataModeChange,
     pgrestSaveFields,
+    dataTabProps,
   } = useSimplePgrestSettings({
     config: config as Record<string, unknown>,
     fieldNames,
@@ -160,33 +153,30 @@ export function SimpleDashletSettings<C extends object>({
   });
 
   const schemaSuggestions =
-    dataMode === "planner" && plannerVariableName
-      ? schemas.get(plannerVariableName)
+    dataMode === "planner" && dataTabProps.plannerVariableName
+      ? schemas.get(dataTabProps.plannerVariableName)
       : undefined;
 
+  // ── Save payload (shared by dirty tracking & handleSave) ────────────
+  const buildFullSavePayload = () => ({
+    ...buildSaveValues(),
+    ...extraSaveFields,
+    ...pgrestSaveFields,
+    ...refresh.savePayload,
+    ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
+  });
+
+  // ── Dirty tracking ──────────────────────────────────────────────────
+  const isDirty = useSettingsDirty(isOpen, buildFullSavePayload());
+
   const handleSave = () => {
-    onSave({
-      ...buildSaveValues(),
-      ...extraSaveFields,
-      ...pgrestSaveFields,
-      ...refresh.savePayload,
-      ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
-    } as unknown as Partial<C>);
+    onSave(buildFullSavePayload() as unknown as Partial<C>);
     onClose();
   };
 
   const thresholdNode = showThresholds ? (
     <ThresholdEditor
-      enabled={threshold.thresholdEnabled}
-      onToggle={threshold.setThresholdEnabled}
-      field={threshold.thresholdField}
-      onFieldChange={threshold.setThresholdField}
-      applyTo={threshold.thresholdApplyTo}
-      onApplyToChange={threshold.setThresholdApplyTo}
-      rules={threshold.thresholdRules}
-      onAdd={threshold.addThresholdRule}
-      onRemove={threshold.removeThresholdRule}
-      onUpdate={threshold.updateThresholdRule}
+      {...threshold.editorProps}
       schemaSuggestions={schemaSuggestions}
       dictionary={dictionary}
     />
@@ -210,29 +200,22 @@ export function SimpleDashletSettings<C extends object>({
   const dataTab = (
     <PgrestDataTab
       id={`${idPrefix}-data-mode`}
-      dataMode={dataMode}
-      onDataModeChange={handleDataModeChange}
-      pgrest={pg}
+      {...dataTabProps}
       dictionary={dictionary}
-      plannerVariableName={plannerVariableName}
-      onPlannerVariableNameChange={setPlannerVariableName}
-      dataSourceId={dataSourceId}
-      onDataSourceIdChange={setDataSourceId}
-      activeProviders={activeProviders}
     />
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

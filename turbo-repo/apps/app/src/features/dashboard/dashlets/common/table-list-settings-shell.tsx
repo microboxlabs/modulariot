@@ -127,7 +127,7 @@ export function TableListSettingsShell({
           addColumn: tr("dashboard.settings.addColumn", dictionary),
           addMapping: tr("dashboard.settings.addRule", dictionary),
           stickyColumn: tr("dashboard.settings.stickyColumn", dictionary),
-          rulesLabel: tr("dashboard.settings.badgeColorRules", dictionary),
+          rulesLabel: tr("dashboard.settings.colorRules", dictionary),
           valuePlaceholder,
           operatorLabels,
         }}

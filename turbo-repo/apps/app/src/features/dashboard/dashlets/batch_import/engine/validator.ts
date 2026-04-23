@@ -11,14 +11,14 @@ export interface IntrospectedParam {
   pattern?: string;
 }
 
-const TRUTHY_STRINGS = ["true", "1", "yes"];
-const FALSY_STRINGS = ["false", "0", "no"];
+const TRUTHY_STRINGS = new Set(["true", "1", "yes"]);
+const FALSY_STRINGS = new Set(["false", "0", "no"]);
 
 function coerceBooleanString(v: unknown): unknown {
   if (typeof v !== "string") return v;
   const lower = v.toLowerCase();
-  if (TRUTHY_STRINGS.includes(lower)) return true;
-  if (FALSY_STRINGS.includes(lower)) return false;
+  if (TRUTHY_STRINGS.has(lower)) return true;
+  if (FALSY_STRINGS.has(lower)) return false;
   return v;
 }
 

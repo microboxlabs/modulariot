@@ -188,12 +188,10 @@ export function renderCell(
   colorMap?: BadgeColorMapping[]
 ) {
   const resolved = isColumnType(type) ? type : "text";
-  // "highlight" is deprecated → treated as "text"
-  const effective = resolved === "highlight" ? "text" : resolved;
   const match = findMatchingRule(colorMap, value);
 
-  if (effective === "badge") return renderBadge(value, match);
-  if (effective === "signed") return renderSigned(value, match);
-  if (effective === "progress") return renderProgress(value, match);
+  if (resolved === "badge") return renderBadge(value, match);
+  if (resolved === "signed") return renderSigned(value, match);
+  if (resolved === "progress") return renderProgress(value, match);
   return renderText(value, match);
 }

@@ -7,7 +7,6 @@ export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 export const COLUMN_TYPES: ColumnType[] = [
   "text",
   "badge",
-  "highlight",
   "signed",
   "progress",
 ];
@@ -44,8 +43,10 @@ export interface TableColumn {
   type: string;
   /** Semantic data type for per-column filtering. Defaults to "text" when absent. */
   dataType?: DataType;
-  /** Value-to-color mappings for badge columns. Falls back to keyword matching if absent. */
+  /** Value-to-color mappings. Evaluated for all column types when colorRulesEnabled is true. */
   colorMap?: BadgeColorMapping[];
+  /** When true, colorMap rules are evaluated and applied for this column. */
+  colorRulesEnabled?: boolean;
   /** When true the column sticks to the left edge during horizontal scroll. */
   sticky?: boolean;
   /** When true the description tooltip is shown on the column header. */

@@ -25,6 +25,7 @@ export function fromColumnItems(items: ColumnItem[]): TableColumn[] {
       type,
       dataType,
       colorMap,
+      colorRulesEnabled,
       sticky,
       descriptionEnabled,
       description,
@@ -39,6 +40,9 @@ export function fromColumnItems(items: ColumnItem[]): TableColumn[] {
           value,
           color,
         }));
+      }
+      if (colorRulesEnabled) {
+        col.colorRulesEnabled = true;
       }
       if (sticky) {
         col.sticky = true;

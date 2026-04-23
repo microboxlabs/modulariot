@@ -21,13 +21,10 @@ import type {
   DashletLayoutDefaults,
   DataProviderEntry,
 } from "../types";
-import type { PgrestDashletFields } from "../common";
-import {
-  useHybridPgrestContext,
-  DashletLoading,
-  DashletError,
-  evaluateColorRulesGeneric,
-} from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
+import { evaluateColorRulesGeneric } from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import type {

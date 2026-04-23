@@ -6,10 +6,12 @@ import {
   type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
+} from "../common/color-rule-setter";
+import {
   normalizeColorRulesConfig,
   ColorRuleSetter,
   useColorRuleSettings,
-} from "../common";
+} from "../common/color-rule-setter";
 
 // ============================================================================
 // Types specific to stat_detailed

@@ -25,7 +25,7 @@ import {
   syncColumnsFromKeys,
 } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
-import { useActiveProviders } from "../common";
+import { useActiveProviders } from "../common/use-active-providers";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({

@@ -828,11 +828,17 @@ function VirtualPreview({
             </div>
             <div style={{ height: totalSize, position: "relative" }}>
               {virtualItems.map((v) => {
+                // Guard against the window where the virtualizer still holds
+                // a virtualItem from the previous doc but `doc.rows` has
+                // already been swapped (e.g. after a header rename or a new
+                // file load produced fewer rows). `doc.rows[v.index]` can be
+                // undefined for one render until the virtualizer recomputes.
                 const row = doc.rows[v.index];
+                if (!row) return null;
                 const s = rowStates.get(row.index) ?? DEFAULT_STATE;
                 return (
                   <div
-                    key={row.index}
+                    key={v.index}
                     data-index={v.index}
                     ref={virtualizer.measureElement}
                     style={{

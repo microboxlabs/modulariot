@@ -22,7 +22,7 @@ import {
 } from "../common";
 import { usePlannerContext } from "../../context/planner-context";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
-import { SettingsShell } from "../common/settings-shell";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 
 // ============================================================================
@@ -512,18 +512,7 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      tabs={[
-        {
-          id: "visualization",
-          label: tr("dashboard.settings.visualization", dictionary),
-          content: visualizationTab,
-        },
-        {
-          id: "data",
-          label: tr("dashboard.settings.dataProvider", dictionary),
-          content: dataTab,
-        },
-      ]}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
       className="w-[28rem]"
       footer={refresh.selectNode}
       title={dashletName}

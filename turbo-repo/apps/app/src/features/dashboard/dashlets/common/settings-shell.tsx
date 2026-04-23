@@ -72,6 +72,29 @@ export interface SettingsShellProps {
 // ============================================================================
 
 /**
+ * Builds the standard visualization + data provider tabs used by most dashlet settings.
+ * Eliminates the duplicated tabs array construction across dashlet files.
+ */
+export function buildStandardTabs(
+  dictionary: I18nRecord,
+  visualizationTab: ReactNode,
+  dataTab: ReactNode
+): SettingsTab[] {
+  return [
+    {
+      id: "visualization",
+      label: tr("dashboard.settings.visualization", dictionary),
+      content: visualizationTab,
+    },
+    {
+      id: "data",
+      label: tr("dashboard.settings.dataProvider", dictionary),
+      content: dataTab,
+    },
+  ];
+}
+
+/**
  * Unified settings shell for all dashlet settings.
  *
  * Supports two layout modes:

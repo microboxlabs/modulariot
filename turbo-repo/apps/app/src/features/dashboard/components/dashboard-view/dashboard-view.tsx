@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import { Button, ToggleSwitch } from "flowbite-react";
 import {
   HiPlus,
@@ -271,13 +277,13 @@ export function DashboardView() {
   const hasWidgets = widgets.length > 0;
 
   return (
-    <div className="w-full">
+    <div className="flex h-full w-full flex-col">
       {/* Portal: renders DashboardFilterBar into the navbar search slot */}
       {!isKiosk && <DashboardNavbarPortal />}
 
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
-        <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between gap-4 p-4">
             {renderDashboardName()}
             <div className="flex shrink-0 items-center gap-4">
@@ -329,60 +335,61 @@ export function DashboardView() {
       )}
 
       {/* Content */}
-      <div
-        ref={containerRef}
-        className="w-full min-h-[200px] max-w-screen-2xl mx-auto"
-      >
-        {hasWidgets ? (
-          <>
-            {/* Root-level grid - only render when width is measured */}
-            {containerWidth > 0 ? (
-              <GridLayout
-                className="dashboard-root-grid w-full"
-                layout={layout}
-                width={containerWidth}
-                gridConfig={{
-                  cols: GRID_COLS,
-                  rowHeight: 55,
-                  margin: [16, 16] as const,
-                  containerPadding: [0, 16] as const,
-                  maxRows: Infinity,
-                }}
-                dragConfig={{
-                  enabled: editMode,
-                  cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
-                }}
-                resizeConfig={{
-                  enabled: editMode,
-                  handles: ["se"],
-                }}
-                compactor={verticalCompactor}
-                onLayoutChange={handleLayoutChange}
-                autoSize={true}
-              >
-                {widgets.map((widget) => (
-                  <div key={widget.id} className="h-full w-full">
-                    <WidgetRenderer widget={widget} isRoot={true} />
-                  </div>
-                ))}
-              </GridLayout>
-            ) : (
-              <div className="text-gray-500">Measuring container width...</div>
-            )}
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-auto p-4">
+        <div className="w-full min-h-[200px] max-w-screen-2xl mx-auto">
+          {hasWidgets ? (
+            <>
+              {/* Root-level grid - only render when width is measured */}
+              {containerWidth > 0 ? (
+                <GridLayout
+                  className="dashboard-root-grid w-full"
+                  layout={layout}
+                  width={containerWidth}
+                  gridConfig={{
+                    cols: GRID_COLS,
+                    rowHeight: 55,
+                    margin: [16, 16] as const,
+                    containerPadding: [0, 16] as const,
+                    maxRows: Infinity,
+                  }}
+                  dragConfig={{
+                    enabled: editMode,
+                    cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
+                  }}
+                  resizeConfig={{
+                    enabled: editMode,
+                    handles: ["se"],
+                  }}
+                  compactor={verticalCompactor}
+                  onLayoutChange={handleLayoutChange}
+                  autoSize={true}
+                >
+                  {widgets.map((widget) => (
+                    <div key={widget.id} className="h-full w-full">
+                      <WidgetRenderer widget={widget} isRoot={true} />
+                    </div>
+                  ))}
+                </GridLayout>
+              ) : (
+                <div className="text-gray-500">
+                  Measuring container width...
+                </div>
+              )}
 
-            {/* Add new widget button */}
-            {editMode && (
-              <div className=" flex justify-center">
-                <Button color="light" onClick={() => setIsAddModalOpen(true)}>
-                  <HiPlus className="mr-2 h-4 w-4" />
-                  Add Widget
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <EmptyState onAdd={() => setIsAddModalOpen(true)} />
-        )}
+              {/* Add new widget button */}
+              {editMode && (
+                <div className=" flex justify-center">
+                  <Button color="light" onClick={() => setIsAddModalOpen(true)}>
+                    <HiPlus className="mr-2 h-4 w-4" />
+                    Add Widget
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState onAdd={() => setIsAddModalOpen(true)} />
+          )}
+        </div>
       </div>
 
       {/* Add widget modal */}

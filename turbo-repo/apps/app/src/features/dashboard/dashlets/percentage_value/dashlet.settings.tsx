@@ -41,7 +41,7 @@ const PERCENTAGE_FIELDS = [
  * Settings Modal for Percentage Value Dashlet
  */
 export function DashletSettings(
-  props: Readonly<DashletSettingsProps<DashletConfig>>,
+  props: Readonly<DashletSettingsProps<DashletConfig>>
 ) {
   const { config, dictionary } = props;
   const [barColor, setBarColor] = useState(config.barColor ?? "2563eb");

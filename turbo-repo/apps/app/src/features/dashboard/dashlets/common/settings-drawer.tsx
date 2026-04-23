@@ -160,7 +160,7 @@ function SettingsDrawerInner({
         aria-modal="true"
         aria-label="Settings"
         className={twMerge(
-          "no-drag absolute top-0 right-0 left-auto m-0 h-full max-h-full max-w-full transform border-l border-gray-200 bg-white p-0 shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
+          "no-drag absolute top-0 right-0 left-auto m-0 flex h-full max-h-full max-w-full flex-col transform border-l border-gray-200 bg-white p-0 shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
           open ? "translate-x-0" : "translate-x-full",
           className ?? "w-[28rem]"
         )}
@@ -182,7 +182,7 @@ function SettingsDrawerInner({
           </button>
         </div>
 
-        <div className="flex h-[calc(100%-3rem)] flex-col overflow-hidden p-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           {/* Widget anchor ID - shown automatically at the top */}
           {widgetId && (
             <button

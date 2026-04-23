@@ -176,7 +176,7 @@ function SettingsShellContent({
     : undefined;
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/* Tab bar (only for tabbed layout) */}
       {hasTabs && (
         <div className="flex border-b border-gray-200 dark:border-gray-700">
@@ -193,15 +193,15 @@ function SettingsShellContent({
       )}
 
       {/* Scrollable content */}
-      <div className="flex-1 space-y-3 overflow-y-auto">
+      <div className="min-h-0 grow space-y-3 overflow-y-auto">
         {hasTabs ? activeTab?.content : children}
       </div>
 
       {/* Optional footer (e.g. refresh interval) */}
-      {footer}
+      {footer && <div className="shrink-0">{footer}</div>}
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-2">
+      <div className="flex shrink-0 gap-2 pt-2">
         <Button
           color="blue"
           onClick={onSave}

@@ -94,8 +94,8 @@ export const SchemaPanel = memo(function SchemaPanel({
       </button>
       {open && (
         <div className="max-h-40 overflow-auto border-t border-gray-200 dark:border-gray-700">
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-100 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-gray-800/80 dark:text-gray-400">
+          <table className="w-full border-collapse bg-transparent">
+            <thead className="bg-gray-100 text-[10px] uppercase tracking-wide text-gray-600 dark:bg-gray-700 dark:text-gray-300">
               <tr>
                 <th className="w-8 border-r border-gray-200 px-2 py-1 text-center dark:border-gray-700"></th>
                 <th className="border-r border-gray-200 px-2 py-1 text-left dark:border-gray-700">
@@ -110,14 +110,14 @@ export const SchemaPanel = memo(function SchemaPanel({
                 <th className="px-2 py-1 text-left">{labels.colConstraints}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-transparent">
               {params.map((p) => {
                 const present = presentSet.has(p.name);
                 const bounds = describeBounds(p);
                 return (
                   <tr
                     key={p.name}
-                    className="border-t border-gray-200 text-xs dark:border-gray-700"
+                    className="border-t border-gray-200 bg-transparent text-xs text-gray-700 dark:border-gray-700 dark:text-gray-200"
                   >
                     <td className="border-r border-gray-200 px-2 py-1 text-center dark:border-gray-700">
                       {present ? (
@@ -136,7 +136,7 @@ export const SchemaPanel = memo(function SchemaPanel({
                         />
                       )}
                     </td>
-                    <td className="border-r border-gray-200 px-2 py-1 font-mono dark:border-gray-700">
+                    <td className="border-r border-gray-200 px-2 py-1 font-mono text-gray-800 dark:border-gray-700 dark:text-gray-100">
                       {p.name}
                     </td>
                     <td className="border-r border-gray-200 px-2 py-1 text-gray-600 dark:border-gray-700 dark:text-gray-400">

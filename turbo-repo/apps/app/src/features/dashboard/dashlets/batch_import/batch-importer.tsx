@@ -511,6 +511,7 @@ export function BatchImporterView({
         )}
         {sample && (
           <Button
+            type="button"
             size="xs"
             color="gray"
             onClick={() => load(sample)}
@@ -520,6 +521,7 @@ export function BatchImporterView({
           </Button>
         )}
         <Button
+          type="button"
           size="xs"
           color="gray"
           onClick={() => fileRef.current?.click()}
@@ -784,6 +786,7 @@ function VirtualPreview({
             </select>
           </label>
           <Button
+            type="button"
             size="xs"
             color="gray"
             onClick={onRetryFailed}
@@ -794,6 +797,7 @@ function VirtualPreview({
             })}
           </Button>
           <Button
+            type="button"
             size="xs"
             color="gray"
             onClick={onReset}

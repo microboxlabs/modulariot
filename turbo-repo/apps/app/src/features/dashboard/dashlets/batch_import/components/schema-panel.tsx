@@ -13,6 +13,11 @@ interface SchemaPanelProps {
     title: string;
     required: string;
     optional: string;
+    colName: string;
+    colType: string;
+    colConstraints: string;
+    present: string;
+    missing: string;
     missingSummary: (missing: number, total: number) => string;
     allMappedSummary: (total: number) => string;
   };
@@ -94,15 +99,15 @@ export const SchemaPanel = memo(function SchemaPanel({
               <tr>
                 <th className="w-8 border-r border-gray-200 px-2 py-1 text-center dark:border-gray-700"></th>
                 <th className="border-r border-gray-200 px-2 py-1 text-left dark:border-gray-700">
-                  name
+                  {labels.colName}
                 </th>
                 <th className="border-r border-gray-200 px-2 py-1 text-left dark:border-gray-700">
-                  type
+                  {labels.colType}
                 </th>
                 <th className="border-r border-gray-200 px-2 py-1 text-left dark:border-gray-700">
                   {labels.required} / {labels.optional}
                 </th>
-                <th className="px-2 py-1 text-left">constraints</th>
+                <th className="px-2 py-1 text-left">{labels.colConstraints}</th>
               </tr>
             </thead>
             <tbody>

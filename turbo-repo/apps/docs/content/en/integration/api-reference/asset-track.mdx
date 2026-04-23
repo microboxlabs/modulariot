@@ -542,6 +542,187 @@ curl --request POST \
   }'
 ```
 
+### With Provider Events (Hard Brake/Accel/Turn)
+
+For GPS devices or providers that pre-compute discrete driving events and send them typed — with severity and threshold — inside the `events[]` array.
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-007' \
+  --header 'X-Request-Timestamp: 1740492537' \
+  --data '{
+    "asset_id": "TTBJ72",
+    "timestamp": "2026-02-13T13:48:57Z",
+    "gps": {
+      "latitude": -29.810218,
+      "longitude": -71.282617,
+      "speed": 74.5,
+      "heading": 315
+    },
+    "events": [
+      {
+        "event_type": "hard_brake",
+        "timestamp": "2026-02-13T13:48:55Z",
+        "severity": "high",
+        "threshold_exceeded": true,
+        "additional_info": { "g_force": 0.82, "speed_at_event": 74.5, "cargo_weight": 5000 }
+      },
+      {
+        "event_type": "hard_accel",
+        "timestamp": "2026-02-13T13:48:40Z",
+        "severity": "medium",
+        "threshold_exceeded": true,
+        "additional_info": { "g_force": 0.61, "speed_at_event": 42.0 }
+      },
+      {
+        "event_type": "hard_turn",
+        "timestamp": "2026-02-13T13:48:30Z",
+        "severity": "medium",
+        "threshold_exceeded": true,
+        "additional_info": { "g_force": 0.55, "speed_at_event": 58.0 }
+      }
+    ]
+  }'
+```
+
+#### Node.js (fetch)
+
+```javascript
+const res = await fetch("https://iot.streamhub.cl/v1/asset/track", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "X-Request-Id": crypto.randomUUID(),
+    "X-Request-Timestamp": String(Math.floor(Date.now() / 1000)),
+  },
+  body: JSON.stringify({
+    asset_id: "TTBJ72",
+    timestamp: "2026-02-13T13:48:57Z",
+    gps: { latitude: -29.810218, longitude: -71.282617, speed: 74.5, heading: 315 },
+    events: [
+      {
+        event_type: "hard_brake",
+        timestamp: "2026-02-13T13:48:55Z",
+        severity: "high",
+        threshold_exceeded: true,
+        additional_info: { g_force: 0.82, speed_at_event: 74.5, cargo_weight: 5000 },
+      },
+      {
+        event_type: "hard_accel",
+        timestamp: "2026-02-13T13:48:40Z",
+        severity: "medium",
+        threshold_exceeded: true,
+        additional_info: { g_force: 0.61, speed_at_event: 42.0 },
+      },
+      {
+        event_type: "hard_turn",
+        timestamp: "2026-02-13T13:48:30Z",
+        severity: "medium",
+        threshold_exceeded: true,
+        additional_info: { g_force: 0.55, speed_at_event: 58.0 },
+      },
+    ],
+  }),
+});
+
+if (!res.ok) throw new Error(`asset/track ${res.status}: ${await res.text()}`);
+```
+
+#### Python (requests)
+
+```python
+import time, uuid, requests
+
+res = requests.post(
+    "https://iot.streamhub.cl/v1/asset/track",
+    headers={
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Request-Id": str(uuid.uuid4()),
+        "X-Request-Timestamp": str(int(time.time())),
+    },
+    json={
+        "asset_id": "TTBJ72",
+        "timestamp": "2026-02-13T13:48:57Z",
+        "gps": {"latitude": -29.810218, "longitude": -71.282617, "speed": 74.5, "heading": 315},
+        "events": [
+            {
+                "event_type": "hard_brake",
+                "timestamp": "2026-02-13T13:48:55Z",
+                "severity": "high",
+                "threshold_exceeded": True,
+                "additional_info": {"g_force": 0.82, "speed_at_event": 74.5, "cargo_weight": 5000},
+            },
+            {
+                "event_type": "hard_accel",
+                "timestamp": "2026-02-13T13:48:40Z",
+                "severity": "medium",
+                "threshold_exceeded": True,
+                "additional_info": {"g_force": 0.61, "speed_at_event": 42.0},
+            },
+            {
+                "event_type": "hard_turn",
+                "timestamp": "2026-02-13T13:48:30Z",
+                "severity": "medium",
+                "threshold_exceeded": True,
+                "additional_info": {"g_force": 0.55, "speed_at_event": 58.0},
+            },
+        ],
+    },
+    timeout=10,
+)
+res.raise_for_status()
+```
+
+#### Java (HttpClient)
+
+```java
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.util.UUID;
+
+String body = """
+    {
+      "asset_id": "TTBJ72",
+      "timestamp": "2026-02-13T13:48:57Z",
+      "gps": { "latitude": -29.810218, "longitude": -71.282617, "speed": 74.5, "heading": 315 },
+      "events": [
+        { "event_type": "hard_brake", "timestamp": "2026-02-13T13:48:55Z", "severity": "high",
+          "threshold_exceeded": true,
+          "additional_info": { "g_force": 0.82, "speed_at_event": 74.5, "cargo_weight": 5000 } },
+        { "event_type": "hard_accel", "timestamp": "2026-02-13T13:48:40Z", "severity": "medium",
+          "threshold_exceeded": true,
+          "additional_info": { "g_force": 0.61, "speed_at_event": 42.0 } },
+        { "event_type": "hard_turn",  "timestamp": "2026-02-13T13:48:30Z", "severity": "medium",
+          "threshold_exceeded": true,
+          "additional_info": { "g_force": 0.55, "speed_at_event": 58.0 } }
+      ]
+    }
+    """;
+
+HttpRequest req = HttpRequest.newBuilder(URI.create("https://iot.streamhub.cl/v1/asset/track"))
+    .header("Authorization", "Bearer " + token)
+    .header("Content-Type", "application/json")
+    .header("Accept", "application/json")
+    .header("X-Request-Id", UUID.randomUUID().toString())
+    .header("X-Request-Timestamp", String.valueOf(Instant.now().getEpochSecond()))
+    .POST(HttpRequest.BodyPublishers.ofString(body))
+    .build();
+
+HttpResponse<String> res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+if (res.statusCode() >= 300) throw new RuntimeException("asset/track " + res.statusCode() + ": " + res.body());
+```
+
 ### Python Example
 
 ```python

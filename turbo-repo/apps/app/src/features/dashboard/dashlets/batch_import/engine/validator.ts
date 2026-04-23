@@ -48,8 +48,13 @@ function buildFieldSchema(p: IntrospectedParam): z.ZodTypeAny {
     try {
       s = s.regex(new RegExp(p.pattern));
     } catch (err) {
+      // Static format string — `p.name` comes from RPC introspection and
+      // could contain console format specifiers (%s, %o, …) which `console.*`
+      // would interpret, swallowing the trailing error argument. Passing
+      // the name as a separate arg keeps it verbatim.
       console.warn(
-        `batch_import validator: skipping invalid regex for "${p.name}"`,
+        "batch_import validator: skipping invalid regex for parameter",
+        p.name,
         err,
       );
     }

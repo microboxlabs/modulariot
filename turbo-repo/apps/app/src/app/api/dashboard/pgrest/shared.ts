@@ -18,7 +18,19 @@ function normalizePgrestUrl(url: string): string {
   return trimmed;
 }
 
-interface OpenApiParameter {
+export interface OpenApiSchema {
+  type?: string;
+  format?: string;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  pattern?: string;
+  properties?: Record<string, OpenApiSchema>;
+  required?: string[];
+  $ref?: string;
+}
+
+export interface OpenApiParameter {
   name: string;
   in: string;
   format?: string;
@@ -28,6 +40,7 @@ interface OpenApiParameter {
   minimum?: number;
   maximum?: number;
   pattern?: string;
+  schema?: OpenApiSchema;
 }
 
 interface OpenApiOperation {
@@ -41,6 +54,7 @@ export interface OpenApiPathItem {
 
 export interface OpenApiSpec {
   paths?: Record<string, OpenApiPathItem>;
+  definitions?: Record<string, OpenApiSchema>;
 }
 
 /**

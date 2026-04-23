@@ -100,14 +100,14 @@ export function clearFailed(key: string) {
 
 function rowToParams(
   row: ParsedRow,
-  strategy: DuplicateStrategy,
+  _strategy: DuplicateStrategy,
+  allowedFields?: ReadonlySet<string>,
 ): PgrestParam[] {
-  const out: PgrestParam[] = Object.entries(row.fields).map(([key, value]) => ({
-    key,
-    value,
-  }));
-  out.push({ key: "_duplicateStrategy", value: strategy });
-  return out;
+  const entries = Object.entries(row.fields);
+  const filtered = allowedFields
+    ? entries.filter(([key]) => allowedFields.has(key))
+    : entries;
+  return filtered.map(([key, value]) => ({ key, value }));
 }
 
 const SUCCESS_STATUSES = new Set<RowStatus>([
@@ -143,12 +143,13 @@ function coerceStatus(
 export function makePgrestSubmit(
   functionName: string,
   dataSourceId?: string,
+  allowedFields?: ReadonlySet<string>,
 ): SubmitFn {
   return async (row, strategy) => {
     const { url, init } = buildPgrestFetch(
       functionName,
       "POST",
-      rowToParams(row, strategy),
+      rowToParams(row, strategy, allowedFields),
       dataSourceId,
     );
     try {

@@ -58,6 +58,7 @@ function PlanningTabContent({
   isSlotsLoading,
   canConfirm,
   reassigningService,
+  isReadOnlyView,
 }: {
   dict: I18nRecord;
   selectedService: SelectedService & { slot?: string };
@@ -76,6 +77,7 @@ function PlanningTabContent({
   isSlotsLoading: boolean;
   canConfirm: boolean;
   reassigningService: unknown;
+  isReadOnlyView: boolean;
 }) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
@@ -165,18 +167,20 @@ function PlanningTabContent({
           isLoadingServiceTypes={isLoadingServiceTypes}
         />
       )}
-      <div className="flex gap-2 pt-2">
-        <Button
-          type="submit"
-          color="blue"
-          className="flex-1"
-          disabled={!canConfirm}
-        >
-          {reassigningService
-            ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
-            : tr("pages.planning.sidebar.form.confirm", dict)}
-        </Button>
-      </div>
+      {!isReadOnlyView && (
+        <div className="flex gap-2 pt-2">
+          <Button
+            type="submit"
+            color="blue"
+            className="flex-1"
+            disabled={!canConfirm}
+          >
+            {reassigningService
+              ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
+              : tr("pages.planning.sidebar.form.confirm", dict)}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -290,6 +294,16 @@ export function PlanningSidebarForm({
   const canAssign =
     !isLoadingPermissions && hasPermission(["GROUP_ASSIGNMENT"]);
   const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
+
+  // View-only mode: the sidebar was opened by left-clicking a past-day chip
+  // (no reassign/assign active). Form controls stay visible to show the
+  // existing values, but every mutation path — inputs and action buttons — is
+  // suppressed. The context already blocks the right-click menu for past
+  // chips, so this is the only remaining route that reaches the form.
+  const isReadOnlyView = useMemo(() => {
+    if (!selectedSlot || reassigningService || assigningService) return false;
+    return dayjs(selectedSlot.date).isBefore(dayjs().startOf("day"), "day");
+  }, [selectedSlot, reassigningService, assigningService]);
 
   // Tab state management
   type TabType = "planificacion" | "assignment";
@@ -593,7 +607,16 @@ export function PlanningSidebarForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* Flags Section */}
+      {isReadOnlyView && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          {tr("pages.planning.sidebar.form.readOnlyBanner", dict)}
+        </div>
+      )}
+      <fieldset
+        disabled={isReadOnlyView}
+        className="flex flex-col gap-4 min-w-0 border-0 p-0 m-0"
+      >
+        {/* Flags Section */}
       {hasIncidencias && (
         <FormSection title={tr("pages.planning.sidebar.form.flags", dict)}>
           <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
@@ -825,6 +848,7 @@ export function PlanningSidebarForm({
             isSlotsLoading={isSlotsLoading}
             canConfirm={canConfirm}
             reassigningService={reassigningService}
+            isReadOnlyView={isReadOnlyView}
           />
         )}
         {activeTab === "assignment" && canAssign && (
@@ -839,25 +863,28 @@ export function PlanningSidebarForm({
                 selectedService?.origen
               }
             />
-            <div className="flex gap-2 pt-2">
-              <Button
-                type="button"
-                color="blue"
-                className="flex-1"
-                onClick={handleAssign}
-                disabled={
-                  !assigningService ||
-                  !assignmentData.carrier ||
-                  !assignmentData.driver ||
-                  !assignmentData.truck
-                }
-              >
-                {tr("pages.planning.sidebar.form.assign", dict)}
-              </Button>
-            </div>
+            {!isReadOnlyView && (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  color="blue"
+                  className="flex-1"
+                  onClick={handleAssign}
+                  disabled={
+                    !assigningService ||
+                    !assignmentData.carrier ||
+                    !assignmentData.driver ||
+                    !assignmentData.truck
+                  }
+                >
+                  {tr("pages.planning.sidebar.form.assign", dict)}
+                </Button>
+              </div>
+            )}
           </>
         )}
-      </div>
+        </div>
+      </fieldset>
 
       {/* Actions */}
     </form>

@@ -1758,9 +1758,9 @@ const BookingListResponseSchema = z.object({
       calendarId: z.string(),
       resource: z.object({
         id: z.string(),
-        type: z.string().optional(),
-        label: z.string().optional(),
-        data: z.record(z.string(), z.unknown()).optional(),
+        type: z.string().nullable().optional(),
+        label: z.string().nullable().optional(),
+        data: z.record(z.string(), z.unknown()).nullable().optional(),
       }),
       slot: z
         .object({
@@ -1770,7 +1770,7 @@ const BookingListResponseSchema = z.object({
         })
         .nullable(),
       createdAt: z.string(),
-      createdBy: z.string().optional(),
+      createdBy: z.string().nullable().optional(),
     })
   ),
   total: z.number(),

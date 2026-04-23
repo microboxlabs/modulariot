@@ -46,6 +46,20 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const DEFAULT_STATE: RowState = { status: "unprocessed" };
 
+/** Statuses that should survive a re-validation rebuild while an import is
+ *  active. `wait` is obviously in-flight; the three terminal successes are
+ *  included because `runImport` only flushes cache every CACHE_FLUSH_EVERY
+ *  rows, so a re-hydrate mid-import would otherwise regress completed but
+ *  unflushed rows back to `unprocessed`. `failed` is intentionally NOT in
+ *  this set: if a rename fixes a previously-failed validation, we want the
+ *  fresh pass to clear it rather than stick to the old error. */
+const PRESERVE_DURING_IMPORT: ReadonlySet<RowStatus> = new Set<RowStatus>([
+  "wait",
+  "processed",
+  "updated",
+  "skipped",
+]);
+
 /** Running ~5 requests in parallel keeps wall-time low while still respecting
  *  per-endpoint rate limits for typical PostgREST functions. If the backend
  *  can handle more, this is the single knob to turn. */
@@ -153,6 +167,12 @@ export function useBatchImporter({
   const [validating, setValidating] = useState(false);
   const [strategy, setStrategy] = useState<DuplicateStrategy>(defaultStrategy);
 
+  /** Ref-mirror of `importing` so the validation effect can read the latest
+   *  value without listing `importing` in its deps (which would make every
+   *  import start/end retrigger a full re-validation pass). */
+  const importingRef = useRef(importing);
+  importingRef.current = importing;
+
   const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Increments on every parse request; the async result is dropped if a newer
    *  parse has started since, so stale worker replies can't flash old data. */
@@ -252,10 +272,30 @@ export function useBatchImporter({
       setRowStates(new Map());
       return;
     }
+
+    /** Rebuild rowStates from cache + validations. When an import is in
+     *  flight, merge existing in-flight/terminal statuses (`wait` + completed
+     *  rows whose cache entry hasn't been flushed yet) back on top so a
+     *  rename-triggered re-validation doesn't visually reset the submit
+     *  loop's progress. See PRESERVE_DURING_IMPORT at module scope. */
+    const applyHydrate = (validations: Record<number, string>) => {
+      const cache = readCache(sourceKey);
+      setRowStates((prev) => {
+        const next = hydrateStates(doc, cache, validations);
+        if (importingRef.current) {
+          for (const [idx, state] of prev) {
+            if (PRESERVE_DURING_IMPORT.has(state.status)) {
+              next.set(idx, state);
+            }
+          }
+        }
+        return next;
+      });
+    };
+
     // No schema → hydrate from cache only, no validation needed.
     if (!params || params.length === 0) {
-      const cache = readCache(sourceKey);
-      setRowStates(hydrateStates(doc, cache, {}));
+      applyHydrate({});
       return;
     }
     const token = ++validateToken.current;
@@ -267,8 +307,16 @@ export function useBatchImporter({
     parseFromGrid(grid, params)
       .then(({ validations }) => {
         if (token !== validateToken.current) return;
-        const cache = readCache(sourceKey);
-        setRowStates(hydrateStates(doc, cache, validations));
+        applyHydrate(validations);
+      })
+      .catch((err) => {
+        // `parseFromGrid` already falls back to `runInline` on worker
+        // failures, so rejections here are exotic (inline parser crashed).
+        // Still rebuild rowStates from cache with no validations so the UI
+        // isn't stuck on stale errors, and log for diagnosis.
+        if (token !== validateToken.current) return;
+        console.warn("batch_import: re-validation failed", err);
+        applyHydrate({});
       })
       .finally(() => {
         if (token === validateToken.current) setValidating(false);

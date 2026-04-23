@@ -9,6 +9,8 @@ import {
   type KeyboardEvent,
 } from "react";
 import { HiPencil, HiCheck, HiXMark } from "react-icons/hi2";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface HeaderCellProps {
   /** The name as it came out of the file — stable across renames. */
@@ -20,6 +22,7 @@ interface HeaderCellProps {
   expectedNames: string[];
   /** Commit a rename. Pass the original back to untangle the mapping. */
   onRename: (original: string, target: string) => void;
+  dictionary: I18nRecord;
 }
 
 /**
@@ -34,6 +37,7 @@ export const HeaderCell = memo(function HeaderCell({
   displayName,
   expectedNames,
   onRename,
+  dictionary,
 }: Readonly<HeaderCellProps>) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(displayName);
@@ -73,6 +77,8 @@ export const HeaderCell = memo(function HeaderCell({
   };
 
   const mapped = displayName !== original;
+  const saveLabel = tr("common.save", dictionary);
+  const cancelLabel = tr("common.cancel", dictionary);
 
   if (editing) {
     return (
@@ -90,8 +96,8 @@ export const HeaderCell = memo(function HeaderCell({
             type="button"
             onClick={commit}
             className="text-green-600 hover:text-green-700 dark:text-green-400"
-            title="Save"
-            aria-label="Save"
+            title={saveLabel}
+            aria-label={saveLabel}
           >
             <HiCheck className="h-4 w-4" />
           </button>
@@ -99,8 +105,8 @@ export const HeaderCell = memo(function HeaderCell({
             type="button"
             onClick={cancel}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400"
-            title="Cancel"
-            aria-label="Cancel"
+            title={cancelLabel}
+            aria-label={cancelLabel}
           >
             <HiXMark className="h-4 w-4" />
           </button>
@@ -123,8 +129,10 @@ export const HeaderCell = memo(function HeaderCell({
       className="group flex flex-col items-start gap-0.5 border-r border-gray-200 p-2 text-left hover:bg-gray-200/60 dark:border-gray-700 dark:hover:bg-gray-700/60"
       title={
         mapped
-          ? `Click to edit. Original: ${original}`
-          : "Click to rename this column"
+          ? tr("dashboard.dashlets.batchImport.editColumnOriginal", dictionary, {
+              original,
+            })
+          : tr("dashboard.dashlets.batchImport.renameColumn", dictionary)
       }
     >
       <span className="flex w-full items-center gap-1">
@@ -133,7 +141,7 @@ export const HeaderCell = memo(function HeaderCell({
       </span>
       {mapped && (
         <span className="truncate text-[10px] font-normal italic text-gray-500 dark:text-gray-400">
-          was: {original}
+          {tr("dashboard.dashlets.batchImport.was", dictionary)}: {original}
         </span>
       )}
     </button>

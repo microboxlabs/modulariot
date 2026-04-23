@@ -181,6 +181,50 @@ function PlanningTabContent({
   );
 }
 
+/**
+ * Build the service-override patch that travels with `confirmService` so the
+ * booking payload reflects the user's current selections. Each slot is only
+ * written when the user actually filled it in (or kept its conditional
+ * section open) — partial assignments shouldn't wipe previously-saved fields
+ * with empty strings.
+ */
+function assignmentOverrides(
+  data: AssignmentFormData
+): Partial<SelectedService> {
+  const out: Partial<SelectedService> = {};
+  if (data.carrier) out.assignedCarrier = data.carrier;
+  if (data.driver) out.assignedDriver = data.driver;
+  if (data.hasSecondDriver && data.secondDriver) {
+    out.assignedDriver2 = data.secondDriver;
+  }
+  if (data.truck) out.assignedTruck = data.truck;
+  if (data.hasTrailer && data.trailer) {
+    out.assignedTrailer = data.trailer;
+  }
+  return out;
+}
+
+/**
+ * Build the initial `AssignmentFormData` from a service, hydrating the
+ * carrier / driver / truck / trailer slots from the values persisted on the
+ * previous `confirmService` call. Missing fields collapse to empty strings;
+ * `hasSecondDriver` / `hasTrailer` toggle on when the matching slot is
+ * set so the conditional UI opens automatically on reassign.
+ */
+function assignmentDataFromService(
+  service: SelectedService | undefined
+): AssignmentFormData {
+  return {
+    carrier: service?.assignedCarrier ?? "",
+    driver: service?.assignedDriver ?? "",
+    secondDriver: service?.assignedDriver2 ?? "",
+    hasSecondDriver: Boolean(service?.assignedDriver2),
+    truck: service?.assignedTruck ?? "",
+    trailer: service?.assignedTrailer ?? "",
+    hasTrailer: Boolean(service?.assignedTrailer),
+  };
+}
+
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
   readonly isActive: boolean;
@@ -213,15 +257,17 @@ export function PlanningSidebarForm({
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
   const [selectedServiceCategory, setSelectedServiceCategory] =
     useState<string>(selectedService?.serviceCategory ?? "");
-  const [assignmentData, setAssignmentData] = useState<AssignmentFormData>({
-    transportista: "",
-    conductor: "",
-    segundoConductor: "",
-    hasSegundoConductor: false,
-    camion: "",
-    remolque: "",
-    hasRemolque: false,
-  });
+  const [assignmentData, setAssignmentData] = useState<AssignmentFormData>(() =>
+    assignmentDataFromService(selectedService)
+  );
+
+  // Re-hydrate the assignment form when the user reopens the sidebar for a
+  // different planned service — otherwise a stale (carrier, driver) pair from
+  // the previous selection would leak into the new one. Keyed off service id
+  // so typing/selecting within the same service doesn't thrash.
+  useEffect(() => {
+    setAssignmentData(assignmentDataFromService(selectedService));
+  }, [selectedService?.id]);
 
   const { serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes();
   const serviceCategoryOptions = serviceTypes.map((t) => ({
@@ -237,7 +283,6 @@ export function PlanningSidebarForm({
     assigningService,
     cancelAssignment,
     getOccupiedAndenes,
-    updateServiceDrivers,
   } = usePlanningSelection();
 
   const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
@@ -247,22 +292,22 @@ export function PlanningSidebarForm({
   const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
 
   // Tab state management
-  type TabType = "planificacion" | "asignacion";
+  type TabType = "planificacion" | "assignment";
   const [activeTab, setActiveTab] = useState<TabType>("planificacion");
 
   // Set initial tab based on permissions once loaded (fail-closed)
   useEffect(() => {
     if (isLoadingPermissions) return;
 
-    // Auto-switch to asignacion when assignment mode is triggered
+    // Auto-switch to assignment tab when assignment mode is triggered
     if (assigningService && canAssign) {
-      setActiveTab("asignacion");
+      setActiveTab("assignment");
       return;
     }
 
     // Default to first available tab based on permissions
     if (!canPlan && canAssign) {
-      setActiveTab("asignacion");
+      setActiveTab("assignment");
     }
   }, [isLoadingPermissions, assigningService, canAssign, canPlan]);
 
@@ -388,16 +433,11 @@ export function PlanningSidebarForm({
     }
 
     const wasReassigning = reassigningService !== null;
-    // Pass the final slot directly to confirmService, along with service category and driver overrides
-    const serviceOverrides: Partial<SelectedService> = {};
+    const serviceOverrides: Partial<SelectedService> = {
+      ...assignmentOverrides(assignmentData),
+    };
     if (selectedServiceCategory) {
       serviceOverrides.serviceCategory = selectedServiceCategory;
-    }
-    if (assignmentData.conductor) {
-      serviceOverrides.assignedDriver = assignmentData.conductor;
-    }
-    if (assignmentData.hasSegundoConductor && assignmentData.segundoConductor) {
-      serviceOverrides.assignedDriver2 = assignmentData.segundoConductor;
     }
     const finalOverrides: Partial<SelectedService> | undefined =
       Object.keys(serviceOverrides).length > 0 ? serviceOverrides : undefined;
@@ -425,34 +465,42 @@ export function PlanningSidebarForm({
   };
 
   /**
-   * Handle assignment-only action (Asignar button in Asignación tab)
-   * This persists assignmentData without affecting planning state
+   * Handle the "Asignar" action in the Asignación tab. The sidebar opens on
+   * an already-planned service (slot unchanged), and we want the new
+   * carrier / driver / truck / trailer tuple to round-trip through the
+   * booking backend — otherwise a refresh would wipe the assignment.
+   *
+   * We therefore go through `confirmService` (just like the planning tab's
+   * reassignment flow) with `finalSlot = undefined` so the existing slot is
+   * preserved. `confirmService` updates plannedServices locally, writes a
+   * new booking, and cancels the previous one atomically.
    */
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!assigningService) {
       return;
     }
 
-    const serviceId = assigningService.service.service.id;
-    const driver1 = assignmentData.conductor || undefined;
-    const driver2 =
-      assignmentData.hasSegundoConductor && assignmentData.segundoConductor
-        ? assignmentData.segundoConductor
-        : undefined;
-
-    // Client-side only update - no backend calls
-    updateServiceDrivers(serviceId, driver1, driver2);
-
-    ShowNotification({
-      type: "success",
-      message: tr(
-        "pages.planning.sidebar.notifications.assignmentCompleted",
-        dict
-      ),
-    });
-
-    // Clear assignment mode
-    cancelAssignment();
+    const overrides = assignmentOverrides(assignmentData);
+    try {
+      await confirmService(
+        undefined,
+        Object.keys(overrides).length > 0 ? overrides : undefined
+      );
+      ShowNotification({
+        type: "success",
+        message: tr(
+          "pages.planning.sidebar.notifications.assignmentCompleted",
+          dict
+        ),
+      });
+      cancelAssignment();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : tr("pages.planning.sidebar.notifications.assignError", dict);
+      ShowNotification({ type: "error", message });
+    }
   };
 
   // Check if the selected time has available andenes
@@ -751,7 +799,7 @@ export function PlanningSidebarForm({
                 disabled: !canPlan,
               },
               {
-                id: "asignacion",
+                id: "assignment",
                 label: tr("pages.planning.sidebar.form.assignmentTab", dict),
                 icon: <HiUserAdd />,
                 disabled: !canAssign,
@@ -779,7 +827,7 @@ export function PlanningSidebarForm({
             reassigningService={reassigningService}
           />
         )}
-        {activeTab === "asignacion" && canAssign && (
+        {activeTab === "assignment" && canAssign && (
           <>
             <AssignmentForm
               value={assignmentData}
@@ -799,9 +847,9 @@ export function PlanningSidebarForm({
                 onClick={handleAssign}
                 disabled={
                   !assigningService ||
-                  !assignmentData.transportista ||
-                  !assignmentData.conductor ||
-                  !assignmentData.camion
+                  !assignmentData.carrier ||
+                  !assignmentData.driver ||
+                  !assignmentData.truck
                 }
               >
                 {tr("pages.planning.sidebar.form.assign", dict)}

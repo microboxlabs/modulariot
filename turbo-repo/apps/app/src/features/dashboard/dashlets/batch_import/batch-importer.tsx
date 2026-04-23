@@ -578,6 +578,27 @@ export function BatchImporterView({
             optional:
               tr("dashboard.dashlets.batchImport.optional", dictionary) ||
               "optional",
+            colName:
+              tr("dashboard.dashlets.batchImport.schemaColName", dictionary) ||
+              "name",
+            colType:
+              tr("dashboard.dashlets.batchImport.schemaColType", dictionary) ||
+              "type",
+            colConstraints:
+              tr(
+                "dashboard.dashlets.batchImport.schemaColConstraints",
+                dictionary,
+              ) || "constraints",
+            present:
+              tr(
+                "dashboard.dashlets.batchImport.schemaFieldPresent",
+                dictionary,
+              ) || "present",
+            missing:
+              tr(
+                "dashboard.dashlets.batchImport.schemaFieldMissing",
+                dictionary,
+              ) || "missing",
             missingSummary: (missing, total) =>
               tr("dashboard.dashlets.batchImport.schemaMissing", dictionary, {
                 missing: String(missing),

@@ -196,6 +196,58 @@ Angular rotation rate around each axis of the device's gyroscope. Used to detect
 
 > Values are reported in **radians per second**. Multiply by `180/π` (≈ 57.2958) to convert to degrees per second if your downstream pipeline expects °/s.
 
+### Events Object
+
+For GPS devices or providers that pre-compute discrete asset events (harsh braking, hard acceleration, sharp cornering, speeding, impacts). Use this object when the provider already delivers the typed event — with severity and threshold — rather than only the raw sensor reading.
+
+```json
+{
+  "events": [
+    {
+      "event_type": "hard_brake",
+      "timestamp": "2026-04-23T14:32:10Z",
+      "severity": "high",
+      "threshold_exceeded": true,
+      "additional_info": {
+        "g_force": 0.82,
+        "speed_at_event": 74.5,
+        "cargo_weight": 5000
+      }
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event_type` | string | **Yes** | Event type. See catalog below. |
+| `timestamp` | string | **Yes** | ISO 8601 timestamp of the event (may differ from the envelope timestamp). |
+| `severity` | string | No | Severity reported by the provider: `low`, `medium`, `high`. |
+| `threshold_exceeded` | boolean | No | `true` if the event exceeded the provider's configured threshold. |
+| `additional_info` | object | No | Event metadata (see below). |
+
+#### `event_type` catalog
+
+| Value | Description |
+|-------|-------------|
+| `hard_brake` | Harsh braking detected by the provider from longitudinal acceleration. |
+| `hard_accel` | Hard acceleration detected by the provider from longitudinal acceleration. |
+| `hard_turn` | Sharp cornering / aggressive lateral maneuver detected by the provider from the gyroscope or lateral acceleration. |
+| `speeding` | Over-speed relative to the configured limit. |
+| `impact` | Impact / collision detected by the provider from a g-force spike. |
+
+> The `event_type` field is a free-form string: the values above are the convention supported by the symptoms pipeline. Other values are accepted and persisted, but will not trigger downstream rules.
+
+#### additional_info
+
+| Field | Type | Unit | Range | Description |
+|-------|------|------|-------|-------------|
+| `g_force` | number | g | 0.0 to 5.0 | G-force measured during the event. |
+| `speed_at_event` | number | km/h | 0.0 to 250.0 | Asset speed at the moment of the event. |
+| `cargo_weight` | number | kg | 0.0 to 20000.0 | Cargo weight at the moment of the event, if the device reports it. |
+
+> Prefer `events[]` for data already typed by the provider (hard brake, hard acceleration, hard turn). If you only have the raw accelerometer or gyroscope reading, send it in `sensors.acceleration` / `sensors.gyroscope` and let the pipeline derive the event.
+
 ---
 
 ## Response

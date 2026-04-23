@@ -196,6 +196,58 @@ Velocidad de rotación angular alrededor de cada eje del giroscopio del disposit
 
 > Los valores se reportan en **radianes por segundo**. Multiplique por `180/π` (≈ 57,2958) para convertir a grados por segundo si su pipeline espera °/s.
 
+### Objeto Events
+
+Para dispositivos GPS o proveedores que pre-calculan eventos discretos del activo (frenadas bruscas, aceleraciones fuertes, giros cerrados, excesos de velocidad, impactos). Use este objeto cuando el proveedor ya entrega el evento tipificado — con severidad y umbral — en lugar de sólo la lectura cruda del sensor.
+
+```json
+{
+  "events": [
+    {
+      "event_type": "hard_brake",
+      "timestamp": "2026-04-23T14:32:10Z",
+      "severity": "high",
+      "threshold_exceeded": true,
+      "additional_info": {
+        "g_force": 0.82,
+        "speed_at_event": 74.5,
+        "cargo_weight": 5000
+      }
+    }
+  ]
+}
+```
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `event_type` | string | **Sí** | Tipo de evento. Ver catálogo abajo. |
+| `timestamp` | string | **Sí** | Timestamp ISO 8601 del evento (puede diferir del timestamp del envoltorio). |
+| `severity` | string | No | Severidad reportada por el proveedor: `low`, `medium`, `high`. |
+| `threshold_exceeded` | boolean | No | `true` si el evento superó el umbral configurado por el proveedor. |
+| `additional_info` | object | No | Metadatos del evento (ver abajo). |
+
+#### Catálogo de `event_type`
+
+| Valor | Descripción |
+|-------|-------------|
+| `hard_brake` | Frenada brusca detectada por el proveedor a partir de la aceleración longitudinal. |
+| `hard_accel` | Aceleración fuerte detectada por el proveedor a partir de la aceleración longitudinal. |
+| `hard_turn` | Giro cerrado / maniobra lateral agresiva detectada por el proveedor a partir del giroscopio o de la aceleración lateral. |
+| `speeding` | Exceso de velocidad sobre el límite configurado. |
+| `impact` | Impacto / colisión detectada por el proveedor a partir de un pico de fuerza g. |
+
+> El campo `event_type` es un string libre: los valores anteriores son la convención soportada por el pipeline de síntomas. Otros valores se aceptan y se persisten, pero no activan reglas aguas abajo.
+
+#### additional_info
+
+| Campo | Tipo | Unidad | Rango | Descripción |
+|-------|------|--------|-------|-------------|
+| `g_force` | number | g | 0.0 a 5.0 | Fuerza g medida durante el evento. |
+| `speed_at_event` | number | km/h | 0.0 a 250.0 | Velocidad del activo al momento del evento. |
+| `cargo_weight` | number | kg | 0.0 a 20000.0 | Peso de la carga al momento del evento, si el dispositivo lo reporta. |
+
+> Prefiera `events[]` para datos ya tipificados por el proveedor (frenada brusca, aceleración fuerte, giro cerrado). Si sólo dispone de la lectura cruda del acelerómetro o giroscopio, envíela en `sensors.acceleration` / `sensors.gyroscope` y deje que el pipeline derive el evento.
+
 ---
 
 ## Respuesta

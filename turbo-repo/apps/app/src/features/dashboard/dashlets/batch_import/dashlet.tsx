@@ -7,7 +7,11 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { makePgrestSubmit, withValidation } from "./engine/importer";
-import { buildRowSchema, type IntrospectedParam } from "./engine/validator";
+import {
+  buildRowSchema,
+  validateRow,
+  type IntrospectedParam,
+} from "./engine/validator";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
 import { SAMPLE_TSV } from "./sample";
@@ -75,15 +79,25 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return () => ac.abort();
   }, [isConfigured, config.pgrestFunctionName, config.dataSourceId]);
 
+  const schema = useMemo(
+    () => (params && params.length > 0 ? buildRowSchema(params) : null),
+    [params],
+  );
+
+  const validate = useMemo(() => {
+    if (!schema) return undefined;
+    return (fields: Record<string, string>) => validateRow(fields, schema);
+  }, [schema]);
+
   const submit = useMemo(() => {
     if (!isConfigured) return null;
     const base = makePgrestSubmit(
       config.pgrestFunctionName,
       config.dataSourceId,
     );
-    if (!params || params.length === 0) return base;
-    return withValidation(base, buildRowSchema(params));
-  }, [isConfigured, config.pgrestFunctionName, config.dataSourceId, params]);
+    if (!schema) return base;
+    return withValidation(base, schema);
+  }, [isConfigured, config.pgrestFunctionName, config.dataSourceId, schema]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -109,6 +123,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             sample={SAMPLE_TSV}
             acceptedFileTypes={config.acceptedFileTypes}
             dictionary={dictionary}
+            validate={validate}
           />
         </>
       )}

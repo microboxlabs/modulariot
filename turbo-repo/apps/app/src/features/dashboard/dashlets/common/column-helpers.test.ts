@@ -77,7 +77,13 @@ describe("fromColumnItems", () => {
 
   it("omits descriptionEnabled when false or undefined", () => {
     const items = [
-      { key: "name", label: "Name", type: "text", descriptionEnabled: false, _id: "col-0" },
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        descriptionEnabled: false,
+        _id: "col-0",
+      },
       { key: "id", label: "ID", type: "text", _id: "col-1" },
     ];
     const result = fromColumnItems(items);
@@ -101,7 +107,13 @@ describe("fromColumnItems", () => {
 
   it("omits description when empty or undefined", () => {
     const items = [
-      { key: "name", label: "Name", type: "text", description: "", _id: "col-0" },
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        description: "",
+        _id: "col-0",
+      },
       { key: "id", label: "ID", type: "text", _id: "col-1" },
     ];
     const result = fromColumnItems(items);

@@ -1504,6 +1504,7 @@
     "no": "No"
   },
   "dashboard": {
+    "addWidget": "Agregar Widget",
     "editMode": "Modo Edición",
     "dragToMoveWidget": "Arrastra para mover este widget",
     "kioskMode": "Modo Kiosco",

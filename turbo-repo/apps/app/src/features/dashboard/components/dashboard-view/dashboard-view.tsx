@@ -27,6 +27,39 @@ import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboardAccess } from "@/features/common/providers/client-api.provider";
 import { EmptyState } from "../empty-state";
+
+// ── Placeholder (skeleton or empty state) ──────────────────────────────
+
+interface DashboardPlaceholderProps {
+  isLoaded: boolean;
+  onAdd?: () => void;
+}
+
+function DashboardPlaceholder({
+  isLoaded,
+  onAdd,
+}: Readonly<DashboardPlaceholderProps>) {
+  if (isLoaded) {
+    return <EmptyState onAdd={onAdd} />;
+  }
+  return (
+    <div
+      className="grid gap-4"
+      style={{
+        gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+        gridAutoRows: "minmax(150px, 1fr)",
+      }}
+    >
+      <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-16 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+    </div>
+  );
+}
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
@@ -396,30 +429,17 @@ export function DashboardView() {
                       onClick={() => setIsAddModalOpen(true)}
                     >
                       <HiPlus className="mr-2 h-4 w-4" />
-                      Add Widget
+                      {tr("dashboard.addWidget", dictionary)}
                     </Button>
                   </div>
                 )}
               </div>
             </div>
-          ) : !isLoaded ? (
-            <div
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
-                gridAutoRows: "minmax(150px, 1fr)",
-              }}
-            >
-              <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-              <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-              <div className="col-span-16 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-              <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
-            </div>
           ) : (
-            <EmptyState onAdd={() => setIsAddModalOpen(true)} />
+            <DashboardPlaceholder
+              isLoaded={isLoaded}
+              onAdd={canEdit ? () => setIsAddModalOpen(true) : undefined}
+            />
           )}
         </div>
       </div>

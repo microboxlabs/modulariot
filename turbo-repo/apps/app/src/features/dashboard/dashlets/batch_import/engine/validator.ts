@@ -41,7 +41,19 @@ function buildFieldSchema(p: IntrospectedParam): z.ZodTypeAny {
 
   let s: z.ZodString = z.string();
   if (p.format === "date-time") s = s.datetime({ offset: true });
-  if (p.pattern) s = s.regex(new RegExp(p.pattern));
+  if (p.pattern) {
+    // Upstream PostgREST may expose a CHECK-constraint regex that isn't valid
+    // JS syntax (e.g. POSIX classes). Fall through without the pattern check
+    // rather than crashing the whole schema builder.
+    try {
+      s = s.regex(new RegExp(p.pattern));
+    } catch (err) {
+      console.warn(
+        `batch_import validator: skipping invalid regex for "${p.name}"`,
+        err,
+      );
+    }
+  }
   return s;
 }
 

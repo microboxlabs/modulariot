@@ -289,6 +289,7 @@
           "confirm": "Confirmar",
           "cancelReassignment": "Cancelar",
           "confirmReassignment": "Reasignar",
+          "readOnlyBanner": "Servicio pasado — solo lectura",
           "loadUtilization": "Utilización de carga",
           "constraint": "Restricción",
           "maxUtilization": "Total",
@@ -348,12 +349,12 @@
         },
         "assignment": {
           "selectPlaceholder": "Seleccionar...",
-          "transportista": "Transportista",
-          "selectTransportista": "Seleccionar transportista...",
-          "searchTransportista": "Buscar transportista...",
-          "noTransportistasFound": "No se encontraron transportistas",
-          "conductor": "Conductor",
-          "selectConductor": "Seleccionar conductor...",
+          "carrier": "Transportista",
+          "selectCarrier": "Seleccionar transportista...",
+          "searchCarrier": "Buscar transportista...",
+          "noCarriersFound": "No se encontraron transportistas",
+          "driver": "Conductor",
+          "selectDriver": "Seleccionar conductor...",
           "searchDriver": "Buscar conductor...",
           "noDriversFound": "No se encontraron conductores",
           "searchNoResultsFor": "Sin resultados para",
@@ -379,11 +380,11 @@
               "faltasDescanso": "Faltas descanso"
             }
           },
-          "secondConductorLabel": "2do conductor",
-          "secondConductor": "Segundo Conductor",
-          "selectSecondConductor": "Seleccionar segundo conductor...",
-          "camion": "Camión",
-          "selectCamion": "Seleccionar camión...",
+          "secondDriverLabel": "2do conductor",
+          "secondDriver": "Segundo Conductor",
+          "selectSecondDriver": "Seleccionar segundo conductor...",
+          "truck": "Camión",
+          "selectTruck": "Seleccionar camión...",
           "searchTruck": "Buscar camión...",
           "noTrucksFound": "No se encontraron camiones",
           "truckSearchFields": {
@@ -394,14 +395,14 @@
             "gps": "GPS",
             "trips": "Viajes previos"
           },
-          "transportistaSearchFields": {
+          "carrierSearchFields": {
             "name": "Nombre",
             "rut": "RUT",
             "status": "Estado"
           },
-          "remolqueLabel": "Remolque",
-          "remolque": "Remolque",
-          "selectRemolque": "Seleccionar remolque...",
+          "trailerLabel": "Remolque",
+          "trailer": "Remolque",
+          "selectTrailer": "Seleccionar remolque...",
           "status": "Estado",
           "enabled": "Acreditado",
           "notEnabled": "No Acreditado",
@@ -423,11 +424,11 @@
           "available": "Disponible",
           "busy": "Ocupado",
           "truckType": {
-            "camion": "Camión",
+            "truck": "Camión",
             "furgon": "Furgón",
             "camioneta": "Camioneta"
           },
-          "remolqueType": {
+          "trailerType": {
             "ARFJ": "Articulado Fijo",
             "BAT": "Batea",
             "C100": "Contenedor 100",
@@ -463,16 +464,17 @@
           "lastMaintenance": "Último mantenimiento",
           "mileage": "Kilometraje",
           "reportedProblems": "Problemas reportados",
-          "searchRemolque": "Buscar remolque...",
-          "noRemolquesFound": "No se encontraron remolques",
-          "remolqueSearchFields": {
+          "searchTrailer": "Buscar remolque...",
+          "noTrailersFound": "No se encontraron remolques",
+          "trailerSearchFields": {
             "plate": "Patente",
             "type": "Tipo",
             "status": "Estado",
             "gps": "GPS",
             "capacity": "Capacidad",
             "mileage": "Kilometraje"
-          }
+          },
+          "loadingMore": "Cargando más…"
         }
       }
     },
@@ -1489,6 +1491,7 @@
       "saveSuccess": "Cambios guardados correctamente"
     },
     "title": "Título",
+    "enterTitle": "Ingrese título...",
     "subtitle": "Subtítulo",
     "value": "Valor",
     "max": "Máx",
@@ -1502,6 +1505,7 @@
     "no": "No"
   },
   "dashboard": {
+    "addWidget": "Agregar Widget",
     "editMode": "Modo Edición",
     "dragToMoveWidget": "Arrastra para mover este widget",
     "kioskMode": "Modo Kiosco",
@@ -1535,8 +1539,6 @@
       "duplicateSlug": "Ya existe un dashboard con este nombre. Por favor elige un nombre diferente."
     },
     "settings": {
-      "accessControlTitle": "Control de Acceso",
-      "accessControlDescription": "Gestiona quién puede ver o editar este dashboard.",
       "sparklineData": "Datos del gráfico (separados por coma)",
       "subtitle": "Subtítulo",
       "maxValue": "Valor Máximo",
@@ -1603,6 +1605,7 @@
       "columns": "Columnas",
       "detectColumns": "Detectar columnas",
       "addColumn": "Agregar columna",
+      "stickyColumn": "Columna fija",
       "cardLayout": "Diseño de Tarjeta",
       "horizontal": "Horizontal",
       "vertical": "Vertical",
@@ -1821,7 +1824,14 @@
       "columnFilterFromDate": "desde {date}",
       "columnFilterToDate": "hasta {date}",
       "accessControlTitle": "Control de acceso",
-      "accessControlDescription": "Gestiona quién puede ver y editar este dashboard"
+      "accessControlDescription": "Gestiona quién puede ver y editar este dashboard",
+      "unsavedChanges": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar que se perderán si cierras ahora.",
+        "discard": "Descartar cambios",
+        "saveAndClose": "Guardar y cerrar",
+        "keepEditing": "Seguir editando"
+      }
     },
     "permissions": {
       "modalTitle": "Gestionar permisos — {name}",
@@ -3309,7 +3319,7 @@
     "rank": {
       "conductor-senior": "Conductor Senior",
       "conductor-especializado": "Conductor Especializado",
-      "conductor": "Conductor",
+      "driver": "Conductor",
       "operador-logistico": "Operador Logístico"
     },
     "employmentStatus": {

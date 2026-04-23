@@ -15,7 +15,8 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
-import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import {
@@ -24,7 +25,7 @@ import {
   syncColumnsFromKeys,
 } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
-import { useActiveProviders } from "../common";
+import { useActiveProviders } from "../common/use-active-providers";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -93,6 +94,31 @@ export function DashletSettings({
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
     onDetectionComplete: autoPopulateCardLayout,
+  });
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title: s.title,
+    showRowCount: s.showRowCount,
+    dataMode: s.dataMode,
+    columns: s.columns,
+    rowsJson: s.rowsJson,
+    apiUrl: s.apiUrl,
+    filterEnabled: s.filterEnabled,
+    filterItems: s.filterItems,
+    sortEnabled: s.sortEnabled,
+    sortColumns: s.sortColumns,
+    showExport,
+    plannerVariableName,
+    dataSourceId,
+    titleColumn,
+    subtitleColumn,
+    headerBadgeColumns,
+    kpiColumns,
+    footerColumns,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    refreshValue: refresh.value,
   });
 
   const toggleList = (
@@ -280,6 +306,7 @@ export function DashletSettings({
       title={dashletName}
       displayOptionsChildren={exportToggle}
       widgetId={widgetId}
+      isDirty={isDirty}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

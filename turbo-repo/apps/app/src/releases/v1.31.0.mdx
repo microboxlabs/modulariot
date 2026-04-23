@@ -1,0 +1,102 @@
+# 🔔 Release Notes v1.31.0 — ModularIoT
+
+### Fecha: 23/04/2026
+
+**Objetivo**: Esta versión madura el flujo de planificación del calendario con datos acreditados en vivo y hidratación de formularios, incorpora nuevas capacidades en dashboards — Batch Import con validación contra el schema del RPC, compartir dashboards por link/imagen/PDF, control de acceso por roles basado en ACL de Alfresco, columnas sticky y reordenamiento drag-and-drop — y endurece el pipeline de ingesta de métricas extendidas, la seguridad de ACL y el stack de infraestructura (Node.js 24 en CI, migración a `httfetcher`).
+
+## 🚀 Evolutivos
+
+- **📅 Asignación de Servicios con Recursos Acreditados en Vivo**
+  - **Fuente de datos en vivo**: El formulario de Asignación del calendario reemplaza sus arrays mock por la RPC `ams.fn_rd_accredited_resources`, con feeds en cascada CARRIER → DRIVER → TRUCK/TRAILER que se cargan al seleccionar servicio y carrier. *(Integración OSS — MIOT-0.5.2)*
+  - **Proxy y caché**: Nueva ruta `app/api/calendar/accredited-resources` sobre PostgREST con caché LRU acotado (32 entradas, TTL 5 min) y filtro server-side por subcadena sobre `resource_name` / `identifier`.
+  - **Hidratación desde servicios planificados**: Al reasignar un servicio ya planificado, el sidebar precarga carrier, conductor, camión y acoplado desde la tupla almacenada, en vez de partir en blanco; los toggles de segundo conductor / acoplado se abren automáticamente cuando el slot correspondiente existe.
+  - **Modelo ampliado**: `SelectedService` y `StoredServiceSchema` suman `assignedTransportista`, `assignedCamion` y `assignedRemolque` para que los valores sobrevivan recargas y booking payloads; nuevo helper `assignmentDataFromService` centraliza la derivación.
+  - **Re-hidratación sin fugas**: El `useEffect` keyeado por `selectedService.id` evita que permanezcan pares obsoletos al cambiar entre servicios.
+  - **RUT Cliente en sidebar**: Nueva fila "RUT Cliente" / "Client RUT" en la sección Información del calendario, tomada de `mintral_clientRut` y ocultada cuando el valor no existe.
+
+- **📥 Dashlet Batch Import con Validación contra Schema RPC**
+  - **Importación masiva**: Nuevo dashlet bajo la categoría `actions` — sibling de `file_upload` — que permite pegar o cargar CSV/TSV, previsualizar cada fila y enviar a un endpoint PostgREST configurable; genérico, sin cambios de código al onboardear un nuevo target. *(Integración OSS — MIOT-0.5.2)*
+  - **Pre-validación contra OpenAPI**: Introspección de los parámetros del RPC (`name`, `type`, `format`, `required`, `enum`, `minimum`, `maximum`, `pattern`) para construir un validador local, de modo que las filas que violan el schema aparecen como `failed` antes de enviar y el contador del botón Import refleja sólo filas realmente importables.
+  - **Re-validación reactiva**: Si el schema llega asíncronamente después de que el usuario ya pegó datos, las filas existentes se re-validan automáticamente.
+  - **UX de errores mejorada**: Los errores por fila dejan de depender del `title` tooltip del browser (difícil de leer, volátil) y pasan a una superficie explícita en la preview.
+
+- **🔗 Compartir Dashboards (Link, Imagen, PDF, Share Sheet)**
+  - **Acción dedicada en header**: Share se eleva del dropdown de Settings a una acción propia en el header del dashboard, con un panel que concentra todas las opciones de exportación. *(Integración OSS — MIOT-0.5.2)*
+  - **Opciones completas**: Copy link (kiosk autenticado preservando query params), Download as image (PNG), Download as PDF (single-page con título y timestamp, orientación según aspect ratio) y Share image… (hand-off al share sheet nativo del OS en dispositivos compatibles).
+  - **Degradación controlada**: Cuando la plataforma no soporta compartir archivos, se muestra un mensaje claro en vez de fallar silenciosamente; dismissing del share sheet no emite error.
+
+- **📊 Columnas Sticky y Drag-and-Drop en Tablas de Dashboard**
+  - **Columnas fijas**: Pin de columnas a izquierda/derecha para mantenerlas visibles durante el scroll horizontal, con divisores y sombras pulidas. *(Integración OSS — MIOT-0.5.2)*
+  - **Reordenamiento**: Drag-and-drop de columnas en la configuración de tabla y de categorías en el stacked-stat.
+  - **Diálogo de settings pulido**: Mejor scroll, layout y zona fija de acciones (save/refresh) en el modal de configuración.
+  - **i18n**: Nuevas cadenas EN/ES para las opciones de sticky columns.
+
+- **🔐 Control de Acceso por Roles en Dashboards (Alfresco ACL)**
+  - **De filtro app-level a ACL nativo**: Reemplazo del filtro binario `allowedGroups` por roles Alfresco (Consumer, Contributor, Editor, Coordinator) aplicados directamente al nodo del dashboard (`Sites/{site}/documentLibrary/dashboard/{slug}-config.json`). *(Integración OSS — MIOT-0.5.2)*
+  - **Permisos granulares**: Dashboards ahora soportan view vs. edit vs. admin, permitiendo otorgar acceso a usuarios individuales y delegar "puede gestionar permisos".
+  - **Reutilización de infraestructura Alfresco**: Herencia desde site/folder y ACLs por nodo dejan de estar ociosas al quedar expuestas en el producto.
+
+- **🧭 Refactor de Sidebar (Desktop + Mobile)**
+  - **Route matching por segmento**: Nuevo helper `isSegmentPrefix()` reemplaza `startsWith`, corrigiendo coincidencias erróneas entre rutas hermanas (p. ej. `/users/settings-archive` ya no resalta `/users/settings`). *(Integración OSS — MIOT-0.5.2)*
+  - **Panel L2 coherente**: El link de Settings cierra el panel L2 al click, alineándose con el resto de ítems de navegación directa.
+  - **Búsqueda por sección**: La query de búsqueda se resetea al cambiar de sección activa, tanto en `SecondaryPanel` como en `MobileSecondaryPanel`.
+  - **Fix mobile**: `findActiveSectionLabel` ahora considera `dynamicItemsSource` además de `items.length > 0`, igualando el predicado del resto de la UI.
+  - **Deduplicación y accesibilidad**: Contenido de panel compartido entre desktop y mobile, con mejoras de accesibilidad.
+
+- **📐 Variante Horizontal del Componente Métrica con `children` Bajo el Valor**
+  - **Jerarquía visual corregida**: En el layout horizontal, `children` deja de renderizarse como tercera columna flex y pasa a apilarse bajo el valor y la unidad, alineándose con la documentación del componente. *(Integración OSS — MIOT-0.5.2)*
+
+## 🔧 Integraciones
+
+- **🧾 Campo `service_client_rut` Propagado hasta Alfresco**
+  - **Nuevo atributo en el modelo**: `mintral:clientRut` se agrega al `mintral:serviceAspect` junto a `mintral:clientAbbreviation`, con tipo `d:text` indexado; la constante `PARAM_SERVICE_CLIENT_RUT` se incorpora a `ExtTripServiceParamsV2`.
+  - **Flujo completo**: `services` (pg-rest JSON) → `ExtTripServiceParamsV2` → `MintralModel.jsonKeyMapperV2` → propiedad en `mintral:serviceAspect`, espejando el patrón existente de `service_client_code` / `service_client_abbreviation`.
+  - **Consumidor visible**: Este campo alimenta la nueva fila "RUT Cliente" del sidebar de calendario (ver Evolutivos).
+
+- **🟢 Actualización de GitHub Actions a Node.js 24**
+  - **Compliance con deprecación**: GitHub forzará Node.js 24 en los runners de Actions a partir de 2026-06-02 y removerá Node.js 20 el 2026-09-16. *(Integración OSS — MIOT-0.5.2)*
+  - **Acciones actualizadas**: `actions/checkout`, `actions/setup-node`, `actions/cache` (incl. `cache/restore`) y `dorny/paths-filter` en los workflows CI, Quarkus, SonarCloud, ECM, Publish miot-cli y Publish npm.
+
+- **🔁 Migración de `pgrest-client.ts` a `httfetcher`**
+  - **11 call sites migrados**: Reemplazo de `fetch()` crudos con headers manuales por `httfetcher`, ganando logging estructurado con request IDs, manejo de errores vía `FetcherError` y propagación consistente de user-agent. *(Integración OSS — MIOT-0.5.2)*
+  - **Limpieza**: Tras la migración, el wrapper `pgrestFetch` y la constante `PGREST_FETCH_TIMEOUT_MS` son eliminados.
+
+## 🐛 Correcciones
+
+- **🐛 Métricas de Extensión (`x.*`) descartadas silenciosamente cuando falta `ts` por ítem**
+  - **Impacto**: `MetricsRepository.addOffsetDateTime` en `quarkus-subscriber-db-writer` dereferenciaba `extensionMetric.getTs().toOffsetDateTime()` sin null-check. Como `MetricItem.ts` es opcional (sin `@NotNull`), todos los payloads con `x.*` keys y sólo `device_ts`/`timestamp` de envelope producían NPE, tragado por el try/catch por ítem y reportado como "Failed to serialize extension metric … null". Resultado: 0 filas en `asset_metric_ext` pese a que `asset_metric_core` escribía correctamente (p. ej. `x.adblue.level`, `x.adblue.rate`, `x.dpf.*` de `src=j1939`). *(Integración OSS — MIOT-0.5.2)*
+  - **Solución**: Fallback a `device_ts` / timestamp de envelope cuando el ítem no trae `ts`, y mensaje de log diferenciado para casos de serialización reales.
+
+- **🐛 Screenshot del Mapa Compartido Resulta en Archivo Corrupto**
+  - **Impacto**: En la Geographic View, compartir un screenshot vía Web Share API entregaba un archivo PNG corrupto / ilegible en el destino (WhatsApp, Mail, Drive) — afectaba tanto el preview de la toolbar como el share del side-bar. *(Integración OSS — MIOT-0.5.2)*
+  - **Solución**: El payload del share se construye a partir de los bytes PNG decodificados, no del string data-URL base64, produciendo archivos válidos. Plataformas sin soporte de file sharing muestran un mensaje claro; dismissing del share sheet deja de emitir error.
+
+- **🐛 Fleet Management: Localización Incompleta e Historial de Síntomas Sesgado a ICU 2**
+  - **Impacto**: Textos de la UI de Fleet Management no pasaban por `tr()`, y la consulta de historial de síntomas filtraba silenciosamente sólo ICU code 2, ocultando el resto de eventos históricos del vehículo. *(Integración OSS — MIOT-0.5.2)*
+  - **Solución**: Nuevas claves de traducción EN/ES en `src/lang/en.json` / `es.json` y componentes migrados a `tr()`; corrección del filtro de severidad en la query de historial para retornar todos los síntomas del vehículo seleccionado.
+
+- **🐛 `allowedGroups` no Normalizado en el Boundary de Storage**
+  - **Impacto**: `importDashboard` y el hook de lectura exponían `allowedGroups` tal cual venía de Alfresco o de un import. Si el valor era algo distinto de `string[]`, los nuevos checks server-side (`src/app/api/dashboard/configs/route.ts`, `src/app/[lang]/(secured)/home/[slug]/page.tsx`) lo trataban como "sin restricciones", de modo que un import malformado podía silenciosamente tumbar las restricciones del dashboard. *(Integración OSS — MIOT-0.5.2)*
+  - **Solución**: Helper `normalizeAllowedGroups(value)` que clamp-ea a un `string[]` validado antes de persistir y antes de retornar desde el hook, filtrando no-arrays y entradas que no sean strings.
+
+- **🐛 ACL Malformado: Fail-Open Filtra Dashboards Restringidos**
+  - **Impacto**: En el listado de dashboards, cualquier `allowedGroups` no-array se trataba igual que "sin restricción", leakeando dashboards restringidos cuyo `config` había sido corrompido o editado manualmente fuera de la app. *(Integración OSS — MIOT-0.5.2)*
+  - **Solución**: Fail-closed explícito — sólo `undefined` o `[]` se consideran "sin restricción"; shapes inválidos o entradas no-string excluyen el dashboard del listado.
+
+## 📊 Beneficios
+
+- 📅 **Planificación de calendario lista para producción**: La conexión en vivo con `ams.fn_rd_accredited_resources`, la hidratación de reasignaciones y el RUT Cliente en sidebar eliminan los mocks y convierten el flujo de Asignación en un circuito operativo completo sobre datos acreditados.
+- 📥 **Importación masiva sin fricción**: Batch Import con validación contra el schema del RPC antes de enviar permite a usuarios no-técnicos poblar tablas de forma segura, eliminando el ida-y-vuelta de scripts ad-hoc o correcciones post-submit.
+- 🔗 **Distribución nativa de dashboards**: Compartir por link kiosk, imagen, PDF o share sheet del OS reemplaza el flujo manual de screenshot y mejora la adopción en reportería y reuniones.
+- 🔐 **Seguridad de dashboards endurecida**: La migración a ACL nativo de Alfresco sumada al fail-closed en ACL malformado y la normalización de `allowedGroups` eliminan una superficie de leak silencioso y habilitan delegación fina de permisos.
+- 🛰️ **Ingesta de métricas extendidas confiable**: El fix de `x.*` sin `ts` por ítem cierra un agujero de pérdida silenciosa de datos telemétricos (p. ej. AdBlue, DPF) que afectaba la observabilidad del cliente.
+- 🧭 **Navegación más predecible**: El refactor del sidebar elimina bugs de matching entre rutas hermanas, resetea búsqueda por sección y unifica comportamiento desktop/mobile.
+- 🧰 **Infraestructura en compliance y consistente**: CI en Node.js 24 antes de la deprecación de GitHub, y la migración a `httfetcher` aporta logging estructurado con request IDs en todos los accesos a PostgREST.
+
+## 📌 Conclusión
+
+La versión 1.31.0 consolida el flujo de planificación del calendario como un circuito end-to-end: el formulario de Asignación deja atrás los mocks y consume recursos acreditados en vivo con caché y filtros server-side, las reasignaciones hidratan desde la tupla almacenada sin fugas entre servicios, y el nuevo campo `mintral:clientRut` se propaga desde el `services` table hasta el `mintral:serviceAspect` de Alfresco para visibilizarse en el sidebar. Este conjunto de cambios baja la fricción operativa al mínimo y cierra una deuda de integración que venía arrastrándose desde iteraciones previas.
+
+En paralelo, los dashboards ganan músculo analítico y de distribución: Batch Import con validación contra el schema del RPC habilita carga masiva segura y genérica, la acción de Compartir se eleva a ciudadano de primera clase del header con link kiosk, imagen, PDF y share sheet nativo, y el control de acceso migra al ACL nativo de Alfresco con roles Consumer/Contributor/Editor/Coordinator — complementado por endurecimientos de fail-closed en ACL malformado y normalización de `allowedGroups` que cierran una clase de leaks silenciosos. Las columnas sticky y el drag-and-drop en tablas completan el paquete de mejoras de productividad diaria en el dashboard.
+
+Finalmente, la release refuerza la base de infraestructura y calidad: el pipeline de ingesta de `quarkus-subscriber-db-writer` deja de descartar silenciosamente métricas de extensión cuando falta el `ts` por ítem, Fleet Management recupera localización completa y el historial íntegro de síntomas, el sidebar se refactoriza para navegación predecible y accesible, el CI queda en compliance con la deprecación de Node.js 20 de GitHub Actions, y los accesos a PostgREST migran a `httfetcher` con logging estructurado. El foco de la próxima iteración quedará en capitalizar estas bases para analítica avanzada, personalización de dashboards y profundización de la integración del calendario con los sistemas operativos del cliente.

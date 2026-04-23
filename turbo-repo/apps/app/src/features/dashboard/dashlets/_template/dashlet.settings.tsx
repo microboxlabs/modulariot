@@ -1,13 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label } from "flowbite-react";
+import { TextInput, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SettingsDrawer } from "../common/settings-drawer";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
+import { tr } from "@/features/i18n/tr.service";
 
 /**
- * Settings Modal
+ * Settings drawer for this dashlet.
+ *
+ * ## Dirty tracking (unsaved-changes protection)
+ *
+ * Every settings component **must** wire dirty tracking so that:
+ * - The Save button is disabled until the user changes something.
+ * - Closing the drawer with unsaved changes shows a confirmation modal.
+ *
+ * ### How it works
+ * 1. Call `useSettingsDirty(isOpen, snapshot)` with an object containing
+ *    **every** field that should participate in change detection.
+ * 2. Pass the returned `isDirty` to `<SettingsShell isDirty={isDirty}>`.
+ *
+ * ### Adding a new field
+ * When you add a new setting you must update **three** places:
+ *   a) Add a `useState` for the field.
+ *   b) Add the field to the snapshot object passed to `useSettingsDirty`.
+ *   c) Include the field in `handleSave` → `onSave(...)`.
+ *
+ * Forgetting step (b) means the Save button won't react to changes in
+ * that field and the unsaved-changes modal won't appear.
  */
 export function DashletSettings({
   isOpen,
@@ -17,9 +39,17 @@ export function DashletSettings({
   widgetId,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
-  // Add state for each config field
+  // ── State ──────────────────────────────────────────────────────────
+  // Add a useState for each config field.
   const [title, setTitle] = useState(config.title || "");
 
+  // ── Dirty tracking ────────────────────────────────────────────────
+  // Every field listed here enables Save-button toggling and the
+  // unsaved-changes modal. When you add a new field, add it here too.
+  const isDirty = useSettingsDirty(isOpen, { title });
+
+  // ── Save handler ───────────────────────────────────────────────────
+  // Include every field here. This is what gets persisted.
   const handleSave = () => {
     onSave({
       title: title.trim() || "Default Title",
@@ -28,49 +58,27 @@ export function DashletSettings({
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   return (
-    <SettingsDrawer
-      open={isOpen}
+    <SettingsShell
+      isOpen={isOpen}
       onClose={onClose}
-      widgetId={widgetId}
+      onSave={handleSave}
       dictionary={dictionary}
+      widgetId={widgetId}
+      isDirty={isDirty}
     >
-      <div className="flex h-full flex-col gap-3">
-        {/* Add your form fields here */}
-        <div>
-          <Label htmlFor="dashlet-title" className="mb-1 block text-sm">
-            Title
-          </Label>
-          <TextInput
-            id="dashlet-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter title..."
-          />
-        </div>
-        <div className="flex w-full justify-end gap-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            className="no-drag w-full"
-            onMouseDown={handleMouseDown}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            className="no-drag w-full"
-            onMouseDown={handleMouseDown}
-          >
-            Save
-          </Button>
-        </div>
+      {/* Add your form fields here */}
+      <div>
+        <Label htmlFor="dashlet-title" className="mb-1 block text-sm">
+          {tr("common.title", dictionary)}
+        </Label>
+        <TextInput
+          id="dashlet-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={tr("common.enterTitle", dictionary)}
+        />
       </div>
-    </SettingsDrawer>
+    </SettingsShell>
   );
 }

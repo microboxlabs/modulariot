@@ -5,21 +5,17 @@ import { Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { defaultConfig, DEFAULT_BAR_COLOR } from "./dashlet";
-import {
-  HbTextField,
-  SettingsFieldGrid,
-  useDataProvider,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  DataProviderEntries,
-} from "../common";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { HbTextField, SettingsFieldGrid } from "../common/settings-fields";
+import { useDataProvider } from "../common/use-data-provider";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { DataProviderEntries } from "../common/data-provider-entries";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
@@ -83,6 +79,23 @@ export function DashletSettings({
     dataMode === "planner" && plannerVariableName
       ? schemas.get(plannerVariableName)
       : undefined;
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    value,
+    maxValue,
+    unit,
+    ringColor,
+    dataMode,
+    dpEntries: dp.dataProvider,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
+    ringColorRulesState: ringColorRules.rules,
+  });
 
   const handleSave = () => {
     onSave({
@@ -189,16 +202,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

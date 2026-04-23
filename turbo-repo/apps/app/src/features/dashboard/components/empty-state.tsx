@@ -5,7 +5,7 @@ import { HiPlus } from "react-icons/hi2";
 import { HiChartBar } from "react-icons/hi";
 
 interface EmptyStateProps {
-  onAdd: () => void;
+  onAdd?: () => void;
 }
 
 export function EmptyState({ onAdd }: Readonly<EmptyStateProps>) {
@@ -28,10 +28,12 @@ export function EmptyState({ onAdd }: Readonly<EmptyStateProps>) {
       </p>
 
       {/* CTA Button */}
-      <Button color="blue" onClick={onAdd}>
-        <HiPlus className="mr-2 h-4 w-4" />
-        Add Widget
-      </Button>
+      {onAdd && (
+        <Button color="blue" onClick={onAdd}>
+          <HiPlus className="mr-2 h-4 w-4" />
+          Add Widget
+        </Button>
+      )}
     </div>
   );
 }

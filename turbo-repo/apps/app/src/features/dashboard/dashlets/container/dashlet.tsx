@@ -9,8 +9,11 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestResolvedFields } from "../common";
+import {
+  type PgrestParam,
+  type PgrestHttpMethod,
+} from "../common/pgrest-types";
+import { usePgrestResolvedFields } from "../common/use-pgrest-resolved-fields";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { GridLayoutItem } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";

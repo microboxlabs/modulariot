@@ -1,6 +1,6 @@
 "use client";
 
-import { SimpleDashletSettings, createSettingsField } from "../common";
+import { SimpleDashletSettings, createSettingsField } from "../common/simple-dashlet-settings";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {

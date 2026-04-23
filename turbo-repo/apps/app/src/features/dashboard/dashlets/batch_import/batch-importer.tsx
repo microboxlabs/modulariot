@@ -524,11 +524,22 @@ export function BatchImporterView({
           type="button"
           size="xs"
           color="gray"
-          onClick={() => fileRef.current?.click()}
+          onClick={(e) => {
+            // Defensive: even with type="button", a portalized Flowbite Modal
+            // can route events oddly. Stopping propagation + preventing any
+            // default keeps the user-gesture clean for `input.click()`.
+            e.preventDefault();
+            e.stopPropagation();
+            fileRef.current?.click();
+          }}
           disabled={parsing}
         >
           {tr("dashboard.dashlets.batchImport.loadFile", dictionary)}
         </Button>
+        {/* sr-only (not `hidden`) keeps the input in the layout flow so
+            `.click()` reliably opens the picker. Some browsers silently
+            reject programmatic click on `display: none` file inputs,
+            especially inside a portalized modal. */}
         <input
           ref={fileRef}
           type="file"
@@ -536,7 +547,9 @@ export function BatchImporterView({
             acceptedFileTypes ||
             ".tsv,.csv,.txt,.xlsx,.xls,.xlsm,.ods,text/plain,text/csv"
           }
-          className="hidden"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
           onChange={(e: ChangeEvent<HTMLInputElement>) => {
             const f = e.target.files?.[0];
             if (f) void loadFile(f);

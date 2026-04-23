@@ -8,7 +8,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import { Button, Spinner } from "flowbite-react";
+import { Button, Spinner, Textarea } from "flowbite-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   DuplicateStrategy,
@@ -547,11 +547,11 @@ export function BatchImporterView({
         <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           {tr("dashboard.dashlets.batchImport.pasteHint", dictionary)}
         </span>
-        <textarea
+        <Textarea
           value={raw}
           onChange={(e) => loadDebounced(e.target.value)}
           rows={4}
-          className="w-full rounded-md border border-gray-200 bg-white p-2 font-mono text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          className="font-mono text-xs"
         />
       </label>
 

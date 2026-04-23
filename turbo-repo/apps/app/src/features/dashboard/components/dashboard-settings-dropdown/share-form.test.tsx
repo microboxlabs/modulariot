@@ -20,8 +20,12 @@ vi.mock("@/features/notifications/notification", () => ({
 
 // Mock html2canvas-pro — dynamically imported
 const mockToDataURL = vi.fn(() => "data:image/png;base64,fakedata");
+const mockToBlob = vi.fn((cb: (b: Blob | null) => void) => {
+  cb(new Blob(["fake-png-bytes"], { type: "image/png" }));
+});
 const mockCanvas = {
   toDataURL: mockToDataURL,
+  toBlob: mockToBlob,
   width: 1200,
   height: 600,
 };
@@ -38,6 +42,7 @@ const mockPdfText = vi.fn();
 const mockPdfSetFontSize = vi.fn();
 const mockPdfSetTextColor = vi.fn();
 const mockPdfAddImage = vi.fn();
+const mockPdfOutput = vi.fn(() => new Blob(["fake-pdf-bytes"], { type: "application/pdf" }));
 
 vi.mock("jspdf", () => {
   class MockJsPDF {
@@ -47,9 +52,14 @@ vi.mock("jspdf", () => {
     setTextColor = mockPdfSetTextColor;
     addImage = mockPdfAddImage;
     save = mockPdfSave;
+    output = mockPdfOutput;
   }
   return { jsPDF: MockJsPDF };
 });
+
+// Web Share API mocks — installed fresh in each beforeEach so share buttons can render.
+const mockShare = vi.fn((_data: ShareData) => Promise.resolve());
+const mockCanShare = vi.fn((_data: ShareData) => true);
 
 // Import after mocks
 const { ShareForm, sanitizeBaseName } = await import("./share-form");
@@ -60,9 +70,23 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockSearchParams = new URLSearchParams();
   mockPathname = "/en/home/myDashboard";
+  mockShare.mockImplementation(() => Promise.resolve());
+  mockCanShare.mockImplementation(() => true);
 
   Object.defineProperty(globalThis.navigator, "clipboard", {
     value: { writeText: vi.fn(() => Promise.resolve()) },
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(globalThis.navigator, "share", {
+    value: mockShare,
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(globalThis.navigator, "canShare", {
+    value: mockCanShare,
     writable: true,
     configurable: true,
   });
@@ -286,6 +310,183 @@ describe("ShareForm", () => {
           message: "PDF downloaded",
         });
         expect(mockOnClose).toHaveBeenCalled();
+      });
+
+      document.body.removeChild(gridEl);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Share via OS (Web Share API)
+  // --------------------------------------------------------------------------
+
+  describe("Share via OS", () => {
+    it("hides share buttons when navigator.canShare is undefined", async () => {
+      Object.defineProperty(globalThis.navigator, "canShare", {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
+
+      // Wait a tick for the feature-detect effect to run; then assert absence.
+      await waitFor(() => {
+        expect(screen.getByText("Copy link")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Share image...")).not.toBeInTheDocument();
+      expect(screen.queryByText("Share PDF...")).not.toBeInTheDocument();
+    });
+
+    it("hides the PDF share button when canShare rejects a PDF file", async () => {
+      mockCanShare.mockImplementation((data: ShareData) => {
+        const file = data.files?.[0];
+        return file?.type !== "application/pdf";
+      });
+
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Share image...")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Share PDF...")).not.toBeInTheDocument();
+    });
+
+    it("renders both share buttons when canShare returns true for both types", async () => {
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Share image...")).toBeInTheDocument();
+        expect(screen.getByText("Share PDF...")).toBeInTheDocument();
+      });
+    });
+
+    it("shares a PNG file via navigator.share with the sanitized filename", async () => {
+      const gridEl = document.createElement("div");
+      gridEl.className = "dashboard-root-grid";
+      document.body.appendChild(gridEl);
+
+      render(<ShareForm dashboardName="Fleet Status / Q2 2025" onClose={mockOnClose} />);
+      await waitFor(() => screen.getByText("Share image..."));
+      fireEvent.click(screen.getByText("Share image..."));
+
+      await waitFor(() => {
+        expect(mockShare).toHaveBeenCalledTimes(1);
+      });
+
+      const shareArg = mockShare.mock.calls[0][0] as ShareData & { files: File[] };
+      expect(shareArg.files).toHaveLength(1);
+      const file = shareArg.files[0];
+      expect(file).toBeInstanceOf(File);
+      expect(file.type).toBe("image/png");
+      expect(file.name).toMatch(/^Fleet_Status_Q2_2025_\d{4}-\d{2}-\d{2}\.png$/);
+      expect(shareArg.title).toBe("Fleet Status / Q2 2025");
+
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        type: "success",
+        message: "Shared",
+      });
+      expect(mockOnClose).toHaveBeenCalled();
+
+      document.body.removeChild(gridEl);
+    });
+
+    it("shares a PDF file via navigator.share with the sanitized filename", async () => {
+      const gridEl = document.createElement("div");
+      gridEl.className = "dashboard-root-grid";
+      document.body.appendChild(gridEl);
+
+      render(<ShareForm dashboardName="Fleet Status / Q2 2025" onClose={mockOnClose} />);
+      await waitFor(() => screen.getByText("Share PDF..."));
+      fireEvent.click(screen.getByText("Share PDF..."));
+
+      await waitFor(() => {
+        expect(mockShare).toHaveBeenCalledTimes(1);
+      });
+
+      expect(mockPdfOutput).toHaveBeenCalledWith("blob");
+      const shareArg = mockShare.mock.calls[0][0] as ShareData & { files: File[] };
+      expect(shareArg.files).toHaveLength(1);
+      const file = shareArg.files[0];
+      expect(file).toBeInstanceOf(File);
+      expect(file.type).toBe("application/pdf");
+      expect(file.name).toMatch(/^Fleet_Status_Q2_2025_\d{4}-\d{2}-\d{2}\.pdf$/);
+
+      document.body.removeChild(gridEl);
+    });
+
+    it("does not show an error toast when the user cancels the share sheet (AbortError)", async () => {
+      const gridEl = document.createElement("div");
+      gridEl.className = "dashboard-root-grid";
+      document.body.appendChild(gridEl);
+
+      const abortErr = new Error("User cancelled");
+      abortErr.name = "AbortError";
+      mockShare.mockRejectedValueOnce(abortErr);
+
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
+      await waitFor(() => screen.getByText("Share image..."));
+      fireEvent.click(screen.getByText("Share image..."));
+
+      await waitFor(() => {
+        expect(mockShare).toHaveBeenCalled();
+      });
+
+      expect(mockShowNotification).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error" }),
+      );
+      expect(mockOnClose).not.toHaveBeenCalled();
+
+      document.body.removeChild(gridEl);
+    });
+
+    it("shows an error toast when navigator.share rejects with a non-abort error", async () => {
+      const gridEl = document.createElement("div");
+      gridEl.className = "dashboard-root-grid";
+      document.body.appendChild(gridEl);
+
+      mockShare.mockRejectedValueOnce(new Error("network borked"));
+
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
+      await waitFor(() => screen.getByText("Share image..."));
+      fireEvent.click(screen.getByText("Share image..."));
+
+      await waitFor(() => {
+        expect(mockShowNotification).toHaveBeenCalledWith({
+          type: "error",
+          message: "Failed to share dashboard",
+        });
+      });
+
+      document.body.removeChild(gridEl);
+    });
+
+    it("disables all action buttons while a share is in flight", async () => {
+      const gridEl = document.createElement("div");
+      gridEl.className = "dashboard-root-grid";
+      document.body.appendChild(gridEl);
+
+      let resolveShare: (() => void) | undefined;
+      mockShare.mockImplementationOnce(
+        () => new Promise<void>((r) => { resolveShare = r; }),
+      );
+
+      render(<ShareForm dashboardName="Test Dashboard" onClose={mockOnClose} />);
+      await waitFor(() => screen.getByText("Share image..."));
+      fireEvent.click(screen.getByText("Share image..."));
+
+      await waitFor(() => {
+        expect(screen.getByText("Preparing...")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("Copy link").closest("button")!).toBeDisabled();
+      expect(screen.getByText("Share PDF...").closest("button")!).toBeDisabled();
+      expect(screen.getByText("Download as image").closest("button")!).toBeDisabled();
+      expect(screen.getByText("Download as PDF").closest("button")!).toBeDisabled();
+
+      resolveShare!();
+      await waitFor(() => {
+        expect(screen.getByText("Share image...")).toBeInTheDocument();
       });
 
       document.body.removeChild(gridEl);

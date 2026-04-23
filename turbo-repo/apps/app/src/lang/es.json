@@ -1948,7 +1948,8 @@
         "headerError": {
           "empty": "El archivo está vacío.",
           "no_headers": "La primera fila no tiene encabezados válidos.",
-          "duplicate_mapping": "Dos columnas están mapeadas al mismo nombre destino. Renombra una para continuar."
+          "duplicate_mapping": "Dos columnas están mapeadas al mismo nombre destino. Renombra una para continuar.",
+          "parse_failed": "No se pudo leer este archivo. Puede estar dañado, protegido con contraseña o en un formato no soportado."
         },
         "statusCol": "Estado",
         "total": "Total",

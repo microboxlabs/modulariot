@@ -327,6 +327,10 @@ export function useBatchImporter({
 
   const runImport = useCallback(
     async (targetIndexes?: Set<number>) => {
+      // Re-entrancy guard: a rapid double-click or an Enter-triggered form
+      // submit can fire onImport twice before the submit button's disabled
+      // prop re-renders, which would double-submit every unprocessed row.
+      if (importing) return;
       const d = doc;
       if (!d) return;
       const current = rowStates;
@@ -384,7 +388,7 @@ export function useBatchImporter({
         setImporting(false);
       }
     },
-    [doc, rowStates, sourceKey, strategy, submit, patchRowStates],
+    [doc, rowStates, sourceKey, strategy, submit, patchRowStates, importing],
   );
 
   const onImport = useCallback(() => runImport(), [runImport]);

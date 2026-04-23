@@ -143,15 +143,9 @@ export function SimpleDashletSettings<C extends object>({
 
   const {
     isPgrest,
-    activeProviders,
     dataMode,
-    dataSourceId,
-    setDataSourceId,
-    plannerVariableName,
-    setPlannerVariableName,
-    pg,
-    handleDataModeChange,
     pgrestSaveFields,
+    dataTabProps,
   } = useSimplePgrestSettings({
     config: config as Record<string, unknown>,
     fieldNames,
@@ -160,12 +154,12 @@ export function SimpleDashletSettings<C extends object>({
   });
 
   const schemaSuggestions =
-    dataMode === "planner" && plannerVariableName
-      ? schemas.get(plannerVariableName)
+    dataMode === "planner" && dataTabProps.plannerVariableName
+      ? schemas.get(dataTabProps.plannerVariableName)
       : undefined;
 
-  // ── Dirty tracking ──────────────────────────────────────────────────
-  const isDirty = useSettingsDirty(isOpen, {
+  // ── Save payload (shared by dirty tracking & handleSave) ────────────
+  const buildFullSavePayload = () => ({
     ...buildSaveValues(),
     ...extraSaveFields,
     ...pgrestSaveFields,
@@ -173,29 +167,17 @@ export function SimpleDashletSettings<C extends object>({
     ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
   });
 
+  // ── Dirty tracking ──────────────────────────────────────────────────
+  const isDirty = useSettingsDirty(isOpen, buildFullSavePayload());
+
   const handleSave = () => {
-    onSave({
-      ...buildSaveValues(),
-      ...extraSaveFields,
-      ...pgrestSaveFields,
-      ...refresh.savePayload,
-      ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
-    } as unknown as Partial<C>);
+    onSave(buildFullSavePayload() as unknown as Partial<C>);
     onClose();
   };
 
   const thresholdNode = showThresholds ? (
     <ThresholdEditor
-      enabled={threshold.thresholdEnabled}
-      onToggle={threshold.setThresholdEnabled}
-      field={threshold.thresholdField}
-      onFieldChange={threshold.setThresholdField}
-      applyTo={threshold.thresholdApplyTo}
-      onApplyToChange={threshold.setThresholdApplyTo}
-      rules={threshold.thresholdRules}
-      onAdd={threshold.addThresholdRule}
-      onRemove={threshold.removeThresholdRule}
-      onUpdate={threshold.updateThresholdRule}
+      {...threshold.editorProps}
       schemaSuggestions={schemaSuggestions}
       dictionary={dictionary}
     />
@@ -219,15 +201,8 @@ export function SimpleDashletSettings<C extends object>({
   const dataTab = (
     <PgrestDataTab
       id={`${idPrefix}-data-mode`}
-      dataMode={dataMode}
-      onDataModeChange={handleDataModeChange}
-      pgrest={pg}
+      {...dataTabProps}
       dictionary={dictionary}
-      plannerVariableName={plannerVariableName}
-      onPlannerVariableNameChange={setPlannerVariableName}
-      dataSourceId={dataSourceId}
-      onDataSourceIdChange={setDataSourceId}
-      activeProviders={activeProviders}
     />
   );
 

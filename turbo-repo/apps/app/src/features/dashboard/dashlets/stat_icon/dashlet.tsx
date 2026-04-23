@@ -2,18 +2,19 @@
 
 import type { IconType } from "react-icons";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { PgrestDashletFields, useDashletPgrest } from "../common/use-dashlet-pgrest";
 import {
-  PgrestDashletFields,
-  useDashletPgrest,
   DashletLoading,
   DashletError,
   parseResolvedNumber,
-  DASHLET_ICON_OPTIONS,
-  type DashletIconKey,
+} from "../common/dashlet-states";
+import { type DashletIconKey } from "../common/icon-options";
+import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
+import {
   evaluateColorRulesGeneric,
   buildIconStyle,
   buildBgStyle,
-} from "../common";
+} from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { ThresholdConfig } from "../common/threshold-types";
 import { KpiStat } from "@/features/common/components/kpi-stat";

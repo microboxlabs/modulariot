@@ -6,23 +6,19 @@ import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, StatusIcon } from "./dashlet";
 import { ICON_OPTIONS } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
-import {
-  SettingsSelectField,
-  HbTextField,
-  useDataProvider,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  DataProviderEntries,
-  type SimpleDataMode,
-  isRemoteDataMode,
-} from "../common";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { SettingsSelectField, HbTextField } from "../common/settings-fields";
+import { useDataProvider } from "../common/use-data-provider";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { DataProviderEntries } from "../common/data-provider-entries";
+import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
+import { isRemoteDataMode } from "../common/use-simple-pgrest-settings";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
@@ -96,6 +92,24 @@ export function DashletSettings({
     dataMode === "planner" && plannerVariableName
       ? schemas.get(plannerVariableName)
       : undefined;
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    value,
+    subtitle,
+    showColor,
+    color,
+    icon,
+    dpEntries: dp.dataProvider,
+    dataMode,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
+    colorRulesState: colorRules.rules,
+  });
 
   const handleSave = () => {
     onSave({
@@ -206,16 +220,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       widgetId={widgetId}
       title={dashletName}
+      isDirty={isDirty}
     />
   );
 }

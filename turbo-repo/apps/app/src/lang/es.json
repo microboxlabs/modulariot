@@ -1490,6 +1490,7 @@
       "saveSuccess": "Cambios guardados correctamente"
     },
     "title": "Título",
+    "enterTitle": "Ingrese título...",
     "subtitle": "Subtítulo",
     "value": "Valor",
     "max": "Máx",
@@ -1536,8 +1537,6 @@
       "duplicateSlug": "Ya existe un dashboard con este nombre. Por favor elige un nombre diferente."
     },
     "settings": {
-      "accessControlTitle": "Control de Acceso",
-      "accessControlDescription": "Gestiona quién puede ver o editar este dashboard.",
       "sparklineData": "Datos del gráfico (separados por coma)",
       "subtitle": "Subtítulo",
       "maxValue": "Valor Máximo",
@@ -1823,7 +1822,14 @@
       "columnFilterFromDate": "desde {date}",
       "columnFilterToDate": "hasta {date}",
       "accessControlTitle": "Control de acceso",
-      "accessControlDescription": "Gestiona quién puede ver y editar este dashboard"
+      "accessControlDescription": "Gestiona quién puede ver y editar este dashboard",
+      "unsavedChanges": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar que se perderán si cierras ahora.",
+        "discard": "Descartar cambios",
+        "saveAndClose": "Guardar y cerrar",
+        "keepEditing": "Seguir editando"
+      }
     },
     "permissions": {
       "modalTitle": "Gestionar permisos — {name}",

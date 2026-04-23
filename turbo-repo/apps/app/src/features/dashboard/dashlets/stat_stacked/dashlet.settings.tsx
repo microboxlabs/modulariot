@@ -7,20 +7,16 @@ import { ReactSortable } from "react-sortablejs";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType } from "./dashlet";
-import {
-  HbTextFieldList,
-  HbInlineInput,
-  PgrestDataTab,
-  useSimplePgrestSettings,
-  useThresholdSettings,
-  ThresholdEditor,
-  DeleteItemButton,
-} from "../common";
+import { HbTextFieldList, HbInlineInput } from "../common/settings-fields";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useSimplePgrestSettings } from "../common/use-simple-pgrest-settings";
+import { useThresholdSettings } from "../common/use-threshold-settings";
+import { ThresholdEditor } from "../common/threshold-editor";
+import { DeleteItemButton } from "../common/delete-item-button";
 import { usePlannerContext } from "../../context/planner-context";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 
@@ -123,6 +119,20 @@ export function DashletSettings({
     dataMode === "planner" && plannerVariableName
       ? schemas.get(plannerVariableName)
       : undefined;
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    items,
+    unit,
+    showHeader,
+    chartType,
+    pgrestSaveFields,
+    refreshValue: refresh.value,
+    thresholdState: threshold.thresholdEnabled,
+    thresholdField: threshold.thresholdField,
+    thresholdApplyTo: threshold.thresholdApplyTo,
+    thresholdRules: threshold.thresholdRules,
+  });
 
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
@@ -352,16 +362,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

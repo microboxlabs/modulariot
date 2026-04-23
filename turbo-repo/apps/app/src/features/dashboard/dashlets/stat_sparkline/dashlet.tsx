@@ -1,8 +1,13 @@
 "use client";
 
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestDashletFields } from "../common";
-import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useDashletPgrest } from "../common/use-dashlet-pgrest";
+import {
+  DashletLoading,
+  DashletError,
+  parseResolvedNumber,
+} from "../common/dashlet-states";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useRowThreshold } from "../common/use-threshold";
 import { getThresholdTextClasses } from "../common/threshold-engine";

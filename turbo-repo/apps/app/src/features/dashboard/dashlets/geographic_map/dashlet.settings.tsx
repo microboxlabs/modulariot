@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, ToggleSwitch, Label } from "flowbite-react";
+import { ToggleSwitch, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SettingsDrawer } from "../common/settings-drawer";
+import { SettingsShell } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { tr } from "@/features/i18n/tr.service";
 
 /**
@@ -32,6 +33,8 @@ export function DashletSettings({
     }
   }, [isOpen, config.showFilters, config.showStyleSelector]);
 
+  const isDirty = useSettingsDirty(isOpen, { showFilters, showStyleSelector });
+
   const handleSave = () => {
     onSave({
       showFilters,
@@ -40,74 +43,50 @@ export function DashletSettings({
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   return (
-    <SettingsDrawer
-      open={isOpen}
+    <SettingsShell
+      isOpen={isOpen}
       onClose={onClose}
+      onSave={handleSave}
+      dictionary={dictionary}
       title={dashletName}
       widgetId={widgetId}
-      dictionary={dictionary}
+      isDirty={isDirty}
     >
-      <div className="flex h-full flex-col gap-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {tr("dashboard.settings.mapSettings", dictionary) || "Map Settings"}
-        </h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        {tr("dashboard.settings.mapSettings", dictionary) || "Map Settings"}
+      </h3>
 
-        {/* Show Filters Toggle */}
-        <div className="flex items-center justify-between">
-          <Label
-            htmlFor="show-filters"
-            className="text-sm text-gray-700 dark:text-gray-300"
-          >
-            {tr("dashboard.settings.showFilters", dictionary) || "Show Filters"}
-          </Label>
-          <ToggleSwitch
-            id="show-filters"
-            checked={showFilters}
-            onChange={setShowFilters}
-          />
-        </div>
-
-        {/* Show Style Selector Toggle */}
-        <div className="flex items-center justify-between">
-          <Label
-            htmlFor="show-style-selector"
-            className="text-sm text-gray-700 dark:text-gray-300"
-          >
-            {tr("dashboard.settings.showStyleSelector", dictionary) ||
-              "Show Style Selector"}
-          </Label>
-          <ToggleSwitch
-            id="show-style-selector"
-            checked={showStyleSelector}
-            onChange={setShowStyleSelector}
-          />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mt-auto flex w-full justify-end gap-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            className="no-drag w-full"
-            onMouseDown={handleMouseDown}
-          >
-            {tr("common.cancel", dictionary) || "Cancel"}
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            className="no-drag w-full"
-            onMouseDown={handleMouseDown}
-          >
-            {tr("common.save", dictionary) || "Save"}
-          </Button>
-        </div>
+      {/* Show Filters Toggle */}
+      <div className="flex items-center justify-between">
+        <Label
+          htmlFor="show-filters"
+          className="text-sm text-gray-700 dark:text-gray-300"
+        >
+          {tr("dashboard.settings.showFilters", dictionary) || "Show Filters"}
+        </Label>
+        <ToggleSwitch
+          id="show-filters"
+          checked={showFilters}
+          onChange={setShowFilters}
+        />
       </div>
-    </SettingsDrawer>
+
+      {/* Show Style Selector Toggle */}
+      <div className="flex items-center justify-between">
+        <Label
+          htmlFor="show-style-selector"
+          className="text-sm text-gray-700 dark:text-gray-300"
+        >
+          {tr("dashboard.settings.showStyleSelector", dictionary) ||
+            "Show Style Selector"}
+        </Label>
+        <ToggleSwitch
+          id="show-style-selector"
+          checked={showStyleSelector}
+          onChange={setShowStyleSelector}
+        />
+      </div>
+    </SettingsShell>
   );
 }

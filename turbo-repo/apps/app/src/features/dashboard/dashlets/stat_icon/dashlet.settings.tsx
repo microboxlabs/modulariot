@@ -5,11 +5,9 @@ import { Label, Checkbox, TextInput } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, CardVariant } from "./dashlet";
-import {
-  SimpleDashletSettings,
-  DASHLET_ICON_OPTIONS,
-  type DashletIconKey,
-} from "../common";
+import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
+import { type DashletIconKey } from "../common/icon-options";
+import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 import {
   getHandlebarsStatus,
   getFlowbiteColor,

@@ -72,6 +72,8 @@ export function computeSlotState(
 export interface SlotCellClassNameOptions {
   isLastDay?: boolean;
   isLastSlot?: boolean;
+  /** Mark the left edge as the boundary between past (read-only) and today. */
+  isFirstEditable?: boolean;
 }
 
 export function getSlotCellClassName(
@@ -88,23 +90,26 @@ export function getSlotCellClassName(
     windowColor,
     blockedStripeClass,
   } = state;
-  const { isLastDay = false, isLastSlot = false } = options ?? {};
+  const {
+    isLastDay = false,
+    isLastSlot = false,
+    isFirstEditable = false,
+  } = options ?? {};
   return twMerge(
     "h-full w-full relative",
     "border-l border-t border-gray-200 dark:border-gray-700",
+    isFirstEditable && "border-l-2 border-l-primary-500 dark:border-l-primary-400",
     "transition-all duration-200 p-1",
     blockedStripeClass,
-    isPastDay && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
+    isPastDay && !hasTimeWindow && "bg-gray-50/60 dark:bg-gray-900/20",
     isDisabled ? "cursor-not-allowed" : "cursor-pointer",
     !isPastDay && !slotBlocked && isQuotaFull && "opacity-60",
-    !isPastDay &&
-      !slotBlocked &&
+    !slotBlocked &&
       hasTimeWindow &&
       !selected &&
       !isQuotaFull &&
       windowColor.bg,
-    !isPastDay &&
-      !slotBlocked &&
+    !slotBlocked &&
       hasTimeWindow &&
       !selected &&
       isQuotaFull &&

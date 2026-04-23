@@ -10,6 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -25,6 +26,7 @@ import {
   listBookings,
   updateServiceCategory,
 } from "@/features/common/providers/client-api.provider";
+import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
@@ -552,6 +554,7 @@ export interface SelectedService {
   id: string;
   cliente: string;
   mintral_clientRut?: string;
+  mintral_delegacionOrigen?: string;
   origen: string;
   lugarCarguio: string;
   destino: string;
@@ -577,6 +580,16 @@ export interface SelectedService {
   assignedDriver?: string;
   /** Secondary driver assigned to this service (frontend-only for now) */
   assignedDriver2?: string;
+  /**
+   * Accredited-resources `carrier_id` chosen in the Asignación tab. Persisted
+   * on the booking payload so reopening the sidebar for a planned service
+   * hydrates the dropdowns with the previously confirmed selection.
+   */
+  assignedCarrier?: string;
+  /** Accredited-resources TRUCK `resource_id` assigned in the Asignación tab. */
+  assignedTruck?: string;
+  /** Assigned trailer id — placeholder until the trailer feed is wired. */
+  assignedTrailer?: string;
 }
 
 /**
@@ -662,11 +675,30 @@ interface PlanningSelectionContextType {
   startAssignment: (plannedService: PlannedService) => void;
   /** Cancel assignment-only mode */
   cancelAssignment: () => void;
-  /** Update driver assignments on a planned service (client-side only) */
-  updateServiceDrivers: (
+  /**
+   * Open the sidebar in view-only mode for an already-planned service. Sets
+   * the service and slot without entering reassign/assign mode — the form
+   * renders the existing values and suppresses its action buttons.
+   */
+  viewPlannedService: (plannedService: PlannedService) => void;
+  /**
+   * Patch the assignment tuple (carrier/drivers/truck/trailer) on a planned
+   * service. Any omitted field is left untouched; passing `undefined`
+   * explicitly clears that slot. Client-side only — persistence travels on
+   * the next `confirmService` call via `StoredServiceSchema`.
+   */
+  updateServiceAssignment: (
     serviceId: string,
-    assignedDriver?: string,
-    assignedDriver2?: string
+    patch: Partial<
+      Pick<
+        SelectedService,
+        | "assignedCarrier"
+        | "assignedDriver"
+        | "assignedDriver2"
+        | "assignedTruck"
+        | "assignedTrailer"
+      >
+    >
   ) => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
@@ -690,6 +722,7 @@ const MAX_SERVICES_PER_SLOT = 99;
 const StoredServiceSchema = z
   .object({
     mintral_clientRut: z.string().optional(),
+    mintral_delegacionOrigen: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
@@ -719,6 +752,9 @@ const StoredServiceSchema = z
     presentationDate: z.string().optional(),
     assignedDriver: z.string().optional(),
     assignedDriver2: z.string().optional(),
+    assignedCarrier: z.string().optional(),
+    assignedTruck: z.string().optional(),
+    assignedTrailer: z.string().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -832,6 +868,19 @@ export function PlanningSelectionProvider({
     }
   }, [apiTimeWindows, timeSlotsError]);
 
+  // The upstream bookings endpoint returns an empty list when no date range is
+  // passed, so derive a ±30-day window around the URL `date` param (the same
+  // param the week/day views consume). Stays well inside the backend's 90-day
+  // cap and covers any reasonable week navigation without refetching mid-view.
+  const searchParams = useSearchParams();
+  const bookingsRange = useMemo(() => {
+    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
+    return {
+      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
+      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
+    };
+  }, [searchParams]);
+
   // Load existing bookings from the backend when a calendar is selected.
   // An AbortController cancels the in-flight request when calendarId changes
   // or the component unmounts, preventing stale responses from overwriting state.
@@ -840,7 +889,14 @@ export function PlanningSelectionProvider({
 
     const controller = new AbortController();
 
-    listBookings({ calendarId }, controller.signal)
+    listBookings(
+      {
+        calendarId,
+        startDate: bookingsRange.startDate,
+        endDate: bookingsRange.endDate,
+      },
+      controller.signal
+    )
       .then((result) => {
         // Discard the response if the effect was cleaned up before it resolved.
         if (controller.signal.aborted) return;
@@ -914,7 +970,7 @@ export function PlanningSelectionProvider({
     return () => {
       controller.abort();
     };
-  }, [calendarId]);
+  }, [calendarId, bookingsRange.startDate, bookingsRange.endDate]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -1500,27 +1556,47 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
+  // Open the sidebar to inspect a planned service without entering an edit
+  // mode. Left-clicking a chip routes here; the form reads `selectedSlot` and
+  // `selectedService`, sees no reassign/assign mode, and (when the slot is
+  // past) renders with mutations disabled.
+  const viewPlannedService = useCallback((plannedService: PlannedService) => {
+    setReassigningService(null);
+    setAssigningService(null);
+    setSelectedService(plannedService.service);
+    setSelectedSlot(plannedService.slot);
+  }, []);
+
   /**
-   * Update driver assignments on a planned service (client-side only, no backend calls)
+   * Patch a planned service's assignment tuple client-side.
+   *
+   * Any key present in `patch` — even with value `undefined` — is merged onto
+   * the service, so callers clear a slot by passing `{ assignedDriver:
+   * undefined }`. Keys absent from `patch` are untouched. No backend round-
+   * trip; persistence rides on the next `confirmService` via the extended
+   * `StoredServiceSchema`.
    */
-  const updateServiceDrivers = useCallback(
-    (serviceId: string, assignedDriver?: string, assignedDriver2?: string) => {
-      setPlannedServices((prev) => {
-        const updated = prev.map((ps) => {
-          if (ps.service.id === serviceId) {
-            return {
-              ...ps,
-              service: {
-                ...ps.service,
-                assignedDriver,
-                assignedDriver2,
-              },
-            };
-          }
-          return ps;
-        });
-        return updated;
-      });
+  const updateServiceAssignment = useCallback(
+    (
+      serviceId: string,
+      patch: Partial<
+        Pick<
+          SelectedService,
+          | "assignedCarrier"
+          | "assignedDriver"
+          | "assignedDriver2"
+          | "assignedTruck"
+          | "assignedTrailer"
+        >
+      >
+    ) => {
+      setPlannedServices((prev) =>
+        prev.map((ps) =>
+          ps.service.id === serviceId
+            ? { ...ps, service: { ...ps.service, ...patch } }
+            : ps
+        )
+      );
     },
     []
   );
@@ -1565,7 +1641,8 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      updateServiceDrivers,
+      viewPlannedService,
+      updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,
@@ -1608,7 +1685,8 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      updateServiceDrivers,
+      viewPlannedService,
+      updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,

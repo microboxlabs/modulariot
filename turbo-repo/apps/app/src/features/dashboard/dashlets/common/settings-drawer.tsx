@@ -8,6 +8,11 @@ import { HiXMark, HiClipboardDocument, HiCheck } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
+import {
+  DirtySettingsProvider,
+  useDirtySettings,
+} from "./dirty-settings-context";
+import { UnsavedChangesModal } from "./unsaved-changes-modal";
 
 interface SettingsDrawerProps {
   /** Whether the drawer is open */
@@ -29,6 +34,7 @@ interface SettingsDrawerProps {
 /**
  * Right-side sliding drawer for dashlet settings.
  * Renders via portal to document.body to escape grid layout z-index.
+ * Wraps children in DirtySettingsProvider to enable unsaved-changes tracking.
  */
 export function SettingsDrawer({
   open,
@@ -39,8 +45,64 @@ export function SettingsDrawer({
   widgetId,
   dictionary,
 }: Readonly<SettingsDrawerProps>) {
+  if (globalThis.window === undefined) return null;
+
+  return (
+    <DirtySettingsProvider>
+      <SettingsDrawerInner
+        open={open}
+        onClose={onClose}
+        title={title}
+        className={className}
+        widgetId={widgetId}
+        dictionary={dictionary}
+      >
+        {children}
+      </SettingsDrawerInner>
+    </DirtySettingsProvider>
+  );
+}
+
+// ============================================================================
+// Inner component — reads dirty context to intercept close
+// ============================================================================
+
+function SettingsDrawerInner({
+  open,
+  onClose,
+  title,
+  className,
+  children,
+  widgetId,
+  dictionary,
+}: Readonly<SettingsDrawerProps>) {
   const mouseDownOnBackdrop = useRef(false);
   const [copied, setCopied] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const { isDirty, onSaveAndClose } = useDirtySettings();
+
+  /** If dirty, show confirmation modal instead of closing immediately */
+  const handleAttemptClose = useCallback(() => {
+    if (isDirty) {
+      setShowUnsavedModal(true);
+    } else {
+      onClose();
+    }
+  }, [isDirty, onClose]);
+
+  const handleDiscard = useCallback(() => {
+    setShowUnsavedModal(false);
+    onClose();
+  }, [onClose]);
+
+  const handleSaveAndClose = useCallback(() => {
+    setShowUnsavedModal(false);
+    onSaveAndClose?.();
+  }, [onSaveAndClose]);
+
+  const handleKeepEditing = useCallback(() => {
+    setShowUnsavedModal(false);
+  }, []);
 
   const handleCopyAnchor = useCallback(() => {
     if (!widgetId) return;
@@ -60,12 +122,12 @@ export function SettingsDrawer({
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        handleAttemptClose();
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, handleAttemptClose]);
 
   if (globalThis.window === undefined) return null;
 
@@ -75,6 +137,8 @@ export function SettingsDrawer({
         "fixed inset-0 z-[800] transition-all duration-300",
         open ? "visible opacity-100" : "invisible opacity-0"
       )}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       <div
         className={twMerge(
@@ -84,12 +148,14 @@ export function SettingsDrawer({
         aria-hidden="true"
         onMouseDown={(e) => {
           mouseDownOnBackdrop.current = e.target === e.currentTarget;
+          e.stopPropagation();
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
-            onClose();
+            handleAttemptClose();
           }
           mouseDownOnBackdrop.current = false;
+          e.stopPropagation();
         }}
       />
 
@@ -98,7 +164,7 @@ export function SettingsDrawer({
         aria-modal="true"
         aria-label="Settings"
         className={twMerge(
-          "no-drag absolute top-0 right-0 left-auto m-0 h-full max-h-full max-w-full transform border-l border-gray-200 bg-white p-0 shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
+          "no-drag absolute top-0 right-0 left-auto m-0 flex h-full max-h-full max-w-full flex-col transform border-l border-gray-200 bg-white p-0 shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800",
           open ? "translate-x-0" : "translate-x-full",
           className ?? "w-[28rem]"
         )}
@@ -111,7 +177,7 @@ export function SettingsDrawer({
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleAttemptClose}
             onMouseDown={(e) => e.stopPropagation()}
             className="no-drag cursor-pointer ml-auto rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
             aria-label="Close"
@@ -120,7 +186,7 @@ export function SettingsDrawer({
           </button>
         </div>
 
-        <div className="h-[calc(100%-3rem)] overflow-y-auto p-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           {/* Widget anchor ID - shown automatically at the top */}
           {widgetId && (
             <button
@@ -151,6 +217,15 @@ export function SettingsDrawer({
           {open && children}
         </div>
       </dialog>
+
+      {/* Unsaved changes confirmation */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onKeepEditing={handleKeepEditing}
+        onDiscard={handleDiscard}
+        onSaveAndClose={onSaveAndClose ? handleSaveAndClose : undefined}
+        dictionary={dictionary ?? {}}
+      />
     </div>,
     document.body
   );

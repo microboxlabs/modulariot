@@ -8,10 +8,12 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   type ColorRule,
   type ColorRuleItem,
+} from "../common/color-rule-setter";
+import {
   normalizeColorRulesConfig,
   ColorRuleSetter,
   useColorRuleSettings,
-} from "../common";
+} from "../common/color-rule-setter";
 
 // ============================================================================
 // Types

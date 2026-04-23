@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import type {
   DuplicateStrategy,
   ParsedRow,
@@ -6,6 +7,7 @@ import type {
 } from "./types";
 import { buildPgrestFetch } from "../../common/pgrest-utils";
 import type { PgrestParam } from "../../common/pgrest-types";
+import { validateRow } from "./validator";
 
 const CACHE_PREFIX = "batch-importer-cache:";
 const RESOLVED = new Set<RowStatus>(["processed", "updated", "skipped"]);
@@ -167,6 +169,21 @@ export function makePgrestSubmit(
         errorMessage: err instanceof Error ? err.message : "Network error",
       };
     }
+  };
+}
+
+/**
+ * Wrap a submit function with schema validation. Rows that fail the schema
+ * short-circuit to `failed` locally, never hitting the network.
+ */
+export function withValidation(
+  inner: SubmitFn,
+  schema: z.ZodType<Record<string, unknown>>,
+): SubmitFn {
+  return async (row, strategy) => {
+    const err = validateRow(row.fields, schema);
+    if (err) return { status: "failed" as const, errorMessage: err };
+    return inner(row, strategy);
   };
 }
 

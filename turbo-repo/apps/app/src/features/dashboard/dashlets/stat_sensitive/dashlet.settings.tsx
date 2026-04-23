@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Label, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { SimpleDashletSettings } from "../common";
+import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
 
 const FIELDS = [
   { id: "ss-title", labelKey: "common.title", state: "title", hbPlaceholder: "{{row.label}}", staticPlaceholder: "Account Balance" },

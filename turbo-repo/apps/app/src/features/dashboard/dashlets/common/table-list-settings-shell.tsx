@@ -44,7 +44,7 @@ interface TableListSettingsShellProps {
   /** Widget ID for anchor navigation */
   widgetId?: string;
   /** Whether the settings form has unsaved changes */
-  isDirty?: boolean;
+  isDirty: boolean;
 }
 
 // ============================================================================

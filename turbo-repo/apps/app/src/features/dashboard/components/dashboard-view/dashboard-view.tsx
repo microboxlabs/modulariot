@@ -73,6 +73,7 @@ import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
  */
 const DESIGN_WIDTH = 1600;
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
+import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
 /**
@@ -363,6 +364,7 @@ export function DashboardView() {
                   canManagePermissions={canManagePermissions}
                 />
               )}
+              <DashboardShareDropdown />
               <Link
                 href={kioskUrl}
                 target="_blank"

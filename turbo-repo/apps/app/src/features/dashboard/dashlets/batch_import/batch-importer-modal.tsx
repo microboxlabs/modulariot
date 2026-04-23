@@ -19,6 +19,7 @@ interface Props {
   sample?: string;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
+  validate?: (fields: Record<string, string>) => string | null;
 }
 
 export function BatchImporterModal({
@@ -31,8 +32,9 @@ export function BatchImporterModal({
   sample,
   acceptedFileTypes,
   dictionary,
+  validate,
 }: Readonly<Props>) {
-  const state = useBatchImporter({ submit, sourceKey, defaultStrategy });
+  const state = useBatchImporter({ submit, sourceKey, defaultStrategy, validate });
 
   const submitLabel = state.importing
     ? tr("dashboard.dashlets.batchImport.importing", dictionary)

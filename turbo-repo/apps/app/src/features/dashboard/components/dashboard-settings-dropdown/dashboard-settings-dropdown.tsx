@@ -18,7 +18,6 @@ import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ConfirmModal } from "../confirm-modal";
 import { deleteDashboardConfigClient } from "@/features/common/providers/client-api.provider";
-import { ShareForm } from "./share-form";
 import { DashboardPermissionsModal } from "../dashboard-permissions-modal";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
@@ -40,7 +39,6 @@ type SettingOption =
   | "filters"
   | "refresh"
   | "access"
-  | "share"
   | "delete"
   | null;
 
@@ -844,19 +842,6 @@ export default function DashboardSettingsDropdown({
 
       {open && (
         <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
-          <SettingsSection
-            option="share"
-            selected={selected}
-            setSelected={setSelected}
-            title={tr("dashboard.settings.shareDashboardTitle", dictionary)}
-            description={tr(
-              "dashboard.settings.shareDashboardDescription",
-              dictionary
-            )}
-          >
-            <ShareForm dashboardName={dashboardName} onClose={closePanel} />
-          </SettingsSection>
-
           <SettingsSection
             option="order"
             selected={selected}

@@ -3,8 +3,11 @@
 import { useMemo } from "react";
 import { Spinner } from "flowbite-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestParam, PgrestHttpMethod } from "../common";
-import { usePgrestResolvedFields } from "../common";
+import {
+  type PgrestParam,
+  type PgrestHttpMethod,
+} from "../common/pgrest-types";
+import { usePgrestResolvedFields } from "../common/use-pgrest-resolved-fields";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { evaluateRule } from "../common/color-rule-engine";
 import { sortColorRules } from "../common/color-rule-evaluation";

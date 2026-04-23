@@ -6,12 +6,9 @@ import type {
   DashletLayoutDefaults,
   DataProviderEntry,
 } from "../types";
-import type { PgrestDashletFields } from "../common";
-import {
-  useHybridPgrestContext,
-  DashletLoading,
-  DashletError,
-} from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 

@@ -7,15 +7,12 @@ import { ReactSortable } from "react-sortablejs";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType } from "./dashlet";
-import {
-  HbTextFieldList,
-  HbInlineInput,
-  PgrestDataTab,
-  useSimplePgrestSettings,
-  useThresholdSettings,
-  ThresholdEditor,
-  DeleteItemButton,
-} from "../common";
+import { HbTextFieldList, HbInlineInput } from "../common/settings-fields";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useSimplePgrestSettings } from "../common/use-simple-pgrest-settings";
+import { useThresholdSettings } from "../common/use-threshold-settings";
+import { ThresholdEditor } from "../common/threshold-editor";
+import { DeleteItemButton } from "../common/delete-item-button";
 import { usePlannerContext } from "../../context/planner-context";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";

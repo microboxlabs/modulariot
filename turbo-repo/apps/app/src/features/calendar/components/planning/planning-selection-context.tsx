@@ -583,11 +583,11 @@ export interface SelectedService {
    * on the booking payload so reopening the sidebar for a planned service
    * hydrates the dropdowns with the previously confirmed selection.
    */
-  assignedTransportista?: string;
+  assignedCarrier?: string;
   /** Accredited-resources TRUCK `resource_id` assigned in the Asignación tab. */
-  assignedCamion?: string;
+  assignedTruck?: string;
   /** Assigned trailer id — placeholder until the trailer feed is wired. */
-  assignedRemolque?: string;
+  assignedTrailer?: string;
 }
 
 /**
@@ -684,11 +684,11 @@ interface PlanningSelectionContextType {
     patch: Partial<
       Pick<
         SelectedService,
-        | "assignedTransportista"
+        | "assignedCarrier"
         | "assignedDriver"
         | "assignedDriver2"
-        | "assignedCamion"
-        | "assignedRemolque"
+        | "assignedTruck"
+        | "assignedTrailer"
       >
     >
   ) => void;
@@ -744,9 +744,9 @@ const StoredServiceSchema = z
     presentationDate: z.string().optional(),
     assignedDriver: z.string().optional(),
     assignedDriver2: z.string().optional(),
-    assignedTransportista: z.string().optional(),
-    assignedCamion: z.string().optional(),
-    assignedRemolque: z.string().optional(),
+    assignedCarrier: z.string().optional(),
+    assignedTruck: z.string().optional(),
+    assignedTrailer: z.string().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -1543,11 +1543,11 @@ export function PlanningSelectionProvider({
       patch: Partial<
         Pick<
           SelectedService,
-          | "assignedTransportista"
+          | "assignedCarrier"
           | "assignedDriver"
           | "assignedDriver2"
-          | "assignedCamion"
-          | "assignedRemolque"
+          | "assignedTruck"
+          | "assignedTrailer"
         >
       >
     ) => {

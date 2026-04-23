@@ -192,14 +192,14 @@ function assignmentOverrides(
   data: AssignmentFormData
 ): Partial<SelectedService> {
   const out: Partial<SelectedService> = {};
-  if (data.transportista) out.assignedTransportista = data.transportista;
+  if (data.transportista) out.assignedCarrier = data.transportista;
   if (data.conductor) out.assignedDriver = data.conductor;
   if (data.hasSegundoConductor && data.segundoConductor) {
     out.assignedDriver2 = data.segundoConductor;
   }
-  if (data.camion) out.assignedCamion = data.camion;
+  if (data.camion) out.assignedTruck = data.camion;
   if (data.hasRemolque && data.remolque) {
-    out.assignedRemolque = data.remolque;
+    out.assignedTrailer = data.remolque;
   }
   return out;
 }
@@ -215,13 +215,13 @@ function assignmentDataFromService(
   service: SelectedService | undefined
 ): AssignmentFormData {
   return {
-    transportista: service?.assignedTransportista ?? "",
+    transportista: service?.assignedCarrier ?? "",
     conductor: service?.assignedDriver ?? "",
     segundoConductor: service?.assignedDriver2 ?? "",
     hasSegundoConductor: Boolean(service?.assignedDriver2),
-    camion: service?.assignedCamion ?? "",
-    remolque: service?.assignedRemolque ?? "",
-    hasRemolque: Boolean(service?.assignedRemolque),
+    camion: service?.assignedTruck ?? "",
+    remolque: service?.assignedTrailer ?? "",
+    hasRemolque: Boolean(service?.assignedTrailer),
   };
 }
 

@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -523,7 +522,7 @@ export function BatchImporterView({
   acceptedFileTypes,
   dictionary,
 }: Readonly<ViewProps>) {
-  const fileInputId = useId();
+  const fileRef = useRef<HTMLInputElement>(null);
   const {
     raw,
     doc,
@@ -573,22 +572,14 @@ export function BatchImporterView({
           type="button"
           size="xs"
           color="gray"
-          onClick={(e) => {
-            // Defensive: even with type="button", a portalized Flowbite Modal
-            // can route events oddly. Stopping propagation + preventing any
-            // default keeps the user-gesture clean for `input.click()`.
-            e.preventDefault();
-            e.stopPropagation();
-            fileRef.current?.click();
-          }}
+          onClick={() => fileRef.current?.click()}
           disabled={parsing}
         >
           {tr("dashboard.dashlets.batchImport.loadFile", dictionary)}
         </Button>
-        {/* sr-only (not `hidden`) keeps the input in the layout flow so
-            `.click()` reliably opens the picker. Some browsers silently
-            reject programmatic click on `display: none` file inputs,
-            especially inside a portalized modal. */}
+        {/* sr-only (not `hidden`) so `.click()` reliably opens the picker.
+            Deliberately NO aria-hidden / tabIndex={-1}: Chrome treats those
+            as inert and silently rejects the programmatic click. */}
         <input
           ref={fileRef}
           type="file"
@@ -597,8 +588,6 @@ export function BatchImporterView({
             ".tsv,.csv,.txt,.xlsx,.xls,.xlsm,.ods,text/plain,text/csv"
           }
           className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
           onChange={(e: ChangeEvent<HTMLInputElement>) => {
             const f = e.target.files?.[0];
             if (f) void loadFile(f);

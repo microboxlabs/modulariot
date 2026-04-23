@@ -2,6 +2,7 @@
 
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { DuplicateStrategy, SubmitFn } from "./engine/types";
+import type { IntrospectedParam } from "./engine/validator";
 import {
   BatchImporterView,
   useBatchImporter,
@@ -19,7 +20,8 @@ interface Props {
   sample?: string;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
-  validate?: (fields: Record<string, string>) => string | null;
+  /** RPC parameter schema for worker-side pre-flight validation. */
+  params?: IntrospectedParam[] | null;
 }
 
 export function BatchImporterModal({
@@ -32,9 +34,14 @@ export function BatchImporterModal({
   sample,
   acceptedFileTypes,
   dictionary,
-  validate,
+  params,
 }: Readonly<Props>) {
-  const state = useBatchImporter({ submit, sourceKey, defaultStrategy, validate });
+  const state = useBatchImporter({
+    submit,
+    sourceKey,
+    defaultStrategy,
+    params,
+  });
 
   const submitLabel = state.importing
     ? tr("dashboard.dashlets.batchImport.importing", dictionary)

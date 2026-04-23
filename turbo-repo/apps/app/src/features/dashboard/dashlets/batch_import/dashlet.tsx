@@ -7,11 +7,7 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { makePgrestSubmit, withValidation } from "./engine/importer";
-import {
-  buildRowSchema,
-  validateRow,
-  type IntrospectedParam,
-} from "./engine/validator";
+import { buildRowSchema, type IntrospectedParam } from "./engine/validator";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
 import { SAMPLE_TSV } from "./sample";
@@ -92,11 +88,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     [params],
   );
 
-  const validate = useMemo(() => {
-    if (!schema) return undefined;
-    return (fields: Record<string, string>) => validateRow(fields, schema);
-  }, [schema]);
-
   const submit = useMemo(() => {
     if (!isConfigured) return null;
     const base = makePgrestSubmit(
@@ -131,7 +122,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             sample={SAMPLE_TSV}
             acceptedFileTypes={config.acceptedFileTypes}
             dictionary={dictionary}
-            validate={validate}
+            params={params}
           />
         </>
       )}

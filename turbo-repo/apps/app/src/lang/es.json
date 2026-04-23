@@ -348,12 +348,12 @@
         },
         "assignment": {
           "selectPlaceholder": "Seleccionar...",
-          "transportista": "Transportista",
-          "selectTransportista": "Seleccionar transportista...",
-          "searchTransportista": "Buscar transportista...",
-          "noTransportistasFound": "No se encontraron transportistas",
-          "conductor": "Conductor",
-          "selectConductor": "Seleccionar conductor...",
+          "carrier": "Transportista",
+          "selectCarrier": "Seleccionar transportista...",
+          "searchCarrier": "Buscar transportista...",
+          "noCarriersFound": "No se encontraron transportistas",
+          "driver": "Conductor",
+          "selectDriver": "Seleccionar conductor...",
           "searchDriver": "Buscar conductor...",
           "noDriversFound": "No se encontraron conductores",
           "searchNoResultsFor": "Sin resultados para",
@@ -379,11 +379,11 @@
               "faltasDescanso": "Faltas descanso"
             }
           },
-          "secondConductorLabel": "2do conductor",
-          "secondConductor": "Segundo Conductor",
-          "selectSecondConductor": "Seleccionar segundo conductor...",
-          "camion": "Camión",
-          "selectCamion": "Seleccionar camión...",
+          "secondDriverLabel": "2do conductor",
+          "secondDriver": "Segundo Conductor",
+          "selectSecondDriver": "Seleccionar segundo conductor...",
+          "truck": "Camión",
+          "selectTruck": "Seleccionar camión...",
           "searchTruck": "Buscar camión...",
           "noTrucksFound": "No se encontraron camiones",
           "truckSearchFields": {
@@ -394,14 +394,14 @@
             "gps": "GPS",
             "trips": "Viajes previos"
           },
-          "transportistaSearchFields": {
+          "carrierSearchFields": {
             "name": "Nombre",
             "rut": "RUT",
             "status": "Estado"
           },
-          "remolqueLabel": "Remolque",
-          "remolque": "Remolque",
-          "selectRemolque": "Seleccionar remolque...",
+          "trailerLabel": "Remolque",
+          "trailer": "Remolque",
+          "selectTrailer": "Seleccionar remolque...",
           "status": "Estado",
           "enabled": "Acreditado",
           "notEnabled": "No Acreditado",
@@ -423,11 +423,11 @@
           "available": "Disponible",
           "busy": "Ocupado",
           "truckType": {
-            "camion": "Camión",
+            "truck": "Camión",
             "furgon": "Furgón",
             "camioneta": "Camioneta"
           },
-          "remolqueType": {
+          "trailerType": {
             "ARFJ": "Articulado Fijo",
             "BAT": "Batea",
             "C100": "Contenedor 100",
@@ -463,9 +463,9 @@
           "lastMaintenance": "Último mantenimiento",
           "mileage": "Kilometraje",
           "reportedProblems": "Problemas reportados",
-          "searchRemolque": "Buscar remolque...",
-          "noRemolquesFound": "No se encontraron remolques",
-          "remolqueSearchFields": {
+          "searchTrailer": "Buscar remolque...",
+          "noTrailersFound": "No se encontraron remolques",
+          "trailerSearchFields": {
             "plate": "Patente",
             "type": "Tipo",
             "status": "Estado",
@@ -3303,7 +3303,7 @@
     "rank": {
       "conductor-senior": "Conductor Senior",
       "conductor-especializado": "Conductor Especializado",
-      "conductor": "Conductor",
+      "driver": "Conductor",
       "operador-logistico": "Operador Logístico"
     },
     "employmentStatus": {

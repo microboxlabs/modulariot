@@ -1923,7 +1923,8 @@
         "headerError": {
           "empty": "The file is empty.",
           "no_headers": "The first row has no valid headers.",
-          "duplicate_mapping": "Two columns are mapped to the same target name. Rename one of them to continue."
+          "duplicate_mapping": "Two columns are mapped to the same target name. Rename one of them to continue.",
+          "parse_failed": "Couldn't read this spreadsheet file. It may be corrupted, password-protected, or in an unsupported format."
         },
         "statusCol": "Status",
         "total": "Total",

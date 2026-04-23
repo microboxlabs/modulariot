@@ -296,10 +296,13 @@ export function PlanningSidebarForm({
   const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
 
   // View-only mode: the sidebar was opened by left-clicking a past-day chip
-  // (no reassign/assign active). Form controls stay visible to show the
-  // existing values, but every mutation path — inputs and action buttons — is
-  // suppressed. The context already blocks the right-click menu for past
-  // chips, so this is the only remaining route that reaches the form.
+  // without entering reassign/assign. Form controls stay visible so the
+  // existing values can be inspected, but every mutation path — inputs and
+  // action buttons — is suppressed. The right-click context menu on past
+  // chips is intentionally still available so users can Replanificar /
+  // Asignar / Eliminar for reconciliation; picking either reassign or assign
+  // sets `reassigningService` / `assigningService`, which drops the flag
+  // below and returns the form to edit mode.
   const isReadOnlyView = useMemo(() => {
     if (!selectedSlot || reassigningService || assigningService) return false;
     return dayjs(selectedSlot.date).isBefore(dayjs().startOf("day"), "day");

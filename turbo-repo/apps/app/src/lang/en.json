@@ -1479,6 +1479,7 @@
     "no": "No"
   },
   "dashboard": {
+    "addWidget": "Add Widget",
     "editMode": "Edit Mode",
     "dragToMoveWidget": "Drag to move this widget",
     "kioskMode": "Kiosk Mode",

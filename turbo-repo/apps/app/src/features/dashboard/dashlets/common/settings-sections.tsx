@@ -41,7 +41,14 @@ interface ColumnEditorProps {
   onReorder: (reordered: ColumnItem[]) => void;
   onUpdate: (
     id: string,
-    field: "key" | "label" | "type" | "dataType" | "sticky" | "descriptionEnabled" | "description",
+    field:
+      | "key"
+      | "label"
+      | "type"
+      | "dataType"
+      | "sticky"
+      | "descriptionEnabled"
+      | "description",
     value: string | boolean | undefined
   ) => void;
   onAddColorMapping?: (colId: string) => void;

@@ -403,40 +403,41 @@ function MarkdownTooltip({
             onMouseEnter={show}
             onMouseLeave={hide}
           >
-            <div
-              className={[
-                "max-h-[400px] overflow-x-hidden overflow-y-auto rounded-md border border-gray-300",
-                "bg-gray-900 px-3 py-2 text-left text-sm text-white shadow-lg",
-                "dark:border-gray-500 dark:bg-gray-800",
-                // Headings
-                "[&_h1]:mb-2 [&_h1]:border-b [&_h1]:border-gray-500 [&_h1]:pb-1 [&_h1]:text-lg [&_h1]:font-bold",
-                "[&_h2]:mb-1.5 [&_h2]:text-base [&_h2]:font-bold",
-                "[&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold",
-                // Paragraphs & line breaks
-                "[&_p]:mb-2 [&_p]:last:mb-0",
-                "[&_br]:block [&_br]:content-[''] [&_br]:mb-1",
-                // Inline
-                "[&_strong]:font-bold [&_em]:italic",
-                "[&_code]:rounded [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:text-xs",
-                "[&_a]:underline [&_a]:text-blue-300",
-                // Lists
-                "[&_ul]:mb-1 [&_ul]:list-disc [&_ul]:pl-4",
-                "[&_ol]:mb-1 [&_ol]:list-decimal [&_ol]:pl-4",
-                "[&_li]:mb-0.5",
-                // Horizontal rule
-                "[&_hr]:my-2 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-gray-400 dark:[&_hr]:border-gray-500",
-                // Blockquote
-                "[&_blockquote]:mb-1 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-500 [&_blockquote]:pl-2 [&_blockquote]:italic [&_blockquote]:text-gray-300",
-                // Code block
-                "[&_pre]:mb-1 [&_pre]:rounded [&_pre]:bg-gray-700 [&_pre]:p-2 [&_pre]:text-xs",
-                "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
-              ].join(" ")}
-              style={{ overflowWrap: "break-word", wordBreak: "break-word" }}
-            >
-              <Markdown>{description}</Markdown>
+            <div className="overflow-hidden rounded-md border border-gray-300 bg-gray-900 shadow-lg dark:border-gray-500 dark:bg-gray-800">
+              <div
+                className={[
+                  "max-h-[400px] overscroll-none overflow-x-hidden overflow-y-auto",
+                  "px-3 py-2 text-left text-sm text-white",
+                  // Headings
+                  "[&_h1]:mb-2 [&_h1]:border-b [&_h1]:border-gray-500 [&_h1]:pb-1 [&_h1]:text-lg [&_h1]:font-bold",
+                  "[&_h2]:mb-1.5 [&_h2]:text-base [&_h2]:font-bold",
+                  "[&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold",
+                  // Paragraphs & line breaks
+                  "[&_p]:mb-2 [&_p]:last:mb-0",
+                  "[&_br]:block [&_br]:content-[''] [&_br]:mb-1",
+                  // Inline
+                  "[&_strong]:font-bold [&_em]:italic",
+                  "[&_code]:rounded [&_code]:bg-gray-700 [&_code]:px-1 [&_code]:text-xs",
+                  "[&_a]:underline [&_a]:text-blue-300",
+                  // Lists
+                  "[&_ul]:mb-1 [&_ul]:list-disc [&_ul]:pl-4",
+                  "[&_ol]:mb-1 [&_ol]:list-decimal [&_ol]:pl-4",
+                  "[&_li]:mb-0.5",
+                  // Horizontal rule
+                  "[&_hr]:my-2 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-gray-400 dark:[&_hr]:border-gray-500",
+                  // Blockquote
+                  "[&_blockquote]:mb-1 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-500 [&_blockquote]:pl-2 [&_blockquote]:italic [&_blockquote]:text-gray-300",
+                  // Code block
+                  "[&_pre]:mb-1 [&_pre]:rounded [&_pre]:bg-gray-700 [&_pre]:p-2 [&_pre]:text-xs",
+                  "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
+                ].join(" ")}
+                style={{ overflowWrap: "break-word", wordBreak: "break-word" }}
+              >
+                <Markdown>{description}</Markdown>
+              </div>
             </div>
           </div>,
-          document.body,
+          document.body
         )}
     </>
   );

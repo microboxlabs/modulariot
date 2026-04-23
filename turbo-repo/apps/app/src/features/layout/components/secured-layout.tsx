@@ -38,7 +38,7 @@ export default async function SecuredLayout({
           />
           <div
             data-testid="content-with-sidebar"
-            className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"
+            className="mt-16 mb-12 flex items-start flex-1 overflow-hidden overscroll-none"
           >
             <SecuredSidebar
               dict={

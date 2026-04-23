@@ -19,7 +19,16 @@ export function toColumnItems(columns: TableColumn[]): ColumnItem[] {
 
 export function fromColumnItems(items: ColumnItem[]): TableColumn[] {
   return items.map(
-    ({ key, label, type, dataType, colorMap, sticky, descriptionEnabled, description }) => {
+    ({
+      key,
+      label,
+      type,
+      dataType,
+      colorMap,
+      sticky,
+      descriptionEnabled,
+      description,
+    }) => {
       const col: TableColumn = { key, label, type };
       if (dataType && dataType !== "text") {
         col.dataType = dataType;

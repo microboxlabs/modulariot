@@ -6,6 +6,7 @@ import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { SettingsShell } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
+import { tr } from "@/features/i18n/tr.service";
 
 /**
  * Settings drawer for this dashlet.
@@ -69,13 +70,13 @@ export function DashletSettings({
       {/* Add your form fields here */}
       <div>
         <Label htmlFor="dashlet-title" className="mb-1 block text-sm">
-          Title
+          {tr("common.title", dictionary)}
         </Label>
         <TextInput
           id="dashlet-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter title..."
+          placeholder={tr("common.enterTitle", dictionary)}
         />
       </div>
     </SettingsShell>

@@ -49,6 +49,7 @@ export function DirtySettingsProvider({
 }: Readonly<DirtySettingsProviderProps>) {
   const [isDirty, setIsDirty] = useState(false);
   const saveAndCloseRef = useRef<(() => void) | undefined>(undefined);
+  const [hasSaveAndClose, setHasSaveAndClose] = useState(false);
 
   const registerDirty = useCallback((dirty: boolean) => {
     setIsDirty(dirty);
@@ -56,16 +57,28 @@ export function DirtySettingsProvider({
 
   const registerSaveAndClose = useCallback((fn: () => void) => {
     saveAndCloseRef.current = fn;
+    setHasSaveAndClose(true);
+  }, []);
+
+  // Stable wrapper that reads the ref at call time — never stale
+  const onSaveAndClose = useCallback(() => {
+    saveAndCloseRef.current?.();
   }, []);
 
   const value = useMemo(
     () => ({
       isDirty,
       registerDirty,
-      onSaveAndClose: saveAndCloseRef.current,
+      onSaveAndClose: hasSaveAndClose ? onSaveAndClose : undefined,
       registerSaveAndClose,
     }),
-    [isDirty, registerDirty, registerSaveAndClose]
+    [
+      isDirty,
+      registerDirty,
+      onSaveAndClose,
+      hasSaveAndClose,
+      registerSaveAndClose,
+    ]
   );
 
   return (

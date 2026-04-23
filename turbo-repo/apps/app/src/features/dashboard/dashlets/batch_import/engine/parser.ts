@@ -155,6 +155,16 @@ export function applyHeaderMap(
   return { headers: mappedHeaders, rows, headerError: doc.headerError };
 }
 
+/** Narrow a raw cell value (from xlsx / JSON / etc.) to a string. Objects and
+ *  arrays collapse to empty string instead of the default `[object Object]`
+ *  stringification — that default was never useful data for an import preview
+ *  and masked bugs where richer cell objects leaked through. */
+function coerceCell(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+}
+
 /**
  * Build a ParsedDocument straight from pre-split rows (e.g. from an xlsx
  * workbook). Same fingerprint + shape as parseDocument, but skips the CSV
@@ -166,7 +176,7 @@ export function parseGrid(grid: unknown[][]): ParsedDocument {
   }
   const [header, ...dataRows] = grid;
   const headerEntries = (header ?? [])
-    .map((h, index) => ({ name: String(h ?? "").trim(), index }))
+    .map((h, index) => ({ name: coerceCell(h).trim(), index }))
     .filter((e) => e.name.length > 0);
   if (headerEntries.length === 0) {
     return { headers: [], rows: [], headerError: "no_headers" };
@@ -179,8 +189,7 @@ export function parseGrid(grid: unknown[][]): ParsedDocument {
     const fields: Record<string, string> = {};
     let hasContent = false;
     for (const { name, index: originalIndex } of headerEntries) {
-      const v = arr[originalIndex];
-      const str = v === undefined || v === null ? "" : String(v).trim();
+      const str = coerceCell(arr[originalIndex]).trim();
       if (str.length > 0) hasContent = true;
       fields[name] = str;
     }

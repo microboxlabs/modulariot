@@ -31,7 +31,7 @@ export interface ParseResponse {
   validations: Record<number, string>;
 }
 
-const ctx = self as unknown as DedicatedWorkerGlobalScope;
+const ctx = globalThis as unknown as DedicatedWorkerGlobalScope;
 
 ctx.addEventListener("message", (e: MessageEvent<ParseRequest>) => {
   const msg = e.data;
@@ -50,5 +50,3 @@ ctx.addEventListener("message", (e: MessageEvent<ParseRequest>) => {
   const response: ParseResponse = { requestId: msg.requestId, doc, validations };
   ctx.postMessage(response);
 });
-
-export {};

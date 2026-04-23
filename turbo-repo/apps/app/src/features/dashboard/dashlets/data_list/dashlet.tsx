@@ -5,7 +5,12 @@ import { HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import type { DataMode, TableColumn, SortConfig } from "../common/column-types";
+import type {
+  BadgeColorMapping,
+  DataMode,
+  TableColumn,
+  SortConfig,
+} from "../common/column-types";
 import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { renderCell } from "../common/cell-renderers";
@@ -229,6 +234,11 @@ function ListCard({
   resolveLabel,
   resolveType,
 }: Readonly<ListCardProps>) {
+  function resolveColorMap(key: string): BadgeColorMapping[] | undefined {
+    const col = columns.find((c) => c.key === key);
+    return col?.colorRulesEnabled ? col.colorMap : undefined;
+  }
+
   const titleValue = resolveValue(
     cardLayout.titleColumn,
     row,
@@ -256,7 +266,9 @@ function ListCard({
               if (!val) return null;
               const colType = resolveType(key, row, rowIdx, totalRows);
               return (
-                <span key={key}>{renderCell(val, colType || "badge")}</span>
+                <span key={key}>
+                  {renderCell(val, colType || "badge", resolveColorMap(key))}
+                </span>
               );
             })}
           </div>
@@ -288,7 +300,7 @@ function ListCard({
                   {resolveLabel(key)}
                 </p>
                 <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">
-                  {renderCell(val, colType || "text")}
+                  {renderCell(val, colType || "text", resolveColorMap(key))}
                 </p>
               </div>
             );
@@ -309,7 +321,7 @@ function ListCard({
               >
                 <span>{resolveLabel(key)}:</span>
                 <span className="font-medium text-gray-700 dark:text-gray-300">
-                  {renderCell(val, colType || "text")}
+                  {renderCell(val, colType || "text", resolveColorMap(key))}
                 </span>
               </span>
             );

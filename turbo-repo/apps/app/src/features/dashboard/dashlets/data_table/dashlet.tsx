@@ -133,13 +133,37 @@ function buildStickyThClass(
   return base;
 }
 
+// Sticky cells need a fully opaque background so scrolled content doesn't
+// bleed through. Light-mode tint classes are solid; dark-mode always uses
+// bg-gray-800 instead of the transparent /20 variant used on the <tr>.
+function stickyBgForColor(rowColor: string | null): string {
+  switch (rowColor) {
+    case "red":
+      return "bg-red-50 dark:bg-gray-800";
+    case "yellow":
+      return "bg-yellow-50 dark:bg-gray-800";
+    case "green":
+      return "bg-green-50 dark:bg-gray-800";
+    case "blue":
+      return "bg-blue-50 dark:bg-gray-800";
+    case "orange":
+      return "bg-orange-50 dark:bg-gray-800";
+    case "purple":
+      return "bg-purple-50 dark:bg-gray-800";
+    case "gray":
+      return "bg-gray-100 dark:bg-gray-800";
+    default:
+      return "bg-white dark:bg-gray-800";
+  }
+}
+
 function buildStickyTdClass(
   colIdx: number,
   lastStickyIdx: number,
   firstStickyRightIdx: number,
   showColumnDividers: boolean,
   columnsLength: number,
-  rowBgClass: string
+  rowColor: string | null
 ): string {
   const divider =
     showColumnDividers && colIdx < columnsLength - 1
@@ -152,14 +176,14 @@ function buildStickyTdClass(
       colIdx === lastStickyIdx
         ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
         : "";
-    return `${base} sticky left-0 z-10 ${rowBgClass}${shadow}`;
+    return `${base} sticky left-0 z-10 ${stickyBgForColor(rowColor)}${shadow}`;
   }
   if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
     const shadow =
       colIdx === firstStickyRightIdx
         ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
         : "";
-    return `${base} sticky right-0 z-10 ${rowBgClass}${shadow}`;
+    return `${base} sticky right-0 z-10 ${stickyBgForColor(rowColor)}${shadow}`;
   }
   return base;
 }
@@ -680,7 +704,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       )}
 
       {/* Table card */}
-      <div className="flex-1 overflow-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex-1 overflow-auto overscroll-none rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         {loading && (
           <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
             Loading...
@@ -780,7 +804,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                             firstStickyRightIdx,
                             showColumnDividers ?? true,
                             columns.length,
-                            rowBgClass
+                            rowColor
                           )}
                           style={buildStickyStyle(
                             colIdx,
@@ -803,13 +827,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                               rowIdx,
                               displayRows.length
                             ),
-                            col.colorMap
+                            col.colorRulesEnabled ? col.colorMap : undefined
                           )}
                         </td>
                       ))}
                       {hasActions && (
                         <td
-                          className={`sticky right-0 border-t border-gray-200 px-2 py-4 dark:border-gray-600 ${firstStickyRightIdx < 0 ? "border-l" : ""} ${rowBgClass}`}
+                          className={`sticky right-0 border-t border-gray-200 px-2 py-4 dark:border-gray-600 ${firstStickyRightIdx < 0 ? "border-l" : ""} ${stickyBgForColor(rowColor)}`}
                         >
                           <ActionDropdown
                             items={safeActions.items

@@ -90,13 +90,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const submit = useMemo(() => {
     if (!isConfigured) return null;
+    const allowedFields =
+      params && params.length > 0
+        ? new Set(params.map((p) => p.name))
+        : undefined;
     const base = makePgrestSubmit(
       config.pgrestFunctionName,
       config.dataSourceId,
+      allowedFields,
     );
     if (!schema) return base;
     return withValidation(base, schema);
-  }, [isConfigured, config.pgrestFunctionName, config.dataSourceId, schema]);
+  }, [
+    isConfigured,
+    config.pgrestFunctionName,
+    config.dataSourceId,
+    schema,
+    params,
+  ]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

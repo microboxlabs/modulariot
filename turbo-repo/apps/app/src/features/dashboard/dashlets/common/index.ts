@@ -6,6 +6,7 @@ export {
   SettingsShell,
   type SettingsTab,
   type SettingsShellProps,
+  buildStandardTabs,
 } from "./settings-shell";
 export { useWidgetRefreshSettings } from "./use-widget-refresh-settings";
 export { SettingsTabButton } from "./settings-tab-button";

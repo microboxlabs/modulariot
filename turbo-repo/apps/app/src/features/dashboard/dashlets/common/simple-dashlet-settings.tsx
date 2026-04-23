@@ -6,8 +6,7 @@ import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
 import { useWidgetRefreshSettings } from "./use-widget-refresh-settings";
-import { SettingsShell } from "./settings-shell";
-import { tr } from "@/features/i18n/tr.service";
+import { SettingsShell, buildStandardTabs } from "./settings-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useThresholdSettings } from "./use-threshold-settings";
@@ -212,18 +211,7 @@ export function SimpleDashletSettings<C extends object>({
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      tabs={[
-        {
-          id: "visualization",
-          label: tr("dashboard.settings.visualization", dictionary),
-          content: visualizationTab,
-        },
-        {
-          id: "data",
-          label: tr("dashboard.settings.dataProvider", dictionary),
-          content: dataTab,
-        },
-      ]}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
       footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}

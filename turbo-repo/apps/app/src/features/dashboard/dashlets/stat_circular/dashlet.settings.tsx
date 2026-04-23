@@ -17,7 +17,7 @@ import {
   DataProviderEntries,
 } from "../common";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
-import { SettingsShell } from "../common/settings-shell";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
@@ -210,18 +210,7 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      tabs={[
-        {
-          id: "visualization",
-          label: tr("dashboard.settings.visualization", dictionary),
-          content: visualizationTab,
-        },
-        {
-          id: "data",
-          label: tr("dashboard.settings.dataProvider", dictionary),
-          content: dataTab,
-        },
-      ]}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
       footer={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}

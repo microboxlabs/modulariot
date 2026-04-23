@@ -34,13 +34,18 @@ export function useSettingsDirty(
   const currentJson = toStableJson(currentSnapshot);
 
   const baselineRef = useRef(currentJson);
+  const wasOpenRef = useRef(isOpen);
   const [settling, setSettling] = useState(false);
+
+  // Detect the render where isOpen just flipped to true (effects not yet run)
+  const opening = isOpen && !wasOpenRef.current;
 
   // Phase 1: when the drawer opens, enter settling mode.
   useEffect(() => {
     if (isOpen) {
       setSettling(true);
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen]);
 
   // Phase 2: on the NEXT render (after state-resets have flushed),
@@ -52,5 +57,5 @@ export function useSettingsDirty(
     }
   }, [settling, currentJson]);
 
-  return isOpen && !settling && baselineRef.current !== currentJson;
+  return isOpen && !settling && !opening && baselineRef.current !== currentJson;
 }

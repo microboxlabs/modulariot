@@ -1490,6 +1490,7 @@
       "saveSuccess": "Cambios guardados correctamente"
     },
     "title": "Título",
+    "enterTitle": "Ingrese título...",
     "subtitle": "Subtítulo",
     "value": "Valor",
     "max": "Máx",
@@ -1536,8 +1537,6 @@
       "duplicateSlug": "Ya existe un dashboard con este nombre. Por favor elige un nombre diferente."
     },
     "settings": {
-      "accessControlTitle": "Control de Acceso",
-      "accessControlDescription": "Gestiona quién puede ver o editar este dashboard.",
       "sparklineData": "Datos del gráfico (separados por coma)",
       "subtitle": "Subtítulo",
       "maxValue": "Valor Máximo",

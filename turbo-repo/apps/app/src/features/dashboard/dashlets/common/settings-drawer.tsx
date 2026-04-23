@@ -137,6 +137,8 @@ function SettingsDrawerInner({
         "fixed inset-0 z-[800] transition-all duration-300",
         open ? "visible opacity-100" : "invisible opacity-0"
       )}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       <div
         className={twMerge(
@@ -146,12 +148,14 @@ function SettingsDrawerInner({
         aria-hidden="true"
         onMouseDown={(e) => {
           mouseDownOnBackdrop.current = e.target === e.currentTarget;
+          e.stopPropagation();
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
             handleAttemptClose();
           }
           mouseDownOnBackdrop.current = false;
+          e.stopPropagation();
         }}
       />
 

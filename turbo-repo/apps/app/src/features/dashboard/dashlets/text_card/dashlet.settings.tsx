@@ -26,6 +26,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   widgetId,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -163,6 +164,7 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
+      title={dashletName}
       tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
       footer={refresh.selectNode}
       widgetId={widgetId}

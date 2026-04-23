@@ -54,7 +54,7 @@ export function DashletSettings({
       isDirty={isDirty}
     >
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-        {tr("dashboard.settings.mapSettings", dictionary) || "Map Settings"}
+        {tr("dashboard.settings.mapSettings", dictionary)}
       </h3>
 
       {/* Show Filters Toggle */}
@@ -63,7 +63,7 @@ export function DashletSettings({
           htmlFor="show-filters"
           className="text-sm text-gray-700 dark:text-gray-300"
         >
-          {tr("dashboard.settings.showFilters", dictionary) || "Show Filters"}
+          {tr("dashboard.settings.showFilters", dictionary)}
         </Label>
         <ToggleSwitch
           id="show-filters"
@@ -78,8 +78,7 @@ export function DashletSettings({
           htmlFor="show-style-selector"
           className="text-sm text-gray-700 dark:text-gray-300"
         >
-          {tr("dashboard.settings.showStyleSelector", dictionary) ||
-            "Show Style Selector"}
+          {tr("dashboard.settings.showStyleSelector", dictionary)}
         </Label>
         <ToggleSwitch
           id="show-style-selector"

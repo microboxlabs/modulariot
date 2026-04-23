@@ -48,6 +48,10 @@ export interface TableColumn {
   colorMap?: BadgeColorMapping[];
   /** When true the column sticks to the left edge during horizontal scroll. */
   sticky?: boolean;
+  /** When true the description tooltip is shown on the column header. */
+  descriptionEnabled?: boolean;
+  /** Markdown description shown as a tooltip on the column header. */
+  description?: string;
 }
 
 export interface SortConfig {

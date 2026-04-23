@@ -232,6 +232,41 @@
           "response": []
         },
         {
+          "name": "Track with Provider Events (Hard Brake/Accel/Turn)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"TTBJ72\",\n  \"type\": \"Truck\",\n  \"owner\": \"Transportes Pilar Diaz\",\n  \"timestamp\": \"2026-02-13T13:48:57Z\",\n  \"gps\": {\n    \"latitude\": -29.810218,\n    \"longitude\": -71.282617,\n    \"speed\": 74.5,\n    \"heading\": 315,\n    \"satellites\": 15\n  },\n  \"events\": [\n    {\n      \"event_type\": \"hard_brake\",\n      \"timestamp\": \"2026-02-13T13:48:55Z\",\n      \"severity\": \"high\",\n      \"threshold_exceeded\": true,\n      \"additional_info\": { \"g_force\": 0.82, \"speed_at_event\": 74.5, \"cargo_weight\": 5000 }\n    },\n    {\n      \"event_type\": \"hard_accel\",\n      \"timestamp\": \"2026-02-13T13:48:40Z\",\n      \"severity\": \"medium\",\n      \"threshold_exceeded\": true,\n      \"additional_info\": { \"g_force\": 0.61, \"speed_at_event\": 42.0 }\n    },\n    {\n      \"event_type\": \"hard_turn\",\n      \"timestamp\": \"2026-02-13T13:48:30Z\",\n      \"severity\": \"medium\",\n      \"threshold_exceeded\": true,\n      \"additional_info\": { \"g_force\": 0.55, \"speed_at_event\": 58.0 }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Provider-calculated GPS events delivered in the events[] array. Use this shape when the device or provider already emits typed events (hard brake, hard acceleration, hard turn, speeding, impact) with severity and threshold, rather than only the raw accelerometer/gyroscope reading. Each event carries its own timestamp and optional additional_info (g_force, speed_at_event, cargo_weight)."
+          },
+          "response": []
+        },
+        {
           "name": "Track with Full Telemetry",
           "request": {
             "method": "POST",

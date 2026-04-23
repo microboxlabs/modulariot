@@ -1599,6 +1599,7 @@
       "sortableColumns": "Sortable columns",
       "rowColorRules": "Row Background Colors",
       "badgeColorRules": "Badge Colors",
+      "colorRules": "Color Rules",
       "addRule": "Add rule",
       "value": "value",
       "operatorEquals": "=",

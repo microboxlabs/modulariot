@@ -1625,6 +1625,7 @@
       "sortableColumns": "Columnas ordenables",
       "rowColorRules": "Colores de fila",
       "badgeColorRules": "Colores de badge",
+      "colorRules": "Reglas de Color",
       "addRule": "Agregar regla",
       "value": "valor",
       "operatorEquals": "=",

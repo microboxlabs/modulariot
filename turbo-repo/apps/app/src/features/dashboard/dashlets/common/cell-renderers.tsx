@@ -1,38 +1,84 @@
 import { isColumnType } from "./column-types";
 import type { BadgeColorMapping } from "./column-types";
-import { getBadgeColorClassesByRule, evaluateRule } from "./color-rule-engine";
+import {
+  getBadgeColorClassesByRule,
+  getBadgeColorStyles,
+  getColorDotClass,
+  getColorDotStyles,
+  evaluateRule,
+} from "./color-rule-engine";
 
-export function getBadgeClasses(value: string): string {
-  const lower = value.toLowerCase();
-  if (
-    lower.includes("crít") ||
-    lower.includes("critical") ||
-    lower.includes("error") ||
-    lower.includes("alto")
-  ) {
-    return "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
-  }
-  if (
-    lower.includes("medio") ||
-    lower.includes("medium") ||
-    lower.includes("warning") ||
-    lower.includes("advertencia")
-  ) {
-    return "bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800";
-  }
-  if (lower.includes("bajo") || lower.includes("low")) {
-    return "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
-  }
-  if (
-    lower.includes("ok") ||
-    lower.includes("activo") ||
-    lower.includes("active") ||
-    lower.includes("success")
-  ) {
-    return "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
-  }
-  return "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
+// ============================================================================
+// Color rule matching helper
+// ============================================================================
+
+function findMatchingRule(
+  colorMap: BadgeColorMapping[] | undefined,
+  value: string
+): BadgeColorMapping | undefined {
+  if (!Array.isArray(colorMap)) return undefined;
+  return colorMap.find((m) =>
+    evaluateRule(
+      { column: "", operator: m.operator, value: m.value, color: m.color },
+      value
+    )
+  );
 }
+
+function isHexColor(color: string): boolean {
+  return /^[0-9a-fA-F]{6}$/.test(color);
+}
+
+const LEGACY_COLOR_MAP: Record<string, string> = {
+  red: "#ef4444",
+  yellow: "#eab308",
+  green: "#22c55e",
+  blue: "#3b82f6",
+  gray: "#6b7280",
+  orange: "#f97316",
+  purple: "#a855f7",
+};
+
+function resolveColorValue(color: string): string | undefined {
+  if (isHexColor(color)) return `#${color}`;
+  return LEGACY_COLOR_MAP[color];
+}
+
+// ============================================================================
+// Badge rendering (with transparency styling)
+// ============================================================================
+
+const DEFAULT_BADGE_CLASSES =
+  "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
+
+function renderBadge(
+  value: string,
+  match: BadgeColorMapping | undefined
+): React.ReactNode {
+  if (match) {
+    const legacyClasses = getBadgeColorClassesByRule(match.color);
+    const hexStyles = getBadgeColorStyles(match.color);
+    return (
+      <span
+        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${legacyClasses}`}
+        style={hexStyles}
+      >
+        {value}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${DEFAULT_BADGE_CLASSES}`}
+    >
+      {value}
+    </span>
+  );
+}
+
+// ============================================================================
+// Progress rendering
+// ============================================================================
 
 export function getProgressColor(pct: number): string {
   if (pct >= 90) return "bg-green-500";
@@ -40,24 +86,39 @@ export function getProgressColor(pct: number): string {
   return "bg-red-500";
 }
 
-export function renderProgress(value: string) {
+function renderProgress(
+  value: string,
+  match: BadgeColorMapping | undefined
+): React.ReactNode {
   const pct = Number.parseFloat(value.replaceAll(/[^\d.]/g, ""));
   const safePct = Number.isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
-  const barColor = getProgressColor(safePct);
+
+  // User-set rule overrides the base ruleset
+  const barColorClass = match ? getColorDotClass(match.color) : getProgressColor(safePct);
+  const barColorStyle = match ? getColorDotStyles(match.color) : undefined;
+  const textColor = match ? resolveColorValue(match.color) : undefined;
+
   return (
     <span className="inline-flex items-center gap-2">
       <span className="inline-block h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
         <span
-          className={`block h-full rounded-full ${barColor}`}
-          style={{ width: `${safePct}%` }}
+          className={`block h-full rounded-full ${barColorClass}`}
+          style={{ width: `${safePct}%`, ...barColorStyle }}
         />
       </span>
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <span
+        className="text-sm font-medium text-gray-700 dark:text-gray-300"
+        style={textColor ? { color: textColor } : undefined}
+      >
         {value}
       </span>
     </span>
   );
 }
+
+// ============================================================================
+// Signed rendering
+// ============================================================================
 
 export function getSignedClasses(value: string): string {
   const numeric = Number.parseFloat(value.replaceAll(/[^\d.-]/g, ""));
@@ -73,52 +134,64 @@ export function getSignedClasses(value: string): string {
   return "font-semibold text-green-600 dark:text-green-400";
 }
 
-export function renderCell(value: string, type: string, colorMap?: BadgeColorMapping[]) {
-  const resolved = isColumnType(type) ? type : "text";
-  if (resolved === "text") {
-    // text — multiline: first line bold, rest as muted subtitle
-    const lines = value.split("\n");
-    if (lines.length > 1) {
-      return (
-        <span>
-          <span className="block font-semibold text-gray-900 dark:text-white">
-            {lines[0]}
-          </span>
-          <span className="block text-xs text-gray-500 dark:text-gray-400">
-            {lines.slice(1).join(" ")}
-          </span>
+function renderSigned(
+  value: string,
+  match: BadgeColorMapping | undefined
+): React.ReactNode {
+  const matchedColor = match ? resolveColorValue(match.color) : undefined;
+  if (matchedColor) {
+    return (
+      <span className="font-semibold" style={{ color: matchedColor }}>
+        {value}
+      </span>
+    );
+  }
+  return <span className={getSignedClasses(value)}>{value}</span>;
+}
+
+// ============================================================================
+// Text rendering (also handles deprecated "highlight")
+// ============================================================================
+
+function renderText(
+  value: string,
+  match: BadgeColorMapping | undefined
+): React.ReactNode {
+  const matchedColor = match ? resolveColorValue(match.color) : undefined;
+  const colorStyle: React.CSSProperties | undefined = matchedColor
+    ? { color: matchedColor }
+    : undefined;
+
+  const lines = value.split("\n");
+  if (lines.length > 1) {
+    return (
+      <span style={colorStyle}>
+        <span className="block font-semibold text-gray-900 dark:text-white">
+          {lines[0]}
         </span>
-      );
-    }
-    return <span>{value}</span>;
-  }
-  if (resolved === "badge") {
-    const match = Array.isArray(colorMap)
-      ? colorMap.find((m) =>
-          evaluateRule({ column: "", operator: m.operator, value: m.value, color: m.color }, value),
-        )
-      : undefined;
-    const badgeClasses = match
-      ? getBadgeColorClassesByRule(match.color)
-      : getBadgeClasses(value);
-    return (
-      <span
-        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badgeClasses}`}
-      >
-        {value}
+        <span className="block text-xs text-gray-500 dark:text-gray-400">
+          {lines.slice(1).join(" ")}
+        </span>
       </span>
     );
   }
-  if (resolved === "highlight") {
-    return (
-      <span className="font-semibold text-blue-600 dark:text-blue-400">
-        {value}
-      </span>
-    );
-  }
-  if (resolved === "signed") {
-    return <span className={getSignedClasses(value)}>{value}</span>;
-  }
-  // progress
-  return renderProgress(value);
+  return <span style={colorStyle}>{value}</span>;
+}
+
+// ============================================================================
+// Main render function
+// ============================================================================
+
+export function renderCell(
+  value: string,
+  type: string,
+  colorMap?: BadgeColorMapping[]
+) {
+  const resolved = isColumnType(type) ? type : "text";
+  const match = findMatchingRule(colorMap, value);
+
+  if (resolved === "badge") return renderBadge(value, match);
+  if (resolved === "signed") return renderSigned(value, match);
+  if (resolved === "progress") return renderProgress(value, match);
+  return renderText(value, match);
 }

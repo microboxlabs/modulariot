@@ -2,7 +2,11 @@
 
 import { useRef, useState } from "react";
 import { Textarea, Label, TextInput, Select } from "flowbite-react";
-import { HiChevronDown, HiQuestionMarkCircle } from "react-icons/hi2";
+import {
+  HiChevronDown,
+  HiPaintBrush,
+  HiQuestionMarkCircle,
+} from "react-icons/hi2";
 import { ReactSortable } from "react-sortablejs";
 import type { ColumnItem } from "./column-helpers";
 import { DeleteItemButton } from "./delete-item-button";
@@ -48,7 +52,8 @@ interface ColumnEditorProps {
       | "dataType"
       | "sticky"
       | "descriptionEnabled"
-      | "description",
+      | "description"
+      | "colorRulesEnabled",
     value: string | boolean | undefined
   ) => void;
   onAddColorMapping?: (colId: string) => void;
@@ -180,14 +185,12 @@ function ColumnCard({
 }: Readonly<ColumnCardProps>) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const descEnabled = !!col.descriptionEnabled;
+  const colorRulesEnabled = !!col.colorRulesEnabled;
   const [editingLabel, setEditingLabel] = useState(false);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
-  const hasBadgeRules =
-    col.type === "badge" &&
-    !!onAddColorMapping &&
-    !!onRemoveColorMapping &&
-    !!onUpdateColorMapping;
+  const hasColorCallbacks =
+    !!onAddColorMapping && !!onRemoveColorMapping && !!onUpdateColorMapping;
 
   const rulesCount = (col.colorMap ?? []).length;
 
@@ -257,6 +260,16 @@ function ColumnCard({
           className={`shrink-0 rounded p-1 transition-colors ${descEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
         >
           <HiQuestionMarkCircle className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          title={labels.rulesLabel}
+          onClick={() =>
+            onUpdate(col._id, "colorRulesEnabled", !colorRulesEnabled)
+          }
+          className={`shrink-0 rounded p-1 transition-colors ${colorRulesEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
+        >
+          <HiPaintBrush className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
@@ -335,8 +348,8 @@ function ColumnCard({
         </div>
       )}
 
-      {/* Collapsible badge color rules */}
-      {hasBadgeRules && (
+      {/* Color rules collapsible section */}
+      {colorRulesEnabled && hasColorCallbacks && (
         <div className="border-t border-gray-200 px-2 py-1.5 dark:border-gray-600">
           <button
             type="button"

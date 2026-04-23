@@ -56,11 +56,11 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   const removeAssignment = useCallback(
     async (serviceId: string) => {
       updateServiceAssignment(serviceId, {
-        assignedTransportista: undefined,
+        assignedCarrier: undefined,
         assignedDriver: undefined,
         assignedDriver2: undefined,
-        assignedCamion: undefined,
-        assignedRemolque: undefined,
+        assignedTruck: undefined,
+        assignedTrailer: undefined,
       });
     },
     [updateServiceAssignment]

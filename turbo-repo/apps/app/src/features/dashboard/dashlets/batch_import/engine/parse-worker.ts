@@ -24,29 +24,58 @@ export type ParseRequest =
       params: IntrospectedParam[] | null;
     };
 
-export interface ParseResponse {
-  requestId: number;
-  doc: ParsedDocument;
-  /** rowIndex -> newline-delimited error. Absent entries = valid. */
-  validations: Record<number, string>;
-}
+/** Discriminated so an exception in parse/validate surfaces as a structured
+ *  error response instead of hanging the pending promise on the client side. */
+export type ParseResponse =
+  | {
+      requestId: number;
+      ok: true;
+      doc: ParsedDocument;
+      validations: Record<number, string>;
+    }
+  | {
+      requestId: number;
+      ok: false;
+      error: { message: string; stack?: string; stage?: string };
+    };
 
 const ctx = globalThis as unknown as DedicatedWorkerGlobalScope;
 
 ctx.addEventListener("message", (e: MessageEvent<ParseRequest>) => {
   const msg = e.data;
-  const doc =
-    msg.kind === "text" ? parseDocument(msg.text) : parseGrid(msg.grid);
+  let stage: "parse" | "schema" | "validate" = "parse";
+  try {
+    const doc =
+      msg.kind === "text" ? parseDocument(msg.text) : parseGrid(msg.grid);
 
-  const validations: Record<number, string> = {};
-  if (msg.params && msg.params.length > 0 && doc.rows.length > 0) {
-    const schema = buildRowSchema(msg.params);
-    for (const row of doc.rows) {
-      const err = validateRow(row.fields, schema);
-      if (err) validations[row.index] = err;
+    const validations: Record<number, string> = {};
+    if (msg.params && msg.params.length > 0 && doc.rows.length > 0) {
+      stage = "schema";
+      const schema = buildRowSchema(msg.params);
+      stage = "validate";
+      for (const row of doc.rows) {
+        const err = validateRow(row.fields, schema);
+        if (err) validations[row.index] = err;
+      }
     }
-  }
 
-  const response: ParseResponse = { requestId: msg.requestId, doc, validations };
-  ctx.postMessage(response);
+    const response: ParseResponse = {
+      requestId: msg.requestId,
+      ok: true,
+      doc,
+      validations,
+    };
+    ctx.postMessage(response);
+  } catch (err) {
+    const response: ParseResponse = {
+      requestId: msg.requestId,
+      ok: false,
+      error: {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        stage,
+      },
+    };
+    ctx.postMessage(response);
+  }
 });

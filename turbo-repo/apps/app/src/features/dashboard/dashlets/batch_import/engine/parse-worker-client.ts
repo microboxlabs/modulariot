@@ -82,7 +82,15 @@ function getHandle(): WorkerHandle | null {
       const cb = pending.get(e.data.requestId);
       if (!cb) return;
       pending.delete(e.data.requestId);
-      cb.resolve({ doc: e.data.doc, validations: e.data.validations });
+      if (e.data.ok) {
+        cb.resolve({ doc: e.data.doc, validations: e.data.validations });
+        return;
+      }
+      // Worker caught an exception during parse/validate and reported it
+      // structurally — reject so parseText/parseFromGrid can fall back to
+      // runInline. Include stage so logs point at where it broke.
+      const { message, stage } = e.data.error;
+      cb.reject(new Error(stage ? `parse-worker (${stage}): ${message}` : message));
     });
     worker.addEventListener("error", (e: ErrorEvent) => {
       failAllPending(h, e.message || "parse worker error");

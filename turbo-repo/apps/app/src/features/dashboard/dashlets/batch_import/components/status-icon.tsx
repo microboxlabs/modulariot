@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "flowbite-react";
 import type { RowStatus } from "../engine/types";
 
 interface StatusStyle {
@@ -43,12 +44,34 @@ export function StatusIcon({
   label,
 }: Readonly<{ status: RowStatus; tooltip?: string; label: string }>) {
   const style = STYLES[status];
-  return (
+  const glyph = (
     <span
       className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold leading-none ${style.className}`}
-      title={tooltip || label}
     >
       {style.glyph}
     </span>
+  );
+
+  const text = tooltip || label;
+  const lines = text.split("\n").filter((l) => l.length > 0);
+
+  return (
+    <Tooltip
+      content={
+        lines.length > 1 ? (
+          <ul className="space-y-0.5 text-left">
+            {lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : (
+          <span>{text}</span>
+        )
+      }
+      placement="right"
+      className="max-w-sm whitespace-normal break-words text-xs"
+    >
+      {glyph}
+    </Tooltip>
   );
 }

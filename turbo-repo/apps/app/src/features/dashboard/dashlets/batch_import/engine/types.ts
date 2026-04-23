@@ -15,9 +15,14 @@ export interface ParsedRow {
    *  "already processed" skip logic survives edits that reorder rows but is
    *  also not fooled by a completely different document sharing a sourceKey. */
   fingerprint: string;
+  fields: Record<string, string>;
+}
+
+/** Mutable per-row state kept OUT of the immutable `ParsedRow` so updating one
+ *  row during import doesn't require cloning the entire rows array. */
+export interface RowState {
   status: RowStatus;
   errorMessage?: string;
-  fields: Record<string, string>;
 }
 
 export interface ParsedDocument {

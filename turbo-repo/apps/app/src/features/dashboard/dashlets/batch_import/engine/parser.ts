@@ -3,7 +3,14 @@ import type { ParsedDocument, ParsedRow } from "./types";
 function detectDelimiter(firstLine: string): string {
   const tabs = (firstLine.match(/\t/g) || []).length;
   const commas = (firstLine.match(/,/g) || []).length;
-  return commas > tabs ? "," : "\t";
+  const semis = (firstLine.match(/;/g) || []).length;
+  const pipes = (firstLine.match(/\|/g) || []).length;
+  const max = Math.max(tabs, commas, semis, pipes);
+  if (max === 0) return "\t";
+  if (max === tabs) return "\t";
+  if (max === commas) return ",";
+  if (max === semis) return ";";
+  return "|";
 }
 
 interface QuotedStep {
@@ -83,8 +90,6 @@ export function parseDocument(content: string): ParsedDocument {
   }
 
   const [header, ...dataRows] = grid;
-  // Preserve each surviving header's original column index so downstream rows
-  // read from the correct cell even when the header row has empty columns.
   const headerEntries = header
     .map((h, index) => ({ name: h.trim(), index }))
     .filter((e) => e.name.length > 0);
@@ -103,7 +108,6 @@ export function parseDocument(content: string): ParsedDocument {
     return {
       index,
       fingerprint: fingerprintRow(fields),
-      status: "unprocessed",
       fields,
     };
   });
@@ -111,13 +115,77 @@ export function parseDocument(content: string): ParsedDocument {
   return { headers, rows };
 }
 
-// Pinned-locale collator so fingerprints are reproducible across runtimes /
-// CI / user locales. Kept at module scope to avoid rebuilding per row.
 const FINGERPRINT_COLLATOR = new Intl.Collator("en", { sensitivity: "variant" });
+
+const US = "\x1f";
+const RS = "\x1e";
 
 function fingerprintRow(fields: Record<string, string>): string {
   const keys = Object.keys(fields).sort(FINGERPRINT_COLLATOR.compare);
-  const sorted: Record<string, string> = {};
-  for (const k of keys) sorted[k] = fields[k];
-  return JSON.stringify(sorted);
+  let out = "";
+  for (const k of keys) out += k + US + fields[k] + RS;
+  return out;
+}
+
+/** Identity-safe rename of a ParsedDocument's headers (and the matching keys
+ *  in each row's `fields` object). Preserves row order and index; fingerprints
+ *  are recomputed so cache lookups key off the effective (mapped) shape.
+ *  Returns the same `doc` reference when the map is a no-op, so memoized
+ *  consumers don't re-render unnecessarily. */
+export function applyHeaderMap(
+  doc: ParsedDocument,
+  map: Record<string, string>,
+): ParsedDocument {
+  if (!doc.headers.length) return doc;
+  let anyChange = false;
+  for (const h of doc.headers) {
+    const target = map[h];
+    if (target && target !== h) {
+      anyChange = true;
+      break;
+    }
+  }
+  if (!anyChange) return doc;
+  const mappedHeaders = doc.headers.map((h) => map[h] ?? h);
+  const rows: ParsedRow[] = doc.rows.map((r) => {
+    const fields: Record<string, string> = {};
+    for (const h of doc.headers) fields[map[h] ?? h] = r.fields[h] ?? "";
+    return { index: r.index, fingerprint: fingerprintRow(fields), fields };
+  });
+  return { headers: mappedHeaders, rows, headerError: doc.headerError };
+}
+
+/**
+ * Build a ParsedDocument straight from pre-split rows (e.g. from an xlsx
+ * workbook). Same fingerprint + shape as parseDocument, but skips the CSV
+ * tokenizer. `rows` is `[headers, ...dataRows]`; cells are coerced to strings.
+ */
+export function parseGrid(grid: unknown[][]): ParsedDocument {
+  if (grid.length === 0) {
+    return { headers: [], rows: [], headerError: "empty" };
+  }
+  const [header, ...dataRows] = grid;
+  const headerEntries = (header ?? [])
+    .map((h, index) => ({ name: String(h ?? "").trim(), index }))
+    .filter((e) => e.name.length > 0);
+  if (headerEntries.length === 0) {
+    return { headers: [], rows: [], headerError: "no_headers" };
+  }
+  const headers = headerEntries.map((e) => e.name);
+  const rows: ParsedRow[] = [];
+  let emitted = 0;
+  for (const cells of dataRows) {
+    const arr = cells ?? [];
+    const fields: Record<string, string> = {};
+    let hasContent = false;
+    for (const { name, index: originalIndex } of headerEntries) {
+      const v = arr[originalIndex];
+      const str = v === undefined || v === null ? "" : String(v).trim();
+      if (str.length > 0) hasContent = true;
+      fields[name] = str;
+    }
+    if (!hasContent) continue;
+    rows.push({ index: emitted++, fingerprint: fingerprintRow(fields), fields });
+  }
+  return { headers, rows };
 }

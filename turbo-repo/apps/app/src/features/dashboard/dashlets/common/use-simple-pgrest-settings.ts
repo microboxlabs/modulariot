@@ -60,6 +60,17 @@ interface UseSimplePgrestSettingsReturn<F extends string> {
   fieldValues: Record<F, string>;
   /** Pre-built fieldSetters record for HbTextFieldList */
   fieldSetters: Record<F, (v: string) => void>;
+  /** Props ready to spread onto <PgrestDataTab> (add id & dictionary). */
+  dataTabProps: {
+    dataMode: SimpleDataMode;
+    onDataModeChange: (mode: SimpleDataMode) => void;
+    pgrest: ReturnType<typeof usePgrestSettingsState>;
+    plannerVariableName: string;
+    onPlannerVariableNameChange: (name: string) => void;
+    dataSourceId: string;
+    onDataSourceIdChange: (id: string) => void;
+    activeProviders: { id: string; name: string }[];
+  };
 }
 
 // ============================================================================
@@ -127,6 +138,18 @@ export function useSimplePgrestSettings<F extends string>({
     plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
   };
 
+  /** Props ready to spread onto <PgrestDataTab> (add id & dictionary). */
+  const dataTabProps = {
+    dataMode,
+    onDataModeChange: handleDataModeChange,
+    pgrest: pg,
+    plannerVariableName,
+    onPlannerVariableNameChange: setPlannerVariableName,
+    dataSourceId,
+    onDataSourceIdChange: setDataSourceId,
+    activeProviders,
+  };
+
   return {
     dataMode,
     dataSourceId,
@@ -140,5 +163,6 @@ export function useSimplePgrestSettings<F extends string>({
     pgrestSaveFields,
     fieldValues,
     fieldSetters,
+    dataTabProps,
   };
 }

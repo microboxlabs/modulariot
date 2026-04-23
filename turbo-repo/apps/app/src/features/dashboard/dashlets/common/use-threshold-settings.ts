@@ -57,6 +57,20 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
     },
   });
 
+  /** Props ready to spread onto <ThresholdEditor> (add schemaSuggestions & dictionary). */
+  const editorProps = {
+    enabled,
+    onToggle: setEnabled,
+    field,
+    onFieldChange: setField,
+    applyTo,
+    onApplyToChange: setApplyTo,
+    rules,
+    onAdd: addRule,
+    onRemove: removeRule,
+    onUpdate: updateRule,
+  };
+
   return {
     thresholdEnabled: enabled,
     setThresholdEnabled: setEnabled,
@@ -69,5 +83,6 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
     removeThresholdRule: removeRule,
     updateThresholdRule: updateRule,
     buildThresholdSavePayload,
+    editorProps,
   };
 }

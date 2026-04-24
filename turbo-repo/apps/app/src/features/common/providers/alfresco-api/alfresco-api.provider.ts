@@ -538,7 +538,11 @@ export async function formProcessor(
   itemId: string,
   data: Record<string, unknown>
 ): Promise<TaskResponse> {
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${itemId}/formprocessor`;
+  const normalizedItemId =
+    itemKind === "task" && !itemId.startsWith("activiti$")
+      ? `activiti$${itemId}`
+      : itemId;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${normalizedItemId}/formprocessor`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   const result = await fetcher(url, {
@@ -1670,7 +1674,7 @@ export async function updateTaskServiceCategory(
   serviceTypeCode: string
 ): Promise<void> {
   await formProcessor(session, "task", taskId, {
-    mintral_serviceCategory: serviceTypeCode,
+    prop_mintral_serviceCategory: serviceTypeCode,
   });
 }
 

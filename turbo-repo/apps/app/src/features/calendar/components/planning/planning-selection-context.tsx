@@ -8,7 +8,9 @@ import {
   useMemo,
   useEffect,
   useRef,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
@@ -552,6 +554,8 @@ export const TEST_SERVICE: SelectedService = TEST_SERVICES[0];
  */
 export interface SelectedService {
   id: string;
+  /** Alfresco workflow task id used for task formprocessor updates. */
+  taskId?: string;
   cliente: string;
   mintral_clientRut?: string;
   mintral_delegacionOrigen?: string;
@@ -614,6 +618,136 @@ export interface ReassigningService {
  */
 export interface AssigningService {
   service: PlannedService;
+}
+
+async function cancelBookingWithWarning(
+  bookingId: string,
+  message: string
+): Promise<void> {
+  await cancelBooking(bookingId).catch((err) => console.warn(message, err));
+}
+
+async function syncServiceCategoryWithWorkflow(
+  service: SelectedService,
+  bookingId: string
+): Promise<void> {
+  if (!service.serviceCategory) {
+    return;
+  }
+
+  if (!service.taskId) {
+    await cancelBookingWithWarning(
+      bookingId,
+      "Failed to cancel booking after missing task id:"
+    );
+    throw new Error("Missing Alfresco task id for service category");
+  }
+
+  try {
+    await updateServiceCategory(service.taskId, service.serviceCategory);
+  } catch (err) {
+    await cancelBookingWithWarning(
+      bookingId,
+      "Failed to cancel booking after service category update error:"
+    );
+    throw err;
+  }
+}
+
+interface PersistPlannedBookingParams {
+  calendarId?: string;
+  service: SelectedService;
+  slot: SelectedSlot;
+  oldBookingId?: string;
+  originalPlannedService: PlannedService | null;
+  setBookingIds: Dispatch<SetStateAction<Map<string, string>>>;
+  setBookingVersion: Dispatch<SetStateAction<number>>;
+  setPlannedServices: Dispatch<SetStateAction<PlannedService[]>>;
+  refreshSlots: () => void;
+}
+
+function buildBookingRequest(
+  calendarId: string,
+  service: SelectedService,
+  slot: SelectedSlot
+): BookingRequest {
+  return {
+    calendarId,
+    resource: {
+      id: service.id,
+      type: "service",
+      label: service.cliente,
+      data: {
+        ...service,
+        ...(slot.anden === undefined ? {} : { _anden: slot.anden }),
+      },
+    },
+    slot: {
+      date: dayjs(slot.date).format("YYYY-MM-DD"),
+      hour: slot.hour,
+      minutes: slot.minutes,
+    },
+  };
+}
+
+function rollbackPlannedService(
+  setPlannedServices: Dispatch<SetStateAction<PlannedService[]>>,
+  serviceId: string,
+  originalPlannedService: PlannedService | null
+): void {
+  setPlannedServices((prev) => {
+    const withoutNew = prev.filter((p) => p.service.id !== serviceId);
+    return originalPlannedService
+      ? [...withoutNew, originalPlannedService]
+      : withoutNew;
+  });
+}
+
+async function persistPlannedBooking({
+  calendarId,
+  service,
+  slot,
+  oldBookingId,
+  originalPlannedService,
+  setBookingIds,
+  setBookingVersion,
+  setPlannedServices,
+  refreshSlots,
+}: PersistPlannedBookingParams): Promise<void> {
+  if (!calendarId) {
+    return;
+  }
+
+  try {
+    const booking = await createBooking(
+      buildBookingRequest(calendarId, service, slot)
+    );
+    await syncServiceCategoryWithWorkflow(service, booking.id);
+
+    setBookingIds((prev) => {
+      const next = new Map(prev);
+      next.set(service.id, booking.id);
+      return next;
+    });
+
+    if (oldBookingId) {
+      await cancelBookingWithWarning(
+        oldBookingId,
+        "Failed to cancel old booking:"
+      );
+    }
+
+    refreshSlots();
+    setBookingVersion((v) => v + 1);
+  } catch (err) {
+    console.warn("Failed to create booking:", err);
+    rollbackPlannedService(
+      setPlannedServices,
+      service.id,
+      originalPlannedService
+    );
+    throw err;
+  }
 }
 
 interface PlanningSelectionContextType {
@@ -723,6 +857,7 @@ const StoredServiceSchema = z
   .object({
     mintral_clientRut: z.string().optional(),
     mintral_delegacionOrigen: z.string().optional(),
+    taskId: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
@@ -1354,78 +1489,17 @@ export function PlanningSelectionProvider({
         return updated;
       });
 
-      // Create / reassign booking in the calendar backend
-      if (calendarId) {
-        // Capture the old booking ID before any state updates.
-        const oldBookingId = bookingIds.get(effectiveService.id);
-
-        try {
-          const bookingBody: BookingRequest = {
-            calendarId,
-            resource: {
-              id: effectiveService.id,
-              type: "service",
-              label: effectiveService.cliente,
-              data: {
-                ...effectiveService,
-                ...(slotToUse.anden === undefined
-                  ? {}
-                  : { _anden: slotToUse.anden }),
-              },
-            },
-            slot: {
-              date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
-              hour: slotToUse.hour,
-              minutes: slotToUse.minutes,
-            },
-          };
-
-          // Create the new booking BEFORE cancelling the old one so that a
-          // creation failure leaves the original backend booking intact.
-          const booking = await createBooking(bookingBody);
-          setBookingIds((prev) => {
-            const next = new Map(prev);
-            next.set(effectiveService.id, booking.id);
-            return next;
-          });
-
-          // Cancel the previous booking only after the new one is confirmed.
-          if (oldBookingId) {
-            await cancelBooking(oldBookingId).catch((err) =>
-              console.warn("Failed to cancel old booking:", err)
-            );
-          }
-
-          // Refresh backend slots so availability is up-to-date
-          refreshSlots();
-
-          // Bump version so the service list re-fetches (excluding newly booked)
-          setBookingVersion((v) => v + 1);
-
-          // Fire-and-forget: update Alfresco task service category
-          if (effectiveService.serviceCategory) {
-            updateServiceCategory(
-              effectiveService.id,
-              effectiveService.serviceCategory
-            ).catch((err) =>
-              console.error("Failed to update service category:", err)
-            );
-          }
-        } catch (err) {
-          console.warn("Failed to create booking:", err);
-          // Rollback local state: restore the original PlannedService on
-          // reassignment, or simply remove the new entry on a fresh assignment.
-          setPlannedServices((prev) => {
-            const withoutNew = prev.filter(
-              (p) => p.service.id !== effectiveService.id
-            );
-            return originalPlannedService
-              ? [...withoutNew, originalPlannedService]
-              : withoutNew;
-          });
-          throw err;
-        }
-      }
+      await persistPlannedBooking({
+        calendarId,
+        service: effectiveService,
+        slot: slotToUse,
+        oldBookingId: bookingIds.get(effectiveService.id),
+        originalPlannedService,
+        setBookingIds,
+        setBookingVersion,
+        setPlannedServices,
+        refreshSlots,
+      });
 
       // Always clear reassigning state after confirmation
       setReassigningService(null);

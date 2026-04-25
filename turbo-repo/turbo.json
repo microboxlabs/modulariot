@@ -19,7 +19,8 @@
     "OPENAPI_URL",
     "OPENAPI_TOKEN",
     "PGREST_BULK_CONCURRENCY",
-    "PGREST_BULK_ROW_TIMEOUT_MS"
+    "PGREST_BULK_ROW_TIMEOUT_MS",
+    "PGREST_PARSE_MAX_BYTES"
   ],
   "tasks": {
     "build": {

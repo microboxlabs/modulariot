@@ -4,22 +4,52 @@ import {
   fetchPgrestSpec,
   introspectPath,
   parseDataSourceParam,
+  parseIntEnv,
 } from "../../shared";
 import { parseDocument } from "../../parser";
 import { isSpreadsheetFilename, parseSpreadsheetBuffer } from "../../xlsx-parser";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
+const DEFAULT_MAX_PAYLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_PAYLOAD_BYTES = parseIntEnv(
+  process.env.PGREST_PARSE_MAX_BYTES,
+  DEFAULT_MAX_PAYLOAD_BYTES,
+);
 
 type RouteContext = { params: Promise<{ functionName: string }> };
 
-async function parseFromRequest(req: NextRequest) {
-  const contentType = req.headers.get("content-type") ?? "";
+type ParseOutcome =
+  | { doc: ReturnType<typeof parseDocument> }
+  | { error: "Missing file." | "Missing 'text'." }
+  | { tooLarge: true };
+
+function exceedsCap(bytes: number): boolean {
+  return Number.isFinite(bytes) && bytes > MAX_PAYLOAD_BYTES;
+}
+
+async function parseFromRequest(req: NextRequest): Promise<ParseOutcome> {
+  // RFC 7231 says media types are case-insensitive; normalize before matching
+  // so an uppercased "MULTIPART/FORM-DATA" header doesn't slip into the JSON
+  // branch.
+  const contentType = (req.headers.get("content-type") ?? "").toLowerCase();
+
+  // Reject upfront when Content-Length exceeds the cap so we don't buffer
+  // huge bodies just to discover they're too big.
+  const contentLength = req.headers.get("content-length");
+  if (contentLength) {
+    const len = Number.parseInt(contentLength, 10);
+    if (exceedsCap(len)) return { tooLarge: true };
+  }
+
   if (contentType.includes("multipart/form-data")) {
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
-      return { error: "Missing file." as const };
+      return { error: "Missing file." };
     }
+    // Defense in depth: if Content-Length was missing or inaccurate, this is
+    // the last guard before we allocate an ArrayBuffer for the whole file.
+    if (exceedsCap(file.size)) return { tooLarge: true };
     if (isSpreadsheetFilename(file.name)) {
       return { doc: await parseSpreadsheetBuffer(await file.arrayBuffer()) };
     }
@@ -29,8 +59,13 @@ async function parseFromRequest(req: NextRequest) {
   // JSON paste path: { text: string }
   const body = (await req.json().catch(() => null)) as { text?: unknown } | null;
   if (!body || typeof body.text !== "string") {
-    return { error: "Missing 'text'." as const };
+    return { error: "Missing 'text'." };
   }
+  // `body.text.length` is UTF-16 code units, not bytes — strictly less than
+  // the byte size for non-ASCII input. Comparing it against the byte cap is
+  // therefore conservative (slightly stricter than the cap intends), which
+  // is fine for the purpose of bounding memory.
+  if (exceedsCap(body.text.length)) return { tooLarge: true };
   return { doc: parseDocument(body.text) };
 }
 
@@ -46,6 +81,12 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   }
 
   const parsed = await parseFromRequest(req);
+  if ("tooLarge" in parsed) {
+    return NextResponse.json(
+      { error: `Payload too large (limit: ${MAX_PAYLOAD_BYTES} bytes).` },
+      { status: 413 },
+    );
+  }
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }

@@ -5,6 +5,7 @@ import {
   introspectPath,
   parseDataSourceParam,
 } from "../../shared";
+import { sanitizeRows } from "../../sanitize";
 import { validateRows } from "../../validator";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
@@ -12,25 +13,7 @@ const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 type RouteContext = { params: Promise<{ functionName: string }> };
 
 interface ValidateBody {
-  rows?: Array<{ index?: unknown; fields?: unknown }>;
-}
-
-function sanitizeRows(
-  raw: ValidateBody["rows"],
-): { index: number; fields: Record<string, string> }[] {
-  if (!Array.isArray(raw)) return [];
-  const out: { index: number; fields: Record<string, string> }[] = [];
-  for (const r of raw) {
-    if (!r || typeof r !== "object") continue;
-    if (typeof r.index !== "number") continue;
-    if (!r.fields || typeof r.fields !== "object") continue;
-    const fields: Record<string, string> = {};
-    for (const [k, v] of Object.entries(r.fields as Record<string, unknown>)) {
-      fields[k] = typeof v === "string" ? v : v == null ? "" : String(v);
-    }
-    out.push({ index: r.index, fields });
-  }
-  return out;
+  rows?: unknown;
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext) {

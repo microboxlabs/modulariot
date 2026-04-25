@@ -1,0 +1,231 @@
+import { auth } from "@/auth";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  fetchPgrestSpec,
+  introspectPath,
+  parseDataSourceParam,
+  resolvePgrestCredentials,
+} from "../../shared";
+import { buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
+import { logger } from "@/lib/logger";
+
+const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
+const BULK_CONCURRENCY = Number(process.env.PGREST_BULK_CONCURRENCY ?? "10");
+
+type RouteContext = { params: Promise<{ functionName: string }> };
+
+const STRATEGIES = new Set(["upsert", "skip", "create"]);
+type DuplicateStrategy = "upsert" | "skip" | "create";
+
+interface BulkRow {
+  index: number;
+  fields: Record<string, string>;
+}
+
+interface BulkBody {
+  rows?: unknown;
+  duplicateStrategy?: unknown;
+}
+
+interface ResultLine {
+  index: number;
+  status: "processed" | "updated" | "skipped" | "failed";
+  errorMessage?: string;
+}
+
+const SUCCESS_STATUSES = new Set(["processed", "updated", "skipped"]);
+
+function sanitizeRows(raw: unknown): BulkRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BulkRow[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") continue;
+    const rec = r as { index?: unknown; fields?: unknown };
+    if (typeof rec.index !== "number") continue;
+    if (!rec.fields || typeof rec.fields !== "object") continue;
+    const fields: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rec.fields as Record<string, unknown>)) {
+      fields[k] = typeof v === "string" ? v : v == null ? "" : String(v);
+    }
+    out.push({ index: rec.index, fields });
+  }
+  return out;
+}
+
+function sanitizeStrategy(raw: unknown): DuplicateStrategy {
+  if (typeof raw === "string" && STRATEGIES.has(raw)) {
+    return raw as DuplicateStrategy;
+  }
+  return "upsert";
+}
+
+function coerceStatus(body: unknown): "processed" | "updated" | "skipped" {
+  if (body && typeof body === "object" && "status" in body) {
+    const s = (body as { status?: unknown }).status;
+    if (typeof s === "string" && SUCCESS_STATUSES.has(s)) {
+      return s as "processed" | "updated" | "skipped";
+    }
+  }
+  return "processed";
+}
+
+async function submitOne(
+  row: BulkRow,
+  rpcUrl: string,
+  authHeader: string,
+  allowed: ReadonlySet<string> | null,
+  signal: AbortSignal,
+): Promise<ResultLine> {
+  const body: Record<string, string> = {};
+  for (const [k, v] of Object.entries(row.fields)) {
+    if (v == null || v === "") continue;
+    if (allowed && !allowed.has(k)) continue;
+    body[k] = v;
+  }
+
+  try {
+    const res = await fetch(rpcUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!res.ok) {
+      const errBody = await res
+        .json()
+        .catch(() => ({ error: res.statusText }));
+      return {
+        index: row.index,
+        status: "failed",
+        errorMessage:
+          (errBody as { error?: string }).error ?? `HTTP ${res.status}`,
+      };
+    }
+
+    const okBody = await res.json().catch(() => null);
+    return { index: row.index, status: coerceStatus(okBody) };
+  } catch (err) {
+    if ((err as { name?: string })?.name === "AbortError") {
+      return { index: row.index, status: "failed", errorMessage: "Aborted" };
+    }
+    return {
+      index: row.index,
+      status: "failed",
+      errorMessage: err instanceof Error ? err.message : "Network error",
+    };
+  }
+}
+
+export async function POST(req: NextRequest, ctx: RouteContext) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { functionName } = await ctx.params;
+  if (!PGREST_PATH_REGEX.test(functionName)) {
+    return NextResponse.json({ error: "Invalid path." }, { status: 400 });
+  }
+
+  const body = (await req.json().catch(() => null)) as BulkBody | null;
+  const rows = sanitizeRows(body?.rows);
+  // Strategy is parsed for forward-compat; not currently forwarded to
+  // PostgREST because the existing client never wired it into the body
+  // either. A follow-up can opt-in to sending a sentinel param.
+  void sanitizeStrategy(body?.duplicateStrategy);
+
+  if (rows.length === 0) {
+    return NextResponse.json(
+      { error: "No rows to import." },
+      { status: 400 },
+    );
+  }
+
+  const dataSourceId = parseDataSourceParam(req);
+  const creds = await resolvePgrestCredentials(session, dataSourceId);
+  if (creds instanceof NextResponse) return creds;
+
+  // Best-effort introspection — skip server-side filtering when the spec
+  // is unreachable (the client already filters by the same allowedFields
+  // it received from /parse).
+  let allowed: ReadonlySet<string> | null = null;
+  try {
+    const spec = await fetchPgrestSpec(dataSourceId);
+    if (!(spec instanceof NextResponse)) {
+      const introspected = introspectPath(spec, functionName);
+      if (introspected) {
+        allowed = new Set(introspected.parameters.map((p) => p.name));
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "pgrest/bulk: introspection failed, skipping field filter");
+  }
+
+  const rpcUrl = `${creds.baseUrl}/${functionName}`;
+  const authHeader = buildAuthHeader(creds.token, creds.authMethod);
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const emit = (line: ResultLine) => {
+        controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+      };
+
+      let next = 0;
+      const total = rows.length;
+      const runOne = async (): Promise<void> => {
+        while (next < total) {
+          if (req.signal.aborted) return;
+          const i = next++;
+          const result = await submitOne(
+            rows[i],
+            rpcUrl,
+            authHeader,
+            allowed,
+            req.signal,
+          );
+          if (req.signal.aborted) return;
+          emit(result);
+        }
+      };
+
+      const concurrency = Math.max(
+        1,
+        Math.min(BULK_CONCURRENCY, total),
+      );
+      const workers: Promise<void>[] = [];
+      for (let i = 0; i < concurrency; i++) workers.push(runOne());
+
+      try {
+        await Promise.all(workers);
+      } catch (err) {
+        logger.error({ err }, "pgrest/bulk: worker pool failed");
+      } finally {
+        try {
+          controller.close();
+        } catch {
+          // Already closed (e.g. on abort) — ignore.
+        }
+      }
+    },
+    cancel() {
+      // Client disconnected; AbortController on the outer fetch calls
+      // cascades into in-flight submitOne via req.signal. Nothing more
+      // to do here.
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-store, no-transform",
+      // Hint to nginx not to buffer streaming responses.
+      "X-Accel-Buffering": "no",
+    },
+  });
+}

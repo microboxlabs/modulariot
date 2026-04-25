@@ -6,19 +6,17 @@ import { HiArrowUpTray } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import { makePgrestSubmit, withValidation } from "./engine/importer";
-import { buildRowSchema, type IntrospectedParam } from "./engine/validator";
+import { makePgrestBatchApi } from "./engine/api";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
 import { SAMPLE_TSV } from "./sample";
-import type { DuplicateStrategy } from "./engine/types";
+import type { DuplicateStrategy, IntrospectedParam } from "./engine/types";
 
 export interface DashletConfig {
   title: string;
   pgrestFunctionName: string;
   dataSourceId?: string;
   defaultStrategy: DuplicateStrategy;
-  cacheKey?: string;
   acceptedFileTypes?: string;
 }
 
@@ -48,9 +46,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     config.title?.trim() ||
     tr("dashboard.dashlets.batchImport.defaultTitle", dictionary);
 
-  // Fetch RPC parameter schema once per function/dataSource so rows can be
-  // validated locally before hitting the network. Drift is covered by a fresh
-  // fetch on remount; we intentionally do not persist params in dashlet config.
+  // Fetch the parameter schema once per function/dataSource purely for the
+  // schema panel UI. Validation itself runs server-side via /validate, so
+  // params here is presentation-only.
   useEffect(() => {
     if (!isConfigured) {
       setParams(null);
@@ -76,38 +74,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       })
       .catch((err) => {
         if (ac.signal.aborted) return;
-        // Introspection failed — fall back to server-side validation only.
         console.warn("batch_import: parameter introspection failed", err);
         setParams([]);
       });
     return () => ac.abort();
   }, [isConfigured, config.pgrestFunctionName, config.dataSourceId]);
 
-  const schema = useMemo(
-    () => (params && params.length > 0 ? buildRowSchema(params) : null),
-    [params],
+  const api = useMemo(
+    () =>
+      isConfigured
+        ? makePgrestBatchApi(config.pgrestFunctionName, config.dataSourceId)
+        : null,
+    [isConfigured, config.pgrestFunctionName, config.dataSourceId],
   );
-
-  const submit = useMemo(() => {
-    if (!isConfigured) return null;
-    const allowedFields =
-      params && params.length > 0
-        ? new Set(params.map((p) => p.name))
-        : undefined;
-    const base = makePgrestSubmit(
-      config.pgrestFunctionName,
-      config.dataSourceId,
-      allowedFields,
-    );
-    if (!schema) return base;
-    return withValidation(base, schema);
-  }, [
-    isConfigured,
-    config.pgrestFunctionName,
-    config.dataSourceId,
-    schema,
-    params,
-  ]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -117,7 +96,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </p>
       )}
 
-      {isConfigured && submit && (
+      {isConfigured && api && (
         <>
           <Button color="blue" onClick={() => setOpen(true)}>
             <HiArrowUpTray className="mr-2 h-5 w-5" />
@@ -126,8 +105,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           <BatchImporterModal
             isOpen={open}
             onClose={() => setOpen(false)}
-            submit={submit}
-            sourceKey={config.cacheKey || `${widget.id}:${config.pgrestFunctionName}`}
+            api={api}
             title={title}
             defaultStrategy={config.defaultStrategy}
             sample={SAMPLE_TSV}

@@ -1,3 +1,17 @@
+/** RPC parameter introspection — wire-shape returned by /api/dashboard/pgrest
+ *  endpoints. The same fields shape the schema panel UI and feed server-side
+ *  Zod validation. */
+export interface IntrospectedParam {
+  name: string;
+  type: string;
+  format: string;
+  required?: boolean;
+  enum?: string[];
+  minimum?: number;
+  maximum?: number;
+  pattern?: string;
+}
+
 export type RowStatus =
   | "unprocessed"
   | "processed"
@@ -31,12 +45,3 @@ export interface ParsedDocument {
   headerError?: string;
 }
 
-export interface SubmitResult {
-  status: RowStatus;
-  errorMessage?: string;
-}
-
-export type SubmitFn = (
-  row: ParsedRow,
-  strategy: DuplicateStrategy,
-) => Promise<SubmitResult>;

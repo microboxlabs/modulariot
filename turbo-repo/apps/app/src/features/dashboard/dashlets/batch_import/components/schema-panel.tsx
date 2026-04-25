@@ -2,7 +2,7 @@
 
 import { memo, useState } from "react";
 import { HiChevronDown, HiChevronRight, HiCheck, HiXMark } from "react-icons/hi2";
-import type { IntrospectedParam } from "../engine/validator";
+import type { IntrospectedParam } from "../engine/types";
 
 interface SchemaPanelProps {
   params: IntrospectedParam[];

@@ -17,7 +17,8 @@
     "MIOT_CALENDAR_URL",
     "MIOT_COLLABORATORS_SOURCE",
     "OPENAPI_URL",
-    "OPENAPI_TOKEN"
+    "OPENAPI_TOKEN",
+    "PGREST_BULK_CONCURRENCY"
   ],
   "tasks": {
     "build": {

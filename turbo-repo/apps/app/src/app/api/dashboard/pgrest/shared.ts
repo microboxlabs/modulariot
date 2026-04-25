@@ -18,6 +18,15 @@ function normalizePgrestUrl(url: string): string {
   return trimmed;
 }
 
+/** Read an integer env var with a numeric fallback. Trims whitespace and
+ *  guards against malformed values (NaN). Negative/zero values pass through
+ *  — callers should clamp if they need a positive floor. */
+export function parseIntEnv(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
 export interface OpenApiSchema {
   type?: string;
   format?: string;

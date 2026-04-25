@@ -4,6 +4,7 @@ import {
   fetchPgrestSpec,
   introspectPath,
   parseDataSourceParam,
+  parseIntEnv,
   resolvePgrestCredentials,
 } from "../../shared";
 import { sanitizeRows, type SanitizedRow } from "../../sanitize";
@@ -13,12 +14,6 @@ import { logger } from "@/lib/logger";
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 const DEFAULT_BULK_CONCURRENCY = 10;
 const DEFAULT_BULK_ROW_TIMEOUT_MS = 30_000;
-
-function parseIntEnv(raw: string | undefined, fallback: number): number {
-  if (!raw) return fallback;
-  const parsed = Number.parseInt(raw.trim(), 10);
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
 
 const BULK_CONCURRENCY = parseIntEnv(
   process.env.PGREST_BULK_CONCURRENCY,

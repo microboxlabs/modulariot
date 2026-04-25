@@ -6,6 +6,7 @@ import {
   parseDataSourceParam,
   resolvePgrestCredentials,
 } from "../../shared";
+import { sanitizeRows, type SanitizedRow } from "../../sanitize";
 import { buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 
@@ -13,14 +14,6 @@ const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 const BULK_CONCURRENCY = Number(process.env.PGREST_BULK_CONCURRENCY ?? "10");
 
 type RouteContext = { params: Promise<{ functionName: string }> };
-
-const STRATEGIES = new Set(["upsert", "skip", "create"]);
-type DuplicateStrategy = "upsert" | "skip" | "create";
-
-interface BulkRow {
-  index: number;
-  fields: Record<string, string>;
-}
 
 interface BulkBody {
   rows?: unknown;
@@ -35,30 +28,6 @@ interface ResultLine {
 
 const SUCCESS_STATUSES = new Set(["processed", "updated", "skipped"]);
 
-function sanitizeRows(raw: unknown): BulkRow[] {
-  if (!Array.isArray(raw)) return [];
-  const out: BulkRow[] = [];
-  for (const r of raw) {
-    if (!r || typeof r !== "object") continue;
-    const rec = r as { index?: unknown; fields?: unknown };
-    if (typeof rec.index !== "number") continue;
-    if (!rec.fields || typeof rec.fields !== "object") continue;
-    const fields: Record<string, string> = {};
-    for (const [k, v] of Object.entries(rec.fields as Record<string, unknown>)) {
-      fields[k] = typeof v === "string" ? v : v == null ? "" : String(v);
-    }
-    out.push({ index: rec.index, fields });
-  }
-  return out;
-}
-
-function sanitizeStrategy(raw: unknown): DuplicateStrategy {
-  if (typeof raw === "string" && STRATEGIES.has(raw)) {
-    return raw as DuplicateStrategy;
-  }
-  return "upsert";
-}
-
 function coerceStatus(body: unknown): "processed" | "updated" | "skipped" {
   if (body && typeof body === "object" && "status" in body) {
     const s = (body as { status?: unknown }).status;
@@ -70,7 +39,7 @@ function coerceStatus(body: unknown): "processed" | "updated" | "skipped" {
 }
 
 async function submitOne(
-  row: BulkRow,
+  row: SanitizedRow,
   rpcUrl: string,
   authHeader: string,
   allowed: ReadonlySet<string> | null,
@@ -134,10 +103,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const body = (await req.json().catch(() => null)) as BulkBody | null;
   const rows = sanitizeRows(body?.rows);
-  // Strategy is parsed for forward-compat; not currently forwarded to
-  // PostgREST because the existing client never wired it into the body
-  // either. A follow-up can opt-in to sending a sentinel param.
-  void sanitizeStrategy(body?.duplicateStrategy);
+  // `body.duplicateStrategy` is intentionally ignored for now: the existing
+  // client never wired it into PostgREST bodies either, so honoring it here
+  // would silently change behavior. A follow-up can opt-in to forwarding it.
 
   if (rows.length === 0) {
     return NextResponse.json(

@@ -11,7 +11,15 @@ import { buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
-const BULK_CONCURRENCY = Number(process.env.PGREST_BULK_CONCURRENCY ?? "10");
+const DEFAULT_BULK_CONCURRENCY = 10;
+
+function parseConcurrencyEnv(raw: string | undefined): number {
+  if (!raw) return DEFAULT_BULK_CONCURRENCY;
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isNaN(parsed) ? DEFAULT_BULK_CONCURRENCY : parsed;
+}
+
+const BULK_CONCURRENCY = parseConcurrencyEnv(process.env.PGREST_BULK_CONCURRENCY);
 
 type RouteContext = { params: Promise<{ functionName: string }> };
 

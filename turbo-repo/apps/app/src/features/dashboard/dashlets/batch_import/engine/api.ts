@@ -154,19 +154,26 @@ export function makePgrestBatchApi(
         if (isBulkLine(parsed)) onResult(parsed);
       };
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buffer.indexOf("\n")) !== -1) {
-          flushLine(buffer.slice(0, nl));
-          buffer = buffer.slice(nl + 1);
+      // Always release the reader lock so the stream isn't pinned if
+      // `reader.read()` rejects (network error / AbortError) or `onResult`
+      // throws while we're processing a buffered line.
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buffer.indexOf("\n")) !== -1) {
+            flushLine(buffer.slice(0, nl));
+            buffer = buffer.slice(nl + 1);
+          }
         }
+        // Final partial line (no trailing newline).
+        buffer += decoder.decode();
+        flushLine(buffer);
+      } finally {
+        reader.releaseLock();
       }
-      // Final partial line (no trailing newline).
-      buffer += decoder.decode();
-      flushLine(buffer);
     },
   };
 }

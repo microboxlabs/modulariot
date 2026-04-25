@@ -1,8 +1,11 @@
 "use client";
 
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import type { DuplicateStrategy, SubmitFn } from "./engine/types";
-import type { IntrospectedParam } from "./engine/validator";
+import type { BatchImporterApi } from "./engine/api";
+import type {
+  DuplicateStrategy,
+  IntrospectedParam,
+} from "./engine/types";
 import {
   BatchImporterView,
   useBatchImporter,
@@ -13,22 +16,20 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  submit: SubmitFn;
-  sourceKey: string;
+  api: BatchImporterApi;
   title: string;
   defaultStrategy?: DuplicateStrategy;
   sample?: string;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
-  /** RPC parameter schema for worker-side pre-flight validation. */
+  /** RPC parameter schema — for the schema panel UI. */
   params?: IntrospectedParam[] | null;
 }
 
 export function BatchImporterModal({
   isOpen,
   onClose,
-  submit,
-  sourceKey,
+  api,
   title,
   defaultStrategy,
   sample,
@@ -37,8 +38,7 @@ export function BatchImporterModal({
   params,
 }: Readonly<Props>) {
   const state = useBatchImporter({
-    submit,
-    sourceKey,
+    api,
     defaultStrategy,
     params,
   });

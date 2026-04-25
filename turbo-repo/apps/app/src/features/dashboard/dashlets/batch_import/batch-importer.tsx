@@ -11,33 +11,16 @@ import {
 import { Button, Spinner, Textarea } from "flowbite-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
+  BatchImporterApi,
+} from "./engine/api";
+import type {
   DuplicateStrategy,
+  IntrospectedParam,
   ParsedDocument,
   RowState,
   RowStatus,
-  SubmitFn,
-  SubmitResult,
 } from "./engine/types";
-import {
-  clearCache,
-  clearFailed,
-  isResolved,
-  readCache,
-  writeCache,
-  type CacheBlob,
-} from "./engine/importer";
-import { runWithConcurrency } from "./engine/concurrency";
-import {
-  parseFromGrid,
-  parseText,
-  terminateParseWorker,
-} from "./engine/parse-worker-client";
-import {
-  isSpreadsheetFile,
-  parseSpreadsheetFile,
-} from "./engine/xlsx-parser";
-import { applyHeaderMap } from "./engine/parser";
-import type { IntrospectedParam } from "./engine/validator";
+import { applyHeaderMap } from "./engine/header-map";
 import { Row } from "./components/row";
 import { HeaderCell } from "./components/header-cell";
 import { SchemaPanel } from "./components/schema-panel";
@@ -47,12 +30,11 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 const DEFAULT_STATE: RowState = { status: "unprocessed" };
 
 /** Statuses that should survive a re-validation rebuild while an import is
- *  active. `wait` is obviously in-flight; the three terminal successes are
- *  included because `runImport` only flushes cache every CACHE_FLUSH_EVERY
- *  rows, so a re-hydrate mid-import would otherwise regress completed but
- *  unflushed rows back to `unprocessed`. `failed` is intentionally NOT in
- *  this set: if a rename fixes a previously-failed validation, we want the
- *  fresh pass to clear it rather than stick to the old error. */
+ *  active. `wait` is in-flight; the three terminal successes are streamed
+ *  back from /bulk and shouldn't be dropped if a rename triggers a fresh
+ *  validation pass mid-import. `failed` is intentionally NOT in this set:
+ *  if a rename fixes a previously-failed validation, we want the fresh
+ *  pass to clear it rather than stick to the old error. */
 const PRESERVE_DURING_IMPORT: ReadonlySet<RowStatus> = new Set<RowStatus>([
   "wait",
   "processed",
@@ -60,26 +42,15 @@ const PRESERVE_DURING_IMPORT: ReadonlySet<RowStatus> = new Set<RowStatus>([
   "skipped",
 ]);
 
-/** Running ~5 requests in parallel keeps wall-time low while still respecting
- *  per-endpoint rate limits for typical PostgREST functions. If the backend
- *  can handle more, this is the single knob to turn. */
-const IMPORT_CONCURRENCY = 5;
-
-/** Flush localStorage every N completions during an import so a mid-import
- *  tab close doesn't lose progress, but we're not paying an O(N) JSON.stringify
- *  per row like the old code did. */
-const CACHE_FLUSH_EVERY = 100;
-
 const ROW_HEIGHT = 36;
 const STATUS_COL_WIDTH = 56;
 const DATA_COL_MIN_WIDTH = 140;
 
 export interface UseBatchImporterArgs {
-  submit: SubmitFn;
-  sourceKey: string;
+  api: BatchImporterApi;
   defaultStrategy?: DuplicateStrategy;
-  /** RPC parameter schema for in-worker validation. Passed through to the
-   *  parse worker so Zod validation doesn't block the main thread. */
+  /** RPC parameter schema — surfaced for the schema panel UI. Validation
+   *  itself runs server-side via `api.validate`. */
   params?: IntrospectedParam[] | null;
 }
 
@@ -124,24 +95,16 @@ function getRowState(
 }
 
 /**
- * Build the initial rowStates map from a freshly parsed document: hydrate
- * cached statuses and surface pre-flight validation errors from the worker.
+ * Build the initial rowStates map from a freshly parsed document by
+ * surfacing per-row validation errors from /validate as `failed` states.
+ * Rows without errors are absent from the map and default to `unprocessed`.
  */
 function hydrateStates(
   doc: ParsedDocument,
-  cache: CacheBlob,
   validations: Record<number, string>,
 ): Map<number, RowState> {
   const map = new Map<number, RowState>();
   for (const r of doc.rows) {
-    const cached = cache.status[r.fingerprint];
-    if (cached && (isResolved(cached) || cached === "failed")) {
-      map.set(r.index, {
-        status: cached,
-        errorMessage: cache.errorlog[r.fingerprint],
-      });
-      continue;
-    }
     const err = validations[r.index];
     if (err) {
       map.set(r.index, { status: "failed", errorMessage: err });
@@ -151,8 +114,7 @@ function hydrateStates(
 }
 
 export function useBatchImporter({
-  submit,
-  sourceKey,
+  api,
   defaultStrategy = "upsert",
   params,
 }: UseBatchImporterArgs): BatchImporterState {
@@ -201,18 +163,29 @@ export function useBatchImporter({
   }, []);
 
   /** Parse-only (no validation). Validation happens separately in an effect
-   *  keyed on [doc, params] so renames can re-validate without re-parsing. */
-  const runParse = useCallback(async (text: string) => {
-    const token = ++parseToken.current;
-    setParsing(true);
-    try {
-      const { doc: parsed } = await parseText(text, null);
-      if (token !== parseToken.current) return;
-      setRawDoc(parsed);
-    } finally {
-      if (token === parseToken.current) setParsing(false);
-    }
-  }, []);
+   *  keyed on [doc] so renames can re-validate without re-parsing. */
+  const runParse = useCallback(
+    async (text: string) => {
+      const token = ++parseToken.current;
+      setParsing(true);
+      try {
+        const parsed = await api.parseText(text);
+        if (token !== parseToken.current) return;
+        setRawDoc({
+          headers: parsed.headers,
+          rows: parsed.rows,
+          headerError: parsed.headerError,
+        });
+      } catch (err) {
+        if (token !== parseToken.current) return;
+        console.warn("batch_import: parseText failed", err);
+        setRawDoc({ headers: [], rows: [], headerError: "parse_failed" });
+      } finally {
+        if (token === parseToken.current) setParsing(false);
+      }
+    },
+    [api],
+  );
 
   const load = useCallback(
     (text: string) => {
@@ -239,49 +212,45 @@ export function useBatchImporter({
     async (file: File) => {
       cancelPendingParse();
       // Turn the spinner on before the first await so the UI reflects work
-      // during `file.text()` / `file.arrayBuffer()` too — big files can take
-      // several seconds just to read off disk.
+      // during the upload too — big files can take seconds to transmit.
       setParsing(true);
       const token = ++parseToken.current;
+      setRaw("");
       try {
-        if (isSpreadsheetFile(file)) {
-          setRaw("");
-          const pre = await parseSpreadsheetFile(file);
-          if (token !== parseToken.current) return;
-          setRawDoc(pre);
-          return;
-        }
-        const text = await file.text();
+        const parsed = await api.parseFile(file);
         if (token !== parseToken.current) return;
-        setRaw(text);
-        const { doc: parsed } = await parseText(text, null);
+        setRawDoc({
+          headers: parsed.headers,
+          rows: parsed.rows,
+          headerError: parsed.headerError,
+        });
+      } catch (err) {
         if (token !== parseToken.current) return;
-        setRawDoc(parsed);
+        console.warn("batch_import: parseFile failed", err);
+        setRawDoc({ headers: [], rows: [], headerError: "parse_failed" });
       } finally {
         if (token === parseToken.current) setParsing(false);
       }
     },
-    [cancelPendingParse],
+    [api, cancelPendingParse],
   );
 
   /** Single source of truth for "what does each row's status look like right
    *  now?": merges cache (from previous import runs) with the latest
-   *  validation errors. Runs whenever the effective doc or schema changes. */
+   *  validation errors. Runs whenever the effective doc changes. */
   useEffect(() => {
     if (!doc) {
       setRowStates(new Map());
       return;
     }
 
-    /** Rebuild rowStates from cache + validations. When an import is in
-     *  flight, merge existing in-flight/terminal statuses (`wait` + completed
-     *  rows whose cache entry hasn't been flushed yet) back on top so a
-     *  rename-triggered re-validation doesn't visually reset the submit
-     *  loop's progress. See PRESERVE_DURING_IMPORT at module scope. */
+    /** Rebuild rowStates from validations. When an import is in flight,
+     *  merge existing in-flight/terminal statuses back on top so a
+     *  rename-triggered re-validation doesn't visually reset the streaming
+     *  /bulk progress. See PRESERVE_DURING_IMPORT at module scope. */
     const applyHydrate = (validations: Record<number, string>) => {
-      const cache = readCache(sourceKey);
       setRowStates((prev) => {
-        const next = hydrateStates(doc, cache, validations);
+        const next = hydrateStates(doc, validations);
         if (importingRef.current) {
           for (const [idx, state] of prev) {
             if (PRESERVE_DURING_IMPORT.has(state.status)) {
@@ -293,27 +262,22 @@ export function useBatchImporter({
       });
     };
 
-    // No schema → hydrate from cache only, no validation needed.
-    if (!params || params.length === 0) {
+    if (doc.rows.length === 0) {
       applyHydrate({});
       return;
     }
+
+    const ac = new AbortController();
     const token = ++validateToken.current;
     setValidating(true);
-    const grid: unknown[][] = [
-      doc.headers,
-      ...doc.rows.map((r) => doc.headers.map((h) => r.fields[h] ?? "")),
-    ];
-    parseFromGrid(grid, params)
-      .then(({ validations }) => {
+    api
+      .validate(doc.rows, ac.signal)
+      .then(({ errors }) => {
         if (token !== validateToken.current) return;
-        applyHydrate(validations);
+        applyHydrate(errors);
       })
       .catch((err) => {
-        // `parseFromGrid` already falls back to `runInline` on worker
-        // failures, so rejections here are exotic (inline parser crashed).
-        // Still rebuild rowStates from cache with no validations so the UI
-        // isn't stuck on stale errors, and log for diagnosis.
+        if (ac.signal.aborted) return;
         if (token !== validateToken.current) return;
         console.warn("batch_import: re-validation failed", err);
         applyHydrate({});
@@ -321,7 +285,8 @@ export function useBatchImporter({
       .finally(() => {
         if (token === validateToken.current) setValidating(false);
       });
-  }, [doc, params, sourceKey]);
+    return () => ac.abort();
+  }, [api, doc]);
 
   const renameHeader = useCallback((original: string, target: string) => {
     setHeaderMap((prev) => {
@@ -354,13 +319,7 @@ export function useBatchImporter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawDoc]);
 
-  useEffect(
-    () => () => {
-      cancelPendingParse();
-      terminateParseWorker();
-    },
-    [cancelPendingParse],
-  );
+  useEffect(() => () => cancelPendingParse(), [cancelPendingParse]);
 
   const patchRowStates = useCallback(
     (patch: (prev: Map<number, RowState>) => void) => {
@@ -389,61 +348,43 @@ export function useBatchImporter({
       if (toProcess.length === 0) return;
 
       setImporting(true);
+      patchRowStates((m) => {
+        for (const r of toProcess) m.set(r.index, { status: "wait" });
+      });
+
       try {
-        const cache = readCache(sourceKey);
-
-        patchRowStates((m) => {
-          for (const r of toProcess) m.set(r.index, { status: "wait" });
-        });
-
-        let completed = 0;
-        await runWithConcurrency(
-          toProcess,
-          IMPORT_CONCURRENCY,
-          async (row) => {
-            let result: SubmitResult;
-            try {
-              result = await submit(row, strategy);
-            } catch (err) {
-              result = {
-                status: "failed",
-                errorMessage:
-                  err instanceof Error ? err.message : "Submit threw",
-              };
-            }
-            cache.status[row.fingerprint] = result.status;
-            if (result.errorMessage) {
-              cache.errorlog[row.fingerprint] = result.errorMessage;
-            } else {
-              delete cache.errorlog[row.fingerprint];
-            }
-            patchRowStates((m) => {
-              m.set(row.index, {
-                status: result.status,
-                errorMessage: result.errorMessage,
-              });
+        await api.bulkSubmit(toProcess, strategy, (line) => {
+          patchRowStates((m) => {
+            m.set(line.index, {
+              status: line.status,
+              errorMessage: line.errorMessage,
             });
-            completed++;
-            if (completed % CACHE_FLUSH_EVERY === 0) {
-              writeCache(sourceKey, cache);
+          });
+        });
+      } catch (err) {
+        // Network failure or backend rejection — mark anything still `wait`
+        // as failed so the user can see what didn't run.
+        const message = err instanceof Error ? err.message : "Bulk import failed";
+        console.warn("batch_import: bulkSubmit failed", err);
+        patchRowStates((m) => {
+          for (const r of toProcess) {
+            const s = m.get(r.index);
+            if (s?.status === "wait") {
+              m.set(r.index, { status: "failed", errorMessage: message });
             }
-            return result;
-          },
-        );
-
-        writeCache(sourceKey, cache);
+          }
+        });
       } finally {
         setImporting(false);
       }
     },
-    [doc, rowStates, sourceKey, strategy, submit, patchRowStates, importing],
+    [api, doc, rowStates, strategy, patchRowStates, importing],
   );
 
   const onImport = useCallback(() => runImport(), [runImport]);
 
   const onRetryFailed = useCallback(async () => {
     if (!doc) return;
-    clearFailed(sourceKey);
     const failedIndexes = new Set<number>();
     patchRowStates((m) => {
       for (const r of doc.rows) {
@@ -454,13 +395,12 @@ export function useBatchImporter({
       }
     });
     if (failedIndexes.size > 0) await runImport(failedIndexes);
-  }, [doc, sourceKey, patchRowStates, runImport]);
+  }, [doc, patchRowStates, runImport]);
 
   const onReset = useCallback(() => {
-    clearCache(sourceKey);
     if (raw) load(raw);
     else setRowStates(new Map());
-  }, [sourceKey, raw, load]);
+  }, [raw, load]);
 
   const summary = useMemo(() => {
     const c: Record<RowStatus | "total", number> = {
@@ -854,7 +794,7 @@ function VirtualPreview({
             onClick={onReset}
             disabled={importing || (!hasResolved && !hasFailed)}
           >
-            {tr("dashboard.dashlets.batchImport.clearCache", dictionary)}
+            {tr("dashboard.dashlets.batchImport.reset", dictionary)}
           </Button>
         </div>
       </section>

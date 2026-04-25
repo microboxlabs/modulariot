@@ -1723,10 +1723,7 @@
         "defaultEnv": "Por defecto (env)",
         "defaultStrategy": "Estrategia de duplicados por defecto",
         "acceptedFileTypes": "Tipos de archivo aceptados",
-        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt).",
-        "cacheKey": "Clave de caché",
-        "cacheKeyPlaceholder": "Opcional",
-        "cacheKeyHint": "Namespace en localStorage para el caché de estado. Dejar vacío para generar uno automáticamente."
+        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt)."
       },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
@@ -1971,7 +1968,7 @@
         "optional": "opcional",
         "duplicates": "Duplicados:",
         "retryFailed": "Reintentar fallidos ({count})",
-        "clearCache": "Limpiar caché",
+        "reset": "Reiniciar",
         "importing": "Importando…",
         "importN": "Importar {count} filas",
         "status": {

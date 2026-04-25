@@ -1697,10 +1697,7 @@
         "defaultEnv": "Default (env)",
         "defaultStrategy": "Default duplicate strategy",
         "acceptedFileTypes": "Accepted File Types",
-        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt).",
-        "cacheKey": "Cache key",
-        "cacheKeyPlaceholder": "Optional",
-        "cacheKeyHint": "LocalStorage namespace for the row-status cache. Leave empty for an auto-generated one."
+        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt)."
       },
       "filterBarTitle": "Filter Bar",
       "filterBarDescription": "Configure dashboard filter parameters",
@@ -1946,7 +1943,7 @@
         "optional": "optional",
         "duplicates": "Duplicates:",
         "retryFailed": "Retry failed ({count})",
-        "clearCache": "Clear cache",
+        "reset": "Reset",
         "importing": "Importing…",
         "importN": "Import {count} rows",
         "status": {

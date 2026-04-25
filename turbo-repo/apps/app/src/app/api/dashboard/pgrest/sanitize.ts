@@ -33,10 +33,15 @@ export function sanitizeRows(raw: unknown): SanitizedRow[] {
   for (const r of raw) {
     if (!r || typeof r !== "object") continue;
     const rec = r as { index?: unknown; fields?: unknown };
-    if (typeof rec.index !== "number") continue;
+    const idx = rec.index;
+    // Reject NaN, Infinity, negatives, and fractions — downstream callers
+    // treat `index` as a non-negative row offset and should never receive
+    // anything else off the wire. `Number.isInteger` already returns false
+    // for non-finite values.
+    if (typeof idx !== "number" || !Number.isInteger(idx) || idx < 0) continue;
     const fields = toFieldsRecord(rec.fields);
     if (!fields) continue;
-    out.push({ index: rec.index, fields });
+    out.push({ index: idx, fields });
   }
   return out;
 }

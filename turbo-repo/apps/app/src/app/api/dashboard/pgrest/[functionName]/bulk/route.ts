@@ -12,14 +12,22 @@ import { logger } from "@/lib/logger";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 const DEFAULT_BULK_CONCURRENCY = 10;
+const DEFAULT_BULK_ROW_TIMEOUT_MS = 30_000;
 
-function parseConcurrencyEnv(raw: string | undefined): number {
-  if (!raw) return DEFAULT_BULK_CONCURRENCY;
+function parseIntEnv(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
   const parsed = Number.parseInt(raw.trim(), 10);
-  return Number.isNaN(parsed) ? DEFAULT_BULK_CONCURRENCY : parsed;
+  return Number.isNaN(parsed) ? fallback : parsed;
 }
 
-const BULK_CONCURRENCY = parseConcurrencyEnv(process.env.PGREST_BULK_CONCURRENCY);
+const BULK_CONCURRENCY = parseIntEnv(
+  process.env.PGREST_BULK_CONCURRENCY,
+  DEFAULT_BULK_CONCURRENCY,
+);
+const BULK_ROW_TIMEOUT_MS = parseIntEnv(
+  process.env.PGREST_BULK_ROW_TIMEOUT_MS,
+  DEFAULT_BULK_ROW_TIMEOUT_MS,
+);
 
 type RouteContext = { params: Promise<{ functionName: string }> };
 
@@ -60,6 +68,11 @@ async function submitOne(
     body[k] = v;
   }
 
+  // Combine the client-disconnect signal with a per-row timeout so a hung
+  // PostgREST can't keep a worker slot pinned indefinitely. Either source
+  // aborts the fetch; on resolution the slot frees naturally.
+  const rowSignal = AbortSignal.any([signal, AbortSignal.timeout(BULK_ROW_TIMEOUT_MS)]);
+
   try {
     const res = await fetch(rpcUrl, {
       method: "POST",
@@ -69,7 +82,7 @@ async function submitOne(
         Authorization: authHeader,
       },
       body: JSON.stringify(body),
-      signal,
+      signal: rowSignal,
     });
 
     if (!res.ok) {
@@ -87,7 +100,18 @@ async function submitOne(
     const okBody = await res.json().catch(() => null);
     return { index: row.index, status: coerceStatus(okBody) };
   } catch (err) {
-    if ((err as { name?: string })?.name === "AbortError") {
+    const name = (err as { name?: string })?.name;
+    // `AbortSignal.timeout` rejects with a DOMException whose name is
+    // "TimeoutError"; client cancel produces "AbortError". Distinguish so
+    // the user sees a meaningful error per row.
+    if (name === "TimeoutError") {
+      return {
+        index: row.index,
+        status: "failed",
+        errorMessage: `Timed out after ${BULK_ROW_TIMEOUT_MS}ms`,
+      };
+    }
+    if (name === "AbortError") {
       return { index: row.index, status: "failed", errorMessage: "Aborted" };
     }
     return {

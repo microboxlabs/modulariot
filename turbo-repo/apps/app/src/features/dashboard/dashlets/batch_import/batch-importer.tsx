@@ -364,7 +364,11 @@ export function useBatchImporter({
       if (!d) return;
       const current = rowStates;
       const toProcess = d.rows.filter((r) => {
-        if (targetIndexes && !targetIndexes.has(r.index)) return false;
+        // Explicit retry: caller has already decided which rows to run.
+        // We can't re-check `unprocessed` here because the setState that
+        // cleared the prior `failed` status hasn't reached this closure
+        // yet — `current` would still show the old state.
+        if (targetIndexes) return targetIndexes.has(r.index);
         return getRowState(current, r.index).status === "unprocessed";
       });
       if (toProcess.length === 0) return;
@@ -422,16 +426,17 @@ export function useBatchImporter({
   const onRetryFailed = useCallback(async () => {
     if (!doc) return;
     const failedIndexes = new Set<number>();
-    patchRowStates((m) => {
-      for (const r of doc.rows) {
-        if (m.get(r.index)?.status === "failed") {
-          failedIndexes.add(r.index);
-          m.delete(r.index);
-        }
+    for (const r of doc.rows) {
+      if (rowStates.get(r.index)?.status === "failed") {
+        failedIndexes.add(r.index);
       }
-    });
-    if (failedIndexes.size > 0) await runImport(failedIndexes);
-  }, [doc, patchRowStates, runImport]);
+    }
+    if (failedIndexes.size === 0) return;
+    // No need to clear the prior `failed` status here — `runImport` will
+    // flip these rows to `wait` (and then to whatever /bulk reports) as
+    // part of its normal flow, since `targetIndexes` is now authoritative.
+    await runImport(failedIndexes);
+  }, [doc, rowStates, runImport]);
 
   const onReset = useCallback(() => {
     if (raw) load(raw);

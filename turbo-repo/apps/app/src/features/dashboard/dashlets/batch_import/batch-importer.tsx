@@ -337,6 +337,12 @@ export function useBatchImporter({
 
   useEffect(() => () => cancelPendingParse(), [cancelPendingParse]);
 
+  /** Aborts the in-flight /bulk stream so closing the modal mid-import
+   *  doesn't leave a backend stream + PostgREST fan-out running orphaned.
+   *  Cleared in `runImport`'s finally so the next run gets a fresh controller. */
+  const importAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => importAbortRef.current?.abort(), []);
+
   const patchRowStates = useCallback(
     (patch: (prev: Map<number, RowState>) => void) => {
       setRowStates((prev) => {
@@ -363,23 +369,31 @@ export function useBatchImporter({
       });
       if (toProcess.length === 0) return;
 
+      const controller = new AbortController();
+      importAbortRef.current = controller;
       setImporting(true);
       patchRowStates((m) => {
         for (const r of toProcess) m.set(r.index, { status: "wait" });
       });
 
       try {
-        await api.bulkSubmit(toProcess, strategy, (line) => {
-          patchRowStates((m) => {
-            m.set(line.index, {
-              status: line.status,
-              errorMessage: line.errorMessage,
+        await api.bulkSubmit(
+          toProcess,
+          strategy,
+          (line) => {
+            patchRowStates((m) => {
+              m.set(line.index, {
+                status: line.status,
+                errorMessage: line.errorMessage,
+              });
             });
-          });
-        });
+          },
+          controller.signal,
+        );
       } catch (err) {
-        // Network failure or backend rejection — mark anything still `wait`
-        // as failed so the user can see what didn't run.
+        // Network failure, backend rejection, or modal-close abort — mark
+        // anything still `wait` as failed so the user can see what didn't
+        // run. AbortError surfaces here when the user closes mid-import.
         const message = err instanceof Error ? err.message : "Bulk import failed";
         console.warn("batch_import: bulkSubmit failed", err);
         patchRowStates((m) => {
@@ -391,6 +405,12 @@ export function useBatchImporter({
           }
         });
       } finally {
+        // Only null out the ref if it's still ours — defensive against a
+        // hypothetical later run replacing it (the `importing` guard above
+        // already prevents that, but cheap insurance).
+        if (importAbortRef.current === controller) {
+          importAbortRef.current = null;
+        }
         setImporting(false);
       }
     },

@@ -1927,6 +1927,7 @@
         "total": "Total",
         "parsing": "Parsing…",
         "validating": "Validating…",
+        "validationError": "Re-validation failed",
         "renamed": "renamed",
         "was": "was",
         "renameColumn": "Click to rename this column",

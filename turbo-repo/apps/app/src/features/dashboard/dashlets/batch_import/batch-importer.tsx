@@ -73,6 +73,10 @@ export interface BatchImporterState {
   importing: boolean;
   parsing: boolean;
   validating: boolean;
+  /** Last network error from `/validate`. Non-null means existing row error
+   *  states are stale because the most recent re-validation failed; the UI
+   *  should surface this so the user knows errors aren't being refreshed. */
+  validationError: string | null;
   strategy: DuplicateStrategy;
   setStrategy: (s: DuplicateStrategy) => void;
   summary: Record<RowStatus | "total", number>;
@@ -127,6 +131,7 @@ export function useBatchImporter({
   const [importing, setImporting] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<DuplicateStrategy>(defaultStrategy);
 
   /** Ref-mirror of `importing` so the validation effect can read the latest
@@ -241,6 +246,7 @@ export function useBatchImporter({
   useEffect(() => {
     if (!doc) {
       setRowStates(new Map());
+      setValidationError(null);
       return;
     }
 
@@ -264,6 +270,7 @@ export function useBatchImporter({
 
     if (doc.rows.length === 0) {
       applyHydrate({});
+      setValidationError(null);
       return;
     }
 
@@ -274,13 +281,22 @@ export function useBatchImporter({
       .validate(doc.rows, ac.signal)
       .then(({ errors }) => {
         if (token !== validateToken.current) return;
+        setValidationError(null);
         applyHydrate(errors);
       })
       .catch((err) => {
         if (ac.signal.aborted) return;
         if (token !== validateToken.current) return;
         console.warn("batch_import: re-validation failed", err);
-        applyHydrate({});
+        // Keep prior rowStates intact — wiping them on a transient network
+        // error would silently hide real validation problems and let the
+        // user click Import as if the rows were clean. Surface the failure
+        // via `validationError` so the UI can warn instead.
+        setValidationError(
+          err instanceof Error && err.message
+            ? err.message
+            : "Re-validation failed",
+        );
       })
       .finally(() => {
         if (token === validateToken.current) setValidating(false);
@@ -433,6 +449,7 @@ export function useBatchImporter({
     importing,
     parsing,
     validating,
+    validationError,
     strategy,
     setStrategy,
     summary,
@@ -475,6 +492,7 @@ export function BatchImporterView({
     importing,
     parsing,
     validating,
+    validationError,
     strategy,
     setStrategy,
     summary,
@@ -616,6 +634,7 @@ export function BatchImporterView({
           importing={importing}
           parsing={parsing}
           validating={validating}
+          validationError={validationError}
           strategy={strategy}
           setStrategy={setStrategy}
           summary={summary}
@@ -650,6 +669,7 @@ interface PreviewProps {
   importing: boolean;
   parsing: boolean;
   validating: boolean;
+  validationError: string | null;
   strategy: DuplicateStrategy;
   setStrategy: (s: DuplicateStrategy) => void;
   summary: Record<RowStatus | "total", number>;
@@ -670,6 +690,7 @@ function VirtualPreview({
   importing,
   parsing,
   validating,
+  validationError,
   strategy,
   setStrategy,
   summary,
@@ -753,6 +774,17 @@ function VirtualPreview({
               <Spinner size="xs" />
               {tr("dashboard.dashlets.batchImport.validating", dictionary) ||
                 "Validating…"}
+            </span>
+          )}
+          {!validating && validationError && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] text-red-700 dark:bg-red-900/40 dark:text-red-300"
+              title={validationError}
+            >
+              {tr(
+                "dashboard.dashlets.batchImport.validationError",
+                dictionary,
+              ) || "Re-validation failed"}
             </span>
           )}
         </div>

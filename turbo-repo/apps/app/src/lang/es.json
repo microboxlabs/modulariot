@@ -1952,6 +1952,7 @@
         "total": "Total",
         "parsing": "Analizando…",
         "validating": "Validando…",
+        "validationError": "Re-validación fallida",
         "renamed": "renombradas",
         "was": "antes",
         "renameColumn": "Haz clic para renombrar esta columna",

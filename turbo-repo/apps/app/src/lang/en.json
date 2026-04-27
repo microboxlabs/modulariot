@@ -1697,7 +1697,7 @@
         "defaultEnv": "Default (env)",
         "defaultStrategy": "Default duplicate strategy",
         "acceptedFileTypes": "Accepted File Types",
-        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt)."
+        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
       },
       "filterBarTitle": "Filter Bar",
       "filterBarDescription": "Configure dashboard filter parameters",

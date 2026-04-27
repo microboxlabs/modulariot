@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
@@ -15,11 +16,14 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
+import java.util.Objects;
 
 @Path("/api/v1/orgs/{organizationId}/integrations")
 @Produces(MediaType.APPLICATION_JSON)
@@ -31,11 +35,16 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgIntegrationConnectionsResource {
 
     private final TenantContext tenantContext;
+    private final OrganizationContext organizationContext;
     private final IntegrationConnectionService service;
 
     @Inject
-    public OrgIntegrationConnectionsResource(TenantContext tenantContext, IntegrationConnectionService service) {
+    public OrgIntegrationConnectionsResource(
+            TenantContext tenantContext,
+            OrganizationContext organizationContext,
+            IntegrationConnectionService service) {
         this.tenantContext = tenantContext;
+        this.organizationContext = organizationContext;
         this.service = service;
     }
 
@@ -43,7 +52,7 @@ public class OrgIntegrationConnectionsResource {
     @Path("/credential-profiles")
     @Operation(summary = "List credential profiles")
     public Response listCredentialProfiles(@PathParam("organizationId") String organizationId) {
-        return Response.ok(service.listCredentialProfiles(tenantCode())).build();
+        return Response.ok(service.listCredentialProfiles(tenantCode(organizationId))).build();
     }
 
     @POST
@@ -53,7 +62,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             CreateCredentialProfileRequest req) {
         return Response.status(Response.Status.CREATED)
-                .entity(service.createCredentialProfile(tenantCode(), req))
+                .entity(service.createCredentialProfile(tenantCode(organizationId), req))
                 .build();
     }
 
@@ -61,7 +70,7 @@ public class OrgIntegrationConnectionsResource {
     @Path("/connections")
     @Operation(summary = "List integration connections")
     public Response listConnections(@PathParam("organizationId") String organizationId) {
-        return Response.ok(service.listConnections(tenantCode())).build();
+        return Response.ok(service.listConnections(tenantCode(organizationId))).build();
     }
 
     @POST
@@ -71,7 +80,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             CreateIntegrationConnectionRequest req) {
         return Response.status(Response.Status.CREATED)
-                .entity(service.createConnection(tenantCode(), req))
+                .entity(service.createConnection(tenantCode(organizationId), req))
                 .build();
     }
 
@@ -81,7 +90,7 @@ public class OrgIntegrationConnectionsResource {
     public Response getConnection(
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
-        var connection = service.getConnection(tenantCode(), connectionId);
+        var connection = service.getConnection(tenantCode(organizationId), connectionId);
         return connection == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(connection).build();
     }
 
@@ -92,7 +101,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId,
             ConnectionTestRequest req) {
-        return Response.ok(service.testConnection(tenantCode(), connectionId, req)).build();
+        return Response.ok(service.testConnection(tenantCode(organizationId), connectionId, req)).build();
     }
 
     @GET
@@ -101,7 +110,7 @@ public class OrgIntegrationConnectionsResource {
     public Response listOperations(
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
-        return Response.ok(service.listOperations(tenantCode(), connectionId)).build();
+        return Response.ok(service.listOperations(tenantCode(organizationId), connectionId)).build();
     }
 
     @POST
@@ -111,13 +120,19 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId,
             CreateIntegrationOperationRequest req) {
-        var operation = service.addOperation(tenantCode(), connectionId, req);
+        var operation = service.addOperation(tenantCode(organizationId), connectionId, req);
         return operation == null
                 ? Response.status(Response.Status.NOT_FOUND).build()
                 : Response.status(Response.Status.CREATED).entity(operation).build();
     }
 
-    private String tenantCode() {
+    private String tenantCode(String organizationId) {
+        if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
+            throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity("{\"error\":\"Organization context does not match request path\"}")
+                    .build());
+        }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
     }
 }

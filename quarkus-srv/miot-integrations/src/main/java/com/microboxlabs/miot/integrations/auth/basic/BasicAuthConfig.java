@@ -6,6 +6,6 @@ public record BasicAuthConfig(
 
     @Override
     public String toString() {
-        return "BasicAuthConfig[username=" + username + ", password=<redacted>]";
+        return "BasicAuthConfig[username=" + username + ", secret=<redacted>]";
     }
 }

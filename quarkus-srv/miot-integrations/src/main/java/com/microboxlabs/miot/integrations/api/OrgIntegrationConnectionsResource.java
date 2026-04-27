@@ -7,6 +7,7 @@ import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -25,6 +26,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Integration Connections", description = "External API connections, credential profiles, and endpoint operations")
 @SecurityRequirement(name = "oidc")
+@Authenticated
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class OrgIntegrationConnectionsResource {
 

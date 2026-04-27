@@ -10,23 +10,35 @@ import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
+import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
+import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @ApplicationScoped
 public class IntegrationConnectionService {
 
-    private final Map<String, CredentialProfile> credentialProfiles = new ConcurrentHashMap<>();
-    private final Map<String, IntegrationConnection> connections = new ConcurrentHashMap<>();
-    private final Map<String, IntegrationOperation> operations = new ConcurrentHashMap<>();
+    private final CredentialProfileRepository credentialProfileRepository;
+    private final IntegrationConnectionRepository connectionRepository;
+    private final IntegrationOperationRepository operationRepository;
+
+    @Inject
+    public IntegrationConnectionService(
+            CredentialProfileRepository credentialProfileRepository,
+            IntegrationConnectionRepository connectionRepository,
+            IntegrationOperationRepository operationRepository) {
+        this.credentialProfileRepository = credentialProfileRepository;
+        this.connectionRepository = connectionRepository;
+        this.operationRepository = operationRepository;
+    }
 
     public List<CredentialProfileResponse> listCredentialProfiles(String tenantCode) {
-        return credentialProfiles.values().stream()
-                .filter(profile -> profile.tenantCode().equals(tenantCode))
+        return credentialProfileRepository.listByTenant(tenantCode).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -44,14 +56,11 @@ public class IntegrationConnectionService {
                 1,
                 now,
                 now);
-        credentialProfiles.put(profile.id(), profile);
-        return toResponse(profile);
+        return toResponse(credentialProfileRepository.create(profile));
     }
 
     public List<IntegrationConnection> listConnections(String tenantCode) {
-        return connections.values().stream()
-                .filter(connection -> connection.tenantCode().equals(tenantCode))
-                .toList();
+        return connectionRepository.listByTenant(tenantCode);
     }
 
     public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
@@ -66,16 +75,11 @@ public class IntegrationConnectionService {
                 null,
                 null,
                 safeMap(req.metadata()));
-        connections.put(connection.id(), connection);
-        return connection;
+        return connectionRepository.create(connection);
     }
 
     public IntegrationConnection getConnection(String tenantCode, String connectionId) {
-        IntegrationConnection connection = connections.get(connectionId);
-        if (connection == null || !connection.tenantCode().equals(tenantCode)) {
-            return null;
-        }
-        return connection;
+        return connectionRepository.findByTenantAndId(tenantCode, connectionId);
     }
 
     public IntegrationOperation addOperation(
@@ -95,17 +99,14 @@ public class IntegrationConnectionService {
                 safeMap(req.requestSchema()),
                 safeMap(req.responseSchema()),
                 req.testOperation());
-        operations.put(operation.id(), operation);
-        return operation;
+        return operationRepository.create(operation);
     }
 
     public List<IntegrationOperation> listOperations(String tenantCode, String connectionId) {
         if (getConnection(tenantCode, connectionId) == null) {
             return List.of();
         }
-        return operations.values().stream()
-                .filter(operation -> operation.connectionId().equals(connectionId))
-                .toList();
+        return operationRepository.listByConnection(connectionId);
     }
 
     public ConnectionTestResponse testConnection(
@@ -118,18 +119,7 @@ public class IntegrationConnectionService {
         }
 
         OffsetDateTime now = OffsetDateTime.now();
-        IntegrationConnection updated = new IntegrationConnection(
-                connection.id(),
-                connection.tenantCode(),
-                connection.name(),
-                connection.providerType(),
-                connection.baseUrl(),
-                connection.credentialProfileId(),
-                ConnectionStatus.ACTIVE,
-                now,
-                true,
-                connection.metadata());
-        connections.put(updated.id(), updated);
+        connectionRepository.updateTestResult(connection.tenantCode(), connection.id(), ConnectionStatus.ACTIVE, now, true);
         return new ConnectionTestResponse(true, now, testMessage(req));
     }
 

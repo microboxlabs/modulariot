@@ -13,7 +13,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,12 +35,10 @@ class OAuth2ClientCredentialsStrategyTest {
         OAuth2ClientCredentialsStrategy strategy = new OAuth2ClientCredentialsStrategy(
                 HttpClient.newHttpClient(), new ObjectMapper());
 
-        ResolvedAuth auth = strategy.resolve(new OAuth2ClientCredentialsConfig(
+        ResolvedAuth auth = strategy.resolve(OAuth2ClientCredentialsConfig.withoutOptionalClaims(
                 tokenUrl,
                 "Sitrans_AlerceCorViaje",
                 "secret-value",
-                Optional.empty(),
-                Optional.empty(),
                 TokenRequestFormat.FORM));
 
         assertEquals("application/x-www-form-urlencoded", capturedContentType);

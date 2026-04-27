@@ -130,7 +130,15 @@ public class IntegrationConnectionService {
                 true,
                 connection.metadata());
         connections.put(updated.id(), updated);
-        return new ConnectionTestResponse(true, now, "Connection contract is valid; runtime probe pending");
+        return new ConnectionTestResponse(true, now, testMessage(req));
+    }
+
+    private String testMessage(ConnectionTestRequest req) {
+        if (req == null || req.path() == null || req.path().isBlank()) {
+            return "Connection contract is valid; runtime probe pending";
+        }
+        String method = req.method() == null || req.method().isBlank() ? "GET" : req.method();
+        return "Connection contract is valid for " + method + " " + req.path() + "; runtime probe pending";
     }
 
     private CredentialProfileResponse toResponse(CredentialProfile profile) {

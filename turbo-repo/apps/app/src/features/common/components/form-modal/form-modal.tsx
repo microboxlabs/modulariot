@@ -89,11 +89,17 @@ export default function FormModal({
       <form onSubmit={handleSubmit}>
         {/* Plain div instead of flowbite's <ModalHeader> — ModalHeader renders
             a built-in close (X) button that the app's modal convention doesn't
-            use. Exit is via the Cancel/Close button in the footer. */}
+            use. Exit is via the Cancel/Close button in the footer. The
+            dark: classes restore the contrast that ModalHeader provided
+            implicitly. */}
         <div className="flex flex-col items-start p-4 md:p-5">
-          <h2 className="text-base font-semibold">{title}</h2>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            {title}
+          </h2>
           {subtitle && (
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {subtitle}
+            </p>
           )}
         </div>
         <ModalBody className="max-h-[70vh] overflow-y-auto">

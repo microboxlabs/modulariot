@@ -11,6 +11,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -135,6 +136,6 @@ public class IntegrationConnectionRepository {
     }
 
     private Map<String, Object> toMap(JsonObject value) {
-        return value == null ? Map.of() : Map.copyOf(value.getMap());
+        return value == null ? Map.of() : new LinkedHashMap<>(value.getMap());
     }
 }

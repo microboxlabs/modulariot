@@ -7,6 +7,7 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -80,6 +81,6 @@ public class IntegrationOperationRepository {
     }
 
     private Map<String, Object> toMap(JsonObject value) {
-        return value == null ? Map.of() : Map.copyOf(value.getMap());
+        return value == null ? Map.of() : new LinkedHashMap<>(value.getMap());
     }
 }

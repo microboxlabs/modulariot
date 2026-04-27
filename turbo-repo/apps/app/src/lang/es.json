@@ -1723,7 +1723,7 @@
         "defaultEnv": "Por defecto (env)",
         "defaultStrategy": "Estrategia de duplicados por defecto",
         "acceptedFileTypes": "Tipos de archivo aceptados",
-        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt)."
+        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
       },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",

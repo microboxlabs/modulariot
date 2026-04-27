@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.integrations.auth.apikey.ApiKeyConfig;
@@ -9,7 +10,10 @@ import com.microboxlabs.miot.integrations.auth.basic.BasicAuthConfig;
 import com.microboxlabs.miot.integrations.auth.basic.BasicAuthStrategy;
 import com.microboxlabs.miot.integrations.auth.bearer.BearerTokenConfig;
 import com.microboxlabs.miot.integrations.auth.bearer.BearerTokenStrategy;
+import com.microboxlabs.miot.integrations.auth.oauth.OAuth2ClientCredentialsConfig;
 import com.microboxlabs.miot.integrations.domain.ApiKeyPlacement;
+import com.microboxlabs.miot.integrations.domain.TokenRequestFormat;
+import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 class SimpleAuthStrategyTest {
@@ -42,5 +46,19 @@ class SimpleAuthStrategyTest {
                 new ApiKeyStrategy().resolve(new ApiKeyConfig("api_key", "secret", null)));
 
         assertEquals("Unsupported API key placement for credential 'api_key': null", exception.getMessage());
+    }
+
+    @Test
+    void authConfigToStringRedactsSecrets() {
+        assertFalse(new BasicAuthConfig("user", "raw-basic-secret").toString().contains("raw-basic-secret"));
+        assertFalse(new BearerTokenConfig("token-123").toString().contains("token-123"));
+        assertFalse(new ApiKeyConfig("api_key", "secret", ApiKeyPlacement.HEADER).toString().contains("secret"));
+        assertFalse(OAuth2ClientCredentialsConfig.withoutOptionalClaims(
+                        URI.create("https://auth.example/token"),
+                        "client-id",
+                        "client-secret",
+                        TokenRequestFormat.FORM)
+                .toString()
+                .contains("client-secret"));
     }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { HiChevronDown, HiChevronRight, HiCheck, HiXMark } from "react-icons/hi2";
 import type { IntrospectedParam } from "../engine/types";
 
@@ -59,6 +59,19 @@ export const SchemaPanel = memo(function SchemaPanel({
   const missingRequired = required.filter((p) => !presentSet.has(p.name));
   const autoOpen = missingRequired.length > 0;
   const [open, setOpen] = useState(autoOpen);
+
+  // Re-open the panel only on the transition from "all mapped" (0) to
+  // "some missing" (>0). Don't force open while requirements are still
+  // missing — that would fight the user if they manually collapse the
+  // panel mid-mapping. Using a ref avoids a render-loop and lets us
+  // capture the prior count without exposing it as state.
+  const prevMissingRef = useRef(missingRequired.length);
+  useEffect(() => {
+    if (prevMissingRef.current === 0 && missingRequired.length > 0) {
+      setOpen(true);
+    }
+    prevMissingRef.current = missingRequired.length;
+  }, [missingRequired.length]);
 
   const total = required.length;
   const summary =

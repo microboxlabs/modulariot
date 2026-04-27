@@ -26,6 +26,19 @@ class SimpleAuthStrategyTest {
     }
 
     @Test
+    void rejectsInvalidBearerTokens() {
+        NullPointerException nullException = assertThrows(
+                NullPointerException.class,
+                () -> new BearerTokenConfig(null));
+        IllegalArgumentException blankException = assertThrows(
+                IllegalArgumentException.class,
+                () -> new BearerTokenConfig(" "));
+
+        assertEquals("Bearer token must not be null", nullException.getMessage());
+        assertEquals("Bearer token must not be blank", blankException.getMessage());
+    }
+
+    @Test
     void resolvesBasicAuthHeader() {
         ResolvedAuth auth = new BasicAuthStrategy().resolve(new BasicAuthConfig("user", "pass"));
 

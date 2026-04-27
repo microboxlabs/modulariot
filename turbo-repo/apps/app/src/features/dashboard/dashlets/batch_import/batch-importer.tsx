@@ -534,14 +534,12 @@ export function useBatchImporter({
 
 interface ViewProps {
   state: BatchImporterState;
-  sample?: string;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
 }
 
 export function BatchImporterView({
   state,
-  sample,
   acceptedFileTypes,
   dictionary,
 }: Readonly<ViewProps>) {
@@ -564,7 +562,6 @@ export function BatchImporterView({
     hasResolved,
     downloadable,
     clearable,
-    load,
     loadDebounced,
     loadFile,
     onRetryFailed,
@@ -582,17 +579,6 @@ export function BatchImporterView({
             {tr("dashboard.dashlets.batchImport.parsing", dictionary) ||
               "Parsing…"}
           </span>
-        )}
-        {sample && (
-          <Button
-            type="button"
-            size="xs"
-            color="light"
-            onClick={() => load(sample)}
-            disabled={parsing}
-          >
-            {tr("dashboard.dashlets.batchImport.loadSample", dictionary)}
-          </Button>
         )}
         <Button
           type="button"

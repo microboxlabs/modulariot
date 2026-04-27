@@ -4,7 +4,7 @@ import type { ParsedDocument } from "./types";
  *  Internal double-quotes are escaped by doubling them, per RFC 4180. */
 function escapeCell(v: string): string {
   if (/[",\r\n]/.test(v)) {
-    return `"${v.replace(/"/g, '""')}"`;
+    return `"${v.replaceAll('"', '""')}"`;
   }
   return v;
 }

@@ -55,8 +55,11 @@ class SimpleAuthStrategyTest {
 
     @Test
     void rejectsApiKeyWithoutPlacement() {
+        ApiKeyStrategy strategy = new ApiKeyStrategy();
+        ApiKeyConfig config = new ApiKeyConfig("api_key", "secret", null);
+
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                new ApiKeyStrategy().resolve(new ApiKeyConfig("api_key", "secret", null)));
+                strategy.resolve(config));
 
         assertEquals("Unsupported API key placement for credential 'api_key': null", exception.getMessage());
     }

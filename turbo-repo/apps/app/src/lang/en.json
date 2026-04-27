@@ -1914,7 +1914,6 @@
         "title": "Import data",
         "subtitle": "Paste or upload a CSV / TSV / Excel file. Headers in the first row become the record keys.",
         "configureHint": "Configure an endpoint in settings",
-        "loadSample": "Load sample",
         "loadFile": "Load file…",
         "pasteHint": "Paste tab-separated or comma-separated content (copy from Excel works):",
         "headerError": {

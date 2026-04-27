@@ -1939,7 +1939,6 @@
         "title": "Importar datos",
         "subtitle": "Pegue o cargue un archivo CSV / TSV / Excel. Los encabezados de la primera fila se usan como claves del registro.",
         "configureHint": "Configura un endpoint en ajustes",
-        "loadSample": "Cargar ejemplo",
         "loadFile": "Cargar archivo…",
         "pasteHint": "Pegue contenido tab-separado o separado por comas (copiar desde Excel funciona):",
         "headerError": {

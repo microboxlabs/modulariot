@@ -9,7 +9,6 @@ import { tr } from "@/features/i18n/tr.service";
 import { makePgrestBatchApi } from "./engine/api";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
-import { SAMPLE_TSV } from "./sample";
 import type { DuplicateStrategy, IntrospectedParam } from "./engine/types";
 
 export interface DashletConfig {
@@ -108,7 +107,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             api={api}
             title={title}
             defaultStrategy={config.defaultStrategy}
-            sample={SAMPLE_TSV}
             acceptedFileTypes={config.acceptedFileTypes}
             dictionary={dictionary}
             params={params}

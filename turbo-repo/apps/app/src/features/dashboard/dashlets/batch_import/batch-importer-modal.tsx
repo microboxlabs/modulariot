@@ -19,7 +19,6 @@ interface Props {
   api: BatchImporterApi;
   title: string;
   defaultStrategy?: DuplicateStrategy;
-  sample?: string;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
   /** RPC parameter schema — for the schema panel UI. */
@@ -34,7 +33,6 @@ export function BatchImporterModal({
   api,
   title,
   defaultStrategy,
-  sample,
   acceptedFileTypes,
   dictionary,
   params,
@@ -67,7 +65,6 @@ export function BatchImporterModal({
     >
       <BatchImporterView
         state={state}
-        sample={sample}
         acceptedFileTypes={acceptedFileTypes}
         dictionary={dictionary}
       />

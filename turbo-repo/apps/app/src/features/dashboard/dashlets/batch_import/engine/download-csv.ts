@@ -41,7 +41,12 @@ function timestamp(): string {
 /** Trigger a browser download of the CSV. Filename defaults to a timestamped
  *  `batch-import-<ts>.csv`. */
 export function downloadCsv(doc: ParsedDocument, filenameBase?: string): void {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (
+    typeof globalThis.window === "undefined" ||
+    typeof globalThis.document === "undefined"
+  ) {
+    return;
+  }
   const csv = buildCsv(doc);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -51,7 +56,7 @@ export function downloadCsv(doc: ParsedDocument, filenameBase?: string): void {
   a.download = `${base}-${timestamp()}.csv`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   // Defer revocation so the browser has time to start the download in
   // engines that read the URL after click() returns asynchronously.
   setTimeout(() => URL.revokeObjectURL(url), 0);

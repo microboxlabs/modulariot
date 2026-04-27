@@ -12,8 +12,17 @@ public record OAuth2ClientCredentialsConfig(
         Optional<String> audience,
         TokenRequestFormat tokenRequestFormat) {
 
-    public OAuth2ClientCredentialsConfig {
-        scope = scope == null ? Optional.empty() : scope;
-        audience = audience == null ? Optional.empty() : audience;
+    public static OAuth2ClientCredentialsConfig withoutOptionalClaims(
+            URI tokenUrl,
+            String clientId,
+            String clientSecret,
+            TokenRequestFormat tokenRequestFormat) {
+        return new OAuth2ClientCredentialsConfig(
+                tokenUrl,
+                clientId,
+                clientSecret,
+                Optional.empty(),
+                Optional.empty(),
+                tokenRequestFormat);
     }
 }

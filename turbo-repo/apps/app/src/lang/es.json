@@ -1967,11 +1967,12 @@
         "schemaFieldMissing": "faltante",
         "required": "requerido",
         "optional": "opcional",
-        "duplicates": "Duplicados:",
         "retryFailed": "Reintentar fallidos ({count})",
         "download": "Descargar CSV",
         "downloadHint": "Descargar la grilla actual (con columnas renombradas) como CSV",
         "reset": "Reiniciar",
+        "clearAll": "Limpiar todo",
+        "clearAllHint": "Limpiar todo (archivo, pegado, renombres, estados) y empezar de nuevo",
         "importing": "Importando…",
         "importN": "Importar {count} filas",
         "status": {

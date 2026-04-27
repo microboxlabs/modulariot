@@ -1942,11 +1942,12 @@
         "schemaFieldMissing": "missing",
         "required": "required",
         "optional": "optional",
-        "duplicates": "Duplicates:",
         "retryFailed": "Retry failed ({count})",
         "download": "Download CSV",
         "downloadHint": "Download the current grid (with renamed columns) as CSV",
         "reset": "Reset",
+        "clearAll": "Clear all",
+        "clearAllHint": "Clear everything (file, paste, renames, statuses) and start over",
         "importing": "Importing…",
         "importN": "Import {count} rows",
         "status": {

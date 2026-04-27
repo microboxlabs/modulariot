@@ -24,6 +24,8 @@ interface Props {
   dictionary: I18nRecord;
   /** RPC parameter schema — for the schema panel UI. */
   params?: IntrospectedParam[] | null;
+  /** Optional filename prefix for the CSV download button. */
+  filenameBase?: string;
 }
 
 export function BatchImporterModal({
@@ -36,11 +38,13 @@ export function BatchImporterModal({
   acceptedFileTypes,
   dictionary,
   params,
+  filenameBase,
 }: Readonly<Props>) {
   const state = useBatchImporter({
     api,
     defaultStrategy,
     params,
+    filenameBase,
   });
 
   const submitLabel = state.importing

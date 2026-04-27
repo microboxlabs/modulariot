@@ -112,6 +112,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             acceptedFileTypes={config.acceptedFileTypes}
             dictionary={dictionary}
             params={params}
+            filenameBase={config.pgrestFunctionName}
           />
         </>
       )}

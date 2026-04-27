@@ -21,6 +21,7 @@ import type {
   RowStatus,
 } from "./engine/types";
 import { applyHeaderMap } from "./engine/header-map";
+import { downloadCsv } from "./engine/download-csv";
 import { Row } from "./components/row";
 import { HeaderCell } from "./components/header-cell";
 import { SchemaPanel } from "./components/schema-panel";
@@ -52,6 +53,9 @@ export interface UseBatchImporterArgs {
   /** RPC parameter schema — surfaced for the schema panel UI. Validation
    *  itself runs server-side via `api.validate`. */
   params?: IntrospectedParam[] | null;
+  /** Optional filename prefix for the CSV download (e.g. the RPC function
+   *  name). Defaults to `batch-import` when omitted. */
+  filenameBase?: string;
 }
 
 export interface BatchImporterState {
@@ -83,12 +87,16 @@ export interface BatchImporterState {
   importable: boolean;
   hasFailed: boolean;
   hasResolved: boolean;
+  /** True when there's at least one parsed row available to export. */
+  downloadable: boolean;
   load: (text: string) => void;
   loadDebounced: (text: string) => void;
   loadFile: (file: File) => Promise<void>;
   onImport: () => Promise<void>;
   onRetryFailed: () => Promise<void>;
   onReset: () => void;
+  /** Trigger a browser download of the current grid (post-rename) as CSV. */
+  onDownload: () => void;
 }
 
 function getRowState(
@@ -121,6 +129,7 @@ export function useBatchImporter({
   api,
   defaultStrategy = "upsert",
   params,
+  filenameBase,
 }: UseBatchImporterArgs): BatchImporterState {
   const [raw, setRaw] = useState("");
   const [rawDoc, setRawDoc] = useState<ParsedDocument | null>(null);
@@ -443,6 +452,11 @@ export function useBatchImporter({
     else setRowStates(new Map());
   }, [raw, load]);
 
+  const onDownload = useCallback(() => {
+    if (!doc || doc.rows.length === 0) return;
+    downloadCsv(doc, filenameBase);
+  }, [doc, filenameBase]);
+
   const summary = useMemo(() => {
     const c: Record<RowStatus | "total", number> = {
       total: 0,
@@ -482,12 +496,14 @@ export function useBatchImporter({
     hasFailed: summary.failed > 0,
     hasResolved:
       summary.processed + summary.updated + summary.skipped > 0,
+    downloadable: !!doc && doc.rows.length > 0,
     load,
     loadDebounced,
     loadFile,
     onImport,
     onRetryFailed,
     onReset,
+    onDownload,
   };
 }
 
@@ -523,11 +539,13 @@ export function BatchImporterView({
     summary,
     hasFailed,
     hasResolved,
+    downloadable,
     load,
     loadDebounced,
     loadFile,
     onRetryFailed,
     onReset,
+    onDownload,
   } = state;
 
   return (
@@ -660,6 +678,8 @@ export function BatchImporterView({
           parsing={parsing}
           validating={validating}
           validationError={validationError}
+          downloadable={downloadable}
+          onDownload={onDownload}
           strategy={strategy}
           setStrategy={setStrategy}
           summary={summary}
@@ -700,8 +720,10 @@ interface PreviewProps {
   summary: Record<RowStatus | "total", number>;
   hasFailed: boolean;
   hasResolved: boolean;
+  downloadable: boolean;
   onRetryFailed: () => void;
   onReset: () => void;
+  onDownload: () => void;
   dictionary: I18nRecord;
 }
 
@@ -721,8 +743,10 @@ function VirtualPreview({
   summary,
   hasFailed,
   hasResolved,
+  downloadable,
   onRetryFailed,
   onReset,
+  onDownload,
   dictionary,
 }: Readonly<PreviewProps>) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -843,6 +867,22 @@ function VirtualPreview({
             {tr("dashboard.dashlets.batchImport.retryFailed", dictionary, {
               count: String(summary.failed),
             })}
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            color="gray"
+            onClick={onDownload}
+            disabled={!downloadable}
+            title={
+              tr(
+                "dashboard.dashlets.batchImport.downloadHint",
+                dictionary,
+              ) || "Download the current grid as CSV"
+            }
+          >
+            {tr("dashboard.dashlets.batchImport.download", dictionary) ||
+              "Download CSV"}
           </Button>
           <Button
             type="button"

@@ -1944,6 +1944,8 @@
         "optional": "optional",
         "duplicates": "Duplicates:",
         "retryFailed": "Retry failed ({count})",
+        "download": "Download CSV",
+        "downloadHint": "Download the current grid (with renamed columns) as CSV",
         "reset": "Reset",
         "importing": "Importing…",
         "importN": "Import {count} rows",

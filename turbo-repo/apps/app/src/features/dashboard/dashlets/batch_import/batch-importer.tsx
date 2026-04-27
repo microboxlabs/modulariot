@@ -587,7 +587,7 @@ export function BatchImporterView({
           <Button
             type="button"
             size="xs"
-            color="gray"
+            color="light"
             onClick={() => load(sample)}
             disabled={parsing}
           >
@@ -597,7 +597,7 @@ export function BatchImporterView({
         <Button
           type="button"
           size="xs"
-          color="gray"
+          color="light"
           onClick={() => fileRef.current?.click()}
           disabled={parsing}
         >
@@ -866,7 +866,7 @@ function VirtualPreview({
           <Button
             type="button"
             size="xs"
-            color="gray"
+            color="light"
             onClick={onRetryFailed}
             disabled={!hasFailed || importing}
           >
@@ -877,7 +877,7 @@ function VirtualPreview({
           <Button
             type="button"
             size="xs"
-            color="gray"
+            color="light"
             onClick={onDownload}
             disabled={!downloadable}
             title={
@@ -893,7 +893,7 @@ function VirtualPreview({
           <Button
             type="button"
             size="xs"
-            color="gray"
+            color="light"
             onClick={onReset}
             disabled={importing || (!hasResolved && !hasFailed)}
           >
@@ -902,7 +902,7 @@ function VirtualPreview({
           <Button
             type="button"
             size="xs"
-            color="gray"
+            color="light"
             onClick={onClear}
             disabled={importing || !clearable}
             title={

@@ -1969,6 +1969,8 @@
         "optional": "opcional",
         "duplicates": "Duplicados:",
         "retryFailed": "Reintentar fallidos ({count})",
+        "download": "Descargar CSV",
+        "downloadHint": "Descargar la grilla actual (con columnas renombradas) como CSV",
         "reset": "Reiniciar",
         "importing": "Importando…",
         "importN": "Importar {count} filas",

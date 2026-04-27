@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.integrations.auth.apikey.ApiKeyConfig;
 import com.microboxlabs.miot.integrations.auth.apikey.ApiKeyStrategy;
@@ -33,5 +34,13 @@ class SimpleAuthStrategyTest {
                 new ApiKeyConfig("api_key", "secret", ApiKeyPlacement.QUERY));
 
         assertEquals("secret", auth.queryParams().get("api_key"));
+    }
+
+    @Test
+    void rejectsApiKeyWithoutPlacement() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                new ApiKeyStrategy().resolve(new ApiKeyConfig("api_key", "secret", null)));
+
+        assertEquals("Unsupported API key placement for credential 'api_key': null", exception.getMessage());
     }
 }

@@ -18,6 +18,7 @@ import com.microboxlabs.miot.integrations.secret.IntegrationSecretEncryptionExce
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -163,7 +164,7 @@ public class IntegrationConnectionService {
     }
 
     private Map<String, Object> safeMap(Map<String, Object> map) {
-        return map == null ? Map.of() : Map.copyOf(map);
+        return map == null ? Map.of() : new LinkedHashMap<>(map);
     }
 
     private String maskSecret(Map<String, Object> secretConfig) {

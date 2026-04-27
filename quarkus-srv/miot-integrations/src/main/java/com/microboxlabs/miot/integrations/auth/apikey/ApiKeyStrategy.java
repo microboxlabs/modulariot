@@ -21,6 +21,10 @@ public class ApiKeyStrategy implements AuthStrategy<ApiKeyConfig> {
         if (config.placement() == ApiKeyPlacement.QUERY) {
             return new ResolvedAuth(Map.of(), Map.of(config.name(), config.value()), null);
         }
-        return new ResolvedAuth(Map.of(config.name(), config.value()), Map.of(), null);
+        if (config.placement() == ApiKeyPlacement.HEADER) {
+            return new ResolvedAuth(Map.of(config.name(), config.value()), Map.of(), null);
+        }
+        throw new IllegalArgumentException(
+                "Unsupported API key placement for credential '" + config.name() + "': " + config.placement());
     }
 }

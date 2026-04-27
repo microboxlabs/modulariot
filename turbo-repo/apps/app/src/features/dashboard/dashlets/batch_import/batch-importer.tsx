@@ -89,6 +89,8 @@ export interface BatchImporterState {
   hasResolved: boolean;
   /** True when there's at least one parsed row available to export. */
   downloadable: boolean;
+  /** True when there's any state to clear (raw text, parsed doc, or row states). */
+  clearable: boolean;
   load: (text: string) => void;
   loadDebounced: (text: string) => void;
   loadFile: (file: File) => Promise<void>;
@@ -97,6 +99,8 @@ export interface BatchImporterState {
   onReset: () => void;
   /** Trigger a browser download of the current grid (post-rename) as CSV. */
   onDownload: () => void;
+  /** Drop everything: raw text, parsed doc, header renames, row states. */
+  onClear: () => void;
 }
 
 function getRowState(
@@ -452,6 +456,25 @@ export function useBatchImporter({
     else setRowStates(new Map());
   }, [raw, load]);
 
+  /** Wipe the modal back to "just opened" state: drop the raw text, parsed
+   *  doc, header renames, row statuses, and any pending parse/validate or
+   *  in-flight import. Doesn't close the modal. */
+  const onClear = useCallback(() => {
+    cancelPendingParse();
+    parseToken.current++;
+    validateToken.current++;
+    importAbortRef.current?.abort();
+    importAbortRef.current = null;
+    setRaw("");
+    setRawDoc(null);
+    setHeaderMap({});
+    setRowStates(new Map());
+    setValidationError(null);
+    setParsing(false);
+    setValidating(false);
+    setImporting(false);
+  }, [cancelPendingParse]);
+
   const onDownload = useCallback(() => {
     if (!doc || doc.rows.length === 0) return;
     downloadCsv(doc, filenameBase);
@@ -497,6 +520,7 @@ export function useBatchImporter({
     hasResolved:
       summary.processed + summary.updated + summary.skipped > 0,
     downloadable: !!doc && doc.rows.length > 0,
+    clearable: !!rawDoc || raw.length > 0,
     load,
     loadDebounced,
     loadFile,
@@ -504,6 +528,7 @@ export function useBatchImporter({
     onRetryFailed,
     onReset,
     onDownload,
+    onClear,
   };
 }
 
@@ -534,18 +559,18 @@ export function BatchImporterView({
     parsing,
     validating,
     validationError,
-    strategy,
-    setStrategy,
     summary,
     hasFailed,
     hasResolved,
     downloadable,
+    clearable,
     load,
     loadDebounced,
     loadFile,
     onRetryFailed,
     onReset,
     onDownload,
+    onClear,
   } = state;
 
   return (
@@ -680,8 +705,8 @@ export function BatchImporterView({
           validationError={validationError}
           downloadable={downloadable}
           onDownload={onDownload}
-          strategy={strategy}
-          setStrategy={setStrategy}
+          clearable={clearable}
+          onClear={onClear}
           summary={summary}
           hasFailed={hasFailed}
           hasResolved={hasResolved}
@@ -715,15 +740,15 @@ interface PreviewProps {
   parsing: boolean;
   validating: boolean;
   validationError: string | null;
-  strategy: DuplicateStrategy;
-  setStrategy: (s: DuplicateStrategy) => void;
   summary: Record<RowStatus | "total", number>;
   hasFailed: boolean;
   hasResolved: boolean;
   downloadable: boolean;
+  clearable: boolean;
   onRetryFailed: () => void;
   onReset: () => void;
   onDownload: () => void;
+  onClear: () => void;
   dictionary: I18nRecord;
 }
 
@@ -738,15 +763,15 @@ function VirtualPreview({
   parsing,
   validating,
   validationError,
-  strategy,
-  setStrategy,
   summary,
   hasFailed,
   hasResolved,
   downloadable,
+  clearable,
   onRetryFailed,
   onReset,
   onDownload,
+  onClear,
   dictionary,
 }: Readonly<PreviewProps>) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -838,25 +863,6 @@ function VirtualPreview({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
-            {tr("dashboard.dashlets.batchImport.duplicates", dictionary)}
-            <select
-              value={strategy}
-              disabled={importing}
-              onChange={(e) => setStrategy(e.target.value as DuplicateStrategy)}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-            >
-              <option value="upsert">
-                {tr("dashboard.dashlets.batchImport.strategy.upsert", dictionary)}
-              </option>
-              <option value="skip">
-                {tr("dashboard.dashlets.batchImport.strategy.skip", dictionary)}
-              </option>
-              <option value="create">
-                {tr("dashboard.dashlets.batchImport.strategy.create", dictionary)}
-              </option>
-            </select>
-          </label>
           <Button
             type="button"
             size="xs"
@@ -892,6 +898,22 @@ function VirtualPreview({
             disabled={importing || (!hasResolved && !hasFailed)}
           >
             {tr("dashboard.dashlets.batchImport.reset", dictionary)}
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            color="gray"
+            onClick={onClear}
+            disabled={importing || !clearable}
+            title={
+              tr(
+                "dashboard.dashlets.batchImport.clearAllHint",
+                dictionary,
+              ) || "Clear everything and start over"
+            }
+          >
+            {tr("dashboard.dashlets.batchImport.clearAll", dictionary) ||
+              "Clear all"}
           </Button>
         </div>
       </section>

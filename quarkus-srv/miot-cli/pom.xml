@@ -30,6 +30,10 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-integrations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-driver</artifactId>
         </dependency>
         <dependency>

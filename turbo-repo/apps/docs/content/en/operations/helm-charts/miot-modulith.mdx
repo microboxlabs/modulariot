@@ -1,6 +1,6 @@
 # Modulith Chart
 
-The `miot-modulith` chart deploys the ModularIoT Quarkus backend — a modulith server that hosts fleet, driver, tracking, and gateway components. Each component can be independently enabled via values, allowing the same chart and image to serve different deployment roles.
+The `miot-modulith` chart deploys the ModularIoT Quarkus backend — a modulith server that hosts fleet, driver, tracking, gateway, and integrations components. Each component can be independently enabled via values, allowing the same chart and image to serve different deployment roles.
 
 ## Install
 
@@ -27,6 +27,8 @@ components:
     enabled: false
   gateway:
     enabled: false
+  integrations:
+    enabled: false
 ```
 
 Each flag maps to `MIOT_COMPONENT_*_ENABLED` environment variables injected by the chart.
@@ -36,8 +38,9 @@ Each flag maps to `MIOT_COMPONENT_*_ENABLED` environment variables injected by t
 | Deployment | Components | Purpose |
 |---|---|---|
 | `prod-miot-modulith` | fleet + driver | REST API for fleet dashboard |
-| `dev-miot-modulith` | fleet + driver + tracking | All-in-one dev server |
+| `dev-miot-modulith` | fleet + driver + tracking + integrations | All-in-one dev server |
 | `prod-miot-gateway` | gateway | Request forking/mirroring |
+| `prod-miot-integrations` | integrations | External API connections and credential profiles |
 
 All use the same image (`ghcr.io/microboxlabs/miot-srv`) and chart (`miot-modulith`).
 
@@ -117,6 +120,17 @@ flyway:
 ```
 
 The `FlywayMigrator` conditionally includes migration locations based on active components and tolerates previously applied migrations from inactive components.
+
+Migration version ranges are reserved by component:
+
+| Component | Schema | Migration range |
+|---|---|---|
+| Core | `miot_core` | `V0.1.x` |
+| Fleet | `miot_fleet` | `V0.2.x` |
+| Resource Core | `miot_resource` | `V0.3.x` |
+| Driver | `miot_driver` | `V0.4.x` |
+| Tracking | `miot_tracking` | `V0.5.x` |
+| Integrations | `miot_integrations` | `V0.6.x` |
 
 ## APISIX Route
 

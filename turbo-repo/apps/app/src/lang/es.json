@@ -1374,12 +1374,12 @@
       "dispatch": "Despacho",
       "reception": "Recepción",
       "deleteModal": {
-        "title": "Confirmar eliminación",
-        "messagePrefix": "¿Eliminar la asignación del servicio ",
+        "title": "Eliminar planificación",
+        "messagePrefix": "¿Eliminar la planificación del servicio ",
         "messageSuffix": "?",
         "close": "Cerrar",
         "cancel": "Cancelar",
-        "delete": "Eliminar"
+        "delete": "Eliminar planificación"
       },
       "deleteAssignmentModal": {
         "title": "Eliminar asignación",

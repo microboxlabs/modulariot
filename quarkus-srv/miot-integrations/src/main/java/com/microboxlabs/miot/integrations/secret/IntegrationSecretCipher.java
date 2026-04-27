@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -29,6 +30,7 @@ public class IntegrationSecretCipher {
     private final SecureRandom secureRandom;
     private final String encryptionKey;
 
+    @Inject
     public IntegrationSecretCipher(
             ObjectMapper objectMapper,
             @ConfigProperty(name = "miot.integrations.secret-key", defaultValue = NOT_CONFIGURED)

@@ -25,4 +25,15 @@ public record OAuth2ClientCredentialsConfig(
                 Optional.empty(),
                 tokenRequestFormat);
     }
+
+    @Override
+    public String toString() {
+        return "OAuth2ClientCredentialsConfig[tokenUrl=" + tokenUrl
+                + ", clientId=" + clientId
+                + ", clientSecret=<redacted>"
+                + ", scope=" + scope
+                + ", audience=" + audience
+                + ", tokenRequestFormat=" + tokenRequestFormat
+                + "]";
+    }
 }

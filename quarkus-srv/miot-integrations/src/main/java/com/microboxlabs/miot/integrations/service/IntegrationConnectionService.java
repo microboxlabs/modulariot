@@ -13,28 +13,36 @@ import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.secret.IntegrationSecretCipher;
+import com.microboxlabs.miot.integrations.secret.IntegrationSecretEncryptionException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class IntegrationConnectionService {
 
+    private static final Logger LOG = Logger.getLogger(IntegrationConnectionService.class);
+
     private final CredentialProfileRepository credentialProfileRepository;
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
+    private final IntegrationSecretCipher secretCipher;
 
     @Inject
     public IntegrationConnectionService(
             CredentialProfileRepository credentialProfileRepository,
             IntegrationConnectionRepository connectionRepository,
-            IntegrationOperationRepository operationRepository) {
+            IntegrationOperationRepository operationRepository,
+            IntegrationSecretCipher secretCipher) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
+        this.secretCipher = secretCipher;
     }
 
     public List<CredentialProfileResponse> listCredentialProfiles(String tenantCode) {
@@ -45,18 +53,28 @@ public class IntegrationConnectionService {
 
     public CredentialProfileResponse createCredentialProfile(String tenantCode, CreateCredentialProfileRequest req) {
         OffsetDateTime now = OffsetDateTime.now();
+        String encryptedSecretJson = encryptSecretConfig(req);
         CredentialProfile profile = new CredentialProfile(
                 UUID.randomUUID().toString(),
                 tenantCode,
                 req.displayName(),
                 req.authType(),
                 safeMap(req.publicConfig()),
-                "[pending-encryption]",
+                encryptedSecretJson,
                 maskSecret(req.secretConfig()),
                 1,
                 now,
                 now);
         return toResponse(credentialProfileRepository.create(profile));
+    }
+
+    private String encryptSecretConfig(CreateCredentialProfileRequest req) {
+        try {
+            return secretCipher.encrypt(req.secretConfig());
+        } catch (IntegrationSecretEncryptionException e) {
+            LOG.errorf(e, "Failed to encrypt secret config for credential profile '%s'", req.displayName());
+            throw e;
+        }
     }
 
     public List<IntegrationConnection> listConnections(String tenantCode) {

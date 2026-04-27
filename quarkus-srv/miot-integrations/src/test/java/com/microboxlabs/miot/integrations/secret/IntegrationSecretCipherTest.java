@@ -32,10 +32,11 @@ class IntegrationSecretCipherTest {
                 new ObjectMapper(),
                 new SecureRandom(),
                 "not-configured");
+        Map<String, Object> secretConfig = Map.of("token", "secret-token");
 
         IntegrationSecretEncryptionException exception = assertThrows(
                 IntegrationSecretEncryptionException.class,
-                () -> cipher.encrypt(Map.of("token", "secret-token")));
+                () -> cipher.encrypt(secretConfig));
 
         assertEquals("Integration secret encryption key is not configured", exception.getMessage());
     }

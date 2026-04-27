@@ -61,8 +61,7 @@ export function BatchImporterModal({
       subtitle={tr("dashboard.dashlets.batchImport.subtitle", dictionary)}
       size="7xl"
       submitLabel={submitLabel}
-      cancelLabel={tr("common.close", dictionary)}
-      showCancelButton
+      showHeaderClose
       isProcessing={state.importing || !state.importable}
       onSubmit={state.onImport}
     >

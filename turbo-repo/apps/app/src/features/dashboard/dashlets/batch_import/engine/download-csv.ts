@@ -41,10 +41,7 @@ function timestamp(): string {
 /** Trigger a browser download of the CSV. Filename defaults to a timestamped
  *  `batch-import-<ts>.csv`. */
 export function downloadCsv(doc: ParsedDocument, filenameBase?: string): void {
-  if (
-    typeof globalThis.window === "undefined" ||
-    typeof globalThis.document === "undefined"
-  ) {
+  if (globalThis.window === undefined || globalThis.document === undefined) {
     return;
   }
   const csv = buildCsv(doc);

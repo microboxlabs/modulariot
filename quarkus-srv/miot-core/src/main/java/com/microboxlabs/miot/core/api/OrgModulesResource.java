@@ -91,6 +91,7 @@ public class OrgModulesResource {
                         }));
     }
 
+    @SuppressWarnings("java:S3252") // PanacheEntityBase.delete(Class, ...) is not available in Reactive Panache here.
     private Uni<List<String>> replaceModules(Long organizationId, Set<String> requested) {
         // Sequential chain — no parallel Panache queries on the same session.
         return OrganizationModule.delete("id.organizationId = ?1", organizationId)

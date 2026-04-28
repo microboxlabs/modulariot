@@ -36,13 +36,17 @@ public class OAuthBearerAuthProvider implements AlfrescoAuthProvider {
                     "Cannot forward JWT to Alfresco: request is anonymous");
         }
         var principal = securityIdentity.getPrincipal();
-        if (principal instanceof JsonWebToken jwt) {
-            String raw = jwt.getRawToken();
-            if (raw != null && !raw.isBlank()) {
-                return "Bearer " + raw;
-            }
+        if (!(principal instanceof JsonWebToken jwt)) {
+            throw new IllegalStateException(
+                    "Cannot forward JWT to Alfresco: principal is not a JsonWebToken");
         }
-        throw new IllegalStateException(
-                "Cannot forward JWT to Alfresco: principal is not a JsonWebToken");
+
+        String raw = jwt.getRawToken();
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalStateException(
+                    "Cannot forward JWT to Alfresco: JWT raw token is missing or blank");
+        }
+
+        return "Bearer " + raw;
     }
 }

@@ -7,6 +7,7 @@ import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.ws.rs.client.ClientRequestContext;
 import jakarta.ws.rs.client.ClientRequestFilter;
 import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import org.eclipse.microprofile.config.ConfigProvider;
@@ -30,15 +31,19 @@ public class AlfrescoAuthClientFilter implements ClientRequestFilter {
 
     @Override
     public void filter(ClientRequestContext requestContext) {
-        AlfrescoAuthProvider provider = Arc.container()
-                .instance(AlfrescoAuthProvider.class)
-                .get();
-        if (provider == null) {
-            requestContext.getHeaders().putSingle(HttpHeaders.AUTHORIZATION, resolveAuthHeaderFromConfig());
-            return;
+        try {
+            AlfrescoAuthProvider provider = Arc.container()
+                    .instance(AlfrescoAuthProvider.class)
+                    .get();
+            String header = provider == null
+                    ? resolveAuthHeaderFromConfig()
+                    : provider.resolveAuthHeader();
+            requestContext.getHeaders().putSingle(HttpHeaders.AUTHORIZATION, header);
+        } catch (IllegalStateException e) {
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("Unauthorized")
+                    .build());
         }
-        String header = provider.resolveAuthHeader();
-        requestContext.getHeaders().putSingle(HttpHeaders.AUTHORIZATION, header);
     }
 
     private String resolveAuthHeaderFromConfig() {

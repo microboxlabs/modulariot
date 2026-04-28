@@ -46,12 +46,17 @@ public class AlfrescoAuthClientFilter implements ClientRequestFilter {
         String mode = config.getOptionalValue("miot.alfresco.auth", String.class)
                 .orElse("stub");
         return switch (mode) {
+            case "stub" -> resolveStubHeader();
             case "oauth" -> resolveOAuthHeader();
             case "basic" -> resolveBasicHeader();
             default -> throw new IllegalStateException(
                     "No AlfrescoAuthProvider bean active for miot.alfresco.auth="
-                            + mode + ". Set miot.alfresco.auth to one of: oauth, basic.");
+                            + mode + ". Set miot.alfresco.auth to one of: stub, oauth, basic.");
         };
+    }
+
+    private String resolveStubHeader() {
+        return "Bearer stub";
     }
 
     private String resolveOAuthHeader() {

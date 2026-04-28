@@ -10,7 +10,7 @@ import type { OrgMember } from "../types";
  * (used when nothing is selected yet).
  */
 export function useOrgMembers(orgSlug: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<OrgMember[]>(
+  const { data, error, isLoading, mutate } = useSWR<OrgMember[], Error>(
     orgSlug ? ["org-members", orgSlug] : null,
     ([, slug]: [string, string]) => fetchOrgMembers(slug),
     {
@@ -23,7 +23,7 @@ export function useOrgMembers(orgSlug: string | null) {
   return {
     members: data ?? [],
     isLoading,
-    error,
+    error: error ?? null,
     refresh: mutate,
   };
 }

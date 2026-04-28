@@ -66,7 +66,7 @@ export default function OrgListPanel({
                   isActive
                     ? "bg-blue-50/50 dark:bg-blue-900/20"
                     : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                } ${!isLast ? "border-b border-gray-200 dark:border-gray-700" : ""}`}
+                } ${isLast ? "" : "border-b border-gray-200 dark:border-gray-700"}`}
               >
                 <HiOfficeBuilding
                   className={`h-5 w-5 shrink-0 ${
@@ -90,7 +90,7 @@ export default function OrgListPanel({
                       {tr("parentAccount", dict)}
                     </span>
                   )}
-                  {!org.isParent && org.taxId && (
+                  {org.isParent === false && org.taxId && (
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {org.taxId}
                     </span>

@@ -7,11 +7,28 @@ import type { OrgMember, ModuleCode } from "../types";
  * Throw on non-2xx so SWR can surface the error to the UI.
  */
 
+interface ApiErrorOptions {
+  readonly status: number;
+  readonly url: string;
+  readonly message?: string;
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly url: string;
+
+  constructor({ status, url, message }: ApiErrorOptions) {
+    super(message ?? `Request failed with status ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.url = url;
+  }
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`GET ${url} → ${res.status}: ${body}`);
+    throw new ApiError({ status: res.status, url });
   }
   return (await res.json()) as T;
 }

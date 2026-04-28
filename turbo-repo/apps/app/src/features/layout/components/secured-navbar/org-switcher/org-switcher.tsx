@@ -3,6 +3,7 @@
 import { useOrgScopes } from "./use-org-scopes";
 import { HiChevronDown, HiOfficeBuilding } from "react-icons/hi";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 /**
  * Top-nav org switcher. Mirrors the dashboard-settings-dropdown panel style:
@@ -28,7 +29,17 @@ export default function OrgSwitcher() {
       }
       setSwitching(true);
       closePanel();
-      await switchOrg(slug);
+      try {
+        await switchOrg(slug);
+      } catch (error) {
+        console.error("Failed to switch organization", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "No se pudo cambiar la organización",
+        );
+        setSwitching(false);
+      }
     },
     [activeOrg, switchOrg, closePanel],
   );
@@ -91,7 +102,7 @@ export default function OrgSwitcher() {
                   isActive
                     ? "bg-blue-50/50 dark:bg-blue-900/20"
                     : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                } ${!isLast ? "border-b border-gray-200 dark:border-gray-700" : ""}`}
+                } ${isLast ? "" : "border-b border-gray-200 dark:border-gray-700"}`}
               >
                 <HiOfficeBuilding
                   className={`h-5 w-5 shrink-0 ${

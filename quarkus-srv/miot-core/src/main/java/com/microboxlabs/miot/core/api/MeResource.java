@@ -97,12 +97,19 @@ public class MeResource {
 
     private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
         return membershipClient.isMember(email, org.alfrescoGroupId)
+                .onFailure().recoverWithItem(() -> Boolean.FALSE)
                 .flatMap(isMember -> {
                     if (!Boolean.TRUE.equals(isMember)) {
                         return Uni.createFrom().nullItem();
                     }
                     return membershipClient.getRole(email, org.alfrescoGroupId)
-                            .flatMap(role -> assembleScope(org, role));
+                            .onFailure().recoverWithItem(() -> null)
+                            .flatMap(role -> {
+                                if (role == null) {
+                                    return Uni.createFrom().nullItem();
+                                }
+                                return assembleScope(org, role);
+                            });
                 });
     }
 

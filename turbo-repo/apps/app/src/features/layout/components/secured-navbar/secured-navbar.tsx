@@ -235,7 +235,7 @@ export function SecuredNavbar({
               />
             </div>
 
-            <OrgSwitcher />
+            <OrgSwitcher dict={dict} />
             {!pathname.includes("/notifications") && (
               <Link
                 href="/notifications"

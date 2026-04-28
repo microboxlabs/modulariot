@@ -3396,6 +3396,9 @@
       "collaboratorsManagement": "Collaborators Management"
     }
   },
+  "orgSwitcher": {
+    "changeOrgFailed": "Could not change organization"
+  },
   "ext_tasks": {
     "processing": "Processing your request...",
     "completed": "Action completed successfully",

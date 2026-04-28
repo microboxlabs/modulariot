@@ -139,6 +139,12 @@ export function parseDocument(content: string): ParsedDocument {
 function coerceCell(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
+  // Excel cells parsed with raw: true + cellDates: true come back as Date
+  // objects for date-formatted cells. Serialize as ISO 8601 (with offset) so
+  // the validator's z.string().datetime({ offset: true }) accepts them as-is.
+  // Reject Invalid Date — toISOString() throws on those, which would surface
+  // as a generic 500 instead of a clean per-cell empty.
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? "" : v.toISOString();
   return "";
 }
 

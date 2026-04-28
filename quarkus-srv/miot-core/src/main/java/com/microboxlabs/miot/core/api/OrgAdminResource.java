@@ -126,6 +126,7 @@ public class OrgAdminResource {
     @PATCH
     @Path("/{slug}")
     @Operation(summary = "Update display name and/or tax id of an organization")
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<OrganizationDto> patch(@PathParam("slug") String slug, PatchOrganizationRequest body) {
         validatePatchPayload(body);
         String normalizedTaxId = normalizePatchTaxId(body.taxId());
@@ -193,6 +194,7 @@ public class OrgAdminResource {
                                 "Slug already in use: " + slug, Response.Status.CONFLICT)));
     }
 
+    @SuppressWarnings("java:S3252") // PanacheEntityBase.find(Class, ...) is not available in Reactive Panache here.
     private Uni<Void> assertTaxIdAvailable(String taxId) {
         return Organization.find("taxId = ?1 and active = true", taxId).firstResult()
                 .flatMap(existing -> existing == null

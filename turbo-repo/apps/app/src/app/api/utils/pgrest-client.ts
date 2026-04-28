@@ -400,13 +400,31 @@ async function pgrestFetch(
 }
 
 /**
- * Fetch every row of `v_modulariot_trucks_tmp` visible to the token's tenant.
- * pgrest applies row-level security via the JWT, so no explicit tenant filter
- * is needed on this call.
+ * Fetch rows from `v_modulariot_trucks_tmp`. When `custAccounts` is provided,
+ * restricts results to trucks whose `cust_account` is in the list (multi-tenant
+ * filtering). Otherwise returns everything visible to the token's tenant.
  */
-export async function fetchTrucksCatalog(): Promise<PgrestTruckCatalogRow[]> {
+export async function fetchTrucksCatalog(opts?: {
+  custAccounts?: string[];
+}): Promise<PgrestTruckCatalogRow[]> {
   const token = await bearerToken();
-  const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp`;
+  const params = new URLSearchParams();
+
+  if (opts?.custAccounts && opts.custAccounts.length > 0) {
+    // custAccounts are backend-validated Chilean RUTs normalized by
+    // ChileanRutValidator to \d{7,8}-[0-9K], so direct PostgREST
+    // eq./in.(...) interpolation is safe from delimiter injection. Keep
+    // that source/validation invariant if these filters are refactored.
+    if (opts.custAccounts.length === 1) {
+      params.set("cust_account", `eq.${opts.custAccounts[0]}`);
+    } else {
+      params.set("cust_account", `in.(${opts.custAccounts.join(",")})`);
+    }
+  }
+
+  const qs = params.toString();
+  const querySuffix = qs ? `?${qs}` : "";
+  const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp${querySuffix}`;
   const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",
@@ -1309,10 +1327,21 @@ function sanitizePgrestSearchTerm(term: string): string {
  */
 export async function fetchDriversFromView(opts?: {
   q?: string;
+  /** When set, restrict results to drivers whose `cust_account` is in this list. */
+  custAccounts?: string[];
 }): Promise<PgrestDriverRow[]> {
   const token = await bearerToken();
   const params = new URLSearchParams();
   params.set("order", "id.asc");
+
+  // Tenant scope filter — restricts to the active org's effective tax ids.
+  if (opts?.custAccounts && opts.custAccounts.length > 0) {
+    if (opts.custAccounts.length === 1) {
+      params.set("cust_account", `eq.${opts.custAccounts[0]}`);
+    } else {
+      params.set("cust_account", `in.(${opts.custAccounts.join(",")})`);
+    }
+  }
 
   const rawTerm = opts?.q?.trim();
   if (rawTerm) {

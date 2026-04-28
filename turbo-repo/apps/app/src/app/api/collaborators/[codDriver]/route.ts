@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
-import { requireAuth } from "../../utils/alfresco-crud-client";
+import { resolveTenantScope } from "../../utils/tenant-scope";
 import {
   driverDetailResponseToDto,
   fetchDriverDetailByCodDriver,
@@ -42,8 +42,8 @@ function resolveUserToken(user: { id?: string | null; email?: string | null; nam
   return createHash("sha256").update(raw).digest("hex").slice(0, 16);
 }
 
-function buildCacheKey(userToken: string, codDriver: string) {
-  return `${userToken}:${codDriver}`;
+function buildCacheKey(userToken: string, activeOrgSlug: string, codDriver: string) {
+  return `${userToken}:${activeOrgSlug}:${codDriver}`;
 }
 
 function buildJsonResponse(
@@ -106,8 +106,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ codDriver: string }> }
 ) {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return authResult.response;
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  const { scope, session } = scopeResult;
 
   if (process.env.MIOT_COLLABORATORS_SOURCE !== "pgrest") {
     return NextResponse.json(
@@ -125,8 +126,8 @@ export async function GET(
     );
   }
 
-  const userToken = resolveUserToken(authResult.session.user);
-  const cacheKey = buildCacheKey(userToken, codDriver);
+  const userToken = resolveUserToken(session.user);
+  const cacheKey = buildCacheKey(userToken, scope.activeOrg.slug, codDriver);
   const cacheEntry = detailCache.get(cacheKey);
   const now = Date.now();
 
@@ -145,6 +146,17 @@ export async function GET(
 
   try {
     const dto = await refreshDetailCache(cacheKey, codDriver);
+
+    // Enforce scope: if the active org has tax ids configured, the returned
+    // driver's cust_account (mapped to `department`) must be in the set.
+    if (
+      scope.effectiveTaxIds.length > 0 &&
+      dto.collaborator.department &&
+      !scope.effectiveTaxIds.includes(dto.collaborator.department)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     return buildJsonResponse(dto, "MISS");
   } catch (error) {
     if (error instanceof DriverNotFoundError) {

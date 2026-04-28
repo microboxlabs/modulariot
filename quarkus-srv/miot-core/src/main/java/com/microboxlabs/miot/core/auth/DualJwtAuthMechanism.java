@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.auth;
 
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
+import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.vertx.http.runtime.security.ChallengeData;
 import io.quarkus.vertx.http.runtime.security.HttpAuthenticationMechanism;
 import io.smallrye.jwt.auth.principal.DefaultJWTCallerPrincipal;
@@ -180,6 +181,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
             DefaultJWTCallerPrincipal principal = new DefaultJWTCallerPrincipal(token, claims);
             return io.quarkus.security.runtime.QuarkusSecurityIdentity.builder()
                     .setPrincipal(principal)
+                    .addCredential(new TokenCredential(token, "Bearer"))
                     .addRoles(extractRoles(claims))
                     .build();
         } catch (Exception e) {

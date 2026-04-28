@@ -5,7 +5,6 @@ import com.microboxlabs.miot.core.auth.WriteAuthorizer;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import io.quarkus.hibernate.reactive.panache.Panache;
-import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -94,7 +93,7 @@ public class OrgModulesResource {
 
     private Uni<List<String>> replaceModules(Long organizationId, Set<String> requested) {
         // Sequential chain — no parallel Panache queries on the same session.
-        return PanacheEntityBase.delete(OrganizationModule.class, "id.organizationId = ?1", organizationId)
+        return OrganizationModule.delete("id.organizationId = ?1", organizationId)
                 .flatMap(deleted -> persistRequested(organizationId, requested))
                 .map(x -> requested.stream().sorted().toList());
     }

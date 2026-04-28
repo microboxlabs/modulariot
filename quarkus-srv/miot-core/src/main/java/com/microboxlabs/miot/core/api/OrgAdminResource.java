@@ -10,7 +10,6 @@ import com.microboxlabs.miot.core.tax.ActiveTaxIdValidator;
 import com.microboxlabs.miot.core.tax.TaxIdValidator;
 import com.microboxlabs.miot.core.tax.TaxIdValidator.InvalidTaxIdException;
 import io.quarkus.hibernate.reactive.panache.Panache;
-import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -141,7 +140,7 @@ public class OrgAdminResource {
                             return writeAuthorizer.requireParentSiteManager(org)
                                     .flatMap(ignored -> assertUpdatedTaxIdAvailable(org, normalizedTaxId))
                                     .map(ignored -> applyPatch(org, body, normalizedTaxId))
-                                    .flatMap(PanacheEntityBase::persist);
+                                    .flatMap(updated -> updated.<Organization>persist());
                         }))
                 .map(OrganizationDto::from);
     }
@@ -195,7 +194,7 @@ public class OrgAdminResource {
     }
 
     private Uni<Void> assertTaxIdAvailable(String taxId) {
-        return PanacheEntityBase.find(Organization.class, "taxId = ?1 and active = true", taxId).firstResult()
+        return Organization.find("taxId = ?1 and active = true", taxId).firstResult()
                 .flatMap(existing -> existing == null
                         ? Uni.createFrom().voidItem()
                         : Uni.createFrom().failure(new WebApplicationException(
@@ -228,8 +227,11 @@ public class OrgAdminResource {
     }
 
     private String normalizePatchTaxId(String taxId) {
-        if (taxId == null || taxId.isBlank()) {
+        if (taxId == null) {
             return null;
+        }
+        if (taxId.isBlank()) {
+            throw new BadRequestException("taxId cannot be blank");
         }
         try {
             return taxIdValidator.normalize(taxId);

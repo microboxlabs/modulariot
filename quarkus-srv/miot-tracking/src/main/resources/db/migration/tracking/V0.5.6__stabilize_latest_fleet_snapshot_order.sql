@@ -1,5 +1,5 @@
--- Latest fleet snapshot lookup for fleet list/detail views.
--- Uses the client-scoped asset_data_client index to avoid scans on asset_data.
+-- Keep V0.5.5 immutable for databases that already applied it; this migration
+-- reapplies the latest snapshot function with deterministic tie-breakers.
 
 CREATE OR REPLACE FUNCTION miot_tracking.fn_latest_fleet_snapshot_batch(
     p_shared_client_id TEXT,
@@ -25,7 +25,7 @@ AS $$
         JOIN miot_tracking.asset_data_client adc
             ON adc.asset_id = i.asset_id
         WHERE adc.shared_client_id = p_shared_client_id
-        ORDER BY adc.asset_id, adc.timestamp DESC
+        ORDER BY adc.asset_id, adc.timestamp DESC, adc.asset_data_id DESC
     ),
     latest_tracking AS (
         SELECT
@@ -66,7 +66,7 @@ AS $$
         JOIN miot_tracking.asset_metric_core m
             ON m.asset_id = i.asset_id
         WHERE m.shared_client_id = p_shared_client_id
-        ORDER BY m.asset_id, m.ts DESC
+        ORDER BY m.asset_id, m.ts DESC, m.id DESC
     ),
     latest_dtc AS (
         SELECT DISTINCT ON (d.asset_id)
@@ -83,7 +83,7 @@ AS $$
         JOIN miot_tracking.asset_metric_dtc d
             ON d.asset_id = i.asset_id
         WHERE d.shared_client_id = p_shared_client_id
-        ORDER BY d.asset_id, d.ts DESC
+        ORDER BY d.asset_id, d.ts DESC, d.id DESC
     ),
     latest_ext AS (
         SELECT DISTINCT ON (e.asset_id)
@@ -93,7 +93,7 @@ AS $$
         JOIN miot_tracking.asset_metric_ext e
             ON e.asset_id = i.asset_id
         WHERE e.shared_client_id = p_shared_client_id
-        ORDER BY e.asset_id, e.ts DESC
+        ORDER BY e.asset_id, e.ts DESC, e.id DESC
     )
     SELECT
         i.asset_id,
@@ -108,5 +108,5 @@ AS $$
     LEFT JOIN latest_ext e ON e.asset_id = i.asset_id
 $$;
 
-COMMENT ON FUNCTION miot_tracking.fn_latest_fleet_snapshot_batch IS
+COMMENT ON FUNCTION miot_tracking.fn_latest_fleet_snapshot_batch(TEXT, TEXT[]) IS
     'Latest fleet card snapshot for multiple assets. Uses asset_data_client for tracking lookup and batch DISTINCT ON for core/dtc/ext metrics.';

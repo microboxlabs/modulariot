@@ -25,7 +25,7 @@ import org.jboss.logging.Logger;
  * because these are HTTP calls with no Hibernate session.
  */
 @ApplicationScoped
-@LookupUnlessProperty(name = "miot.alfresco.auth", stringValue = "stub")
+@LookupUnlessProperty(name = "miot.alfresco.auth", stringValue = "stub", lookupIfMissing = false)
 public class RealAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
 
     private static final Logger LOG = Logger.getLogger(RealAlfrescoDirectoryClient.class);

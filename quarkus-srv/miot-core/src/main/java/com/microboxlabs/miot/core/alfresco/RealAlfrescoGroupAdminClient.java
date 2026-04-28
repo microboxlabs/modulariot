@@ -24,7 +24,7 @@ import org.jboss.logging.Logger;
  * without surfacing spurious errors.
  */
 @ApplicationScoped
-@LookupUnlessProperty(name = "miot.alfresco.auth", stringValue = "stub")
+@LookupUnlessProperty(name = "miot.alfresco.auth", stringValue = "stub", lookupIfMissing = false)
 public class RealAlfrescoGroupAdminClient implements IAlfrescoGroupAdminClient {
 
     private static final Logger LOG = Logger.getLogger(RealAlfrescoGroupAdminClient.class);

@@ -86,7 +86,7 @@ function buildAuthHeaders(session: Session): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = session.user?.rawJWT ?? session.user?.ticket;
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (!session.user?.rawJWT && session.user?.email) {
+  if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;
   }
   return headers;

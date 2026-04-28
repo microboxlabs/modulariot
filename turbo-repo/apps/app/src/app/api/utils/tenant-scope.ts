@@ -201,10 +201,10 @@ async function fetchScopes(session: Session): Promise<OrganizationScope[]> {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  // Dev fallback: when auth is via Alfresco ticket (no JWT), forward email
-  // so the Quarkus MeResource can resolve the caller (same pattern as
-  // OrganizationRequestFilter's X-Dev-User-Email header).
-  if (!session.user?.rawJWT && session.user?.email) {
+  // Dev fallback: forward the session email so Quarkus can resolve the caller
+  // when local JWT validation is unavailable. Quarkus ignores this when a
+  // valid authenticated identity already provides an email claim.
+  if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;
   }
 

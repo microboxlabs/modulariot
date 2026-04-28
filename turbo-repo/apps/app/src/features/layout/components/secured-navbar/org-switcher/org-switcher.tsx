@@ -4,6 +4,12 @@ import { useOrgScopes } from "./use-org-scopes";
 import { HiChevronDown, HiOfficeBuilding } from "react-icons/hi";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+
+interface OrgSwitcherProps {
+  readonly dict: I18nRecord;
+}
 
 /**
  * Top-nav org switcher. Mirrors the dashboard-settings-dropdown panel style:
@@ -13,7 +19,7 @@ import { toast } from "sonner";
  * Hidden when the user has exactly one org (no switching needed).
  * The active org is highlighted with a blue left border accent.
  */
-export default function OrgSwitcher() {
+export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
   const { activeOrg, availableOrgs, isLoading, switchOrg } = useOrgScopes();
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -36,12 +42,12 @@ export default function OrgSwitcher() {
         toast.error(
           error instanceof Error
             ? error.message
-            : "No se pudo cambiar la organización",
+            : tr("orgSwitcher.changeOrgFailed", dict),
         );
         setSwitching(false);
       }
     },
-    [activeOrg, switchOrg, closePanel],
+    [activeOrg, switchOrg, closePanel, dict],
   );
 
   // Close on click outside

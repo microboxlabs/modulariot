@@ -9,8 +9,8 @@ import java.util.List;
  * {@link IAlfrescoMembershipClient}, which handles per-user membership
  * and role checks.
  *
- * Write operations (create group, add/remove member) live on a separate
- * interface that will ship with Phase 4 of the settings module plan.
+ * Write operations (create group, add/remove member) live on
+ * {@link IAlfrescoGroupAdminClient}.
  */
 public interface IAlfrescoDirectoryClient {
 

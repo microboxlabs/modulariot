@@ -18,11 +18,15 @@ export function RefreshIntervalSelect({
   dictionary,
 }: Readonly<RefreshIntervalSelectProps>) {
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
-  const current = value === undefined || value === "inherit" ? "inherit" : String(value);
+  const current =
+    value === undefined || value === "inherit" ? "inherit" : String(value);
 
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <Label htmlFor="refresh-interval-select" className="text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">
+      <Label
+        htmlFor="refresh-interval-select"
+        className="text-xs whitespace-nowrap text-gray-500 dark:text-gray-400"
+      >
         {t("autoRefresh")}
       </Label>
       <Select
@@ -33,7 +37,7 @@ export function RefreshIntervalSelect({
           const v = e.target.value;
           onChange(v === "inherit" ? "inherit" : Number(v));
         }}
-        className="w-44"
+        className="w-full [&>select]:cursor-pointer"
       >
         <option value="inherit">{t("widgetRefreshInherit")}</option>
         {REFRESH_INTERVAL_OPTIONS.map((opt) => (

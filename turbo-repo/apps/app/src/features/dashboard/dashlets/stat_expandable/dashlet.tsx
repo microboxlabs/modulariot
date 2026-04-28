@@ -3,12 +3,20 @@
 import { useState } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestDashletFields } from "../common";
-import { useDashletPgrest, DashletLoading, DashletError } from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useDashletPgrest } from "../common/use-dashlet-pgrest";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
+import {
+  evaluateColorRulesGeneric,
+  buildTextStyle,
+  getConditionalClasses,
+} from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
-import { getThresholdTextClasses } from "../common/threshold-engine";
-import type { ThresholdConfig } from "../common/threshold-types";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -19,7 +27,10 @@ export interface DashletConfig extends PgrestDashletFields {
   value: string;
   unit: string;
   details: { label: string; value: string }[];
-  thresholds?: ThresholdConfig;
+  /** Custom color for the value text (hex without #) */
+  valueColor?: string;
+  /** Color rules for value-based styling */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -43,7 +54,52 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
-const FIELD_DEFAULTS: Record<string, string> = { title: "Conversion Rate", value: "3.24", unit: "%" };
+const FIELD_DEFAULTS: Record<string, string> = {
+  title: "Conversion Rate",
+  value: "3.24",
+  unit: "%",
+};
+
+// ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+const TARGET_KEYS = ["text", "bg"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string
+): { textColor: string | undefined; bgColor: string | undefined } {
+  const colors = evaluateColorRulesGeneric<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    [...TARGET_KEYS]
+  );
+  return {
+    textColor: colors.text,
+    bgColor: colors.bg,
+  };
+}
+
+/** Determine value text style based on rule or manual color */
+function getValueTextStyle(
+  ruleTextColor: string | undefined,
+  valueColor: string | undefined
+): React.CSSProperties | undefined {
+  return buildTextStyle(ruleTextColor, valueColor);
+}
+
+/** Determine value text classes when no color override */
+function getValueTextClasses(
+  ruleTextColor: string | undefined,
+  valueColor: string | undefined
+): string {
+  return getConditionalClasses(
+    Boolean(ruleTextColor || valueColor),
+    "text-gray-900 dark:text-white"
+  );
+}
 
 // ============================================================================
 // Component - Style 6: Expandable Details
@@ -58,26 +114,69 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [expanded, setExpanded] = useState(false);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
-
-  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
+  const { resolved, loading, fetchError } = useDashletPgrest(
+    config,
+    FIELD_DEFAULTS,
+    refreshIntervalMs
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
   const title = resolved.title || "Conversion Rate";
   const unit = resolved.unit ?? "%";
-  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
-  const displayValue = Number.isFinite(parsedValue) ? parsedValue : resolved.value;
+  const valueColor = config.valueColor;
+  const parsedValue =
+    resolved.value === "" || resolved.value == null
+      ? Number.NaN
+      : Number(resolved.value);
+  const displayValue = Number.isFinite(parsedValue)
+    ? parsedValue
+    : resolved.value;
+
+  // Evaluate value color rules
+  const colorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
+
+  const { textColor: ruleTextColor, bgColor: ruleBgColor } =
+    colorRulesConfig.rules.length > 0
+      ? evaluateColorRules(colorRulesConfig.rules, String(displayValue))
+      : { textColor: undefined, bgColor: undefined };
+
+  // Build background styles
+  const mainBgStyle = ruleBgColor
+    ? { backgroundColor: `#${ruleBgColor}20` }
+    : undefined;
+  const expandedBgStyle = ruleBgColor
+    ? { backgroundColor: `#${ruleBgColor}10` }
+    : undefined;
+
+  // Build value text styling
+  const valueTextStyle = getValueTextStyle(ruleTextColor, valueColor);
+  const valueTextClasses = getValueTextClasses(ruleTextColor, valueColor);
+
+  // Build container classes
+  const containerBgClasses = ruleBgColor ? "" : "bg-white dark:bg-gray-800";
+  const expandedBgClasses = ruleBgColor ? "" : "bg-gray-50 dark:bg-gray-900/50";
+  const buttonClasses = ruleBgColor
+    ? ""
+    : "text-blue-600 hover:bg-gray-50 dark:text-blue-400 dark:hover:bg-gray-700";
 
   return (
-    <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+    <div
+      className={`flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 ${containerBgClasses}`}
+      style={mainBgStyle}
+    >
       {/* Main content */}
       <div className="flex flex-1 flex-col justify-center p-4">
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {title}
         </p>
-        <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
+        <p
+          className={`mt-1 text-3xl font-bold ${valueTextClasses}`}
+          style={valueTextStyle}
+        >
           {displayValue}
           <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>
         </p>
@@ -87,7 +186,25 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs text-blue-600 hover:bg-gray-50 dark:border-gray-700 dark:text-blue-400 dark:hover:bg-gray-700"
+        className={`cursor-pointer flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs dark:border-gray-700 ${buttonClasses}`}
+        style={
+          ruleBgColor
+            ? {
+                color: `#${ruleBgColor}`,
+                ["--tw-bg-opacity" as string]: 1,
+              }
+            : undefined
+        }
+        onMouseEnter={(e) => {
+          if (ruleBgColor) {
+            e.currentTarget.style.backgroundColor = `#${ruleBgColor}30`;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (ruleBgColor) {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }
+        }}
       >
         {expanded ? (
           <>
@@ -102,7 +219,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
       {/* Expandable details */}
       {expanded && (
-        <div className="border-t border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+        <div
+          className={`border-t border-gray-200 p-3 dark:border-gray-700 ${expandedBgClasses}`}
+          style={expandedBgStyle}
+        >
           <div className="grid grid-cols-2 gap-2">
             {details.map((detail) => (
               <div key={detail.label}>

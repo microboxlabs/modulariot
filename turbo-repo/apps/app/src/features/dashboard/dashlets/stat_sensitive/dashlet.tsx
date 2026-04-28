@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestDashletFields } from "../common";
-import { useDashletPgrest, DashletLoading, DashletError } from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useDashletPgrest } from "../common/use-dashlet-pgrest";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useRowThreshold } from "../common/use-threshold";
 import { getThresholdTextClasses } from "../common/threshold-engine";
@@ -38,13 +39,20 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
-const FIELD_DEFAULTS: Record<string, string> = { title: "Account Balance", value: "125847.32", unit: "$" };
+const FIELD_DEFAULTS: Record<string, string> = {
+  title: "Account Balance",
+  value: "125847.32",
+  unit: "$",
+};
 
 function getValueTextClasses(
-  thresholdColor: import("../common/color-rule-types").RuleColor | null,
-  appliesTo: (target: import("../common/threshold-types").ThresholdTarget) => boolean,
+  thresholdColor: string | null,
+  appliesTo: (
+    target: import("../common/threshold-types").ThresholdTarget
+  ) => boolean
 ): string {
-  if (thresholdColor && appliesTo("text")) return getThresholdTextClasses(thresholdColor);
+  if (thresholdColor && appliesTo("text"))
+    return getThresholdTextClasses(thresholdColor);
   return "text-gray-900 dark:text-white";
 }
 
@@ -61,16 +69,26 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [isHidden, setIsHidden] = useState(isSensitive);
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
+  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
+    config,
+    FIELD_DEFAULTS,
+    refreshIntervalMs
+  );
 
-  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
+  const { color: thresholdColor, appliesTo } = useRowThreshold(
+    config.thresholds,
+    firstRow
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
   const title = resolved.title || "Account Balance";
   const unit = resolved.unit ?? "$";
-  const parsedValue = resolved.value === "" || resolved.value == null ? Number.NaN : Number(resolved.value);
+  const parsedValue =
+    resolved.value === "" || resolved.value == null
+      ? Number.NaN
+      : Number(resolved.value);
   const formattedValue = Number.isFinite(parsedValue)
     ? `${unit}${parsedValue.toLocaleString(undefined, {
         minimumFractionDigits: 2,

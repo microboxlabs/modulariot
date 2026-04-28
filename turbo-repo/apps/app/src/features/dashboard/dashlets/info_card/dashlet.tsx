@@ -21,14 +21,17 @@ import type {
   DashletLayoutDefaults,
   DataProviderEntry,
 } from "../types";
-import type { PgrestDashletFields } from "../common";
-import {
-  useHybridPgrestContext,
-  DashletLoading,
-  DashletError,
-} from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
+import { evaluateColorRulesGeneric } from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -104,6 +107,8 @@ export interface DashletConfig extends PgrestDashletFields {
   openInSameTab?: boolean;
   /** Data provider entries for dynamic values */
   dataProvider?: DataProviderEntry[];
+  /** Color rules for value-based styling */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 /** Default configuration */
@@ -132,6 +137,28 @@ export const layoutDefaults: DashletLayoutDefaults = {
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
+}
+
+// ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+const TARGET_KEYS = ["text", "icon"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string
+): { textColor: string | undefined; iconColor: string | undefined } {
+  const colors = evaluateColorRulesGeneric<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    [...TARGET_KEYS]
+  );
+  return {
+    textColor: colors.text,
+    iconColor: colors.icon,
+  };
 }
 
 // ============================================================================
@@ -195,6 +222,25 @@ export function Dashlet({
     [viewMoreLabel, templateContext]
   );
 
+  // ── Color rules support ────
+  const colorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
+
+  const { textColor: ruleTextColor, iconColor: ruleIconColor } =
+    colorRulesConfig.rules.length > 0
+      ? evaluateColorRules(colorRulesConfig.rules, compiledValue)
+      : { textColor: undefined, iconColor: undefined };
+
+  // Apply color rules or fallback to manual colors
+  const effectiveValueColor = ruleTextColor
+    ? `#${ruleTextColor}`
+    : valueColor || undefined;
+
+  const effectiveIconColor = ruleIconColor
+    ? `#${ruleIconColor}`
+    : iconColor || undefined;
+
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
@@ -233,11 +279,13 @@ export function Dashlet({
         <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           {compiledTitle}
         </h3>
-        <span style={iconColor ? { color: iconColor } : undefined}>
+        <span
+          style={effectiveIconColor ? { color: effectiveIconColor } : undefined}
+        >
           <IconComponent
             className={twMerge(
               "h-5 w-5",
-              iconColor ? "" : "text-gray-500 dark:text-gray-400"
+              effectiveIconColor ? "" : "text-gray-500 dark:text-gray-400"
             )}
           />
         </span>
@@ -247,7 +295,9 @@ export function Dashlet({
       <div className="flex flex-1 flex-col justify-center px-4 py-4">
         <p
           className="text-3xl font-bold text-gray-900 dark:text-white"
-          style={valueColor ? { color: valueColor } : undefined}
+          style={
+            effectiveValueColor ? { color: effectiveValueColor } : undefined
+          }
         >
           {compiledValue}
         </p>

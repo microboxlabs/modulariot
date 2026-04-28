@@ -2,12 +2,25 @@
 
 import { HiArrowTrendingUp } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { PgrestDashletFields } from "../common";
-import { useDashletPgrest, DashletLoading, DashletError, parseResolvedNumber } from "../common";
+import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
+import { useDashletPgrest } from "../common/use-dashlet-pgrest";
+import {
+  DashletLoading,
+  DashletError,
+  parseResolvedNumber,
+} from "../common/dashlet-states";
+import {
+  evaluateColorRulesWithFields,
+  hexToRgba,
+  getBadgeClasses as getStatBadgeClasses,
+  getConditionalClasses,
+} from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
-import { getThresholdTextClasses, getThresholdBgClasses, getThresholdBarClass } from "../common/threshold-engine";
-import type { ThresholdConfig } from "../common/threshold-types";
+import type {
+  ValueColorRulesConfig,
+  ValueColorRule,
+} from "./value-color-rules";
+import { normalizeValueColorRulesConfig } from "./value-color-rules";
 
 // ============================================================================
 // Configuration Types
@@ -20,7 +33,8 @@ export interface DashletConfig extends PgrestDashletFields {
   unit: string;
   description: string;
   target: string;
-  thresholds?: ThresholdConfig;
+  /** Value-based color rules for text, bar, and badge */
+  valueColorRules?: ValueColorRulesConfig;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -41,18 +55,42 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
-const FIELD_DEFAULTS: Record<string, string> = { title: "Monthly Revenue", value: "84500", previousValue: "72000", unit: "$", description: "Total monthly revenue across all products", target: "100000" };
+const FIELD_DEFAULTS: Record<string, string> = {
+  title: "Monthly Revenue",
+  value: "84500",
+  previousValue: "72000",
+  unit: "$",
+  description: "Total monthly revenue across all products",
+  target: "100000",
+};
 
-function getChangeBadgeClasses(
-  thresholdColor: import("../common/color-rule-types").RuleColor | null,
-  appliesTo: (target: import("../common/threshold-types").ThresholdTarget) => boolean,
-  isPositive: boolean,
-): string {
-  if (thresholdColor && appliesTo("icon")) {
-    return `${getThresholdBgClasses(thresholdColor)} ${getThresholdTextClasses(thresholdColor)}`;
-  }
-  if (isPositive) return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-  return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+// ============================================================================
+// Color Rules Helpers
+// ============================================================================
+
+const TARGET_KEYS = ["text", "bar", "badge"] as const;
+type TargetKey = (typeof TARGET_KEYS)[number];
+
+function evaluateColorRules(
+  rules: ValueColorRule[],
+  evalValue: string,
+  fieldValues: Record<string, number>
+): {
+  textColor: string | undefined;
+  barColor: string | undefined;
+  badgeColor: string | undefined;
+} {
+  const colors = evaluateColorRulesWithFields<TargetKey, ValueColorRule>(
+    rules,
+    evalValue,
+    fieldValues,
+    [...TARGET_KEYS]
+  );
+  return {
+    textColor: colors.text,
+    barColor: colors.bar,
+    badgeColor: colors.badge,
+  };
 }
 
 // ============================================================================
@@ -66,9 +104,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
-
-  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
+  const { resolved, loading, fetchError } = useDashletPgrest(
+    config,
+    FIELD_DEFAULTS,
+    refreshIntervalMs
+  );
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -82,9 +122,55 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const target = parseResolvedNumber(resolved.target);
 
   const change = value - previousValue;
-  const changePercent = previousValue === 0 ? 0 : Number(((change / previousValue) * 100).toFixed(1));
-  const progressPercent = target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
+  const changePercent =
+    previousValue === 0
+      ? 0
+      : Number(((change / previousValue) * 100).toFixed(1));
+  const progressPercent =
+    target > 0 ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
   const isPositive = change >= 0;
+
+  // Evaluate value color rules
+  const valueColorRulesConfig = normalizeValueColorRulesConfig(
+    config.valueColorRules
+  );
+
+  // Field values map for field comparison mode
+  const fieldValues: Record<string, number> = { previousValue, target };
+
+  const {
+    textColor: ruleTextColor,
+    barColor: ruleBarColor,
+    badgeColor: ruleBadgeColor,
+  } = valueColorRulesConfig.rules.length > 0
+    ? evaluateColorRules(
+        valueColorRulesConfig.rules,
+        String(value),
+        fieldValues
+      )
+    : { textColor: undefined, barColor: undefined, badgeColor: undefined };
+
+  // Build badge style and classes
+  const badgeStyle = ruleBadgeColor
+    ? {
+        backgroundColor: hexToRgba(ruleBadgeColor, 0.15),
+        color: `#${ruleBadgeColor}`,
+      }
+    : undefined;
+  const badgeClasses = getStatBadgeClasses(ruleBadgeColor, isPositive);
+
+  // Build text style
+  const textStyle = ruleTextColor ? { color: `#${ruleTextColor}` } : undefined;
+  const textClasses = getConditionalClasses(
+    !!ruleTextColor,
+    "text-gray-900 dark:text-white"
+  );
+
+  // Build bar style
+  const barStyle = ruleBarColor
+    ? { backgroundColor: `#${ruleBarColor}` }
+    : undefined;
+  const barClasses = getConditionalClasses(!!ruleBarColor, "bg-blue-500");
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -94,13 +180,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {title}
           </p>
-          <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
+          <p
+            className={`mt-1 text-3xl font-bold ${textClasses}`}
+            style={textStyle}
+          >
             {unit}
             {value.toLocaleString()}
           </p>
         </div>
         <div
-          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${getChangeBadgeClasses(thresholdColor, appliesTo, isPositive)}`}
+          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${badgeClasses}`}
+          style={badgeStyle}
         >
           <HiArrowTrendingUp
             className={`h-3 w-3 ${!isPositive && "rotate-180"}`}
@@ -126,8 +216,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </div>
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
           <div
-            className={`h-full rounded-full ${thresholdColor && appliesTo("background") ? getThresholdBarClass(thresholdColor) : "bg-blue-500"} transition-all`}
-            style={{ width: `${progressPercent}%` }}
+            className={`h-full rounded-full ${barClasses} transition-all`}
+            style={{ width: `${progressPercent}%`, ...barStyle }}
           />
         </div>
         <p className="mt-1 text-xs text-gray-400">

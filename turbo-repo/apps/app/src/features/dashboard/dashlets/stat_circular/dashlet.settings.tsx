@@ -1,28 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import { defaultConfig } from "./dashlet";
-import {
-  HbTextField,
-  SettingsFieldGrid,
-  useDataProvider,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  DataProviderEntries,
-  useThresholdSettings,
-  ThresholdEditor,
-} from "../common";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { defaultConfig, DEFAULT_BAR_COLOR } from "./dashlet";
+import { HbTextField, SettingsFieldGrid } from "../common/settings-fields";
+import { useDataProvider } from "../common/use-data-provider";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { DataProviderEntries } from "../common/data-provider-entries";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
 import { tr } from "@/features/i18n/tr.service";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import {
+  useRingColorSettings,
+  RingColorRulesEditor,
+} from "./value-color-rules";
 
 export function DashletSettings({
   isOpen,
@@ -31,6 +31,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -61,7 +62,8 @@ export function DashletSettings({
   );
 
   const dp = useDataProvider(config.dataProvider ?? []);
-  const threshold = useThresholdSettings(config);
+  const ringColorRules = useRingColorSettings(config);
+  const [ringColor, setRingColor] = useState(config.ringColor ?? "3b82f6");
 
   const pg = usePgrestSettingsState({
     ...buildSimplePgrestConfig(
@@ -78,12 +80,30 @@ export function DashletSettings({
       ? schemas.get(plannerVariableName)
       : undefined;
 
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    value,
+    maxValue,
+    unit,
+    ringColor,
+    dataMode,
+    dpEntries: dp.dataProvider,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
+    ringColorRulesState: ringColorRules.rules,
+  });
+
   const handleSave = () => {
     onSave({
       title,
       value,
       maxValue,
       unit,
+      barColor: config.barColor ?? DEFAULT_BAR_COLOR,
       dataMode,
       pgrestFunctionName: pg.pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
@@ -92,8 +112,9 @@ export function DashletSettings({
       plannerVariableName:
         dataMode === "planner" ? plannerVariableName : undefined,
       dataProvider: dp.getCleanEntries(),
+      ringColor,
       ...refresh.savePayload,
-      ...threshold.buildThresholdSavePayload(),
+      ...ringColorRules.buildSavePayload(),
     });
     onClose();
   };
@@ -139,18 +160,23 @@ export function DashletSettings({
           schemaSuggestions={schemaSuggestions}
         />
       </SettingsFieldGrid>
-      <ThresholdEditor
-        enabled={threshold.thresholdEnabled}
-        onToggle={threshold.setThresholdEnabled}
-        field={threshold.thresholdField}
-        onFieldChange={threshold.setThresholdField}
-        applyTo={threshold.thresholdApplyTo}
-        onApplyToChange={threshold.setThresholdApplyTo}
-        rules={threshold.thresholdRules}
-        onAdd={threshold.addThresholdRule}
-        onRemove={threshold.removeThresholdRule}
-        onUpdate={threshold.updateThresholdRule}
-        schemaSuggestions={schemaSuggestions}
+      {/* Ring color picker */}
+      <div className="mt-3 flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+        <Label className="text-sm font-medium">
+          {tr("dashboard.settings.ringColor", dictionary)}
+        </Label>
+        <AdvancedColorPicker
+          value={ringColor}
+          onChange={setRingColor}
+          title={tr("dashboard.settings.selectColor", dictionary)}
+        />
+      </div>
+      <RingColorRulesEditor
+        rules={ringColorRules.rules}
+        dictionary={dictionary}
+        onAdd={ringColorRules.addRule}
+        onRemove={ringColorRules.removeRule}
+        onUpdate={ringColorRules.updateRule}
       />
     </>
   );
@@ -176,15 +202,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

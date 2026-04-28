@@ -1423,6 +1423,41 @@ export async function deleteDashboardConfigClient(
   }
 }
 
+/**
+ * SWR hook for the current user's capabilities on a dashboard node.
+ * Drives UI gating for edit mode and the settings dropdown.
+ */
+export type DashboardAccess = {
+  canEdit: boolean;
+  canManagePermissions: boolean;
+};
+
+export function useDashboardAccess(
+  site: string | null | undefined,
+  slug: string | null | undefined
+) {
+  const key =
+    site && slug
+      ? `/app/api/dashboard/${encodeURIComponent(site)}/${encodeURIComponent(slug)}/access`
+      : null;
+
+  const { data, error, isLoading } = useSWR<DashboardAccess, FetcherError>(
+    key,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  return {
+    canEdit: data?.canEdit ?? false,
+    canManagePermissions: data?.canManagePermissions ?? false,
+    isLoading,
+    error,
+  };
+}
+
 // ============================================================================
 // Calendar Hooks
 // ============================================================================
@@ -1723,9 +1758,9 @@ const BookingListResponseSchema = z.object({
       calendarId: z.string(),
       resource: z.object({
         id: z.string(),
-        type: z.string().optional(),
-        label: z.string().optional(),
-        data: z.record(z.string(), z.unknown()).optional(),
+        type: z.string().nullable().optional(),
+        label: z.string().nullable().optional(),
+        data: z.record(z.string(), z.unknown()).nullable().optional(),
       }),
       slot: z
         .object({
@@ -1735,7 +1770,7 @@ const BookingListResponseSchema = z.object({
         })
         .nullable(),
       createdAt: z.string(),
-      createdBy: z.string().optional(),
+      createdBy: z.string().nullable().optional(),
     })
   ),
   total: z.number(),

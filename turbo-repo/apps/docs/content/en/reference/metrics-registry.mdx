@@ -244,6 +244,7 @@ For heavy-duty vehicles (trucks, buses) with J1939 ECUs, the following extension
 | Key | Type | Unit | Typical Range | J1939 SPN | Description |
 |-----|------|------|---------------|-----------|-------------|
 | `x.adblue.level` | NUMBER | % | 0–100 | 1761 | DEF tank level percentage |
+| `x.adblue.volume` | NUMBER | L | 0–∞ | — | DEF tank volume (alternative to `level` when tank capacity is unknown) |
 | `x.adblue.rate` | NUMBER | L/h | 0–50 | 3031 | DEF consumption rate |
 | `x.adblue.temp` | NUMBER | °C | -40–100 | 3532 | DEF tank temperature |
 | `x.adblue.quality` | NUMBER | % | 0–100 | 1762 | DEF concentration / quality |
@@ -256,6 +257,7 @@ For heavy-duty vehicles (trucks, buses) with J1939 ECUs, the following extension
 | `x.dpf.inlet_temp` | NUMBER | °C | 0–800 | 3242 | Exhaust temp before filter |
 | `x.dpf.outlet_temp` | NUMBER | °C | 0–800 | 3246 | Exhaust temp after filter |
 | `x.dpf.soot_load` | NUMBER | % | 0–100 | 3720 | Soot accumulation level |
+| `x.dpf.soot_density` | NUMBER | g/L | 0–15 | — | Soot mass per liter of filter volume (raw, alternative to `soot_load` when the OEM regen threshold is unknown) |
 | `x.dpf.regen_state` | BOOLEAN | — | true/false | 3695 | Active regeneration in progress |
 | `x.dpf.regen_count` | NUMBER | count | 0–∞ | 3700 | Cumulative regeneration cycles |
 
@@ -267,9 +269,11 @@ For heavy-duty vehicles (trucks, buses) with J1939 ECUs, the following extension
   "items": [
     { "k": "engine.rpm", "v": 1850, "u": "rpm", "src": "j1939", "q": "ok" },
     { "k": "x.adblue.level", "v": 72.5, "u": "%", "src": "j1939", "q": "ok" },
+    { "k": "x.adblue.volume", "v": 48.2, "u": "L", "src": "j1939", "q": "ok" },
     { "k": "x.adblue.rate", "v": 1.2, "u": "L/h", "src": "j1939", "q": "ok" },
     { "k": "x.dpf.differential_pressure", "v": 12.3, "u": "kPa", "src": "j1939", "q": "ok" },
     { "k": "x.dpf.soot_load", "v": 45, "u": "%", "src": "j1939", "q": "ok" },
+    { "k": "x.dpf.soot_density", "v": 6.4, "u": "g/L", "src": "j1939", "q": "ok" },
     { "k": "x.dpf.regen_state", "v": false, "src": "j1939", "q": "ok" }
   ]
 }

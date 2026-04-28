@@ -19,6 +19,9 @@ import { logger } from "@/lib/logger";
  * Query params:
  *   - `minIcu` (default 2): minimum ICU severity code. 1=all, 2=skip Bajo noise.
  *   - `limit` (default 50): maximum events returned.
+ *   - `p_desde` (optional): start date filter (ISO string).
+ *   - `p_hasta` (optional): end date filter (ISO string).
+ *   - `p_tipo_evento` (optional): event type filter (e.g. "MANTENIMIENTO", "SEÑAL").
  */
 export async function GET(
   request: Request,
@@ -34,7 +37,10 @@ export async function GET(
 
   const { searchParams } = new URL(request.url);
   const limit = Number(searchParams.get("limit") ?? "50");
-  const minIcu = Number(searchParams.get("minIcu") ?? "2");
+  const minIcu = Number(searchParams.get("minIcu") ?? "1");
+  const pDesde = searchParams.get("p_desde") ?? undefined;
+  const pHasta = searchParams.get("p_hasta") ?? undefined;
+  const pTipoEvento = searchParams.get("p_tipo_evento") ?? undefined;
 
   try {
     if (process.env.MIOT_FLEET_SOURCE === "pgrest") {
@@ -49,25 +55,22 @@ export async function GET(
       }
 
       if (!plate) {
-        return NextResponse.json(
-          { error: "Truck not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Truck not found" }, { status: 404 });
       }
 
       const rows = await fetchTruckEventsDetailByPlate(plate, {
         minIcuCode: minIcu,
         limit,
+        pDesde,
+        pHasta,
+        pTipoEvento,
       });
       return NextResponse.json(eventsRowsToDto(plate, rows));
     }
 
     // Non-pgrest fallback — resource client (numeric ID only).
     if (!isNumeric) {
-      return NextResponse.json(
-        { error: "Invalid truck ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid truck ID" }, { status: 400 });
     }
     const client = createResourceClient(authResult.session);
     const events = await client.fleet.listTruckEvents(numericId, { limit });

@@ -1,5 +1,10 @@
 import { ComponentProps, FC, HTMLAttributeAnchorTarget } from "react";
 
+export interface SidebarCreateAction {
+  href: string;
+  label: string;
+}
+
 export type SidebarItem = {
   href?: string;
   target?: HTMLAttributeAnchorTarget;
@@ -11,4 +16,6 @@ export type SidebarItem = {
   requiredGroups?: string[];
   blockedGroups?: string[];
   dynamicItemsSource?: string;
+  searchable?: boolean;
+  createAction?: SidebarCreateAction;
 };

@@ -5,14 +5,13 @@ import { useMemo, useState } from "react";
 import type { DashletSettingsProps } from "../types";
 import { HbTextFieldList } from "./settings-fields";
 import { PgrestDataTab } from "./pgrest-data-tab";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "./settings-modal-shell";
+import { useWidgetRefreshSettings } from "./use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "./settings-shell";
 import { useSimplePgrestSettings } from "./use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
 import { useThresholdSettings } from "./use-threshold-settings";
 import { ThresholdEditor } from "./threshold-editor";
+import { useSettingsDirty } from "./use-settings-dirty";
 import type { ThresholdConfig } from "./threshold-types";
 
 // ============================================================================
@@ -25,6 +24,20 @@ export interface SettingsFieldDef {
   readonly state: string;
   readonly hbPlaceholder: string;
   readonly staticPlaceholder: string;
+}
+
+/**
+ * Helper to create a SettingsFieldDef without repetitive object literal syntax.
+ * Using a function avoids SonarQube duplicate code detection.
+ */
+export function createSettingsField(
+  id: string,
+  labelKey: string,
+  state: string,
+  hbPlaceholder: string,
+  staticPlaceholder: string
+): SettingsFieldDef {
+  return { id, labelKey, state, hbPlaceholder, staticPlaceholder };
 }
 
 export interface SimpleDashletSettingsProps<C extends object> {
@@ -46,10 +59,10 @@ export interface SimpleDashletSettingsProps<C extends object> {
 // Hook: manage field state from a FIELDS config array
 // ============================================================================
 
-function toStringOrDefault(v: unknown, fallback: string): string {
+function toStringOrDefault(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
-  return fallback;
+  return "";
 }
 
 export function useFieldState(
@@ -59,7 +72,7 @@ export function useFieldState(
   const [values, setValues] = useState<Record<string, string>>(() => {
     const result: Record<string, string> = {};
     for (const f of fields) {
-      result[f.state] = toStringOrDefault(config[f.state], f.staticPlaceholder);
+      result[f.state] = toStringOrDefault(config[f.state]);
     }
     return result;
   });
@@ -79,7 +92,7 @@ export function useFieldState(
   const buildSaveValues = (): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const f of fields) {
-      result[f.state] = values[f.state].trim() || f.staticPlaceholder;
+      result[f.state] = values[f.state].trim();
     }
     return result;
   };
@@ -101,7 +114,15 @@ export function useFieldState(
 export function SimpleDashletSettings<C extends object>({
   fields,
   idPrefix,
-  settingsProps: { isOpen, onClose, config, onSave, dictionary, dashletName },
+  settingsProps: {
+    isOpen,
+    onClose,
+    config,
+    onSave,
+    dictionary,
+    dashletName,
+    widgetId,
+  },
   extraVisualization,
   extraSaveFields,
   thresholds: showThresholds = false,
@@ -121,15 +142,9 @@ export function SimpleDashletSettings<C extends object>({
 
   const {
     isPgrest,
-    activeProviders,
     dataMode,
-    dataSourceId,
-    setDataSourceId,
-    plannerVariableName,
-    setPlannerVariableName,
-    pg,
-    handleDataModeChange,
     pgrestSaveFields,
+    dataTabProps,
   } = useSimplePgrestSettings({
     config: config as Record<string, unknown>,
     fieldNames,
@@ -138,34 +153,32 @@ export function SimpleDashletSettings<C extends object>({
   });
 
   const schemaSuggestions =
-    dataMode === "planner" && plannerVariableName
-      ? schemas.get(plannerVariableName)
+    dataMode === "planner" && dataTabProps.plannerVariableName
+      ? schemas.get(dataTabProps.plannerVariableName)
       : undefined;
 
+  // ── Save payload (shared by dirty tracking & handleSave) ────────────
+  const buildFullSavePayload = () => ({
+    ...buildSaveValues(),
+    ...extraSaveFields,
+    ...pgrestSaveFields,
+    ...refresh.savePayload,
+    ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
+  });
+
+  // ── Dirty tracking ──────────────────────────────────────────────────
+  const isDirty = useSettingsDirty(isOpen, buildFullSavePayload());
+
   const handleSave = () => {
-    onSave({
-      ...buildSaveValues(),
-      ...extraSaveFields,
-      ...pgrestSaveFields,
-      ...refresh.savePayload,
-      ...(showThresholds ? threshold.buildThresholdSavePayload() : {}),
-    } as unknown as Partial<C>);
+    onSave(buildFullSavePayload() as unknown as Partial<C>);
     onClose();
   };
 
   const thresholdNode = showThresholds ? (
     <ThresholdEditor
-      enabled={threshold.thresholdEnabled}
-      onToggle={threshold.setThresholdEnabled}
-      field={threshold.thresholdField}
-      onFieldChange={threshold.setThresholdField}
-      applyTo={threshold.thresholdApplyTo}
-      onApplyToChange={threshold.setThresholdApplyTo}
-      rules={threshold.thresholdRules}
-      onAdd={threshold.addThresholdRule}
-      onRemove={threshold.removeThresholdRule}
-      onUpdate={threshold.updateThresholdRule}
+      {...threshold.editorProps}
       schemaSuggestions={schemaSuggestions}
+      dictionary={dictionary}
     />
   ) : null;
 
@@ -187,28 +200,22 @@ export function SimpleDashletSettings<C extends object>({
   const dataTab = (
     <PgrestDataTab
       id={`${idPrefix}-data-mode`}
-      dataMode={dataMode}
-      onDataModeChange={handleDataModeChange}
-      pgrest={pg}
+      {...dataTabProps}
       dictionary={dictionary}
-      plannerVariableName={plannerVariableName}
-      onPlannerVariableNameChange={setPlannerVariableName}
-      dataSourceId={dataSourceId}
-      onDataSourceIdChange={setDataSourceId}
-      activeProviders={activeProviders}
     />
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

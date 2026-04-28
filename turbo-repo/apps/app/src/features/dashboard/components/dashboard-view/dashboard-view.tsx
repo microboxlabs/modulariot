@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import { Button, ToggleSwitch } from "flowbite-react";
 import {
   HiPlus,
@@ -15,19 +21,60 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import Link from "next/link";
-import { useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname, useParams } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
+import { useDashboardAccess } from "@/features/common/providers/client-api.provider";
 import { EmptyState } from "../empty-state";
+
+// ── Placeholder (skeleton or empty state) ──────────────────────────────
+
+interface DashboardPlaceholderProps {
+  isLoaded: boolean;
+  onAdd?: () => void;
+}
+
+function DashboardPlaceholder({
+  isLoaded,
+  onAdd,
+}: Readonly<DashboardPlaceholderProps>) {
+  if (isLoaded) {
+    return <EmptyState onAdd={onAdd} />;
+  }
+  return (
+    <div
+      className="grid gap-4"
+      style={{
+        gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+        gridAutoRows: "minmax(150px, 1fr)",
+      }}
+    >
+      <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-16 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+      <div className="col-span-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+    </div>
+  );
+}
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
-import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
-import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
-import "react-grid-layout/css/styles.css";
+/**
+ * Fixed grid width (px) calibrated for a 1080p screen (1920px viewport
+ * minus sidebar and padding). The grid always renders at this width and
+ * CSS-scales to match the actual container: scale < 1 on smaller screens,
+ * scale > 1 on larger ones.
+ */
+const DESIGN_WIDTH = 1600;
+import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
+import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
+import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
 
 /**
  * Main dashboard view component
@@ -40,8 +87,11 @@ export function DashboardView() {
     isKiosk,
     isLoaded,
     dashboardName,
+    setDashboardName,
     dictionary,
+    siteId,
     toggleEditMode,
+    setEditMode,
     updateWidgetLayouts,
     undo,
     redo,
@@ -50,6 +100,20 @@ export function DashboardView() {
   } = useDashboard();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const params = useParams<{ slug: string }>();
+
+  const { canEdit, canManagePermissions } = useDashboardAccess(
+    siteId,
+    params.slug
+  );
+
+  // Force edit mode off for read-only users so they can never accidentally
+  // stay in edit mode if their role was downgraded mid-session.
+  useEffect(() => {
+    if (!canEdit && editMode) {
+      setEditMode(false);
+    }
+  }, [canEdit, editMode, setEditMode]);
 
   const kioskUrl = useMemo(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -58,41 +122,125 @@ export function DashboardView() {
   }, [searchParams, pathname]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
+
+  // Inline name editing
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(dashboardName);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setEditedName(dashboardName);
+  }, [dashboardName]);
+
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  const handleNameClick = useCallback(() => {
+    if (editMode) {
+      setIsEditingName(true);
+    }
+  }, [editMode]);
+
+  const handleNameSave = useCallback(() => {
+    const trimmed = editedName.trim();
+    if (!trimmed) {
+      setEditedName(dashboardName);
+    } else if (trimmed !== dashboardName) {
+      setDashboardName(trimmed);
+    }
+    setIsEditingName(false);
+  }, [editedName, dashboardName, setDashboardName]);
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        handleNameSave();
+      } else if (e.key === "Escape") {
+        setEditedName(dashboardName);
+        setIsEditingName(false);
+      }
+    },
+    [handleNameSave, dashboardName]
+  );
+
+  const renderDashboardName = () => {
+    if (isEditingName) {
+      return (
+        <input
+          ref={nameInputRef}
+          type="text"
+          value={editedName}
+          onChange={(e) => setEditedName(e.target.value)}
+          onBlur={handleNameSave}
+          onKeyDown={handleNameKeyDown}
+          className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white bg-transparent border-0 border-b-2 border-blue-500 outline-none px-0 py-0 min-w-[120px]"
+        />
+      );
+    }
+
+    if (editMode) {
+      return (
+        <button
+          type="button"
+          className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white cursor-text border-b border-transparent hover:border-dashed hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-transparent p-0"
+          onClick={handleNameClick}
+        >
+          {dashboardName}
+        </button>
+      );
+    }
+
+    return (
+      <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
+        {dashboardName}
+      </h1>
+    );
+  };
 
   // Measure container width reactively
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {      
+    if (!container) {
       return;
     }
 
-    const updateWidth = () => {
-      const width = container.offsetWidth;
-      if (width > 0) {
-        setContainerWidth(width);
-      }
+    const updateScale = (width: number) => {
+      if (!gridRef.current || !clipRef.current) return;
+      const scale = width > 0 ? width / DESIGN_WIDTH : 1;
+      gridRef.current.style.transform = `scale(${scale})`;
+      clipRef.current.style.width = `${width}px`;
     };
 
-    // Initial measurement after a small delay to ensure layout is complete
-    requestAnimationFrame(updateWidth);
+    // Initial measurement after layout is complete
+    requestAnimationFrame(() => {
+      const style = getComputedStyle(container);
+      const px =
+        Number.parseFloat(style.paddingLeft) +
+        Number.parseFloat(style.paddingRight);
+      const width = container.clientWidth - px;
+      if (width > 0) {
+        updateScale(width);
+      }
+    });
 
-    // Use ResizeObserver for reactive updates
+    // Use ResizeObserver — mutate DOM directly, no React state.
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerWidth(entry.contentRect.width);
+        updateScale(entry.contentRect.width);
       }
     });
 
     resizeObserver.observe(container);
 
-    // Also listen to window resize as fallback
-    window.addEventListener("resize", updateWidth);
-
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateWidth);
     };
   }, [isLoaded]); // Re-run when isLoaded changes
 
@@ -165,29 +313,22 @@ export function DashboardView() {
     [updateWidgetLayouts, editMode, widgets]
   );
 
-  // Show loading state while data loads from localStorage
-  if (!isLoaded) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-      </div>
-    );
-  }
-
-  const hasWidgets = widgets.length > 0;
+  const hasWidgets = isLoaded && widgets.length > 0;
 
   return (
-    <div className="w-full">
+    <div className="flex h-full w-full flex-col">
       {/* Portal: renders DashboardFilterBar into the navbar search slot */}
       {!isKiosk && <DashboardNavbarPortal />}
 
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
-        <div className="-mx-4 -mt-4 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between gap-4 p-4">
-            <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
-              {dashboardName}
-            </h1>
+            {isLoaded ? (
+              renderDashboardName()
+            ) : (
+              <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+            )}
             <div className="flex shrink-0 items-center gap-4">
               {editMode && (
                 <div className="flex items-center gap-1">
@@ -211,14 +352,19 @@ export function DashboardView() {
                   </Button>
                 </div>
               )}
-              {hasWidgets && (
+              {hasWidgets && canEdit && (
                 <ToggleSwitch
                   checked={editMode}
                   onChange={toggleEditMode}
                   label={tr("dashboard.editMode", dictionary)}
                 />
               )}
-              <DashboardSettingsDropdown />
+              {canEdit && (
+                <DashboardSettingsDropdown
+                  canManagePermissions={canManagePermissions}
+                />
+              )}
+              <DashboardShareDropdown />
               <Link
                 href={kioskUrl}
                 target="_blank"
@@ -233,57 +379,71 @@ export function DashboardView() {
       )}
 
       {/* Content */}
-      <div ref={containerRef} className="w-full min-h-[200px] max-w-screen-2xl mx-auto">
-        {hasWidgets ? (
-          <>
-            {/* Root-level grid - only render when width is measured */}
-            {containerWidth > 0 ? (
-              <GridLayout
-                className="dashboard-root-grid w-full"
-                layout={layout}
-                width={containerWidth}
-                gridConfig={{
-                  cols: GRID_COLS,
-                  rowHeight: 55,
-                  margin: [16, 16] as const,
-                  containerPadding: [0, 16] as const,
-                  maxRows: Infinity,
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+        <div
+          ref={containerRef}
+          className="w-full min-h-full max-w-screen-2xl mx-auto"
+        >
+          {hasWidgets ? (
+            <div ref={clipRef} style={{ overflow: "visible" }}>
+              <div
+                style={{
+                  width: DESIGN_WIDTH,
+                  transformOrigin: "top left",
                 }}
-                dragConfig={{
-                  enabled: editMode,
-                  cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
-                }}
-                resizeConfig={{
-                  enabled: editMode,
-                  handles: ["se"],
-                }}
-                compactor={verticalCompactor}
-                onLayoutChange={handleLayoutChange}
-                autoSize={true}
+                ref={gridRef}
               >
-                {widgets.map((widget) => (
-                  <div key={widget.id} className="h-full w-full">
-                    <WidgetRenderer widget={widget} isRoot={true} />
-                  </div>
-                ))}
-              </GridLayout>
-            ) : (
-              <div className="text-gray-500">Measuring container width...</div>
-            )}
+                <GridLayout
+                  className="dashboard-root-grid w-full"
+                  layout={layout}
+                  width={DESIGN_WIDTH}
+                  gridConfig={{
+                    cols: GRID_COLS,
+                    rowHeight: 55,
+                    margin: [16, 16] as const,
+                    containerPadding: [0, 0] as const,
+                    maxRows: Infinity,
+                  }}
+                  dragConfig={{
+                    enabled: editMode,
+                    cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
+                  }}
+                  resizeConfig={{
+                    enabled: editMode,
+                    handles: ["se"],
+                  }}
+                  compactor={verticalCompactor}
+                  onLayoutChange={handleLayoutChange}
+                  autoSize={true}
+                >
+                  {widgets.map((widget) => (
+                    <div key={widget.id} className="h-full w-full">
+                      <WidgetRenderer widget={widget} isRoot={true} />
+                    </div>
+                  ))}
+                </GridLayout>
 
-            {/* Add new widget button */}
-            {editMode && (
-              <div className=" flex justify-center">
-                <Button color="light" onClick={() => setIsAddModalOpen(true)}>
-                  <HiPlus className="mr-2 h-4 w-4" />
-                  Add Widget
-                </Button>
+                {/* Add new widget button */}
+                {editMode && (
+                  <div className="flex justify-center">
+                    <Button
+                      color="light"
+                      onClick={() => setIsAddModalOpen(true)}
+                    >
+                      <HiPlus className="mr-2 h-4 w-4" />
+                      {tr("dashboard.addWidget", dictionary)}
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </>
-        ) : (
-          <EmptyState onAdd={() => setIsAddModalOpen(true)} />
-        )}
+            </div>
+          ) : (
+            <DashboardPlaceholder
+              isLoaded={isLoaded}
+              onAdd={canEdit ? () => setIsAddModalOpen(true) : undefined}
+            />
+          )}
+        </div>
       </div>
 
       {/* Add widget modal */}
@@ -347,6 +507,7 @@ export function DashboardView() {
           opacity: 0;
           transition: opacity 0.15s ease;
           transform: none !important;
+          z-index: 60;
         }
 
         .dashboard-root-grid .react-grid-item > .react-resizable-handle::after {

@@ -8,8 +8,11 @@ import {
   useMemo,
   useEffect,
   useRef,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -25,6 +28,7 @@ import {
   listBookings,
   updateServiceCategory,
 } from "@/features/common/providers/client-api.provider";
+import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
@@ -550,7 +554,11 @@ export const TEST_SERVICE: SelectedService = TEST_SERVICES[0];
  */
 export interface SelectedService {
   id: string;
+  /** Alfresco workflow task id used for task formprocessor updates. */
+  taskId?: string;
   cliente: string;
+  mintral_clientRut?: string;
+  mintral_delegacionOrigen?: string;
   origen: string;
   lugarCarguio: string;
   destino: string;
@@ -576,6 +584,16 @@ export interface SelectedService {
   assignedDriver?: string;
   /** Secondary driver assigned to this service (frontend-only for now) */
   assignedDriver2?: string;
+  /**
+   * Accredited-resources `carrier_id` chosen in the Asignación tab. Persisted
+   * on the booking payload so reopening the sidebar for a planned service
+   * hydrates the dropdowns with the previously confirmed selection.
+   */
+  assignedCarrier?: string;
+  /** Accredited-resources TRUCK `resource_id` assigned in the Asignación tab. */
+  assignedTruck?: string;
+  /** Assigned trailer id — placeholder until the trailer feed is wired. */
+  assignedTrailer?: string;
 }
 
 /**
@@ -600,6 +618,136 @@ export interface ReassigningService {
  */
 export interface AssigningService {
   service: PlannedService;
+}
+
+async function cancelBookingWithWarning(
+  bookingId: string,
+  message: string
+): Promise<void> {
+  await cancelBooking(bookingId).catch((err) => console.warn(message, err));
+}
+
+async function syncServiceCategoryWithWorkflow(
+  service: SelectedService,
+  bookingId: string
+): Promise<void> {
+  if (!service.serviceCategory) {
+    return;
+  }
+
+  if (!service.taskId) {
+    await cancelBookingWithWarning(
+      bookingId,
+      "Failed to cancel booking after missing task id:"
+    );
+    throw new Error("Missing Alfresco task id for service category");
+  }
+
+  try {
+    await updateServiceCategory(service.taskId, service.serviceCategory);
+  } catch (err) {
+    await cancelBookingWithWarning(
+      bookingId,
+      "Failed to cancel booking after service category update error:"
+    );
+    throw err;
+  }
+}
+
+interface PersistPlannedBookingParams {
+  calendarId?: string;
+  service: SelectedService;
+  slot: SelectedSlot;
+  oldBookingId?: string;
+  originalPlannedService: PlannedService | null;
+  setBookingIds: Dispatch<SetStateAction<Map<string, string>>>;
+  setBookingVersion: Dispatch<SetStateAction<number>>;
+  setPlannedServices: Dispatch<SetStateAction<PlannedService[]>>;
+  refreshSlots: () => void;
+}
+
+function buildBookingRequest(
+  calendarId: string,
+  service: SelectedService,
+  slot: SelectedSlot
+): BookingRequest {
+  return {
+    calendarId,
+    resource: {
+      id: service.id,
+      type: "service",
+      label: service.cliente,
+      data: {
+        ...service,
+        ...(slot.anden === undefined ? {} : { _anden: slot.anden }),
+      },
+    },
+    slot: {
+      date: dayjs(slot.date).format("YYYY-MM-DD"),
+      hour: slot.hour,
+      minutes: slot.minutes,
+    },
+  };
+}
+
+function rollbackPlannedService(
+  setPlannedServices: Dispatch<SetStateAction<PlannedService[]>>,
+  serviceId: string,
+  originalPlannedService: PlannedService | null
+): void {
+  setPlannedServices((prev) => {
+    const withoutNew = prev.filter((p) => p.service.id !== serviceId);
+    return originalPlannedService
+      ? [...withoutNew, originalPlannedService]
+      : withoutNew;
+  });
+}
+
+async function persistPlannedBooking({
+  calendarId,
+  service,
+  slot,
+  oldBookingId,
+  originalPlannedService,
+  setBookingIds,
+  setBookingVersion,
+  setPlannedServices,
+  refreshSlots,
+}: PersistPlannedBookingParams): Promise<void> {
+  if (!calendarId) {
+    return;
+  }
+
+  try {
+    const booking = await createBooking(
+      buildBookingRequest(calendarId, service, slot)
+    );
+    await syncServiceCategoryWithWorkflow(service, booking.id);
+
+    setBookingIds((prev) => {
+      const next = new Map(prev);
+      next.set(service.id, booking.id);
+      return next;
+    });
+
+    if (oldBookingId) {
+      await cancelBookingWithWarning(
+        oldBookingId,
+        "Failed to cancel old booking:"
+      );
+    }
+
+    refreshSlots();
+    setBookingVersion((v) => v + 1);
+  } catch (err) {
+    console.warn("Failed to create booking:", err);
+    rollbackPlannedService(
+      setPlannedServices,
+      service.id,
+      originalPlannedService
+    );
+    throw err;
+  }
 }
 
 interface PlanningSelectionContextType {
@@ -661,11 +809,30 @@ interface PlanningSelectionContextType {
   startAssignment: (plannedService: PlannedService) => void;
   /** Cancel assignment-only mode */
   cancelAssignment: () => void;
-  /** Update driver assignments on a planned service (client-side only) */
-  updateServiceDrivers: (
+  /**
+   * Open the sidebar in view-only mode for an already-planned service. Sets
+   * the service and slot without entering reassign/assign mode — the form
+   * renders the existing values and suppresses its action buttons.
+   */
+  viewPlannedService: (plannedService: PlannedService) => void;
+  /**
+   * Patch the assignment tuple (carrier/drivers/truck/trailer) on a planned
+   * service. Any omitted field is left untouched; passing `undefined`
+   * explicitly clears that slot. Client-side only — persistence travels on
+   * the next `confirmService` call via `StoredServiceSchema`.
+   */
+  updateServiceAssignment: (
     serviceId: string,
-    assignedDriver?: string,
-    assignedDriver2?: string
+    patch: Partial<
+      Pick<
+        SelectedService,
+        | "assignedCarrier"
+        | "assignedDriver"
+        | "assignedDriver2"
+        | "assignedTruck"
+        | "assignedTrailer"
+      >
+    >
   ) => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
@@ -688,6 +855,9 @@ const MAX_SERVICES_PER_SLOT = 99;
  */
 const StoredServiceSchema = z
   .object({
+    mintral_clientRut: z.string().optional(),
+    mintral_delegacionOrigen: z.string().optional(),
+    taskId: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
@@ -717,6 +887,9 @@ const StoredServiceSchema = z
     presentationDate: z.string().optional(),
     assignedDriver: z.string().optional(),
     assignedDriver2: z.string().optional(),
+    assignedCarrier: z.string().optional(),
+    assignedTruck: z.string().optional(),
+    assignedTrailer: z.string().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -830,6 +1003,19 @@ export function PlanningSelectionProvider({
     }
   }, [apiTimeWindows, timeSlotsError]);
 
+  // The upstream bookings endpoint returns an empty list when no date range is
+  // passed, so derive a ±30-day window around the URL `date` param (the same
+  // param the week/day views consume). Stays well inside the backend's 90-day
+  // cap and covers any reasonable week navigation without refetching mid-view.
+  const searchParams = useSearchParams();
+  const bookingsRange = useMemo(() => {
+    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
+    return {
+      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
+      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
+    };
+  }, [searchParams]);
+
   // Load existing bookings from the backend when a calendar is selected.
   // An AbortController cancels the in-flight request when calendarId changes
   // or the component unmounts, preventing stale responses from overwriting state.
@@ -838,7 +1024,14 @@ export function PlanningSelectionProvider({
 
     const controller = new AbortController();
 
-    listBookings({ calendarId }, controller.signal)
+    listBookings(
+      {
+        calendarId,
+        startDate: bookingsRange.startDate,
+        endDate: bookingsRange.endDate,
+      },
+      controller.signal
+    )
       .then((result) => {
         // Discard the response if the effect was cleaned up before it resolved.
         if (controller.signal.aborted) return;
@@ -912,7 +1105,7 @@ export function PlanningSelectionProvider({
     return () => {
       controller.abort();
     };
-  }, [calendarId]);
+  }, [calendarId, bookingsRange.startDate, bookingsRange.endDate]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -1296,78 +1489,17 @@ export function PlanningSelectionProvider({
         return updated;
       });
 
-      // Create / reassign booking in the calendar backend
-      if (calendarId) {
-        // Capture the old booking ID before any state updates.
-        const oldBookingId = bookingIds.get(effectiveService.id);
-
-        try {
-          const bookingBody: BookingRequest = {
-            calendarId,
-            resource: {
-              id: effectiveService.id,
-              type: "service",
-              label: effectiveService.cliente,
-              data: {
-                ...effectiveService,
-                ...(slotToUse.anden === undefined
-                  ? {}
-                  : { _anden: slotToUse.anden }),
-              },
-            },
-            slot: {
-              date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
-              hour: slotToUse.hour,
-              minutes: slotToUse.minutes,
-            },
-          };
-
-          // Create the new booking BEFORE cancelling the old one so that a
-          // creation failure leaves the original backend booking intact.
-          const booking = await createBooking(bookingBody);
-          setBookingIds((prev) => {
-            const next = new Map(prev);
-            next.set(effectiveService.id, booking.id);
-            return next;
-          });
-
-          // Cancel the previous booking only after the new one is confirmed.
-          if (oldBookingId) {
-            await cancelBooking(oldBookingId).catch((err) =>
-              console.warn("Failed to cancel old booking:", err)
-            );
-          }
-
-          // Refresh backend slots so availability is up-to-date
-          refreshSlots();
-
-          // Bump version so the service list re-fetches (excluding newly booked)
-          setBookingVersion((v) => v + 1);
-
-          // Fire-and-forget: update Alfresco task service category
-          if (effectiveService.serviceCategory) {
-            updateServiceCategory(
-              effectiveService.id,
-              effectiveService.serviceCategory
-            ).catch((err) =>
-              console.error("Failed to update service category:", err)
-            );
-          }
-        } catch (err) {
-          console.warn("Failed to create booking:", err);
-          // Rollback local state: restore the original PlannedService on
-          // reassignment, or simply remove the new entry on a fresh assignment.
-          setPlannedServices((prev) => {
-            const withoutNew = prev.filter(
-              (p) => p.service.id !== effectiveService.id
-            );
-            return originalPlannedService
-              ? [...withoutNew, originalPlannedService]
-              : withoutNew;
-          });
-          throw err;
-        }
-      }
+      await persistPlannedBooking({
+        calendarId,
+        service: effectiveService,
+        slot: slotToUse,
+        oldBookingId: bookingIds.get(effectiveService.id),
+        originalPlannedService,
+        setBookingIds,
+        setBookingVersion,
+        setPlannedServices,
+        refreshSlots,
+      });
 
       // Always clear reassigning state after confirmation
       setReassigningService(null);
@@ -1498,27 +1630,47 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
+  // Open the sidebar to inspect a planned service without entering an edit
+  // mode. Left-clicking a chip routes here; the form reads `selectedSlot` and
+  // `selectedService`, sees no reassign/assign mode, and (when the slot is
+  // past) renders with mutations disabled.
+  const viewPlannedService = useCallback((plannedService: PlannedService) => {
+    setReassigningService(null);
+    setAssigningService(null);
+    setSelectedService(plannedService.service);
+    setSelectedSlot(plannedService.slot);
+  }, []);
+
   /**
-   * Update driver assignments on a planned service (client-side only, no backend calls)
+   * Patch a planned service's assignment tuple client-side.
+   *
+   * Any key present in `patch` — even with value `undefined` — is merged onto
+   * the service, so callers clear a slot by passing `{ assignedDriver:
+   * undefined }`. Keys absent from `patch` are untouched. No backend round-
+   * trip; persistence rides on the next `confirmService` via the extended
+   * `StoredServiceSchema`.
    */
-  const updateServiceDrivers = useCallback(
-    (serviceId: string, assignedDriver?: string, assignedDriver2?: string) => {
-      setPlannedServices((prev) => {
-        const updated = prev.map((ps) => {
-          if (ps.service.id === serviceId) {
-            return {
-              ...ps,
-              service: {
-                ...ps.service,
-                assignedDriver,
-                assignedDriver2,
-              },
-            };
-          }
-          return ps;
-        });
-        return updated;
-      });
+  const updateServiceAssignment = useCallback(
+    (
+      serviceId: string,
+      patch: Partial<
+        Pick<
+          SelectedService,
+          | "assignedCarrier"
+          | "assignedDriver"
+          | "assignedDriver2"
+          | "assignedTruck"
+          | "assignedTrailer"
+        >
+      >
+    ) => {
+      setPlannedServices((prev) =>
+        prev.map((ps) =>
+          ps.service.id === serviceId
+            ? { ...ps, service: { ...ps.service, ...patch } }
+            : ps
+        )
+      );
     },
     []
   );
@@ -1563,7 +1715,8 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      updateServiceDrivers,
+      viewPlannedService,
+      updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,
@@ -1606,7 +1759,8 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      updateServiceDrivers,
+      viewPlannedService,
+      updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
       isSlotsLoading,

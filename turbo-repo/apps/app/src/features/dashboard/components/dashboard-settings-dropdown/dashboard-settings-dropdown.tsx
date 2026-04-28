@@ -2,7 +2,14 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Button, TextInput, Textarea, FileInput, Label, Select } from "flowbite-react";
+import {
+  Button,
+  TextInput,
+  Textarea,
+  FileInput,
+  Label,
+  Select,
+} from "flowbite-react";
 import { FaGear } from "react-icons/fa6";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { HiArrowDownTray } from "react-icons/hi2";
@@ -10,17 +17,30 @@ import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ConfirmModal } from "../confirm-modal";
-import { deleteDashboardConfigClient, useUserGroups } from "@/features/common/providers/client-api.provider";
+import { deleteDashboardConfigClient } from "@/features/common/providers/client-api.provider";
+import { DashboardPermissionsModal } from "../dashboard-permissions-modal";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
-import type { DashboardFilterParam, RefreshInterval } from "../../types/dashboard.types";
+import type {
+  DashboardFilterParam,
+  RefreshInterval,
+} from "../../types/dashboard.types";
 import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SettingOption = "rename" | "order" | "export" | "import" | "planner" | "filters" | "refresh" | "access" | "delete" | null;
+type SettingOption =
+  | "order"
+  | "export"
+  | "import"
+  | "planner"
+  | "filters"
+  | "refresh"
+  | "access"
+  | "delete"
+  | null;
 
 type ImportMethod = "text" | "file";
 
@@ -42,7 +62,11 @@ function isSectionActive(
   return selected === option;
 }
 
-function getSectionClasses(expanded: boolean, active: boolean, maxHeight = "max-h-[400px]") {
+function getSectionClasses(
+  expanded: boolean,
+  active: boolean,
+  maxHeight = "max-h-[400px]"
+) {
   return {
     headerHeightClass: expanded ? "h-16" : "h-0",
     headerInteractiveClass: active
@@ -138,7 +162,9 @@ function SectionLayout({
       </div>
       <div
         className={`${contentMaxHeightClass} transition-all duration-300 ${animationDone ? "overflow-y-auto" : "overflow-hidden"}`}
-        onTransitionEnd={() => { if (active) setAnimationDone(true); }}
+        onTransitionEnd={() => {
+          if (active) setAnimationDone(true);
+        }}
       >
         {children}
       </div>
@@ -196,56 +222,6 @@ function SettingsSection({
 // Form Components
 // ============================================================================
 
-interface RenameFormProps {
-  currentName: string;
-  onSave: (name: string) => void;
-  onClose: () => void;
-}
-
-function RenameForm({
-  currentName,
-  onSave,
-  onClose,
-}: Readonly<RenameFormProps>) {
-  const [name, setName] = useState(currentName);
-
-  useEffect(() => {
-    setName(currentName);
-  }, [currentName]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onSave(name.trim());
-      onClose();
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-4">
-      <div>
-        <Label htmlFor="dashboard-name">Dashboard Name</Label>
-        <TextInput
-          id="dashboard-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter dashboard name"
-          className="mt-1"
-          autoFocus
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" color="gray" size="sm" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={!name.trim()}>
-          Save
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 interface ExportFormProps {
   onExport: () => void;
   onDownload: () => void;
@@ -257,6 +233,8 @@ function ExportForm({
   onDownload,
   onClose,
 }: Readonly<ExportFormProps>) {
+  const { dictionary } = useDashboard();
+
   const handleCopy = () => {
     onExport();
     onClose();
@@ -270,20 +248,24 @@ function ExportForm({
   return (
     <div className="p-4 space-y-4">
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        Export your dashboard configuration to share or backup.
+        {tr("dashboard.settings.exportInfo", dictionary)}
       </p>
       <div className="flex flex-col gap-2">
         <Button color="light" size="sm" onClick={handleDownload}>
           <HiArrowDownTray className="mr-2 h-4 w-4" />
-          Download as JSON file
+          {tr("dashboard.settings.exportDownloadJson", dictionary)}
         </Button>
         <Button color="gray" size="sm" onClick={handleCopy}>
-          Copy to clipboard
+          {tr("dashboard.settings.exportCopyToClipboard", dictionary)}
         </Button>
       </div>
     </div>
   );
 }
+
+// ============================================================================
+// Import Form
+// ============================================================================
 
 interface ImportFormProps {
   onImport: (json: string) => { success: boolean; error?: string };
@@ -291,6 +273,9 @@ interface ImportFormProps {
 }
 
 function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
+  const { dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
+
   const [method, setMethod] = useState<ImportMethod>("file");
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -298,18 +283,18 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
 
   const handleTextImport = () => {
     if (!importText.trim()) {
-      setImportError("Paste a valid JSON configuration to import");
+      setImportError(t("importPasteError"));
       return;
     }
     const result = onImport(importText);
     if (result.success) {
       ShowNotification({
         type: "success",
-        message: "Dashboard imported successfully",
+        message: t("importSuccess"),
       });
       onClose();
     } else {
-      setImportError(result.error || "Failed to import dashboard");
+      setImportError(result.error || t("importFailed"));
     }
   };
 
@@ -324,15 +309,15 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
         if (result.success) {
           ShowNotification({
             type: "success",
-            message: "Dashboard imported successfully",
+            message: t("importSuccess"),
           });
           onClose();
         } else {
-          setImportError(result.error || "Failed to import dashboard");
+          setImportError(result.error || t("importFailed"));
         }
       })
       .catch(() => {
-        setImportError("Failed to read file");
+        setImportError(t("importFileError"));
       });
   };
 
@@ -350,7 +335,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
           )}
         >
-          Upload File
+          {t("importUploadFile")}
         </button>
         <button
           type="button"
@@ -362,7 +347,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
               : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
           )}
         >
-          Paste JSON
+          {t("importPasteJson")}
         </button>
       </div>
 
@@ -370,7 +355,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
       {method === "file" ? (
         <div className="space-y-3">
           <div>
-            <Label htmlFor="dashboard-file">Select JSON file</Label>
+            <Label htmlFor="dashboard-file">{t("importSelectFile")}</Label>
             <FileInput
               ref={fileInputRef}
               id="dashboard-file"
@@ -381,7 +366,7 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
           </div>
           <div className="flex justify-end">
             <Button type="button" color="gray" size="sm" onClick={onClose}>
-              Cancel
+              {tr("common.cancel", dictionary)}
             </Button>
           </div>
         </div>
@@ -393,16 +378,16 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
               setImportText(e.target.value);
               setImportError(null);
             }}
-            placeholder="Paste your dashboard JSON here..."
+            placeholder={t("importPastePlaceholder")}
             rows={8}
             className="font-mono text-sm"
           />
           <div className="flex justify-end gap-2">
             <Button type="button" color="gray" size="sm" onClick={onClose}>
-              Cancel
+              {tr("common.cancel", dictionary)}
             </Button>
             <Button size="sm" onClick={handleTextImport}>
-              Import
+              {tr("common.import", dictionary)}
             </Button>
           </div>
         </div>
@@ -432,7 +417,8 @@ function FilterManagerForm({
 }: Readonly<FilterManagerFormProps>) {
   const { dictionary } = useDashboard();
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
-  const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
+  const [localFilters, setLocalFilters] =
+    useState<DashboardFilterParam[]>(filters);
   const [filterIds, setFilterIds] = useState(() =>
     filters.map(() => crypto.randomUUID())
   );
@@ -443,10 +429,7 @@ function FilterManagerForm({
   }, [filters]);
 
   const addFilter = () => {
-    setLocalFilters((prev) => [
-      ...prev,
-      { key: "", label: "", type: "text" },
-    ]);
+    setLocalFilters((prev) => [...prev, { key: "", label: "", type: "text" }]);
     setFilterIds((prev) => [...prev, crypto.randomUUID()]);
   };
 
@@ -625,7 +608,10 @@ function RefreshForm() {
       <Select
         sizing="sm"
         value={String(refreshInterval)}
-        onChange={(e) => setRefreshInterval(Number(e.target.value) as RefreshInterval)}
+        onChange={(e) =>
+          setRefreshInterval(Number(e.target.value) as RefreshInterval)
+        }
+        className="[&>select]:cursor-pointer"
       >
         {REFRESH_INTERVAL_OPTIONS.map((opt) => (
           <option key={opt.value} value={String(opt.value)}>
@@ -633,86 +619,6 @@ function RefreshForm() {
           </option>
         ))}
       </Select>
-    </div>
-  );
-}
-
-// ============================================================================
-// Allowed Groups Form
-// ============================================================================
-
-function AllowedGroupsForm() {
-  const { allowedGroups, setAllowedGroups, dictionary } = useDashboard();
-  const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
-  const { data: userGroups, isLoading } = useUserGroups();
-  const [localGroups, setLocalGroups] = useState<string[]>(allowedGroups);
-
-  useEffect(() => {
-    setLocalGroups(allowedGroups);
-  }, [allowedGroups]);
-
-  const toggleGroup = (group: string) => {
-    setLocalGroups((prev) =>
-      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
-    );
-  };
-
-  const handleSave = () => {
-    setAllowedGroups(localGroups);
-    ShowNotification({
-      type: "success",
-      message: t("allowedGroupsUpdated"),
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">{t("loadingGroups")}</p>
-      </div>
-    );
-  }
-
-  const availableGroups = userGroups ?? [];
-
-  return (
-    <div className="p-4 space-y-3">
-      {availableGroups.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t("noGroupsAvailable")}
-        </p>
-      ) : (
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {availableGroups.map((group) => (
-            <label
-              key={group}
-              className="flex items-center gap-2 cursor-pointer rounded-lg border border-gray-200 dark:border-gray-600 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              <input
-                type="checkbox"
-                checked={localGroups.includes(group)}
-                onChange={() => toggleGroup(group)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                {group.replace(/^GROUP_/, "")}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {localGroups.length === 0 && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-          {t("noGroupRestrictions")}
-        </p>
-      )}
-
-      <div className="flex justify-end">
-        <Button type="button" size="sm" onClick={handleSave}>
-          {tr("common.save", dictionary)}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -771,13 +677,49 @@ function OrderForm() {
 }
 
 // ============================================================================
+// Manage Permissions Button
+// ============================================================================
+
+interface ManagePermissionsFormProps {
+  onOpenModal: () => void;
+}
+
+function ManagePermissionsForm({
+  onOpenModal,
+}: Readonly<ManagePermissionsFormProps>) {
+  const { dictionary } = useDashboard();
+  const t = (key: string) => tr(`dashboard.permissions.${key}`, dictionary);
+
+  return (
+    <div className="p-4 space-y-3">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {t("manageButtonDescription")}
+      </p>
+      <Button type="button" size="sm" onClick={onOpenModal}>
+        {t("manageButton")}
+      </Button>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
-export default function DashboardSettingsDropdown() {
+interface DashboardSettingsDropdownProps {
+  /**
+   * Whether the current user can manage node permissions (Alfresco
+   * `updatePermissions`, i.e. Coordinator). Controls visibility of the
+   * Access Control section and the underlying permissions modal.
+   */
+  canManagePermissions: boolean;
+}
+
+export default function DashboardSettingsDropdown({
+  canManagePermissions,
+}: Readonly<DashboardSettingsDropdownProps>) {
   const {
     dashboardName,
-    setDashboardName,
     filters,
     setFilters,
     exportDashboard,
@@ -793,6 +735,7 @@ export default function DashboardSettingsDropdown() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const togglePanel = () => {
@@ -845,30 +788,22 @@ export default function DashboardSettingsDropdown() {
 
   const handleExportToClipboard = useCallback(() => {
     const json = exportDashboard();
-    navigator.clipboard.writeText(json).then(() => {
-      ShowNotification({
-        type: "success",
-        message: "Dashboard copied to clipboard",
+    navigator.clipboard
+      .writeText(json)
+      .then(() => {
+        ShowNotification({
+          type: "success",
+          message: tr("dashboard.settings.copySuccess", dictionary),
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to copy to clipboard:", error);
+        ShowNotification({
+          type: "error",
+          message: tr("dashboard.settings.copyError", dictionary),
+        });
       });
-    }).catch((error) => {
-      console.error("Failed to copy to clipboard:", error);
-      ShowNotification({
-        type: "error",
-        message: "Failed to copy dashboard to clipboard",
-      });
-    });
-  }, [exportDashboard]);
-
-  const handleSaveName = useCallback(
-    (name: string) => {
-      setDashboardName(name);
-      ShowNotification({
-        type: "success",
-        message: "Dashboard renamed successfully",
-      });
-    },
-    [setDashboardName]
-  );
+  }, [exportDashboard, dictionary]);
 
   const handleDeleteClick = useCallback(() => {
     setShowDeleteConfirm(true);
@@ -908,20 +843,6 @@ export default function DashboardSettingsDropdown() {
       {open && (
         <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
           <SettingsSection
-            option="rename"
-            selected={selected}
-            setSelected={setSelected}
-            title="Rename Dashboard"
-            description="Change the dashboard display name"
-          >
-            <RenameForm
-              currentName={dashboardName}
-              onSave={handleSaveName}
-              onClose={closePanel}
-            />
-          </SettingsSection>
-
-          <SettingsSection
             option="order"
             selected={selected}
             setSelected={setSelected}
@@ -935,8 +856,11 @@ export default function DashboardSettingsDropdown() {
             option="export"
             selected={selected}
             setSelected={setSelected}
-            title="Export Dashboard"
-            description="Download or copy configuration"
+            title={tr("dashboard.settings.exportDashboardTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.exportDashboardDescription",
+              dictionary
+            )}
           >
             <ExportForm
               onExport={handleExportToClipboard}
@@ -949,8 +873,11 @@ export default function DashboardSettingsDropdown() {
             option="import"
             selected={selected}
             setSelected={setSelected}
-            title="Import Dashboard"
-            description="Restore from JSON file or text"
+            title={tr("dashboard.settings.importDashboardTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.importDashboardDescription",
+              dictionary
+            )}
           >
             <ImportForm onImport={importDashboard} onClose={closePanel} />
           </SettingsSection>
@@ -960,7 +887,10 @@ export default function DashboardSettingsDropdown() {
             selected={selected}
             setSelected={setSelected}
             title={tr("dashboard.settings.filterBarTitle", dictionary)}
-            description={tr("dashboard.settings.filterBarDescription", dictionary)}
+            description={tr(
+              "dashboard.settings.filterBarDescription",
+              dictionary
+            )}
           >
             <FilterManagerForm filters={filters} onSave={setFilters} />
           </SettingsSection>
@@ -970,7 +900,10 @@ export default function DashboardSettingsDropdown() {
             selected={selected}
             setSelected={setSelected}
             title={tr("dashboard.settings.autoRefresh", dictionary)}
-            description={tr("dashboard.settings.autoRefreshDescription", dictionary)}
+            description={tr(
+              "dashboard.settings.autoRefreshDescription",
+              dictionary
+            )}
           >
             <RefreshForm />
           </SettingsSection>
@@ -979,22 +912,35 @@ export default function DashboardSettingsDropdown() {
             option="planner"
             selected={selected}
             setSelected={setSelected}
-            title="Request Planner"
-            description="Define shared data queries"
+            title={tr("dashboard.settings.plannerTitle", dictionary)}
+            description={tr(
+              "dashboard.settings.plannerDescription",
+              dictionary
+            )}
             maxHeight="max-h-[60vh]"
           >
             <PlannerManagerForm />
           </SettingsSection>
 
-          <SettingsSection
-            option="access"
-            selected={selected}
-            setSelected={setSelected}
-            title={tr("dashboard.settings.accessControlTitle", dictionary)}
-            description={tr("dashboard.settings.accessControlDescription", dictionary)}
-          >
-            <AllowedGroupsForm />
-          </SettingsSection>
+          {canManagePermissions && (
+            <SettingsSection
+              option="access"
+              selected={selected}
+              setSelected={setSelected}
+              title={tr("dashboard.settings.accessControlTitle", dictionary)}
+              description={tr(
+                "dashboard.settings.accessControlDescription",
+                dictionary
+              )}
+            >
+              <ManagePermissionsForm
+                onOpenModal={() => {
+                  setShowPermissionsModal(true);
+                  closePanel();
+                }}
+              />
+            </SettingsSection>
+          )}
 
           <SettingsSection
             option="delete"
@@ -1004,16 +950,11 @@ export default function DashboardSettingsDropdown() {
             description={tr("dashboard.settings.deleteDescription", dictionary)}
           >
             <div className="p-4">
-              <Button
-                color="failure"
-                size="sm"
-                onClick={handleDeleteClick}
-              >
+              <Button color="failure" size="sm" onClick={handleDeleteClick}>
                 {tr("dashboard.landing.delete_confirm_title", dictionary)}
               </Button>
             </div>
           </SettingsSection>
-
         </div>
       )}
 
@@ -1022,11 +963,26 @@ export default function DashboardSettingsDropdown() {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteConfirm}
         title={tr("dashboard.landing.delete_confirm_title", dictionary)}
-        description={tr("dashboard.landing.delete_confirm_message", dictionary, {
-          name: dashboardName,
-        })}
+        description={tr(
+          "dashboard.landing.delete_confirm_message",
+          dictionary,
+          {
+            name: dashboardName,
+          }
+        )}
         confirmText={tr("dashboard.landing.delete_confirm_title", dictionary)}
       />
+
+      {canManagePermissions && siteId && params.slug && (
+        <DashboardPermissionsModal
+          isOpen={showPermissionsModal}
+          onClose={() => setShowPermissionsModal(false)}
+          site={siteId}
+          slug={params.slug}
+          dashboardName={dashboardName}
+          dictionary={dictionary}
+        />
+      )}
     </div>
   );
 }

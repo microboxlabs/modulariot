@@ -1,5 +1,10 @@
-import { COLOR_RULE_OPERATORS, RULE_COLORS } from "./color-rule-types";
-import type { ThresholdConfig, ThresholdRule, ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
+import { COLOR_RULE_OPERATORS } from "./color-rule-types";
+import type {
+  ThresholdConfig,
+  ThresholdRule,
+  ThresholdRuleItem,
+  ThresholdTarget,
+} from "./threshold-types";
 import { THRESHOLD_TARGETS } from "./threshold-types";
 
 export const DEFAULT_THRESHOLD_CONFIG: ThresholdConfig = {
@@ -9,15 +14,23 @@ export const DEFAULT_THRESHOLD_CONFIG: ThresholdConfig = {
   rules: [],
 };
 
-export function toThresholdRuleItems(rules: ThresholdRule[]): ThresholdRuleItem[] {
+export function toThresholdRuleItems(
+  rules: ThresholdRule[]
+): ThresholdRuleItem[] {
   return rules.map((rule, i) => ({
     ...rule,
     _id: `tr-${i}-${rule.value}`,
   }));
 }
 
-export function fromThresholdRuleItems(items: ThresholdRuleItem[]): ThresholdRule[] {
-  return items.map(({ _id, ...rule }) => rule);
+export function fromThresholdRuleItems(
+  items: ThresholdRuleItem[]
+): ThresholdRule[] {
+  return items.map((item) => ({
+    operator: item.operator,
+    value: item.value,
+    color: item.color,
+  }));
 }
 
 function isValidThresholdRule(r: unknown): r is ThresholdRule {
@@ -27,8 +40,7 @@ function isValidThresholdRule(r: unknown): r is ThresholdRule {
     typeof rule.operator === "string" &&
     (COLOR_RULE_OPERATORS as string[]).includes(rule.operator) &&
     typeof rule.value === "string" &&
-    typeof rule.color === "string" &&
-    (RULE_COLORS as string[]).includes(rule.color)
+    typeof rule.color === "string"
   );
 }
 
@@ -41,7 +53,8 @@ export function normalizeThresholdConfig(raw: unknown): ThresholdConfig {
   const obj = raw as Record<string, unknown>;
   if (typeof obj.enabled !== "boolean") return DEFAULT_THRESHOLD_CONFIG;
   if (typeof obj.field !== "string") return DEFAULT_THRESHOLD_CONFIG;
-  if (!Array.isArray(obj.rules) || !obj.rules.every(isValidThresholdRule)) return DEFAULT_THRESHOLD_CONFIG;
+  if (!Array.isArray(obj.rules) || !obj.rules.every(isValidThresholdRule))
+    return DEFAULT_THRESHOLD_CONFIG;
   const applyTo = Array.isArray(obj.applyTo)
     ? (obj.applyTo as unknown[]).filter(isValidTarget)
     : DEFAULT_THRESHOLD_CONFIG.applyTo;

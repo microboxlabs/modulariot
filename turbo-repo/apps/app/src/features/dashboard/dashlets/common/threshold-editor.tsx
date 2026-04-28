@@ -1,25 +1,18 @@
 "use client";
 
-import { Button, Label, ToggleSwitch } from "flowbite-react";
-import { HiPlus } from "react-icons/hi2";
-import type { RuleColor } from "./color-rule-types";
-import { OPERATOR_LABELS } from "./color-rule-types";
+import { Label } from "flowbite-react";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { COLOR_RULE_PRESETS } from "./color-rule-types";
+import type { ColorRuleOperator } from "./color-rule-types";
 import type { ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
 import { THRESHOLD_TARGETS, THRESHOLD_TARGET_LABELS } from "./threshold-types";
 import { HbTextField } from "./settings-fields";
-import { RuleRowControls } from "./rule-row-controls";
-
-const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
-
-const RULE_COLOR_LABELS: Record<RuleColor, string> = {
-  red: "Red",
-  yellow: "Yellow",
-  green: "Green",
-  blue: "Blue",
-  orange: "Orange",
-  purple: "Purple",
-  gray: "Gray",
-};
+import {
+  ColorRuleRow,
+  ToggleSectionHeader,
+  AddRuleButton,
+} from "./color-rule-row";
 
 interface ThresholdEditorProps {
   enabled: boolean;
@@ -33,6 +26,7 @@ interface ThresholdEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (id: string, field: string, value: string) => void;
   schemaSuggestions?: string[];
+  dictionary: I18nRecord;
 }
 
 export function ThresholdEditor({
@@ -47,6 +41,7 @@ export function ThresholdEditor({
   onRemove,
   onUpdate,
   schemaSuggestions,
+  dictionary,
 }: Readonly<ThresholdEditorProps>) {
   const addTarget = (target: ThresholdTarget) => {
     onApplyToChange([...applyTo, target]);
@@ -62,17 +57,18 @@ export function ThresholdEditor({
     <>
       <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Thresholds</Label>
-          <ToggleSwitch checked={enabled} onChange={onToggle} sizing="sm" />
-        </div>
+        <ToggleSectionHeader
+          label={tr("dashboard.settings.thresholds", dictionary)}
+          enabled={enabled}
+          onToggle={onToggle}
+        />
 
         {enabled && (
           <div className="space-y-3">
             {/* Field to evaluate */}
             <HbTextField
               id="threshold-field"
-              label="Evaluate field"
+              label={tr("dashboard.settings.evaluateField", dictionary)}
               value={field}
               onChange={onFieldChange}
               placeholder="{{row.value}}"
@@ -81,14 +77,23 @@ export function ThresholdEditor({
 
             {/* Apply to checkboxes */}
             <div>
-              <Label className="mb-1.5 block text-xs font-medium">Apply to</Label>
+              <Label className="mb-1.5 block text-xs font-medium">
+                {tr("dashboard.settings.applyTo", dictionary)}
+              </Label>
               <div className="flex gap-3">
                 {THRESHOLD_TARGETS.map((target) => (
-                  <label key={target} className="flex cursor-pointer items-center gap-1.5">
+                  <label
+                    key={target}
+                    className="flex cursor-pointer items-center gap-1.5"
+                  >
                     <input
                       type="checkbox"
                       checked={applyTo.includes(target)}
-                      onChange={(e) => e.target.checked ? addTarget(target) : removeTarget(target)}
+                      onChange={(e) =>
+                        e.target.checked
+                          ? addTarget(target)
+                          : removeTarget(target)
+                      }
                       className="no-drag h-3.5 w-3.5 rounded border-gray-300 text-blue-600 dark:border-gray-600"
                     />
                     <span className="text-xs text-gray-700 dark:text-gray-300">
@@ -102,32 +107,28 @@ export function ThresholdEditor({
             {/* Rules */}
             <div className="space-y-2">
               {rules.map((rule) => (
-                <div key={rule._id} className="flex items-center gap-1">
-                  <RuleRowControls
-                    ruleId={rule._id}
-                    operator={rule.operator}
-                    value={rule.value}
-                    color={rule.color}
-                    onUpdate={onUpdate}
-                    onRemove={onRemove}
-                    operatorLabels={OPERATOR_LABELS}
-                    colorLabels={RULE_COLOR_LABELS}
-                    valuePlaceholder="Value"
-                  />
-                </div>
+                <ColorRuleRow
+                  key={rule._id}
+                  operator={rule.operator}
+                  value={rule.value}
+                  color={rule.color}
+                  onOperatorChange={(op: ColorRuleOperator) =>
+                    onUpdate(rule._id, "operator", op)
+                  }
+                  onValueChange={(val: string) =>
+                    onUpdate(rule._id, "value", val)
+                  }
+                  onColorChange={(c: string) => onUpdate(rule._id, "color", c)}
+                  onDelete={() => onRemove(rule._id)}
+                  colorPresets={COLOR_RULE_PRESETS}
+                />
               ))}
             </div>
 
-            <Button
-              color="light"
-              size="xs"
+            <AddRuleButton
               onClick={onAdd}
-              onMouseDown={stopPropagation}
-              className="no-drag"
-            >
-              <HiPlus className="mr-1 h-3 w-3" />
-              Add rule
-            </Button>
+              label={tr("dashboard.settings.addRule", dictionary)}
+            />
           </div>
         )}
       </div>

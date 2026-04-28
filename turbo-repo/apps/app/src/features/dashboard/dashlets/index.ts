@@ -31,6 +31,9 @@ import { dashletDefinition as dataListDefinition } from "./data_list";
 import { dashletDefinition as statStatusDefinition } from "./stat_status";
 import { dashletDefinition as textCardDefinition } from "./text_card";
 import { dashletDefinition as chartDefinition } from "./chart";
+import { dashletDefinition as fileUploadDefinition } from "./file_upload";
+import { dashletDefinition as batchImportDefinition } from "./batch_import";
+import { dashletDefinition as geographicMapDefinition } from "./geographic_map";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -51,6 +54,9 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   statStatusDefinition,
   textCardDefinition,
   chartDefinition,
+  fileUploadDefinition,
+  batchImportDefinition,
+  geographicMapDefinition,
 ];
 
 /** Registry of all available dashlets */
@@ -180,6 +186,7 @@ export function getCategoryLabel(category: DashletCategory): string {
   const labels: Record<DashletCategory, string> = {
     containers: "Containers",
     "data-display": "Data Display",
+    actions: "Actions",
   };
   return labels[category];
 }

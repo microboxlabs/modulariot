@@ -4,11 +4,7 @@
  * and /orgs/{id}/modules.
  */
 
-export type ModuleCode =
-  | "FLEET_MANAGEMENT"
-  | "DASHBOARDS"
-  | "COLLABORATORS_MANAGEMENT"
-  | string; // open set — backend may add modules we don't yet know about
+export type ModuleCode = string; // open set — backend may add modules we don't yet know about
 
 export interface OrgSummary {
   id: number;

@@ -20,6 +20,23 @@ interface OrgScopesResponse {
   availableOrgs: OrgScopeItem[];
 }
 
+const getErrorMessage = async (response: Response) => {
+  try {
+    const body = (await response.clone().json()) as {
+      error?: string;
+      message?: string;
+    };
+    return body.error ?? body.message;
+  } catch {
+    try {
+      const text = await response.text();
+      return text || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+};
+
 const fetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
@@ -38,13 +55,29 @@ export function useOrgScopes() {
   );
 
   const switchOrg = async (slug: string) => {
-    await fetch("/app/api/user/active-org", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug }),
-    });
+    let response: Response;
+    try {
+      response = await fetch("/app/api/user/active-org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+    } catch (error) {
+      console.error("Failed to switch active organization", error);
+      throw new Error("No se pudo cambiar la organización. Revisa tu conexión.");
+    }
+
+    if (!response.ok) {
+      const message = await getErrorMessage(response);
+      const error = new Error(
+        message ?? `No se pudo cambiar la organización (${response.status})`,
+      );
+      console.error("Failed to switch active organization", error);
+      throw error;
+    }
+
     await mutate();
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   return {

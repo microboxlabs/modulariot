@@ -419,7 +419,8 @@ export async function fetchTrucksCatalog(opts?: {
   }
 
   const qs = params.toString();
-  const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp${qs ? `?${qs}` : ""}`;
+  const querySuffix = qs ? `?${qs}` : "";
+  const url = `${pgrestBaseUrl()}/v_modulariot_trucks_tmp${querySuffix}`;
   const response = await pgrestFetch(url, {
     headers: {
       accept: "application/json",

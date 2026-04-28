@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "flowbite-react";
 import { HiArrowUpTray } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
@@ -37,6 +38,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const { dictionary } = useDashboard();
+  const { lang } = useParams<{ lang: string }>();
   const [open, setOpen] = useState(false);
   const [params, setParams] = useState<IntrospectedParam[] | null>(null);
 
@@ -82,9 +84,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const api = useMemo(
     () =>
       isConfigured
-        ? makePgrestBatchApi(config.pgrestFunctionName, config.dataSourceId)
+        ? makePgrestBatchApi(config.pgrestFunctionName, config.dataSourceId, lang)
         : null,
-    [isConfigured, config.pgrestFunctionName, config.dataSourceId],
+    [isConfigured, config.pgrestFunctionName, config.dataSourceId, lang],
   );
 
   return (

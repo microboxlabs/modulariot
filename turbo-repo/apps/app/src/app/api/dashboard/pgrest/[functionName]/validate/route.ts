@@ -11,6 +11,7 @@ import {
   getDictionary,
   getLocaleFromRequest,
 } from "@/features/i18n/i18n.service";
+import { locales } from "@/features/i18n/tr.service";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 
@@ -39,7 +40,15 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const introspected = introspectPath(spec, functionName);
   const params = introspected?.parameters ?? [];
-  const [tr] = await getDictionary(getLocaleFromRequest(req));
+  // Prefer the explicit `lang` query (sent by clients that know their UI
+  // locale via the URL `[lang]` segment) over Accept-Language, which reflects
+  // browser preference and can disagree with what the user is actually viewing.
+  const queryLang = req.nextUrl.searchParams.get("lang");
+  const locale =
+    queryLang && locales.includes(queryLang)
+      ? queryLang
+      : getLocaleFromRequest(req);
+  const [tr] = await getDictionary(locale);
   const errors = validateRows(rows, params, makeValidationErrorMap(tr));
 
   return NextResponse.json({

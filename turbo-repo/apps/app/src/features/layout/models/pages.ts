@@ -208,10 +208,6 @@ export const pages: SidebarItem[] = [
     label: "settings",
     items: [
       {
-        href: "/users/settings",
-        label: "general",
-      },
-      {
         href: "/users/settings/organizations",
         label: "organizations",
       },

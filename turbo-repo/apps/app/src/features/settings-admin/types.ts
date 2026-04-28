@@ -4,8 +4,6 @@
  * and /orgs/{id}/modules.
  */
 
-export type ModuleCode = string; // open set — backend may add modules we don't yet know about
-
 export interface OrgSummary {
   id: number;
   slug: string;
@@ -16,7 +14,8 @@ export interface OrgSummary {
 
 export interface ActiveOrg extends OrgSummary {
   role: string;
-  modules: ModuleCode[];
+  /** Open set — backend may add modules we don't yet know about. */
+  modules: string[];
 }
 
 export interface OrgMember {

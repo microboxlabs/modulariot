@@ -42,14 +42,14 @@ public class StubAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
     public Uni<List<AlfrescoPerson>> listGroupMembers(String groupId, int maxItems, int skipCount) {
         LOG.warnf("STUB: listGroupMembers(%s, max=%d, skip=%d) — returning sample people",
                 groupId, maxItems, skipCount);
-        return Uni.createFrom().item(SAMPLE_PEOPLE);
+        return Uni.createFrom().item(slice(SAMPLE_PEOPLE, maxItems, skipCount));
     }
 
     @Override
     public Uni<List<AlfrescoPerson>> searchPeople(String query, int maxItems) {
         LOG.warnf("STUB: searchPeople(%s, max=%d) — returning filtered sample", query, maxItems);
         if (query == null || query.isBlank()) {
-            return Uni.createFrom().item(SAMPLE_PEOPLE);
+            return Uni.createFrom().item(slice(SAMPLE_PEOPLE, maxItems, 0));
         }
         String needle = query.toLowerCase();
         List<AlfrescoPerson> matches = SAMPLE_PEOPLE.stream()
@@ -57,8 +57,13 @@ public class StubAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
                         || p.email().toLowerCase().contains(needle)
                         || p.firstName().toLowerCase().contains(needle)
                         || p.lastName().toLowerCase().contains(needle))
-                .limit(Math.max(1, maxItems))
                 .toList();
-        return Uni.createFrom().item(matches);
+        return Uni.createFrom().item(slice(matches, maxItems, 0));
+    }
+
+    private static List<AlfrescoPerson> slice(List<AlfrescoPerson> people, int maxItems, int skipCount) {
+        int start = Math.min(people.size(), Math.max(0, skipCount));
+        int end = Math.min(people.size(), start + Math.max(0, maxItems));
+        return List.copyOf(people.subList(start, end));
     }
 }

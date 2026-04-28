@@ -107,14 +107,16 @@ public class OrgAdminResource {
                             return writeAuthorizer.requireParentSiteManager(parent)
                                     .flatMap(ignored -> assertSlugAvailable(newSlug))
                                     .flatMap(ignored -> assertTaxIdAvailable(normalizedTaxId))
-                                    .flatMap(ignored -> groupAdmin
+                                    .flatMap(ignored -> persistNewChild(
+                                            parent, newSlug, newName, newDisplayName,
+                                            normalizedTaxId, derivedGroupId))
+                                    .flatMap(child -> groupAdmin
                                             .createGroup(derivedGroupId, newDisplayName)
                                             .onFailure().invoke(err ->
-                                                    LOG.errorf(err, "Alfresco group create failed for %s",
-                                                            derivedGroupId)))
-                                    .flatMap(createdGroupId -> persistNewChild(
-                                            parent, newSlug, newName, newDisplayName,
-                                            normalizedTaxId, createdGroupId));
+                                                    LOG.errorf(err,
+                                                            "Alfresco group create failed for %s after persisting child %s",
+                                                            derivedGroupId, newSlug))
+                                            .replaceWith(child));
                         }))
                 .map(org -> Response.status(Response.Status.CREATED)
                         .entity(OrganizationDto.from(org))
@@ -205,7 +207,7 @@ public class OrgAdminResource {
         child.tenantClientId = parent.tenantClientId;
         child.parent = parent;
         child.active = true;
-        return child.<Organization>persist();
+        return child.<Organization>persistAndFlush();
     }
 
     private Uni<Void> assertSlugAvailable(String slug) {

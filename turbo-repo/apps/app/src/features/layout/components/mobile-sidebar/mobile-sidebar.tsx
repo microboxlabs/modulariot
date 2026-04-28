@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
-import { HiCog } from "react-icons/hi";
 import Link from "next/link";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
@@ -14,6 +13,8 @@ import type { SidebarItem } from "../../types/common.types";
 import MobileSidebarItem from "./mobile-sidebar-item";
 import MobileSecondaryPanel from "./mobile-secondary-panel";
 import LifeSaver from "../bottom-menu/LifeSaver";
+
+const SETTINGS_SECTION_LABEL = "settings";
 
 function isItemActive(item: SidebarItem, pathname: string): boolean {
   if (item.href && isSegmentPrefix(item.href, pathname)) return true;
@@ -49,6 +50,10 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const { isOpen, close } = useSidebarContext().mobile;
   const { items, totals } = useSidebarNavigation();
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const settingsItem = items.find(
+    (item) => item.label === SETTINGS_SECTION_LABEL
+  );
+  const SettingsIcon = settingsItem?.icon;
 
   // Reset activeSection each time the sidebar opens
   const prevIsOpen = useRef(false);
@@ -90,44 +95,54 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
         <div className="flex h-full w-14 flex-col">
           <div className="flex flex-1 flex-col overflow-y-auto py-2">
             <ul className="flex flex-1 flex-col items-center gap-0.5">
-              {items.map((item) => {
-                const hasChildren = Boolean(
-                  (item.items && item.items.length > 0) ||
-                  item.dynamicItemsSource
-                );
-                const active = isItemActive(item, pathname);
-                const isSectionOpen = activeSection === item.label;
+              {items
+                .filter((item) => item.label !== SETTINGS_SECTION_LABEL)
+                .map((item) => {
+                  const hasChildren = Boolean(
+                    (item.items && item.items.length > 0) ||
+                    item.dynamicItemsSource
+                  );
+                  const active = isItemActive(item, pathname);
+                  const isSectionOpen = activeSection === item.label;
 
-                return (
-                  <MobileSidebarItem
-                    key={item.label}
-                    item={item}
-                    isActive={active}
-                    isSectionOpen={isSectionOpen}
-                    hasChildren={hasChildren}
-                    dict={dict}
-                    onClick={() => handleItemClick(item)}
-                  />
-                );
-              })}
+                  return (
+                    <MobileSidebarItem
+                      key={item.label}
+                      item={item}
+                      isActive={active}
+                      isSectionOpen={isSectionOpen}
+                      hasChildren={hasChildren}
+                      dict={dict}
+                      onClick={() => handleItemClick(item)}
+                    />
+                  );
+                })}
             </ul>
           </div>
 
           {/* Bottom icons */}
           <div className="flex flex-col items-center gap-1 border-t border-gray-200 py-2 dark:border-gray-700">
-            <Link
-              href="/users/settings"
-              onClick={close}
+            <button
+              type="button"
+              onClick={() =>
+                setActiveSection((prev) =>
+                  prev === SETTINGS_SECTION_LABEL
+                    ? null
+                    : SETTINGS_SECTION_LABEL
+                )
+              }
               className={twMerge(
                 "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
                 "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200",
-                pathname === "/users/settings" &&
+                (isSegmentPrefix("/users/settings", pathname) ||
+                  activeSection === SETTINGS_SECTION_LABEL) &&
                   "bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white"
               )}
               aria-label={tr("settings", dict)}
+              aria-expanded={activeSection === SETTINGS_SECTION_LABEL}
             >
-              <HiCog className="h-5 w-5" />
-            </Link>
+              {SettingsIcon && <SettingsIcon className="h-5 w-5" />}
+            </button>
             <Link
               href="#"
               className={twMerge(

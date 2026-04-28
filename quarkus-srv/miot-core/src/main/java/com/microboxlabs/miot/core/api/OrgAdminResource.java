@@ -10,6 +10,7 @@ import com.microboxlabs.miot.core.tax.ActiveTaxIdValidator;
 import com.microboxlabs.miot.core.tax.TaxIdValidator;
 import com.microboxlabs.miot.core.tax.TaxIdValidator.InvalidTaxIdException;
 import io.quarkus.hibernate.reactive.panache.Panache;
+import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
@@ -127,19 +128,8 @@ public class OrgAdminResource {
     @Path("/{slug}")
     @Operation(summary = "Update display name and/or tax id of an organization")
     public Uni<OrganizationDto> patch(@PathParam("slug") String slug, PatchOrganizationRequest body) {
-        if (body == null) {
-            throw new BadRequestException("Request body is required");
-        }
-        String normalizedTaxId;
-        if (body.taxId() != null && !body.taxId().isBlank()) {
-            try {
-                normalizedTaxId = taxIdValidator.normalize(body.taxId());
-            } catch (InvalidTaxIdException e) {
-                throw new BadRequestException("Invalid tax id: " + e.getMessage());
-            }
-        } else {
-            normalizedTaxId = null;
-        }
+        validatePatchPayload(body);
+        String normalizedTaxId = normalizePatchTaxId(body.taxId());
 
         return Panache.withTransaction(() ->
                 Organization.findBySlug(slug)
@@ -149,23 +139,9 @@ public class OrgAdminResource {
                                         "Organization not found: " + slug));
                             }
                             return writeAuthorizer.requireParentSiteManager(org)
-                                    .flatMap(ignored -> {
-                                        Uni<Void> taxCheck = normalizedTaxId != null
-                                                && !normalizedTaxId.equals(org.taxId)
-                                                ? assertTaxIdAvailable(normalizedTaxId)
-                                                : Uni.createFrom().voidItem();
-                                        return taxCheck.map(x -> {
-                                            if (body.displayName() != null) {
-                                                org.displayName = body.displayName().isBlank()
-                                                        ? null : body.displayName().trim();
-                                            }
-                                            if (body.taxId() != null) {
-                                                org.taxId = normalizedTaxId;
-                                            }
-                                            return org;
-                                        });
-                                    })
-                                    .flatMap(updated -> updated.<Organization>persist());
+                                    .flatMap(ignored -> assertUpdatedTaxIdAvailable(org, normalizedTaxId))
+                                    .map(ignored -> applyPatch(org, body, normalizedTaxId))
+                                    .flatMap(PanacheEntityBase::persist);
                         }))
                 .map(OrganizationDto::from);
     }
@@ -219,7 +195,7 @@ public class OrgAdminResource {
     }
 
     private Uni<Void> assertTaxIdAvailable(String taxId) {
-        return Organization.find("taxId = ?1 and active = true", taxId).firstResult()
+        return PanacheEntityBase.find(Organization.class, "taxId = ?1 and active = true", taxId).firstResult()
                 .flatMap(existing -> existing == null
                         ? Uni.createFrom().voidItem()
                         : Uni.createFrom().failure(new WebApplicationException(
@@ -243,5 +219,42 @@ public class OrgAdminResource {
         if (body.taxId() == null || body.taxId().isBlank()) {
             throw new BadRequestException("taxId is required for sub-accounts");
         }
+    }
+
+    private static void validatePatchPayload(PatchOrganizationRequest body) {
+        if (body == null) {
+            throw new BadRequestException("Request body is required");
+        }
+    }
+
+    private String normalizePatchTaxId(String taxId) {
+        if (taxId == null || taxId.isBlank()) {
+            return null;
+        }
+        try {
+            return taxIdValidator.normalize(taxId);
+        } catch (InvalidTaxIdException e) {
+            throw new BadRequestException("Invalid tax id: " + e.getMessage());
+        }
+    }
+
+    private Uni<Void> assertUpdatedTaxIdAvailable(Organization org, String normalizedTaxId) {
+        if (normalizedTaxId == null || normalizedTaxId.equals(org.taxId)) {
+            return Uni.createFrom().voidItem();
+        }
+        return assertTaxIdAvailable(normalizedTaxId);
+    }
+
+    private static Organization applyPatch(Organization org,
+                                           PatchOrganizationRequest body,
+                                           String normalizedTaxId) {
+        if (body.displayName() != null) {
+            org.displayName = body.displayName().isBlank()
+                    ? null : body.displayName().trim();
+        }
+        if (body.taxId() != null) {
+            org.taxId = normalizedTaxId;
+        }
+        return org;
     }
 }

@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import io.quarkus.hibernate.reactive.panache.Panache;
+import io.quarkus.runtime.LaunchMode;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -145,6 +146,14 @@ public class MeResource {
             }
         }
         // Dev fallback — matches OrganizationRequestFilter.resolveEmail()
-        return headers.getHeaderString("X-Dev-User-Email");
+        if (isDevImpersonationAllowed()) {
+            return headers.getHeaderString("X-Dev-User-Email");
+        }
+        return null;
+    }
+
+    private boolean isDevImpersonationAllowed() {
+        LaunchMode launchMode = LaunchMode.current();
+        return launchMode == LaunchMode.DEVELOPMENT || launchMode == LaunchMode.TEST;
     }
 }

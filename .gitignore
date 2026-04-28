@@ -49,4 +49,3 @@ apps/app/.env.local.dev
 turbo-repo/apps/app/.env.storm
 quarkus-srv/miot-cli/src/main/resources/secret.jwk
 quarkus-srv/scripts/seed/.local/
-quarkus-srv/scripts/seed/traza-sub-account.sql

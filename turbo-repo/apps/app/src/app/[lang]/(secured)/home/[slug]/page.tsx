@@ -42,14 +42,20 @@ async function enforceDashboardAccess(
   } catch (error) {
     const status = (error as { status?: number }).status;
     if (status === 404) return; // No saved config yet — allow default rendering
-    logger.error({ err: error, slug, siteId }, "Failed to fetch dashboard config for access check");
+    logger.error(
+      { err: error, slug, siteId },
+      "Failed to fetch dashboard config for access check"
+    );
     redirect(`/${lang}/home`);
   }
 
   const parsed = parseAllowedGroups(configData?.allowedGroups);
 
   if (!parsed.valid) {
-    logger.error({ slug, siteId, allowedGroups: configData?.allowedGroups }, "Malformed allowedGroups in dashboard config");
+    logger.error(
+      { slug, siteId, allowedGroups: configData?.allowedGroups },
+      "Malformed allowedGroups in dashboard config"
+    );
     redirect(`/${lang}/home`);
   }
 
@@ -59,7 +65,10 @@ async function enforceDashboardAccess(
   try {
     userGroups = await getGroupsForPerson(session);
   } catch (error) {
-    logger.error({ err: error, slug }, "Failed to fetch user groups for dashboard access check");
+    logger.error(
+      { err: error, slug },
+      "Failed to fetch user groups for dashboard access check"
+    );
     redirect(`/${lang}/home`);
   }
 
@@ -72,7 +81,9 @@ interface SlugPageParams extends ParamsWithLang {
   params: Promise<{ lang: string; slug: string }>;
 }
 
-export default async function SlugDashboardPage({ params }: Readonly<SlugPageParams>) {
+export default async function SlugDashboardPage({
+  params,
+}: Readonly<SlugPageParams>) {
   const { lang, slug } = await params;
 
   const [dictionaryResult, session] = await Promise.all([
@@ -88,7 +99,10 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
     try {
       siteId = await resolvePrimarySite(session);
     } catch (error) {
-      logger.error({ err: error }, "Failed to resolve primary site for dashboard access");
+      logger.error(
+        { err: error },
+        "Failed to resolve primary site for dashboard access"
+      );
       redirect(`/${lang}/home`);
     }
   }
@@ -99,7 +113,7 @@ export default async function SlugDashboardPage({ params }: Readonly<SlugPagePar
 
   return (
     <RouteGuard path="/home" fallbackPath={`/${lang}/home`}>
-      <div className="h-full overflow-auto p-4">
+      <div className="flex h-full flex-col overflow-hidden">
         <DashboardProvider
           dictionary={dictionary}
           slug={slug}

@@ -35,14 +35,14 @@ export default function VehicleDetailHeader({
 }: VehicleDetailHeaderProps) {
   return (
     <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
-        <ClientBreadcrumb
-          path={[
-            { label: "breadcrumb.fleetManagement", href: "/fleet-management" },
-            vehicle.plate,
-          ]}
-          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={dict}
-        />
+      <ClientBreadcrumb
+        path={[
+          { label: "breadcrumb.fleetManagement", href: "/fleet-management" },
+          vehicle.plate,
+        ]}
+        rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+        dict={dict}
+      />
       <div className="flex items-center justify-between gap-4 ">
         {/* Left: Vehicle info */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -137,17 +137,19 @@ export default function VehicleDetailHeader({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
+            disabled={!hasPrevious}
             onClick={onPrevious}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label={tr("fleetManagement.previous", dict)}
+            aria-label={tr("vehicleDetail.previous", dict)}
           >
             <HiOutlineChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
           <button
             type="button"
+            disabled={!hasNext}
             onClick={onNext}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label={tr("fleetManagement.next", dict)}
+            aria-label={tr("vehicleDetail.next", dict)}
           >
             <HiOutlineChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>

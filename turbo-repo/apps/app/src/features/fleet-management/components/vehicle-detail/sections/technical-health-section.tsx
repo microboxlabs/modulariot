@@ -74,6 +74,7 @@ export default function TechnicalHealthSection({
               className: "text-green-500 dark:text-green-400 font-bold",
             }}
             className="w-full"
+            tooltip
             variant="vertical"
           />
         ))}

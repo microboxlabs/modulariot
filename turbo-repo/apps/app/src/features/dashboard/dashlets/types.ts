@@ -88,6 +88,8 @@ export interface DashletSettingsProps<
   dictionary: I18nRecord;
   /** Display name of the dashlet */
   dashletName?: string;
+  /** Unique widget ID for anchor navigation */
+  widgetId?: string;
 }
 
 /**

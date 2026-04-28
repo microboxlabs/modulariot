@@ -1,9 +1,13 @@
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
+import type { ColorRuleOperator } from "./color-rule-types";
 
 /** Where the threshold color should be applied */
 export type ThresholdTarget = "background" | "text" | "icon";
 
-export const THRESHOLD_TARGETS: ThresholdTarget[] = ["background", "text", "icon"];
+export const THRESHOLD_TARGETS: ThresholdTarget[] = [
+  "background",
+  "text",
+  "icon",
+];
 
 export const THRESHOLD_TARGET_LABELS: Record<ThresholdTarget, string> = {
   background: "Background",
@@ -15,7 +19,7 @@ export const THRESHOLD_TARGET_LABELS: Record<ThresholdTarget, string> = {
 export interface ThresholdRule {
   operator: ColorRuleOperator;
   value: string;
-  color: RuleColor;
+  color: string;
 }
 
 /** Full threshold configuration stored in DashletConfig */

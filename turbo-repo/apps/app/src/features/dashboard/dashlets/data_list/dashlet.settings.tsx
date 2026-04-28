@@ -15,7 +15,8 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
-import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { CheckboxColumnList } from "../common/settings-sections";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import {
@@ -24,7 +25,7 @@ import {
   syncColumnsFromKeys,
 } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
-import { useActiveProviders } from "../common";
+import { useActiveProviders } from "../common/use-active-providers";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashletSettings({
@@ -34,6 +35,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const activeProviders = useActiveProviders();
@@ -70,6 +72,8 @@ export function DashletSettings({
     cl.footerColumns
   );
 
+  const [showExport, setShowExport] = useState(config.showExport ?? true);
+
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
   );
@@ -90,6 +94,31 @@ export function DashletSettings({
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
     onDetectionComplete: autoPopulateCardLayout,
+  });
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title: s.title,
+    showRowCount: s.showRowCount,
+    dataMode: s.dataMode,
+    columns: s.columns,
+    rowsJson: s.rowsJson,
+    apiUrl: s.apiUrl,
+    filterEnabled: s.filterEnabled,
+    filterItems: s.filterItems,
+    sortEnabled: s.sortEnabled,
+    sortColumns: s.sortColumns,
+    showExport,
+    plannerVariableName,
+    dataSourceId,
+    titleColumn,
+    subtitleColumn,
+    headerBadgeColumns,
+    kpiColumns,
+    footerColumns,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    refreshValue: refresh.value,
   });
 
   const toggleList = (
@@ -122,6 +151,7 @@ export function DashletSettings({
     onSave({
       title: s.title,
       showRowCount: s.showRowCount,
+      showExport,
       dataMode: s.dataMode,
       columns: savedColumns,
       rows,
@@ -162,6 +192,20 @@ export function DashletSettings({
     />
   );
 
+  const exportToggle = (
+    <div className="flex items-center justify-between py-0.5">
+      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        {tr("dashboard.settings.showExport", dictionary)}
+      </label>
+      <input
+        type="checkbox"
+        checked={showExport}
+        onChange={(e) => setShowExport(e.target.checked)}
+        className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+      />
+    </div>
+  );
+
   // Card layout section (inserted between ColumnEditor and FilterEditor)
   const cardLayoutSection = (
     <>
@@ -183,6 +227,7 @@ export function DashletSettings({
             sizing="sm"
             value={titleColumn}
             onChange={(e) => setTitleColumn(e.target.value)}
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {tr("dashboard.settings.none", dictionary)}
@@ -207,6 +252,7 @@ export function DashletSettings({
             sizing="sm"
             value={subtitleColumn}
             onChange={(e) => setSubtitleColumn(e.target.value)}
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {tr("dashboard.settings.none", dictionary)}
@@ -258,6 +304,9 @@ export function DashletSettings({
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
       title={dashletName}
+      displayOptionsChildren={exportToggle}
+      widgetId={widgetId}
+      isDirty={isDirty}
     >
       {cardLayoutSection}
     </TableListSettingsShell>

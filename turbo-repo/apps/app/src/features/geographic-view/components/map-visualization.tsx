@@ -19,15 +19,6 @@ import MapStyleSelector from "./map-style-selector";
 import { MapRef } from "react-map-gl";
 import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
 
-const mapboxStyles = {
-  streets: "mapbox://styles/mapbox/streets-v9",
-  satellite: "mapbox://styles/mapbox/satellite-streets-v11",
-  dark: "mapbox://styles/mapbox/dark-v10",
-  light: "mapbox://styles/mapbox/light-v10",
-  outdoors: "mapbox://styles/mapbox/outdoors-v11",
-  hybrid: "mapbox://styles/mapbox/hybrid-v10",
-};
-
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
   dict: I18nRecord;

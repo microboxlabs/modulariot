@@ -28,9 +28,10 @@ export async function GET() {
     const token = await authToken.getToken();
     const params = new URLSearchParams();
     //params.set("lastUpdatedSince", new Date().toISOString());
+    params.set("p_is_dev", "true");
 
     const response = await fetch(
-      SYMPTOMS_API_URL + "?" + params.toString() + "&p_is_dev=true",
+      SYMPTOMS_API_URL + "?" + params.toString(),
       {
         headers: {
           accept: "application/json",
@@ -42,6 +43,7 @@ export async function GET() {
     if (!response.ok) {
       const errorBody = await response.text();
       console.error("API Error Details:", {
+        responseUrl: response.url,
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries()),

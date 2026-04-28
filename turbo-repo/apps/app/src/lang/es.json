@@ -277,6 +277,7 @@
           "occupancy": "Ocupación",
           "information": "Información",
           "client": "Cliente",
+          "clientRut": "RUT Cliente",
           "route": "Ruta",
           "loadingPlace": "Lugar Cargío",
           "tripType": "Tipo Viaje",
@@ -288,6 +289,7 @@
           "confirm": "Confirmar",
           "cancelReassignment": "Cancelar",
           "confirmReassignment": "Reasignar",
+          "readOnlyBanner": "Servicio pasado — solo lectura",
           "loadUtilization": "Utilización de carga",
           "constraint": "Restricción",
           "maxUtilization": "Total",
@@ -347,12 +349,12 @@
         },
         "assignment": {
           "selectPlaceholder": "Seleccionar...",
-          "transportista": "Transportista",
-          "selectTransportista": "Seleccionar transportista...",
-          "searchTransportista": "Buscar transportista...",
-          "noTransportistasFound": "No se encontraron transportistas",
-          "conductor": "Conductor",
-          "selectConductor": "Seleccionar conductor...",
+          "carrier": "Transportista",
+          "selectCarrier": "Seleccionar transportista...",
+          "searchCarrier": "Buscar transportista...",
+          "noCarriersFound": "No se encontraron transportistas",
+          "driver": "Conductor",
+          "selectDriver": "Seleccionar conductor...",
           "searchDriver": "Buscar conductor...",
           "noDriversFound": "No se encontraron conductores",
           "searchNoResultsFor": "Sin resultados para",
@@ -378,11 +380,11 @@
               "faltasDescanso": "Faltas descanso"
             }
           },
-          "secondConductorLabel": "2do conductor",
-          "secondConductor": "Segundo Conductor",
-          "selectSecondConductor": "Seleccionar segundo conductor...",
-          "camion": "Camión",
-          "selectCamion": "Seleccionar camión...",
+          "secondDriverLabel": "2do conductor",
+          "secondDriver": "Segundo Conductor",
+          "selectSecondDriver": "Seleccionar segundo conductor...",
+          "truck": "Camión",
+          "selectTruck": "Seleccionar camión...",
           "searchTruck": "Buscar camión...",
           "noTrucksFound": "No se encontraron camiones",
           "truckSearchFields": {
@@ -393,14 +395,14 @@
             "gps": "GPS",
             "trips": "Viajes previos"
           },
-          "transportistaSearchFields": {
+          "carrierSearchFields": {
             "name": "Nombre",
             "rut": "RUT",
             "status": "Estado"
           },
-          "remolqueLabel": "Remolque",
-          "remolque": "Remolque",
-          "selectRemolque": "Seleccionar remolque...",
+          "trailerLabel": "Remolque",
+          "trailer": "Remolque",
+          "selectTrailer": "Seleccionar remolque...",
           "status": "Estado",
           "enabled": "Acreditado",
           "notEnabled": "No Acreditado",
@@ -422,11 +424,11 @@
           "available": "Disponible",
           "busy": "Ocupado",
           "truckType": {
-            "camion": "Camión",
+            "truck": "Camión",
             "furgon": "Furgón",
             "camioneta": "Camioneta"
           },
-          "remolqueType": {
+          "trailerType": {
             "ARFJ": "Articulado Fijo",
             "BAT": "Batea",
             "C100": "Contenedor 100",
@@ -462,16 +464,17 @@
           "lastMaintenance": "Último mantenimiento",
           "mileage": "Kilometraje",
           "reportedProblems": "Problemas reportados",
-          "searchRemolque": "Buscar remolque...",
-          "noRemolquesFound": "No se encontraron remolques",
-          "remolqueSearchFields": {
+          "searchTrailer": "Buscar remolque...",
+          "noTrailersFound": "No se encontraron remolques",
+          "trailerSearchFields": {
             "plate": "Patente",
             "type": "Tipo",
             "status": "Estado",
             "gps": "GPS",
             "capacity": "Capacidad",
             "mileage": "Kilometraje"
-          }
+          },
+          "loadingMore": "Cargando más…"
         }
       }
     },
@@ -1378,7 +1381,10 @@
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
         "fleetManagement": "Flotas",
-        "collaboratorsManagement": "Colaboradores"
+        "collaboratorsManagement": "Colaboradores",
+        "searchPlaceholder": "Buscar...",
+        "createDashboard": "Nuevo dashboard",
+        "closePanel": "Cerrar panel"
       }
     },
     "calendar": {
@@ -1391,12 +1397,12 @@
       "dispatch": "Despacho",
       "reception": "Recepción",
       "deleteModal": {
-        "title": "Confirmar eliminación",
-        "messagePrefix": "¿Eliminar la asignación del servicio ",
+        "title": "Eliminar planificación",
+        "messagePrefix": "¿Eliminar la planificación del servicio ",
         "messageSuffix": "?",
         "close": "Cerrar",
         "cancel": "Cancelar",
-        "delete": "Eliminar"
+        "delete": "Eliminar planificación"
       },
       "deleteAssignmentModal": {
         "title": "Eliminar asignación",
@@ -1496,6 +1502,9 @@
     "edit": "Editar",
     "save": "Guardar",
     "cancel": "Cancelar",
+    "copy": "Copiar",
+    "copiedToClipboard": "Copiado al portapapeles",
+    "import": "Importar",
     "saving": "Guardando...",
     "retry": "Reintentar",
     "connected": "Conectado",
@@ -1505,17 +1514,23 @@
       "saveSuccess": "Cambios guardados correctamente"
     },
     "title": "Título",
+    "enterTitle": "Ingrese título...",
     "subtitle": "Subtítulo",
     "value": "Valor",
     "max": "Máx",
     "unit": "Unidad",
+    "description": "Descripción",
+    "target": "Objetivo",
+    "previousValue": "Valor Anterior",
     "all": "Todos",
     "delete": "Eliminar",
     "yes": "Sí",
     "no": "No"
   },
   "dashboard": {
+    "addWidget": "Agregar Widget",
     "editMode": "Modo Edición",
+    "dragToMoveWidget": "Arrastra para mover este widget",
     "kioskMode": "Modo Kiosco",
     "landing": {
       "title": "Dashboards",
@@ -1564,12 +1579,19 @@
       "secondaryColor": "Color secundario",
       "secondaryTextColor": "Texto secundario",
       "expandable": "Expandible",
+      "goTo": "Ir a",
+      "goToUrl": "Ruta URL",
+      "goToUrlPlaceholder": "/app/es/page?param=1#anchor",
       "variant": "Variante",
       "label": "Etiqueta",
       "categoryAriaLabel": "Categoría {name} {field}",
       "new": "nueva",
       "borderColor": "Color del Borde",
       "barColor": "Color de la Barra",
+      "ringColor": "Color del Anillo",
+      "ringColorRules": "Reglas de Color del Anillo",
+      "barColorRules": "Reglas de Color de la Barra",
+      "evalModeCount": "Conteo",
       "seeMoreUrl": "URL \"Ver más\"",
       "items": "Elementos",
       "details": "Detalles",
@@ -1585,6 +1607,7 @@
       "selectColor": "Seleccionar color",
       "visualization": "Visualización",
       "dataProvider": "Proveedor de Datos",
+      "widgetAnchor": "Ancla",
       "descriptor": "Descriptor",
       "aiPlaceholder": "Texto IA",
       "viewMoreUrl": "URL Ver Más (opcional)",
@@ -1605,6 +1628,7 @@
       "columns": "Columnas",
       "detectColumns": "Detectar columnas",
       "addColumn": "Agregar columna",
+      "stickyColumn": "Columna fija",
       "cardLayout": "Diseño de Tarjeta",
       "horizontal": "Horizontal",
       "vertical": "Vertical",
@@ -1624,6 +1648,7 @@
       "sortableColumns": "Columnas ordenables",
       "rowColorRules": "Colores de fila",
       "badgeColorRules": "Colores de badge",
+      "colorRules": "Reglas de Color",
       "addRule": "Agregar regla",
       "value": "valor",
       "operatorEquals": "=",
@@ -1641,6 +1666,21 @@
       "colorGray": "gris",
       "colorOrange": "naranja",
       "colorPurple": "morado",
+      "valueColorRules": "Reglas de Color por Valor",
+      "targetText": "Texto",
+      "targetBar": "Barra",
+      "targetBadge": "Badge",
+      "targetBg": "Fondo",
+      "targetBorder": "Borde",
+      "targetIcon": "Ícono",
+      "compareModeValue": "Valor",
+      "compareModeField": "Campo",
+      "compareFieldPrevious": "Anterior",
+      "compareFieldTarget": "Objetivo",
+      "selectRuleColor": "Seleccionar color de regla",
+      "thresholds": "Umbrales",
+      "evaluateField": "Evaluar campo",
+      "applyTo": "Aplicar a",
       "actions": "Acciones",
       "addAction": "Agregar acción",
       "actionName": "Nombre",
@@ -1657,6 +1697,9 @@
       "addParameter": "Agregar parámetro",
       "totalItems": "{count} elementos",
       "totalItemsSingular": "{count} elemento",
+      "sortBy": "Ordenar por:",
+      "exportCsv": "Exportar CSV",
+      "showExport": "Mostrar exportación",
       "staticJson": "Estático (JSON)",
       "pgrest": "PGREST",
       "dynamicApi": "Dinámico (API)",
@@ -1689,6 +1732,26 @@
       "noActiveProviders": "No hay proveedores activos disponibles",
       "failedToLoadFunctions": "Error al cargar funciones",
       "invalidResponseFormat": "Formato de respuesta inválido",
+      "fileUpload": {
+        "buttonLabel": "Etiqueta del botón",
+        "buttonLabelPlaceholder": "Subir archivo",
+        "uploadEndpoint": "Endpoint de carga",
+        "acceptedFileTypes": "Tipos de archivo aceptados",
+        "acceptedFileTypesHint": "Extensiones o tipos MIME separados por coma. Dejar vacío para aceptar todos.",
+        "defaultEnv": "Por defecto (env)"
+      },
+      "batchImport": {
+        "buttonLabel": "Etiqueta del botón",
+        "buttonLabelPlaceholder": "Importar datos",
+        "endpoint": "Endpoint de importación",
+        "defaultEnv": "Por defecto (env)",
+        "defaultStrategy": "Estrategia de duplicados por defecto",
+        "acceptedFileTypes": "Tipos de archivo aceptados",
+        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt).",
+        "cacheKey": "Clave de caché",
+        "cacheKeyPlaceholder": "Opcional",
+        "cacheKeyHint": "Namespace en localStorage para el caché de estado. Dejar vacío para generar uno automáticamente."
+      },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
       "noFiltersConfigured": "No hay filtros configurados. Agregue filtros para habilitar la barra de filtros del dashboard.",
@@ -1711,13 +1774,29 @@
       "orderDescription": "Establece la posición en la barra lateral. Los números menores aparecen primero.",
       "orderUpdated": "Orden de visualización actualizado",
       "orderInvalid": "Ingrese un número válido no negativo",
-      "accessControlTitle": "Control de Acceso",
-      "accessControlDescription": "Restringir este dashboard a grupos de usuarios específicos",
-      "noGroupRestrictions": "Sin restricciones de grupo — visible para todos los usuarios del dashboard",
-      "allowedGroupsUpdated": "Grupos permitidos actualizados",
-      "loadingGroups": "Cargando grupos…",
-      "noGroupsAvailable": "No hay grupos disponibles.",
+      "copySuccess": "Dashboard copiado al portapapeles",
+      "copyError": "Error al copiar el dashboard al portapapeles",
+      "renameSuccess": "Dashboard renombrado exitosamente",
       "deleteDescription": "Eliminar permanentemente este dashboard",
+      "shareDashboardTitle": "Compartir Dashboard",
+      "shareDashboardDescription": "Copiar enlace o descargar instantánea",
+      "exportDashboardTitle": "Exportar Dashboard",
+      "exportDashboardDescription": "Descargar o copiar configuración",
+      "exportInfo": "Exporta la configuración de tu dashboard para compartir o respaldar.",
+      "exportDownloadJson": "Descargar como archivo JSON",
+      "exportCopyToClipboard": "Copiar al portapapeles",
+      "importDashboardTitle": "Importar Dashboard",
+      "importDashboardDescription": "Restaurar desde archivo JSON o texto",
+      "importUploadFile": "Subir Archivo",
+      "importPasteJson": "Pegar JSON",
+      "importSelectFile": "Seleccionar archivo JSON",
+      "importPastePlaceholder": "Pega tu JSON de dashboard aquí...",
+      "importPasteError": "Pega una configuración JSON válida para importar",
+      "importSuccess": "Dashboard importado exitosamente",
+      "importFailed": "Error al importar dashboard",
+      "importFileError": "Error al leer archivo",
+      "plannerTitle": "Planificador de Solicitudes",
+      "plannerDescription": "Define consultas de datos compartidos",
       "line": "Línea",
       "bars": "Barras",
       "pie": "Pastel",
@@ -1738,7 +1817,82 @@
       "seriesColors": "Colores de Series",
       "smooth": "Líneas Suaves",
       "stacked": "Apilado",
-      "duplicate": "Duplicar"
+      "duplicate": "Duplicar",
+      "mapSettings": "Ajustes del Mapa",
+      "showFilters": "Mostrar Filtros",
+      "showSidebar": "Mostrar Barra Lateral",
+      "showStyleSelector": "Mostrar Selector de Estilo",
+      "dataType": "Tipo de dato",
+      "columnFilter": "Filtrar",
+      "columnFilterClear": "Limpiar filtro",
+      "columnFilterClearAll": "Limpiar todo",
+      "columnFilterShowing": "Mostrando {filtered} de {total}",
+      "columnFilterSearch": "Buscar...",
+      "columnFilterEquals": "Igual a",
+      "columnFilterGreaterThan": "Mayor que",
+      "columnFilterLessThan": "Menor que",
+      "columnFilterBetween": "Entre",
+      "columnFilterMin": "Mínimo",
+      "columnFilterMax": "Máximo",
+      "columnFilterFrom": "Desde",
+      "columnFilterTo": "Hasta",
+      "columnFilterAll": "Todos",
+      "columnFilterYes": "Sí",
+      "columnFilterNo": "No",
+      "columnFilterEmpty": "vacío",
+      "columnFilterNotEmpty": "no vacío",
+      "columnFilterNoValues": "Sin valores",
+      "columnFilterTitle": "Filtrar: {column}",
+      "columnFilterValue": "Valor",
+      "columnFilterDateRange": "{from} → {to}",
+      "columnFilterFromDate": "desde {date}",
+      "columnFilterToDate": "hasta {date}",
+      "accessControlTitle": "Control de acceso",
+      "accessControlDescription": "Gestiona quién puede ver y editar este dashboard",
+      "unsavedChanges": {
+        "title": "Cambios sin guardar",
+        "description": "Tienes cambios sin guardar que se perderán si cierras ahora.",
+        "discard": "Descartar cambios",
+        "saveAndClose": "Guardar y cerrar",
+        "keepEditing": "Seguir editando"
+      }
+    },
+    "permissions": {
+      "modalTitle": "Gestionar permisos — {name}",
+      "manageButton": "Gestionar permisos",
+      "manageButtonDescription": "Añade usuarios y grupos, asigna roles y controla la herencia.",
+      "inheritanceLabel": "Heredar permisos del contenedor",
+      "inheritanceHelp": "Si se desactiva, solo se aplican los permisos locales.",
+      "inheritedHeading": "Heredados",
+      "inheritedBadge": "Heredado",
+      "noInherited": "Sin permisos heredados.",
+      "localHeading": "Locales",
+      "noLocalEntries": "Sin permisos locales. Añade usuarios o grupos abajo.",
+      "addSectionTitle": "Añadir usuario o grupo",
+      "tabUsers": "Usuarios",
+      "tabGroups": "Grupos",
+      "searchUsersPlaceholder": "Buscar usuarios por nombre o correo…",
+      "searchGroupsPlaceholder": "Buscar grupos por nombre…",
+      "searching": "Buscando…",
+      "noResults": "Sin resultados.",
+      "addButton": "Añadir",
+      "removeAriaLabel": "Eliminar {authority}",
+      "roleConsumer": "Lector",
+      "roleContributor": "Colaborador",
+      "roleEditor": "Editor",
+      "roleCoordinator": "Administrador",
+      "roleConsumerHelp": "Puede ver el dashboard",
+      "roleContributorHelp": "Puede ver e interactuar",
+      "roleEditorHelp": "Puede modificar configuración y filtros",
+      "roleCoordinatorHelp": "Control total, incluyendo gestión de permisos",
+      "saveSuccess": "Permisos actualizados",
+      "saveError": "No se pudieron actualizar los permisos",
+      "loadError": "No se pudieron cargar los permisos",
+      "notAuthorized": "No tienes autorización para gestionar los permisos de este dashboard.",
+      "cancel": "Cancelar",
+      "save": "Guardar cambios",
+      "alreadyAdded": "Ese usuario o grupo ya está en la lista local.",
+      "loading": "Cargando permisos…"
     },
     "filterBar": {
       "search": "Buscar...",
@@ -1801,7 +1955,54 @@
         "loading": "Cargando...",
         "error": "Error: {message}",
         "noData": "Sin datos"
+      },
+      "geographic_map": {
+        "name": "Vista Geográfica",
+        "description": "Mapa interactivo con marcadores de posición y filtros",
+        "load_failed": "Error al cargar datos del mapa"
+      },
+      "batchImport": {
+        "defaultTitle": "Importar datos",
+        "title": "Importar datos",
+        "subtitle": "Pegue o cargue un CSV / TSV. Los encabezados de la primera fila se usan como claves del registro.",
+        "configureHint": "Configura un endpoint en ajustes",
+        "loadSample": "Cargar ejemplo",
+        "loadFile": "Cargar archivo…",
+        "pasteHint": "Pegue contenido tab-separado o separado por comas (copiar desde Excel funciona):",
+        "headerError": {
+          "empty": "El archivo está vacío.",
+          "no_headers": "La primera fila no tiene encabezados válidos."
+        },
+        "statusCol": "Estado",
+        "total": "Total",
+        "duplicates": "Duplicados:",
+        "retryFailed": "Reintentar fallidos ({count})",
+        "clearCache": "Limpiar caché",
+        "importing": "Importando…",
+        "importN": "Importar {count} filas",
+        "status": {
+          "unprocessed": "Listo",
+          "wait": "Procesando…",
+          "processed": "Creado",
+          "updated": "Actualizado",
+          "skipped": "Omitido",
+          "failed": "Fallido"
+        },
+        "strategy": {
+          "upsert": "Actualizar (upsert)",
+          "skip": "Omitir",
+          "create": "Solo crear (falla si existe)"
+        }
       }
+    },
+    "fileUpload": {
+      "defaultTitle": "Subir archivo",
+      "configureHint": "Configura un endpoint en ajustes",
+      "noEndpoint": "No hay endpoint configurado",
+      "uploading": "Subiendo {fileName}...",
+      "uploaded": "{fileName} subido",
+      "uploadFailed": "Error al subir",
+      "tryAgain": "Intentar de nuevo"
     },
     "defaults": {
       "pageViews": "Vistas de Página",
@@ -2498,8 +2699,6 @@
   "searchbar": {
     "service": "Servicio",
     "licensePlate": "Patente",
-    "client": "Cliente",
-    "state": "Estado",
     "driverId": "RUT conductor",
     "carrierId": "RUT transportista",
     "carrierName": "Nombre de transportista",
@@ -2519,12 +2718,7 @@
     "date": "Fecha",
     "symptom_name": "Nombre del síntoma",
     "name": "Nombre",
-    "rut": "RUT",
-    "allOption": "—",
-    "stateActive": "Activo",
-    "stateMaintenance": "En Mantención",
-    "stateAlert": "Alerta",
-    "stateInactive": "Inactivo"
+    "rut": "RUT"
   },
   "comments": {
     "title": "Comentarios",
@@ -2641,7 +2835,20 @@
       "new_features_appeared": "Hay nuevas funcionalidades.",
       "test_pulse_historic_feature": "¡Prueba el nuevo Histórico de pulsos!",
       "description": "Filtra pulsos por patente y rango de fechas para obtener un reporte descargable basado en posiciones pasadas de los vehículos.",
-      "learn_more": "Aprende más sobre lo que se cambió en esta última actualización."
+      "learn_more": "Aprende más sobre lo que se cambió en esta última actualización.",
+      "sidebar": {
+        "slide1_title": "Nueva Barra Lateral",
+        "slide1_subtitle": "Rediseñamos la experiencia de navegación.",
+        "slide2_title": "Navegación en Dos Niveles",
+        "slide2_icon_bar": "Barra de Íconos",
+        "slide2_icon_bar_desc": "Acceso rápido a cada sección con un solo toque.",
+        "slide2_secondary_panel": "Panel de Detalle",
+        "slide2_secondary_panel_desc": "Expande cualquier sección para ver sus páginas, buscar y crear.",
+        "slide3_title": "Buscar y Crear",
+        "slide3_desc": "Encuentra dashboards al instante y crea nuevos sin salir de la barra lateral.",
+        "slide4_title": "Funciona en Todas Partes",
+        "slide4_desc": "La misma experiencia en escritorio y móvil — íconos primero, detalles a demanda."
+      }
     }
   },
   "calendar": {
@@ -2689,6 +2896,7 @@
       "active": "Activos",
       "inMaintenance": "En Mantención",
       "symptoms": "Síntomas",
+      "alerts": "Alertas",
       "inactive": "Inactivos"
     },
     "specialViews": {
@@ -2718,18 +2926,17 @@
       "driver": "Conductor",
       "location": "Ubicación",
       "model": "Modelo",
-      "transportist": "Cliente",
+      "transportist": "Transportista",
       "fuel": "Combustible",
       "maintenance": "Próx. Mantención",
       "kmTraveled": "Km Totales",
       "loading": "Cargando...",
       "emptyTitle": "No hay vehículos en esta flota",
+      "emptyTile": "No hay vehículos en esta flota",
       "emptyDescription": "Cuando se asignen vehículos a esta flota, aparecerán aquí.",
       "plate": "Patente",
       "lastSignal": "Última señal",
       "status": "Estado",
-      "emptyTitle": "No se encontraron vehículos",
-      "emptyDescription": "No hay vehículos para mostrar en este momento",
       "tabs": {
         "trucks": "Camiones",
         "trailers": "Remolques",
@@ -2759,15 +2966,8 @@
     "vehicleDetail": {
       "title": "Detalles del Vehículo",
       "back": "Volver a la flota",
-      "lastSignalMap": {
-        "title": "Ubicación de última señal",
-        "snapshot": "Captura",
-        "share": "Compartir",
-        "copyLink": "Copiar enlace",
-        "copied": "Copiado",
-        "unavailable": "Sin ubicación disponible",
-        "openInMaps": "Abrir en Google Maps"
-      },
+      "previous": "Anterior",
+      "next": "Siguiente",
       "sections": {
         "health": {
           "title": "Salud",
@@ -2806,13 +3006,18 @@
           "kmSinceService": "Km Desde Mantención",
           "kmSinceServiceDesc": "Recorrido desde último servicio",
           "kmRemaining": "Faltan {km} km (proyección: {days} días)",
-          "kmRemainingNoDays": "Faltan {km} km",
           "atKm": "A los {km} km",
           "intervalPercent": "{percent}% del intervalo ({interval})",
-          "neverServiced": "Nunca",
-          "errorTitle": "No pudimos cargar los datos de mantención",
-          "errorDesc": "Algo salió mal al obtener el detalle. Intenta nuevamente en unos segundos.",
+          "upToDate": "Mantención al día",
+          "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva.",
+          "upToDateBadge": "Al día",
+          "dueSoon": "Próxima",
+          "overdue": "Vencida",
+          "errorTitle": "No se pudo cargar mantención",
+          "errorDesc": "Hubo un problema al obtener los datos de mantención. Intenta nuevamente.",
           "retry": "Reintentar",
+          "kmRemainingNoDays": "Faltan {km} km",
+          "neverServiced": "Sin servicio previo",
           "criticality": {
             "AL_DIA": {
               "label": "Al día",
@@ -2821,33 +3026,33 @@
             },
             "POR_VENCER": {
               "label": "Por vencer",
-              "bannerTitle": "Mantención por vencer",
-              "bannerDesc": "Faltan menos de 2.000 km para la próxima mantención programada. Agenda una visita al taller."
+              "bannerTitle": "Mantención próxima",
+              "bannerDesc": "Quedan menos de 2.000 km para la próxima mantención programada."
             },
             "CRITICO": {
-              "label": "Crítica",
-              "bannerTitle": "Ventana crítica de mantención",
-              "bannerDesc": "Faltan menos de 500 km para la próxima mantención. Agenda el servicio de inmediato para evitar la sobrepasada."
+              "label": "Crítico",
+              "bannerTitle": "Mantención crítica",
+              "bannerDesc": "Quedan menos de 500 km. Agendar mantención inmediatamente."
             },
             "VENCIDO": {
               "label": "Vencida",
               "bannerTitle": "Mantención vencida",
-              "bannerDesc": "El vehículo sobrepasó el kilometraje programado. Retíralo de servicio hasta completar la mantención."
+              "bannerDesc": "El vehículo ha superado el intervalo de mantención programado."
             },
             "EN_TALLER": {
               "label": "En taller",
-              "bannerTitle": "Vehículo en taller",
-              "bannerDesc": "Hay una orden de mantención en curso para este vehículo."
+              "bannerTitle": "En mantención",
+              "bannerDesc": "El vehículo está siendo atendido en el taller."
             },
             "AGENDADO": {
-              "label": "Agendada",
+              "label": "Agendado",
               "bannerTitle": "Mantención agendada",
-              "bannerDesc": "Se creó una orden de mantención y está en espera para iniciarse."
+              "bannerDesc": "Se ha programado una orden de trabajo de mantención."
             },
             "SIN_INFO": {
               "label": "Sin datos",
-              "bannerTitle": "Sin señal de odómetro",
-              "bannerDesc": "No tenemos datos recientes de odómetro para este vehículo para calcular su estado de mantención. Verifica que el dispositivo GPS esté reportando."
+              "bannerTitle": "Sin datos de mantención",
+              "bannerDesc": "No hay señal de odómetro disponible para calcular el estado de mantención."
             }
           }
         },
@@ -2864,97 +3069,152 @@
           "criticalIssues": "{count} falla(s) crítica(s)",
           "warningIssues": "{count} alerta(s)",
           "adBlue": "AdBlue",
-          "dpf": "DPF",
-          "engineFailure": "Falla Motor",
+          "dpf": "Filtro DPF",
+          "engineFailure": "Falla de Motor",
           "ok": "OK"
         },
         "telemetry": {
           "title": "Dispositivos y Telemetría",
-          "description": "Dispositivos, telemetría y conexión GPS",
-          "headerSubtitle": "Score: {score}/100 · Proveedor: {provider}",
-          "headerSubtitleNoProvider": "Score: {score}/100",
+          "description": "Dispositivos conectados y datos de sensores",
+          "connected": "Conectado",
+          "disconnected": "Desconectado",
           "lastDataReceived": "Último dato recibido",
+          "installedDevices": "Dispositivos instalados",
+          "fuelSensor": "Sensor de Combustible",
+          "tempSensor": "Sensor de Temp (calibrando)",
+          "lastUpdate": "Última Actualización",
+          "signalStrength": "Intensidad de Señal",
           "odometer": "Odómetro",
           "dateTime": "Fecha y hora",
-          "statusLabel": "Estado",
-          "statusMoving": "En movimiento",
-          "statusStopped": "Detenido",
-          "motor": "Motor",
-          "motorRunning": "En marcha",
-          "motorOff": "Apagado",
+          "status": "Estado",
+          "onRoute": "En ruta",
+          "engine": "Motor",
+          "running": "En marcha",
+          "notRunning": "Apagado",
           "speed": "Velocidad",
           "rpm": "RPM",
           "battery": "Batería",
           "engineTemp": "Temp. motor",
           "location": "Ubicación",
           "transmissionInterval": "Intervalo de transmisión",
+          "every30Seconds": "Cada 30 segundos",
+          "acumulatedUptime": "Uptime acumulado",
+          "dataProcesedToday": "Datos procesados hoy",
+          "signalLost": "Pérdidas de señal (30d)",
+          "everySeconds": "Cada {seconds} segundos",
+          "dataProcessedToday": "Datos procesados hoy",
+          "statusMoving": "En movimiento",
+          "statusStopped": "Detenido",
+          "statusLabel": "Estado",
+          "motorRunning": "En marcha",
+          "motorOff": "Apagado",
+          "motor": "Motor",
           "pulsesPerMinute": "{pulses} pulsos/min",
-          "hoursSinceSignal": "Horas sin señal",
-          "signalsPerDay": "Señales / día",
-          "stability": "Estabilidad",
-          "errorTitle": "No pudimos cargar los datos de telemetría",
-          "errorDesc": "Algo salió mal al obtener el detalle de la señal. Intenta nuevamente en unos segundos.",
+          "headerSubtitle": "Puntaje telemetría: {score}% • Proveedor: {provider}",
+          "headerSubtitleNoProvider": "Puntaje telemetría: {score}%",
+          "errorTitle": "No se pudo cargar telemetría",
+          "errorDesc": "Hubo un problema al obtener los datos de telemetría. Intenta nuevamente.",
           "retry": "Reintentar",
+          "stability": "Estabilidad",
+          "signalsPerDay": "Señales por día",
+          "hoursSinceSignal": "Horas desde última señal",
           "freshness": {
             "connected": {
               "label": "Conectado",
-              "bannerTitle": "Señal GPS activa",
-              "bannerDesc": "El dispositivo está reportando señales recientes. Los datos de telemetría están al día."
+              "bannerTitle": "Señal activa",
+              "bannerDesc": "El GPS está enviando datos normalmente."
             },
             "unstable": {
               "label": "Inestable",
               "bannerTitle": "Señal inestable",
-              "bannerDesc": "El dispositivo está reportando, pero la señal es antigua o la salud del GPS está degradada. Revisa la instalación o el proveedor."
+              "bannerDesc": "El GPS está experimentando problemas de conectividad o retrasos en los datos."
             },
             "noSignal": {
               "label": "Sin señal",
-              "bannerTitle": "Sin señal reciente",
-              "bannerDesc": "No hemos recibido ninguna señal de este vehículo en los últimos 7 días. Verifica que el dispositivo GPS esté instalado y encendido."
+              "bannerTitle": "Sin señal",
+              "bannerDesc": "No se han recibido datos del GPS recientemente."
             }
           }
         },
         "events": {
           "title": "Eventos Operativos",
           "description": "Alertas e incidentes recientes",
-          "noIssues": "Sin alertas",
-          "criticalCount": "{count} crítico(s)",
-          "warningCount": "{count} alerta(s)",
-          "speedExceeded": "{speed} km/h en zona de {limit} km/h",
-          "durationMinutes": "{minutes} min",
-          "emptyTitle": "Sin eventos",
-          "emptyDesc": "No se registraron eventos operativos en los últimos 30 días.",
-          "errorTitle": "No pudimos cargar los eventos",
-          "errorDesc": "Algo salió mal al obtener los eventos. Intenta nuevamente en unos segundos.",
+          "errorTitle": "No se pudieron cargar los eventos",
+          "errorDesc": "Hubo un problema al obtener los eventos operativos. Intenta nuevamente.",
+          "errorBadge": "Error",
           "retry": "Reintentar",
+          "emptyTitle": "Sin eventos recientes",
+          "emptyDesc": "No se han registrado eventos operativos en la ventana de tiempo reciente.",
+          "criticalCount": "{count} críticos",
+          "criticalCount_one": "{count} crítico",
+          "warningCount": "{count} alertas",
+          "warningCount_one": "{count} alerta",
+          "durationMinutes": "{minutes} min",
+          "speedExceeded": "{speed} km/h (límite {limit})",
+          "hardBraking": "Frenado brusco detectado",
+          "routeCompleted": "Ruta completada exitosamente",
+          "incidentsThisMonth": "Incidentes Este Mes",
+          "hoursAgo": "Hace {count}h",
+          "noIssues": "Sin alertas",
           "urgency": {
             "critical": "Crítico",
             "warning": "Alerta",
             "info": "Info"
           },
           "category": {
+            "falla_tecnica": "Falla técnica",
+            "evento": "Evento",
+            "uso": "Uso",
+            "cambio_datos": "Cambio de datos",
+            "mantencion": "Mantención",
             "SEÑAL": "Señal",
             "VELOCIDAD": "Velocidad",
+            "HORARIO": "Horario",
+            "MANTENIMIENTO": "Mantenimiento",
             "OTROS": "Otros"
+          },
+          "filters": {
+            "dateRange": "Rango de fechas",
+            "eventType": "Tipo de evento",
+            "limit": "Cantidad",
+            "allTypes": "Todos",
+            "tipoVelocidad": "Velocidad",
+            "tipoSenal": "Señal",
+            "tipoHorario": "Horario",
+            "tipoMantenimiento": "Mantenimiento",
+            "tipoOtros": "Otros"
           }
         },
         "usage": {
           "title": "Uso de Flota",
           "description": "Estadísticas de utilización y kilometraje",
-          "currentOdometer": "Kilometraje Actual",
+          "totalKm": "Kilómetros Totales",
+          "avgDailyKm": "Km Promedio Diario",
+          "utilizationRate": "Tasa de Utilización",
+          "idleTime": "Tiempo Inactivo",
+          "weeklyGoal": "Progreso Meta Semanal",
+          "totalKilometrage": "Kilometraje Total del vehiculo",
           "odometerSinceOrigin": "Odómetro acumulado desde origen",
-          "contractConsumption": "Consumo del contrato",
-          "contractMaxLabel": "Meta contractual: {km} km",
-          "kmLast30Days": "Km últimos 30 días",
-          "lookbackWindowLabel": "Ventana de {days} días",
-          "kmRemainingContract": "Km restantes del contrato",
-          "withinContract": "Dentro del contrato",
-          "overuseAmount": "+{km} km sobreuso",
-          "noDataShort": "Sin datos",
-          "avgDailyKm": "Promedio diario",
+          "monthlyContractualConsumption": "Consumo contractual mensual",
+          "deviationFromAverage": "Desviación respecto al promedio",
+          "kmTraveledThisMonth": "Km recorridos (mes)",
+          "kmRemainingThisMonth": "Km restantes (mes)",
+          "avgDaily": "Promedio diario",
+          "operationHours": "Horas de operación",
+          "activeDays": "Días activos",
+          "annualTotalKm": "Km totales anuales",
           "kmPerDay": "{km} km/día",
+          "projectedDays": "Proyección: {days} días",
+          "limitKmMonthly": "Límite {km} km/mes",
+          "avgDailyOperationHours": "Promedio diario: {hours}",
+          "utilization": "{percentage}% Utilización",
+          "estimatedProjection": "Proyección estimada",
+          "intensityLastDays": "Intensidad últimos 30 días",
+          "exceeded": "Excedido",
+          "nearLimit": "Próximo al límite",
+          "usageLabel": "uso",
           "activeDaysLabel": "Días con datos",
           "activeDaysValue": "{active}/{total} días",
-          "utilization": "{percentage}% de cobertura",
           "useType": "Tipo de uso",
           "useTypeUnknown": "Sin clasificar",
           "useTypeDesc": "Categoría del contrato",
@@ -2983,15 +3243,32 @@
             }
           },
           "intensity": {
-            "ALTA": { "label": "Intensidad alta" },
-            "MEDIA": { "label": "Intensidad media" },
-            "BAJA": { "label": "Intensidad baja" },
-            "SIN_DATO": { "label": "Sin intensidad" }
+            "ALTA": {
+              "label": "Intensidad alta"
+            },
+            "MEDIA": {
+              "label": "Intensidad media"
+            },
+            "BAJA": {
+              "label": "Intensidad baja"
+            },
+            "SIN_DATO": {
+              "label": "Sin intensidad"
+            }
           },
           "loading": "Cargando uso…",
           "errorTitle": "No se pudo cargar el uso",
           "errorDesc": "Hubo un problema al obtener los datos de uso. Intenta nuevamente.",
-          "retry": "Reintentar"
+          "retry": "Reintentar",
+          "currentOdometer": "Odómetro Actual",
+          "contractConsumption": "Consumo Contractual",
+          "contractMaxLabel": "Contrato: {km} km",
+          "kmLast30Days": "Km Últimos 30 Días",
+          "lookbackWindowLabel": "Últimos {days} días",
+          "kmRemainingContract": "Km Restantes (Contrato)",
+          "noDataShort": "Sin datos",
+          "overuseAmount": "+{km} km sobreuso",
+          "withinContract": "Dentro del contrato"
         },
         "general": {
           "title": "Información General",
@@ -3053,17 +3330,12 @@
     "grid": {
       "title": "Colaboradores",
       "collaboratorCount": "{count} colaboradores",
-      "loading": "Cargando...",
-      "emptyTitle": "Sin resultados",
-      "emptyDesc": "No se encontraron colaboradores con los criterios de búsqueda actuales.",
-      "errorTitle": "No se pudieron cargar los colaboradores",
-      "errorDesc": "Hubo un problema al consultar la fuente de datos. Intenta nuevamente.",
-      "retry": "Reintentar"
+      "loading": "Cargando..."
     },
     "rank": {
       "conductor-senior": "Conductor Senior",
       "conductor-especializado": "Conductor Especializado",
-      "conductor": "Conductor",
+      "driver": "Conductor",
       "operador-logistico": "Operador Logístico"
     },
     "employmentStatus": {
@@ -3118,12 +3390,7 @@
         "operationalEvents": "Eventos operativos"
       },
       "noData": "No se pudieron cargar los datos de detalle para este colaborador.",
-      "backToList": "Volver al listado",
-      "notFoundTitle": "Colaborador no encontrado",
-      "notFoundDesc": "No existe un expediente asociado al identificador proporcionado.",
-      "errorTitle": "No se pudo cargar el expediente",
-      "errorDesc": "Hubo un problema al consultar la fuente de datos. Intenta nuevamente.",
-      "retry": "Reintentar"
+      "backToList": "Volver al listado"
     },
     "behaviorHistory": {
       "title": "Historial de Comportamiento",

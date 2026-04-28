@@ -4,12 +4,9 @@ import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
-import {
-  useDashletData,
-  DashletLoading,
-  DashletError,
-  resolveHandlebarsField,
-} from "../common";
+import { useDashletData } from "../common/use-dashlet-data";
+import { DashletLoading, DashletError } from "../common/dashlet-states";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
 import { useDashboard } from "../../context/dashboard-context";
@@ -129,6 +126,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const darkMode = useDarkMode();
 
+  // Force-hide tooltip when mouse leaves chart area
+  const handleGlobalOut = useCallback(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (instance) {
+      instance.dispatchAction({ type: "hideTip" });
+      instance.dispatchAction({ type: "downplay" });
+    }
+  }, []);
+
   // Fetch row data for pgrest/planner modes
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
   const {
@@ -244,6 +250,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           notMerge
           style={{ width: "100%", height: "100%" }}
           opts={{ renderer: "canvas" }}
+          onEvents={{ globalout: handleGlobalOut }}
         />
       </div>
     </div>

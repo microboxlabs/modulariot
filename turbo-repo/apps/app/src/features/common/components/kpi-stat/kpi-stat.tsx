@@ -2,6 +2,7 @@
 
 import type { IconType } from "react-icons";
 import type { CSSProperties, ReactNode } from "react";
+import { Tooltip } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 
 type KpiStatVariant = "horizontal" | "vertical";
@@ -64,6 +65,8 @@ interface KpiStatProps {
   readonly children?: ReactNode;
   /** Whether to scale text and icons based on container size */
   readonly scalable?: boolean;
+  /** Whether to show a tooltip with the title text on hover */
+  readonly tooltip?: boolean;
 }
 
 /** Get container classes based on style and variant */
@@ -263,6 +266,7 @@ export default function KpiStat({
   containerStyle,
   children,
   scalable = false,
+  tooltip = false,
 }: Readonly<KpiStatProps>) {
   const iconClassName = getIconClasses(style, icon?.className);
   const textClasses = getTextClasses(style);
@@ -295,8 +299,24 @@ export default function KpiStat({
     </span>
   );
 
+  const showTooltip = tooltip && title?.text;
+
+  /** Extract only grid/layout positioning classes for the Tooltip target wrapper */
+  function getTooltipTargetClasses(): string {
+    const layoutClasses = className
+      .split(" ")
+      .filter(
+        (cls) =>
+          cls.startsWith("col-span") ||
+          cls.startsWith("row-span") ||
+          cls === "w-full"
+      )
+      .join(" ");
+    return twMerge("w-full", layoutClasses);
+  }
+
   if (variant === "vertical") {
-    return (
+    const verticalContent = (
       <div
         className={twMerge(containerClasses, className)}
         style={containerStyle}
@@ -330,57 +350,85 @@ export default function KpiStat({
         </div>
       </div>
     );
+
+    if (showTooltip) {
+      return (
+        <Tooltip
+          content={title.text}
+          style="auto"
+          theme={{ target: getTooltipTargetClasses() }}
+        >
+          {verticalContent}
+        </Tooltip>
+      );
+    }
+    return verticalContent;
   }
 
   // Horizontal layout
-  return (
+  const horizontalContent = (
     <div
       className={twMerge(containerClasses, className)}
       style={containerStyle}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        {iconSection}
-        <div className="flex flex-col min-w-0">
-          <TitleElement
-            title={title}
-            textClasses={textClasses}
-            scalable={scalable}
-            scalableStyles={scalableStyles}
-          />
-          <DescriptionElement
-            description={description}
-            textClasses={textClasses}
-            scalable={scalable}
-            scalableStyles={scalableStyles}
-          />
+      <div className="flex flex-row items-center justify-between w-full gap-2">
+        <div className="flex flex-row items-center gap-2 min-w-0 flex-1">
+          {iconSection}
+          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+            <TitleElement
+              title={title}
+              textClasses={textClasses}
+              scalable={scalable}
+              scalableStyles={scalableStyles}
+            />
+            <DescriptionElement
+              description={description}
+              textClasses={textClasses}
+              scalable={scalable}
+              scalableStyles={scalableStyles}
+            />
+          </div>
         </div>
-      </div>
-      <div className="flex items-baseline gap-1 shrink-0">
-        <span
-          className={twMerge(
-            "font-bold",
-            scalable ? "" : "text-2xl",
-            textClasses.value,
-            value.className
-          )}
-          style={{ ...value.style, ...scalableStyles.value }}
-        >
-          {displayValue}
-        </span>
-        {unit && (
+        <div className="min-w-0">
           <span
             className={twMerge(
-              scalable ? "" : "text-base",
-              "font-normal",
-              textClasses.unit
+              "font-bold truncate block",
+              scalable ? "" : "text-2xl",
+              textClasses.value,
+              value.className
             )}
-            style={scalableStyles.unit}
+            style={{ ...value.style, ...scalableStyles.value }}
           >
-            {unit}
+            {displayValue}
           </span>
-        )}
+          {unit && (
+            <span
+              className={twMerge(
+                scalable ? "" : "text-base",
+                "font-normal",
+                textClasses.unit
+              )}
+              style={scalableStyles.unit}
+            >
+              {unit}
+            </span>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
     </div>
   );
+
+  if (showTooltip) {
+    return (
+      <Tooltip
+        content={title.text}
+        style="auto"
+        theme={{ target: getTooltipTargetClasses() }}
+      >
+        {horizontalContent}
+      </Tooltip>
+    );
+  }
+  return horizontalContent;
 }

@@ -259,7 +259,7 @@ export class PinLayer extends CompositeLayer<any> {
         updateTriggers: this.props.updateTriggers,
         pickable: true,
         parameters: {
-          depthTest: false,
+          depthTest: true,
         },
       }) as Layer,
       new PinCountLayer({

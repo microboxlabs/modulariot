@@ -39,8 +39,7 @@ public class RealAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
     @Override
     public Uni<List<AlfrescoPerson>> listGroupMembers(String groupId, int maxItems, int skipCount) {
         return coreApi.listGroupMembers(groupId, maxItems, skipCount)
-                .onFailure(AlfrescoClientException.class).recoverWithItem(e -> {
-                    AlfrescoClientException ex = (AlfrescoClientException) e;
+                .onFailure(AlfrescoClientException.class).recoverWithItem(ex -> {
                     if (ex.isNotFound()) {
                         LOG.debugf("Group %s not found in Alfresco", groupId);
                         return null;

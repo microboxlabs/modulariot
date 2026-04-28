@@ -8,7 +8,7 @@ import type { OrgMember } from "../types";
 interface MembersListProps {
   readonly members: OrgMember[];
   readonly isLoading: boolean;
-  readonly error: unknown;
+  readonly error: Error | null;
   readonly dict: I18nRecord;
 }
 
@@ -33,7 +33,7 @@ export default function MembersList({
             {tr("membersDescription", dict)}
           </p>
         </div>
-        {!isLoading && !error && (
+        {!isLoading && error == null && (
           <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
             {members.length}
           </span>
@@ -50,12 +50,12 @@ export default function MembersList({
             {tr("loadError", dict)}
           </p>
         )}
-        {!isLoading && !error && members.length === 0 && (
+        {!isLoading && error == null && members.length === 0 && (
           <p className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
             {tr("membersEmpty", dict)}
           </p>
         )}
-        {!isLoading && !error && members.length > 0 && (
+        {!isLoading && error == null && members.length > 0 && (
           <ul>
             {members.map((member, idx) => {
               const isLast = idx === members.length - 1;
@@ -63,9 +63,9 @@ export default function MembersList({
                 <li
                   key={member.id}
                   className={`flex items-center gap-3 px-4 py-3 ${
-                    !isLast
-                      ? "border-b border-gray-200 dark:border-gray-700"
-                      : ""
+                    isLast
+                      ? ""
+                      : "border-b border-gray-200 dark:border-gray-700"
                   }`}
                 >
                   <HiUserCircle className="h-8 w-8 text-gray-400 dark:text-gray-500 shrink-0" />

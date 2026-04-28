@@ -9,7 +9,7 @@ import type { ModuleCode } from "../types";
  * Returns null key when orgSlug is empty so SWR skips the fetch.
  */
 export function useOrgModules(orgSlug: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<ModuleCode[]>(
+  const { data, error, isLoading, mutate } = useSWR<ModuleCode[], Error>(
     orgSlug ? ["org-modules", orgSlug] : null,
     ([, slug]: [string, string]) => fetchOrgModules(slug),
     {
@@ -22,7 +22,7 @@ export function useOrgModules(orgSlug: string | null) {
   return {
     modules: data ?? [],
     isLoading,
-    error,
+    error: error ?? null,
     refresh: mutate,
   };
 }

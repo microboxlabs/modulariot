@@ -79,9 +79,15 @@ function isBulkLine(value: unknown): value is BulkResultLine {
 export function makePgrestBatchApi(
   functionName: string,
   dataSourceId?: string,
+  lang?: string,
 ): BatchImporterApi {
   const parseUrl = buildBaseUrl(functionName, dataSourceId, "/parse");
-  const validateUrl = buildBaseUrl(functionName, dataSourceId, "/validate");
+  const baseValidate = buildBaseUrl(functionName, dataSourceId, "/validate");
+  // Append the UI locale so server-side validation messages match what the
+  // user sees in the rest of the app. Falls back server-side to Accept-Language.
+  const validateUrl = lang
+    ? `${baseValidate}${baseValidate.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`
+    : baseValidate;
   const bulkUrl = buildBaseUrl(functionName, dataSourceId, "/bulk");
 
   return {

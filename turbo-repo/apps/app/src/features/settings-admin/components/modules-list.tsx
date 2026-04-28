@@ -2,10 +2,9 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import type { ModuleCode } from "../types";
 
 interface ModulesListProps {
-  readonly modules: ModuleCode[];
+  readonly modules: string[];
   readonly isLoading: boolean;
   readonly error: Error | null;
   readonly dict: I18nRecord;

@@ -85,8 +85,9 @@ export function makePgrestBatchApi(
   const baseValidate = buildBaseUrl(functionName, dataSourceId, "/validate");
   // Append the UI locale so server-side validation messages match what the
   // user sees in the rest of the app. Falls back server-side to Accept-Language.
+  const langSeparator = baseValidate.includes("?") ? "&" : "?";
   const validateUrl = lang
-    ? `${baseValidate}${baseValidate.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`
+    ? `${baseValidate}${langSeparator}lang=${encodeURIComponent(lang)}`
     : baseValidate;
   const bulkUrl = buildBaseUrl(functionName, dataSourceId, "/bulk");
 

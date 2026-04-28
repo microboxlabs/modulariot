@@ -7,7 +7,7 @@ import type { ModuleCode } from "../types";
 interface ModulesListProps {
   readonly modules: ModuleCode[];
   readonly isLoading: boolean;
-  readonly error: unknown;
+  readonly error: Error | null;
   readonly dict: I18nRecord;
 }
 
@@ -43,12 +43,12 @@ export default function ModulesList({
             {tr("loadError", dict)}
           </p>
         )}
-        {!isLoading && !error && modules.length === 0 && (
+        {!isLoading && error == null && modules.length === 0 && (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {tr("modulesEmpty", dict)}
           </p>
         )}
-        {!isLoading && !error && modules.length > 0 && (
+        {!isLoading && error == null && modules.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {modules.map((code) => (
               <span

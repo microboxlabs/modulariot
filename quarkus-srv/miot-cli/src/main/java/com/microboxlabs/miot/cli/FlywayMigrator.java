@@ -32,6 +32,9 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.tracking.enabled", defaultValue = "false")
     boolean trackingEnabled;
 
+    @ConfigProperty(name = "miot.component.integrations.enabled", defaultValue = "false")
+    boolean integrationsEnabled;
+
     @ConfigProperty(name = "quarkus.datasource.active", defaultValue = "true")
     boolean dataSourceActive;
 
@@ -39,7 +42,7 @@ public class FlywayMigrator {
         // Gateway and other stateless components have no DB schema.
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.
-        if (!fleetEnabled && !driverEnabled && !trackingEnabled) {
+        if (!fleetEnabled && !driverEnabled && !trackingEnabled && !integrationsEnabled) {
             LOG.debug("No DB-dependent components enabled — skipping Flyway");
             return;
         }
@@ -64,6 +67,9 @@ public class FlywayMigrator {
         }
         if (trackingEnabled) {
             locations.add("db/migration/tracking");
+        }
+        if (integrationsEnabled) {
+            locations.add("db/migration/integrations");
         }
 
         LOG.infof("Flyway locations: %s", locations);

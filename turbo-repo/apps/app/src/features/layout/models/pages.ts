@@ -7,6 +7,7 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaTruckLoading } from "react-icons/fa";
+import { HiCog } from "react-icons/hi";
 import { LuTowerControl } from "react-icons/lu";
 
 // cpd-off — sidebar configuration data, structural repetition is intentional
@@ -201,6 +202,25 @@ export const pages: SidebarItem[] = [
     totals: {},
     requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
     blockedGroups: [], // Hide reports section from revisors
+  },
+  {
+    icon: HiCog,
+    label: "settings",
+    items: [
+      {
+        href: "/users/settings",
+        label: "general",
+      },
+      {
+        href: "/users/settings/organizations",
+        label: "organizations",
+      },
+      {
+        href: "/users/settings/data-sources",
+        label: "dataSources",
+      },
+    ],
+    totals: {},
   },
 ];
 // cpd-on

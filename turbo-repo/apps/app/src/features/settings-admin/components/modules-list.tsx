@@ -13,7 +13,7 @@ interface ModulesListProps {
 
 /**
  * Enabled modules rendered as badge chips. Each module code is looked up
- * in the i18n dict under `modules.<code>` so the label is translated;
+ * in the i18n dict under `moduleNames.<code>` so the label is translated;
  * falls back to the raw code if no translation exists.
  */
 export default function ModulesList({

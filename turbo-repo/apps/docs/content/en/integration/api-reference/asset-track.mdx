@@ -146,6 +146,17 @@ For GPS devices that send sensor data directly (without OBD-II or CAN BUS connec
 
 ```json
 {
+  "acceleration": {
+    "x_axis": 1.5,
+    "y_axis": -0.5,
+    "z_axis": 2.0,
+    "g_force": 1.2
+  },
+  "gyroscope": {
+    "rotation_rate_x": 5.5,
+    "rotation_rate_y": -3.2,
+    "rotation_rate_z": 1.8
+  },
   "odometer": 125432.5,
   "engine_status": 1
 }
@@ -153,10 +164,89 @@ For GPS devices that send sensor data directly (without OBD-II or CAN BUS connec
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `acceleration` | object | Linear acceleration from the device's accelerometer (see below) |
+| `gyroscope` | object | Angular rotation rates from the device's gyroscope (see below) |
 | `odometer` | number | Total distance traveled in kilometers |
 | `engine_status` | integer | Engine state: `1` = on, `0` = off |
 
-> Use this object when the GPS device provides odometer and engine status readings directly, without relying on the vehicle's diagnostic bus.
+> Use this object when the GPS device provides inertial, odometer or engine status readings directly, without relying on the vehicle's diagnostic bus. All sub-fields are optional — send only what the device reports.
+
+#### Acceleration
+
+Linear acceleration on each axis of the device's accelerometer, plus the total magnitude. Used to detect harsh braking, hard acceleration, sharp cornering, impacts and crash events.
+
+| Field | Type | Unit | Range | Description |
+|-------|------|------|-------|-------------|
+| `x_axis` | number | g | -3.0 to 3.0 | Acceleration along the X axis (typically lateral) |
+| `y_axis` | number | g | -3.0 to 3.0 | Acceleration along the Y axis (typically longitudinal) |
+| `z_axis` | number | g | -3.0 to 3.0 | Acceleration along the Z axis (typically vertical) |
+| `g_force` | number | g | 0.0 to 5.0 | Total acceleration magnitude, including gravity |
+
+> Values are reported in units of **g** (standard gravity, 1 g ≈ 9.80665 m/s²). Axis orientation depends on how the device is mounted — refer to the device datasheet for the sensor frame.
+
+#### Gyroscope
+
+Angular rotation rate around each axis of the device's gyroscope. Used to detect rollover, aggressive maneuvers and orientation changes.
+
+| Field | Type | Unit | Range | Description |
+|-------|------|------|-------|-------------|
+| `rotation_rate_x` | number | rad/s | -10.0 to 10.0 | Rotation rate around the X axis (roll) |
+| `rotation_rate_y` | number | rad/s | -10.0 to 10.0 | Rotation rate around the Y axis (pitch) |
+| `rotation_rate_z` | number | rad/s | -10.0 to 10.0 | Rotation rate around the Z axis (yaw) |
+
+> Values are reported in **radians per second**. Multiply by `180/π` (≈ 57.2958) to convert to degrees per second if your downstream pipeline expects °/s.
+
+### Events Object
+
+For GPS devices or providers that pre-compute discrete asset events (harsh braking, hard acceleration, sharp cornering, speeding, impacts). Use this object when the provider already delivers the typed event — with severity and threshold — rather than only the raw sensor reading.
+
+```json
+{
+  "events": [
+    {
+      "event_type": "hard_brake",
+      "timestamp": "2026-04-23T14:32:10Z",
+      "severity": "high",
+      "threshold_exceeded": true,
+      "additional_info": {
+        "g_force": 0.82,
+        "speed_at_event": 74.5,
+        "cargo_weight": 5000
+      }
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event_type` | string | **Yes** | Event type. See catalog below. |
+| `timestamp` | string | **Yes** | ISO 8601 timestamp of the event (may differ from the envelope timestamp). |
+| `severity` | string | No | Severity reported by the provider: `low`, `medium`, `high`. |
+| `threshold_exceeded` | boolean | No | `true` if the event exceeded the provider's configured threshold. |
+| `additional_info` | object | No | Event metadata (see below). |
+
+#### `event_type` catalog
+
+| Value | Description |
+|-------|-------------|
+| `hard_brake` | Harsh braking detected by the provider from longitudinal acceleration. |
+| `hard_accel` | Hard acceleration detected by the provider from longitudinal acceleration. |
+| `hard_turn` | Sharp cornering / aggressive lateral maneuver detected by the provider from the gyroscope or lateral acceleration. |
+| `speeding` | Over-speed relative to the configured limit. |
+| `impact` | Impact / collision detected by the provider from a g-force spike. |
+
+> The `event_type` field is a free-form string: the values above are the convention supported by the symptoms pipeline. Other values are accepted and persisted, but will not trigger downstream rules.
+
+#### additional_info
+
+| Field | Type | Unit | Range | Description |
+|-------|------|------|-------|-------------|
+| `g_force` | number | g | 0.0 to 5.0 | G-force measured during the event. |
+| `speed_at_event` | number | km/h | 0.0 to 250.0 | Asset speed at the moment of the event. |
+| `cargo_weight` | number | kg | 0.0 to 20000.0 | Cargo weight at the moment of the event, if the device reports it. |
+
+> Prefer `events[]` for data already typed by the provider (hard brake, hard acceleration, hard turn). If you only have the raw accelerometer or gyroscope reading, send it in `sensors.acceleration` / `sensors.gyroscope` and let the pipeline derive the event.
 
 ---
 
@@ -218,6 +308,7 @@ The collection includes:
 - **Track with Batched Metrics** - Multiple timestamped metrics
 - **Track with Full Telemetry** - Comprehensive example with all fields
 - **Track with DTC Codes** - Diagnostic trouble codes example
+- **Track with Provider Events** - Typed events (hard_brake, hard_accel, hard_turn)
 
 ---
 
@@ -410,6 +501,226 @@ curl --request POST \
       "engine_status": 1
     }
   }'
+```
+
+### With Accelerometer and Gyroscope (IMU Sensors)
+
+For GPS devices equipped with an inertial measurement unit that reports acceleration and rotation:
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-006' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 65.5,
+      "heading": 180
+    },
+    "sensors": {
+      "acceleration": {
+        "x_axis": 1.5,
+        "y_axis": -0.5,
+        "z_axis": 2.0,
+        "g_force": 1.2
+      },
+      "gyroscope": {
+        "rotation_rate_x": 5.5,
+        "rotation_rate_y": -3.2,
+        "rotation_rate_z": 1.8
+      },
+      "odometer": 125432.5,
+      "engine_status": 1
+    }
+  }'
+```
+
+### With Provider Events (Hard Brake/Accel/Turn)
+
+For GPS devices or providers that pre-compute discrete driving events and send them typed — with severity and threshold — inside the `events[]` array.
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-007' \
+  --header 'X-Request-Timestamp: 1740492537' \
+  --data '{
+    "asset_id": "TTBJ72",
+    "timestamp": "2026-02-13T13:48:57Z",
+    "gps": {
+      "latitude": -29.810218,
+      "longitude": -71.282617,
+      "speed": 74.5,
+      "heading": 315
+    },
+    "events": [
+      {
+        "event_type": "hard_brake",
+        "timestamp": "2026-02-13T13:48:55Z",
+        "severity": "high",
+        "threshold_exceeded": true,
+        "additional_info": { "g_force": 0.82, "speed_at_event": 74.5, "cargo_weight": 5000 }
+      },
+      {
+        "event_type": "hard_accel",
+        "timestamp": "2026-02-13T13:48:40Z",
+        "severity": "medium",
+        "threshold_exceeded": true,
+        "additional_info": { "g_force": 0.61, "speed_at_event": 42.0 }
+      },
+      {
+        "event_type": "hard_turn",
+        "timestamp": "2026-02-13T13:48:30Z",
+        "severity": "medium",
+        "threshold_exceeded": true,
+        "additional_info": { "g_force": 0.55, "speed_at_event": 58.0 }
+      }
+    ]
+  }'
+```
+
+#### Node.js (fetch)
+
+```javascript
+const res = await fetch("https://iot.streamhub.cl/v1/asset/track", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "X-Request-Id": crypto.randomUUID(),
+    "X-Request-Timestamp": String(Math.floor(Date.now() / 1000)),
+  },
+  body: JSON.stringify({
+    asset_id: "TTBJ72",
+    timestamp: "2026-02-13T13:48:57Z",
+    gps: { latitude: -29.810218, longitude: -71.282617, speed: 74.5, heading: 315 },
+    events: [
+      {
+        event_type: "hard_brake",
+        timestamp: "2026-02-13T13:48:55Z",
+        severity: "high",
+        threshold_exceeded: true,
+        additional_info: { g_force: 0.82, speed_at_event: 74.5, cargo_weight: 5000 },
+      },
+      {
+        event_type: "hard_accel",
+        timestamp: "2026-02-13T13:48:40Z",
+        severity: "medium",
+        threshold_exceeded: true,
+        additional_info: { g_force: 0.61, speed_at_event: 42.0 },
+      },
+      {
+        event_type: "hard_turn",
+        timestamp: "2026-02-13T13:48:30Z",
+        severity: "medium",
+        threshold_exceeded: true,
+        additional_info: { g_force: 0.55, speed_at_event: 58.0 },
+      },
+    ],
+  }),
+});
+
+if (!res.ok) throw new Error(`asset/track ${res.status}: ${await res.text()}`);
+```
+
+#### Python (requests)
+
+```python
+import time, uuid, requests
+
+res = requests.post(
+    "https://iot.streamhub.cl/v1/asset/track",
+    headers={
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Request-Id": str(uuid.uuid4()),
+        "X-Request-Timestamp": str(int(time.time())),
+    },
+    json={
+        "asset_id": "TTBJ72",
+        "timestamp": "2026-02-13T13:48:57Z",
+        "gps": {"latitude": -29.810218, "longitude": -71.282617, "speed": 74.5, "heading": 315},
+        "events": [
+            {
+                "event_type": "hard_brake",
+                "timestamp": "2026-02-13T13:48:55Z",
+                "severity": "high",
+                "threshold_exceeded": True,
+                "additional_info": {"g_force": 0.82, "speed_at_event": 74.5, "cargo_weight": 5000},
+            },
+            {
+                "event_type": "hard_accel",
+                "timestamp": "2026-02-13T13:48:40Z",
+                "severity": "medium",
+                "threshold_exceeded": True,
+                "additional_info": {"g_force": 0.61, "speed_at_event": 42.0},
+            },
+            {
+                "event_type": "hard_turn",
+                "timestamp": "2026-02-13T13:48:30Z",
+                "severity": "medium",
+                "threshold_exceeded": True,
+                "additional_info": {"g_force": 0.55, "speed_at_event": 58.0},
+            },
+        ],
+    },
+    timeout=10,
+)
+res.raise_for_status()
+```
+
+#### Java (HttpClient)
+
+```java
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.util.UUID;
+
+String body = """
+    {
+      "asset_id": "TTBJ72",
+      "timestamp": "2026-02-13T13:48:57Z",
+      "gps": { "latitude": -29.810218, "longitude": -71.282617, "speed": 74.5, "heading": 315 },
+      "events": [
+        { "event_type": "hard_brake", "timestamp": "2026-02-13T13:48:55Z", "severity": "high",
+          "threshold_exceeded": true,
+          "additional_info": { "g_force": 0.82, "speed_at_event": 74.5, "cargo_weight": 5000 } },
+        { "event_type": "hard_accel", "timestamp": "2026-02-13T13:48:40Z", "severity": "medium",
+          "threshold_exceeded": true,
+          "additional_info": { "g_force": 0.61, "speed_at_event": 42.0 } },
+        { "event_type": "hard_turn",  "timestamp": "2026-02-13T13:48:30Z", "severity": "medium",
+          "threshold_exceeded": true,
+          "additional_info": { "g_force": 0.55, "speed_at_event": 58.0 } }
+      ]
+    }
+    """;
+
+HttpRequest req = HttpRequest.newBuilder(URI.create("https://iot.streamhub.cl/v1/asset/track"))
+    .header("Authorization", "Bearer " + token)
+    .header("Content-Type", "application/json")
+    .header("Accept", "application/json")
+    .header("X-Request-Id", UUID.randomUUID().toString())
+    .header("X-Request-Timestamp", String.valueOf(Instant.now().getEpochSecond()))
+    .POST(HttpRequest.BodyPublishers.ofString(body))
+    .build();
+
+HttpResponse<String> res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+if (res.statusCode() >= 300) throw new RuntimeException("asset/track " + res.statusCode() + ": " + res.body());
 ```
 
 ### Python Example

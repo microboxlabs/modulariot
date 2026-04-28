@@ -8,6 +8,7 @@ import {
 import type { AlfrescoDataSource } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { encrypt, decrypt, maskToken } from "@/lib/crypto";
 import { UpdateDataSourceSchema } from "@/features/data-sources/types";
+import { invalidateTokenCache } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 import { buildMaskedResponse } from "../utils";
 
@@ -89,13 +90,14 @@ function resolveClientSecret(
 }
 
 async function buildConfigFromParsedData(
-  data: { authMethod?: string; token?: string; clientId?: string; clientSecret?: string; tokenUrl?: string; scope?: string | null; audience?: string | null },
+  data: { authMethod?: string; token?: string; clientId?: string; clientSecret?: string; tokenUrl?: string; scope?: string | null; audience?: string | null; tokenRequestFormat?: "form" | "json" },
   session: Parameters<typeof getDataSource>[0],
   dataSourceId: string
 ): Promise<Record<string, unknown> | null> {
-  const { authMethod, token, clientId, clientSecret, tokenUrl, scope, audience } = data;
+  const { authMethod, token, clientId, clientSecret, tokenUrl, scope, audience, tokenRequestFormat } = data;
   const hasAuthChanges = authMethod !== undefined || token || clientId !== undefined
-    || clientSecret || tokenUrl !== undefined || scope !== undefined || audience !== undefined;
+    || clientSecret || tokenUrl !== undefined || scope !== undefined || audience !== undefined
+    || tokenRequestFormat !== undefined;
 
   if (!hasAuthChanges) return null;
 
@@ -108,6 +110,7 @@ async function buildConfigFromParsedData(
   if (tokenUrl !== undefined) configObj.tokenUrl = tokenUrl;
   if (scope !== undefined) configObj.scope = scope ?? "";
   if (audience !== undefined) configObj.audience = audience ?? "";
+  if (tokenRequestFormat !== undefined) configObj.tokenRequestFormat = tokenRequestFormat;
 
   // Determine effective auth method (incoming or existing)
   const effectiveAuthMethod = authMethod ?? existingConfig?.authMethod;
@@ -128,6 +131,7 @@ async function buildConfigFromParsedData(
       configObj.tokenUrl = "";
       configObj.scope = "";
       configObj.audience = "";
+      configObj.tokenRequestFormat = undefined;
     } else if (effectiveAuthMethod === "OAUTH") {
       configObj.encryptedToken = "";
       configObj.tokenSuffix = "";
@@ -168,6 +172,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     }
 
     const updated = await updateDataSource(session, updateBody);
+    if (configObj) invalidateTokenCache(dataSourceId);
 
     if (!updated?.nodeRef) {
       return NextResponse.json(
@@ -195,6 +200,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
 
   try {
     const removed = await deleteDataSource(session, dataSourceId);
+    invalidateTokenCache(dataSourceId);
     if (!removed?.success) {
       return NextResponse.json(
         { error: "Data source not found" },

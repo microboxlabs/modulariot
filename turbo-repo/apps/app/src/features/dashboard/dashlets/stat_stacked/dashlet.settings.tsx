@@ -2,23 +2,21 @@
 
 import { useState } from "react";
 import { Button, Label, ToggleSwitch } from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
+import { ReactSortable } from "react-sortablejs";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, ChartType } from "./dashlet";
-import {
-  HbTextFieldList,
-  HbInlineInput,
-  PgrestDataTab,
-  useSimplePgrestSettings,
-  useThresholdSettings,
-  ThresholdEditor,
-} from "../common";
+import { HbTextFieldList, HbInlineInput } from "../common/settings-fields";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useSimplePgrestSettings } from "../common/use-simple-pgrest-settings";
+import { useThresholdSettings } from "../common/use-threshold-settings";
+import { ThresholdEditor } from "../common/threshold-editor";
+import { DeleteItemButton } from "../common/delete-item-button";
 import { usePlannerContext } from "../../context/planner-context";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 
@@ -67,6 +65,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
@@ -120,6 +119,20 @@ export function DashletSettings({
     dataMode === "planner" && plannerVariableName
       ? schemas.get(plannerVariableName)
       : undefined;
+
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    items,
+    unit,
+    showHeader,
+    chartType,
+    pgrestSaveFields,
+    refreshValue: refresh.value,
+    thresholdState: threshold.thresholdEnabled,
+    thresholdField: threshold.thresholdField,
+    thresholdApplyTo: threshold.thresholdApplyTo,
+    thresholdRules: threshold.thresholdRules,
+  });
 
   const handleSave = () => {
     const itemsToSave = items.map(({ label, value, color }) => ({
@@ -237,63 +250,84 @@ export function DashletSettings({
             Add
           </Button>
         </div>
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
-          >
-            <HbInlineInput
-              value={item.label}
-              onChange={(v) => updateItem(item.id, "label", v)}
-              placeholder={
-                isPgrest
-                  ? "{{row.label}}"
-                  : tr("dashboard.settings.label", dictionary)
-              }
-              className="flex-1"
-              schemaSuggestions={schemaSuggestions}
-              aria-label={tr(
-                "dashboard.settings.categoryAriaLabel",
-                dictionary,
-                {
-                  name: item.label || tr("dashboard.settings.new", dictionary),
-                  field: tr("dashboard.settings.label", dictionary),
-                }
-              )}
-            />
-            <HbInlineInput
-              value={item.value}
-              onChange={(v) => updateItem(item.id, "value", v)}
-              placeholder={isPgrest ? "{{row.value}}" : "0"}
-              className="w-20"
-              schemaSuggestions={schemaSuggestions}
-              aria-label={tr(
-                "dashboard.settings.categoryAriaLabel",
-                dictionary,
-                {
-                  name: item.label || tr("dashboard.settings.new", dictionary),
-                  field: tr("common.value", dictionary),
-                }
-              )}
-            />
-            <AdvancedColorPicker
-              value={item.color}
-              onChange={(c) => updateItem(item.id, "color", c)}
-              title="Color"
-            />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeItem(item.id);
-              }}
-              onMouseDown={handleMouseDown}
-              className="no-drag cursor-pointer rounded p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+        <ReactSortable
+          list={items}
+          setList={setItems}
+          animation={150}
+          handle=".drag-handle"
+          className="space-y-2"
+        >
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
             >
-              <HiTrash className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+              <button
+                type="button"
+                className="drag-handle shrink-0 cursor-grab p-0.5 text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:text-gray-500 dark:hover:text-gray-300"
+                aria-label="Drag to reorder"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M2 3.75A.75.75 0 0 1 2.75 3h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 3.75ZM2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Zm0 4.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+              <HbInlineInput
+                value={item.label}
+                onChange={(v) => updateItem(item.id, "label", v)}
+                placeholder={
+                  isPgrest
+                    ? "{{row.label}}"
+                    : tr("dashboard.settings.label", dictionary)
+                }
+                className="flex-1"
+                schemaSuggestions={schemaSuggestions}
+                aria-label={tr(
+                  "dashboard.settings.categoryAriaLabel",
+                  dictionary,
+                  {
+                    name:
+                      item.label || tr("dashboard.settings.new", dictionary),
+                    field: tr("dashboard.settings.label", dictionary),
+                  }
+                )}
+              />
+              <HbInlineInput
+                value={item.value}
+                onChange={(v) => updateItem(item.id, "value", v)}
+                placeholder={isPgrest ? "{{row.value}}" : "0"}
+                className="w-20"
+                schemaSuggestions={schemaSuggestions}
+                aria-label={tr(
+                  "dashboard.settings.categoryAriaLabel",
+                  dictionary,
+                  {
+                    name:
+                      item.label || tr("dashboard.settings.new", dictionary),
+                    field: tr("common.value", dictionary),
+                  }
+                )}
+              />
+              <AdvancedColorPicker
+                value={item.color}
+                onChange={(c) => updateItem(item.id, "color", c)}
+                title="Color"
+              />
+              <DeleteItemButton
+                onClick={() => removeItem(item.id)}
+                ariaLabel={tr("dashboard.settings.deleteItem", dictionary)}
+              />
+            </div>
+          ))}
+        </ReactSortable>
       </div>
       <ThresholdEditor
         enabled={threshold.thresholdEnabled}
@@ -307,6 +341,7 @@ export function DashletSettings({
         onRemove={threshold.removeThresholdRule}
         onUpdate={threshold.updateThresholdRule}
         schemaSuggestions={schemaSuggestions}
+        dictionary={dictionary}
       />
     </>
   );
@@ -327,15 +362,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

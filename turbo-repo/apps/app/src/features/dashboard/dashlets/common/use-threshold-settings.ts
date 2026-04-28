@@ -1,6 +1,15 @@
 import { useCallback, useState } from "react";
-import type { ThresholdConfig, ThresholdRuleItem, ThresholdTarget } from "./threshold-types";
-import { normalizeThresholdConfig, toThresholdRuleItems, fromThresholdRuleItems } from "./threshold-helpers";
+import type {
+  ThresholdConfig,
+  ThresholdRuleItem,
+  ThresholdTarget,
+} from "./threshold-types";
+import { DEFAULT_RULE_COLOR } from "./color-rule-types";
+import {
+  normalizeThresholdConfig,
+  toThresholdRuleItems,
+  fromThresholdRuleItems,
+} from "./threshold-helpers";
 
 let nextId = 0;
 
@@ -11,13 +20,18 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
   const [field, setField] = useState(normalized.field);
   const [applyTo, setApplyTo] = useState<ThresholdTarget[]>(normalized.applyTo);
   const [rules, setRules] = useState<ThresholdRuleItem[]>(
-    toThresholdRuleItems(normalized.rules),
+    toThresholdRuleItems(normalized.rules)
   );
 
   const addRule = useCallback(() => {
     setRules((prev) => [
       ...prev,
-      { _id: `tr-new-${nextId++}`, operator: "greater_than", value: "", color: "red" },
+      {
+        _id: `tr-new-${nextId++}`,
+        operator: "greater_than",
+        value: "",
+        color: DEFAULT_RULE_COLOR,
+      },
     ]);
   }, []);
 
@@ -28,10 +42,10 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
   const updateRule = useCallback(
     (id: string, ruleField: string, value: string) => {
       setRules((prev) =>
-        prev.map((r) => (r._id === id ? { ...r, [ruleField]: value } : r)),
+        prev.map((r) => (r._id === id ? { ...r, [ruleField]: value } : r))
       );
     },
-    [],
+    []
   );
 
   const buildThresholdSavePayload = (): { thresholds: ThresholdConfig } => ({
@@ -42,6 +56,20 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
       rules: fromThresholdRuleItems(rules),
     },
   });
+
+  /** Props ready to spread onto <ThresholdEditor> (add schemaSuggestions & dictionary). */
+  const editorProps = {
+    enabled,
+    onToggle: setEnabled,
+    field,
+    onFieldChange: setField,
+    applyTo,
+    onApplyToChange: setApplyTo,
+    rules,
+    onAdd: addRule,
+    onRemove: removeRule,
+    onUpdate: updateRule,
+  };
 
   return {
     thresholdEnabled: enabled,
@@ -55,5 +83,6 @@ export function useThresholdSettings(config: { thresholds?: ThresholdConfig }) {
     removeThresholdRule: removeRule,
     updateThresholdRule: updateRule,
     buildThresholdSavePayload,
+    editorProps,
   };
 }

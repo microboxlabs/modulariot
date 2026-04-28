@@ -109,6 +109,11 @@ function extractMintralIncidents(
     .map((incident) => [incident[0], incident[1]] as [string, string]);
 }
 
+function toPercent(value: number | null | undefined): number {
+  if (value == null) return 0;
+  return Math.round(value <= 1 ? value * 100 : value);
+}
+
 // Transform KanbanBoardTask to SelectedService
 function transformTaskToService(task: KanbanBoardTask): SelectedService {
   const serviceId = task.name || task.id;
@@ -117,17 +122,22 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
 
   return {
     id: serviceId,
+    taskId: task.id,
     cliente: task.client || task.clientCode || "",
+    mintral_clientRut: task.mintral_clientRut,
+    mintral_delegacionOrigen: task.mintral_delegacionOrigen,
     origen: task.origin || "",
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje,
-    ocupacion: task.mintral_loadMaxUtilization ?? 0,
+    ocupacion: 100 * (task.mintral_loadMaxUtilization ?? 0),
     permanencia,
     leadTime: {
       total_lineasoc_cumplen: task.mintral_compliantOrderLines ?? 0,
       total_lineasoc_incumplen: task.mintral_nonCompliantOrderLines ?? 0,
-      lineasoc_pctn_cumplimiento: task.mintral_deliveryComplianceRate ?? 0,
+      lineasoc_pctn_cumplimiento: toPercent(
+        task.mintral_deliveryComplianceRate
+      ),
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
     incidencias: extractIncidencias(task),
@@ -600,6 +610,16 @@ export function PlanningSidebarClient({
               displayState.selectedService
                 ? {
                     ...displayState.selectedService,
+                    mintral_clientRut:
+                      displayState.selectedService.mintral_clientRut ??
+                      allServices.find(
+                        (s) => s.id === displayState.selectedService?.id
+                      )?.mintral_clientRut,
+                    mintral_delegacionOrigen:
+                      displayState.selectedService.mintral_delegacionOrigen ??
+                      allServices.find(
+                        (s) => s.id === displayState.selectedService?.id
+                      )?.mintral_delegacionOrigen,
                     slot: displayState.formattedSlot?.full,
                   }
                 : undefined

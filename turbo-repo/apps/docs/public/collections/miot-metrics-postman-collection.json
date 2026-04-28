@@ -197,6 +197,76 @@
           "response": []
         },
         {
+          "name": "Track with GPS Sensors (Acceleration/Gyroscope)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"TTBJ72\",\n  \"type\": \"Truck\",\n  \"owner\": \"Transportes Pilar Diaz\",\n  \"timestamp\": \"2026-02-13T13:48:57Z\",\n  \"gps\": {\n    \"latitude\": -29.810218,\n    \"longitude\": -71.282617,\n    \"speed\": 78,\n    \"heading\": 315,\n    \"satellites\": 15\n  },\n  \"sensors\": {\n    \"acceleration\": {\n      \"x_axis\": 1.5,\n      \"y_axis\": -0.5,\n      \"z_axis\": 2.0,\n      \"g_force\": 1.2\n    },\n    \"gyroscope\": {\n      \"rotation_rate_x\": 5.5,\n      \"rotation_rate_y\": -3.2,\n      \"rotation_rate_z\": 1.8\n    },\n    \"odometer\": 125432.5,\n    \"engine_status\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Inertial sensor data from a GPS device IMU: three-axis acceleration in g (with total g-force magnitude) and three-axis angular rotation in rad/s. Used to detect harsh braking, hard cornering, impacts and rollover events when no OBD-II/CAN bus is available."
+          },
+          "response": []
+        },
+        {
+          "name": "Track with Provider Events (Hard Brake/Accel/Turn)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"TTBJ72\",\n  \"type\": \"Truck\",\n  \"owner\": \"Transportes Pilar Diaz\",\n  \"timestamp\": \"2026-02-13T13:48:57Z\",\n  \"gps\": {\n    \"latitude\": -29.810218,\n    \"longitude\": -71.282617,\n    \"speed\": 74.5,\n    \"heading\": 315,\n    \"satellites\": 15\n  },\n  \"events\": [\n    {\n      \"event_type\": \"hard_brake\",\n      \"timestamp\": \"2026-02-13T13:48:55Z\",\n      \"severity\": \"high\",\n      \"threshold_exceeded\": true,\n      \"additional_info\": { \"g_force\": 0.82, \"speed_at_event\": 74.5, \"cargo_weight\": 5000 }\n    },\n    {\n      \"event_type\": \"hard_accel\",\n      \"timestamp\": \"2026-02-13T13:48:40Z\",\n      \"severity\": \"medium\",\n      \"threshold_exceeded\": true,\n      \"additional_info\": { \"g_force\": 0.61, \"speed_at_event\": 42.0 }\n    },\n    {\n      \"event_type\": \"hard_turn\",\n      \"timestamp\": \"2026-02-13T13:48:30Z\",\n      \"severity\": \"medium\",\n      \"threshold_exceeded\": true,\n      \"additional_info\": { \"g_force\": 0.55, \"speed_at_event\": 58.0 }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Provider-calculated GPS events delivered in the events[] array. Use this shape when the device or provider already emits typed events (hard brake, hard acceleration, hard turn, speeding, impact) with severity and threshold, rather than only the raw accelerometer/gyroscope reading. Each event carries its own timestamp and optional additional_info (g_force, speed_at_event, cargo_weight)."
+          },
+          "response": []
+        },
+        {
           "name": "Track with Full Telemetry",
           "request": {
             "method": "POST",
@@ -325,7 +395,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-05T14:00:00Z\",\n  \"gps\": {\n    \"latitude\": -33.438712,\n    \"longitude\": -70.641234,\n    \"altitude\": 508,\n    \"speed\": 82,\n    \"heading\": 200,\n    \"satellites\": 13\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 1850, \"u\": \"rpm\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 82, \"u\": \"km/h\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 89, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 61, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 55, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 27.8, \"u\": \"V\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 342150, \"u\": \"km\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.level\", \"v\": 72.5, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.rate\", \"v\": 1.2, \"u\": \"L/h\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.temp\", \"v\": 25.0, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.differential_pressure\", \"v\": 12.3, \"u\": \"kPa\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.inlet_temp\", \"v\": 350, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.outlet_temp\", \"v\": 310, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.soot_load\", \"v\": 45, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.regen_state\", \"v\": false, \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"j1939\", \"q\": \"ok\" }\n    ],\n    \"seq\": 200001,\n    \"device_ts\": \"2026-02-05T14:00:00Z\"\n  }\n}"
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-05T14:00:00Z\",\n  \"gps\": {\n    \"latitude\": -33.438712,\n    \"longitude\": -70.641234,\n    \"altitude\": 508,\n    \"speed\": 82,\n    \"heading\": 200,\n    \"satellites\": 13\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 1850, \"u\": \"rpm\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 82, \"u\": \"km/h\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 89, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 61, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 55, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 27.8, \"u\": \"V\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 342150, \"u\": \"km\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.level\", \"v\": 72.5, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.volume\", \"v\": 48.2, \"u\": \"L\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.rate\", \"v\": 1.2, \"u\": \"L/h\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.adblue.temp\", \"v\": 25.0, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.differential_pressure\", \"v\": 12.3, \"u\": \"kPa\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.inlet_temp\", \"v\": 350, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.outlet_temp\", \"v\": 310, \"u\": \"C\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.soot_load\", \"v\": 45, \"u\": \"%\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.soot_density\", \"v\": 6.4, \"u\": \"g/L\", \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"x.dpf.regen_state\", \"v\": false, \"src\": \"j1939\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"j1939\", \"q\": \"ok\" }\n    ],\n    \"seq\": 200001,\n    \"device_ts\": \"2026-02-05T14:00:00Z\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/v1/asset/track",

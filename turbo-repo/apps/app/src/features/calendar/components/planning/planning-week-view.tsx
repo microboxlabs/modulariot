@@ -57,6 +57,7 @@ interface WeekSlotCellProps {
   } | null;
   onCellClick: (day: WeekDay, slot: { hour: number; minutes: number }) => void;
   onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  onChipClick: (ps: PlannedService) => void;
   dict: I18nRecord;
 }
 
@@ -71,6 +72,7 @@ function WeekSlotCell({
   reassigningService,
   onCellClick,
   onContextMenu,
+  onChipClick,
   dict,
 }: Readonly<WeekSlotCellProps>) {
   const { slotBlocked, isDisabled } = slotState;
@@ -93,6 +95,7 @@ function WeekSlotCell({
         getSlotCellClassName(slotState, dayIsPast, selected, {
           isLastDay,
           isLastSlot,
+          isFirstEditable: day.isToday,
         })
       )}
     >
@@ -102,6 +105,7 @@ function WeekSlotCell({
         services={slotServices}
         reassigningServiceId={reassigningService?.service.service.id}
         onContextMenu={onContextMenu}
+        onChipClick={onChipClick}
         dict={dict}
         servicesLayout="column"
       />
@@ -148,6 +152,7 @@ export default function PlanningWeekView({
     handleDeleteAssignmentRequest,
     handleConfirmDeleteAssignment,
     handleCancelDeleteAssignment,
+    viewPlannedService,
   } = usePlanningGrid({ startHour, endHour });
 
   // Read date from URL, fallback to prop or today
@@ -212,42 +217,57 @@ export default function PlanningWeekView({
         </div>
 
         {/* Header row - day columns */}
-        {weekDays.map((day, idx) => (
-          <div
-            key={day.dayNumber}
-            className="sticky top-0 z-10 bg-white dark:bg-gray-800"
-          >
+        {weekDays.map((day, idx) => {
+          const dayIsPast = isPastDay(day);
+          return (
             <div
-              className={twMerge(
-                "h-16 flex flex-col items-center justify-center",
-                "border-l border-t border-gray-200 dark:border-gray-700",
-                "bg-gray-50 dark:bg-gray-900",
-                isLastDay(idx) && "border-r rounded-tr-lg"
-              )}
+              key={day.dayNumber}
+              className="sticky top-0 z-10 bg-white dark:bg-gray-800"
             >
-              <span
+              <div
                 className={twMerge(
-                  "text-xs font-medium",
-                  day.isToday
-                    ? "text-primary-600 dark:text-primary-400"
-                    : "text-gray-500 dark:text-gray-400"
+                  "h-16 flex flex-col items-center justify-center",
+                  "border-l border-t border-gray-200 dark:border-gray-700",
+                  "bg-gray-50 dark:bg-gray-900",
+                  day.isToday &&
+                    "border-l-2 border-l-primary-500 dark:border-l-primary-400",
+                  isLastDay(idx) && "border-r rounded-tr-lg"
                 )}
               >
-                {day.dayName}
-              </span>
-              <span
-                className={twMerge(
-                  "text-lg font-semibold",
-                  day.isToday
-                    ? "bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                    : "text-gray-900 dark:text-white"
-                )}
-              >
-                {day.dayNumber}
-              </span>
+                <span
+                  className={twMerge(
+                    "text-xs font-medium",
+                    day.isToday &&
+                      "text-primary-600 dark:text-primary-400",
+                    !day.isToday &&
+                      !dayIsPast &&
+                      "text-gray-500 dark:text-gray-400",
+                    !day.isToday &&
+                      dayIsPast &&
+                      "text-gray-400 dark:text-gray-500 italic"
+                  )}
+                >
+                  {day.dayName}
+                </span>
+                <span
+                  className={twMerge(
+                    "text-lg font-semibold",
+                    day.isToday &&
+                      "bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center",
+                    !day.isToday &&
+                      !dayIsPast &&
+                      "text-gray-900 dark:text-white",
+                    !day.isToday &&
+                      dayIsPast &&
+                      "text-gray-400 dark:text-gray-500 font-normal"
+                  )}
+                >
+                  {day.dayNumber}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Time slots grid */}
         {timeSlots.map((slot, slotIdx) => {
@@ -298,6 +318,7 @@ export default function PlanningWeekView({
                     reassigningService={reassigningService}
                     onCellClick={handleCellClick}
                     onContextMenu={handleContextMenu}
+                    onChipClick={viewPlannedService}
                     dict={dict}
                   />
                 );

@@ -4,21 +4,20 @@ import { useRef, useState } from "react";
 import { Label, Textarea, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, TextAlign } from "./dashlet";
-import {
-  SettingsSelectField,
-  getHandlebarsStatus,
-  getFlowbiteColor,
-  useDataProvider,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  DataProviderEntries,
-  type SimpleDataMode,
-  isRemoteDataMode,
-} from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { SettingsSelectField } from "../common/settings-fields";
+import { getHandlebarsStatus, getFlowbiteColor } from "../common/handlebars-helpers";
+import { useDataProvider } from "../common/use-data-provider";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { DataProviderEntries } from "../common/data-provider-entries";
+import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
+import { isRemoteDataMode } from "../common/use-simple-pgrest-settings";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 
 export function DashletSettings({
   isOpen,
@@ -26,17 +25,23 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  widgetId,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
 
-  const [text, setText] = useState(config.text ?? "Add your text or quote here...");
+  const [text, setText] = useState(
+    config.text ?? "Add your text or quote here..."
+  );
   const [italic, setItalic] = useState(config.italic ?? true);
   const [align, setAlign] = useState<TextAlign>(config.align ?? "left");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
@@ -59,9 +64,26 @@ export function DashletSettings({
   };
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setText(`{{row.${detected[0].key}}}`);
-    }),
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) setText(`{{row.${detected[0].key}}}`);
+      }
+    ),
+  });
+
+  const isDirty = useSettingsDirty(isOpen, {
+    text,
+    italic,
+    align,
+    dpEntries: dp.dataProvider,
+    dataMode,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
   });
 
   const handleSave = () => {
@@ -75,7 +97,8 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
     } as DashletConfig);
     onClose();
@@ -112,11 +135,7 @@ export function DashletSettings({
       />
       <div className="flex items-center justify-between">
         <Label className="text-sm">Italic</Label>
-        <ToggleSwitch
-          checked={italic}
-          onChange={setItalic}
-          label=""
-        />
+        <ToggleSwitch checked={italic} onChange={setItalic} label="" />
       </div>
     </>
   );
@@ -140,14 +159,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      title={dashletName}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

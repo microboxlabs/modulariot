@@ -1,31 +1,30 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Checkbox, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
-import type {
-  DashletConfig,
-  StatusColor,
-  StatusIcon,
-} from "./dashlet";
-import { ICON_OPTIONS, COLOR_OPTIONS } from "./dashlet";
+import type { DashletConfig, StatusIcon } from "./dashlet";
+import { ICON_OPTIONS } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
-import {
-  SettingsSelectField,
-  HbTextField,
-  useDataProvider,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  DataProviderEntries,
-  type SimpleDataMode,
-  isRemoteDataMode,
-  useThresholdSettings,
-  ThresholdEditor,
-} from "../common";
-import { SettingsModalShell, useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { SettingsSelectField, HbTextField } from "../common/settings-fields";
+import { useDataProvider } from "../common/use-data-provider";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { DataProviderEntries } from "../common/data-provider-entries";
+import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
+import { isRemoteDataMode } from "../common/use-simple-pgrest-settings";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
+import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
 export function DashletSettings({
   isOpen,
@@ -33,6 +32,8 @@ export function DashletSettings({
   config,
   onSave,
   dictionary,
+  widgetId,
+  dashletName,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -41,12 +42,15 @@ export function DashletSettings({
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
   const [subtitle, setSubtitle] = useState(config.subtitle ?? "");
-  const [color, setColor] = useState<StatusColor>(config.color ?? "gray");
+  const [showColor, setShowColor] = useState(config.showColor === true);
+  const [color, setColor] = useState(config.color ?? "3b82f6");
   const [icon, setIcon] = useState<StatusIcon>(config.icon ?? "check");
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
-    config.dataMode === "static" || config.dataMode === "pgrest" || config.dataMode === "planner"
+    config.dataMode === "static" ||
+      config.dataMode === "pgrest" ||
+      config.dataMode === "planner"
       ? config.dataMode
-      : "static",
+      : "static"
   );
   const [dataSourceId, setDataSourceId] = useState<string>(
     config.dataSourceId ?? ""
@@ -55,8 +59,23 @@ export function DashletSettings({
     config.plannerVariableName ?? ""
   );
 
+  // Reset form state when drawer opens so useSettingsDirty sees fresh baselines
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle(config.title ?? "Status");
+    setValue(config.value ?? "0");
+    setSubtitle(config.subtitle ?? "");
+    setShowColor(config.showColor === true);
+    setColor(config.color ?? "3b82f6");
+    setIcon(config.icon ?? "check");
+    setDataSourceId(config.dataSourceId ?? "");
+    setPlannerVariableName(config.plannerVariableName ?? "");
+  }, [isOpen, config]);
+
   const dp = useDataProvider(config.dataProvider ?? []);
-  const threshold = useThresholdSettings(config);
+  const colorRules = useValueColorSettings({
+    valueColorRules: config.valueColorRules,
+  });
 
   const staticSnapshot = useRef({ title, value, subtitle });
 
@@ -72,11 +91,14 @@ export function DashletSettings({
   };
 
   const pg = usePgrestSettingsState({
-    ...buildSimplePgrestConfig({ ...config, dataSourceId: dataSourceId || undefined }, (detected) => {
-      if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
-      if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
-      if (detected.length >= 3) setSubtitle(`{{row.${detected[2].key}}}`);
-    }),
+    ...buildSimplePgrestConfig(
+      { ...config, dataSourceId: dataSourceId || undefined },
+      (detected) => {
+        if (detected.length >= 1) setTitle(`{{row.${detected[0].key}}}`);
+        if (detected.length >= 2) setValue(`{{row.${detected[1].key}}}`);
+        if (detected.length >= 3) setSubtitle(`{{row.${detected[2].key}}}`);
+      }
+    ),
   });
 
   const schemaSuggestions =
@@ -84,11 +106,30 @@ export function DashletSettings({
       ? schemas.get(plannerVariableName)
       : undefined;
 
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    value,
+    subtitle,
+    showColor,
+    color,
+    icon,
+    dpEntries: dp.dataProvider,
+    dataMode,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
+    colorRulesState: colorRules.rules,
+  });
+
   const handleSave = () => {
     onSave({
       title,
       value,
       subtitle,
+      showColor,
       color,
       icon,
       dataProvider: dp.getCleanEntries(),
@@ -97,9 +138,10 @@ export function DashletSettings({
       pgrestParams: fromPgrestParamItems(pg.pgrestParams),
       pgrestHttpMethod: pg.pgrestHttpMethod,
       dataSourceId: dataSourceId || undefined,
-      plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+      plannerVariableName:
+        dataMode === "planner" ? plannerVariableName : undefined,
       ...refresh.savePayload,
-      ...threshold.buildThresholdSavePayload(),
+      ...colorRules.buildSavePayload(),
     } as DashletConfig);
     onClose();
   };
@@ -130,13 +172,30 @@ export function DashletSettings({
         placeholder="e.g. 204 de 230 dispositivos"
         schemaSuggestions={schemaSuggestions}
       />
-      <SettingsSelectField
-        id="ss-color"
-        label="Color"
-        value={color}
-        onChange={(v) => setColor(v as StatusColor)}
-        options={COLOR_OPTIONS.map((c) => ({ value: c.id, label: c.label }))}
-      />
+      <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="ss-show-color"
+            checked={showColor}
+            onChange={(e) => setShowColor(e.target.checked)}
+          />
+          <Label
+            htmlFor="ss-show-color"
+            className="text-sm font-medium cursor-pointer"
+          >
+            {tr("dashboard.settings.color", dictionary)}
+          </Label>
+        </div>
+        {showColor && (
+          <div className="flex items-center gap-2">
+            <AdvancedColorPicker
+              value={color}
+              onChange={setColor}
+              title={tr("dashboard.settings.selectColor", dictionary)}
+            />
+          </div>
+        )}
+      </div>
       <SettingsSelectField
         id="ss-icon"
         label="Icon"
@@ -144,18 +203,13 @@ export function DashletSettings({
         onChange={(v) => setIcon(v as StatusIcon)}
         options={ICON_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
       />
-      <ThresholdEditor
-        enabled={threshold.thresholdEnabled}
-        onToggle={threshold.setThresholdEnabled}
-        field={threshold.thresholdField}
-        onFieldChange={threshold.setThresholdField}
-        applyTo={threshold.thresholdApplyTo}
-        onApplyToChange={threshold.setThresholdApplyTo}
-        rules={threshold.thresholdRules}
-        onAdd={threshold.addThresholdRule}
-        onRemove={threshold.removeThresholdRule}
-        onUpdate={threshold.updateThresholdRule}
-        schemaSuggestions={schemaSuggestions}
+      <ValueColorRulesEditor
+        rules={colorRules.rules}
+        dictionary={dictionary}
+        onAdd={colorRules.addRule}
+        onRemove={colorRules.removeRule}
+        onUpdate={colorRules.updateRule}
+        onToggleTarget={colorRules.toggleTarget}
       />
     </>
   );
@@ -179,14 +233,16 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
-      refreshSelect={refresh.selectNode}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
+      footer={refresh.selectNode}
+      widgetId={widgetId}
+      title={dashletName}
+      isDirty={isDirty}
     />
   );
 }

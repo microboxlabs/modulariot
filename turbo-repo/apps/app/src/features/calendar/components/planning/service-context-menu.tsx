@@ -27,6 +27,14 @@ interface ServiceContextMenuProps {
   dict: I18nRecord;
 }
 
+function hasRequiredAssignedResources(plannedService: PlannedService): boolean {
+  const { service } = plannedService;
+
+  return Boolean(
+    service.assignedCarrier && service.assignedDriver && service.assignedTruck
+  );
+}
+
 /**
  * Calculate adjusted position to keep menu within viewport
  */
@@ -78,6 +86,10 @@ export function ServiceContextMenu({
     !isLoadingPermissions && hasPermission(["GROUP_ASSIGNMENT"]);
   // Check if user has planning permission to show replan/delete buttons
   const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
+  const canDeleteAssignment =
+    plannedService !== null &&
+    canAssign &&
+    hasRequiredAssignedResources(plannedService);
 
   // Estimated menu dimensions for initial position calculation
   // Height varies based on number of visible buttons
@@ -85,7 +97,8 @@ export function ServiceContextMenu({
   const MENU_HEADER_HEIGHT = 32;
   const MENU_BUTTON_HEIGHT = 38;
   const MENU_PADDING = 8;
-  const buttonCount = (canAssign ? 2 : 0) + (canPlan ? 2 : 0);
+  const buttonCount =
+    (canAssign ? 1 : 0) + (canDeleteAssignment ? 1 : 0) + (canPlan ? 2 : 0);
   const MENU_HEIGHT =
     MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
@@ -191,7 +204,7 @@ export function ServiceContextMenu({
           </Button>
         )}
 
-        {canAssign && (
+        {canDeleteAssignment && (
           <Button
             color={"alternative"}
             type="button"

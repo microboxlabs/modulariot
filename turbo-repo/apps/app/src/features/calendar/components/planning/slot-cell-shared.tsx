@@ -124,6 +124,7 @@ interface SlotServicesProps {
   readonly services: PlannedService[];
   readonly reassigningServiceId?: string;
   readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  readonly onChipClick?: (ps: PlannedService) => void;
   readonly dict: I18nDictionary | I18nRecord;
   readonly layout?: "row" | "column";
 }
@@ -132,6 +133,7 @@ export function SlotServices({
   services,
   reassigningServiceId,
   onContextMenu,
+  onChipClick,
   dict,
   layout = "row",
 }: SlotServicesProps) {
@@ -151,6 +153,7 @@ export function SlotServices({
           plannedService={ps}
           isBeingReassigned={reassigningServiceId === ps.service.id}
           onContextMenu={onContextMenu}
+          onClick={onChipClick}
           className={layout === "row" ? "flex-1" : "w-full"}
           dict={dict}
         />
@@ -169,6 +172,7 @@ interface SlotCellContentProps {
   readonly services: PlannedService[];
   readonly reassigningServiceId?: string;
   readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+  readonly onChipClick?: (ps: PlannedService) => void;
   readonly dict: I18nDictionary | I18nRecord;
   readonly servicesLayout?: "row" | "column";
   readonly children?: ReactNode;
@@ -180,6 +184,7 @@ export function SlotCellContent({
   services,
   reassigningServiceId,
   onContextMenu,
+  onChipClick,
   dict,
   servicesLayout = "row",
   children,
@@ -218,6 +223,7 @@ export function SlotCellContent({
         services={services}
         reassigningServiceId={reassigningServiceId}
         onContextMenu={onContextMenu}
+        onChipClick={onChipClick}
         dict={dict}
         layout={servicesLayout}
       />

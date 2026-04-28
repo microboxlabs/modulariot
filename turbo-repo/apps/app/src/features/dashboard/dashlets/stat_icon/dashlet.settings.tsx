@@ -1,21 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { Label, Checkbox } from "flowbite-react";
+import { Label, Checkbox, TextInput } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, CardVariant } from "./dashlet";
+import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
+import { type DashletIconKey } from "../common/icon-options";
+import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 import {
-  SimpleDashletSettings,
-  DASHLET_ICON_OPTIONS,
-  type DashletIconKey,
-} from "../common";
+  getHandlebarsStatus,
+  getFlowbiteColor,
+} from "../common/handlebars-helpers";
 import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
 import {
   AdvancedColorPicker,
   type PresetColor,
 } from "@/features/common/components/advanced-color-picker";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  useValueColorSettings,
+  ValueColorRulesEditor,
+} from "./value-color-rules";
 
 /** Text-appropriate presets (darker, readable colors) */
 const TEXT_PRESETS: PresetColor[] = [
@@ -98,6 +104,10 @@ export function DashletSettings(
   const [expandable, setExpandable] = useState(
     props.config.expandable === true
   );
+  const [showGoTo, setShowGoTo] = useState(props.config.showGoTo === true);
+  const [goToUrl, setGoToUrl] = useState<string>(props.config.goToUrl ?? "");
+
+  const valueColorRules = useValueColorSettings(props.config);
 
   return (
     <SimpleDashletSettings
@@ -116,6 +126,9 @@ export function DashletSettings(
         secondaryColor,
         showSecondaryColor,
         expandable,
+        showGoTo,
+        goToUrl,
+        ...valueColorRules.buildSavePayload(),
       }}
       extraVisualization={
         <div className="space-y-3">
@@ -274,6 +287,48 @@ export function DashletSettings(
               />
             </div>
           </div>
+
+          {/* Go to (navigation) settings row */}
+          <div className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="si-show-go-to"
+                checked={showGoTo}
+                onChange={(e) => setShowGoTo(e.target.checked)}
+              />
+              <Label
+                htmlFor="si-show-go-to"
+                className="text-sm font-medium cursor-pointer"
+              >
+                {tr("dashboard.settings.goTo", dictionary)}
+              </Label>
+            </div>
+            <div
+              className={`flex-1 ${showGoTo ? "" : "opacity-40 pointer-events-none"}`}
+            >
+              <TextInput
+                id="si-go-to-url"
+                type="text"
+                sizing="sm"
+                value={goToUrl}
+                onChange={(e) => setGoToUrl(e.target.value)}
+                placeholder={tr(
+                  "dashboard.settings.goToUrlPlaceholder",
+                  dictionary
+                )}
+                color={getFlowbiteColor(getHandlebarsStatus(goToUrl))}
+              />
+            </div>
+          </div>
+          {/* Value Color Rules */}
+          <ValueColorRulesEditor
+            rules={valueColorRules.rules}
+            dictionary={dictionary}
+            onAdd={valueColorRules.addRule}
+            onRemove={valueColorRules.removeRule}
+            onUpdate={valueColorRules.updateRule}
+            onToggleTarget={valueColorRules.toggleTarget}
+          />
         </div>
       }
     />

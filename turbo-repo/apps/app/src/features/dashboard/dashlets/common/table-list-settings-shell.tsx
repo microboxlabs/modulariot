@@ -9,12 +9,12 @@ import {
   ColumnEditor,
   FilterEditor,
   SortEditor,
-  ColorRuleEditor,
   ActionsEditor,
   DataProviderTab,
 } from "./settings-sections";
-import { SettingsModalShell } from "./settings-modal-shell";
-import type { ColorRuleOperator, RuleColor } from "./color-rule-types";
+import { SettingsShell } from "./settings-shell";
+import { RowColorRuleSetter } from "./row-color-rule-setter";
+import type { ColorRuleOperator } from "./color-rule-types";
 
 // ============================================================================
 // Types
@@ -41,6 +41,10 @@ interface TableListSettingsShellProps {
   title?: string;
   /** Additional display options rendered next to "Row count" toggle */
   displayOptionsChildren?: ReactNode;
+  /** Widget ID for anchor navigation */
+  widgetId?: string;
+  /** Whether the settings form has unsaved changes */
+  isDirty: boolean;
 }
 
 // ============================================================================
@@ -61,6 +65,8 @@ export function TableListSettingsShell({
   refreshSelect,
   title,
   displayOptionsChildren,
+  widgetId,
+  isDirty,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -77,16 +83,6 @@ export function TableListSettingsShell({
       "dashboard.settings.operatorLessThanOrEqual",
       dictionary
     ),
-  };
-
-  const colorLabels: Record<RuleColor, string> = {
-    red: tr("dashboard.settings.colorRed", dictionary),
-    yellow: tr("dashboard.settings.colorYellow", dictionary),
-    green: tr("dashboard.settings.colorGreen", dictionary),
-    blue: tr("dashboard.settings.colorBlue", dictionary),
-    gray: tr("dashboard.settings.colorGray", dictionary),
-    orange: tr("dashboard.settings.colorOrange", dictionary),
-    purple: tr("dashboard.settings.colorPurple", dictionary),
   };
 
   const valuePlaceholder = tr("dashboard.settings.value", dictionary);
@@ -118,6 +114,7 @@ export function TableListSettingsShell({
         columns={s.columns}
         onAdd={s.addColumn}
         onRemove={s.removeColumn}
+        onReorder={s.setColumns}
         onUpdate={s.updateColumn}
         onAddColorMapping={s.addColorMapping}
         onRemoveColorMapping={s.removeColorMapping}
@@ -129,9 +126,10 @@ export function TableListSettingsShell({
           label: tr("dashboard.settings.label", dictionary),
           addColumn: tr("dashboard.settings.addColumn", dictionary),
           addMapping: tr("dashboard.settings.addRule", dictionary),
+          stickyColumn: tr("dashboard.settings.stickyColumn", dictionary),
+          rulesLabel: tr("dashboard.settings.colorRules", dictionary),
           valuePlaceholder,
           operatorLabels,
-          colorLabels,
         }}
       />
 
@@ -165,21 +163,16 @@ export function TableListSettingsShell({
         }}
       />
 
-      <ColorRuleEditor
+      <RowColorRuleSetter
         title={tr("dashboard.settings.rowColorRules", dictionary)}
         enabled={s.rowColorRulesEnabled}
         onToggle={s.setRowColorRulesEnabled}
         rules={s.rowColorRuleItems}
-        columnsWithKeys={s.columnsWithKeys}
+        columns={s.columnsWithKeys}
+        dictionary={dictionary}
         onAdd={s.addRowColorRule}
         onRemove={s.removeRowColorRule}
         onUpdate={s.updateRowColorRule}
-        labels={{
-          addRule: tr("dashboard.settings.addRule", dictionary),
-          valuePlaceholder,
-          operatorLabels,
-          colorLabels,
-        }}
       />
 
       <ActionsEditor
@@ -234,16 +227,28 @@ export function TableListSettingsShell({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={onSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
+      tabs={[
+        {
+          id: "visualization",
+          label: tr("dashboard.settings.visualization", dictionary),
+          content: visualizationTab,
+        },
+        {
+          id: "data",
+          label: tr("dashboard.settings.dataProvider", dictionary),
+          content: dataTab,
+        },
+      ]}
       className="w-[28rem]"
-      refreshSelect={refreshSelect}
+      footer={refreshSelect}
       title={title}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

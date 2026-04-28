@@ -13,7 +13,8 @@ import { useSettingsState } from "../common/use-settings-state";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { PgrestSettingsSection } from "../common/pgrest-settings-section";
 import { TableListSettingsShell } from "../common/table-list-settings-shell";
-import { useWidgetRefreshSettings } from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 import { fromPgrestParamItems } from "../common/pgrest-types";
 import {
   buildPgrestSettingsConfig,
@@ -32,6 +33,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
@@ -50,6 +52,7 @@ export function DashletSettings({
   const [showColumnDividers, setShowColumnDividers] = useState(
     config.showColumnDividers ?? true
   );
+  const [showExport, setShowExport] = useState(config.showExport ?? true);
 
   const s = useSettingsState({
     title: config.title,
@@ -78,6 +81,30 @@ export function DashletSettings({
     ...buildPgrestSettingsConfig(s),
   });
 
+  const isDirty = useSettingsDirty(isOpen, {
+    title: s.title,
+    showRowCount: s.showRowCount,
+    dataMode: s.dataMode,
+    columns: s.columns,
+    rowsJson: s.rowsJson,
+    filterEnabled: s.filterEnabled,
+    filterItems: s.filterItems,
+    sortEnabled: s.sortEnabled,
+    sortColumns: s.sortColumns,
+    rowColorRulesEnabled: s.rowColorRulesEnabled,
+    rowColorRuleItems: s.rowColorRuleItems,
+    actionsEnabled: s.actionsEnabled,
+    actionItems: s.actionItems,
+    showColumnDividers,
+    showExport,
+    dataSourceId,
+    plannerVariableName,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    refreshValue: refresh.value,
+  });
+
   const handleSave = () => {
     const rows = s.parseRows(
       tr("dashboard.settings.mustBeJsonArray", dictionary),
@@ -92,6 +119,7 @@ export function DashletSettings({
       title: s.title,
       showRowCount: s.showRowCount,
       showColumnDividers,
+      showExport,
       dataMode: s.dataMode as "static" | "pgrest" | "planner",
       columns: savedColumns,
       rows,
@@ -130,18 +158,31 @@ export function DashletSettings({
     />
   );
 
-  const columnDividersToggle = (
-    <div className="flex items-center justify-between py-0.5">
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {tr("dashboard.settings.showColumnDividers", dictionary)}
-      </label>
-      <input
-        type="checkbox"
-        checked={showColumnDividers}
-        onChange={(e) => setShowColumnDividers(e.target.checked)}
-        className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
-      />
-    </div>
+  const displayOptions = (
+    <>
+      <div className="flex items-center justify-between py-0.5">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {tr("dashboard.settings.showColumnDividers", dictionary)}
+        </label>
+        <input
+          type="checkbox"
+          checked={showColumnDividers}
+          onChange={(e) => setShowColumnDividers(e.target.checked)}
+          className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+        />
+      </div>
+      <div className="flex items-center justify-between py-0.5">
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {tr("dashboard.settings.showExport", dictionary)}
+        </label>
+        <input
+          type="checkbox"
+          checked={showExport}
+          onChange={(e) => setShowExport(e.target.checked)}
+          className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+        />
+      </div>
+    </>
   );
 
   return (
@@ -157,7 +198,9 @@ export function DashletSettings({
       handlebarsColorKeys
       refreshSelect={refresh.selectNode}
       title={dashletName}
-      displayOptionsChildren={columnDividersToggle}
+      displayOptionsChildren={displayOptions}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

@@ -4,6 +4,7 @@ import { Button, TextInput } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { UseDataProviderReturn } from "./use-data-provider";
+import { DeleteItemButton } from "./delete-item-button";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -51,16 +52,10 @@ export function DataProviderEntries({
               sizing="sm"
               className="flex-1"
             />
-            <Button
-              size="xs"
-              color="failure"
-              aria-label={`Remove entry ${entry.key || i + 1}`}
+            <DeleteItemButton
               onClick={() => dataProvider.removeEntry(i)}
-              onMouseDown={stopPropagation}
-              className="no-drag shrink-0"
-            >
-              ✕
-            </Button>
+              ariaLabel={`Remove entry ${entry.key || i + 1}`}
+            />
           </div>
         ))}
       </div>

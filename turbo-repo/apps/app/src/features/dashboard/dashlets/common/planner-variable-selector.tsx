@@ -26,7 +26,7 @@ export function PlannerVariableSelector({
   noDefinitionsHint = "No planner variables defined",
 }: Readonly<PlannerVariableSelectorProps>) {
   const { definitions, schemas } = usePlannerContext();
-  const schemaKeys = value ? schemas.get(value) ?? [] : [];
+  const schemaKeys = value ? (schemas.get(value) ?? []) : [];
 
   return (
     <div>
@@ -47,11 +47,10 @@ export function PlannerVariableSelector({
             }
           }
         }}
+        className="[&>select]:cursor-pointer"
       >
         <option value="">
-          {definitions.length === 0
-            ? noDefinitionsHint
-            : "Select variable..."}
+          {definitions.length === 0 ? noDefinitionsHint : "Select variable..."}
         </option>
         {definitions.map((def) => (
           <option key={def.id} value={def.variableName}>
@@ -75,7 +74,11 @@ export function PlannerVariableSelector({
             ))}
           </div>
           <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-            Use <code className="rounded bg-gray-200 px-1 dark:bg-gray-600">{"{{row.<column>}}"}</code> in fields
+            Use{" "}
+            <code className="rounded bg-gray-200 px-1 dark:bg-gray-600">
+              {"{{row.<column>}}"}
+            </code>{" "}
+            in fields
           </p>
         </div>
       )}

@@ -13,18 +13,17 @@ import {
   SettingsFieldGrid,
   HbTextField,
   HbInlineInput,
-  usePgrestSettingsState,
-  fromPgrestParamItems,
-  buildSimplePgrestConfig,
-  PgrestDataTab,
-  useActiveProviders,
-  type SimpleDataMode,
-} from "../common";
+} from "../common/settings-fields";
+import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
+import { fromPgrestParamItems } from "../common/pgrest-types";
+import { buildSimplePgrestConfig } from "../common/pgrest-settings-helpers";
+import { PgrestDataTab } from "../common/pgrest-data-tab";
+import { useActiveProviders } from "../common/use-active-providers";
+import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
-import {
-  SettingsModalShell,
-  useWidgetRefreshSettings,
-} from "../common/settings-modal-shell";
+import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
+import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
+import { useSettingsDirty } from "../common/use-settings-dirty";
 
 // ============================================================================
 // Chart type options
@@ -59,6 +58,7 @@ export function DashletSettings({
   onSave,
   dictionary,
   dashletName,
+  widgetId,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
@@ -237,6 +237,27 @@ export function DashletSettings({
   };
 
   // Save handler
+  const isDirty = useSettingsDirty(isOpen, {
+    title,
+    chartType,
+    xAxisColumn,
+    series,
+    xAxisLabel,
+    yAxisLabel,
+    showLegend,
+    customColors,
+    smooth,
+    stacked,
+    dataMode,
+    rowsJson,
+    pgFn: pg.pgrestFunctionName,
+    pgParams: pg.pgrestParams,
+    pgMethod: pg.pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshValue: refresh.value,
+  });
+
   const handleSave = () => {
     let parsedRows = config.rows ?? [];
     if (dataMode === "static") {
@@ -320,6 +341,7 @@ export function DashletSettings({
             value={xAxisColumn}
             onChange={(e) => setXAxisColumn(e.target.value)}
             sizing="sm"
+            className="[&>select]:cursor-pointer"
           >
             <option value="">
               {detectedColumns.length === 0
@@ -359,7 +381,7 @@ export function DashletSettings({
                   updateSeries(s._id, { columnKey: e.target.value })
                 }
                 sizing="sm"
-                className="flex-1"
+                className="flex-1 [&>select]:cursor-pointer"
               >
                 <option value="">
                   {tr("dashboard.settings.seriesColumn", dictionary)}
@@ -485,16 +507,17 @@ export function DashletSettings({
   );
 
   return (
-    <SettingsModalShell
+    <SettingsShell
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
-      visualizationTab={visualizationTab}
-      dataTab={dataTab}
+      tabs={buildStandardTabs(dictionary, visualizationTab, dataTab)}
       className="w-[28rem]"
-      refreshSelect={refresh.selectNode}
+      footer={refresh.selectNode}
       title={dashletName}
+      widgetId={widgetId}
+      isDirty={isDirty}
     />
   );
 }

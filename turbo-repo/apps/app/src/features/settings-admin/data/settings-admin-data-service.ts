@@ -1,6 +1,6 @@
 "use client";
 
-import type { OrgMember, ModuleCode } from "../types";
+import type { OrgMember } from "../types";
 
 /**
  * Thin client-side fetch wrappers around the Next.js admin proxy routes.
@@ -39,8 +39,8 @@ export function fetchOrgMembers(orgSlug: string): Promise<OrgMember[]> {
   );
 }
 
-export function fetchOrgModules(orgSlug: string): Promise<ModuleCode[]> {
-  return getJson<ModuleCode[]>(
+export function fetchOrgModules(orgSlug: string): Promise<string[]> {
+  return getJson<string[]>(
     `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/modules`,
   );
 }

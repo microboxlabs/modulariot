@@ -45,8 +45,7 @@ public class RealAlfrescoGroupAdminClient implements IAlfrescoGroupAdminClient {
     public Uni<Void> addGroupMember(String groupId, String personId) {
         return coreApi.addGroupMember(groupId, AddGroupMemberRequest.person(personId))
                 .replaceWithVoid()
-                .onFailure(AlfrescoClientException.class).recoverWithUni(e -> {
-                    AlfrescoClientException ex = (AlfrescoClientException) e;
+                .onFailure(AlfrescoClientException.class).recoverWithUni(ex -> {
                     if (ex.isConflict()) {
                         LOG.debugf("addGroupMember(%s, %s): already a member — ignoring 409",
                                 groupId, personId);
@@ -59,8 +58,7 @@ public class RealAlfrescoGroupAdminClient implements IAlfrescoGroupAdminClient {
     @Override
     public Uni<Void> removeGroupMember(String groupId, String personId) {
         return coreApi.removeGroupMember(groupId, personId)
-                .onFailure(AlfrescoClientException.class).recoverWithUni(e -> {
-                    AlfrescoClientException ex = (AlfrescoClientException) e;
+                .onFailure(AlfrescoClientException.class).recoverWithUni(ex -> {
                     if (ex.isNotFound()) {
                         LOG.debugf("removeGroupMember(%s, %s): not a member — ignoring 404",
                                 groupId, personId);

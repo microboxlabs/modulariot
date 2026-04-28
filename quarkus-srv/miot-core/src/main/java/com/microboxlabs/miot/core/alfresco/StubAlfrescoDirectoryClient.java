@@ -62,8 +62,9 @@ public class StubAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
     }
 
     private static List<AlfrescoPerson> slice(List<AlfrescoPerson> people, int maxItems, int skipCount) {
-        int start = Math.min(people.size(), Math.max(0, skipCount));
-        int end = Math.min(people.size(), start + Math.max(0, maxItems));
+        int start = Math.clamp(skipCount, 0, people.size());
+        int count = Math.clamp(maxItems, 0, people.size() - start);
+        int end = start + count;
         return List.copyOf(people.subList(start, end));
     }
 }

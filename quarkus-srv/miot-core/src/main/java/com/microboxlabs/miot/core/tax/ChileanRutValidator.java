@@ -20,11 +20,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 @ApplicationScoped
 public class ChileanRutValidator implements TaxIdValidator {
 
-    public static final String CODE = "chilean_rut";
+    public static final String VALIDATOR_CODE = "chilean_rut";
 
     @Override
     public String code() {
-        return CODE;
+        return VALIDATOR_CODE;
     }
 
     @Override
@@ -37,34 +37,15 @@ public class ChileanRutValidator implements TaxIdValidator {
             throw new InvalidTaxIdException("Tax id is required");
         }
 
-        String digits;
-        char verifier;
-        int dashIdx = cleaned.indexOf('-');
-        if (dashIdx >= 0) {
-            if (dashIdx != cleaned.length() - 2) {
-                throw new InvalidTaxIdException("Chilean RUT must end with '-<verifier>'");
-            }
-            digits = cleaned.substring(0, dashIdx);
-            verifier = cleaned.charAt(cleaned.length() - 1);
-        } else {
-            if (cleaned.length() < 2) {
-                throw new InvalidTaxIdException("Chilean RUT is too short");
-            }
-            digits = cleaned.substring(0, cleaned.length() - 1);
-            verifier = cleaned.charAt(cleaned.length() - 1);
-        }
+        RutParts rut = parseRutParts(cleaned);
+        String digits = rut.digits();
+        char verifier = rut.verifier();
 
         if (digits.length() < 7 || digits.length() > 8) {
             throw new InvalidTaxIdException("Chilean RUT body must be 7-8 digits");
         }
-        for (int i = 0; i < digits.length(); i++) {
-            if (!Character.isDigit(digits.charAt(i))) {
-                throw new InvalidTaxIdException("Chilean RUT body must be numeric");
-            }
-        }
-        if (!Character.isDigit(verifier) && verifier != 'K') {
-            throw new InvalidTaxIdException("Chilean RUT verifier must be 0-9 or K");
-        }
+        validateDigits(digits);
+        validateVerifier(verifier);
 
         char expected = computeVerifier(digits);
         if (expected != verifier) {
@@ -72,6 +53,36 @@ public class ChileanRutValidator implements TaxIdValidator {
                     "Chilean RUT verifier mismatch (expected " + expected + ", got " + verifier + ")");
         }
         return digits + "-" + verifier;
+    }
+
+    private static RutParts parseRutParts(String cleaned) {
+        int dashIdx = cleaned.indexOf('-');
+        if (dashIdx >= 0) {
+            if (dashIdx != cleaned.length() - 2) {
+                throw new InvalidTaxIdException("Chilean RUT must end with '-<verifier>'");
+            }
+            return new RutParts(cleaned.substring(0, dashIdx), cleaned.charAt(cleaned.length() - 1));
+        }
+        if (cleaned.length() < 2) {
+            throw new InvalidTaxIdException("Chilean RUT is too short");
+        }
+        return new RutParts(
+                cleaned.substring(0, cleaned.length() - 1),
+                cleaned.charAt(cleaned.length() - 1));
+    }
+
+    private static void validateDigits(String digits) {
+        for (int i = 0; i < digits.length(); i++) {
+            if (!Character.isDigit(digits.charAt(i))) {
+                throw new InvalidTaxIdException("Chilean RUT body must be numeric");
+            }
+        }
+    }
+
+    private static void validateVerifier(char verifier) {
+        if (!Character.isDigit(verifier) && verifier != 'K') {
+            throw new InvalidTaxIdException("Chilean RUT verifier must be 0-9 or K");
+        }
     }
 
     private static char computeVerifier(String digits) {
@@ -85,5 +96,8 @@ public class ChileanRutValidator implements TaxIdValidator {
         if (mod == 11) return '0';
         if (mod == 10) return 'K';
         return (char) ('0' + mod);
+    }
+
+    private record RutParts(String digits, char verifier) {
     }
 }

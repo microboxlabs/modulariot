@@ -411,6 +411,10 @@ export async function fetchTrucksCatalog(opts?: {
   const params = new URLSearchParams();
 
   if (opts?.custAccounts && opts.custAccounts.length > 0) {
+    // custAccounts are backend-validated Chilean RUTs normalized by
+    // ChileanRutValidator to \d{7,8}-[0-9K], so direct PostgREST
+    // eq./in.(...) interpolation is safe from delimiter injection. Keep
+    // that source/validation invariant if these filters are refactored.
     if (opts.custAccounts.length === 1) {
       params.set("cust_account", `eq.${opts.custAccounts[0]}`);
     } else {

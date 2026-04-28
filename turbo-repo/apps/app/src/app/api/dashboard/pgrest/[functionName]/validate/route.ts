@@ -6,7 +6,11 @@ import {
   parseDataSourceParam,
 } from "../../shared";
 import { sanitizeRows } from "../../sanitize";
-import { validateRows } from "../../validator";
+import { makeValidationErrorMap, validateRows } from "../../validator";
+import {
+  getDictionary,
+  getLocaleFromRequest,
+} from "@/features/i18n/i18n.service";
 
 const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 
@@ -35,7 +39,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const introspected = introspectPath(spec, functionName);
   const params = introspected?.parameters ?? [];
-  const errors = validateRows(rows, params);
+  const [tr] = await getDictionary(getLocaleFromRequest(req));
+  const errors = validateRows(rows, params, makeValidationErrorMap(tr));
 
   return NextResponse.json({
     allowedFields: params.map((p) => p.name),

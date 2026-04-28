@@ -1,6 +1,50 @@
 import { z } from "zod";
 import type { IntrospectedParameter } from "./shared";
 
+type Translate = (path: string, params?: Record<string, string>) => string;
+
+/**
+ * Build a Zod errorMap that emits messages from the i18n dictionary instead of
+ * Zod's English defaults. Keys live under `dashboard.dashlets.batchImport.validation.*`.
+ * Falls through to `ctx.defaultError` for issue codes the map doesn't cover so
+ * we never lose information just because a code wasn't translated yet.
+ */
+export function makeValidationErrorMap(tr: Translate): z.ZodErrorMap {
+  const k = (key: string, params?: Record<string, string>) =>
+    tr(`dashboard.dashlets.batchImport.validation.${key}`, params);
+  return (issue, ctx) => {
+    switch (issue.code) {
+      case z.ZodIssueCode.invalid_type:
+        if (issue.received === "undefined") return { message: k("required") };
+        return {
+          message: k("expectedType", {
+            expected: String(issue.expected),
+            received: String(issue.received),
+          }),
+        };
+      case z.ZodIssueCode.invalid_enum_value:
+        return {
+          message: k("invalidEnum", { options: issue.options.join(", ") }),
+        };
+      case z.ZodIssueCode.too_small:
+        if (typeof issue.minimum === "number" || typeof issue.minimum === "bigint") {
+          return { message: k("tooSmall", { minimum: String(issue.minimum) }) };
+        }
+        return { message: ctx.defaultError };
+      case z.ZodIssueCode.too_big:
+        if (typeof issue.maximum === "number" || typeof issue.maximum === "bigint") {
+          return { message: k("tooBig", { maximum: String(issue.maximum) }) };
+        }
+        return { message: ctx.defaultError };
+      case z.ZodIssueCode.invalid_string:
+        if (issue.validation === "datetime") return { message: k("invalidDate") };
+        return { message: k("invalidString") };
+      default:
+        return { message: ctx.defaultError };
+    }
+  };
+}
+
 const TRUTHY_STRINGS = new Set(["true", "1", "yes"]);
 const FALSY_STRINGS = new Set(["false", "0", "no"]);
 
@@ -71,8 +115,9 @@ export function buildRowSchema(
 export function validateRow(
   fields: Record<string, string>,
   schema: z.ZodType<Record<string, unknown>>,
+  errorMap?: z.ZodErrorMap,
 ): string | null {
-  const result = schema.safeParse(fields);
+  const result = schema.safeParse(fields, errorMap ? { errorMap } : undefined);
   if (result.success) return null;
   return result.error.issues
     .map((i) => {
@@ -90,12 +135,13 @@ export function validateRow(
 export function validateRows(
   rows: { index: number; fields: Record<string, string> }[],
   params: IntrospectedParameter[],
+  errorMap?: z.ZodErrorMap,
 ): Record<number, string> {
   const out: Record<number, string> = {};
   if (params.length === 0 || rows.length === 0) return out;
   const schema = buildRowSchema(params);
   for (const row of rows) {
-    const err = validateRow(row.fields, schema);
+    const err = validateRow(row.fields, schema, errorMap);
     if (err) out[row.index] = err;
   }
   return out;

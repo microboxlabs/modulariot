@@ -1096,7 +1096,7 @@
       },
       "organizations": {
         "title": "Organizations",
-        "description": "Review your organization memberships, their enabled modules, and the Alfresco users assigned to each one.",
+        "description": "Review your organization memberships, their enabled modules, and the users assigned to each one.",
         "listTitle": "My organizations",
         "empty": "No organizations available",
         "loading": "Loading…",
@@ -1104,7 +1104,7 @@
         "noSelection": "Select an organization to see its details",
         "parentAccount": "Parent account",
         "membersTitle": "Members",
-        "membersDescription": "Users who belong to this organization's Alfresco group.",
+        "membersDescription": "Users who belong to this organization's group.",
         "membersEmpty": "No members found",
         "modulesTitle": "Enabled modules",
         "modulesDescription": "Product modules this organization has access to.",

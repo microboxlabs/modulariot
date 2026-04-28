@@ -1117,7 +1117,7 @@
       },
       "organizations": {
         "title": "Organizaciones",
-        "description": "Revisa tus membresías de organización, los módulos habilitados y los usuarios de Alfresco asignados a cada una.",
+        "description": "Revisa tus membresías de organización, los módulos habilitados y los usuarios asignados a cada una.",
         "listTitle": "Mis organizaciones",
         "empty": "No hay organizaciones disponibles",
         "loading": "Cargando…",

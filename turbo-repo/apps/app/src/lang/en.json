@@ -1961,6 +1961,15 @@
           "upsert": "Update (upsert)",
           "skip": "Skip",
           "create": "Create only (fail if exists)"
+        },
+        "validation": {
+          "required": "Required",
+          "expectedType": "Expected {expected}, received {received}",
+          "invalidEnum": "Invalid value. Options: {options}",
+          "tooSmall": "Must be ≥ {minimum}",
+          "tooBig": "Must be ≤ {maximum}",
+          "invalidDate": "Invalid date",
+          "invalidString": "Invalid format"
         }
       }
     },

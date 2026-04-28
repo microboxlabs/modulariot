@@ -11,6 +11,7 @@ miot-fleet/           Fleet directory (vehicles, trucks, trailers, carriers)
 miot-driver/          Driver directory (lifecycle, documents, compliance, scoring)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
+miot-integrations/    External API connections, credential profiles, auth resolution
 miot-cli/             Application entrypoint
 ```
 
@@ -18,7 +19,7 @@ miot-cli/             Application entrypoint
 
 - **Quarkus 3.x** — CDI conditional activation, Kubernetes-native
 - **Java 21**
-- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_fleet`, `miot_resource`, `miot_driver`)
+- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_resource`, `miot_fleet`, `miot_driver`, `miot_tracking`, `miot_integrations`)
 - **Hibernate Reactive + Panache**
 - **Vert.x EventBus** — In-process inter-component messaging
 - **Micrometer + Prometheus** — Per-client metrics with `client_id` tags
@@ -38,6 +39,7 @@ miot-cli/             Application entrypoint
 ./start.sh driver           # driver only
 ./start.sh fleet driver     # fleet + driver
 ./start.sh gateway          # gateway only (no DB required)
+./start.sh integrations     # integration connections and credential profiles
 
 # Pass extra Maven/Quarkus args after --
 ./start.sh fleet -- -Dquarkus.http.port=9090
@@ -62,6 +64,7 @@ miot.component.fleet.enabled=true
 miot.component.driver.enabled=true
 miot.component.tracking.enabled=true
 miot.component.gateway.enabled=true
+miot.component.integrations.enabled=true
 ```
 
 Override at runtime via env vars:
@@ -73,9 +76,10 @@ MIOT_COMPONENT_ALL_ENABLED=true
 # Single component
 MIOT_COMPONENT_FLEET_ENABLED=true
 MIOT_COMPONENT_GATEWAY_ENABLED=true
+MIOT_COMPONENT_INTEGRATIONS_ENABLED=true
 ```
 
-Only the schemas for enabled components are created by Flyway. Starting with `./start.sh fleet` will create `miot_core`, `miot_resource`, and `miot_fleet` schemas — but not `miot_driver`. The gateway component requires no database.
+Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh fleet` will create `miot_core`, `miot_resource`, and `miot_fleet` schemas — but not `miot_driver`. Starting with `./start.sh integrations` creates `miot_core`, `miot_resource`, and `miot_integrations`. The gateway component requires no database.
 
 ## Database
 
@@ -86,7 +90,20 @@ miot-core/src/main/resources/db/migration/core/             # tenants, assets (a
 miot-resource-core/src/main/resources/db/migration/resource/ # entity events, scores, sync cursors, links, profiles (always)
 miot-fleet/src/main/resources/db/migration/fleet/            # vehicles, trips, trucks, trailers, carriers
 miot-driver/src/main/resources/db/migration/driver/          # drivers
+miot-tracking/src/main/resources/db/migration/tracking/      # asset data, client maps, metrics, latest snapshot functions
+miot-integrations/src/main/resources/db/migration/integrations/ # credential profiles, connections, operations, test/audit events
 ```
+
+Migration version ranges are reserved per component so subset deployments can include only the active module locations while Flyway still has stable ordering:
+
+| Component | Schema | Migration range |
+|-----------|--------|-----------------|
+| Core | `miot_core` | `V0.1.x` |
+| Fleet | `miot_fleet` | `V0.2.x` |
+| Resource Core | `miot_resource` | `V0.3.x` |
+| Driver | `miot_driver` | `V0.4.x` |
+| Tracking | `miot_tracking` | `V0.5.x` |
+| Integrations | `miot_integrations` | `V0.6.x` |
 
 ## API Documentation
 
@@ -95,7 +112,7 @@ When running in dev mode, Swagger UI is available at:
 - **Swagger UI**: http://localhost:8180/q/swagger-ui/
 - **OpenAPI spec**: http://localhost:8180/q/openapi
 
-Endpoints are grouped by component tag (Fleet, Drivers). Only enabled components appear in the spec.
+Endpoints are grouped by component tag (Fleet, Drivers, Asset Tracking, Integration Connections). Only enabled components appear in the spec.
 
 ## Endpoints
 
@@ -107,6 +124,10 @@ Endpoints are grouped by component tag (Fleet, Drivers). Only enabled components
 | Fleet | `GET /api/v1/fleet/carriers[/{id}]` | List/get carriers |
 | Driver | `GET /api/v1/drivers[/{id}]` | List/get drivers |
 | Tracking | `POST /api/v1/asset/track` | Ingest GPS position |
+| Integrations | `GET /api/v1/orgs/{organizationId}/integrations/connections` | List integration connections |
+| Integrations | `POST /api/v1/orgs/{organizationId}/integrations/connections` | Create an integration connection |
+| Integrations | `GET /api/v1/orgs/{organizationId}/integrations/credential-profiles` | List credential profiles |
+| Integrations | `POST /api/v1/orgs/{organizationId}/integrations/credential-profiles` | Create a credential profile |
 | Gateway | `POST /{path}` | APISIX mirror receiver (any path) |
 | Gateway | `GET /internal/fork/rules` | List fork rules and filter sizes |
 | Gateway | `POST /internal/fork/rules/{id}/filter` | Add routing keys to in-memory filter |

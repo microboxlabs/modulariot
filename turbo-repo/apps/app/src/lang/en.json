@@ -1091,7 +1091,29 @@
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",
-        "dataSources": "Data Sources"
+        "dataSources": "Data Sources",
+        "organizations": "Organizations"
+      },
+      "organizations": {
+        "title": "Organizations",
+        "description": "Review your organization memberships, their enabled modules, and the users assigned to each one.",
+        "listTitle": "My organizations",
+        "empty": "No organizations available",
+        "loading": "Loading…",
+        "loadError": "Failed to load data from the backend",
+        "noSelection": "Select an organization to see its details",
+        "parentAccount": "Parent account",
+        "membersTitle": "Members",
+        "membersDescription": "Users who belong to this organization's group.",
+        "membersEmpty": "No members found",
+        "modulesTitle": "Enabled modules",
+        "modulesDescription": "Product modules this organization has access to.",
+        "modulesEmpty": "No modules enabled for this organization",
+        "moduleNames": {
+          "FLEET_MANAGEMENT": "Fleet management",
+          "DASHBOARDS": "Dashboards",
+          "COLLABORATORS_MANAGEMENT": "Collaborators"
+        }
       },
       "symptoms": {
         "config": {
@@ -1178,6 +1200,7 @@
       "settingsNav": {
         "title": "Settings",
         "general": "General",
+        "organizations": "Organizations",
         "dataSources": "Data Sources"
       }
     },
@@ -1322,6 +1345,8 @@
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
+        "organizations": "Organizations",
+        "dataSources": "Data Sources",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
@@ -3370,6 +3395,9 @@
     "breadcrumb": {
       "collaboratorsManagement": "Collaborators Management"
     }
+  },
+  "orgSwitcher": {
+    "changeOrgFailed": "Could not change organization"
   },
   "ext_tasks": {
     "processing": "Processing your request...",

@@ -6,11 +6,24 @@ import type {
   RowStatus,
 } from "./types";
 
+/** Source provenance computed by /parse and forwarded to /bulk so every
+ *  imported row can carry audit metadata (filename, fingerprint, type). The
+ *  bulk endpoint stamps the unspoofable bits (`p_uploaded_by`, row counts)
+ *  itself; this is the informational/best-effort half. */
+export interface SourceMeta {
+  type: "excel" | "csv" | "paste";
+  /** Original filename for file uploads, "" for paste. */
+  name: string;
+  /** Lowercase hex SHA-256 of the source bytes (file bytes or UTF-8 text). */
+  hash: string;
+}
+
 export interface ParseResponse {
   headers: string[];
   rows: ParsedRow[];
   headerError?: string;
   allowedFields: string[];
+  sourceMeta: SourceMeta;
 }
 
 export interface ValidateResponse {
@@ -24,6 +37,35 @@ export interface BulkResultLine {
   errorMessage?: string;
 }
 
+export interface BulkSubmitContext {
+  /** Provenance forwarded from the most recent /parse response. */
+  sourceMeta: SourceMeta;
+}
+
+export interface PreviewLine {
+  /** Original row index (matches `ParsedRow.index`). */
+  index: number;
+  /** The exact JSON object /bulk would POST to PostgREST for this row,
+   *  including server-injected `p_*` audit metadata that survives the RPC's
+   *  parameter filter. */
+  body: Record<string, string>;
+  /** All audit metadata the server *tried* to inject — same regardless of
+   *  whether the RPC declares the params. Lets the UI show which fields are
+   *  being silently dropped because the RPC schema hasn't opted in. */
+  meta: Record<string, string>;
+  /** Keys present in `meta` but absent from `body` — i.e., audit fields the
+   *  RPC's parameter schema doesn't accept and that PostgREST will not see. */
+  droppedMeta: string[];
+}
+
+export interface PreviewResponse {
+  /** Echo of the RPC's allowed parameter set (or null when introspection
+   *  failed) so the UI can explain dropped fields. */
+  allowedFields: string[] | null;
+  totalRows: number;
+  previews: PreviewLine[];
+}
+
 export interface BatchImporterApi {
   parseFile(file: File, signal?: AbortSignal): Promise<ParseResponse>;
   parseText(text: string, signal?: AbortSignal): Promise<ParseResponse>;
@@ -32,8 +74,17 @@ export interface BatchImporterApi {
     rows: ParsedRow[],
     duplicateStrategy: DuplicateStrategy,
     onResult: (line: BulkResultLine) => void,
+    context: BulkSubmitContext,
     signal?: AbortSignal,
   ): Promise<void>;
+  /** Dry-run: returns the enriched bodies /bulk would POST per row without
+   *  actually calling PostgREST. Capped server-side. */
+  preview(
+    rows: ParsedRow[],
+    context: BulkSubmitContext,
+    limit?: number,
+    signal?: AbortSignal,
+  ): Promise<PreviewResponse>;
 }
 
 function buildBaseUrl(functionName: string, dataSourceId: string | undefined, suffix: string) {
@@ -52,12 +103,17 @@ async function readJson<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
+const EMPTY_SOURCE_META: SourceMeta = { type: "paste", name: "", hash: "" };
+
 function toParseResponse(raw: Partial<ParseResponse> & ParsedDocument): ParseResponse {
   return {
     headers: raw.headers ?? [],
     rows: raw.rows ?? [],
     headerError: raw.headerError,
     allowedFields: raw.allowedFields ?? [],
+    // Default fallback so older servers (or error paths) don't break the
+    // hook's assumption that `sourceMeta` is always present after parse.
+    sourceMeta: raw.sourceMeta ?? EMPTY_SOURCE_META,
   };
 }
 
@@ -90,6 +146,7 @@ export function makePgrestBatchApi(
     ? `${baseValidate}${langSeparator}lang=${encodeURIComponent(lang)}`
     : baseValidate;
   const bulkUrl = buildBaseUrl(functionName, dataSourceId, "/bulk");
+  const previewUrl = buildBaseUrl(functionName, dataSourceId, "/preview");
 
   return {
     async parseFile(file, signal) {
@@ -121,10 +178,11 @@ export function makePgrestBatchApi(
         errors: body.errors ?? {},
       };
     },
-    async bulkSubmit(rows, duplicateStrategy, onResult, signal) {
+    async bulkSubmit(rows, duplicateStrategy, onResult, context, signal) {
       const payload = {
         rows: rows.map((r) => ({ index: r.index, fields: r.fields })),
         duplicateStrategy,
+        sourceMeta: context.sourceMeta,
       };
       const res = await fetch(bulkUrl, {
         method: "POST",
@@ -181,6 +239,20 @@ export function makePgrestBatchApi(
       } finally {
         reader.releaseLock();
       }
+    },
+    async preview(rows, context, limit, signal) {
+      const payload = {
+        rows: rows.map((r) => ({ index: r.index, fields: r.fields })),
+        sourceMeta: context.sourceMeta,
+        limit: limit ?? 1,
+      };
+      const res = await fetch(previewUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      });
+      return readJson<PreviewResponse>(res);
     },
   };
 }

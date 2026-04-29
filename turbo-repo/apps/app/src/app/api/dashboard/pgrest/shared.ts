@@ -27,6 +27,13 @@ export function parseIntEnv(raw: string | undefined, fallback: number): number {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
+/** Read a string env var with a string fallback. Trimmed-empty (or undefined)
+ *  values fall back so a deploy that ships `FOO=` doesn't accidentally inject
+ *  an empty string into downstream payloads. */
+export function parseStringEnv(raw: string | undefined, fallback: string): string {
+  return raw?.trim() || fallback;
+}
+
 export interface OpenApiSchema {
   type?: string;
   format?: string;

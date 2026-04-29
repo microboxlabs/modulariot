@@ -8,6 +8,12 @@ import {
   resolvePgrestCredentials,
 } from "../../shared";
 import { sanitizeRows, type SanitizedRow } from "../../sanitize";
+import {
+  buildRowBody,
+  sanitizeSourceMeta,
+  type IncomingSourceMeta,
+  type MetaFields,
+} from "../../row-body";
 import { buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
 import { logger } from "@/lib/logger";
 
@@ -29,6 +35,9 @@ type RouteContext = { params: Promise<{ functionName: string }> };
 interface BulkBody {
   rows?: unknown;
   duplicateStrategy?: unknown;
+  /** Source provenance produced by /parse. Forwarded by the client; the
+   *  server uses these as-is — they're informational, not security-sensitive. */
+  sourceMeta?: IncomingSourceMeta;
 }
 
 interface ResultLine {
@@ -54,14 +63,10 @@ async function submitOne(
   rpcUrl: string,
   authHeader: string,
   allowed: ReadonlySet<string> | null,
+  meta: MetaFields,
   signal: AbortSignal,
 ): Promise<ResultLine> {
-  const body: Record<string, string> = {};
-  for (const [k, v] of Object.entries(row.fields)) {
-    if (v == null || v === "") continue;
-    if (allowed && !allowed.has(k)) continue;
-    body[k] = v;
-  }
+  const body = buildRowBody(row, allowed, meta);
 
   // Combine the client-disconnect signal with a per-row timeout so a hung
   // PostgREST can't keep a worker slot pinned indefinitely. Either source
@@ -141,6 +146,16 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
+  // Build the metadata bundle once per request: trust-critical fields come
+  // from the authenticated session + counted rows. Deployment-wide fields
+  // (timezone, client_id, schema_version) live in `row-body.ts` and are
+  // composed in via `buildRowBody`.
+  const meta: MetaFields = {
+    source: sanitizeSourceMeta(body?.sourceMeta),
+    uploadedBy: session.user?.email ?? "",
+    totalRows: rows.length,
+  };
+
   const dataSourceId = parseDataSourceParam(req);
   const creds = await resolvePgrestCredentials(session, dataSourceId);
   if (creds instanceof NextResponse) return creds;
@@ -182,6 +197,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
             rpcUrl,
             authHeader,
             allowed,
+            meta,
             req.signal,
           );
           if (req.signal.aborted) return;

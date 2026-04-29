@@ -18,10 +18,37 @@ const MAX_PAYLOAD_BYTES = parseIntEnv(
 
 type RouteContext = { params: Promise<{ functionName: string }> };
 
+/** Per-source provenance returned alongside the parsed doc. The bulk endpoint
+ *  forwards these onto every imported row as audit metadata; computing them
+ *  here means the client can't fabricate a hash that doesn't match what was
+ *  actually parsed. */
+export interface SourceMeta {
+  type: "excel" | "csv" | "paste";
+  /** Original filename for file uploads, "" for paste. */
+  name: string;
+  /** Lowercase hex SHA-256 of the source bytes (file bytes or UTF-8 text). */
+  hash: string;
+}
+
 type ParseOutcome =
-  | { doc: ReturnType<typeof parseDocument> }
+  | { doc: ReturnType<typeof parseDocument>; sourceMeta: SourceMeta }
   | { error: "Missing file." | "Missing 'text'." }
   | { tooLarge: true };
+
+async function sha256Hex(bytes: ArrayBuffer | Uint8Array): Promise<string> {
+  const buf =
+    bytes instanceof ArrayBuffer
+      ? bytes
+      : new Uint8Array(bytes).buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        );
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  const view = new Uint8Array(digest);
+  let hex = "";
+  for (const b of view) hex += b.toString(16).padStart(2, "0");
+  return hex;
+}
 
 function exceedsCap(bytes: number): boolean {
   return Number.isFinite(bytes) && bytes > MAX_PAYLOAD_BYTES;
@@ -50,10 +77,23 @@ async function parseFromRequest(req: NextRequest): Promise<ParseOutcome> {
     // Defense in depth: if Content-Length was missing or inaccurate, this is
     // the last guard before we allocate an ArrayBuffer for the whole file.
     if (exceedsCap(file.size)) return { tooLarge: true };
-    if (isSpreadsheetFilename(file.name)) {
-      return { doc: await parseSpreadsheetBuffer(await file.arrayBuffer()) };
-    }
-    return { doc: parseDocument(await file.text()) };
+    // Buffer once; both the parser and the hash run off the same bytes, so a
+    // re-read isn't needed and (for spreadsheets) `file.text()` would corrupt
+    // the binary content anyway.
+    const bytes = await file.arrayBuffer();
+    const hash = await sha256Hex(bytes);
+    const isSpreadsheet = isSpreadsheetFilename(file.name);
+    const doc = isSpreadsheet
+      ? await parseSpreadsheetBuffer(bytes)
+      : parseDocument(new TextDecoder().decode(bytes));
+    return {
+      doc,
+      sourceMeta: {
+        type: isSpreadsheet ? "excel" : "csv",
+        name: file.name,
+        hash,
+      },
+    };
   }
 
   // JSON paste path: { text: string }
@@ -66,7 +106,12 @@ async function parseFromRequest(req: NextRequest): Promise<ParseOutcome> {
   // therefore conservative (slightly stricter than the cap intends), which
   // is fine for the purpose of bounding memory.
   if (exceedsCap(body.text.length)) return { tooLarge: true };
-  return { doc: parseDocument(body.text) };
+  const textBytes = new TextEncoder().encode(body.text);
+  const hash = await sha256Hex(textBytes);
+  return {
+    doc: parseDocument(body.text),
+    sourceMeta: { type: "paste", name: "", hash },
+  };
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext) {
@@ -107,5 +152,6 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     rows: doc.rows,
     headerError: doc.headerError,
     allowedFields,
+    sourceMeta: parsed.sourceMeta,
   });
 }

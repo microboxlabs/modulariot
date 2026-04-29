@@ -1797,6 +1797,7 @@
       "polygonStrokeWidth": "Stroke width (px)",
       "polygonFillOpacity": "Fill opacity",
       "layerStyles": "Layer styles",
+      "layerSaveError": "The following layers have incomplete data source configuration",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Template",
       "geometryPoint": "Point",

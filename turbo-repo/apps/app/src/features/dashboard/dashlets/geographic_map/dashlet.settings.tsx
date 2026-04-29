@@ -601,7 +601,7 @@ function LayerStyleCard({
     [item, onChange]
   );
 
-  const isPinMode = item.style.pointMode === "pin";
+  const isPinMode = (item.style.pointMode ?? "pin") === "pin";
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800">
@@ -619,7 +619,7 @@ function LayerStyleCard({
             <SettingsSelectField
               id={`vis-pointmode-${item.id}`}
               label={tr("dashboard.settings.pointStyle", dictionary)}
-              value={item.style.pointMode ?? "location-pin"}
+              value={item.style.pointMode ?? "pin"}
               onChange={(v) => setStyle("pointMode", v as PointRenderMode)}
               options={POINT_MODE_KEYS.map((opt) => ({
                 value: opt.value,
@@ -897,6 +897,7 @@ export function DashletSettings({
   const [layers, setLayers] = useState<LayerSettingsItem[]>(() =>
     (config.layers ?? []).map(mapLayerToSettingsItem)
   );
+  const [saveError, setSaveError] = useState<string | null>(null);
   const dp = useDataProvider(
     (config.dataProvider ?? []) as DataProviderEntry[]
   );
@@ -907,6 +908,7 @@ export function DashletSettings({
       setShowStyleSelector(config.showStyleSelector ?? true);
       setPointMode(config.pointMode ?? "pin");
       setLayers((config.layers ?? []).map(mapLayerToSettingsItem));
+      setSaveError(null);
     }
   }, [
     isOpen,
@@ -925,13 +927,26 @@ export function DashletSettings({
   });
 
   const handleSave = () => {
+    const invalidLayers = layers.filter(
+      (item) => item.dataMode !== "none" && buildProvider(item) === undefined
+    );
+    if (invalidLayers.length > 0) {
+      const names = invalidLayers
+        .map((item) => item.name.trim() || tr("dashboard.settings.unnamedOrigin", dictionary))
+        .join(", ");
+      setSaveError(
+        `${tr("dashboard.settings.layerSaveError", dictionary)}: ${names}`
+      );
+      return;
+    }
+    setSaveError(null);
     onSave({
       showFilters,
       showStyleSelector,
       pointMode,
       layers: layers
-        .map(settingsItemToMapLayer)
-        .filter((l) => l.provider !== undefined),
+        .filter((item) => item.dataMode !== "none")
+        .map(settingsItemToMapLayer),
       dataProvider: dp.getCleanEntries(),
     });
     onClose();
@@ -960,9 +975,14 @@ export function DashletSettings({
           dictionary={dictionary}
         />,
         <>
+          {saveError && (
+            <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+              {saveError}
+            </p>
+          )}
           <DataProviderTab
             layers={layers}
-            onLayersChange={setLayers}
+            onLayersChange={(next) => { setSaveError(null); setLayers(next); }}
             dictionary={dictionary}
           />
           <hr className="my-3 border-gray-200 dark:border-gray-700" />

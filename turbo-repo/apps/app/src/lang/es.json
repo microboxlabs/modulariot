@@ -1822,6 +1822,7 @@
       "polygonStrokeWidth": "Ancho de borde (px)",
       "polygonFillOpacity": "Opacidad de relleno",
       "layerStyles": "Estilos de capa",
+      "layerSaveError": "Las siguientes capas tienen configuración de fuente de datos incompleta",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Plantilla",
       "geometryPoint": "Punto",

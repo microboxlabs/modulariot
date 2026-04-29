@@ -41,10 +41,11 @@ const NAMED_LAYER_RE =
  * `info.layer` points to the leaf — this helper checks all ancestors.
  */
 function findNamedLayerId(
-  layer: { id: string; parent?: { id: string; parent?: unknown } } | null
+  layer: { id: string; parent?: { id: string; parent?: unknown } | null } | null
 ): string | null {
   let current = layer as
-    | { id: string; parent?: { id: string; parent?: unknown } }
+    | { id: string; parent?: { id: string; parent?: unknown } | null }
+    | null
     | undefined;
   while (current) {
     const match = NAMED_LAYER_RE.exec(current.id);

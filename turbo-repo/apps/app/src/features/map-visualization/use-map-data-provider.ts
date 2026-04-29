@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { FeatureCollection } from "geojson";
 import type { MapDataProvider, MapLayer } from "./map-data-provider.types";
 
@@ -8,19 +8,90 @@ interface MapDataProviderResult {
   error: Error | null;
 }
 
-/**
- * Resolves data from a MapDataProvider configuration.
- * Currently only "static" is implemented.
- * "api" and "sse" will be added in future iterations.
- */
 export function useMapDataProvider(
   provider: MapDataProvider | undefined
 ): MapDataProviderResult {
+  const [dynamicData, setDynamicData] = useState<FeatureCollection | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
   const staticData = useMemo(() => {
     if (provider?.type === "static") {
       return provider.data;
     }
     return null;
+  }, [provider]);
+
+  useEffect(() => {
+    if (provider?.type !== "api" && provider?.type !== "sse") {
+      return;
+    }
+
+    setIsLoading(true);
+    setDynamicData(null);
+    setError(null);
+
+    if (provider.type === "api") {
+      const method = provider.method ?? "GET";
+      const controller = new AbortController();
+
+      const fetchData = async () => {
+        try {
+          const res = await fetch(provider.url, {
+            method,
+            signal: controller.signal,
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = (await res.json()) as FeatureCollection;
+          setDynamicData(json);
+          setIsLoading(false);
+        } catch (err) {
+          if ((err as Error).name === "AbortError") return;
+          setError(err instanceof Error ? err : new Error(String(err)));
+          setIsLoading(false);
+        }
+      };
+
+      void fetchData();
+
+      if (provider.refreshInterval && provider.refreshInterval > 0) {
+        const interval = setInterval(
+          () => void fetchData(),
+          provider.refreshInterval
+        );
+        return () => {
+          controller.abort();
+          clearInterval(interval);
+        };
+      }
+
+      return () => controller.abort();
+    }
+
+    if (provider.type === "sse") {
+      const source = new EventSource(provider.url);
+
+      source.onmessage = (event) => {
+        try {
+          const json = JSON.parse(event.data as string) as FeatureCollection;
+          setDynamicData(json);
+          setIsLoading(false);
+        } catch {
+          setError(new Error("Failed to parse SSE data"));
+          setIsLoading(false);
+        }
+      };
+
+      source.onerror = () => {
+        setError(new Error("SSE connection error"));
+        setIsLoading(false);
+        source.close();
+      };
+
+      return () => source.close();
+    }
   }, [provider]);
 
   if (provider === undefined) {
@@ -31,8 +102,7 @@ export function useMapDataProvider(
     return { data: staticData, isLoading: false, error: null };
   }
 
-  // Stub: "api" and "sse" types return null for now
-  return { data: null, isLoading: false, error: null };
+  return { data: dynamicData, isLoading, error };
 }
 
 // ============================================================================

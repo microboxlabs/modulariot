@@ -715,6 +715,8 @@ interface VisualizationTabProps {
   onShowFiltersChange: (v: boolean) => void;
   showStyleSelector: boolean;
   onShowStyleSelectorChange: (v: boolean) => void;
+  pointMode: PointRenderMode;
+  onPointModeChange: (v: PointRenderMode) => void;
   layers: LayerSettingsItem[];
   onLayersChange: (layers: LayerSettingsItem[]) => void;
   dictionary: DashletSettingsProps<DashletConfig>["dictionary"];
@@ -725,6 +727,8 @@ function VisualizationTab({
   onShowFiltersChange,
   showStyleSelector,
   onShowStyleSelectorChange,
+  pointMode,
+  onPointModeChange,
   layers,
   onLayersChange,
   dictionary,
@@ -771,6 +775,19 @@ function VisualizationTab({
           onChange={onShowStyleSelectorChange}
         />
       </div>
+
+      {layers.length === 0 && (
+        <SettingsSelectField
+          id="vis-pointmode-global"
+          label={tr("dashboard.settings.pointStyle", dictionary)}
+          value={pointMode}
+          onChange={(v) => onPointModeChange(v as PointRenderMode)}
+          options={POINT_MODE_KEYS.map((opt) => ({
+            value: opt.value,
+            label: tr(opt.labelKey, dictionary),
+          }))}
+        />
+      )}
 
       {layers.length > 0 && (
         <>
@@ -936,6 +953,8 @@ export function DashletSettings({
           onShowFiltersChange={setShowFilters}
           showStyleSelector={showStyleSelector}
           onShowStyleSelectorChange={setShowStyleSelector}
+          pointMode={pointMode}
+          onPointModeChange={setPointMode}
           layers={layers}
           onLayersChange={setLayers}
           dictionary={dictionary}

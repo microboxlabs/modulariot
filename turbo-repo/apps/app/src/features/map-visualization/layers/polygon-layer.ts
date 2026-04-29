@@ -50,6 +50,8 @@ export class DataProviderPolygonLayer extends CompositeLayer<DataProviderPolygon
       new GeoJsonLayer<any>({
         id: `${this.props.id}-geojson`,
         data: collection,
+        // Keep original features intact so properties survive picking
+        loaders: [],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accessor typing
         getFillColor: (d: any) => {
           const feat = d as PolygonFeature;

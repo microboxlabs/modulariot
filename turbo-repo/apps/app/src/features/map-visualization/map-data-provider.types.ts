@@ -44,6 +44,48 @@ export const DEFAULT_PROVIDER_STYLES: Required<MapDataProviderDefaults> = {
 };
 
 // ============================================================================
+// Tooltip configuration (per layer, shown on feature hover)
+// ============================================================================
+
+export interface MapLayerTooltip {
+  /** Handlebars template string, e.g. "{{row.label}}: {{row.value}}" */
+  template: string;
+}
+
+// ============================================================================
+// Named map layer (one per data origin)
+// ============================================================================
+
+export type MapLayerGeometryType = "Point" | "LineString" | "Polygon";
+
+/** How to render point features on the map */
+export type PointRenderMode = "circle" | "pin" | "location-pin";
+
+export interface MapLayerStyle {
+  /** Fill color for points and polygons, line color for paths (hex without #) */
+  color?: string;
+  /** Point radius in pixels */
+  radius?: number;
+  /** Line / polygon stroke width in pixels */
+  lineWidth?: number;
+  /** Polygon stroke color (hex without #) */
+  strokeColor?: string;
+  /** Polygon fill opacity 0–1 */
+  opacity?: number;
+  /** Point rendering mode: "circle" for simple dots, "pin" for vehicle-style pins */
+  pointMode?: PointRenderMode;
+}
+
+export interface MapLayer {
+  id: string;
+  name: string;
+  geometryType: MapLayerGeometryType;
+  provider?: MapDataProvider;
+  style?: MapLayerStyle;
+  tooltip?: MapLayerTooltip;
+}
+
+// ============================================================================
 // Data provider discriminated union
 // ============================================================================
 

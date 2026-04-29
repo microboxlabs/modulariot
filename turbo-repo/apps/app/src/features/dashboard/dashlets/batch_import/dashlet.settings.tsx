@@ -158,6 +158,7 @@ export function DashletSettings({
           )}
         </p>
       </div>
+
     </SettingsShell>
   );
 }

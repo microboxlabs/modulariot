@@ -12,6 +12,8 @@ import { Button, Spinner, Textarea } from "flowbite-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   BatchImporterApi,
+  PreviewLine,
+  SourceMeta,
 } from "./engine/api";
 import type {
   DuplicateStrategy,
@@ -117,6 +119,19 @@ export interface BatchImporterState {
   onDownload: () => void;
   /** Drop everything: raw text, parsed doc, header renames, row states. */
   onClear: () => void;
+  /** Latest payload-preview snapshot. `null` until the user clicks Preview;
+   *  cleared on `onClear` and on every fresh parse so a stale preview can't
+   *  mislead after the underlying rows changed. */
+  preview: PreviewLine[] | null;
+  /** True while a /preview request is in flight. */
+  previewing: boolean;
+  /** Last error from /preview, surfaced inline so the user knows the panel
+   *  content is stale. */
+  previewError: string | null;
+  /** Trigger a /preview round-trip and stash the result on `preview`. */
+  onPreview: (limit?: number) => Promise<void>;
+  /** Hide the preview panel (state-only; doesn't drop the rows). */
+  onClosePreview: () => void;
 }
 
 function getRowState(
@@ -155,6 +170,10 @@ export function useBatchImporter({
 }: UseBatchImporterArgs): BatchImporterState {
   const [raw, setRaw] = useState("");
   const [rawDoc, setRawDoc] = useState<ParsedDocument | null>(null);
+  const [sourceMeta, setSourceMeta] = useState<SourceMeta | null>(null);
+  const [preview, setPreview] = useState<PreviewLine[] | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [headerMap, setHeaderMap] = useState<Record<string, string>>({});
   const [transforms, setTransforms] = useState<
     Record<string, TransformStep[]>
@@ -227,6 +246,10 @@ export function useBatchImporter({
     async (text: string) => {
       const token = ++parseToken.current;
       setParsing(true);
+      // A fresh parse invalidates any preview the user previously inspected —
+      // dropping it here keeps the panel honest instead of showing stale rows.
+      setPreview(null);
+      setPreviewError(null);
       try {
         const parsed = await api.parseText(text);
         if (token !== parseToken.current) return;
@@ -235,10 +258,12 @@ export function useBatchImporter({
           rows: parsed.rows,
           headerError: parsed.headerError,
         });
+        setSourceMeta(parsed.sourceMeta);
       } catch (err) {
         if (token !== parseToken.current) return;
         console.warn("batch_import: parseText failed", err);
         setRawDoc({ headers: [], rows: [], headerError: "parse_failed" });
+        setSourceMeta(null);
       } finally {
         if (token === parseToken.current) setParsing(false);
       }
@@ -273,6 +298,9 @@ export function useBatchImporter({
       // Turn the spinner on before the first await so the UI reflects work
       // during the upload too — big files can take seconds to transmit.
       setParsing(true);
+      // Match runParse: invalidate any stale preview before the new file arrives.
+      setPreview(null);
+      setPreviewError(null);
       const token = ++parseToken.current;
       setRaw("");
       try {
@@ -283,10 +311,12 @@ export function useBatchImporter({
           rows: parsed.rows,
           headerError: parsed.headerError,
         });
+        setSourceMeta(parsed.sourceMeta);
       } catch (err) {
         if (token !== parseToken.current) return;
         console.warn("batch_import: parseFile failed", err);
         setRawDoc({ headers: [], rows: [], headerError: "parse_failed" });
+        setSourceMeta(null);
       } finally {
         if (token === parseToken.current) setParsing(false);
       }
@@ -475,6 +505,13 @@ export function useBatchImporter({
               });
             });
           },
+          {
+            // Fall back to a paste-typed empty meta if `setSourceMeta` somehow
+            // hasn't fired yet (e.g. a manual retry after a parse error).
+            // The server-side `allowed` filter will drop fields whose value
+            // is empty so this never injects a bogus hash.
+            sourceMeta: sourceMeta ?? { type: "paste", name: "", hash: "" },
+          },
           controller.signal,
         );
       } catch (err) {
@@ -501,7 +538,7 @@ export function useBatchImporter({
         setImporting(false);
       }
     },
-    [api, doc, rowStates, strategy, patchRowStates, importing],
+    [api, doc, rowStates, strategy, patchRowStates, importing, sourceMeta],
   );
 
   const onImport = useCallback(() => runImport(), [runImport]);
@@ -537,13 +574,51 @@ export function useBatchImporter({
     importAbortRef.current = null;
     setRaw("");
     setRawDoc(null);
+    setSourceMeta(null);
     setHeaderMap({});
     setRowStates(new Map());
     setValidationError(null);
     setParsing(false);
     setValidating(false);
     setImporting(false);
+    setPreview(null);
+    setPreviewing(false);
+    setPreviewError(null);
   }, [cancelPendingParse]);
+
+  /** Dry-run a /preview round-trip and surface the enriched per-row body so
+   *  the user can confirm what will actually hit PostgREST before committing
+   *  to a real import. Reuses the same sourceMeta the import would send. */
+  const onPreview = useCallback(
+    async (limit?: number) => {
+      const d = doc;
+      if (!d || d.rows.length === 0) return;
+      setPreviewing(true);
+      setPreviewError(null);
+      try {
+        const res = await api.preview(
+          d.rows,
+          {
+            sourceMeta: sourceMeta ?? { type: "paste", name: "", hash: "" },
+          },
+          limit,
+        );
+        setPreview(res.previews);
+      } catch (err) {
+        console.warn("batch_import: preview failed", err);
+        setPreviewError(err instanceof Error ? err.message : "Preview failed");
+        setPreview(null);
+      } finally {
+        setPreviewing(false);
+      }
+    },
+    [api, doc, sourceMeta],
+  );
+
+  const onClosePreview = useCallback(() => {
+    setPreview(null);
+    setPreviewError(null);
+  }, []);
 
   const onDownload = useCallback(() => {
     if (!doc || doc.rows.length === 0) return;
@@ -601,6 +676,11 @@ export function useBatchImporter({
     onReset,
     onDownload,
     onClear,
+    preview,
+    previewing,
+    previewError,
+    onPreview,
+    onClosePreview,
   };
 }
 
@@ -642,6 +722,11 @@ export function BatchImporterView({
     onReset,
     onDownload,
     onClear,
+    preview,
+    previewing,
+    previewError,
+    onPreview,
+    onClosePreview,
   } = state;
 
   /** Lookup table from RPC param name -> declared type ("string", "number",
@@ -784,6 +869,11 @@ export function BatchImporterView({
           hasResolved={hasResolved}
           onRetryFailed={() => void onRetryFailed()}
           onReset={onReset}
+          preview={preview}
+          previewing={previewing}
+          previewError={previewError}
+          onPreview={() => void onPreview(1)}
+          onClosePreview={onClosePreview}
           dictionary={dictionary}
         />
       )}
@@ -824,6 +914,11 @@ interface PreviewProps {
   onReset: () => void;
   onDownload: () => void;
   onClear: () => void;
+  preview: PreviewLine[] | null;
+  previewing: boolean;
+  previewError: string | null;
+  onPreview: () => void;
+  onClosePreview: () => void;
   dictionary: I18nRecord;
 }
 
@@ -850,6 +945,11 @@ function VirtualPreview({
   onReset,
   onDownload,
   onClear,
+  preview,
+  previewing,
+  previewError,
+  onPreview,
+  onClosePreview,
   dictionary,
 }: Readonly<PreviewProps>) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -981,6 +1081,21 @@ function VirtualPreview({
             type="button"
             size="xs"
             color="light"
+            onClick={onPreview}
+            disabled={previewing || doc.rows.length === 0}
+            title={tr(
+              "dashboard.dashlets.batchImport.previewHint",
+              dictionary,
+            )}
+          >
+            {previewing
+              ? tr("dashboard.dashlets.batchImport.previewing", dictionary)
+              : tr("dashboard.dashlets.batchImport.preview", dictionary)}
+          </Button>
+          <Button
+            type="button"
+            size="xs"
+            color="light"
             onClick={onClear}
             disabled={importing || !clearable}
             title={
@@ -995,6 +1110,15 @@ function VirtualPreview({
           </Button>
         </div>
       </section>
+
+      {(preview || previewError) && (
+        <PreviewPanel
+          preview={preview}
+          previewError={previewError}
+          onClosePreview={onClosePreview}
+          dictionary={dictionary}
+        />
+      )}
 
       {/* Concrete height is load-bearing here: the absolute-positioned scroll
           container would collapse to 0 (hiding the whole preview) if the
@@ -1117,5 +1241,92 @@ function Badge({
       <strong className="mr-1 font-semibold">{count}</strong>
       {label}
     </span>
+  );
+}
+
+interface PreviewPanelProps {
+  preview: PreviewLine[] | null;
+  previewError: string | null;
+  onClosePreview: () => void;
+  dictionary: I18nRecord;
+}
+
+/** Inline panel that surfaces the dry-run /preview result. Renders one
+ *  pretty-printed JSON block per row so the user can confirm the exact body
+ *  /bulk would POST to PostgREST — including server-injected `p_*` audit
+ *  metadata. Sits right under the toolbar inside the import modal. */
+function PreviewPanel({
+  preview,
+  previewError,
+  onClosePreview,
+  dictionary,
+}: Readonly<PreviewPanelProps>) {
+  return (
+    <section className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs dark:border-blue-900/40 dark:bg-blue-950/30">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="font-semibold text-blue-900 dark:text-blue-200">
+          {tr("dashboard.dashlets.batchImport.previewTitle", dictionary)}
+        </span>
+        <button
+          type="button"
+          onClick={onClosePreview}
+          className="text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+          aria-label={tr(
+            "dashboard.dashlets.batchImport.previewClose",
+            dictionary,
+          )}
+        >
+          ✕
+        </button>
+      </div>
+      {previewError ? (
+        <p className="text-red-700 dark:text-red-300">{previewError}</p>
+      ) : preview && preview.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {preview.map((line) => (
+            <div key={line.index}>
+              <div className="mb-1 font-mono text-[10px] text-blue-800 dark:text-blue-300">
+                {tr(
+                  "dashboard.dashlets.batchImport.previewRowLabel",
+                  dictionary,
+                  { number: String(line.index + 1) },
+                )}
+              </div>
+              <div className="mb-1 text-[10px] uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                {tr(
+                  "dashboard.dashlets.batchImport.previewBodyTitle",
+                  dictionary,
+                )}
+              </div>
+              <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+                {JSON.stringify(line.body, null, 2)}
+              </pre>
+              <div className="mt-2 mb-1 text-[10px] uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                {tr(
+                  "dashboard.dashlets.batchImport.previewMetaTitle",
+                  dictionary,
+                )}
+              </div>
+              <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+                {JSON.stringify(line.meta, null, 2)}
+              </pre>
+              {line.droppedMeta.length > 0 && (
+                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                  {tr(
+                    "dashboard.dashlets.batchImport.previewDroppedMeta",
+                    dictionary,
+                    { fields: line.droppedMeta.join(", ") },
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 dark:text-gray-400">
+          {tr("dashboard.dashlets.batchImport.previewEmpty", dictionary)}
+        </p>
+      )}
+    </section>
   );
 }

@@ -1,5 +1,3 @@
-"use client";
-
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Map, { useControl, MapRef } from "react-map-gl";
@@ -41,11 +39,10 @@ const NAMED_LAYER_RE =
  * `info.layer` points to the leaf — this helper checks all ancestors.
  */
 function findNamedLayerId(
-  layer: { id: string; parent?: { id: string; parent?: unknown } | null } | null
+  layer: { id: string; parent?: { id: string; parent?: unknown } } | null
 ): string | null {
   let current = layer as
-    | { id: string; parent?: { id: string; parent?: unknown } | null }
-    | null
+    | { id: string; parent?: { id: string; parent?: unknown } }
     | undefined;
   while (current) {
     const match = NAMED_LAYER_RE.exec(current.id);
@@ -71,11 +68,9 @@ function applyTemplate(
   template: string,
   props: Record<string, unknown>
 ): string {
-  return template.replaceAll(/\{\{row\.([^}]+)\}\}/g, (_, key: string) => {
+  return template.replace(/\{\{row\.([^}]+)\}\}/g, (_, key: string) => {
     const val = resolvePathValue(props, key);
-    if (val === undefined || val === null) return "";
-    if (typeof val === "object") return JSON.stringify(val);
-    return String(val as string | number | boolean);
+    return val !== undefined && val !== null ? String(val) : "";
   });
 }
 
@@ -217,7 +212,6 @@ export default function MapVisualization({
 
       // No tooltip template configured → skip
       if (!template) {
-        onFeatureClick?.(null);
         return;
       }
 
@@ -225,7 +219,6 @@ export default function MapVisualization({
 
       // Resolved content is empty → skip
       if (!content.trim()) {
-        onFeatureClick?.(null);
         return;
       }
 

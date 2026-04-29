@@ -9,7 +9,7 @@ import {
   DropdownItem,
 } from "flowbite-react";
 import { HiPlus, HiChevronDown } from "react-icons/hi2";
-import type { DashletSettingsProps, DataProviderEntry } from "../types";
+import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
@@ -22,6 +22,7 @@ import {
 import { DeleteItemButton } from "../common/delete-item-button";
 import { useDataProvider } from "../common/use-data-provider";
 import { DataProviderEntries } from "../common/data-provider-entries";
+import type { DataProviderEntry } from "../types";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker/advanced-color-picker";
 import type {
@@ -208,8 +209,7 @@ function detectGeometryType(
     Polygon: 0,
   };
   for (const f of collection.features) {
-    const t = f.geometry?.type;
-    if (typeof t !== "string") continue;
+    const t = f.geometry.type;
     if (t === "Point" || t === "MultiPoint") counts.Point++;
     else if (t === "LineString" || t === "MultiLineString") counts.LineString++;
     else if (t === "Polygon" || t === "MultiPolygon") counts.Polygon++;
@@ -532,7 +532,6 @@ const POINT_MODE_KEYS: { value: PointRenderMode; labelKey: string }[] = [
     value: "location-pin",
     labelKey: "dashboard.settings.pointStyleLocationPin",
   },
-  { value: "circle", labelKey: "dashboard.settings.pointStyleCircle" },
 ];
 
 // ============================================================================
@@ -601,7 +600,7 @@ function LayerStyleCard({
     [item, onChange]
   );
 
-  const isPinMode = (item.style.pointMode ?? "pin") === "pin";
+  const isPinMode = item.style.pointMode === "pin";
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800">
@@ -619,7 +618,7 @@ function LayerStyleCard({
             <SettingsSelectField
               id={`vis-pointmode-${item.id}`}
               label={tr("dashboard.settings.pointStyle", dictionary)}
-              value={item.style.pointMode ?? "pin"}
+              value={item.style.pointMode ?? "location-pin"}
               onChange={(v) => setStyle("pointMode", v as PointRenderMode)}
               options={POINT_MODE_KEYS.map((opt) => ({
                 value: opt.value,
@@ -715,8 +714,6 @@ interface VisualizationTabProps {
   onShowFiltersChange: (v: boolean) => void;
   showStyleSelector: boolean;
   onShowStyleSelectorChange: (v: boolean) => void;
-  pointMode: PointRenderMode;
-  onPointModeChange: (v: PointRenderMode) => void;
   layers: LayerSettingsItem[];
   onLayersChange: (layers: LayerSettingsItem[]) => void;
   dictionary: DashletSettingsProps<DashletConfig>["dictionary"];
@@ -727,8 +724,6 @@ function VisualizationTab({
   onShowFiltersChange,
   showStyleSelector,
   onShowStyleSelectorChange,
-  pointMode,
-  onPointModeChange,
   layers,
   onLayersChange,
   dictionary,
@@ -775,19 +770,6 @@ function VisualizationTab({
           onChange={onShowStyleSelectorChange}
         />
       </div>
-
-      {layers.length === 0 && (
-        <SettingsSelectField
-          id="vis-pointmode-global"
-          label={tr("dashboard.settings.pointStyle", dictionary)}
-          value={pointMode}
-          onChange={(v) => onPointModeChange(v as PointRenderMode)}
-          options={POINT_MODE_KEYS.map((opt) => ({
-            value: opt.value,
-            label: tr(opt.labelKey, dictionary),
-          }))}
-        />
-      )}
 
       {layers.length > 0 && (
         <>
@@ -897,7 +879,6 @@ export function DashletSettings({
   const [layers, setLayers] = useState<LayerSettingsItem[]>(() =>
     (config.layers ?? []).map(mapLayerToSettingsItem)
   );
-  const [saveError, setSaveError] = useState<string | null>(null);
   const dp = useDataProvider(
     (config.dataProvider ?? []) as DataProviderEntry[]
   );
@@ -908,7 +889,6 @@ export function DashletSettings({
       setShowStyleSelector(config.showStyleSelector ?? true);
       setPointMode(config.pointMode ?? "pin");
       setLayers((config.layers ?? []).map(mapLayerToSettingsItem));
-      setSaveError(null);
     }
   }, [
     isOpen,
@@ -927,26 +907,11 @@ export function DashletSettings({
   });
 
   const handleSave = () => {
-    const invalidLayers = layers.filter(
-      (item) => item.dataMode !== "none" && buildProvider(item) === undefined
-    );
-    if (invalidLayers.length > 0) {
-      const names = invalidLayers
-        .map((item) => item.name.trim() || tr("dashboard.settings.unnamedOrigin", dictionary))
-        .join(", ");
-      setSaveError(
-        `${tr("dashboard.settings.layerSaveError", dictionary)}: ${names}`
-      );
-      return;
-    }
-    setSaveError(null);
     onSave({
       showFilters,
       showStyleSelector,
       pointMode,
-      layers: layers
-        .filter((item) => item.dataMode !== "none")
-        .map(settingsItemToMapLayer),
+      layers: layers.map(settingsItemToMapLayer),
       dataProvider: dp.getCleanEntries(),
     });
     onClose();
@@ -968,21 +933,14 @@ export function DashletSettings({
           onShowFiltersChange={setShowFilters}
           showStyleSelector={showStyleSelector}
           onShowStyleSelectorChange={setShowStyleSelector}
-          pointMode={pointMode}
-          onPointModeChange={setPointMode}
           layers={layers}
           onLayersChange={setLayers}
           dictionary={dictionary}
         />,
         <>
-          {saveError && (
-            <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
-              {saveError}
-            </p>
-          )}
           <DataProviderTab
             layers={layers}
-            onLayersChange={(next) => { setSaveError(null); setLayers(next); }}
+            onLayersChange={setLayers}
             dictionary={dictionary}
           />
           <hr className="my-3 border-gray-200 dark:border-gray-700" />

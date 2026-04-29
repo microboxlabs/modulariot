@@ -62,7 +62,7 @@ interface DataProviderPathLayerProps {
 }
 
 export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerProps> {
-  static readonly layerName = "DataProviderPathLayer";
+  static layerName = "DataProviderPathLayer";
 
   renderLayers(): Layer[] {
     const defaults = this.props.defaults ?? {};
@@ -73,8 +73,6 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
     const data = this.props.data ?? [];
     const dots = extractDotFeatures(data);
     const selectedIdx = this.props.selectedFeatureIndex ?? -1;
-    const baseRadius =
-      this.props.defaults?.lineWidth ?? DEFAULT_PROVIDER_STYLES.lineWidth;
 
     // When a path is selected, only its dots get the white halo;
     // otherwise all dots show it.
@@ -90,9 +88,10 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
         data: bgDots,
         getPosition: (d) => d.geometry.coordinates,
         getFillColor: [255, 255, 255, 255],
-        getRadius: baseRadius + 2,
+        getRadius: 7,
         radiusUnits: "pixels",
         pickable: false,
+        parameters: { depthTest: false },
       }) as Layer,
 
       // Colored foreground dots (pickable)
@@ -106,12 +105,13 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
           }
           return fallbackColor;
         },
-        getRadius: baseRadius,
+        getRadius: 5,
         radiusUnits: "pixels",
         pickable: this.props.pickable ?? true,
         autoHighlight: true,
         highlightColor: [255, 255, 255, 80],
         updateTriggers: this.props.updateTriggers,
+        parameters: { depthTest: false },
       }) as Layer,
     ];
   }

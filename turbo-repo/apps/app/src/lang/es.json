@@ -232,14 +232,6 @@
         "title": "Planificar viaje",
         "assignmentTitle": "Asignar viaje",
         "servicesList": "Servicios del día",
-        "taskStage": {
-          "label": "Estado",
-          "planService": "Planificar Servicio",
-          "assignDriver": "Asignar Conductor",
-          "presentDriver": "Presentar Conductor",
-          "prepareService": "Controlar Servicio",
-          "missionControl": "Iniciar viaje"
-        },
         "noServiceSelected": "Seleccione un servicio del calendario para asignar conductor y vehículo",
         "selectServiceHint": "Seleccione un servicio para asignar conductor y vehículo",
         "searchPlaceholder": "Buscar por cliente, id, origen, destino, lugarCarguio, permanencia, tipoViaje...",
@@ -1120,29 +1112,7 @@
       "breadcrumb": {
         "user": "Usuario",
         "settings": "Ajustes",
-        "dataSources": "Fuentes de Datos",
-        "organizations": "Organizaciones"
-      },
-      "organizations": {
-        "title": "Organizaciones",
-        "description": "Revisa tus membresías de organización, los módulos habilitados y los usuarios asignados a cada una.",
-        "listTitle": "Mis organizaciones",
-        "empty": "No hay organizaciones disponibles",
-        "loading": "Cargando…",
-        "loadError": "No se pudieron cargar los datos desde el backend",
-        "noSelection": "Selecciona una organización para ver su detalle",
-        "parentAccount": "Cuenta principal",
-        "membersTitle": "Miembros",
-        "membersDescription": "Usuarios que pertenecen al grupo de Alfresco de esta organización.",
-        "membersEmpty": "No se encontraron miembros",
-        "modulesTitle": "Módulos habilitados",
-        "modulesDescription": "Módulos de producto a los que esta organización tiene acceso.",
-        "modulesEmpty": "No hay módulos habilitados para esta organización",
-        "moduleNames": {
-          "FLEET_MANAGEMENT": "Gestión de flota",
-          "DASHBOARDS": "Dashboards",
-          "COLLABORATORS_MANAGEMENT": "Colaboradores"
-        }
+        "dataSources": "Fuentes de Datos"
       },
       "symptoms": {
         "config": {
@@ -1229,7 +1199,6 @@
       "settingsNav": {
         "title": "Ajustes",
         "general": "General",
-        "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos"
       }
     },
@@ -1378,8 +1347,6 @@
         "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
         "settings": "Ajustes",
-        "organizations": "Organizaciones",
-        "dataSources": "Fuentes de Datos",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",
@@ -1407,12 +1374,12 @@
       "dispatch": "Despacho",
       "reception": "Recepción",
       "deleteModal": {
-        "title": "Eliminar planificación",
-        "messagePrefix": "¿Eliminar la planificación del servicio ",
+        "title": "Confirmar eliminación",
+        "messagePrefix": "¿Eliminar la asignación del servicio ",
         "messageSuffix": "?",
         "close": "Cerrar",
         "cancel": "Cancelar",
-        "delete": "Eliminar planificación"
+        "delete": "Eliminar"
       },
       "deleteAssignmentModal": {
         "title": "Eliminar asignación",
@@ -1482,18 +1449,6 @@
           "save": "Guardar",
           "saveSuccess": "Andenes actualizados",
           "saveError": "Error al actualizar andenes"
-        },
-        "taskFilter": {
-          "title": "Filtro de servicios",
-          "description": "Restringe el listado lateral a viajes con un origen y/o destino específicos.",
-          "originLabel": "Código de origen",
-          "destinationLabel": "Código de destino",
-          "originPlaceholder": "SCL",
-          "destinationPlaceholder": "ANF",
-          "hint": "Deja un campo vacío para no aplicar esa restricción. Si usas ambos, los viajes deben coincidir con los dos.",
-          "save": "Guardar",
-          "saveSuccess": "Filtro de servicios actualizado",
-          "saveError": "Error al actualizar el filtro"
         }
       }
     },
@@ -1670,7 +1625,6 @@
       "sortableColumns": "Columnas ordenables",
       "rowColorRules": "Colores de fila",
       "badgeColorRules": "Colores de badge",
-      "colorRules": "Reglas de Color",
       "addRule": "Agregar regla",
       "value": "valor",
       "operatorEquals": "=",
@@ -1769,7 +1723,10 @@
         "defaultEnv": "Por defecto (env)",
         "defaultStrategy": "Estrategia de duplicados por defecto",
         "acceptedFileTypes": "Tipos de archivo aceptados",
-        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
+        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt).",
+        "cacheKey": "Clave de caché",
+        "cacheKeyPlaceholder": "Opcional",
+        "cacheKeyHint": "Namespace en localStorage para el caché de estado. Dejar vacío para generar uno automáticamente."
       },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
@@ -1865,7 +1822,6 @@
       "polygonStrokeWidth": "Ancho de borde (px)",
       "polygonFillOpacity": "Opacidad de relleno",
       "layerStyles": "Estilos de capa",
-      "layerSaveError": "Las siguientes capas tienen configuración de fuente de datos incompleta",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Plantilla",
       "geometryPoint": "Punto",
@@ -2017,50 +1973,20 @@
       "batchImport": {
         "defaultTitle": "Importar datos",
         "title": "Importar datos",
-        "subtitle": "Pegue o cargue un archivo CSV / TSV / Excel. Los encabezados de la primera fila se usan como claves del registro.",
+        "subtitle": "Pegue o cargue un CSV / TSV. Los encabezados de la primera fila se usan como claves del registro.",
         "configureHint": "Configura un endpoint en ajustes",
+        "loadSample": "Cargar ejemplo",
         "loadFile": "Cargar archivo…",
         "pasteHint": "Pegue contenido tab-separado o separado por comas (copiar desde Excel funciona):",
         "headerError": {
           "empty": "El archivo está vacío.",
-          "no_headers": "La primera fila no tiene encabezados válidos.",
-          "duplicate_mapping": "Dos columnas están mapeadas al mismo nombre destino. Renombra una para continuar.",
-          "parse_failed": "No se pudo leer este archivo. Puede estar dañado, protegido con contraseña o en un formato no soportado."
+          "no_headers": "La primera fila no tiene encabezados válidos."
         },
         "statusCol": "Estado",
         "total": "Total",
-        "parsing": "Analizando…",
-        "validating": "Validando…",
-        "validationError": "Re-validación fallida",
-        "renamed": "renombradas",
-        "was": "antes",
-        "renameColumn": "Haz clic para renombrar esta columna",
-        "editColumnOriginal": "Haz clic para editar. Original: {original}",
-        "schemaTitle": "Campos esperados",
-        "schemaMissing": "faltan {missing} de {total} requeridos",
-        "schemaAllMapped": "{total} requeridos mapeados",
-        "schemaColName": "nombre",
-        "schemaColType": "tipo",
-        "schemaColConstraints": "restricciones",
-        "schemaFieldPresent": "presente",
-        "schemaFieldMissing": "faltante",
-        "required": "requerido",
-        "optional": "opcional",
+        "duplicates": "Duplicados:",
         "retryFailed": "Reintentar fallidos ({count})",
-        "download": "Descargar CSV",
-        "downloadHint": "Descargar la grilla actual (con columnas renombradas) como CSV",
-        "reset": "Reiniciar",
-        "clearAll": "Limpiar todo",
-        "clearAllHint": "Limpiar todo (archivo, pegado, renombres, estados) y empezar de nuevo",
-        "preview": "Vista previa",
-        "previewing": "Generando…",
-        "previewHint": "Mostrar el cuerpo exacto que se enviará a PostgREST por la primera fila (incluye metadata de auditoría).",
-        "previewTitle": "Vista previa del envío",
-        "previewClose": "Cerrar vista previa",
-        "previewRowLabel": "Fila {number}",
-        "previewEmpty": "No hay filas para previsualizar.",
-        "previewBodyTitle": "Cuerpo enviado a PostgREST",
-        "previewMetaTitle": "Metadata de auditoría (configurada)",
+        "clearCache": "Limpiar caché",
         "importing": "Importando…",
         "importN": "Importar {count} filas",
         "status": {
@@ -2075,32 +2001,6 @@
           "upsert": "Actualizar (upsert)",
           "skip": "Omitir",
           "create": "Solo crear (falla si existe)"
-        },
-        "validation": {
-          "required": "Requerido",
-          "expectedType": "Se esperaba {expected}, se recibió {received}",
-          "invalidEnum": "Valor inválido. Opciones: {options}",
-          "tooSmall": "Debe ser ≥ {minimum}",
-          "tooBig": "Debe ser ≤ {maximum}",
-          "invalidDate": "Fecha inválida",
-          "invalidString": "Formato inválido"
-        },
-        "transforms": {
-          "title": "Transformaciones",
-          "empty": "Sin transformaciones aplicadas.",
-          "remove": "Quitar transformación",
-          "add": "Agregar",
-          "kinds": {
-            "trim": "Recortar espacios",
-            "upper": "Mayúsculas",
-            "lower": "Minúsculas",
-            "abs": "Valor absoluto",
-            "round": "Redondear",
-            "fixed": "Decimales fijos"
-          },
-          "argLabel": {
-            "fixed": "Cantidad de decimales (0–20)"
-          }
         }
       }
     },
@@ -2981,8 +2881,6 @@
       "descriptionLabel": "Descripción",
       "timezoneLabel": "Zona Horaria",
       "groupLabel": "Grupo",
-      "filterOriginLabel": "Filtro de origen (opcional)",
-      "filterDestinationLabel": "Filtro de destino (opcional)",
       "activeLabel": "Activo",
       "submit": "Crear Calendario",
       "group": {
@@ -3537,9 +3435,6 @@
     "breadcrumb": {
       "collaboratorsManagement": "Gestión de Colaboradores"
     }
-  },
-  "orgSwitcher": {
-    "changeOrgFailed": "No se pudo cambiar la organización"
   },
   "ext_tasks": {
     "processing": "Procesando tu solicitud...",

@@ -59,20 +59,18 @@ export interface MetaFields {
 /** Build the audit-metadata block injected on every row. Trust-critical
  *  values — `p_uploaded_by`, `p_total_rows`, `p_row_number` — come from
  *  server-side context (session + request count + row index) so the client
- *  cannot forge them. The `allowed` set still gates everything: if the RPC
- *  doesn't declare a given `p_*` parameter it's silently dropped, so this
- *  block is safe to append against endpoints that haven't opted in.
- *  Exported so /preview can compute the *unfiltered* version (allowed=null)
- *  and show the user which fields are being dropped by their RPC schema. */
+ *  cannot forge them. Audit metadata is unconditionally sent: every ingestion
+ *  RPC is expected to declare these `p_*` parameters in its signature, so we
+ *  don't gate them through the `allowed` set the way user fields are gated.
+ *  PostgREST will reject the call if a target RPC hasn't been migrated yet —
+ *  that's the intended signal to add the missing parameters. */
 export function buildMetaBody(
   meta: MetaFields,
   rowIndex: number,
-  allowed: ReadonlySet<string> | null,
 ): Record<string, string> {
   const out: Record<string, string> = {};
   const put = (key: string, value: string) => {
     if (!value) return;
-    if (allowed && !allowed.has(key)) return;
     out[key] = value;
   };
   put("p_uploaded_by", meta.uploadedBy);
@@ -82,23 +80,18 @@ export function buildMetaBody(
   put("p_timezone", META_TIMEZONE);
   put("p_client_id", META_CLIENT_ID);
   put("p_schema_version", META_SCHEMA_VERSION);
-  if (!allowed || allowed.has("p_total_rows")) {
-    out.p_total_rows = String(meta.totalRows);
-  }
-  if (!allowed || allowed.has("p_row_number")) {
-    out.p_row_number = String(rowIndex + 1);
-  }
+  out.p_total_rows = String(meta.totalRows);
+  out.p_row_number = String(rowIndex + 1);
   return out;
 }
 
-/** Compose the exact JSON body POSTed to PostgREST for a single row. Filters
- *  user fields through the `allowed` set, then layers audit metadata on top
- *  (server-stamped fields win on key collisions). Used by both /bulk's
- *  `submitOne` and /preview's dry-run inspection so they can never diverge. */
-export function buildRowBody(
+/** Build just the user-data half of the row body — the columns coming from
+ *  the parsed file/paste, filtered through the RPC's `allowed` parameter set
+ *  so unknown columns get dropped silently. Audit metadata is composed in
+ *  separately by `buildRowBody` (or fetched independently by /preview). */
+export function buildUserBody(
   row: SanitizedRow,
   allowed: ReadonlySet<string> | null,
-  meta: MetaFields,
 ): Record<string, string> {
   const body: Record<string, string> = {};
   for (const [k, v] of Object.entries(row.fields)) {
@@ -106,6 +99,21 @@ export function buildRowBody(
     if (allowed && !allowed.has(k)) continue;
     body[k] = v;
   }
-  Object.assign(body, buildMetaBody(meta, row.index, allowed));
   return body;
+}
+
+/** Compose the exact JSON body POSTed to PostgREST for a single row: the
+ *  filtered user data plus the unfiltered audit metadata. Server-stamped
+ *  audit fields win on key collisions so a user column named `p_uploaded_by`
+ *  can't masquerade as the session email. Used by both /bulk's `submitOne`
+ *  and /preview's dry-run inspection so they can never diverge. */
+export function buildRowBody(
+  row: SanitizedRow,
+  allowed: ReadonlySet<string> | null,
+  meta: MetaFields,
+): Record<string, string> {
+  return {
+    ...buildUserBody(row, allowed),
+    ...buildMetaBody(meta, row.index),
+  };
 }

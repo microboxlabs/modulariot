@@ -1981,7 +1981,6 @@
         "previewEmpty": "No hay filas para previsualizar.",
         "previewBodyTitle": "Cuerpo enviado a PostgREST",
         "previewMetaTitle": "Metadata de auditoría (configurada)",
-        "previewDroppedMeta": "Estos campos no fueron enviados porque el RPC no los declara: {fields}. Agrégalos a la firma de la función para que se almacenen.",
         "importing": "Importando…",
         "importN": "Importar {count} filas",
         "status": {

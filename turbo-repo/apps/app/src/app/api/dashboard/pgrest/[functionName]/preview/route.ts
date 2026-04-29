@@ -8,7 +8,7 @@ import {
 import { sanitizeRows } from "../../sanitize";
 import {
   buildMetaBody,
-  buildRowBody,
+  buildUserBody,
   sanitizeSourceMeta,
   type IncomingSourceMeta,
   type MetaFields,
@@ -88,18 +88,16 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const limit = clampLimit(body?.limit);
   const previews = rows.slice(0, limit).map((row) => {
-    const enriched = buildRowBody(row, allowed, meta);
-    // Build the metadata block with `allowed=null` so we can surface the
-    // *intent* — what the server tried to inject — separately from what
-    // actually survives the RPC schema filter. Lets the user see, e.g., that
-    // p_client_id is configured but their RPC doesn't declare it yet.
-    const fullMeta = buildMetaBody(meta, row.index, null);
-    const droppedMeta = Object.keys(fullMeta).filter((k) => !(k in enriched));
+    const userBody = buildUserBody(row, allowed);
+    const auditMeta = buildMetaBody(meta, row.index);
     return {
       index: row.index,
-      body: enriched,
-      meta: fullMeta,
-      droppedMeta,
+      // Full body sent to PostgREST: filtered user fields + unconditional
+      // audit metadata. Mirrors what /bulk's `buildRowBody` actually POSTs.
+      body: { ...userBody, ...auditMeta },
+      // Audit subset surfaced separately so the UI can render a clear
+      // "what's the server stamping?" breakdown alongside the full body.
+      meta: auditMeta,
     };
   });
 

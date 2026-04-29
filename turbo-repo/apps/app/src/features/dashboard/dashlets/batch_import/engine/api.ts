@@ -45,17 +45,12 @@ export interface BulkSubmitContext {
 export interface PreviewLine {
   /** Original row index (matches `ParsedRow.index`). */
   index: number;
-  /** The exact JSON object /bulk would POST to PostgREST for this row,
-   *  including server-injected `p_*` audit metadata that survives the RPC's
-   *  parameter filter. */
+  /** Full JSON object /bulk POSTs to PostgREST: filtered user data merged
+   *  with the unconditionally-stamped audit metadata. */
   body: Record<string, string>;
-  /** All audit metadata the server *tried* to inject — same regardless of
-   *  whether the RPC declares the params. Lets the UI show which fields are
-   *  being silently dropped because the RPC schema hasn't opted in. */
+  /** Just the audit-metadata subset of `body`, surfaced separately so the UI
+   *  can render a "configured audit fields" breakdown. */
   meta: Record<string, string>;
-  /** Keys present in `meta` but absent from `body` — i.e., audit fields the
-   *  RPC's parameter schema doesn't accept and that PostgREST will not see. */
-  droppedMeta: string[];
 }
 
 export interface PreviewResponse {

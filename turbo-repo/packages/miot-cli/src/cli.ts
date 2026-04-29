@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
+import { registerAuthCommand } from "./commands/auth/index.js";
 import { registerCalendarCommand } from "./commands/calendar/index.js";
 import { registerConnectionsCommand } from "./commands/connections/index.js";
 
@@ -18,6 +19,7 @@ program
   .option("--profile <name>", "Named profile from ~/.miotrc.json")
   .option("--output <mode>", "Output mode: json or table");
 
+registerAuthCommand(program);
 registerCalendarCommand(program);
 registerConnectionsCommand(program);
 

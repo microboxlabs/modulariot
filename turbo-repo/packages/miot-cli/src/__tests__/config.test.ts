@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { resolveConfig, resolveOutputMode } from "../config.js";
+import {
+  removeProfile,
+  resolveConfig,
+  resolveOutputMode,
+  upsertProfile,
+} from "../config.js";
 
 // Mock fs and os
 vi.mock("node:fs", () => ({
   default: {
     readFileSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    chmodSync: vi.fn(),
   },
 }));
 
@@ -17,6 +24,8 @@ vi.mock("node:os", () => ({
 import fs from "node:fs";
 
 const mockReadFileSync = vi.mocked(fs.readFileSync);
+const mockWriteFileSync = vi.mocked(fs.writeFileSync);
+const mockChmodSync = vi.mocked(fs.chmodSync);
 
 describe("resolveConfig", () => {
   const originalEnv = process.env;
@@ -24,7 +33,10 @@ describe("resolveConfig", () => {
     process.env = { ...originalEnv };
     delete process.env["MIOT_BASE_URL"];
     delete process.env["MIOT_TOKEN"];
+    delete process.env["MIOT_ORGANIZATION_ID"];
     mockReadFileSync.mockReset();
+    mockWriteFileSync.mockReset();
+    mockChmodSync.mockReset();
     vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -146,6 +158,129 @@ describe("resolveConfig", () => {
       baseUrl: "https://flag.example.com",
       token: "flag-token",
     });
+  });
+});
+
+describe("dotfile profile persistence", () => {
+  beforeEach(() => {
+    mockReadFileSync.mockReset();
+    mockWriteFileSync.mockReset();
+    mockChmodSync.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("upserts a profile and keeps the existing default profile", () => {
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        defaultProfile: "staging",
+        profiles: {
+          staging: {
+            baseUrl: "https://staging.example.com",
+            token: "old-token",
+          },
+        },
+      }),
+    );
+
+    upsertProfile("production", {
+      baseUrl: "https://prod.example.com",
+      token: "new-token",
+      organizationId: "org-prod",
+    });
+
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      "/home/test/.miotrc.json",
+      `${JSON.stringify(
+        {
+          defaultProfile: "staging",
+          profiles: {
+            staging: {
+              baseUrl: "https://staging.example.com",
+              token: "old-token",
+            },
+            production: {
+              baseUrl: "https://prod.example.com",
+              token: "new-token",
+              organizationId: "org-prod",
+            },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      { encoding: "utf-8", mode: 0o600 },
+    );
+    expect(mockChmodSync).toHaveBeenCalledWith("/home/test/.miotrc.json", 0o600);
+  });
+
+  it("sets a default profile when creating the first profile", () => {
+    mockReadFileSync.mockImplementation(() => {
+      throw new Error("ENOENT");
+    });
+
+    upsertProfile("default", {
+      baseUrl: "https://api.example.com",
+      token: "token",
+    });
+
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      "/home/test/.miotrc.json",
+      `${JSON.stringify(
+        {
+          profiles: {
+            default: {
+              baseUrl: "https://api.example.com",
+              token: "token",
+            },
+          },
+          defaultProfile: "default",
+        },
+        null,
+        2,
+      )}\n`,
+      { encoding: "utf-8", mode: 0o600 },
+    );
+  });
+
+  it("removes a profile and moves the default to the next profile", () => {
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        defaultProfile: "staging",
+        profiles: {
+          staging: {
+            baseUrl: "https://staging.example.com",
+            token: "staging-token",
+          },
+          production: {
+            baseUrl: "https://prod.example.com",
+            token: "prod-token",
+          },
+        },
+      }),
+    );
+
+    expect(removeProfile("staging")).toBe(true);
+
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      "/home/test/.miotrc.json",
+      `${JSON.stringify(
+        {
+          defaultProfile: "production",
+          profiles: {
+            production: {
+              baseUrl: "https://prod.example.com",
+              token: "prod-token",
+            },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      { encoding: "utf-8", mode: 0o600 },
+    );
   });
 });
 

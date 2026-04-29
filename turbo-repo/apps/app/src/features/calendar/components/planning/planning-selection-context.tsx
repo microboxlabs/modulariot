@@ -28,10 +28,12 @@ import {
   listBookings,
   updateServiceCategory,
 } from "@/features/common/providers/client-api.provider";
+import type { BookingTaskAdvance } from "@/features/common/providers/client-api.provider";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
+import { getNextTransition } from "@/features/calendar/services/task-stage-transitions";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   apiToLocalTimeWindow,
@@ -594,7 +596,20 @@ export interface SelectedService {
   assignedTruck?: string;
   /** Assigned trailer id — placeholder until the trailer feed is wired. */
   assignedTrailer?: string;
+  /**
+   * Kanban column the task came from — used to pick the workflow transition
+   * when the user plans or assigns the service. Ephemeral; re-derived from
+   * the live kanban each fetch and not persisted on the booking.
+   */
+  currentStage?: TaskStage;
 }
+
+export type TaskStage =
+  | "planService"
+  | "assignDriver"
+  | "presentDriver"
+  | "prepareService"
+  | "missionControl";
 
 /**
  * A service that has been confirmed and placed in a slot
@@ -660,6 +675,12 @@ interface PersistPlannedBookingParams {
   slot: SelectedSlot;
   oldBookingId?: string;
   originalPlannedService: PlannedService | null;
+  /**
+   * When set, the bookings POST also runs an Alfresco task transition. The
+   * server compensates (cancels the just-created booking) if the transition
+   * fails.
+   */
+  taskAdvance?: BookingTaskAdvance;
   setBookingIds: Dispatch<SetStateAction<Map<string, string>>>;
   setBookingVersion: Dispatch<SetStateAction<number>>;
   setPlannedServices: Dispatch<SetStateAction<PlannedService[]>>;
@@ -709,6 +730,7 @@ async function persistPlannedBooking({
   slot,
   oldBookingId,
   originalPlannedService,
+  taskAdvance,
   setBookingIds,
   setBookingVersion,
   setPlannedServices,
@@ -719,9 +741,10 @@ async function persistPlannedBooking({
   }
 
   try {
-    const booking = await createBooking(
-      buildBookingRequest(calendarId, service, slot)
-    );
+    const booking = await createBooking({
+      ...buildBookingRequest(calendarId, service, slot),
+      ...(taskAdvance ? { taskAdvance } : {}),
+    });
     await syncServiceCategoryWithWorkflow(service, booking.id);
 
     setBookingIds((prev) => {
@@ -1489,12 +1512,24 @@ export function PlanningSelectionProvider({
         return updated;
       });
 
+      // Reassignment only changes the slot; the workflow task has already been
+      // advanced by a prior plan/assign action. Skip the transition in that
+      // case so we don't try to advance a task that's no longer in scope.
+      const transitionId = wasReassigning
+        ? undefined
+        : getNextTransition(effectiveService.currentStage);
+      const taskAdvance: BookingTaskAdvance | undefined =
+        transitionId && effectiveService.taskId
+          ? { taskId: effectiveService.taskId, transitionId }
+          : undefined;
+
       await persistPlannedBooking({
         calendarId,
         service: effectiveService,
         slot: slotToUse,
         oldBookingId: bookingIds.get(effectiveService.id),
         originalPlannedService,
+        taskAdvance,
         setBookingIds,
         setBookingVersion,
         setPlannedServices,

@@ -1,10 +1,13 @@
 import {
   createMiotCalendarClient,
   MiotCalendarApiError,
+  type BookingResponse,
 } from "@microboxlabs/miot-calendar-client";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import type { Session } from "next-auth";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -12,6 +15,11 @@ type BookingSlot = {
   date: string;
   hour: number;
   minutes: number;
+};
+
+type TaskAdvance = {
+  taskId: string;
+  transitionId: string;
 };
 
 type AppBookingRequest = {
@@ -23,6 +31,14 @@ type AppBookingRequest = {
     data?: Record<string, unknown>;
   };
   slot: BookingSlot;
+  /**
+   * Optional Alfresco workflow advance to run as part of the same operation.
+   * Booking is written first; if the task transition fails, the booking
+   * created in this request is canceled (compensation). When the booking
+   * already existed (409 conflict), we do not cancel — only the just-created
+   * booking is rolled back.
+   */
+  taskAdvance?: TaskAdvance;
 };
 
 function isSameSlot(
@@ -66,21 +82,24 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return authResult.response;
+type CalendarClient = ReturnType<typeof createMiotCalendarClient>;
 
-  const body: AppBookingRequest = await request.json();
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
+type BookingResolution =
+  | { booking: BookingResponse; status: 200 | 201; created: boolean }
+  | { error: NextResponse };
 
+/**
+ * Writes the booking, transparently treating a 409 with a matching existing
+ * booking as success. Returns the booking plus whether it was newly created
+ * (callers need this to know whether to compensate on later failure).
+ */
+async function resolveBooking(
+  client: CalendarClient,
+  body: AppBookingRequest
+): Promise<BookingResolution> {
   try {
     const booking = await client.bookings.create(body);
-    return NextResponse.json(booking, { status: 201 });
+    return { booking, status: 201, created: true };
   } catch (error) {
     const status = error instanceof MiotCalendarApiError ? error.status : 500;
     if (status === 409) {
@@ -93,7 +112,7 @@ export async function POST(request: Request) {
         );
 
         if (matchingBooking) {
-          return NextResponse.json(matchingBooking, { status: 200 });
+          return { booking: matchingBooking, status: 200, created: false };
         }
       } catch (lookupError) {
         logger.warn(
@@ -104,14 +123,102 @@ export async function POST(request: Request) {
     }
 
     logger.error({ err: error }, "Failed to create booking");
-    return NextResponse.json(
-      {
-        error:
-          error instanceof MiotCalendarApiError
-            ? error.message
-            : "Failed to create booking",
-      },
-      { status }
-    );
+    return {
+      error: NextResponse.json(
+        {
+          error:
+            error instanceof MiotCalendarApiError
+              ? error.message
+              : "Failed to create booking",
+        },
+        { status }
+      ),
+    };
   }
+}
+
+/**
+ * Compensates a just-created booking after a downstream failure. Only logs on
+ * cancel failure — the caller still surfaces the original error to the user.
+ */
+async function compensateBooking(
+  client: CalendarClient,
+  bookingId: string,
+  cause: unknown
+): Promise<{ compensated: boolean }> {
+  try {
+    await client.bookings.cancel(bookingId);
+    return { compensated: true };
+  } catch (cancelError) {
+    logger.error(
+      { err: cancelError, bookingId, cause },
+      "Failed to compensate booking after task-advance failure — manual cleanup required"
+    );
+    return { compensated: false };
+  }
+}
+
+async function runTaskAdvance(
+  session: Session,
+  advance: TaskAdvance
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  try {
+    await endTask(session, advance.taskId, advance.transitionId);
+    return { ok: true };
+  } catch (error) {
+    logger.error(
+      { err: error, taskId: advance.taskId, transitionId: advance.transitionId },
+      "Failed to advance workflow task"
+    );
+    const message =
+      error instanceof Error ? error.message : "Failed to advance task";
+    return { ok: false, status: 502, message };
+  }
+}
+
+export async function POST(request: Request) {
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) return authResult.response;
+
+  const body: AppBookingRequest = await request.json();
+  const client = createMiotCalendarClient({
+    baseUrl: MIOT_CALENDAR_URL,
+    headers: {
+      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
+    },
+  });
+
+  const resolved = await resolveBooking(client, body);
+  if ("error" in resolved) return resolved.error;
+
+  if (!body.taskAdvance) {
+    return NextResponse.json(resolved.booking, { status: resolved.status });
+  }
+
+  const advanceResult = await runTaskAdvance(
+    authResult.session,
+    body.taskAdvance
+  );
+  if (advanceResult.ok) {
+    return NextResponse.json(resolved.booking, { status: resolved.status });
+  }
+
+  let compensated: boolean | undefined;
+  if (resolved.created) {
+    const compensation = await compensateBooking(
+      client,
+      resolved.booking.id,
+      advanceResult.message
+    );
+    compensated = compensation.compensated;
+  }
+
+  return NextResponse.json(
+    {
+      error: advanceResult.message,
+      taskAdvanceFailed: true,
+      bookingCompensated: compensated,
+    },
+    { status: advanceResult.status }
+  );
 }

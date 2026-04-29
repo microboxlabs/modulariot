@@ -1,0 +1,1719 @@
+{
+  "openapi" : "3.1.0",
+  "components" : {
+    "schemas" : {
+      "Acceleration" : {
+        "type" : "object",
+        "description" : "Acceleration data",
+        "properties" : {
+          "x_axis" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 1.5 ],
+            "description" : "Acceleration on X-axis",
+            "maximum" : 3.0,
+            "minimum" : -3.0,
+            "x-order" : 1
+          },
+          "y_axis" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ -0.5 ],
+            "description" : "Acceleration on Y-axis",
+            "maximum" : 3.0,
+            "minimum" : -3.0,
+            "x-order" : 2
+          },
+          "z_axis" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 2.0 ],
+            "description" : "Acceleration on Z-axis",
+            "maximum" : 3.0,
+            "minimum" : -3.0,
+            "x-order" : 3
+          },
+          "g_force" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 1.2 ],
+            "description" : "Recorded G-force",
+            "maximum" : 5.0,
+            "minimum" : 0.0,
+            "x-order" : 4
+          }
+        }
+      },
+      "Accuracy" : {
+        "type" : "object",
+        "description" : "Accuracy of the GPS data",
+        "properties" : {
+          "horizontal" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Horizontal accuracy in meters. E.g., 5.0 (high precision), 100.0 (low precision)",
+            "minimum" : 0,
+            "x-order" : 1
+          },
+          "vertical" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Vertical accuracy in meters. E.g., 5.0 (high precision), 50.0 (low precision)",
+            "minimum" : 0,
+            "x-order" : 2
+          }
+        }
+      },
+      "AddMemberRequest" : {
+        "type" : "object",
+        "properties" : {
+          "personId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "AdditionalInfo" : {
+        "type" : "object",
+        "description" : "Additional information about the event",
+        "properties" : {
+          "g_force" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 2.5 ],
+            "description" : "G-force during the event",
+            "maximum" : 5.0,
+            "minimum" : 0.0,
+            "x-order" : 1
+          },
+          "speed_at_event" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 120.5 ],
+            "description" : "Speed during the event in km/h",
+            "maximum" : 250.0,
+            "minimum" : 0.0,
+            "x-order" : 2
+          },
+          "cargo_weight" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 5000.0 ],
+            "description" : "Cargo weight at the time of the event in kg",
+            "maximum" : 20000.0,
+            "minimum" : 0.0,
+            "x-order" : 3
+          }
+        }
+      },
+      "AdvanceCursorRequest" : {
+        "type" : "object",
+        "properties" : {
+          "cursorType" : {
+            "type" : "string"
+          },
+          "cursorValue" : {
+            "type" : "string"
+          },
+          "entitiesSynced" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "errors" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "AlfrescoPerson" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          }
+        }
+      },
+      "AssetLoad" : {
+        "type" : "object",
+        "description" : "Asset load data",
+        "properties" : {
+          "cargo_weight" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 5000.0 ],
+            "description" : "Cargo weight in kg",
+            "maximum" : 20000.0,
+            "minimum" : 0.0,
+            "x-order" : 1
+          },
+          "asset_weight" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 3500.0 ],
+            "description" : "Asset weight in kg",
+            "maximum" : 10000.0,
+            "minimum" : 0.0,
+            "x-order" : 2
+          }
+        }
+      },
+      "AssetTrackingData" : {
+        "type" : "object",
+        "required" : [ "asset_id", "timestamp" ],
+        "description" : "Represents tracking data for an asset",
+        "properties" : {
+          "asset_id" : {
+            "type" : "string",
+            "examples" : [ "A123456789" ],
+            "pattern" : "\\S",
+            "description" : "Unique identifier of the asset. E.g.: \"A123456789\"",
+            "x-order" : 1
+          },
+          "type" : {
+            "type" : "string",
+            "examples" : [ "Truck" ],
+            "description" : "Type of asset. E.g.: \"Truck\", \"Container\", \"Pallet\"",
+            "x-order" : 2
+          },
+          "owner" : {
+            "type" : "string",
+            "examples" : [ "Company ABC" ],
+            "description" : "Owner of the asset. E.g.: \"Company ABC\"",
+            "x-order" : 3
+          },
+          "year" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 2020 ],
+            "description" : "Year of manufacture of the asset. E.g.: 2020",
+            "minimum" : 0,
+            "x-order" : 4
+          },
+          "timestamp" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "examples" : [ "2024-10-22T14:23:45Z" ],
+            "description" : "Timestamp of the data in ISO 8601 format. E.g.: \"2024-10-22T14:23:45Z\"",
+            "x-order" : 5
+          },
+          "gps" : {
+            "$ref" : "#/components/schemas/Gps",
+            "type" : "object",
+            "description" : "Provides the geographical location of the asset and other related parameters such as altitude, speed, and direction. This data allows real-time tracking of the asset's position.",
+            "x-order" : 6
+          },
+          "telecom" : {
+            "$ref" : "#/components/schemas/Telecom",
+            "type" : "object",
+            "description" : "Describes the connectivity details of the asset, including SIM card information, GPS provider, and signal strength, allowing real-time verification of connectivity quality.",
+            "x-order" : 7
+          },
+          "sensors" : {
+            "$ref" : "#/components/schemas/Sensors",
+            "type" : "object",
+            "description" : "Sensor information allows monitoring of the asset's physical conditions, such as acceleration, gyroscopes, load weight, and distance traveled. This is essential for assessing asset usage and conditions.",
+            "x-order" : 7
+          },
+          "driver_info" : {
+            "$ref" : "#/components/schemas/DriverInfo",
+            "type" : "object",
+            "description" : "Provides basic information about the driver if the asset is a driven vehicle. This section is optional depending on the asset type.",
+            "x-order" : 8
+          },
+          "co_driver_info" : {
+            "$ref" : "#/components/schemas/DriverInfo",
+            "type" : "object",
+            "description" : "Provides basic information about the co-driver if the asset is a driven vehicle. This section is optional depending on the asset type.",
+            "x-order" : 9
+          },
+          "peripherals" : {
+            "$ref" : "#/components/schemas/Peripherals",
+            "type" : "object",
+            "description" : "This section describes the peripherals connected to the asset, such as cameras and RFID readers, which can be used for visual monitoring or inventory management.",
+            "x-order" : 10
+          },
+          "metrics" : {
+            "$ref" : "#/components/schemas/MetricsEnvelope",
+            "type" : "object",
+            "description" : "Metrics envelope following miot.metrics@1.0 specification. Provides a standardized container for telemetry metrics from OBD2, J1939, CAN, and other vehicle/IoT data sources.",
+            "x-order" : 11
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Event"
+            }
+          }
+        }
+      },
+      "AuthType" : {
+        "type" : "string",
+        "enum" : [ "NONE", "BEARER_TOKEN", "API_KEY_HEADER", "API_KEY_QUERY", "BASIC", "OAUTH2_CLIENT_CREDENTIALS", "CUSTOM_HEADERS" ]
+      },
+      "BatteryLevel" : {
+        "type" : "object",
+        "description" : "Remaining battery level of the GPS device as a percentage",
+        "properties" : {
+          "percentage" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 85 ],
+            "description" : "Battery percentage remaining",
+            "maximum" : 100,
+            "minimum" : 0
+          }
+        }
+      },
+      "ConnectionTestRequest" : {
+        "type" : "object",
+        "properties" : {
+          "method" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Contact" : {
+        "type" : "object",
+        "description" : "Contact information",
+        "properties" : {
+          "phone" : {
+            "type" : "string",
+            "examples" : [ "+1234567890" ],
+            "description" : "Driver's phone number",
+            "x-order" : 1
+          },
+          "email" : {
+            "type" : "string",
+            "examples" : [ "johndoe@example.com" ],
+            "description" : "Driver's email address",
+            "x-order" : 2
+          }
+        }
+      },
+      "CreateCredentialProfileRequest" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "authType" : {
+            "$ref" : "#/components/schemas/AuthType"
+          },
+          "publicConfig" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "secretConfig" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        }
+      },
+      "CreateIntegrationConnectionRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "providerType" : {
+            "$ref" : "#/components/schemas/ProviderType"
+          },
+          "baseUrl" : {
+            "type" : "string",
+            "format" : "uri"
+          },
+          "credentialProfileId" : {
+            "type" : "string"
+          },
+          "metadata" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          }
+        }
+      },
+      "CreateIntegrationOperationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "method" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "requestSchema" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "responseSchema" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "testOperation" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "CreateOrganizationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "slug" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "taxId" : {
+            "type" : "string"
+          },
+          "alfrescoGroupId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Dashcam" : {
+        "type" : "object",
+        "description" : "Dashcam information",
+        "properties" : {
+          "status" : {
+            "type" : "boolean",
+            "description" : "Status of the dashcam (true = functioning)",
+            "x-order" : 1
+          },
+          "recording_url" : {
+            "type" : "string",
+            "examples" : [ "http://example.com/recordings/abc123" ],
+            "description" : "URL of the recorded video",
+            "x-order" : 2
+          }
+        }
+      },
+      "DriverInfo" : {
+        "type" : "object",
+        "description" : "Provides basic information about the driver if the asset is a driven vehicle. This section is optional depending on the asset type.",
+        "properties" : {
+          "driver_id" : {
+            "type" : "string",
+            "examples" : [ "D12345" ],
+            "description" : "Unique identifier of the driver",
+            "x-order" : 1
+          },
+          "name" : {
+            "type" : "string",
+            "examples" : [ "John Doe" ],
+            "description" : "Name of the driver",
+            "x-order" : 2
+          },
+          "license_number" : {
+            "type" : "string",
+            "examples" : [ "XYZ12345" ],
+            "description" : "Driver's license number",
+            "x-order" : 3
+          },
+          "contact" : {
+            "$ref" : "#/components/schemas/Contact",
+            "type" : "object",
+            "description" : "Contact information of the driver",
+            "x-order" : 4
+          },
+          "id_button" : {
+            "type" : "string",
+            "examples" : [ "2100000095CC3B21" ],
+            "description" : "ID Button unique identifier",
+            "x-order" : 5
+          }
+        }
+      },
+      "Event" : {
+        "type" : "object",
+        "required" : [ "event_type", "timestamp" ],
+        "description" : "This section documents events related to the asset, such as speeding, G-force impacts, or sudden movements, allowing evaluation of the asset's safety and operating conditions.",
+        "properties" : {
+          "event_type" : {
+            "type" : "string",
+            "examples" : [ "speeding" ],
+            "description" : "Type of event",
+            "x-order" : 1
+          },
+          "timestamp" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "examples" : [ "2024-10-22T14:23:45Z" ],
+            "description" : "Timestamp of the event in ISO format",
+            "x-order" : 2
+          },
+          "severity" : {
+            "type" : "string",
+            "examples" : [ "medium" ],
+            "description" : "Severity of the event",
+            "x-order" : 3
+          },
+          "description" : {
+            "type" : "string",
+            "examples" : [ "Speeding over limit" ],
+            "description" : "Description of the event",
+            "x-order" : 4
+          },
+          "threshold_exceeded" : {
+            "type" : "boolean",
+            "description" : "Whether the event exceeds a threshold",
+            "x-order" : 5
+          },
+          "additional_info" : {
+            "$ref" : "#/components/schemas/AdditionalInfo",
+            "type" : "object",
+            "description" : "Additional information about the event",
+            "x-order" : 6
+          }
+        }
+      },
+      "Gps" : {
+        "type" : "object",
+        "required" : [ "latitude", "longitude" ],
+        "description" : "Provides the geographical location of the asset and other related parameters such as altitude, speed, and direction. This data allows real-time tracking of the asset's position.",
+        "properties" : {
+          "latitude" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Latitude of the asset",
+            "maximum" : 90,
+            "minimum" : -90,
+            "x-order" : 1
+          },
+          "longitude" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Longitude of the asset",
+            "maximum" : 180,
+            "minimum" : -180,
+            "x-order" : 2
+          },
+          "altitude" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Altitude in meters. E.g., -50.0 (below sea level), 1000.0 (mountain)",
+            "x-order" : 3
+          },
+          "speed" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Speed of the asset in km/h",
+            "maximum" : 250,
+            "minimum" : 0,
+            "x-order" : 4
+          },
+          "heading" : {
+            "type" : "number",
+            "format" : "double",
+            "description" : "Direction in degrees",
+            "maximum" : 360,
+            "minimum" : 0,
+            "x-order" : 5
+          },
+          "accuracy" : {
+            "$ref" : "#/components/schemas/Accuracy",
+            "type" : "object",
+            "description" : "Accuracy of the GPS data",
+            "x-order" : 6
+          },
+          "satellites" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Number of satellites used",
+            "maximum" : 30,
+            "minimum" : 0,
+            "x-order" : 7
+          }
+        }
+      },
+      "Gyroscope" : {
+        "type" : "object",
+        "description" : "Gyroscope data",
+        "properties" : {
+          "rotation_rate_x" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 5.5 ],
+            "description" : "Rotation rate on X-axis",
+            "maximum" : 10.0,
+            "minimum" : -10.0,
+            "x-order" : 1
+          },
+          "rotation_rate_y" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ -3.2 ],
+            "description" : "Rotation rate on Y-axis",
+            "maximum" : 10.0,
+            "minimum" : -10.0,
+            "x-order" : 2
+          },
+          "rotation_rate_z" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 1.8 ],
+            "description" : "Rotation rate on Z-axis",
+            "maximum" : 10.0,
+            "minimum" : -10.0,
+            "x-order" : 3
+          }
+        }
+      },
+      "LastRead" : {
+        "type" : "object",
+        "description" : "Last read RFID information",
+        "properties" : {
+          "rfid_tag" : {
+            "type" : "string",
+            "examples" : [ "RFID12345" ],
+            "description" : "Last read RFID tag",
+            "x-order" : 1
+          },
+          "timestamp" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "examples" : [ "2024-10-22T14:23:45Z" ],
+            "description" : "Timestamp of the last read",
+            "x-order" : 2
+          }
+        }
+      },
+      "MetricItem" : {
+        "type" : "object",
+        "required" : [ "k", "v" ],
+        "description" : "Individual metric item within the metrics envelope. Represents a single telemetry measurement with its metadata.",
+        "properties" : {
+          "k" : {
+            "type" : "string",
+            "examples" : [ "engine.rpm" ],
+            "pattern" : "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*){1,5}$",
+            "description" : "Canonical metric key (e.g., engine.rpm, vehicle.speed, battery.voltage)",
+            "x-order" : 1
+          },
+          "v" : {
+            "examples" : [ 2150 ],
+            "description" : "Metric value - can be number, boolean, string, object, or array",
+            "x-order" : 2
+          },
+          "u" : {
+            "type" : "string",
+            "examples" : [ "rpm" ],
+            "description" : "Canonical unit of measurement (e.g., rpm, km/h, V, %, C)",
+            "x-order" : 3
+          },
+          "ts" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "examples" : [ "2026-01-20T14:12:00Z" ],
+            "description" : "Timestamp override for this specific metric in RFC3339 format",
+            "x-order" : 4
+          },
+          "src" : {
+            "type" : "string",
+            "enum" : [ "obd2", "j1939", "can", "oem", "derived", "unknown" ],
+            "examples" : [ "obd2" ],
+            "description" : "Data source identifier",
+            "x-order" : 5
+          },
+          "q" : {
+            "type" : "string",
+            "enum" : [ "ok", "estimated", "stale", "invalid", "missing" ],
+            "examples" : [ "ok" ],
+            "description" : "Quality indicator for the metric value",
+            "x-order" : 6
+          },
+          "meta" : {
+            "type" : "object",
+            "additionalProperties" : { },
+            "description" : "Opaque metadata for traceability and debugging (e.g., PID, SPN, CAN ID)",
+            "x-order" : 7
+          }
+        }
+      },
+      "MetricsEnvelope" : {
+        "type" : "object",
+        "required" : [ "schema", "items" ],
+        "description" : "Metrics envelope following miot.metrics@1.0 specification. Provides a standardized container for telemetry metrics from OBD2, J1939, CAN, and other vehicle/IoT data sources.",
+        "properties" : {
+          "schema" : {
+            "type" : "string",
+            "examples" : [ "miot.metrics@1.0" ],
+            "pattern" : "^miot\\.metrics@\\d+\\.\\d+$",
+            "description" : "Schema identifier for the metrics envelope format",
+            "x-order" : 1
+          },
+          "items" : {
+            "type" : "array",
+            "minItems" : 1,
+            "items" : {
+              "$ref" : "#/components/schemas/MetricItem"
+            },
+            "description" : "Array of metric items (at least one required)",
+            "x-order" : 2
+          },
+          "seq" : {
+            "type" : "integer",
+            "format" : "int64",
+            "examples" : [ 12345 ],
+            "description" : "Device sequence number for ordering and deduplication",
+            "minimum" : 0,
+            "x-order" : 3
+          },
+          "device_ts" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "examples" : [ "2026-01-20T14:12:00Z" ],
+            "description" : "Device clock timestamp in RFC3339 format",
+            "x-order" : 4
+          },
+          "capabilities" : {
+            "type" : "object",
+            "additionalProperties" : { },
+            "description" : "Opaque device capabilities metadata",
+            "x-order" : 5
+          }
+        }
+      },
+      "Odometer" : {
+        "type" : "object",
+        "description" : "Odometer data",
+        "properties" : {
+          "total_distance" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 150000.5 ],
+            "description" : "Total distance traveled in km",
+            "maximum" : 1000000.0,
+            "minimum" : 0.0,
+            "x-order" : 1
+          },
+          "trip_distance" : {
+            "type" : "number",
+            "format" : "double",
+            "examples" : [ 150000.5 ],
+            "description" : "Distance traveled in the current trip in km",
+            "maximum" : 1000000.0,
+            "minimum" : 0.0,
+            "x-order" : 2
+          }
+        }
+      },
+      "OrganizationDto" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "taxId" : {
+            "type" : "string"
+          },
+          "alfrescoGroupId" : {
+            "type" : "string"
+          },
+          "tenantClientId" : {
+            "type" : "string"
+          },
+          "parentId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "active" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "OrganizationScopeDto" : {
+        "type" : "object",
+        "properties" : {
+          "organizationId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "taxId" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "isParent" : {
+            "type" : "boolean"
+          },
+          "effectiveTaxIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "modules" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "PatchOrganizationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "taxId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Peripherals" : {
+        "type" : "object",
+        "description" : "This section describes the peripherals connected to the asset, such as cameras and RFID readers, which can be used for visual monitoring or inventory management.",
+        "properties" : {
+          "dashcam" : {
+            "$ref" : "#/components/schemas/Dashcam",
+            "type" : "object",
+            "description" : "Dashcam information",
+            "x-order" : 1
+          },
+          "rfid_reader" : {
+            "$ref" : "#/components/schemas/RfidReader",
+            "type" : "object",
+            "description" : "RFID reader information",
+            "x-order" : 2
+          }
+        }
+      },
+      "ProviderType" : {
+        "type" : "string",
+        "enum" : [ "POSTGREST", "ALERCE_TMS", "N8N", "AUTH0", "ECM", "CUSTOM_HTTP" ]
+      },
+      "RfidReader" : {
+        "type" : "object",
+        "description" : "RFID reader information",
+        "properties" : {
+          "status" : {
+            "type" : "boolean",
+            "description" : "Status of the RFID reader (true = functioning)",
+            "x-order" : 1
+          },
+          "last_read" : {
+            "$ref" : "#/components/schemas/LastRead",
+            "type" : "object",
+            "description" : "Last read RFID information",
+            "x-order" : 2
+          }
+        }
+      },
+      "Sensors" : {
+        "type" : "object",
+        "description" : "Sensor information allows monitoring of the asset's physical conditions, such as acceleration, gyroscopes, load weight, and distance traveled. This is essential for assessing asset usage and conditions.",
+        "properties" : {
+          "acceleration" : {
+            "$ref" : "#/components/schemas/Acceleration",
+            "type" : "object",
+            "description" : "Acceleration data",
+            "x-order" : 1
+          },
+          "gyroscope" : {
+            "$ref" : "#/components/schemas/Gyroscope",
+            "type" : "object",
+            "description" : "Gyroscope data",
+            "x-order" : 2
+          },
+          "asset_load" : {
+            "$ref" : "#/components/schemas/AssetLoad",
+            "type" : "object",
+            "description" : "Asset load data",
+            "x-order" : 3
+          },
+          "odometer" : {
+            "$ref" : "#/components/schemas/Odometer",
+            "type" : "object",
+            "description" : "Odometer data",
+            "x-order" : 4
+          },
+          "battery_level" : {
+            "$ref" : "#/components/schemas/BatteryLevel",
+            "type" : "object",
+            "description" : "GPS device battery level",
+            "x-order" : 5
+          },
+          "engine_status" : {
+            "type" : "boolean",
+            "description" : "Engine status (true = on, false = off)",
+            "x-order" : 3
+          }
+        }
+      },
+      "SetModulesRequest" : {
+        "type" : "object",
+        "properties" : {
+          "modules" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "Telecom" : {
+        "type" : "object",
+        "description" : "Describes the connectivity details of the asset, including SIM card information, GPS provider, and signal strength, allowing real-time verification of connectivity quality.",
+        "properties" : {
+          "iccid" : {
+            "type" : "string",
+            "examples" : [ "89012345678901234567" ],
+            "description" : "ICCID (Integrated Circuit Card Identifier) of the SIM card",
+            "x-order" : 1
+          },
+          "imsi" : {
+            "type" : "string",
+            "examples" : [ "123456789012345" ],
+            "description" : "IMSI (International Mobile Subscriber Identity) of the SIM card",
+            "x-order" : 2
+          },
+          "operator" : {
+            "type" : "string",
+            "examples" : [ "Vodafone" ],
+            "description" : "Name of the mobile network operator",
+            "x-order" : 3
+          },
+          "mcc" : {
+            "type" : "string",
+            "examples" : [ "234" ],
+            "description" : "Mobile Country Code",
+            "x-order" : 4
+          },
+          "mnc" : {
+            "type" : "string",
+            "examples" : [ "15" ],
+            "description" : "Mobile Network Code",
+            "x-order" : 5
+          },
+          "cell_id" : {
+            "type" : "string",
+            "examples" : [ "12345" ],
+            "description" : "Cell ID of the connected cell tower",
+            "x-order" : 6
+          },
+          "lac" : {
+            "type" : "string",
+            "examples" : [ "1234" ],
+            "description" : "Location Area Code",
+            "x-order" : 7
+          },
+          "signal_strength" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ -85 ],
+            "description" : "Signal strength in dBm",
+            "maximum" : -30,
+            "minimum" : -120,
+            "x-order" : 8
+          },
+          "gps_provider" : {
+            "type" : "string",
+            "examples" : [ "Garmin" ],
+            "description" : "Name of the GPS provider",
+            "x-order" : 9
+          }
+        }
+      },
+      "ZonedDateTime" : {
+        "type" : "string",
+        "format" : "date-time",
+        "examples" : [ "2022-03-10T12:15:50-04:00" ]
+      }
+    },
+    "securitySchemes" : {
+      "oidc" : {
+        "description" : "JWT Bearer token from Auth0 M2M client credentials flow.",
+        "type" : "http",
+        "scheme" : "bearer",
+        "bearerFormat" : "JWT"
+      }
+    }
+  },
+  "tags" : [ {
+    "name" : "Integration Connections",
+    "description" : "External API connections, credential profiles, and endpoint operations"
+  }, {
+    "name" : "Me",
+    "description" : "Current user scopes and organization memberships"
+  }, {
+    "name" : "Organization Admin",
+    "description" : "Create sub-accounts, edit and soft-delete organizations"
+  }, {
+    "name" : "Organization Members",
+    "description" : "List and mutate members of an organization's Alfresco group or site"
+  }, {
+    "name" : "Organization Modules",
+    "description" : "Per-organization product module entitlements"
+  }, {
+    "name" : "People",
+    "description" : "Search the Alfresco people directory"
+  }, {
+    "name" : "Sync",
+    "description" : "Source system sync cursor management"
+  } ],
+  "paths" : {
+    "/api/v1/me/scopes" : {
+      "get" : {
+        "summary" : "List the caller's resolved organization scopes",
+        "description" : "Returns one entry per organization the caller is a member of, including the effective tax ids and enabled product modules. Used by the Next.js app to inject cust_account filters into pgrest queries.",
+        "tags" : [ "Me" ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrganizationScopeDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/integrations/connections" : {
+      "get" : {
+        "summary" : "List integration connections",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create an integration connection",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateIntegrationConnectionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/integrations/connections/{connectionId}" : {
+      "get" : {
+        "summary" : "Get an integration connection",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "connectionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/integrations/connections/{connectionId}/operations" : {
+      "get" : {
+        "summary" : "List integration operations",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "connectionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create an integration operation",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "connectionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateIntegrationOperationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/integrations/connections/{connectionId}/test" : {
+      "post" : {
+        "summary" : "Test an integration connection",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "connectionId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ConnectionTestRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/integrations/credential-profiles" : {
+      "get" : {
+        "summary" : "List credential profiles",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Create a credential profile",
+        "tags" : [ "Integration Connections" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateCredentialProfileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : { }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/members" : {
+      "get" : {
+        "summary" : "List members of an organization",
+        "tags" : [ "Organization Members" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "maxItems",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        }, {
+          "name" : "skipCount",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AlfrescoPerson"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "post" : {
+        "summary" : "Add a person to an organization's Alfresco group",
+        "tags" : [ "Organization Members" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddMemberRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/members/{personId}" : {
+      "delete" : {
+        "summary" : "Remove a person from an organization's Alfresco group",
+        "tags" : [ "Organization Members" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "personId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{organizationId}/modules" : {
+      "put" : {
+        "summary" : "Replace the enabled module set for an organization",
+        "tags" : [ "Organization Modules" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SetModulesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "get" : {
+        "summary" : "List enabled module codes for an organization",
+        "tags" : [ "Organization Modules" ],
+        "parameters" : [ {
+          "name" : "organizationId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{parentSlug}/children" : {
+      "post" : {
+        "summary" : "Create a sub-account under the given parent organization",
+        "tags" : [ "Organization Admin" ],
+        "parameters" : [ {
+          "name" : "parentSlug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateOrganizationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/orgs/{slug}" : {
+      "patch" : {
+        "summary" : "Update display name and/or tax id of an organization",
+        "tags" : [ "Organization Admin" ],
+        "parameters" : [ {
+          "name" : "slug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PatchOrganizationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrganizationDto"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "delete" : {
+        "summary" : "Soft-delete an organization (sets active=false)",
+        "tags" : [ "Organization Admin" ],
+        "parameters" : [ {
+          "name" : "slug",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/people" : {
+      "get" : {
+        "summary" : "Search people by free-text query",
+        "tags" : [ "People" ],
+        "parameters" : [ {
+          "name" : "maxItems",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        }, {
+          "name" : "q",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AlfrescoPerson"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    },
+    "/api/v1/sync/cursor/{sourceSystem}/{entityType}" : {
+      "get" : {
+        "summary" : "Get current sync cursor",
+        "tags" : [ "Sync" ],
+        "parameters" : [ {
+          "name" : "entityType",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "sourceSystem",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      },
+      "put" : {
+        "summary" : "Advance sync cursor",
+        "tags" : [ "Sync" ],
+        "parameters" : [ {
+          "name" : "entityType",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "sourceSystem",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdvanceCursorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "security" : [ {
+          "oidc" : [ ]
+        } ]
+      }
+    }
+  },
+  "info" : {
+    "title" : "ModularIoT API",
+    "version" : "1.0.0-SNAPSHOT",
+    "description" : "Multi-tenant fleet and driver resource management with KPI scoring"
+  }
+}

@@ -1,4 +1,5 @@
 import type { ParsedDocument, ParsedRow } from "./types";
+import { applyTransforms, type TransformStep } from "./transforms";
 
 const FINGERPRINT_COLLATOR = new Intl.Collator("en", { sensitivity: "variant" });
 const US = "\x1f";
@@ -19,17 +20,22 @@ function fingerprintRow(fields: Record<string, string>): string {
 export function applyHeaderMap(
   doc: ParsedDocument,
   map: Record<string, string>,
+  transforms?: Record<string, readonly TransformStep[]>,
 ): ParsedDocument {
   if (!doc.headers.length) return doc;
-  let anyChange = false;
+  let anyRename = false;
   for (const h of doc.headers) {
     const target = map[h];
     if (target && target !== h) {
-      anyChange = true;
+      anyRename = true;
       break;
     }
   }
-  if (!anyChange) return doc;
+  // Transforms are keyed by the *effective* (post-rename) column name, so
+  // we still need a pass even when the rename map is a no-op.
+  const hasAnyTransform =
+    !!transforms && Object.values(transforms).some((s) => s && s.length > 0);
+  if (!anyRename && !hasAnyTransform) return doc;
   const mappedHeaders = doc.headers.map((h) => map[h] ?? h);
   // Detect duplicate targets — two source headers mapped to the same target
   // would silently overwrite each other inside the row `fields` object,
@@ -52,7 +58,11 @@ export function applyHeaderMap(
   }
   const rows: ParsedRow[] = doc.rows.map((r) => {
     const fields: Record<string, string> = {};
-    for (const h of doc.headers) fields[map[h] ?? h] = r.fields[h] ?? "";
+    for (const h of doc.headers) {
+      const target = map[h] ?? h;
+      const raw = r.fields[h] ?? "";
+      fields[target] = applyTransforms(raw, transforms?.[target]);
+    }
     return { index: r.index, fingerprint: fingerprintRow(fields), fields };
   });
   return { headers: mappedHeaders, rows, headerError: doc.headerError };

@@ -1970,6 +1970,23 @@
           "tooBig": "Must be ≤ {maximum}",
           "invalidDate": "Invalid date",
           "invalidString": "Invalid format"
+        },
+        "transforms": {
+          "title": "Transforms",
+          "empty": "No transforms applied.",
+          "remove": "Remove transform",
+          "add": "Add",
+          "kinds": {
+            "trim": "Trim",
+            "upper": "Upper case",
+            "lower": "Lower case",
+            "abs": "Absolute value",
+            "round": "Round",
+            "fixed": "Fixed decimals"
+          },
+          "argLabel": {
+            "fixed": "Number of decimals (0–20)"
+          }
         }
       }
     },

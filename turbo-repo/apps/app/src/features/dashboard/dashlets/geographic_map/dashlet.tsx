@@ -313,7 +313,14 @@ function MapContent({
   const wrappedPositions = useMemo(
     () =>
       (positions || []).map((p) => ({
+        ...p,
+        // Explicit fields override the spread so PinTooltip reads them directly
+        // when the picked object is cast to MapPositionProperties
         type: "Feature" as const,
+        asset_id: p.assetid,
+        speed_limit: p.speed_limit_condition,
+        gps_provider: p.telcom_gps_provider,
+        cluster: false,
         properties: {
           ...p,
           asset_id: p.assetid,

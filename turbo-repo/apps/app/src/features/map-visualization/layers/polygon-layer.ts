@@ -67,7 +67,9 @@ export class DataProviderPolygonLayer extends CompositeLayer<DataProviderPolygon
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accessor typing
         getLineWidth: (d: any) =>
-          (d as PolygonFeature).properties?.strokeWidth ?? 2,
+          (d as PolygonFeature).properties?.strokeWidth ??
+          defaults.lineWidth ??
+          DEFAULT_PROVIDER_STYLES.lineWidth,
         pickable: this.props.pickable ?? true,
         updateTriggers: this.props.updateTriggers,
       }) as Layer,

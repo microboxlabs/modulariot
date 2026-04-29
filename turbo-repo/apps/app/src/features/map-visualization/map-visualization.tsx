@@ -1,3 +1,5 @@
+"use client";
+
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Map, { useControl, MapRef } from "react-map-gl";
@@ -214,6 +216,7 @@ export default function MapVisualization({
 
       // No tooltip template configured → skip
       if (!template) {
+        onFeatureClick?.(null);
         return;
       }
 
@@ -221,6 +224,7 @@ export default function MapVisualization({
 
       // Resolved content is empty → skip
       if (!content.trim()) {
+        onFeatureClick?.(null);
         return;
       }
 

@@ -1721,10 +1721,24 @@ export function useCalendarSlots(
 // ============================================================================
 
 /**
+ * Optional Alfresco workflow advance to bundle with a booking write. The
+ * server runs the booking and the task transition as one operation and rolls
+ * back the just-created booking if the transition fails.
+ */
+export type BookingTaskAdvance = {
+  taskId: string;
+  transitionId: string;
+};
+
+export type CreateBookingRequest = BookingRequest & {
+  taskAdvance?: BookingTaskAdvance;
+};
+
+/**
  * Create a booking for a calendar slot resource.
  */
 export async function createBooking(
-  body: BookingRequest
+  body: CreateBookingRequest
 ): Promise<BookingResponse> {
   const response = await fetch("/app/api/calendar/bookings", {
     method: "POST",

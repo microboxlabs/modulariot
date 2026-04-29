@@ -21,15 +21,14 @@ import { PolygonCenterPinLayer } from "./polygon-center-pin-layer";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer_clustered";
 
 function isPointFeature(f: Feature): f is Feature<Point, MapFeatureProperties> {
-  return f.geometry != null && f.geometry.type === "Point";
+  return f.geometry?.type === "Point";
 }
 
 function isLineFeature(
   f: Feature
 ): f is Feature<LineString | MultiLineString, MapFeatureProperties> {
   return (
-    f.geometry != null &&
-    (f.geometry.type === "LineString" || f.geometry.type === "MultiLineString")
+    f.geometry?.type === "LineString" || f.geometry?.type === "MultiLineString"
   );
 }
 
@@ -37,8 +36,7 @@ function isPolygonFeature(
   f: Feature
 ): f is Feature<Polygon | MultiPolygon, MapFeatureProperties> {
   return (
-    f.geometry != null &&
-    (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon")
+    f.geometry?.type === "Polygon" || f.geometry?.type === "MultiPolygon"
   );
 }
 

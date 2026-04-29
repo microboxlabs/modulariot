@@ -85,7 +85,7 @@ interface PolygonCenterPinLayerProps {
 }
 
 export class PolygonCenterPinLayer extends CompositeLayer<PolygonCenterPinLayerProps> {
-  static layerName = "PolygonCenterPinLayer";
+  static readonly layerName = "PolygonCenterPinLayer";
 
   renderLayers(): Layer[] {
     const centroidFeatures: CentroidFeature[] = (this.props.data ?? []).map(

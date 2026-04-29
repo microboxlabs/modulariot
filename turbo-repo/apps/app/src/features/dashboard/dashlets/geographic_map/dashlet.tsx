@@ -143,7 +143,6 @@ function LayersMapContent({
   const [clickTooltip, setClickTooltip] = useState<FeatureHoverInfo | null>(
     null
   );
-  const clearPathSelectionRef = useRef<(() => void) | null>(null);
 
   const handleFeatureClick = useCallback(
     (info: FeatureHoverInfo | null) => {
@@ -190,9 +189,6 @@ function LayersMapContent({
         mapLayers={mapLayers}
         onFeatureClick={handleFeatureClick}
         onZoomChange={setZoom}
-        onClearPathSelectionRef={(clear) => {
-          clearPathSelectionRef.current = clear;
-        }}
       />
       {showStyleSelector && (
         <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
@@ -208,7 +204,6 @@ function LayersMapContent({
           left={clickTooltip.x}
           top={clickTooltip.y}
           setHoverInfo={setClickTooltip}
-          onExitAction={() => clearPathSelectionRef.current?.()}
         >
           <div className="px-3 py-2 max-w-72">
             <p className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">

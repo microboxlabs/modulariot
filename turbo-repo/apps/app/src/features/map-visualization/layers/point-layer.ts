@@ -22,7 +22,7 @@ interface DataProviderPointLayerProps {
 }
 
 export class DataProviderPointLayer extends CompositeLayer<DataProviderPointLayerProps> {
-  static layerName = "DataProviderPointLayer";
+  static readonly layerName = "DataProviderPointLayer";
 
   renderLayers(): Layer[] {
     const defaults = this.props.defaults ?? {};

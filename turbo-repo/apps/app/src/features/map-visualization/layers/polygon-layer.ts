@@ -29,7 +29,7 @@ interface DataProviderPolygonLayerProps {
 }
 
 export class DataProviderPolygonLayer extends CompositeLayer<DataProviderPolygonLayerProps> {
-  static layerName = "DataProviderPolygonLayer";
+  static readonly layerName = "DataProviderPolygonLayer";
 
   renderLayers(): Layer[] {
     const defaults = this.props.defaults ?? {};

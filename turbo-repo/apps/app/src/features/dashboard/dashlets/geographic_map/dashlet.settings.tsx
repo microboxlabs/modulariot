@@ -208,7 +208,8 @@ function detectGeometryType(
     Polygon: 0,
   };
   for (const f of collection.features) {
-    const t = f.geometry.type;
+    const t = f.geometry?.type;
+    if (typeof t !== "string") continue;
     if (t === "Point" || t === "MultiPoint") counts.Point++;
     else if (t === "LineString" || t === "MultiLineString") counts.LineString++;
     else if (t === "Polygon" || t === "MultiPolygon") counts.Polygon++;
@@ -531,6 +532,7 @@ const POINT_MODE_KEYS: { value: PointRenderMode; labelKey: string }[] = [
     value: "location-pin",
     labelKey: "dashboard.settings.pointStyleLocationPin",
   },
+  { value: "circle", labelKey: "dashboard.settings.pointStyleCircle" },
 ];
 
 // ============================================================================
@@ -910,7 +912,9 @@ export function DashletSettings({
       showFilters,
       showStyleSelector,
       pointMode,
-      layers: layers.map(settingsItemToMapLayer),
+      layers: layers
+        .map(settingsItemToMapLayer)
+        .filter((l) => l.provider !== undefined),
       dataProvider: dp.getCleanEntries(),
     });
     onClose();

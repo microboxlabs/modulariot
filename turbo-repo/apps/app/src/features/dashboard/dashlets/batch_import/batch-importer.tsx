@@ -21,6 +21,7 @@ import type {
   RowStatus,
 } from "./engine/types";
 import { applyHeaderMap } from "./engine/header-map";
+import type { TransformStep } from "./engine/transforms";
 import { downloadCsv } from "./engine/download-csv";
 import { Row } from "./components/row";
 import { HeaderCell } from "./components/header-cell";
@@ -47,6 +48,11 @@ const ROW_HEIGHT = 36;
 const STATUS_COL_WIDTH = 56;
 const DATA_COL_MIN_WIDTH = 140;
 
+/** Stable empty array used as the default `transforms` prop on header cells —
+ *  passing `[]` literal would create a new reference each render and break the
+ *  React.memo identity comparison on HeaderCell. */
+const EMPTY_STEPS: readonly TransformStep[] = [];
+
 export interface UseBatchImporterArgs {
   api: BatchImporterApi;
   defaultStrategy?: DuplicateStrategy;
@@ -56,6 +62,12 @@ export interface UseBatchImporterArgs {
   /** Optional filename prefix for the CSV download (e.g. the RPC function
    *  name). Defaults to `batch-import` when omitted. */
   filenameBase?: string;
+  /** Persisted transforms keyed by mapped column name. Treated as initial
+   *  state — the importer owns it from there until `onTransformsChange` runs. */
+  initialTransforms?: Record<string, TransformStep[]>;
+  /** Notified whenever the transforms map changes so the parent can persist
+   *  it (e.g. into the dashlet's widget config). */
+  onTransformsChange?: (next: Record<string, TransformStep[]>) => void;
 }
 
 export interface BatchImporterState {
@@ -67,6 +79,10 @@ export interface BatchImporterState {
   rawHeaders: string[];
   /** Current rename map: original header -> target name. */
   headerMap: Record<string, string>;
+  /** Per-column transforms, keyed by *mapped* (post-rename) column name. */
+  transforms: Record<string, TransformStep[]>;
+  /** Replace the transforms list for one mapped column. Pass [] to clear. */
+  setColumnTransforms: (target: string, steps: TransformStep[]) => void;
   /** Names the RPC schema expects — surfaced as autocomplete options. */
   expectedNames: string[];
   /** Full schema introspection — passed through so the view can render a
@@ -134,12 +150,36 @@ export function useBatchImporter({
   defaultStrategy = "upsert",
   params,
   filenameBase,
+  initialTransforms,
+  onTransformsChange,
 }: UseBatchImporterArgs): BatchImporterState {
   const [raw, setRaw] = useState("");
   const [rawDoc, setRawDoc] = useState<ParsedDocument | null>(null);
   const [headerMap, setHeaderMap] = useState<Record<string, string>>({});
+  const [transforms, setTransforms] = useState<
+    Record<string, TransformStep[]>
+  >(() => initialTransforms ?? {});
   const [rowStates, setRowStates] = useState<ReadonlyMap<number, RowState>>(
     () => new Map(),
+  );
+
+  /** Ref-mirror of `onTransformsChange` so we don't have to list it as a
+   *  dep on `setColumnTransforms` — that would force callers to memoize the
+   *  callback to keep header cells from re-rendering on every parent render. */
+  const onTransformsChangeRef = useRef(onTransformsChange);
+  onTransformsChangeRef.current = onTransformsChange;
+
+  const setColumnTransforms = useCallback(
+    (target: string, steps: TransformStep[]) => {
+      setTransforms((prev) => {
+        const next = { ...prev };
+        if (steps.length === 0) delete next[target];
+        else next[target] = steps;
+        onTransformsChangeRef.current?.(next);
+        return next;
+      });
+    },
+    [],
   );
   const [importing, setImporting] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -161,11 +201,12 @@ export function useBatchImporter({
    *  validation doesn't have to wait on an in-flight parse (or vice-versa). */
   const validateToken = useRef(0);
 
-  /** Apply header renames to the raw parse. Memoized so consumers — including
-   *  React.memo'd row children — don't churn on unrelated state updates. */
+  /** Apply header renames + per-column transforms to the raw parse. Memoized
+   *  so consumers — including React.memo'd row children — don't churn on
+   *  unrelated state updates. */
   const doc = useMemo(
-    () => (rawDoc ? applyHeaderMap(rawDoc, headerMap) : null),
-    [rawDoc, headerMap],
+    () => (rawDoc ? applyHeaderMap(rawDoc, headerMap, transforms) : null),
+    [rawDoc, headerMap, transforms],
   );
 
   const expectedNames = useMemo(
@@ -348,6 +389,35 @@ export function useBatchImporter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawDoc]);
 
+  // Prune transforms whose target column is no longer present in the
+  // effective (post-rename) doc — same leak protection as the rename map.
+  // Persisted transforms from widget config that don't match this file's
+  // columns still survive in the parent's storage; only the in-memory copy
+  // is trimmed so we don't fingerprint orphan keys into validation requests.
+  useEffect(() => {
+    if (!rawDoc) {
+      if (Object.keys(transforms).length > 0) {
+        setTransforms({});
+        onTransformsChangeRef.current?.({});
+      }
+      return;
+    }
+    const mapped = new Set(rawDoc.headers.map((h) => headerMap[h] ?? h));
+    const stale = Object.keys(transforms).filter((k) => !mapped.has(k));
+    if (stale.length > 0) {
+      setTransforms((prev) => {
+        const next = { ...prev };
+        for (const k of stale) delete next[k];
+        onTransformsChangeRef.current?.(next);
+        return next;
+      });
+    }
+    // Intentionally not depending on transforms — pruning sets them, which
+    // would loop. The dep on headerMap is needed because renames change
+    // which mapped names exist.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawDoc, headerMap]);
+
   useEffect(() => () => cancelPendingParse(), [cancelPendingParse]);
 
   /** Aborts the in-flight /bulk stream so closing the modal mid-import
@@ -504,6 +574,8 @@ export function useBatchImporter({
     doc,
     rawHeaders: rawDoc?.headers ?? [],
     headerMap,
+    transforms,
+    setColumnTransforms,
     expectedNames,
     params: params ?? null,
     renameHeader,
@@ -549,6 +621,8 @@ export function BatchImporterView({
     doc,
     rawHeaders,
     headerMap,
+    transforms,
+    setColumnTransforms,
     expectedNames,
     params,
     renameHeader,
@@ -569,6 +643,15 @@ export function BatchImporterView({
     onDownload,
     onClear,
   } = state;
+
+  /** Lookup table from RPC param name -> declared type ("string", "number",
+   *  "integer", …). The header cell uses it to filter the transforms picker
+   *  so users only see steps that make sense for the column's type. */
+  const expectedTypes = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of params ?? []) map[p.name] = p.type;
+    return map;
+  }, [params]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 text-gray-900 dark:text-gray-100">
@@ -683,6 +766,9 @@ export function BatchImporterView({
           rawHeaders={rawHeaders}
           headerMap={headerMap}
           expectedNames={expectedNames}
+          expectedTypes={expectedTypes}
+          transforms={transforms}
+          setColumnTransforms={setColumnTransforms}
           renameHeader={renameHeader}
           rowStates={rowStates}
           importing={importing}
@@ -720,6 +806,9 @@ interface PreviewProps {
   rawHeaders: string[];
   headerMap: Record<string, string>;
   expectedNames: string[];
+  expectedTypes: Record<string, string>;
+  transforms: Record<string, TransformStep[]>;
+  setColumnTransforms: (target: string, steps: TransformStep[]) => void;
   renameHeader: (original: string, target: string) => void;
   rowStates: ReadonlyMap<number, RowState>;
   importing: boolean;
@@ -743,6 +832,9 @@ function VirtualPreview({
   rawHeaders,
   headerMap,
   expectedNames,
+  expectedTypes,
+  transforms,
+  setColumnTransforms,
   renameHeader,
   rowStates,
   importing,
@@ -940,7 +1032,10 @@ function VirtualPreview({
                       original={original}
                       displayName={displayName}
                       expectedNames={expectedNames}
+                      expectedType={expectedTypes[displayName]}
+                      transforms={transforms[displayName] ?? EMPTY_STEPS}
                       onRename={renameHeader}
+                      onTransformsChange={setColumnTransforms}
                       dictionary={dictionary}
                     />
                   );

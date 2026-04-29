@@ -1995,6 +1995,23 @@
           "tooBig": "Debe ser ≤ {maximum}",
           "invalidDate": "Fecha inválida",
           "invalidString": "Formato inválido"
+        },
+        "transforms": {
+          "title": "Transformaciones",
+          "empty": "Sin transformaciones aplicadas.",
+          "remove": "Quitar transformación",
+          "add": "Agregar",
+          "kinds": {
+            "trim": "Recortar espacios",
+            "upper": "Mayúsculas",
+            "lower": "Minúsculas",
+            "abs": "Valor absoluto",
+            "round": "Redondear",
+            "fixed": "Decimales fijos"
+          },
+          "argLabel": {
+            "fixed": "Cantidad de decimales (0–20)"
+          }
         }
       }
     },

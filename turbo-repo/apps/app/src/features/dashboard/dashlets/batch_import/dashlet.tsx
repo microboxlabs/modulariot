@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "flowbite-react";
 import { HiArrowUpTray } from "react-icons/hi2";
@@ -11,6 +11,7 @@ import { makePgrestBatchApi } from "./engine/api";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
 import type { DuplicateStrategy, IntrospectedParam } from "./engine/types";
+import type { TransformStep } from "./engine/transforms";
 
 export interface DashletConfig {
   title: string;
@@ -18,6 +19,9 @@ export interface DashletConfig {
   dataSourceId?: string;
   defaultStrategy: DuplicateStrategy;
   acceptedFileTypes?: string;
+  /** Per-column value transforms keyed by mapped column name. Persisted with
+   *  the widget so the same cleanup pipeline applies on every re-import. */
+  transforms?: Record<string, TransformStep[]>;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -37,10 +41,23 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { dictionary } = useDashboard();
+  const { dictionary, updateWidgetConfig } = useDashboard();
   const { lang } = useParams<{ lang: string }>();
   const [open, setOpen] = useState(false);
   const [params, setParams] = useState<IntrospectedParam[] | null>(null);
+
+  /** Persist the latest transforms map back to widget config — fired by the
+   *  importer's `onTransformsChange` whenever the user adds/removes a step.
+   *  Spreads the existing config so we don't clobber unrelated fields. */
+  const handleTransformsChange = useCallback(
+    (next: Record<string, TransformStep[]>) => {
+      updateWidgetConfig(widget.id, {
+        ...(widget.config as Record<string, unknown>),
+        transforms: next,
+      });
+    },
+    [updateWidgetConfig, widget.id, widget.config],
+  );
 
   const isConfigured = !!config.pgrestFunctionName;
   const title =
@@ -113,6 +130,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             dictionary={dictionary}
             params={params}
             filenameBase={config.pgrestFunctionName}
+            initialTransforms={config.transforms}
+            onTransformsChange={handleTransformsChange}
           />
         </>
       )}

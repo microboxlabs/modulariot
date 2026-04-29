@@ -8,9 +8,11 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { HiPencil, HiCheck, HiXMark } from "react-icons/hi2";
+import { HiPencil, HiCheck, HiXMark, HiAdjustmentsHorizontal } from "react-icons/hi2";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { TransformStep } from "../engine/transforms";
+import { TransformsPopover } from "./transforms-popover";
 
 interface HeaderCellProps {
   /** The name as it came out of the file — stable across renames. */
@@ -20,8 +22,15 @@ interface HeaderCellProps {
   /** Names the RPC schema expects (surfaced as a datalist so users can jump
    *  straight to `p_patente` instead of typing it). */
   expectedNames: string[];
+  /** RPC schema type for the *effective* column name, used to filter the
+   *  transforms picker to ones that make sense for the column's type. */
+  expectedType?: string;
+  /** Transforms currently applied to this column (post-rename name). */
+  transforms: readonly TransformStep[];
   /** Commit a rename. Pass the original back to untangle the mapping. */
   onRename: (original: string, target: string) => void;
+  /** Replace the transforms list for this column (mapped name). */
+  onTransformsChange: (target: string, steps: TransformStep[]) => void;
   dictionary: I18nRecord;
 }
 
@@ -36,10 +45,14 @@ export const HeaderCell = memo(function HeaderCell({
   original,
   displayName,
   expectedNames,
+  expectedType,
+  transforms,
   onRename,
+  onTransformsChange,
   dictionary,
 }: Readonly<HeaderCellProps>) {
   const [editing, setEditing] = useState(false);
+  const [showTransforms, setShowTransforms] = useState(false);
   const [draft, setDraft] = useState(displayName);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -122,28 +135,68 @@ export const HeaderCell = memo(function HeaderCell({
     );
   }
 
+  const transformCount = transforms.length;
+  const transformsLabel = tr(
+    "dashboard.dashlets.batchImport.transforms.title",
+    dictionary,
+  );
+
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className="group flex flex-col items-start gap-0.5 border-r border-gray-200 p-2 text-left hover:bg-gray-200/60 dark:border-gray-700 dark:hover:bg-gray-700/60"
-      title={
-        mapped
-          ? tr("dashboard.dashlets.batchImport.editColumnOriginal", dictionary, {
-              original,
-            })
-          : tr("dashboard.dashlets.batchImport.renameColumn", dictionary)
-      }
+    <div
+      className="group relative flex flex-col items-start gap-0.5 border-r border-gray-200 p-2 text-left dark:border-gray-700"
     >
       <span className="flex w-full items-center gap-1">
-        <span className="truncate font-semibold">{displayName}</span>
-        <HiPencil className="ml-auto h-3 w-3 flex-none text-gray-400 opacity-0 transition-opacity group-hover:opacity-100" />
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="flex min-w-0 flex-1 items-center gap-1 text-left hover:text-blue-700 dark:hover:text-blue-400"
+          title={
+            mapped
+              ? tr(
+                  "dashboard.dashlets.batchImport.editColumnOriginal",
+                  dictionary,
+                  { original },
+                )
+              : tr("dashboard.dashlets.batchImport.renameColumn", dictionary)
+          }
+        >
+          <span className="truncate font-semibold">{displayName}</span>
+          <HiPencil className="h-3 w-3 flex-none text-gray-400 opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowTransforms((v) => !v)}
+          className={`relative inline-flex h-6 w-6 flex-none items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+            transformCount > 0
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-gray-400 opacity-0 transition-opacity group-hover:opacity-100"
+          }`}
+          title={transformsLabel}
+          aria-label={transformsLabel}
+        >
+          <HiAdjustmentsHorizontal className="h-3.5 w-3.5" />
+          {transformCount > 0 && (
+            <span className="absolute -right-1 -top-1 inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-bold leading-none text-white">
+              {transformCount}
+            </span>
+          )}
+        </button>
       </span>
       {mapped && (
         <span className="truncate text-[10px] font-normal italic text-gray-500 dark:text-gray-400">
           {tr("dashboard.dashlets.batchImport.was", dictionary)}: {original}
         </span>
       )}
-    </button>
+      {showTransforms && (
+        <TransformsPopover
+          target={displayName}
+          expectedType={expectedType}
+          steps={transforms}
+          onChange={(steps) => onTransformsChange(displayName, steps)}
+          onClose={() => setShowTransforms(false)}
+          dictionary={dictionary}
+        />
+      )}
+    </div>
   );
 });

@@ -6,6 +6,7 @@ import type {
   DuplicateStrategy,
   IntrospectedParam,
 } from "./engine/types";
+import type { TransformStep } from "./engine/transforms";
 import {
   BatchImporterView,
   useBatchImporter,
@@ -25,6 +26,10 @@ interface Props {
   params?: IntrospectedParam[] | null;
   /** Optional filename prefix for the CSV download button. */
   filenameBase?: string;
+  /** Persisted column transforms from the dashlet's widget config. */
+  initialTransforms?: Record<string, TransformStep[]>;
+  /** Bubble transform changes back to the dashlet for persistence. */
+  onTransformsChange?: (next: Record<string, TransformStep[]>) => void;
 }
 
 export function BatchImporterModal({
@@ -37,12 +42,16 @@ export function BatchImporterModal({
   dictionary,
   params,
   filenameBase,
+  initialTransforms,
+  onTransformsChange,
 }: Readonly<Props>) {
   const state = useBatchImporter({
     api,
     defaultStrategy,
     params,
     filenameBase,
+    initialTransforms,
+    onTransformsChange,
   });
 
   const submitLabel = state.importing

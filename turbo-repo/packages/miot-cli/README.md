@@ -21,11 +21,11 @@ npx @microboxlabs/miot-cli calendar list
 
 The CLI resolves credentials in this order (highest priority first):
 
-| Source | Base URL | Token |
+| Source | Base URL | Token | Organization ID |
 |---|---|---|
-| CLI flags | `--base-url <url>` | `--token <token>` |
-| Environment variables | `MIOT_BASE_URL` | `MIOT_TOKEN` |
-| Dotfile (`~/.miotrc.json`) | From selected profile | From selected profile |
+| CLI flags | `--base-url <url>` | `--token <token>` | `--organization <id>` |
+| Environment variables | `MIOT_BASE_URL` | `MIOT_TOKEN` | `MIOT_ORGANIZATION_ID` |
+| Dotfile (`~/.miotrc.json`) | From selected profile | From selected profile | From selected profile |
 
 ### Dotfile
 
@@ -37,11 +37,13 @@ Create `~/.miotrc.json` to store named profiles:
   "profiles": {
     "staging": {
       "baseUrl": "https://staging.example.com",
-      "token": "staging-token"
+      "token": "staging-token",
+      "organizationId": "org-staging"
     },
     "production": {
       "baseUrl": "https://prod.example.com",
-      "token": "prod-token"
+      "token": "prod-token",
+      "organizationId": "org-production"
     }
   }
 }
@@ -115,6 +117,29 @@ miot calendar slot-managers update <id> [--days-in-advance <n>] [--batch-days <n
 miot calendar slot-managers deactivate <id>
 miot calendar slot-managers run [id]
 miot calendar slot-managers runs [managerId] [--limit <n>]
+```
+
+### Connections
+
+```bash
+miot connections list
+miot connections get <id>
+miot connections create --name <name> --provider <type> --provider-base-url <url> --credential-profile <id> [--metadata-json <json>]
+miot connections test <id> [--method <method>] [--path <path>]
+```
+
+### Credential Profiles
+
+```bash
+miot connections profiles list
+miot connections profiles create --display-name <name> --auth-type <type> [--public-config-json <json>] [--secret-config-json <json>]
+```
+
+### Connection Operations
+
+```bash
+miot connections operations list <connectionId>
+miot connections operations create <connectionId> --name <name> --method <method> --path <path> [--request-schema-json <json>] [--response-schema-json <json>] [--test-operation]
 ```
 
 ## License

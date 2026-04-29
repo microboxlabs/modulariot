@@ -5,11 +5,13 @@ import path from "node:path";
 export interface ResolvedConfig {
   baseUrl: string;
   token: string;
+  organizationId?: string;
 }
 
 interface DotfileProfile {
   baseUrl: string;
   token: string;
+  organizationId?: string;
 }
 
 interface Dotfile {
@@ -30,12 +32,14 @@ function readDotfile(): Dotfile | undefined {
 export function resolveConfig(opts: {
   baseUrl?: string;
   token?: string;
+  organization?: string;
   profile?: string;
 }): ResolvedConfig {
   let baseUrl = opts.baseUrl ?? process.env["MIOT_BASE_URL"];
   let token = opts.token ?? process.env["MIOT_TOKEN"];
+  let organizationId = opts.organization ?? process.env["MIOT_ORGANIZATION_ID"];
 
-  if (!baseUrl || !token) {
+  if (!baseUrl || !token || !organizationId) {
     const dotfile = readDotfile();
     if (dotfile) {
       const profileName = opts.profile ?? dotfile.defaultProfile;
@@ -43,6 +47,7 @@ export function resolveConfig(opts: {
       if (profile) {
         baseUrl ??= profile.baseUrl;
         token ??= profile.token;
+        organizationId ??= profile.organizationId;
       }
     }
   }
@@ -61,7 +66,11 @@ export function resolveConfig(opts: {
     process.exit(3);
   }
 
-  return { baseUrl, token };
+  return {
+    baseUrl,
+    token,
+    ...(organizationId !== undefined && { organizationId }),
+  };
 }
 
 export type OutputMode = "json" | "table";

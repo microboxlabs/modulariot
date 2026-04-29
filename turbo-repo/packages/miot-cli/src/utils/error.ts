@@ -1,8 +1,9 @@
 import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
+import { MiotConnectionApiError } from "@microboxlabs/miot-connection-client";
 import type { OutputMode } from "../config.js";
 
 export function handleError(err: unknown, outputMode: OutputMode): never {
-  if (err instanceof MiotCalendarApiError) {
+  if (err instanceof MiotCalendarApiError || err instanceof MiotConnectionApiError) {
     const message =
       typeof err.body === "string"
         ? err.body

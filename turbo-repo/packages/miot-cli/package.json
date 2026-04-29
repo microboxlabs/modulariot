@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@microboxlabs/miot-calendar-client": "*",
+    "@microboxlabs/miot-connection-client": "*",
     "commander": "^14.0.0"
   },
   "devDependencies": {

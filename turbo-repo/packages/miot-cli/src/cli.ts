@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { registerCalendarCommand } from "./commands/calendar/index.js";
+import { registerConnectionsCommand } from "./commands/connections/index.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -13,9 +14,11 @@ program
   .version(version)
   .option("--base-url <url>", "API base URL (or MIOT_BASE_URL env)")
   .option("--token <token>", "Auth token (or MIOT_TOKEN env)")
+  .option("--organization <id>", "Organization ID (or MIOT_ORGANIZATION_ID env)")
   .option("--profile <name>", "Named profile from ~/.miotrc.json")
   .option("--output <mode>", "Output mode: json or table");
 
 registerCalendarCommand(program);
+registerConnectionsCommand(program);
 
 program.parse();

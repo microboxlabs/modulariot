@@ -47,20 +47,18 @@ export function buildDataProviderLayers(
   defaults?: MapDataProviderDefaults,
   selectedPath?: { layerId: string; featureIndex: number } | null
 ): LayersList {
-  const points: Feature<Point, MapFeatureProperties>[] = [];
-  const lines: Feature<LineString | MultiLineString, MapFeatureProperties>[] =
-    [];
-  const polygons: Feature<Polygon | MultiPolygon, MapFeatureProperties>[] = [];
-
-  for (const feature of data.features) {
-    if (isPointFeature(feature)) {
-      points.push(feature);
-    } else if (isLineFeature(feature)) {
-      lines.push(feature);
-    } else if (isPolygonFeature(feature)) {
-      polygons.push(feature);
-    }
-  }
+  const points = data.features.filter(isPointFeature) as Feature<
+    Point,
+    MapFeatureProperties
+  >[];
+  const lines = data.features.filter(isLineFeature) as Feature<
+    LineString | MultiLineString,
+    MapFeatureProperties
+  >[];
+  const polygons = data.features.filter(isPolygonFeature) as Feature<
+    Polygon | MultiPolygon,
+    MapFeatureProperties
+  >[];
 
   const layers: LayersList = [];
 

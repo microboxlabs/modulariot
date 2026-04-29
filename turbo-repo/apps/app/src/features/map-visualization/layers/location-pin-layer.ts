@@ -56,7 +56,7 @@ interface LocationPinLayerProps {
 }
 
 export class LocationPinLayer extends CompositeLayer<LocationPinLayerProps> {
-  static layerName = "LocationPinLayer";
+  static readonly layerName = "LocationPinLayer";
 
   renderLayers(): Layer[] {
     const defaults = this.props.defaults ?? {};

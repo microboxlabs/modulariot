@@ -9,7 +9,7 @@ import {
   DropdownItem,
 } from "flowbite-react";
 import { HiPlus, HiChevronDown } from "react-icons/hi2";
-import type { DashletSettingsProps } from "../types";
+import type { DashletSettingsProps, DataProviderEntry } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
@@ -22,7 +22,6 @@ import {
 import { DeleteItemButton } from "../common/delete-item-button";
 import { useDataProvider } from "../common/use-data-provider";
 import { DataProviderEntries } from "../common/data-provider-entries";
-import type { DataProviderEntry } from "../types";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker/advanced-color-picker";
 import type {

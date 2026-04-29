@@ -68,9 +68,11 @@ function applyTemplate(
   template: string,
   props: Record<string, unknown>
 ): string {
-  return template.replace(/\{\{row\.([^}]+)\}\}/g, (_, key: string) => {
+  return template.replaceAll(/\{\{row\.([^}]+)\}\}/g, (_, key: string) => {
     const val = resolvePathValue(props, key);
-    return val !== undefined && val !== null ? String(val) : "";
+    if (val === undefined || val === null) return "";
+    if (typeof val === "object") return JSON.stringify(val);
+    return String(val);
   });
 }
 

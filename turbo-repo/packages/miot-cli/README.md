@@ -19,6 +19,47 @@ npx @microboxlabs/miot-cli calendar list
 
 ## Configuration
 
+### Browser Session Login
+
+The CLI can obtain and store a platform token by opening your browser and
+listening for a localhost callback. The platform can use your existing browser
+session to approve the CLI login:
+
+```bash
+miot auth login
+```
+
+By default the command uses:
+
+| Setting | Default | Override |
+|---|---|---|
+| Login URL | `<base-url>/app/cli/auth/login` | `--login-url` or `MIOT_LOGIN_URL` |
+| Token URL for code exchange | `<base-url>/app/api/cli/auth/token` | `--token-url` or `MIOT_OAUTH_TOKEN_URL` |
+| Callback URL | `http://127.0.0.1:<random>/callback` | `--callback-host`, `--callback-port` |
+
+The platform login endpoint should use the current browser session to resolve
+the user, organization, and token. It should redirect to the callback URL with
+the same `state`, either `access_token` (or `token`) or a short-lived `code`,
+and optionally `organization_id`/`organizationId`. If it returns a `code`, the
+CLI exchanges it with the token URL.
+
+For a standard OAuth PKCE flow, pass a client ID:
+
+```bash
+miot auth login --client-id <public-oauth-client-id>
+```
+
+OAuth mode also supports `--auth-url`, `--audience`, and `--scope`.
+
+Use `--no-open` to print the login URL instead of opening the browser. The
+received access token is written to the selected profile in `~/.miotrc.json`
+with file mode `0600`.
+
+```bash
+miot auth status
+miot --profile production auth logout
+```
+
 The CLI resolves credentials in this order (highest priority first):
 
 | Source | Base URL | Token | Organization ID |

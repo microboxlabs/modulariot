@@ -82,6 +82,7 @@ export const authConfig: NextAuthConfig = {
           nextUrl.pathname.endsWith("/sign-in") ||
           nextUrl.pathname.endsWith("/totem") ||
           nextUrl.pathname.endsWith("/favicon.ico") ||
+          nextUrl.pathname.includes("/cli/auth/login") ||
           nextUrl.pathname.endsWith("/app/release") ||
           nextUrl.pathname.includes("/release/") ||
           nextUrl.pathname.includes("/ext/")

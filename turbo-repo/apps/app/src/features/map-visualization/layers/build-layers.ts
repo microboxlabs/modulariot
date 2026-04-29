@@ -154,9 +154,7 @@ export function buildNamedMapLayers(
   zoom = 2,
   selectedPath?: { layerId: string; featureIndex: number } | null
 ): LayersList {
-  const polygonLayers: LayersList = [];
-  const lineLayers: LayersList = [];
-  const pointLayers: LayersList = [];
+  const result: LayersList = [];
 
   for (const { layer, data } of entries) {
     if (!data) continue;
@@ -179,7 +177,7 @@ export function buildNamedMapLayers(
       >[];
       if (points.length > 0) {
         if (layer.style?.pointMode === "pin") {
-          pointLayers.push(
+          result.push(
             new PinLayer({
               id: `named-layer-${layer.id}-pins`,
               data: geoJsonPointsToPinData(points),
@@ -189,7 +187,7 @@ export function buildNamedMapLayers(
             })
           );
         } else if (layer.style?.pointMode === "location-pin") {
-          pointLayers.push(
+          result.push(
             new LocationPinLayer({
               id: `named-layer-${layer.id}-location-pins`,
               data: points,
@@ -199,7 +197,7 @@ export function buildNamedMapLayers(
             })
           );
         } else {
-          pointLayers.push(
+          result.push(
             new DataProviderPointLayer({
               id: `named-layer-${layer.id}-points`,
               data: points,
@@ -216,7 +214,7 @@ export function buildNamedMapLayers(
       >[];
       if (lines.length > 0) {
         const pathLayerId = `named-layer-${layer.id}-lines`;
-        lineLayers.push(
+        result.push(
           new DataProviderPathLayer({
             id: pathLayerId,
             data: lines,
@@ -236,7 +234,7 @@ export function buildNamedMapLayers(
         MapFeatureProperties
       >[];
       if (polygons.length > 0) {
-        polygonLayers.push(
+        result.push(
           new DataProviderPolygonLayer({
             id: `named-layer-${layer.id}-polygons`,
             data: polygons,
@@ -245,7 +243,7 @@ export function buildNamedMapLayers(
             updateTriggers: { data: polygons },
           })
         );
-        polygonLayers.push(
+        result.push(
           new PolygonCenterPinLayer({
             id: `named-layer-${layer.id}-polygon-center-pins`,
             data: polygons,
@@ -258,6 +256,5 @@ export function buildNamedMapLayers(
     }
   }
 
-  // Stacking order: polygons (bottom) → lines (middle) → points (top)
-  return [...polygonLayers, ...lineLayers, ...pointLayers];
+  return result;
 }

@@ -73,6 +73,8 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
     const data = this.props.data ?? [];
     const dots = extractDotFeatures(data);
     const selectedIdx = this.props.selectedFeatureIndex ?? -1;
+    const baseRadius =
+      this.props.defaults?.lineWidth ?? DEFAULT_PROVIDER_STYLES.lineWidth;
 
     // When a path is selected, only its dots get the white halo;
     // otherwise all dots show it.
@@ -88,7 +90,7 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
         data: bgDots,
         getPosition: (d) => d.geometry.coordinates,
         getFillColor: [255, 255, 255, 255],
-        getRadius: 7,
+        getRadius: baseRadius + 2,
         radiusUnits: "pixels",
         pickable: false,
         parameters: { depthTest: false },
@@ -105,7 +107,7 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
           }
           return fallbackColor;
         },
-        getRadius: 5,
+        getRadius: baseRadius,
         radiusUnits: "pixels",
         pickable: this.props.pickable ?? true,
         autoHighlight: true,

@@ -73,8 +73,13 @@ function featureCentroid(feature: PolygonFeature): [number, number] {
   if (feature.geometry.type === "Polygon") {
     return ringCentroid(feature.geometry.coordinates[0]);
   }
-  // MultiPolygon — use first polygon's outer ring
-  return ringCentroid(feature.geometry.coordinates[0][0]);
+  // MultiPolygon — average centroids across all outer rings
+  const centroids = feature.geometry.coordinates.map((poly) =>
+    ringCentroid(poly[0])
+  );
+  const sumLng = centroids.reduce((sum, c) => sum + c[0], 0);
+  const sumLat = centroids.reduce((sum, c) => sum + c[1], 0);
+  return [sumLng / centroids.length, sumLat / centroids.length];
 }
 
 interface PolygonCenterPinLayerProps {

@@ -135,34 +135,3 @@ export function useMapLayersData(
     [layersKey ?? layers]
   );
 }
-
-// ============================================================================
-// Multi-layer resolver
-// ============================================================================
-
-export interface MapLayerData {
-  layer: MapLayer;
-  data: FeatureCollection | null;
-}
-
-/**
- * Resolves data for every layer in the array.
- * Currently only "static" providers are resolved; "api" and "sse" return null.
- */
-export function useMapLayersData(
-  layers: MapLayer[],
-  layersKey?: string
-): MapLayerData[] {
-  return useMemo(
-    () =>
-      layers.map((layer) => {
-        const provider = layer.provider;
-        if (provider?.type === "static") {
-          return { layer, data: provider.data };
-        }
-        return { layer, data: null };
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layersKey ?? layers]
-  );
-}

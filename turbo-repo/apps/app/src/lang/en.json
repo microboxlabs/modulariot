@@ -1956,7 +1956,6 @@
         "previewEmpty": "No rows to preview.",
         "previewBodyTitle": "Body sent to PostgREST",
         "previewMetaTitle": "Audit metadata (configured)",
-        "previewDroppedMeta": "These fields were not sent because the RPC doesn't declare them: {fields}. Add them to the function signature so they get stored.",
         "importing": "Importing…",
         "importN": "Import {count} rows",
         "status": {

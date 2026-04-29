@@ -1310,15 +1310,6 @@ function PreviewPanel({
               <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
                 {JSON.stringify(line.meta, null, 2)}
               </pre>
-              {line.droppedMeta.length > 0 && (
-                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                  {tr(
-                    "dashboard.dashlets.batchImport.previewDroppedMeta",
-                    dictionary,
-                    { fields: line.droppedMeta.join(", ") },
-                  )}
-                </p>
-              )}
             </div>
           ))}
         </div>

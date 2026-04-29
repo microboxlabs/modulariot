@@ -1,4 +1,4 @@
-import { CompositeLayer, PathLayer, Layer } from "deck.gl";
+import { CompositeLayer, ScatterplotLayer, Layer } from "deck.gl";
 import type { Feature, LineString, MultiLineString } from "geojson";
 import type {
   MapFeatureProperties,
@@ -24,10 +24,40 @@ function extractPaths(feature: LineFeature): number[][] {
   return feature.geometry.coordinates.flat() as number[][];
 }
 
+/**
+ * Each coordinate along a path, structured as a GeoJSON Feature-like object
+ * so that `properties` survives deck.gl picking for tooltip resolution.
+ */
+interface PathDotFeature {
+  type: "Feature";
+  properties: MapFeatureProperties;
+  geometry: { type: "Point"; coordinates: [number, number] };
+  /** Index of the parent LineFeature in the original data array */
+  featureIndex: number;
+}
+
+function extractDotFeatures(features: LineFeature[]): PathDotFeature[] {
+  const dots: PathDotFeature[] = [];
+  for (let fi = 0; fi < features.length; fi++) {
+    const feature = features[fi];
+    const coords = extractPaths(feature);
+    for (const c of coords) {
+      dots.push({
+        type: "Feature",
+        properties: feature.properties ?? {},
+        geometry: { type: "Point", coordinates: [c[0], c[1]] },
+        featureIndex: fi,
+      });
+    }
+  }
+  return dots;
+}
+
 interface DataProviderPathLayerProps {
   data: LineFeature[];
   defaults?: MapDataProviderDefaults;
   pickable?: boolean;
+  selectedFeatureIndex?: number;
   updateTriggers?: Record<string, unknown>;
 }
 
@@ -39,24 +69,49 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
     const fallbackColor = hexToRgba(
       defaults.lineColor ?? DEFAULT_PROVIDER_STYLES.lineColor
     );
-    const fallbackWidth =
-      defaults.lineWidth ?? DEFAULT_PROVIDER_STYLES.lineWidth;
+
+    const data = this.props.data ?? [];
+    const dots = extractDotFeatures(data);
+    const selectedIdx = this.props.selectedFeatureIndex ?? -1;
+
+    // When a path is selected, only its dots get the white halo;
+    // otherwise all dots show it.
+    const bgDots =
+      selectedIdx >= 0
+        ? dots.filter((d) => d.featureIndex === selectedIdx)
+        : dots;
 
     return [
-      new PathLayer<LineFeature>({
-        id: `${this.props.id}-path`,
-        data: this.props.data ?? [],
-        getPath: (d) => extractPaths(d) as unknown as number[],
-        getColor: (d) => {
+      // White background halo
+      new ScatterplotLayer<PathDotFeature>({
+        id: `${this.props.id}-dots-bg`,
+        data: bgDots,
+        getPosition: (d) => d.geometry.coordinates,
+        getFillColor: [255, 255, 255, 255],
+        getRadius: 7,
+        radiusUnits: "pixels",
+        pickable: false,
+        parameters: { depthTest: false },
+      }) as Layer,
+
+      // Colored foreground dots (pickable)
+      new ScatterplotLayer<PathDotFeature>({
+        id: `${this.props.id}-dots`,
+        data: dots,
+        getPosition: (d) => d.geometry.coordinates,
+        getFillColor: (d) => {
           if (d.properties?.color) {
             return hexToRgba(d.properties.color);
           }
           return fallbackColor;
         },
-        getWidth: (d) => d.properties?.strokeWidth ?? fallbackWidth,
-        widthUnits: "pixels",
+        getRadius: 5,
+        radiusUnits: "pixels",
         pickable: this.props.pickable ?? true,
+        autoHighlight: true,
+        highlightColor: [255, 255, 255, 80],
         updateTriggers: this.props.updateTriggers,
+        parameters: { depthTest: false },
       }) as Layer,
     ];
   }

@@ -62,7 +62,7 @@ interface DataProviderPathLayerProps {
 }
 
 export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerProps> {
-  static layerName = "DataProviderPathLayer";
+  static readonly layerName = "DataProviderPathLayer";
 
   renderLayers(): Layer[] {
     const defaults = this.props.defaults ?? {};

@@ -144,6 +144,89 @@ function geoJsonPointsToPinData(
 // Named layer builder — one deck.gl layer per MapLayer entry
 // ============================================================================
 
+function buildPointLayer(
+  layer: MapLayerData["layer"],
+  points: Feature<Point, MapFeatureProperties>[],
+  defaults: MapDataProviderDefaults,
+  zoom: number
+): LayersList {
+  if (layer.style?.pointMode === "pin") {
+    return [
+      new PinLayer({
+        id: `named-layer-${layer.id}-pins`,
+        data: geoJsonPointsToPinData(points),
+        zoom,
+        updateTriggers: { data: points },
+        pickable: true,
+      }),
+    ];
+  }
+  if (layer.style?.pointMode === "location-pin") {
+    return [
+      new LocationPinLayer({
+        id: `named-layer-${layer.id}-location-pins`,
+        data: points,
+        defaults,
+        pickable: true,
+        updateTriggers: { data: points },
+      }),
+    ];
+  }
+  return [
+    new DataProviderPointLayer({
+      id: `named-layer-${layer.id}-points`,
+      data: points,
+      defaults,
+      updateTriggers: { data: points },
+    }),
+  ];
+}
+
+function buildLineLayer(
+  layer: MapLayerData["layer"],
+  lines: Feature<LineString | MultiLineString, MapFeatureProperties>[],
+  defaults: MapDataProviderDefaults,
+  selectedPath?: { layerId: string; featureIndex: number } | null
+): LayersList {
+  const pathLayerId = `named-layer-${layer.id}-lines`;
+  return [
+    new DataProviderPathLayer({
+      id: pathLayerId,
+      data: lines,
+      defaults,
+      pickable: true,
+      selectedFeatureIndex:
+        selectedPath?.layerId === pathLayerId
+          ? selectedPath.featureIndex
+          : -1,
+      updateTriggers: { data: lines },
+    }),
+  ];
+}
+
+function buildPolygonLayers(
+  layer: MapLayerData["layer"],
+  polygons: Feature<Polygon | MultiPolygon, MapFeatureProperties>[],
+  defaults: MapDataProviderDefaults
+): LayersList {
+  return [
+    new DataProviderPolygonLayer({
+      id: `named-layer-${layer.id}-polygons`,
+      data: polygons,
+      defaults,
+      pickable: true,
+      updateTriggers: { data: polygons },
+    }),
+    new PolygonCenterPinLayer({
+      id: `named-layer-${layer.id}-polygon-center-pins`,
+      data: polygons,
+      defaults,
+      pickable: true,
+      updateTriggers: { data: polygons },
+    }),
+  ];
+}
+
 /**
  * Builds deck.gl layers for a list of named MapLayer entries.
  * Each layer uses its own style and only renders features that match
@@ -176,36 +259,7 @@ export function buildNamedMapLayers(
         MapFeatureProperties
       >[];
       if (points.length > 0) {
-        if (layer.style?.pointMode === "pin") {
-          result.push(
-            new PinLayer({
-              id: `named-layer-${layer.id}-pins`,
-              data: geoJsonPointsToPinData(points),
-              zoom,
-              updateTriggers: { data: points },
-              pickable: true,
-            })
-          );
-        } else if (layer.style?.pointMode === "location-pin") {
-          result.push(
-            new LocationPinLayer({
-              id: `named-layer-${layer.id}-location-pins`,
-              data: points,
-              defaults,
-              pickable: true,
-              updateTriggers: { data: points },
-            })
-          );
-        } else {
-          result.push(
-            new DataProviderPointLayer({
-              id: `named-layer-${layer.id}-points`,
-              data: points,
-              defaults,
-              updateTriggers: { data: points },
-            })
-          );
-        }
+        result.push(...buildPointLayer(layer, points, defaults, zoom));
       }
     } else if (layer.geometryType === "LineString") {
       const lines = data.features.filter(isLineFeature) as Feature<
@@ -213,20 +267,7 @@ export function buildNamedMapLayers(
         MapFeatureProperties
       >[];
       if (lines.length > 0) {
-        const pathLayerId = `named-layer-${layer.id}-lines`;
-        result.push(
-          new DataProviderPathLayer({
-            id: pathLayerId,
-            data: lines,
-            defaults,
-            pickable: true,
-            selectedFeatureIndex:
-              selectedPath?.layerId === pathLayerId
-                ? selectedPath.featureIndex
-                : -1,
-            updateTriggers: { data: lines },
-          })
-        );
+        result.push(...buildLineLayer(layer, lines, defaults, selectedPath));
       }
     } else if (layer.geometryType === "Polygon") {
       const polygons = data.features.filter(isPolygonFeature) as Feature<
@@ -234,24 +275,7 @@ export function buildNamedMapLayers(
         MapFeatureProperties
       >[];
       if (polygons.length > 0) {
-        result.push(
-          new DataProviderPolygonLayer({
-            id: `named-layer-${layer.id}-polygons`,
-            data: polygons,
-            defaults,
-            pickable: true,
-            updateTriggers: { data: polygons },
-          })
-        );
-        result.push(
-          new PolygonCenterPinLayer({
-            id: `named-layer-${layer.id}-polygon-center-pins`,
-            data: polygons,
-            defaults,
-            pickable: true,
-            updateTriggers: { data: polygons },
-          })
-        );
+        result.push(...buildPolygonLayers(layer, polygons, defaults));
       }
     }
   }

@@ -72,7 +72,7 @@ function applyTemplate(
     const val = resolvePathValue(props, key);
     if (val === undefined || val === null) return "";
     if (typeof val === "object") return JSON.stringify(val);
-    return String(val);
+    return String(val as string | number | boolean);
   });
 }
 

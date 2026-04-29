@@ -251,32 +251,46 @@ export function buildNamedMapLayers(
       polygonFillOpacity: s.opacity,
     };
 
-    if (layer.geometryType === "Point") {
-      const points = data.features.filter(isPointFeature) as Feature<
-        Point,
-        MapFeatureProperties
-      >[];
-      if (points.length > 0) {
-        result.push(...buildPointLayer(layer, points, defaults, zoom));
-      }
-    } else if (layer.geometryType === "LineString") {
-      const lines = data.features.filter(isLineFeature) as Feature<
-        LineString | MultiLineString,
-        MapFeatureProperties
-      >[];
-      if (lines.length > 0) {
-        result.push(...buildLineLayer(layer, lines, defaults, selectedPath));
-      }
-    } else if (layer.geometryType === "Polygon") {
-      const polygons = data.features.filter(isPolygonFeature) as Feature<
-        Polygon | MultiPolygon,
-        MapFeatureProperties
-      >[];
-      if (polygons.length > 0) {
-        result.push(...buildPolygonLayers(layer, polygons, defaults));
-      }
-    }
+    const layerGroup = buildLayerGroup(
+      layer,
+      data,
+      defaults,
+      zoom,
+      selectedPath
+    );
+    result.push(...layerGroup);
   }
 
   return result;
+}
+
+function buildLayerGroup(
+  layer: MapLayerData["layer"],
+  data: FeatureCollection,
+  defaults: MapDataProviderDefaults,
+  zoom: number,
+  selectedPath?: { layerId: string; featureIndex: number } | null
+): LayersList {
+  if (layer.geometryType === "Point") {
+    const points = data.features.filter(isPointFeature) as Feature<
+      Point,
+      MapFeatureProperties
+    >[];
+    return points.length > 0 ? buildPointLayer(layer, points, defaults, zoom) : [];
+  }
+  if (layer.geometryType === "LineString") {
+    const lines = data.features.filter(isLineFeature) as Feature<
+      LineString | MultiLineString,
+      MapFeatureProperties
+    >[];
+    return lines.length > 0 ? buildLineLayer(layer, lines, defaults, selectedPath) : [];
+  }
+  if (layer.geometryType === "Polygon") {
+    const polygons = data.features.filter(isPolygonFeature) as Feature<
+      Polygon | MultiPolygon,
+      MapFeatureProperties
+    >[];
+    return polygons.length > 0 ? buildPolygonLayers(layer, polygons, defaults) : [];
+  }
+  return [];
 }

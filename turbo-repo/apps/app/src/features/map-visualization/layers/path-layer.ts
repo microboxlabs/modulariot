@@ -93,7 +93,6 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
         getRadius: baseRadius + 2,
         radiusUnits: "pixels",
         pickable: false,
-        parameters: { depthTest: false },
       }) as Layer,
 
       // Colored foreground dots (pickable)
@@ -113,7 +112,6 @@ export class DataProviderPathLayer extends CompositeLayer<DataProviderPathLayerP
         autoHighlight: true,
         highlightColor: [255, 255, 255, 80],
         updateTriggers: this.props.updateTriggers,
-        parameters: { depthTest: false },
       }) as Layer,
     ];
   }

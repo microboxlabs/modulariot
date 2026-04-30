@@ -1449,6 +1449,18 @@
           "save": "Save",
           "saveSuccess": "Loading docks updated",
           "saveError": "Failed to update loading docks"
+        },
+        "taskFilter": {
+          "title": "Task filter",
+          "description": "Constrain the planning sidebar to trips with a specific origin and/or destination.",
+          "originLabel": "Origin code",
+          "destinationLabel": "Destination code",
+          "originPlaceholder": "SCL",
+          "destinationPlaceholder": "ANF",
+          "hint": "Leave a field empty to skip that constraint. Both fields applied together require trips to match both.",
+          "save": "Save",
+          "saveSuccess": "Task filter updated",
+          "saveError": "Failed to update task filter"
         }
       }
     },
@@ -2930,6 +2942,8 @@
       "descriptionLabel": "Description",
       "timezoneLabel": "Timezone",
       "groupLabel": "Group",
+      "filterOriginLabel": "Origin filter (optional)",
+      "filterDestinationLabel": "Destination filter (optional)",
       "activeLabel": "Active",
       "submit": "Create Calendar",
       "group": {

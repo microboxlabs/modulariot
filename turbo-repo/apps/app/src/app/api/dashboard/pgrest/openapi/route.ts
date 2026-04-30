@@ -4,6 +4,7 @@ import {
   introspectPath,
   parseDataSourceParam,
 } from "../shared";
+import { isAuditField } from "../audit-fields";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -27,7 +28,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(introspected);
+    // Strip server-injected audit params from the schema returned to the
+    // client: those fields are stamped at /bulk time, not by the user, so the
+    // schema panel shouldn't mark them "required missing" and autocomplete
+    // shouldn't suggest them. /bulk does its own introspection and keeps the
+    // full set, which is what the meta-body filter needs to pass them through.
+    return NextResponse.json({
+      ...introspected,
+      parameters: introspected.parameters.filter((p) => !isAuditField(p.name)),
+    });
   } catch (error) {
     console.error("OpenAPI introspection error:", error);
     return NextResponse.json(

@@ -12,6 +12,7 @@ import {
   getLeadTimeStatus,
 } from "./planning-selection-context";
 import { categorizeIncidencias } from "./incidencias.types";
+import { formatOccupancyPercent } from "./planning-format";
 
 // Set Spanish locale for dayjs
 dayjs.locale("es");
@@ -230,7 +231,7 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
               />
             </div>
             <span className="text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">
-              {service.ocupacion}%
+              {formatOccupancyPercent(service.ocupacion)}
             </span>
           </div>
         </div>

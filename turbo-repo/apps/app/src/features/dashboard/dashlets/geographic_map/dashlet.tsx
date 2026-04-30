@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { z } from "zod";
 import type { PickingInfo } from "@deck.gl/core";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
@@ -16,15 +15,23 @@ import {
   MapPosition,
   MapPositionProperties,
 } from "@/features/geographic-view/types/map";
-import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
+import MapVisualizationGeneric, {
+  type FeatureHoverInfo,
+} from "@/features/map-visualization/map-visualization";
 import {
   center_in_bounds,
   flyTo,
 } from "@/features/map-visualization/map-view-utils";
+import type {
+  MapLayer,
+  PointRenderMode,
+} from "@/features/map-visualization/map-data-provider.types";
 import type { MapRef } from "react-map-gl";
+import { ScatterplotLayer, IconLayer } from "deck.gl";
 import { Spinner } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { createLocationPinSvg } from "@/features/map-visualization/layers/location-pin-layer";
 
 // ============================================================================
 // Configuration Types
@@ -34,18 +41,28 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 export interface DashletConfig {
   showFilters: boolean;
   showStyleSelector: boolean;
+  /** How to render live-position points: "pin" for vehicle markers, "circle" for simple dots */
+  pointMode: PointRenderMode;
+  layers?: MapLayer[];
+  dataProvider?: { key: string; value: string }[];
 }
 
 /** Zod schema for runtime validation */
 const dashletConfigSchema = z.object({
   showFilters: z.boolean(),
   showStyleSelector: z.boolean(),
+  pointMode: z.enum(["circle", "pin", "location-pin"]).optional(),
+  layers: z.array(z.any()).optional(),
+  dataProvider: z
+    .array(z.object({ key: z.string(), value: z.string() }))
+    .optional(),
 });
 
 /** Default configuration */
 export const defaultConfig: DashletConfig = {
   showFilters: true,
   showStyleSelector: true,
+  pointMode: "pin",
 };
 
 // ============================================================================
@@ -107,6 +124,99 @@ function MapLoadingSkeleton() {
 }
 
 // ============================================================================
+// Data Provider Map Content Component
+// ============================================================================
+
+interface LayersMapContentProps {
+  mapLayers: MapLayer[];
+  showStyleSelector: boolean;
+}
+
+function LayersMapContent({
+  mapLayers,
+  showStyleSelector,
+}: Readonly<LayersMapContentProps>) {
+  const { dictionary } = useDashboard();
+  const [mapStyle, setMapStyle] = useState("satellite");
+  const mapRef = useRef<MapRef>(null);
+  const [zoom, setZoom] = useState(2);
+  const [clickTooltip, setClickTooltip] = useState<FeatureHoverInfo | null>(
+    null
+  );
+
+  const handleFeatureClick = useCallback(
+    (info: FeatureHoverInfo | null) => {
+      if (!info) {
+        setClickTooltip(null);
+        return;
+      }
+
+      // Cluster → just zoom in, no tooltip
+      if (info.isCluster) {
+        if (mapRef.current && info.coordinate) {
+          flyTo(mapRef.current, info.coordinate, zoom + 2);
+        }
+        setClickTooltip(null);
+        return;
+      }
+
+      // Single item → fly to center it, then open tooltip at viewport center
+      if (mapRef.current && info.coordinate) {
+        flyTo(mapRef.current, info.coordinate);
+      }
+      const container = mapRef.current?.getContainer();
+      const cx = container ? container.clientWidth / 2 : info.x;
+      const cy = container ? container.clientHeight / 2 : info.y;
+      setClickTooltip({ ...info, x: cx, y: cy });
+    },
+    [zoom]
+  );
+
+  return (
+    <>
+      <MapVisualizationGeneric
+        mapStyle={
+          mapStyle as
+            | "satellite"
+            | "streets"
+            | "dark"
+            | "light"
+            | "outdoors"
+            | "hybrid"
+        }
+        layers={[]}
+        mapRef={mapRef}
+        mapLayers={mapLayers}
+        onFeatureClick={handleFeatureClick}
+        onZoomChange={setZoom}
+      />
+      {showStyleSelector && (
+        <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
+          <MapStyleSelector
+            dict={dictionary}
+            selectedStyle={mapStyle}
+            setSelectedStyle={setMapStyle}
+          />
+        </div>
+      )}
+      {clickTooltip && (
+        <MapTooltip
+          left={clickTooltip.x}
+          top={clickTooltip.y}
+          setHoverInfo={setClickTooltip}
+        >
+          <div className="px-3 py-2 max-w-72">
+            <p className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
+              {clickTooltip.content}
+            </p>
+          </div>
+        </MapTooltip>
+      )}
+    </>
+  );
+}
+
+// ============================================================================
 // Map Content Component
 // ============================================================================
 
@@ -115,6 +225,7 @@ interface MapContentProps {
   isLoading: boolean;
   showFilters: boolean;
   showStyleSelector: boolean;
+  pointMode: PointRenderMode;
 }
 
 function MapContent({
@@ -122,6 +233,7 @@ function MapContent({
   isLoading,
   showFilters,
   showStyleSelector,
+  pointMode,
 }: Readonly<MapContentProps>) {
   const { dictionary } = useDashboard();
   const [hoverInfo, setHoverInfo] =
@@ -196,25 +308,117 @@ function MapContent({
     [zoom]
   );
 
-  const layers = [
-    new PinLayer({
-      data: positions || [],
-      zoom: zoom,
-      onClick: ({
-        object,
-        viewport,
-      }: {
-        object: MapPositionProperties;
-        viewport: { width: number; height: number };
-      }) => {
-        onPinClick({ object, viewport });
-      },
-      updateTriggers: {
-        data: positions,
-      },
-      pickable: true,
+  // Wrap flat MapPosition[] into the same GeoJSON structure that
+  // PinLayer/supercluster produces so onPinClick + PinTooltip work for all modes.
+  const wrappedPositions = useMemo(
+    () =>
+      (positions || []).map((p) => ({
+        ...p,
+        // Explicit fields override the spread so PinTooltip reads them directly
+        // when the picked object is cast to MapPositionProperties
+        type: "Feature" as const,
+        asset_id: p.assetid,
+        speed_limit: p.speed_limit_condition,
+        gps_provider: p.telcom_gps_provider,
+        cluster: false,
+        properties: {
+          ...p,
+          asset_id: p.assetid,
+          speed_limit: p.speed_limit_condition,
+          gps_provider: p.telcom_gps_provider,
+          cluster: false,
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [p.longitude || 0, p.latitude || 0] as [
+            number,
+            number,
+          ],
+        },
+      })),
+    [positions]
+  );
+
+  const locationPinIcon = useMemo(
+    () => ({
+      url: createLocationPinSvg("3388FF"),
+      width: 48,
+      height: 48,
+      anchorX: 24,
+      anchorY: 48,
+      mask: false,
     }),
-  ];
+    []
+  );
+
+  const layers = useMemo(() => {
+    if (pointMode === "pin") {
+      return [
+        new PinLayer({
+          data: positions || [],
+          zoom: zoom,
+          onClick: ({
+            object,
+            viewport,
+          }: {
+            object: MapPositionProperties;
+            viewport: { width: number; height: number };
+          }) => {
+            onPinClick({ object, viewport });
+          },
+          updateTriggers: { data: positions },
+          pickable: true,
+        }),
+      ];
+    }
+
+    if (pointMode === "location-pin") {
+      return [
+        new IconLayer({
+          id: "live-positions-location-pins",
+          data: wrappedPositions,
+          getPosition: (d: (typeof wrappedPositions)[number]) =>
+            d.geometry.coordinates,
+          getIcon: () => locationPinIcon,
+          getSize: 36,
+          sizeUnits: "pixels" as const,
+          pickable: true,
+          onClick: (info: PickingInfo) =>
+            onPinClick({
+              object: info.object as MapPositionProperties,
+              viewport: info.viewport as unknown as {
+                width: number;
+                height: number;
+              },
+            }),
+          updateTriggers: { data: positions },
+          parameters: { depthTest: false },
+        }),
+      ];
+    }
+
+    return [
+      new ScatterplotLayer({
+        id: "live-positions-circles",
+        data: wrappedPositions,
+        getPosition: (d: (typeof wrappedPositions)[number]) =>
+          d.geometry.coordinates,
+        getFillColor: [51, 136, 255, 200],
+        getRadius: 8,
+        radiusUnits: "pixels" as const,
+        pickable: true,
+        onClick: (info: PickingInfo) =>
+          onPinClick({
+            object: info.object as MapPositionProperties,
+            viewport: info.viewport as unknown as {
+              width: number;
+              height: number;
+            },
+          }),
+        updateTriggers: { data: positions },
+      }),
+    ];
+  }, [pointMode, positions, wrappedPositions, zoom, onPinClick, locationPinIcon]);
 
   return (
     <>
@@ -286,8 +490,11 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
     : defaultConfig;
   const showFilters = config.showFilters;
   const showStyleSelector = config.showStyleSelector;
+  const pointMode = config.pointMode;
 
   const { dictionary } = useDashboard();
+  const hasLayers = config.layers && config.layers.length > 0;
+
   const {
     positions: mapPositions,
     isLoading,
@@ -295,7 +502,7 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
     mutate,
   } = useMapPositions();
 
-  if (error) {
+  if (!hasLayers && error) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
         <span className="text-sm font-medium text-red-600 dark:text-red-400">
@@ -312,6 +519,18 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
     );
   }
 
+  if (hasLayers) {
+    return (
+      <div className="h-full w-full relative overflow-hidden rounded-lg">
+        <LayersMapContent
+          mapLayers={config.layers!}
+          showStyleSelector={showStyleSelector}
+        />
+        {editMode && <EditModeOverlay dictionary={dictionary} />}
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full relative overflow-hidden rounded-lg">
       {isLoading ? (
@@ -322,6 +541,7 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
           isLoading={isLoading}
           showFilters={showFilters}
           showStyleSelector={showStyleSelector}
+          pointMode={pointMode}
         />
       )}
       {editMode && <EditModeOverlay dictionary={dictionary} />}

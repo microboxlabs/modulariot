@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchPgrestSpec, parseDataSourceParam, type OpenApiPathItem } from "../shared";
+import {
+  fetchPgrestSpec,
+  introspectPath,
+  parseDataSourceParam,
+} from "../shared";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -15,35 +19,15 @@ export async function GET(req: NextRequest) {
     const result = await fetchPgrestSpec(parseDataSourceParam(req));
     if (result instanceof NextResponse) return result;
 
-    const pathKey = `/${fn}`;
-    const pathItem: OpenApiPathItem | undefined = result.paths?.[pathKey];
-
-    if (!pathItem) {
+    const introspected = introspectPath(result, fn);
+    if (!introspected) {
       return NextResponse.json(
         { error: `Path "${fn}" not found in OpenAPI spec.` },
         { status: 404 }
       );
     }
 
-    const methods: string[] = [];
-    if (pathItem.get) methods.push("GET");
-    if (pathItem.post) methods.push("POST");
-
-    const operation = pathItem.get ?? pathItem.post;
-    const parameters = (operation?.parameters ?? [])
-      .filter((p) => p.in === "query")
-      .map((p) => ({
-        name: p.name,
-        type: p.type ?? "string",
-        format: p.format ?? p.type ?? "text",
-        required: p.required === true,
-        enum: Array.isArray(p.enum) ? p.enum.map(String) : undefined,
-        minimum: typeof p.minimum === "number" ? p.minimum : undefined,
-        maximum: typeof p.maximum === "number" ? p.maximum : undefined,
-        pattern: typeof p.pattern === "string" ? p.pattern : undefined,
-      }));
-
-    return NextResponse.json({ methods, parameters });
+    return NextResponse.json(introspected);
   } catch (error) {
     console.error("OpenAPI introspection error:", error);
     return NextResponse.json(

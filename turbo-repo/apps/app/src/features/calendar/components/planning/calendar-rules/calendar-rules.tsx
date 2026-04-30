@@ -11,6 +11,8 @@ import AndenesManager, {
   type PlatformConfig,
   getAndenesManagerMessages,
 } from "./andenes-manager";
+import FilterManager, { getFilterManagerMessages } from "./filter-manager";
+import type { CalendarFilter } from "@microboxlabs/miot-calendar-client";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { twMerge } from "tailwind-merge";
 import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
@@ -18,7 +20,7 @@ import type { ReactNode } from "react";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-type SettingOption = "quota" | "timeBlock" | "andenes" | null;
+type SettingOption = "quota" | "timeBlock" | "andenes" | "filter" | null;
 
 function isSectionExpanded(
   selected: SettingOption,
@@ -182,6 +184,10 @@ export interface CalendarRulesMessages {
     title: string;
     description: string;
   };
+  taskFilter: {
+    title: string;
+    description: string;
+  };
 }
 
 const CALENDAR_RULES_BASE = "layout.planning.calendarRules" as const;
@@ -212,6 +218,10 @@ export function getCalendarRulesMessages(
         dict
       ),
     },
+    taskFilter: {
+      title: tr(`${CALENDAR_RULES_BASE}.taskFilter.title`, dict),
+      description: tr(`${CALENDAR_RULES_BASE}.taskFilter.description`, dict),
+    },
   };
 }
 
@@ -219,18 +229,22 @@ interface CalendarRulesProps {
   dict: I18nDictionary;
   messages: CalendarRulesMessages;
   andenesCount?: number;
+  taskFilter?: CalendarFilter;
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
+  onTaskFilterChange?: (filter: CalendarFilter) => void;
 }
 
 export default function CalendarRules({
   dict,
   messages,
   andenesCount,
+  taskFilter,
   onRulesChange,
   onBlocksChange,
   onAndenesChange,
+  onTaskFilterChange,
 }: Readonly<CalendarRulesProps>) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
@@ -298,6 +312,23 @@ export default function CalendarRules({
               initialCount={andenesCount}
               onConfigChange={(config) => {
                 onAndenesChange?.(config);
+                closePanel();
+              }}
+            />
+          </CalendarRulesSection>
+
+          <CalendarRulesSection
+            option="filter"
+            selected={selected}
+            setSelected={setSelected}
+            title={messages.taskFilter.title}
+            description={messages.taskFilter.description}
+          >
+            <FilterManager
+              messages={getFilterManagerMessages(dict)}
+              initialFilter={taskFilter}
+              onFilterChange={(filter) => {
+                onTaskFilterChange?.(filter);
                 closePanel();
               }}
             />

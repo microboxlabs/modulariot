@@ -28,6 +28,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
+import type { CalendarFilter } from "@microboxlabs/miot-calendar-client";
 
 dayjs.extend(weekOfYear);
 
@@ -82,8 +83,12 @@ export default function PlanningHeader({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { andenesCount, setAndenesCount } = usePlanningSelection();
-  const { refresh: refreshCalendars } = useCalendars();
+  const { calendars, refresh: refreshCalendars } = useCalendars();
   const groupCode = searchParams.get("groupCode");
+  const activeCalendar = useMemo(
+    () => calendars.find((c) => c.id === calendarId),
+    [calendars, calendarId]
+  );
 
   // Read state from URL, fallback to props/defaults
   const currentDate = useMemo(() => {
@@ -186,6 +191,7 @@ export default function PlanningHeader({
           dict={dict}
           messages={getCalendarRulesMessages(dict)}
           andenesCount={andenesCount}
+          taskFilter={activeCalendar?.filter}
           onAndenesChange={async (config) => {
             setAndenesCount(config.count);
             if (!calendarId) return;
@@ -200,6 +206,22 @@ export default function PlanningHeader({
               ShowNotification({
                 type: "error",
                 message: tr("layout.planning.calendarRules.platformConfig.saveError", dict),
+              });
+            }
+          }}
+          onTaskFilterChange={async (filter: CalendarFilter) => {
+            if (!calendarId) return;
+            try {
+              await updateCalendar(calendarId, { filter });
+              await refreshCalendars();
+              ShowNotification({
+                type: "success",
+                message: tr("layout.planning.calendarRules.taskFilter.saveSuccess", dict),
+              });
+            } catch {
+              ShowNotification({
+                type: "error",
+                message: tr("layout.planning.calendarRules.taskFilter.saveError", dict),
               });
             }
           }}

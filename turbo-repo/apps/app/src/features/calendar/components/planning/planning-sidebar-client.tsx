@@ -20,7 +20,10 @@ import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
-import { useMyTasks } from "@/features/common/providers/client-api.provider";
+import {
+  useCalendars,
+  useMyTasks,
+} from "@/features/common/providers/client-api.provider";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 
@@ -207,6 +210,37 @@ export function PlanningSidebarClient({
   const [searchTags, setSearchTags] = useState<
     Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
+
+  // Seed search tags from the active calendar's stored filter (origin /
+  // destination delegate codes). Re-seed only when the filter signature
+  // changes — i.e. when the user navigates to a different calendar or
+  // updates the calendar's filter via the gear menu. Manual chip removals
+  // are session-only and must not get re-seeded.
+  const { calendars } = useCalendars();
+  const activeCalendar = useMemo(
+    () => calendars.find((c) => c.id === calendarId),
+    [calendars, calendarId]
+  );
+  const lastSeededSigRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeCalendar) return;
+    const sig = `${activeCalendar.id}|${activeCalendar.filter?.origin ?? ""}|${activeCalendar.filter?.destination ?? ""}`;
+    if (lastSeededSigRef.current === sig) return;
+    lastSeededSigRef.current = sig;
+
+    const seeded: Array<{ matchType: PlanningSearchMatchType; value: string }> =
+      [];
+    if (activeCalendar.filter?.origin) {
+      seeded.push({ matchType: "origen", value: activeCalendar.filter.origin });
+    }
+    if (activeCalendar.filter?.destination) {
+      seeded.push({
+        matchType: "destino",
+        value: activeCalendar.filter.destination,
+      });
+    }
+    setSearchTags(seeded);
+  }, [activeCalendar]);
 
   // Build API params from search tags
   const apiParams = useMemo(() => {

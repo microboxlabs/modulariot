@@ -7,6 +7,13 @@ import {
 } from "../utils/calendar-route-utils";
 import { NextResponse } from "next/server";
 
+const CalendarFilterSchema = z
+  .object({
+    origin: z.string().optional(),
+    destination: z.string().optional(),
+  })
+  .optional();
+
 const CalendarRequestSchema = z.object({
   code: z.string(),
   name: z.string(),
@@ -15,6 +22,7 @@ const CalendarRequestSchema = z.object({
   active: z.boolean().optional(),
   parallelism: z.number().int().min(1).optional(),
   groups: z.array(z.string()).optional(),
+  filter: CalendarFilterSchema,
   autoSlotManager: z.boolean().optional(),
 });
 

@@ -7,12 +7,20 @@ import {
 } from "../../utils/calendar-route-utils";
 import { NextResponse } from "next/server";
 
+const CalendarFilterSchema = z
+  .object({
+    origin: z.string().optional(),
+    destination: z.string().optional(),
+  })
+  .optional();
+
 const CalendarPatchSchema = z.object({
   parallelism: z.number().int().min(1).optional(),
   name: z.string().optional(),
   description: z.string().optional(),
   timezone: z.string().optional(),
   active: z.boolean().optional(),
+  filter: CalendarFilterSchema,
   autoSlotManager: z.boolean().optional(),
 });
 
@@ -42,6 +50,7 @@ export async function PUT(
       timezone: parsed.data.timezone ?? current.timezone,
       active: parsed.data.active ?? current.active,
       parallelism: parsed.data.parallelism ?? current.parallelism,
+      filter: parsed.data.filter ?? current.filter,
       autoSlotManager: parsed.data.autoSlotManager,
       groups: current.groups?.map((g) => g.code),
     });

@@ -1,9 +1,26 @@
-import type { ParsedDocument, ParsedRow } from "./types";
+export interface ParsedRow {
+  index: number;
+  fingerprint: string;
+  fields: Record<string, string>;
+}
+
+export interface ParsedDocument {
+  headers: string[];
+  rows: ParsedRow[];
+  headerError?: string;
+}
 
 function detectDelimiter(firstLine: string): string {
   const tabs = (firstLine.match(/\t/g) || []).length;
   const commas = (firstLine.match(/,/g) || []).length;
-  return commas > tabs ? "," : "\t";
+  const semis = (firstLine.match(/;/g) || []).length;
+  const pipes = (firstLine.match(/\|/g) || []).length;
+  const max = Math.max(tabs, commas, semis, pipes);
+  if (max === 0) return "\t";
+  if (max === tabs) return "\t";
+  if (max === commas) return ",";
+  if (max === semis) return ";";
+  return "|";
 }
 
 interface QuotedStep {
@@ -73,6 +90,17 @@ function tokenize(content: string, delimiter: string): string[][] {
   return rows.filter((r) => r.some((v) => v.trim().length > 0));
 }
 
+const FINGERPRINT_COLLATOR = new Intl.Collator("en", { sensitivity: "variant" });
+const US = "\x1f";
+const RS = "\x1e";
+
+export function fingerprintRow(fields: Record<string, string>): string {
+  const keys = Object.keys(fields).sort(FINGERPRINT_COLLATOR.compare);
+  let out = "";
+  for (const k of keys) out += k + US + fields[k] + RS;
+  return out;
+}
+
 export function parseDocument(content: string): ParsedDocument {
   const firstLine = content.split(/\r?\n/, 1)[0] ?? "";
   const delimiter = detectDelimiter(firstLine);
@@ -83,8 +111,6 @@ export function parseDocument(content: string): ParsedDocument {
   }
 
   const [header, ...dataRows] = grid;
-  // Preserve each surviving header's original column index so downstream rows
-  // read from the correct cell even when the header row has empty columns.
   const headerEntries = header
     .map((h, index) => ({ name: h.trim(), index }))
     .filter((e) => e.name.length > 0);
@@ -103,7 +129,6 @@ export function parseDocument(content: string): ParsedDocument {
     return {
       index,
       fingerprint: fingerprintRow(fields),
-      status: "unprocessed",
       fields,
     };
   });
@@ -111,13 +136,43 @@ export function parseDocument(content: string): ParsedDocument {
   return { headers, rows };
 }
 
-// Pinned-locale collator so fingerprints are reproducible across runtimes /
-// CI / user locales. Kept at module scope to avoid rebuilding per row.
-const FINGERPRINT_COLLATOR = new Intl.Collator("en", { sensitivity: "variant" });
+function coerceCell(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  // Excel cells parsed with raw: true + cellDates: true come back as Date
+  // objects for date-formatted cells. Serialize as ISO 8601 (with offset) so
+  // the validator's z.string().datetime({ offset: true }) accepts them as-is.
+  // Reject Invalid Date — toISOString() throws on those, which would surface
+  // as a generic 500 instead of a clean per-cell empty.
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? "" : v.toISOString();
+  return "";
+}
 
-function fingerprintRow(fields: Record<string, string>): string {
-  const keys = Object.keys(fields).sort(FINGERPRINT_COLLATOR.compare);
-  const sorted: Record<string, string> = {};
-  for (const k of keys) sorted[k] = fields[k];
-  return JSON.stringify(sorted);
+export function parseGrid(grid: unknown[][]): ParsedDocument {
+  if (grid.length === 0) {
+    return { headers: [], rows: [], headerError: "empty" };
+  }
+  const [header, ...dataRows] = grid;
+  const headerEntries = (header ?? [])
+    .map((h, index) => ({ name: coerceCell(h).trim(), index }))
+    .filter((e) => e.name.length > 0);
+  if (headerEntries.length === 0) {
+    return { headers: [], rows: [], headerError: "no_headers" };
+  }
+  const headers = headerEntries.map((e) => e.name);
+  const rows: ParsedRow[] = [];
+  let emitted = 0;
+  for (const cells of dataRows) {
+    const arr = cells ?? [];
+    const fields: Record<string, string> = {};
+    let hasContent = false;
+    for (const { name, index: originalIndex } of headerEntries) {
+      const str = coerceCell(arr[originalIndex]).trim();
+      if (str.length > 0) hasContent = true;
+      fields[name] = str;
+    }
+    if (!hasContent) continue;
+    rows.push({ index: emitted++, fingerprint: fingerprintRow(fields), fields });
+  }
+  return { headers, rows };
 }

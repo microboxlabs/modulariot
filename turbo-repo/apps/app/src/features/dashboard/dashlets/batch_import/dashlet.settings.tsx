@@ -34,7 +34,6 @@ export function DashletSettings({
   const [defaultStrategy, setDefaultStrategy] = useState<DuplicateStrategy>(
     config.defaultStrategy || "upsert"
   );
-  const [cacheKey, setCacheKey] = useState(config.cacheKey || "");
   const [acceptedFileTypes, setAcceptedFileTypes] = useState(
     config.acceptedFileTypes || ""
   );
@@ -44,7 +43,6 @@ export function DashletSettings({
     pgrestFunctionName,
     dataSourceId,
     defaultStrategy,
-    cacheKey,
     acceptedFileTypes,
   });
 
@@ -54,7 +52,6 @@ export function DashletSettings({
       pgrestFunctionName: pgrestFunctionName.trim(),
       dataSourceId: dataSourceId || undefined,
       defaultStrategy,
-      cacheKey: cacheKey.trim() || undefined,
       acceptedFileTypes: acceptedFileTypes.trim() || undefined,
     });
     onClose();
@@ -162,23 +159,6 @@ export function DashletSettings({
         </p>
       </div>
 
-      <div>
-        <Label htmlFor="batch-import-cachekey" className="mb-1 block text-sm">
-          {tr("dashboard.settings.batchImport.cacheKey", dictionary)}
-        </Label>
-        <TextInput
-          id="batch-import-cachekey"
-          value={cacheKey}
-          onChange={(e) => setCacheKey(e.target.value)}
-          placeholder={tr(
-            "dashboard.settings.batchImport.cacheKeyPlaceholder",
-            dictionary
-          )}
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          {tr("dashboard.settings.batchImport.cacheKeyHint", dictionary)}
-        </p>
-      </div>
     </SettingsShell>
   );
 }

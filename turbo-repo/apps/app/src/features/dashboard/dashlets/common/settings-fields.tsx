@@ -190,7 +190,7 @@ export function SettingsSelectField({
   options,
 }: Readonly<SettingsSelectFieldProps>) {
   return (
-    <div>
+    <div className="w-full">
       <Label htmlFor={id} className="mb-1 block text-sm">
         {label}
       </Label>

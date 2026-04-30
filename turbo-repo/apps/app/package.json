@@ -39,6 +39,7 @@
     "@next/mdx": "16.1.1",
     "@react-google-maps/api": "^2.20.3",
     "@tailwindcss/postcss": "^4.1.17",
+    "@tanstack/react-virtual": "^3.10.9",
     "@types/mdx": "^2.0.13",
     "@types/negotiator": "^0.6.3",
     "@types/pino": "^7.0.4",
@@ -84,6 +85,7 @@
     "tailwindcss": "^4.1.17",
     "use-debounce": "^10.0.4",
     "wkx": "^0.5.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

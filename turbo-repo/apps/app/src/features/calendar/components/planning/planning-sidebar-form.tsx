@@ -26,7 +26,7 @@ import {
   HiUserAdd,
 } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
-import { formatOccupancyPercent } from "./planning-format";
+import { formatPercent } from "./planning-format";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
@@ -695,7 +695,7 @@ export function PlanningSidebarForm({
         <ProgressBar
           label={{ text: tr("pages.planning.sidebar.form.occupancy", dict) }}
           progress={occupancy}
-          value={{ text: formatOccupancyPercent(occupancy) }}
+          value={{ text: formatPercent(occupancy) }}
         />
       </FormSection>
       {/* Load Utilization Section */}
@@ -712,7 +712,7 @@ export function PlanningSidebarForm({
             value={
               selectedService.loadMaxUtilization == null
                 ? "—"
-                : `${selectedService.loadMaxUtilization.toFixed(1)}`
+                : formatPercent(selectedService.loadMaxUtilization)
             }
           />
           {selectedService.loadConstraint === "Carga" && (
@@ -721,7 +721,7 @@ export function PlanningSidebarForm({
               value={
                 selectedService.loadWeightUtilization == null
                   ? "—"
-                  : `${selectedService.loadWeightUtilization.toFixed(1)}%`
+                  : formatPercent(selectedService.loadWeightUtilization)
               }
             />
           )}
@@ -731,7 +731,7 @@ export function PlanningSidebarForm({
               value={
                 selectedService.loadPalletUtilization == null
                   ? "—"
-                  : `${selectedService.loadPalletUtilization.toFixed(1)}%`
+                  : formatPercent(selectedService.loadPalletUtilization)
               }
             />
           )}
@@ -741,7 +741,7 @@ export function PlanningSidebarForm({
               value={
                 selectedService.loadVolumeUtilization == null
                   ? "—"
-                  : `${selectedService.loadVolumeUtilization.toFixed(1)}%`
+                  : formatPercent(selectedService.loadVolumeUtilization)
               }
             />
           )}

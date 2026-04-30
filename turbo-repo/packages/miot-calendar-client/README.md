@@ -529,6 +529,12 @@ interface CalendarRequest {
   active?: boolean;       // Active status (default: true)
   parallelism?: number;   // Parallel resources per slot (default: 1, e.g. loading docks)
   groups?: string[];      // Group codes to assign. null = no change; [] = remove all; ["code"] = replace all
+  filter?: CalendarFilter; // Optional task filter. null = no change; {} = clear; populated = replace
+}
+
+interface CalendarFilter {
+  origin?: string;        // Origin delegate code (e.g., "ANF")
+  destination?: string;   // Destination delegate code
 }
 ```
 
@@ -546,6 +552,7 @@ interface CalendarResponse {
   createdAt: string;                   // ISO 8601
   updatedAt: string;                   // ISO 8601
   groups?: CalendarGroupResponse[];    // Groups this calendar belongs to
+  filter?: CalendarFilter;             // Optional task filter (origin / destination delegate codes)
 }
 ```
 

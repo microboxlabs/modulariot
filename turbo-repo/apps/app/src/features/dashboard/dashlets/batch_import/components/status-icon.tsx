@@ -1,6 +1,5 @@
 "use client";
 
-import { Tooltip } from "flowbite-react";
 import type { RowStatus } from "../engine/types";
 
 interface StatusStyle {
@@ -38,40 +37,28 @@ const STYLES: Record<RowStatus, StatusStyle> = {
   },
 };
 
+/**
+ * Intentionally uses a plain `title` attribute rather than Flowbite's Tooltip.
+ * With 4000+ rows, mounting 4000 Tooltip instances (each with its own popper
+ * machinery) was the single largest contributor to the preview table's freeze.
+ * Native title shows on hover at zero DOM / JS cost.
+ */
 export function StatusIcon({
   status,
   tooltip,
   label,
 }: Readonly<{ status: RowStatus; tooltip?: string; label: string }>) {
   const style = STYLES[status];
-  const glyph = (
+  const title = tooltip ? `${label}\n${tooltip}` : label;
+  // cursor-help: signals a hover-tooltip is available without implying a
+  // click action. Matches what users expect on validation-error indicators.
+  return (
     <span
-      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold leading-none ${style.className}`}
+      title={title}
+      className={`inline-flex h-6 w-6 cursor-help items-center justify-center rounded-full text-sm font-bold leading-none ${style.className}`}
+      aria-label={label}
     >
       {style.glyph}
     </span>
-  );
-
-  const text = tooltip || label;
-  const lines = text.split("\n").filter((l) => l.length > 0);
-
-  return (
-    <Tooltip
-      content={
-        lines.length > 1 ? (
-          <ul className="space-y-0.5 text-left">
-            {lines.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        ) : (
-          <span>{text}</span>
-        )
-      }
-      placement="right"
-      className="max-w-sm whitespace-normal break-words text-xs"
-    >
-      {glyph}
-    </Tooltip>
   );
 }

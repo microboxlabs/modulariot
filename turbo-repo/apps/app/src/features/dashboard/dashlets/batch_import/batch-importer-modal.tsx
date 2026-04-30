@@ -1,7 +1,12 @@
 "use client";
 
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import type { DuplicateStrategy, SubmitFn } from "./engine/types";
+import type { BatchImporterApi } from "./engine/api";
+import type {
+  DuplicateStrategy,
+  IntrospectedParam,
+} from "./engine/types";
+import type { TransformStep } from "./engine/transforms";
 import {
   BatchImporterView,
   useBatchImporter,
@@ -12,29 +17,42 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  submit: SubmitFn;
-  sourceKey: string;
+  api: BatchImporterApi;
   title: string;
   defaultStrategy?: DuplicateStrategy;
-  sample?: string;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
-  validate?: (fields: Record<string, string>) => string | null;
+  /** RPC parameter schema — for the schema panel UI. */
+  params?: IntrospectedParam[] | null;
+  /** Optional filename prefix for the CSV download button. */
+  filenameBase?: string;
+  /** Persisted column transforms from the dashlet's widget config. */
+  initialTransforms?: Record<string, TransformStep[]>;
+  /** Bubble transform changes back to the dashlet for persistence. */
+  onTransformsChange?: (next: Record<string, TransformStep[]>) => void;
 }
 
 export function BatchImporterModal({
   isOpen,
   onClose,
-  submit,
-  sourceKey,
+  api,
   title,
   defaultStrategy,
-  sample,
   acceptedFileTypes,
   dictionary,
-  validate,
+  params,
+  filenameBase,
+  initialTransforms,
+  onTransformsChange,
 }: Readonly<Props>) {
-  const state = useBatchImporter({ submit, sourceKey, defaultStrategy, validate });
+  const state = useBatchImporter({
+    api,
+    defaultStrategy,
+    params,
+    filenameBase,
+    initialTransforms,
+    onTransformsChange,
+  });
 
   const submitLabel = state.importing
     ? tr("dashboard.dashlets.batchImport.importing", dictionary)
@@ -50,14 +68,12 @@ export function BatchImporterModal({
       subtitle={tr("dashboard.dashlets.batchImport.subtitle", dictionary)}
       size="7xl"
       submitLabel={submitLabel}
-      cancelLabel={tr("common.close", dictionary)}
-      showCancelButton
+      showHeaderClose
       isProcessing={state.importing || !state.importable}
       onSubmit={state.onImport}
     >
       <BatchImporterView
         state={state}
-        sample={sample}
         acceptedFileTypes={acceptedFileTypes}
         dictionary={dictionary}
       />

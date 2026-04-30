@@ -152,6 +152,22 @@ function transformTaskToService(
     destino: task.destination || "",
     tipoViaje,
     ocupacion: 100 * (task.mintral_loadMaxUtilization ?? 0),
+    loadMaxUtilization:
+      task.mintral_loadMaxUtilization == null
+        ? undefined
+        : 100 * task.mintral_loadMaxUtilization,
+    loadWeightUtilization:
+      task.mintral_loadWeightUtilization == null
+        ? undefined
+        : 100 * task.mintral_loadWeightUtilization,
+    loadPalletUtilization:
+      task.mintral_loadPalletUtilization == null
+        ? undefined
+        : 100 * task.mintral_loadPalletUtilization,
+    loadVolumeUtilization:
+      task.mintral_loadVolumeUtilization == null
+        ? undefined
+        : 100 * task.mintral_loadVolumeUtilization,
     permanencia,
     leadTime: {
       total_lineasoc_cumplen: task.mintral_compliantOrderLines ?? 0,
@@ -167,10 +183,6 @@ function transformTaskToService(
     prioridad: task.mintral_icuCondition ?? 0,
     cm_created: task.cm_created,
     loadConstraint: task.mintral_loadConstraint,
-    loadMaxUtilization: task.mintral_loadMaxUtilization,
-    loadWeightUtilization: task.mintral_loadWeightUtilization,
-    loadPalletUtilization: task.mintral_loadPalletUtilization,
-    loadVolumeUtilization: task.mintral_loadVolumeUtilization,
     serviceCategory: task.mintral_serviceCategory ?? undefined,
     expectedDepartureDate: task.expectedDepartureDate || "",
     presentationDate: task.mintral_creationDate || task.cm_created || "",

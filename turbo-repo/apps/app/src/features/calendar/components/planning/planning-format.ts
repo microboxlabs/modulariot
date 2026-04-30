@@ -1,8 +1,8 @@
 /**
- * Format an occupancy percentage (0-100) for display, fixed to 2 decimals.
- * Use in any UI that surfaces `SelectedService.ocupacion` so the format stays consistent.
+ * Format a 0-100 percentage value for display, fixed to 2 decimals.
+ * Use for occupancy and load utilization fields so the format stays consistent.
  */
-export function formatOccupancyPercent(value: number): string {
+export function formatPercent(value: number): string {
   const safe = Number.isFinite(value) ? value : 0;
   return `${safe.toFixed(2)}%`;
 }

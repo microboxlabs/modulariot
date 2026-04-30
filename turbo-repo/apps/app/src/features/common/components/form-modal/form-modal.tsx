@@ -5,7 +5,6 @@ import {
   Modal,
   ModalBody,
   ModalFooter,
-  ModalHeader,
   Button,
   Alert,
 } from "flowbite-react";
@@ -47,6 +46,8 @@ export type FormModalProps = Readonly<{
     | "7xl";
   /** Whether to show cancel button */
   showCancelButton?: boolean;
+  /** Whether to show the close (X) button in the header */
+  showHeaderClose?: boolean;
 }>;
 
 /**
@@ -79,6 +80,7 @@ export default function FormModal({
   onSubmit,
   size = "4xl",
   showCancelButton = false,
+  showHeaderClose = false,
 }: FormModalProps) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -88,14 +90,47 @@ export default function FormModal({
   return (
     <Modal dismissible show={isOpen} onClose={onClose} size={size}>
       <form onSubmit={handleSubmit}>
-        <ModalHeader className="border-none">
+        {/* Plain div instead of flowbite's <ModalHeader> — ModalHeader renders
+            a built-in close (X) button that the app's modal convention doesn't
+            use by default. Exit is via the Cancel/Close button in the footer
+            unless `showHeaderClose` is set. The dark: classes restore the
+            contrast that ModalHeader provided implicitly. */}
+        <div className="flex items-start justify-between p-4 md:p-5">
           <div className="flex flex-col items-start">
-            <h2 className="text-base font-semibold">{title}</h2>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {title}
+            </h2>
             {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {subtitle}
+              </p>
             )}
           </div>
-        </ModalHeader>
+          {showHeaderClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white"
+            >
+              <svg
+                aria-hidden="true"
+                className="h-3 w-3"
+                fill="none"
+                viewBox="0 0 14 14"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
         <ModalBody className="max-h-[70vh] overflow-y-auto">
           <div className="flex flex-col my-4">{children}</div>
           {error && (

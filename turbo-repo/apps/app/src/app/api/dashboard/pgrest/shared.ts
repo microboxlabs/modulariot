@@ -18,7 +18,35 @@ function normalizePgrestUrl(url: string): string {
   return trimmed;
 }
 
-interface OpenApiParameter {
+/** Read an integer env var with a numeric fallback. Trims whitespace and
+ *  guards against malformed values (NaN). Negative/zero values pass through
+ *  — callers should clamp if they need a positive floor. */
+export function parseIntEnv(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+/** Read a string env var with a string fallback. Trimmed-empty (or undefined)
+ *  values fall back so a deploy that ships `FOO=` doesn't accidentally inject
+ *  an empty string into downstream payloads. */
+export function parseStringEnv(raw: string | undefined, fallback: string): string {
+  return raw?.trim() || fallback;
+}
+
+export interface OpenApiSchema {
+  type?: string;
+  format?: string;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  pattern?: string;
+  properties?: Record<string, OpenApiSchema>;
+  required?: string[];
+  $ref?: string;
+}
+
+export interface OpenApiParameter {
   name: string;
   in: string;
   format?: string;
@@ -28,6 +56,7 @@ interface OpenApiParameter {
   minimum?: number;
   maximum?: number;
   pattern?: string;
+  schema?: OpenApiSchema;
 }
 
 interface OpenApiOperation {
@@ -41,6 +70,7 @@ export interface OpenApiPathItem {
 
 export interface OpenApiSpec {
   paths?: Record<string, OpenApiPathItem>;
+  definitions?: Record<string, OpenApiSchema>;
 }
 
 /**
@@ -163,6 +193,109 @@ export async function resolvePgrestCredentials(
   }
 
   return { baseUrl, token, authMethod: "TOKEN" };
+}
+
+export interface IntrospectedParameter {
+  name: string;
+  type: string;
+  format: string;
+  required: boolean;
+  enum?: string[];
+  minimum?: number;
+  maximum?: number;
+  pattern?: string;
+}
+
+export function fromParameter(p: OpenApiParameter): IntrospectedParameter {
+  return {
+    name: p.name,
+    type: p.type ?? "string",
+    format: p.format ?? p.type ?? "text",
+    required: p.required === true,
+    enum: Array.isArray(p.enum) ? p.enum.map(String) : undefined,
+    minimum: typeof p.minimum === "number" ? p.minimum : undefined,
+    maximum: typeof p.maximum === "number" ? p.maximum : undefined,
+    pattern: typeof p.pattern === "string" ? p.pattern : undefined,
+  };
+}
+
+export function fromProperty(
+  name: string,
+  prop: OpenApiSchema,
+  required: boolean,
+): IntrospectedParameter {
+  return {
+    name,
+    type: prop.type ?? "string",
+    format: prop.format ?? prop.type ?? "text",
+    required,
+    enum: Array.isArray(prop.enum) ? prop.enum.map(String) : undefined,
+    minimum: typeof prop.minimum === "number" ? prop.minimum : undefined,
+    maximum: typeof prop.maximum === "number" ? prop.maximum : undefined,
+    pattern: typeof prop.pattern === "string" ? prop.pattern : undefined,
+  };
+}
+
+// Resolve an inline schema or a local `#/definitions/<name>` reference.
+export function resolveSchema(
+  schema: OpenApiSchema | undefined,
+  spec: OpenApiSpec,
+): OpenApiSchema | undefined {
+  if (!schema) return undefined;
+  if (!schema.$ref) return schema;
+  const prefix = "#/definitions/";
+  if (!schema.$ref.startsWith(prefix)) return undefined;
+  const key = decodeURIComponent(schema.$ref.slice(prefix.length));
+  return spec.definitions?.[key];
+}
+
+// PostgREST exposes RPC arguments (and table insert columns) as an `in: "body"`
+// parameter whose schema is a reference into `definitions`. Walk that schema
+// and emit one introspected parameter per property so the client can filter
+// out-of-schema columns before POSTing.
+export function extractBodyProperties(
+  operation: { parameters?: OpenApiParameter[] } | undefined,
+  spec: OpenApiSpec,
+): IntrospectedParameter[] {
+  const bodyParam = operation?.parameters?.find((p) => p.in === "body");
+  const schema = resolveSchema(bodyParam?.schema, spec);
+  if (!schema?.properties) return [];
+  const required = new Set(schema.required ?? []);
+  return Object.entries(schema.properties).map(([name, prop]) =>
+    fromProperty(name, prop, required.has(name)),
+  );
+}
+
+/**
+ * Introspect the parameter list for a given RPC/table path. Prefers query
+ * params (which cover tables' column-filter sets); falls back to the POST
+ * body schema so RPCs — whose args appear only under `in: body` — still
+ * yield a usable column list.
+ *
+ * Returns null if the path is not present in the spec.
+ */
+export function introspectPath(
+  spec: OpenApiSpec,
+  fn: string,
+): { methods: string[]; parameters: IntrospectedParameter[] } | null {
+  const pathItem = spec.paths?.[`/${fn}`];
+  if (!pathItem) return null;
+
+  const methods: string[] = [];
+  if (pathItem.get) methods.push("GET");
+  if (pathItem.post) methods.push("POST");
+
+  const operation = pathItem.get ?? pathItem.post;
+  const queryParams = (operation?.parameters ?? [])
+    .filter((p) => p.in === "query")
+    .map(fromParameter);
+
+  const parameters =
+    queryParams.length > 0
+      ? queryParams
+      : extractBodyProperties(pathItem.post, spec);
+
+  return { methods, parameters };
 }
 
 /**

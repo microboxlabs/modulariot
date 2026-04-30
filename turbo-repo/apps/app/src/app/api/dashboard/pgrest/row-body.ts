@@ -59,18 +59,20 @@ export interface MetaFields {
 /** Build the audit-metadata block injected on every row. Trust-critical
  *  values — `p_uploaded_by`, `p_total_rows`, `p_row_number` — come from
  *  server-side context (session + request count + row index) so the client
- *  cannot forge them. Audit metadata is unconditionally sent: every ingestion
- *  RPC is expected to declare these `p_*` parameters in its signature, so we
- *  don't gate them through the `allowed` set the way user fields are gated.
- *  PostgREST will reject the call if a target RPC hasn't been migrated yet —
- *  that's the intended signal to add the missing parameters. */
+ *  cannot forge them. Filtered through the same `allowed` set as user fields:
+ *  any audit param the target RPC doesn't declare in its OpenAPI signature is
+ *  silently dropped, keeping calls against not-yet-migrated endpoints from
+ *  failing with `function not found`. To start storing an audit field, add
+ *  the matching `p_*` parameter to the RPC's `CREATE FUNCTION` signature. */
 export function buildMetaBody(
   meta: MetaFields,
   rowIndex: number,
+  allowed: ReadonlySet<string> | null,
 ): Record<string, string> {
   const out: Record<string, string> = {};
   const put = (key: string, value: string) => {
     if (!value) return;
+    if (allowed && !allowed.has(key)) return;
     out[key] = value;
   };
   put("p_uploaded_by", meta.uploadedBy);
@@ -80,8 +82,12 @@ export function buildMetaBody(
   put("p_timezone", META_TIMEZONE);
   put("p_client_id", META_CLIENT_ID);
   put("p_schema_version", META_SCHEMA_VERSION);
-  out.p_total_rows = String(meta.totalRows);
-  out.p_row_number = String(rowIndex + 1);
+  if (!allowed || allowed.has("p_total_rows")) {
+    out.p_total_rows = String(meta.totalRows);
+  }
+  if (!allowed || allowed.has("p_row_number")) {
+    out.p_row_number = String(rowIndex + 1);
+  }
   return out;
 }
 
@@ -114,6 +120,6 @@ export function buildRowBody(
 ): Record<string, string> {
   return {
     ...buildUserBody(row, allowed),
-    ...buildMetaBody(meta, row.index),
+    ...buildMetaBody(meta, row.index, allowed),
   };
 }

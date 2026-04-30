@@ -75,11 +75,14 @@ export function TransformsPopover({
     tr(`dashboard.dashlets.batchImport.transforms.kinds.${k}`, dictionary);
 
   return (
+    // The document `mousedown` listener uses `ref.current?.contains` to
+    // ignore events originating inside the popover, so we don't need a
+    // local `stopPropagation` to keep outside-click closing accurate. That
+    // also keeps this container free of synthetic interactivity, which
+    // would otherwise require ARIA roles (eslint: jsx-a11y/no-static-element-interactions).
     <div
       ref={ref}
       className="absolute right-0 top-full z-30 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-800"
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="font-semibold text-gray-700 dark:text-gray-200">

@@ -52,7 +52,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const handleTransformsChange = useCallback(
     (next: Record<string, TransformStep[]>) => {
       updateWidgetConfig(widget.id, {
-        ...(widget.config as Record<string, unknown>),
+        ...widget.config,
         transforms: next,
       });
     },

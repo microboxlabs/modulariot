@@ -1251,6 +1251,56 @@ interface PreviewPanelProps {
   dictionary: I18nRecord;
 }
 
+function renderPreviewBody(
+  preview: PreviewLine[] | null,
+  previewError: string | null,
+  dictionary: I18nRecord,
+) {
+  if (previewError) {
+    return <p className="text-red-700 dark:text-red-300">{previewError}</p>;
+  }
+  if (!preview || preview.length === 0) {
+    return (
+      <p className="text-gray-500 dark:text-gray-400">
+        {tr("dashboard.dashlets.batchImport.previewEmpty", dictionary)}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {preview.map((line) => (
+        <div key={line.index}>
+          <div className="mb-1 font-mono text-[10px] text-blue-800 dark:text-blue-300">
+            {tr(
+              "dashboard.dashlets.batchImport.previewRowLabel",
+              dictionary,
+              { number: String(line.index + 1) },
+            )}
+          </div>
+          <div className="mb-1 text-[10px] uppercase tracking-wide text-blue-700 dark:text-blue-300">
+            {tr(
+              "dashboard.dashlets.batchImport.previewBodyTitle",
+              dictionary,
+            )}
+          </div>
+          <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+            {JSON.stringify(line.body, null, 2)}
+          </pre>
+          <div className="mt-2 mb-1 text-[10px] uppercase tracking-wide text-blue-700 dark:text-blue-300">
+            {tr(
+              "dashboard.dashlets.batchImport.previewMetaTitle",
+              dictionary,
+            )}
+          </div>
+          <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+            {JSON.stringify(line.meta, null, 2)}
+          </pre>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Inline panel that surfaces the dry-run /preview result. Renders one
  *  pretty-printed JSON block per row so the user can confirm the exact body
  *  /bulk would POST to PostgREST — including server-injected `p_*` audit
@@ -1279,45 +1329,7 @@ function PreviewPanel({
           ✕
         </button>
       </div>
-      {previewError ? (
-        <p className="text-red-700 dark:text-red-300">{previewError}</p>
-      ) : preview && preview.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {preview.map((line) => (
-            <div key={line.index}>
-              <div className="mb-1 font-mono text-[10px] text-blue-800 dark:text-blue-300">
-                {tr(
-                  "dashboard.dashlets.batchImport.previewRowLabel",
-                  dictionary,
-                  { number: String(line.index + 1) },
-                )}
-              </div>
-              <div className="mb-1 text-[10px] uppercase tracking-wide text-blue-700 dark:text-blue-300">
-                {tr(
-                  "dashboard.dashlets.batchImport.previewBodyTitle",
-                  dictionary,
-                )}
-              </div>
-              <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
-                {JSON.stringify(line.body, null, 2)}
-              </pre>
-              <div className="mt-2 mb-1 text-[10px] uppercase tracking-wide text-blue-700 dark:text-blue-300">
-                {tr(
-                  "dashboard.dashlets.batchImport.previewMetaTitle",
-                  dictionary,
-                )}
-              </div>
-              <pre className="overflow-x-auto rounded bg-white p-2 font-mono text-[11px] leading-snug text-gray-800 dark:bg-gray-900 dark:text-gray-100">
-                {JSON.stringify(line.meta, null, 2)}
-              </pre>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500 dark:text-gray-400">
-          {tr("dashboard.dashlets.batchImport.previewEmpty", dictionary)}
-        </p>
-      )}
+      {renderPreviewBody(preview, previewError, dictionary)}
     </section>
   );
 }

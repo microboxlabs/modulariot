@@ -60,6 +60,11 @@ export interface CalendarGroupResponse {
 
 // --- Calendars ---
 
+export interface CalendarFilter {
+  origin?: string;
+  destination?: string;
+}
+
 export interface CalendarRequest {
   code: string;
   name: string;
@@ -68,6 +73,7 @@ export interface CalendarRequest {
   active?: boolean;
   parallelism?: number;
   groups?: string[];
+  filter?: CalendarFilter;
   autoSlotManager?: boolean;
 }
 
@@ -82,6 +88,7 @@ export interface CalendarResponse {
   createdAt: string;
   updatedAt: string;
   groups?: CalendarGroupResponse[];
+  filter?: CalendarFilter;
   hasSlotManager?: boolean;
 }
 

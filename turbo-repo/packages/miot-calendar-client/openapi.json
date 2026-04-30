@@ -197,6 +197,14 @@
             },
             "description" : "List of group codes to assign. null = no change; [] = remove all; [\"code1\"] = replace all"
           },
+          "filter" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "examples" : [ "{\"origin\":\"ANF\"}" ],
+            "description" : "Optional task filter map applied to client-side task lists tied to this calendar. null = no change; {} = clear; populated map = replace. Allowed keys: origin, destination."
+          },
           "autoSlotManager" : {
             "type" : "boolean",
             "description" : "Whether to auto-provision a default SlotManager on creation. Defaults to true when null.",
@@ -259,6 +267,14 @@
               "$ref" : "#/components/schemas/CalendarGroupResponse"
             },
             "description" : "Groups this calendar belongs to"
+          },
+          "filter" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "examples" : [ "{\"origin\":\"ANF\"}" ],
+            "description" : "Optional task filter map applied to client-side task lists tied to this calendar. Keys are drawn from the allowed set (origin, destination)."
           },
           "hasSlotManager" : {
             "type" : "boolean",

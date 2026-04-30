@@ -1753,6 +1753,32 @@ export async function createBooking(
 }
 
 /**
+ * Advance an Alfresco workflow task to the next stage via the given transition.
+ * Called after booking and service-category sync are confirmed so that the
+ * workflow only moves when both writes have succeeded.
+ */
+export async function advanceWorkflowTask(
+  taskId: string,
+  transitionId: string
+): Promise<void> {
+  const response = await fetch("/app/api/task/end", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, transitionId }),
+  });
+  if (!response.ok) {
+    const err = (await response.json().catch(() => ({}))) as {
+      error?: { message?: string } | string;
+    };
+    const message =
+      typeof err.error === "string"
+        ? err.error
+        : (err.error?.message ?? "Failed to advance workflow task");
+    throw new Error(message);
+  }
+}
+
+/**
  * Cancel an existing booking by ID.
  */
 export async function cancelBooking(bookingId: string): Promise<void> {

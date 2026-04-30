@@ -27,6 +27,7 @@ import {
   cancelBooking,
   listBookings,
   updateServiceCategory,
+  advanceWorkflowTask,
 } from "@/features/common/providers/client-api.provider";
 import type { BookingTaskAdvance } from "@/features/common/providers/client-api.provider";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
@@ -741,11 +742,13 @@ async function persistPlannedBooking({
   }
 
   try {
-    const booking = await createBooking({
-      ...buildBookingRequest(calendarId, service, slot),
-      ...(taskAdvance ? { taskAdvance } : {}),
-    });
+    const booking = await createBooking(
+      buildBookingRequest(calendarId, service, slot)
+    );
     await syncServiceCategoryWithWorkflow(service, booking.id);
+    if (taskAdvance) {
+      await advanceWorkflowTask(taskAdvance.taskId, taskAdvance.transitionId);
+    }
 
     setBookingIds((prev) => {
       const next = new Map(prev);

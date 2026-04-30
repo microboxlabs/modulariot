@@ -9,6 +9,7 @@ export type {
   BookingListResponse,
   CalendarGroupRequest,
   CalendarGroupResponse,
+  CalendarFilter,
   CalendarRequest,
   CalendarResponse,
   TimeWindowRequest,

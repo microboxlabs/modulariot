@@ -19,6 +19,23 @@ interface RowProps {
   headers: string[];
   statusLabel: string;
   gridTemplate: string;
+  /** Mapped column names whose RPC schema declares a date / date-time format.
+   *  Cells in these columns render the date portion only; the original ISO
+   *  string is exposed via `title` so a hover-tooltip still shows the time.
+   *  Identity-stable across renders so React.memo can skip cleanly. */
+  dateColumns: ReadonlySet<string>;
+}
+
+const ISO_DATE_PREFIX = /^(\d{4}-\d{2}-\d{2})T/;
+
+/** For a cell that maps to a date-typed RPC parameter, slice off the time
+ *  portion of an ISO 8601 string for display while keeping the original value
+ *  in `title` so hover surfaces the precision. The underlying `row.fields`
+ *  string is unchanged — `/bulk` still POSTs the full timestamp and the
+ *  validator's `datetime({ offset: true })` keeps passing. */
+function renderDateCell(value: string): { display: string; title: string } {
+  const match = ISO_DATE_PREFIX.exec(value);
+  return match ? { display: match[1], title: value } : { display: value, title: value };
 }
 
 export const Row = memo(function Row({
@@ -27,6 +44,7 @@ export const Row = memo(function Row({
   headers,
   statusLabel,
   gridTemplate,
+  dateColumns,
 }: Readonly<RowProps>) {
   return (
     <div
@@ -40,14 +58,39 @@ export const Row = memo(function Row({
           label={statusLabel}
         />
       </div>
-      {headers.map((h) => (
-        <div
-          key={h}
-          className="overflow-hidden border-r border-gray-200 p-2 align-top dark:border-gray-700"
-        >
-          {row.fields[h] || <span className="text-gray-400">—</span>}
-        </div>
-      ))}
+      {headers.map((h) => {
+        const raw = row.fields[h];
+        if (!raw) {
+          return (
+            <div
+              key={h}
+              className="overflow-hidden border-r border-gray-200 p-2 align-top dark:border-gray-700"
+            >
+              <span className="text-gray-400">—</span>
+            </div>
+          );
+        }
+        if (dateColumns.has(h)) {
+          const { display, title } = renderDateCell(raw);
+          return (
+            <div
+              key={h}
+              title={title}
+              className="overflow-hidden border-r border-gray-200 p-2 align-top dark:border-gray-700"
+            >
+              {display}
+            </div>
+          );
+        }
+        return (
+          <div
+            key={h}
+            className="overflow-hidden border-r border-gray-200 p-2 align-top dark:border-gray-700"
+          >
+            {raw}
+          </div>
+        );
+      })}
     </div>
   );
 });

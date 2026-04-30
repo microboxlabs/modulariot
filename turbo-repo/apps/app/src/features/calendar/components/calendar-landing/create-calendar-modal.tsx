@@ -9,7 +9,11 @@ import {
   useCalendarGroups,
   createCalendar,
 } from "@/features/common/providers/client-api.provider";
-import type { CalendarGroupResponse, CalendarRequest } from "@microboxlabs/miot-calendar-client";
+import type {
+  CalendarFilter,
+  CalendarGroupResponse,
+  CalendarRequest,
+} from "@microboxlabs/miot-calendar-client";
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -68,6 +72,12 @@ export function CreateCalendarModal({
     setIsProcessing(true);
 
     try {
+      const filter: CalendarFilter = {};
+      const filterOrigin = (formValues.filterOrigin as string)?.trim();
+      const filterDestination = (formValues.filterDestination as string)?.trim();
+      if (filterOrigin) filter.origin = filterOrigin;
+      if (filterDestination) filter.destination = filterDestination;
+
       const body: CalendarRequest = {
         name: formValues.name as string,
         code: formValues.code as string,
@@ -76,6 +86,7 @@ export function CreateCalendarModal({
         parallelism: (formValues.parallelism as number) ?? 1,
         active: (formValues.active as boolean) ?? true,
         groups: selectedGroupCode ? [selectedGroupCode] : [],
+        filter,
         autoSlotManager: true,
       };
 
@@ -114,9 +125,14 @@ export function CreateCalendarModal({
       size="2xl"
     >
       <div className="flex flex-col gap-4">
-        {/* name, code, description, timezone */}
+        {/* name, code, parallelism, description, timezone */}
         {standardFields
-          .filter((f) => f.name !== "active")
+          .filter(
+            (f) =>
+              f.name !== "active" &&
+              f.name !== "filterOrigin" &&
+              f.name !== "filterDestination"
+          )
           .map((field) => (
             <DynamicFormField
               key={field.name}
@@ -136,6 +152,26 @@ export function CreateCalendarModal({
           onGroupCreated={handleGroupCreated}
           dict={dict}
         />
+
+        {/* filter: origin + destination side by side */}
+        <div className="flex gap-3">
+          {standardFields
+            .filter(
+              (f) =>
+                f.name === "filterOrigin" || f.name === "filterDestination"
+            )
+            .map((field) => (
+              <div key={field.name} className="flex-1">
+                <DynamicFormField
+                  field={field}
+                  value={formValues[field.name] ?? field.defaultValue ?? ""}
+                  onChange={(value) => setFormValue(field.name, value)}
+                  isVisible={isFieldVisible(field)}
+                  translate={(key) => tr(key, dict)}
+                />
+              </div>
+            ))}
+        </div>
 
         {/* active checkbox */}
         {standardFields

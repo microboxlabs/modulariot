@@ -89,14 +89,15 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const limit = clampLimit(body?.limit);
   const previews = rows.slice(0, limit).map((row) => {
     const userBody = buildUserBody(row, allowed);
-    const auditMeta = buildMetaBody(meta, row.index);
+    const auditMeta = buildMetaBody(meta, row.index, allowed);
     return {
       index: row.index,
-      // Full body sent to PostgREST: filtered user fields + unconditional
-      // audit metadata. Mirrors what /bulk's `buildRowBody` actually POSTs.
+      // Full body sent to PostgREST: filtered user fields + filtered audit
+      // metadata (only the `p_*` params the RPC declares). Mirrors what
+      // /bulk's `buildRowBody` actually POSTs so the preview never lies.
       body: { ...userBody, ...auditMeta },
-      // Audit subset surfaced separately so the UI can render a clear
-      // "what's the server stamping?" breakdown alongside the full body.
+      // Same filtered audit subset, surfaced separately so the UI can
+      // render a "what's the server stamping?" breakdown alongside the body.
       meta: auditMeta,
     };
   });

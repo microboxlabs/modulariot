@@ -7,6 +7,7 @@ import {
 } from "../../shared";
 import { sanitizeRows } from "../../sanitize";
 import { makeValidationErrorMap, validateRows } from "../../validator";
+import { isAuditField } from "../../audit-fields";
 import {
   getDictionary,
   getLocaleFromRequest,
@@ -39,7 +40,11 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   if (spec instanceof NextResponse) return spec;
 
   const introspected = introspectPath(spec, functionName);
-  const params = introspected?.parameters ?? [];
+  // Audit params are server-injected by /bulk; user data shouldn't be forced
+  // to provide them, so filter them out before building the Zod schema.
+  const params = (introspected?.parameters ?? []).filter(
+    (p) => !isAuditField(p.name),
+  );
   // Prefer the explicit `lang` query (sent by clients that know their UI
   // locale via the URL `[lang]` segment) over Accept-Language, which reflects
   // browser preference and can disagree with what the user is actually viewing.

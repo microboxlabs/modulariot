@@ -54,6 +54,10 @@ const middleware = auth(async function middleware(request: NextRequest) {
     (_: string, captured: string | undefined) => captured || "/"
   );
 
+  if (pathname.startsWith("/cli/auth/login")) {
+    return NextResponse.next();
+  }
+
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
     pathname = "/shipping";
   }

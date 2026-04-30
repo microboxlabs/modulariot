@@ -11,6 +11,7 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
+  type TaskStage,
   getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
@@ -22,7 +23,20 @@ import { PlanningSearchTags } from "./planning-search-tags";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
-import { transformBoardsToTableData } from "@/features/shipping/utils/transform-data";
+
+const KNOWN_TASK_STAGES = new Set<TaskStage>([
+  "planService",
+  "assignDriver",
+  "presentDriver",
+  "prepareService",
+  "missionControl",
+]);
+
+function asTaskStage(columnKey: string): TaskStage | undefined {
+  return KNOWN_TASK_STAGES.has(columnKey as TaskStage)
+    ? (columnKey as TaskStage)
+    : undefined;
+}
 
 interface PlanningSidebarClientProps {
   dict: I18nDictionary;
@@ -115,7 +129,10 @@ function toPercent(value: number | null | undefined): number {
 }
 
 // Transform KanbanBoardTask to SelectedService
-function transformTaskToService(task: KanbanBoardTask): SelectedService {
+function transformTaskToService(
+  task: KanbanBoardTask,
+  currentStage: TaskStage | undefined
+): SelectedService {
   const serviceId = task.name || task.id;
   const tipoViaje = determineTripType(task);
   const permanencia = calculatePermanencia(task);
@@ -123,6 +140,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
   return {
     id: serviceId,
     taskId: task.id,
+    currentStage,
     cliente: task.client || task.clientCode || "",
     mintral_clientRut: task.mintral_clientRut,
     mintral_delegacionOrigen: task.mintral_delegacionOrigen,
@@ -252,12 +270,22 @@ export function PlanningSidebarClient({
     }
   }, [bookingVersion, refreshTasks]);
 
-  // Transform API data to SelectedService array
+  // Transform API data to SelectedService array. Iterate column-by-column so
+  // we can tag each service with the kanban stage it came from — needed to
+  // pick the correct workflow transition when the user plans or assigns it.
   const apiServices = useMemo(() => {
     if (!myTasksData?.data) return [];
 
-    const tasks = transformBoardsToTableData(myTasksData.data);
-    return tasks.map(transformTaskToService);
+    const services: SelectedService[] = [];
+    for (const [columnKey, board] of Object.entries(myTasksData.data)) {
+      const stage = asTaskStage(columnKey);
+      for (const task of board.tasks) {
+        services.push(
+          transformTaskToService({ ...task, title: board.title }, stage)
+        );
+      }
+    }
+    return services;
   }, [myTasksData]);
 
   // Use only real API data - no fallback to mock

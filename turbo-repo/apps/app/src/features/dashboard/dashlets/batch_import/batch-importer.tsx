@@ -738,6 +738,19 @@ export function BatchImporterView({
     return map;
   }, [params]);
 
+  /** Mapped-column names whose RPC schema declares a date or date-time format.
+   *  Used by the preview rows to render `2026-03-01T10:27:45.000Z` as just
+   *  `2026-03-01` while keeping the full ISO string in the cell `title` (and
+   *  in the underlying field value, so /bulk still POSTs the precise value
+   *  the validator's `datetime({ offset: true })` requires). */
+  const dateColumns = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of params ?? []) {
+      if (p.format === "date" || p.format === "date-time") set.add(p.name);
+    }
+    return set;
+  }, [params]);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 text-gray-900 dark:text-gray-100">
       <div className="flex items-center justify-end gap-2">
@@ -852,6 +865,7 @@ export function BatchImporterView({
           headerMap={headerMap}
           expectedNames={expectedNames}
           expectedTypes={expectedTypes}
+          dateColumns={dateColumns}
           transforms={transforms}
           setColumnTransforms={setColumnTransforms}
           renameHeader={renameHeader}
@@ -897,6 +911,7 @@ interface PreviewProps {
   headerMap: Record<string, string>;
   expectedNames: string[];
   expectedTypes: Record<string, string>;
+  dateColumns: ReadonlySet<string>;
   transforms: Record<string, TransformStep[]>;
   setColumnTransforms: (target: string, steps: TransformStep[]) => void;
   renameHeader: (original: string, target: string) => void;
@@ -928,6 +943,7 @@ function VirtualPreview({
   headerMap,
   expectedNames,
   expectedTypes,
+  dateColumns,
   transforms,
   setColumnTransforms,
   renameHeader,
@@ -1195,6 +1211,7 @@ function VirtualPreview({
                       headers={doc.headers}
                       statusLabel={statusLabels[s.status]}
                       gridTemplate={gridTemplate}
+                      dateColumns={dateColumns}
                     />
                   </div>
                 );

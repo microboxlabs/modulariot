@@ -14,19 +14,60 @@ interface DotfileProfile {
   organizationId?: string;
 }
 
-interface Dotfile {
+export interface Dotfile {
   defaultProfile?: string;
   profiles: Record<string, DotfileProfile>;
 }
 
-function readDotfile(): Dotfile | undefined {
-  const filePath = path.join(os.homedir(), ".miotrc.json");
+export function getDotfilePath(): string {
+  return path.join(os.homedir(), ".miotrc.json");
+}
+
+export function readDotfile(): Dotfile | undefined {
+  const filePath = getDotfilePath();
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(raw) as Dotfile;
   } catch {
     return undefined;
   }
+}
+
+export function writeDotfile(dotfile: Dotfile): void {
+  const filePath = getDotfilePath();
+  fs.writeFileSync(filePath, `${JSON.stringify(dotfile, null, 2)}\n`, {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
+  try {
+    fs.chmodSync(filePath, 0o600);
+  } catch {
+    // Best-effort on filesystems that do not support POSIX modes.
+  }
+}
+
+export function upsertProfile(
+  profileName: string,
+  profile: DotfileProfile,
+): void {
+  const dotfile = readDotfile() ?? { profiles: {} };
+  dotfile.profiles[profileName] = profile;
+  dotfile.defaultProfile ??= profileName;
+  writeDotfile(dotfile);
+}
+
+export function removeProfile(profileName: string): boolean {
+  const dotfile = readDotfile();
+  if (!dotfile?.profiles[profileName]) {
+    return false;
+  }
+
+  delete dotfile.profiles[profileName];
+  if (dotfile.defaultProfile === profileName) {
+    dotfile.defaultProfile = Object.keys(dotfile.profiles)[0];
+  }
+  writeDotfile(dotfile);
+  return true;
 }
 
 export function resolveConfig(opts: {

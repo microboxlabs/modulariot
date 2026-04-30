@@ -1749,10 +1749,7 @@
         "defaultEnv": "Por defecto (env)",
         "defaultStrategy": "Estrategia de duplicados por defecto",
         "acceptedFileTypes": "Tipos de archivo aceptados",
-        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt).",
-        "cacheKey": "Clave de caché",
-        "cacheKeyPlaceholder": "Opcional",
-        "cacheKeyHint": "Namespace en localStorage para el caché de estado. Dejar vacío para generar uno automáticamente."
+        "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
       },
       "filterBarTitle": "Barra de Filtros",
       "filterBarDescription": "Configurar parámetros de filtro del dashboard",
@@ -1966,20 +1963,50 @@
       "batchImport": {
         "defaultTitle": "Importar datos",
         "title": "Importar datos",
-        "subtitle": "Pegue o cargue un CSV / TSV. Los encabezados de la primera fila se usan como claves del registro.",
+        "subtitle": "Pegue o cargue un archivo CSV / TSV / Excel. Los encabezados de la primera fila se usan como claves del registro.",
         "configureHint": "Configura un endpoint en ajustes",
-        "loadSample": "Cargar ejemplo",
         "loadFile": "Cargar archivo…",
         "pasteHint": "Pegue contenido tab-separado o separado por comas (copiar desde Excel funciona):",
         "headerError": {
           "empty": "El archivo está vacío.",
-          "no_headers": "La primera fila no tiene encabezados válidos."
+          "no_headers": "La primera fila no tiene encabezados válidos.",
+          "duplicate_mapping": "Dos columnas están mapeadas al mismo nombre destino. Renombra una para continuar.",
+          "parse_failed": "No se pudo leer este archivo. Puede estar dañado, protegido con contraseña o en un formato no soportado."
         },
         "statusCol": "Estado",
         "total": "Total",
-        "duplicates": "Duplicados:",
+        "parsing": "Analizando…",
+        "validating": "Validando…",
+        "validationError": "Re-validación fallida",
+        "renamed": "renombradas",
+        "was": "antes",
+        "renameColumn": "Haz clic para renombrar esta columna",
+        "editColumnOriginal": "Haz clic para editar. Original: {original}",
+        "schemaTitle": "Campos esperados",
+        "schemaMissing": "faltan {missing} de {total} requeridos",
+        "schemaAllMapped": "{total} requeridos mapeados",
+        "schemaColName": "nombre",
+        "schemaColType": "tipo",
+        "schemaColConstraints": "restricciones",
+        "schemaFieldPresent": "presente",
+        "schemaFieldMissing": "faltante",
+        "required": "requerido",
+        "optional": "opcional",
         "retryFailed": "Reintentar fallidos ({count})",
-        "clearCache": "Limpiar caché",
+        "download": "Descargar CSV",
+        "downloadHint": "Descargar la grilla actual (con columnas renombradas) como CSV",
+        "reset": "Reiniciar",
+        "clearAll": "Limpiar todo",
+        "clearAllHint": "Limpiar todo (archivo, pegado, renombres, estados) y empezar de nuevo",
+        "preview": "Vista previa",
+        "previewing": "Generando…",
+        "previewHint": "Mostrar el cuerpo exacto que se enviará a PostgREST por la primera fila (incluye metadata de auditoría).",
+        "previewTitle": "Vista previa del envío",
+        "previewClose": "Cerrar vista previa",
+        "previewRowLabel": "Fila {number}",
+        "previewEmpty": "No hay filas para previsualizar.",
+        "previewBodyTitle": "Cuerpo enviado a PostgREST",
+        "previewMetaTitle": "Metadata de auditoría (configurada)",
         "importing": "Importando…",
         "importN": "Importar {count} filas",
         "status": {
@@ -1994,6 +2021,32 @@
           "upsert": "Actualizar (upsert)",
           "skip": "Omitir",
           "create": "Solo crear (falla si existe)"
+        },
+        "validation": {
+          "required": "Requerido",
+          "expectedType": "Se esperaba {expected}, se recibió {received}",
+          "invalidEnum": "Valor inválido. Opciones: {options}",
+          "tooSmall": "Debe ser ≥ {minimum}",
+          "tooBig": "Debe ser ≤ {maximum}",
+          "invalidDate": "Fecha inválida",
+          "invalidString": "Formato inválido"
+        },
+        "transforms": {
+          "title": "Transformaciones",
+          "empty": "Sin transformaciones aplicadas.",
+          "remove": "Quitar transformación",
+          "add": "Agregar",
+          "kinds": {
+            "trim": "Recortar espacios",
+            "upper": "Mayúsculas",
+            "lower": "Minúsculas",
+            "abs": "Valor absoluto",
+            "round": "Redondear",
+            "fixed": "Decimales fijos"
+          },
+          "argLabel": {
+            "fixed": "Cantidad de decimales (0–20)"
+          }
         }
       }
     },

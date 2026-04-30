@@ -1,11 +1,8 @@
 import { describe, it, expect } from "vitest";
-import {
-  buildRowSchema,
-  validateRow,
-  type IntrospectedParam,
-} from "./validator";
+import { buildRowSchema, validateRow } from "./validator";
+import type { IntrospectedParameter } from "./shared";
 
-const FUEL_MATCH_PARAMS: IntrospectedParam[] = [
+const FUEL_MATCH_PARAMS: IntrospectedParameter[] = [
   { name: "p_patente", type: "string", format: "text", required: true },
   {
     name: "p_fecha",
@@ -14,10 +11,10 @@ const FUEL_MATCH_PARAMS: IntrospectedParam[] = [
     required: true,
   },
   { name: "p_litros", type: "number", format: "numeric", required: true },
-  { name: "p_odometro", type: "integer", format: "int4" },
-  { name: "p_monto", type: "number", format: "numeric" },
-  { name: "p_estacion", type: "string", format: "text" },
-  { name: "p_guia", type: "string", format: "text" },
+  { name: "p_odometro", type: "integer", format: "int4", required: false },
+  { name: "p_monto", type: "number", format: "numeric", required: false },
+  { name: "p_estacion", type: "string", format: "text", required: false },
+  { name: "p_guia", type: "string", format: "text", required: false },
 ];
 
 function validate(row: Record<string, string>, params = FUEL_MATCH_PARAMS) {
@@ -103,7 +100,7 @@ describe("buildRowSchema / validateRow", () => {
   });
 
   it("enforces enum", () => {
-    const params: IntrospectedParam[] = [
+    const params: IntrospectedParameter[] = [
       {
         name: "status",
         type: "string",
@@ -119,7 +116,7 @@ describe("buildRowSchema / validateRow", () => {
   });
 
   it("enforces numeric bounds", () => {
-    const params: IntrospectedParam[] = [
+    const params: IntrospectedParameter[] = [
       {
         name: "score",
         type: "integer",

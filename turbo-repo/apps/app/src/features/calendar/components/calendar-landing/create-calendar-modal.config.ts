@@ -61,6 +61,18 @@ export const CREATE_CALENDAR_FORM_CONFIG: DynamicFormConfig = {
       options: TIMEZONE_OPTIONS,
     },
     {
+      name: "filterOrigin",
+      labelKey: "create.filterOriginLabel",
+      type: "text",
+      placeholder: "SCL",
+    },
+    {
+      name: "filterDestination",
+      labelKey: "create.filterDestinationLabel",
+      type: "text",
+      placeholder: "ANF",
+    },
+    {
       name: "active",
       labelKey: "create.activeLabel",
       type: "checkbox",

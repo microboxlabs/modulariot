@@ -122,6 +122,7 @@ Create a new calendar.
 | `active` | `boolean` | No | `true` | Whether the calendar is active |
 | `parallelism` | `number` | No | `1` | Parallel resources per slot (e.g. loading docks) |
 | `groups` | `string[]` | No | — | Group codes to assign. `null` = no change; `[]` = remove all; `["code"]` = replace all |
+| `filter` | [`CalendarFilter`](#calendarfilter) | No | — | Task filter map (`origin?`, `destination?`). `null` = no change; `{}` = clear; populated = replace |
 
 **Returns:** `CalendarResponse`
 
@@ -531,12 +532,18 @@ interface CalendarRequest {
   groups?: string[];      // Group codes to assign. null = no change; [] = remove all; ["code"] = replace all
   filter?: CalendarFilter; // Optional task filter. null = no change; {} = clear; populated = replace
 }
+```
 
+### `CalendarFilter`
+
+```ts
 interface CalendarFilter {
   origin?: string;        // Origin delegate code (e.g., "ANF")
   destination?: string;   // Destination delegate code
 }
 ```
+
+Optional map persisted on a calendar so client UIs can constrain task lists tied to that calendar. Both keys are optional; when both are set, the backend AND-combines them.
 
 ### `CalendarResponse`
 

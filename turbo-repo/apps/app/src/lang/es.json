@@ -1474,6 +1474,18 @@
           "save": "Guardar",
           "saveSuccess": "Andenes actualizados",
           "saveError": "Error al actualizar andenes"
+        },
+        "taskFilter": {
+          "title": "Filtro de servicios",
+          "description": "Restringe el listado lateral a viajes con un origen y/o destino específicos.",
+          "originLabel": "Código de origen",
+          "destinationLabel": "Código de destino",
+          "originPlaceholder": "SCL",
+          "destinationPlaceholder": "ANF",
+          "hint": "Deja un campo vacío para no aplicar esa restricción. Si usas ambos, los viajes deben coincidir con los dos.",
+          "save": "Guardar",
+          "saveSuccess": "Filtro de servicios actualizado",
+          "saveError": "Error al actualizar el filtro"
         }
       }
     },
@@ -2961,6 +2973,8 @@
       "descriptionLabel": "Descripción",
       "timezoneLabel": "Zona Horaria",
       "groupLabel": "Grupo",
+      "filterOriginLabel": "Filtro de origen (opcional)",
+      "filterDestinationLabel": "Filtro de destino (opcional)",
       "activeLabel": "Activo",
       "submit": "Crear Calendario",
       "group": {

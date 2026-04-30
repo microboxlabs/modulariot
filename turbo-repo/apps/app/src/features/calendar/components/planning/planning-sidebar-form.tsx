@@ -26,6 +26,7 @@ import {
   HiUserAdd,
 } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
+import { formatOccupancyPercent } from "./planning-format";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
@@ -694,6 +695,7 @@ export function PlanningSidebarForm({
         <ProgressBar
           label={{ text: tr("pages.planning.sidebar.form.occupancy", dict) }}
           progress={occupancy}
+          value={{ text: formatOccupancyPercent(occupancy) }}
         />
       </FormSection>
       {/* Load Utilization Section */}

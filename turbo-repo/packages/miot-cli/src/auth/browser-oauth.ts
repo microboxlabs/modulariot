@@ -165,8 +165,10 @@ function createCallbackServer(options: {
               }),
             });
           } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error("Login callback error:", message);
             res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
-            res.end(err instanceof Error ? err.message : String(err));
+            res.end("Login failed. Check your terminal for details.");
             settled = true;
             server.close();
             rejectCallback(err);

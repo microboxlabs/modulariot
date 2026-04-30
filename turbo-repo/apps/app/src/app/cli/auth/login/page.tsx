@@ -37,7 +37,7 @@ function errorRedirect(redirectUri: URL, state: string, message: string): never 
 
 export default async function CliAuthLoginPage({
   searchParams,
-}: CliAuthLoginPageProps) {
+}: Readonly<CliAuthLoginPageProps>) {
   const { redirect_uri: redirectUriParam, state } = await searchParams;
   const redirectUri = parseLocalRedirectUri(redirectUriParam);
 

@@ -8,9 +8,10 @@ const PGREST_PATH_REGEX = /^[a-zA-Z_][\w/]*$/;
 type RouteContext = { params: Promise<{ functionName: string }> };
 
 function buildFetchOptions(req: NextRequest, rpcUrl: string, authHeader: string) {
+  const token = authHeader.startsWith("Bearer ") ? authHeader : `Bearer ${authHeader}`;
   const headers: Record<string, string> = {
     accept: "application/json",
-    Authorization: authHeader,
+    Authorization: token,
   };
   const fetchInit: RequestInit = { headers };
   let fullUrl = rpcUrl;

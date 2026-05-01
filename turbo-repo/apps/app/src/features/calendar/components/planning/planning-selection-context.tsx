@@ -1177,13 +1177,12 @@ export function PlanningSelectionProvider({
     [calendarId]
   );
 
-  /** Create or update local window slots against the API; returns error strings. */
-  const saveLocalWindows = useCallback(
+  /** Create or update local slots (windows AND blocks) against the API; returns error strings. */
+  const saveLocalSlots = useCallback(
     async (slots: TimeSlot[], currentIds: Set<string>): Promise<string[]> => {
       if (!calendarId) return [];
       const errors: string[] = [];
       for (const slot of slots) {
-        if (slot.kind !== "window") continue; // blocks are local-only
         try {
           const body = localToApiTimeWindow(slot);
           if (currentIds.has(slot.id)) {
@@ -1213,13 +1212,13 @@ export function PlanningSelectionProvider({
 
       const currentApiWindows = apiTimeWindows;
       const currentIds = new Set(currentApiWindows.map((w) => w.id));
-      const newWindowIds = new Set(
-        slots.filter((s) => s.kind === "window").map((s) => s.id)
-      );
+      // Both kinds round-trip through the API now; track every local id so
+      // we don't deactivate a block that's still present.
+      const newSlotIds = new Set(slots.map((s) => s.id));
 
       const [deactivateErrors, saveErrors] = await Promise.all([
-        deactivateRemovedWindows(currentApiWindows, newWindowIds),
-        saveLocalWindows(slots, currentIds),
+        deactivateRemovedWindows(currentApiWindows, newSlotIds),
+        saveLocalSlots(slots, currentIds),
       ]);
 
       // Reload from API to replace temp IDs with real server IDs
@@ -1235,7 +1234,7 @@ export function PlanningSelectionProvider({
       apiTimeWindows,
       refreshTimeWindows,
       deactivateRemovedWindows,
-      saveLocalWindows,
+      saveLocalSlots,
     ]
   );
 

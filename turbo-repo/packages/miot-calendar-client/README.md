@@ -177,6 +177,7 @@ Create a time window within a calendar.
 | `capacity` | `number` | No | `1` | Total number of services this window can handle across all slots |
 | `daysOfWeek` | `string` | No | — | Comma-separated days (1=Mon … 7=Sun) |
 | `active` | `boolean` | No | `true` | Whether the time window is active |
+| `color` | `string` | No | — | UI color token (e.g., `"emerald"`, `"amber"`) |
 
 **Returns:** `TimeWindowResponse`
 

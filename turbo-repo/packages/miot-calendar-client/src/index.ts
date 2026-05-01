@@ -12,6 +12,7 @@ export type {
   CalendarFilter,
   CalendarRequest,
   CalendarResponse,
+  TimeWindowKind,
   TimeWindowRequest,
   TimeWindowResponse,
   GenerateSlotsRequest,

@@ -94,6 +94,16 @@ export interface CalendarResponse {
 
 // --- Time Windows ---
 
+/**
+ * Discriminator for a time window.
+ *
+ * - `WINDOW` — bookable period with a capacity quota (the historical default).
+ * - `BLOCK`  — non-bookable period (holiday, maintenance, manual closure);
+ *   slot generation produces CLOSED slots so the planning UI can paint them
+ *   and the backend rejects bookings against them.
+ */
+export type TimeWindowKind = "WINDOW" | "BLOCK";
+
 export interface TimeWindowRequest {
   name: string;
   startHour: number;
@@ -104,6 +114,8 @@ export interface TimeWindowRequest {
   validTo?: string;
   active?: boolean;
   color?: string;
+  /** Defaults to `WINDOW` server-side when omitted. */
+  kind?: TimeWindowKind;
 }
 
 export interface TimeWindowResponse {
@@ -119,6 +131,7 @@ export interface TimeWindowResponse {
   validTo?: string;
   active: boolean;
   color?: string;
+  kind: TimeWindowKind;
   createdAt: string;
   updatedAt: string;
 }

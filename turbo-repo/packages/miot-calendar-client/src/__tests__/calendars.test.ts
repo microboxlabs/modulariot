@@ -33,6 +33,7 @@ const sampleTimeWindow: TimeWindowResponse = {
   daysOfWeek: "MON,TUE,WED,THU,FRI",
   validFrom: "2025-01-01",
   active: true,
+  kind: "WINDOW",
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: "2025-01-01T00:00:00Z",
 };
@@ -194,6 +195,29 @@ describe("calendars", () => {
         `${BASE_URL}${CALENDARS_PATH}/cal-1/time-windows`,
       );
       expect(call.init.body).toBe(JSON.stringify(twRequest));
+    });
+
+    it("forwards kind=BLOCK and surfaces it on the response", async () => {
+      const blockRequest: TimeWindowRequest = {
+        name: "Maintenance",
+        startHour: 10,
+        endHour: 12,
+        validFrom: "2025-01-01",
+        kind: "BLOCK",
+      };
+      const blockResponse: TimeWindowResponse = {
+        ...sampleTimeWindow,
+        capacity: 0,
+        kind: "BLOCK",
+      };
+      const { fn, call } = createMockFetch(blockResponse);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const result = await client.calendars.createTimeWindow("cal-1", blockRequest);
+
+      expect(call.init.body).toBe(JSON.stringify(blockRequest));
+      expect(result.kind).toBe("BLOCK");
+      expect(result.capacity).toBe(0);
     });
   });
 

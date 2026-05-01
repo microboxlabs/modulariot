@@ -13,12 +13,15 @@ import {
 } from "./planning-selection-context";
 import { categorizeIncidencias } from "./incidencias.types";
 import { formatPercent } from "./planning-format";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 // Set Spanish locale for dayjs
 dayjs.locale("es");
 
 export interface ServiceEventProps {
   readonly service: SelectedService;
+  readonly dict: I18nRecord;
   readonly className?: string;
 }
 
@@ -67,7 +70,7 @@ function getOccupancyColor(percentage: number): string {
  * 2. KPIs (Lead Time, Ocupación)
  * 3. Static (Cliente, Origen → Destino)
  */
-export function ServiceEvent({ service, className }: ServiceEventProps) {
+export function ServiceEvent({ service, dict, className }: ServiceEventProps) {
   const { selectedService, selectService } = usePlanningSelection();
 
   const isSelected = selectedService?.id === service.id;
@@ -200,7 +203,9 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
             {/* Collapsed count for remaining secondary incidencias */}
             {collapsedSecondaryCount > 0 && (
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                (+{collapsedSecondaryCount} más)
+                {tr("pages.planning.sidebar.form.showMore", dict, {
+                  count: String(collapsedSecondaryCount),
+                })}
               </span>
             )}
           </div>

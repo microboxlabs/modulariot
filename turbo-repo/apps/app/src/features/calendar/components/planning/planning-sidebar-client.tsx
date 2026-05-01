@@ -758,7 +758,7 @@ export function PlanningSidebarClient({
                           "ring-2 ring-amber-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-800"
                       )}
                     >
-                      <ServiceEvent service={service} />
+                      <ServiceEvent service={service} dict={dict} />
                     </div>
                   );
                 })

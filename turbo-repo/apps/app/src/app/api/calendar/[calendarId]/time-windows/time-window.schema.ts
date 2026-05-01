@@ -10,4 +10,5 @@ export const TimeWindowRequestSchema = z.object({
   validTo: z.string().optional(),
   active: z.boolean().optional(),
   color: z.string().optional(),
+  kind: z.enum(["WINDOW", "BLOCK"]).optional(),
 });

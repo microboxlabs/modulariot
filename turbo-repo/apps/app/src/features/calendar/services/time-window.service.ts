@@ -22,6 +22,9 @@ export const TimeWindowResponseSchema = z.object({
     .nullish(),
   active: z.boolean(),
   color: z.string().nullish(),
+  // Defaulted server-side to WINDOW; older deployments that haven't shipped
+  // the discriminator yet are tolerated via the default.
+  kind: z.enum(["WINDOW", "BLOCK"]).default("WINDOW"),
 });
 
 type ValidatedTimeWindowResponse = z.infer<typeof TimeWindowResponseSchema>;
@@ -70,6 +73,9 @@ function hourToHHMM(hour: number): string {
  * Convention:
  *  - If validFrom === validTo → "daily-override" (specific-date window)
  *  - Otherwise              → "weekly" (recurring weekly pattern)
+ *
+ * The API `kind` (WINDOW | BLOCK) maps directly to the local discriminant
+ * (window | block); BLOCK rows carry capacity = 0 from the backend.
  */
 export function apiToLocalTimeWindow(
   response: ValidatedTimeWindowResponse
@@ -78,6 +84,7 @@ export function apiToLocalTimeWindow(
     Boolean(response.validTo) && response.validFrom === response.validTo;
 
   const color = (response.color as TimeWindowColor | undefined) ?? "emerald";
+  const localKind = response.kind === "BLOCK" ? "block" : "window";
 
   if (isDailyOverride) {
     const startTs = `${response.validFrom}T${response.startHour.toString().padStart(2, "0")}:00:00`;
@@ -85,7 +92,7 @@ export function apiToLocalTimeWindow(
     return {
       id: response.id,
       name: response.name,
-      kind: "window",
+      kind: localKind,
       type: "daily-override",
       startTimestamp: startTs,
       endTimestamp: endTs,
@@ -104,7 +111,7 @@ export function apiToLocalTimeWindow(
   return {
     id: response.id,
     name: response.name,
-    kind: "window",
+    kind: localKind,
     type: "weekly",
     weeklyPattern,
     quota: response.capacity,
@@ -123,6 +130,11 @@ export function localToApiTimeWindow(
   slot: TimeSlot,
   validFrom?: string
 ): TimeWindowRequest {
+  const apiKind = slot.kind === "block" ? "BLOCK" : "WINDOW";
+  // Blocks have no quota — the backend ignores capacity for BLOCK rows but
+  // requires a non-negative number; send 0 explicitly.
+  const capacity = slot.kind === "block" ? 0 : slot.quota ?? 1;
+
   if (slot.type === "daily-override") {
     const start = slot.startTimestamp ? dayjs(slot.startTimestamp) : dayjs();
     const end = slot.endTimestamp
@@ -139,9 +151,10 @@ export function localToApiTimeWindow(
       validFrom: dateStr,
       validTo: dateStr,
       daysOfWeek: String(formatDay),
-      capacity: slot.quota ?? 1,
+      capacity,
       active: true,
       color: slot.color,
+      kind: apiKind,
     };
   }
 
@@ -156,9 +169,10 @@ export function localToApiTimeWindow(
       endHour: 17,
       validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
       daysOfWeek: "1,2,3,4,5",
-      capacity: slot.quota ?? 1,
+      capacity,
       active: true,
       color: slot.color,
+      kind: apiKind,
     };
   }
 
@@ -173,8 +187,9 @@ export function localToApiTimeWindow(
     endHour,
     validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
     daysOfWeek: days.join(","),
-    capacity: slot.quota ?? 1,
+    capacity,
     active: true,
     color: slot.color,
+    kind: apiKind,
   };
 }

@@ -103,6 +103,7 @@ export interface TimeWindowRequest {
   daysOfWeek?: string;
   validTo?: string;
   active?: boolean;
+  color?: string;
 }
 
 export interface TimeWindowResponse {
@@ -117,6 +118,7 @@ export interface TimeWindowResponse {
   validFrom: string;
   validTo?: string;
   active: boolean;
+  color?: string;
   createdAt: string;
   updatedAt: string;
 }

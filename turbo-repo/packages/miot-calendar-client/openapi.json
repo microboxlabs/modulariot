@@ -742,6 +742,12 @@
             "type" : "boolean",
             "description" : "Whether the time window is active",
             "default" : true
+          },
+          "color" : {
+            "type" : "string",
+            "examples" : [ "emerald" ],
+            "maxLength" : 32,
+            "description" : "UI color token for displaying this time window (e.g., \"emerald\", \"amber\")"
           }
         }
       },
@@ -813,6 +819,11 @@
           "active" : {
             "type" : "boolean",
             "description" : "Whether the time window is active"
+          },
+          "color" : {
+            "type" : "string",
+            "examples" : [ "emerald" ],
+            "description" : "UI color token for displaying this time window (e.g., \"emerald\", \"amber\")"
           },
           "createdAt" : {
             "$ref" : "#/components/schemas/ZonedDateTime",

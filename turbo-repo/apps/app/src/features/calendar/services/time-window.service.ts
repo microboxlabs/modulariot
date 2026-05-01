@@ -1,6 +1,9 @@
 import type { TimeWindowRequest } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
-import type { TimeSlot } from "../components/planning/planning-selection-context";
+import type {
+  TimeSlot,
+  TimeWindowColor,
+} from "../components/planning/planning-selection-context";
 import dayjs from "dayjs";
 
 export const TimeWindowResponseSchema = z.object({
@@ -18,6 +21,7 @@ export const TimeWindowResponseSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullish(),
   active: z.boolean(),
+  color: z.string().nullish(),
 });
 
 type ValidatedTimeWindowResponse = z.infer<typeof TimeWindowResponseSchema>;
@@ -73,6 +77,8 @@ export function apiToLocalTimeWindow(
   const isDailyOverride =
     Boolean(response.validTo) && response.validFrom === response.validTo;
 
+  const color = (response.color as TimeWindowColor | undefined) ?? "emerald";
+
   if (isDailyOverride) {
     const startTs = `${response.validFrom}T${response.startHour.toString().padStart(2, "0")}:00:00`;
     const endTs = `${response.validTo ?? response.validFrom}T${response.endHour.toString().padStart(2, "0")}:00:00`;
@@ -84,7 +90,7 @@ export function apiToLocalTimeWindow(
       startTimestamp: startTs,
       endTimestamp: endTs,
       quota: response.capacity,
-      color: "emerald",
+      color,
     };
   }
 
@@ -102,7 +108,7 @@ export function apiToLocalTimeWindow(
     type: "weekly",
     weeklyPattern,
     quota: response.capacity,
-    color: "emerald",
+    color,
   };
 }
 
@@ -135,6 +141,7 @@ export function localToApiTimeWindow(
       daysOfWeek: String(formatDay),
       capacity: slot.quota ?? 1,
       active: true,
+      color: slot.color,
     };
   }
 
@@ -151,6 +158,7 @@ export function localToApiTimeWindow(
       daysOfWeek: "1,2,3,4,5",
       capacity: slot.quota ?? 1,
       active: true,
+      color: slot.color,
     };
   }
 
@@ -167,5 +175,6 @@ export function localToApiTimeWindow(
     daysOfWeek: days.join(","),
     capacity: slot.quota ?? 1,
     active: true,
+    color: slot.color,
   };
 }

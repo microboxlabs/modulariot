@@ -9,4 +9,5 @@ export const TimeWindowRequestSchema = z.object({
   daysOfWeek: z.string().optional(),
   validTo: z.string().optional(),
   active: z.boolean().optional(),
+  color: z.string().optional(),
 });

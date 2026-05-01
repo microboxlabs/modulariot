@@ -89,8 +89,14 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
   // Categorize using the codes - the dictionary will map C307/C309 to their configs
   const { primary, secondary } = categorizeIncidencias(incidentCodes);
   const hasFlags = primary.length > 0 || secondary.length > 0;
-  // Show secondary directly if no primary and 2 or fewer secondary
-  const showSecondaryDirectly = primary.length === 0 && secondary.length <= 2;
+  // Always reserve up to INLINE_BUDGET inline slots: primary first, then top up with secondary.
+  const INLINE_BUDGET = 2;
+  const inlineSecondaryCount = Math.max(
+    0,
+    Math.min(secondary.length, INLINE_BUDGET - primary.length)
+  );
+  const inlineSecondary = secondary.slice(0, inlineSecondaryCount);
+  const collapsedSecondaryCount = secondary.length - inlineSecondaryCount;
 
   const handleClick = () => {
     selectService(service);
@@ -174,28 +180,27 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
               );
             })}
 
-            {/* Secondary incidencias - shown directly if ≤2 and no primary */}
-            {showSecondaryDirectly &&
-              secondary.map(({ key, config }) => {
-                const tooltip =
-                  codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
-                return (
-                  <Badge
-                    key={key}
-                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 cursor-help"
-                    color="gray"
-                    size="xs"
-                    title={tooltip}
-                  >
-                    {config.label}
-                  </Badge>
-                );
-              })}
+            {/* Inline secondary incidencias - always visible */}
+            {inlineSecondary.map(({ key, config }) => {
+              const tooltip =
+                codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+              return (
+                <Badge
+                  key={key}
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 cursor-help"
+                  color="gray"
+                  size="xs"
+                  title={tooltip}
+                >
+                  {config.label}
+                </Badge>
+              );
+            })}
 
-            {/* Secondary incidencias count - not clickable, only if not showing directly */}
-            {!showSecondaryDirectly && secondary.length > 0 && (
+            {/* Collapsed count for remaining secondary incidencias */}
+            {collapsedSecondaryCount > 0 && (
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                (+{secondary.length} más)
+                (+{collapsedSecondaryCount} más)
               </span>
             )}
           </div>

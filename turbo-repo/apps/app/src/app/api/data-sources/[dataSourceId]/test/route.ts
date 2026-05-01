@@ -86,7 +86,6 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 
     const bearerResult = await resolveBearerToken(ds.config, dataSourceId);
     logger.info(buildBearerLogFields(dataSourceId, bearerResult), "Test: bearer token result");
-    console.log(bearerResult, "Test: full bearer");
 
     if (!bearerResult.ok) {
       const now = new Date().toISOString();

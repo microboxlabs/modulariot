@@ -123,6 +123,7 @@ Create a new calendar.
 | `parallelism` | `number` | No | `1` | Parallel resources per slot (e.g. loading docks) |
 | `groups` | `string[]` | No | — | Group codes to assign. `null` = no change; `[]` = remove all; `["code"]` = replace all |
 | `filter` | [`CalendarFilter`](#calendarfilter) | No | — | Task filter map (`origin?`, `destination?`). `null` = no change; `{}` = clear; populated = replace |
+| `autoSlotManager` | `boolean` | No | `true` | Auto-provision a default SlotManager when the calendar is created |
 
 **Returns:** `CalendarResponse`
 
@@ -153,6 +154,8 @@ Deactivate a calendar (soft delete).
 
 Time windows are managed through the `calendars` namespace.
 
+Time windows can be normal bookable windows or non-bookable blocks. `kind: "WINDOW"` is the historical default and generates bookable capacity. `kind: "BLOCK"` represents closures such as holidays, maintenance, or manual downtime; slot generation creates closed slots and the backend rejects bookings against them.
+
 #### `calendars.listTimeWindows(calendarId)`
 
 List all time windows for a calendar.
@@ -178,6 +181,7 @@ Create a time window within a calendar.
 | `daysOfWeek` | `string` | No | — | Comma-separated days (1=Mon … 7=Sun) |
 | `active` | `boolean` | No | `true` | Whether the time window is active |
 | `color` | `string` | No | — | UI color token (e.g., `"emerald"`, `"amber"`) |
+| `kind` | [`TimeWindowKind`](#timewindowkind) | No | `"WINDOW"` | Whether this is a bookable window or a non-bookable block |
 
 **Returns:** `TimeWindowResponse`
 
@@ -532,6 +536,7 @@ interface CalendarRequest {
   parallelism?: number;   // Parallel resources per slot (default: 1, e.g. loading docks)
   groups?: string[];      // Group codes to assign. null = no change; [] = remove all; ["code"] = replace all
   filter?: CalendarFilter; // Optional task filter. null = no change; {} = clear; populated = replace
+  autoSlotManager?: boolean; // Auto-provision a default SlotManager on create (default: true)
 }
 ```
 
@@ -561,8 +566,18 @@ interface CalendarResponse {
   updatedAt: string;                   // ISO 8601
   groups?: CalendarGroupResponse[];    // Groups this calendar belongs to
   filter?: CalendarFilter;             // Optional task filter (origin / destination delegate codes)
+  hasSlotManager?: boolean;            // Whether this calendar has a SlotManager provisioned
 }
 ```
+
+### `TimeWindowKind`
+
+```ts
+type TimeWindowKind = "WINDOW" | "BLOCK";
+```
+
+- `WINDOW` — bookable period with a capacity quota.
+- `BLOCK` — non-bookable period such as a holiday, maintenance window, or manual closure. Slot generation produces `CLOSED` slots for blocks.
 
 ### `TimeWindowRequest`
 
@@ -576,6 +591,8 @@ interface TimeWindowRequest {
   capacity?: number;            // Default: 1 — total services this window can handle
   daysOfWeek?: string;          // Comma-separated: "1,2,3,4,5" (1=Mon, 7=Sun)
   active?: boolean;             // Default: true
+  color?: string;               // UI color token, e.g. "emerald" or "amber"
+  kind?: TimeWindowKind;        // Default: "WINDOW"; use "BLOCK" for non-bookable periods
 }
 ```
 
@@ -594,6 +611,8 @@ interface TimeWindowResponse {
   validFrom: string;
   validTo?: string;
   active: boolean;              // Always present (default: true)
+  color?: string;               // UI color token
+  kind: TimeWindowKind;         // "WINDOW" or "BLOCK"
   createdAt: string;            // ISO 8601
   updatedAt: string;            // ISO 8601
 }

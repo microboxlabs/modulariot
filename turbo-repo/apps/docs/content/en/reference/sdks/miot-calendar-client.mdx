@@ -61,13 +61,13 @@ const booking = await client.bookings.create({
 ## Features
 
 ### Calendars
-Create and manage calendars with timezone support. Each calendar groups time windows, slots, and bookings. Optionally assign calendars to one or more groups via the `groups` field on create or update.
+Create and manage calendars with timezone support. Each calendar groups time windows, slots, and bookings. Optionally assign calendars to one or more groups via the `groups` field, persist task filters such as `origin` and `destination` with `filter`, and inspect whether a SlotManager has been provisioned with `hasSlotManager`.
 
 ### Calendar Groups
 Organize calendars into named groups with `client.groups`. Filter calendar lists by `groupCode`, and read which groups a calendar belongs to from `CalendarResponse.groups`.
 
 ### Time Windows
-Define recurring availability windows — specify hours, days of week, slot duration, and capacity per slot.
+Define recurring availability windows with hours, days of week, capacity, and UI color tokens. Time windows can also be marked as `WINDOW` for bookable capacity or `BLOCK` for non-bookable closures such as holidays, maintenance, or manual downtime.
 
 ### Slots
 Generate slots automatically from time windows, or manage them individually. Filter by availability, date range, and calendar.

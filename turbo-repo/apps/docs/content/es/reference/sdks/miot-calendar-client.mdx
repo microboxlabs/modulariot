@@ -61,13 +61,13 @@ const booking = await client.bookings.create({
 ## Funcionalidades
 
 ### Calendarios
-Crea y gestiona calendarios con soporte de zona horaria. Cada calendario agrupa ventanas horarias, slots y reservas. Opcionalmente, asigna calendarios a uno o más grupos mediante el campo `groups` al crear o actualizar.
+Crea y gestiona calendarios con soporte de zona horaria. Cada calendario agrupa ventanas horarias, slots y reservas. Opcionalmente, asigna calendarios a uno o más grupos mediante `groups`, persiste filtros de tareas como `origin` y `destination` con `filter`, y consulta si tiene un SlotManager provisionado mediante `hasSlotManager`.
 
 ### Grupos de calendarios
 Organiza calendarios en grupos con nombre mediante `client.groups`. Filtra listas de calendarios por `groupCode`, y consulta a qué grupos pertenece un calendario desde `CalendarResponse.groups`.
 
 ### Ventanas horarias
-Define ventanas de disponibilidad recurrentes — especifica horas, días de la semana, duración del slot y capacidad por slot.
+Define ventanas de disponibilidad recurrentes con horas, días de la semana, capacidad y tokens de color para la UI. Las ventanas también pueden marcarse como `WINDOW` para capacidad reservable o `BLOCK` para cierres no reservables como feriados, mantención o bloqueos manuales.
 
 ### Slots
 Genera slots automáticamente a partir de ventanas horarias, o gestiónales individualmente. Filtra por disponibilidad, rango de fechas y calendario.

@@ -21,6 +21,48 @@ Features and improvements in development:
 
 ## Lanzamientos Recientes
 
+### `miot-calendar-client` v0.8.0 — Bloqueos de ventanas horarias (2026-05-02)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Agrega soporte tipado para distinguir ventanas horarias reservables de bloqueos no reservables.
+
+**Actualizado — `client.calendars`:**
+- `calendars.createTimeWindow()` y `calendars.updateTimeWindow()` aceptan `TimeWindowRequest.kind?: TimeWindowKind` — usa `WINDOW` para capacidad reservable o `BLOCK` para cierres
+- `TimeWindowResponse.kind: TimeWindowKind` — las respuestas ahora identifican si cada ventana horaria es reservable o un bloqueo
+
+**Nuevos tipos exportados:** `TimeWindowKind`
+
+---
+
+### `miot-calendar-client` v0.7.0 — Colores de ventanas horarias (2026-05-02)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Agrega un campo de color para que las interfaces de planificación puedan persistir y renderizar selecciones de color del calendario a través de la API.
+
+**Actualizado — `client.calendars`:**
+- `TimeWindowRequest.color?: string` — token opcional de color de UI al crear o actualizar una ventana horaria
+- `TimeWindowResponse.color?: string` — token opcional de color de UI retornado con los datos de la ventana horaria
+
+---
+
+### `miot-calendar-client` v0.6.0 — Filtros de tareas por calendario (2026-05-02)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Agrega filtros de tareas a nivel de calendario y expone metadatos de provisionamiento de SlotManager para pantallas de configuración.
+
+**Actualizado — `client.calendars`:**
+- `CalendarRequest.filter?: CalendarFilter` — persiste filtros de tareas como `origin` y `destination` en un calendario
+- `CalendarRequest.autoSlotManager?: boolean` — solicita provisionamiento de SlotManager por defecto al crear un calendario
+- `CalendarResponse.filter?: CalendarFilter` — lee el filtro de tareas persistido desde las respuestas de calendario
+- `CalendarResponse.hasSlotManager?: boolean` — consulta si un calendario tiene un SlotManager provisionado
+
+**Nuevos tipos exportados:** `CalendarFilter`
+
+---
+
 ### `miot-calendar-client` v0.3.0 — Gestores de Slots (2026-02-20)
 
 **`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)

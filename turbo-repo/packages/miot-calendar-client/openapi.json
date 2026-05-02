@@ -748,12 +748,22 @@
             "examples" : [ "emerald" ],
             "maxLength" : 32,
             "description" : "UI color token for displaying this time window (e.g., \"emerald\", \"amber\")"
+          },
+          "kind" : {
+            "$ref" : "#/components/schemas/TimeWindowKind",
+            "description" : "Whether this time window is bookable capacity (WINDOW) or a non-bookable closure (BLOCK)",
+            "default" : "WINDOW"
           }
         }
       },
+      "TimeWindowKind" : {
+        "type" : "string",
+        "enum" : [ "WINDOW", "BLOCK" ],
+        "description" : "Discriminator for time-window behavior. WINDOW creates bookable capacity; BLOCK creates non-bookable closed slots."
+      },
       "TimeWindowResponse" : {
         "type" : "object",
-        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacity", "daysOfWeek", "validFrom", "active", "createdAt", "updatedAt" ],
+        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacity", "daysOfWeek", "validFrom", "active", "kind", "createdAt", "updatedAt" ],
         "description" : "Time window data returned by the API",
         "properties" : {
           "id" : {
@@ -824,6 +834,10 @@
             "type" : "string",
             "examples" : [ "emerald" ],
             "description" : "UI color token for displaying this time window (e.g., \"emerald\", \"amber\")"
+          },
+          "kind" : {
+            "$ref" : "#/components/schemas/TimeWindowKind",
+            "description" : "Whether this time window is bookable capacity (WINDOW) or a non-bookable closure (BLOCK)"
           },
           "createdAt" : {
             "$ref" : "#/components/schemas/ZonedDateTime",

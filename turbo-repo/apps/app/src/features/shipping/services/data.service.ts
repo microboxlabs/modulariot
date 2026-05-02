@@ -64,6 +64,8 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
   return {
     id: task.id as string,
     name,
+    mintral_serviceCode:
+      task.mintral_serviceCode == null ? undefined : String(serviceCode),
     description: task.bpm_description as string,
     completed: task.state === "COMPLETED",
     daysLeft: 2,

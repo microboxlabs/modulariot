@@ -11,7 +11,6 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
-  type TaskStage,
   getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
@@ -26,20 +25,6 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
-
-const KNOWN_TASK_STAGES = new Set<TaskStage>([
-  "planService",
-  "assignDriver",
-  "presentDriver",
-  "prepareService",
-  "missionControl",
-]);
-
-function asTaskStage(columnKey: string): TaskStage | undefined {
-  return KNOWN_TASK_STAGES.has(columnKey as TaskStage)
-    ? (columnKey as TaskStage)
-    : undefined;
-}
 
 interface PlanningSidebarClientProps {
   dict: I18nDictionary;
@@ -132,18 +117,14 @@ function toPercent(value: number | null | undefined): number {
 }
 
 // Transform KanbanBoardTask to SelectedService
-function transformTaskToService(
-  task: KanbanBoardTask,
-  currentStage: TaskStage | undefined
-): SelectedService {
+function transformTaskToService(task: KanbanBoardTask): SelectedService {
   const serviceId = task.name || task.id;
   const tipoViaje = determineTripType(task);
   const permanencia = calculatePermanencia(task);
 
   return {
     id: serviceId,
-    taskId: task.id,
-    currentStage,
+    mintral_serviceCode: task.mintral_serviceCode,
     cliente: task.client || task.clientCode || "",
     mintral_clientRut: task.mintral_clientRut,
     mintral_delegacionOrigen: task.mintral_delegacionOrigen,
@@ -211,6 +192,7 @@ export function PlanningSidebarClient({
     isSlotsLoading,
     bookingVersion,
     isSidebarOpen,
+    getLiveTask,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -316,18 +298,19 @@ export function PlanningSidebarClient({
     }
   }, [bookingVersion, refreshTasks]);
 
-  // Transform API data to SelectedService array. Iterate column-by-column so
-  // we can tag each service with the kanban stage it came from — needed to
-  // pick the correct workflow transition when the user plans or assigns it.
+  // Transform API data to SelectedService array. The kanban stage isn't
+  // attached here — every consumer that needs the current stage for a
+  // service should resolve it via context's `getLiveTask`, which reads the
+  // freshly fetched workflow index by `mintral_serviceCode` and is stable
+  // across stage advances.
   const apiServices = useMemo(() => {
     if (!myTasksData?.data) return [];
 
     const services: SelectedService[] = [];
-    for (const [columnKey, board] of Object.entries(myTasksData.data)) {
-      const stage = asTaskStage(columnKey);
+    for (const board of Object.values(myTasksData.data)) {
       for (const task of board.tasks) {
         services.push(
-          transformTaskToService({ ...task, title: board.title }, stage)
+          transformTaskToService({ ...task, title: board.title })
         );
       }
     }
@@ -704,6 +687,10 @@ export function PlanningSidebarClient({
             slotEndTime={displayState.formattedSlot?.endTime}
             backendSlots={backendSlots}
             isSlotsLoading={isSlotsLoading}
+            liveTaskStage={
+              getLiveTask(displayState.selectedService?.mintral_serviceCode)
+                ?.stage
+            }
           />
         ) : (
           <div className="flex flex-col gap-3">

@@ -232,6 +232,14 @@
         "title": "Plan Trip",
         "assignmentTitle": "Assign Trip",
         "servicesList": "Today's Services",
+        "taskStage": {
+          "label": "Status",
+          "planService": "Plan Service",
+          "assignDriver": "Assign Driver",
+          "presentDriver": "Present Driver",
+          "prepareService": "Control Service",
+          "missionControl": "Start Trip"
+        },
         "noServiceSelected": "Select a service from the calendar to assign driver and vehicle",
         "selectServiceHint": "Select a service to assign driver and vehicle",
         "searchPlaceholder": "Search by client, id, origin, destination, loading place, permanence, trip type...",

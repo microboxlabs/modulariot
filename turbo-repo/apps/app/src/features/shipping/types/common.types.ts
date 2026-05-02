@@ -21,6 +21,14 @@ export type Task = {
 export type KanbanBoardTask = {
   id: string;
   name: string;
+  /**
+   * Stable business identifier for the service. Unlike `id` (which is the
+   * Alfresco task instance id and changes on every workflow stage advance)
+   * and `name` (a derived display label), this value is the same across the
+   * service's whole lifecycle and is the only safe key to correlate kanban
+   * tasks with calendar bookings or other persisted state.
+   */
+  mintral_serviceCode?: string;
   description: string;
   completed: boolean;
   daysLeft: number;

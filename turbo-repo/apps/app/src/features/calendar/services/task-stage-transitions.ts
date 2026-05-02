@@ -22,9 +22,43 @@ export function getNextTransition(
 }
 
 /**
- * Workflow transition fired when "Eliminar Planificación" cancels a booking.
- * Mirrors the forward `planService → assignDriver` transition so the task
- * returns to the planService column. Only valid from the assignDriver stage —
- * a planned service in a later stage would need to be unassigned first.
+ * Workflow transitions fired when "Eliminar Planificación" cancels a booking,
+ * keyed by the task's *live* kanban stage. Each entry steps the workflow one
+ * stage back toward `planService`. Stages omitted produce no transition
+ * (either already at planService, or removing the planning from there is
+ * not a single backward step and requires unassigning first).
  */
-export const UNPLAN_TRANSITION = "Planificar Servicio";
+const UNPLAN_TRANSITIONS: Partial<Record<TaskStage, string>> = {
+  assignDriver: "Planificar Servicio",
+};
+
+export function getUnplanTransition(
+  stage: TaskStage | undefined
+): string | undefined {
+  return stage ? UNPLAN_TRANSITIONS[stage] : undefined;
+}
+
+/**
+ * Kanban column keys that the planning calendar cares about. The kanban
+ * board API returns tasks grouped by these keys, which double as our
+ * `TaskStage` identifiers everywhere in the planning UI.
+ */
+const KNOWN_TASK_STAGES = new Set<TaskStage>([
+  "planService",
+  "assignDriver",
+  "presentDriver",
+  "prepareService",
+  "missionControl",
+]);
+
+/**
+ * Narrow a kanban column key (the string the board API uses) to a
+ * `TaskStage`, or undefined for columns the calendar doesn't track.
+ */
+export function asTaskStageFromColumn(
+  columnKey: string
+): TaskStage | undefined {
+  return KNOWN_TASK_STAGES.has(columnKey as TaskStage)
+    ? (columnKey as TaskStage)
+    : undefined;
+}

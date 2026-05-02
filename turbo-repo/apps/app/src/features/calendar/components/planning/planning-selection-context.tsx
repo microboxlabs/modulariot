@@ -34,7 +34,10 @@ import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
-import { getNextTransition } from "@/features/calendar/services/task-stage-transitions";
+import {
+  getNextTransition,
+  UNPLAN_TRANSITION,
+} from "@/features/calendar/services/task-stage-transitions";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   apiToLocalTimeWindow,
@@ -1583,6 +1586,16 @@ export function PlanningSelectionProvider({
    */
   const removeService = useCallback(
     async (serviceId: string) => {
+      // Move the workflow task back to planService BEFORE cancelling the
+      // booking. If the transition fails (e.g. task in a stage that doesn't
+      // expose this transition), bail out so the calendar still shows the
+      // service and the user can retry — mirrors the consistency guarantee
+      // the bookings POST gives on the forward direction.
+      const planned = plannedServices.find((p) => p.service.id === serviceId);
+      if (planned?.service.taskId) {
+        await advanceWorkflowTask(planned.service.taskId, UNPLAN_TRANSITION);
+      }
+
       // Cancel the booking in the calendar backend
       const bookingId = bookingIds.get(serviceId);
       if (bookingId) {
@@ -1604,7 +1617,7 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds]
+    [bookingIds, plannedServices]
   );
 
   /**

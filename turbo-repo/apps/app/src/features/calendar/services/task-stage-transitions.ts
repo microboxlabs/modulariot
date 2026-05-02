@@ -20,3 +20,11 @@ export function getNextTransition(
 ): string | undefined {
   return stage ? NEXT_TRANSITION[stage] : undefined;
 }
+
+/**
+ * Workflow transition fired when "Eliminar Planificación" cancels a booking.
+ * Mirrors the forward `planService → assignDriver` transition so the task
+ * returns to the planService column. Only valid from the assignDriver stage —
+ * a planned service in a later stage would need to be unassigned first.
+ */
+export const UNPLAN_TRANSITION = "Planificar Servicio";

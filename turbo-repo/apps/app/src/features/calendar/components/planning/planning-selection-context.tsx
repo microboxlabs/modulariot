@@ -20,6 +20,7 @@ import {
   useCalendarTimeWindows,
   useCalendarSlots,
   useCalendars,
+  useMyTasks,
   createCalendarTimeWindow,
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
@@ -34,7 +35,11 @@ import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
-import { getNextTransition } from "@/features/calendar/services/task-stage-transitions";
+import {
+  asTaskStageFromColumn,
+  getNextTransition,
+  getUnplanTransition,
+} from "@/features/calendar/services/task-stage-transitions";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   apiToLocalTimeWindow,
@@ -557,8 +562,13 @@ export const TEST_SERVICE: SelectedService = TEST_SERVICES[0];
  */
 export interface SelectedService {
   id: string;
-  /** Alfresco workflow task id used for task formprocessor updates. */
-  taskId?: string;
+  /**
+   * Stable business id for the service (e.g. "1626876"). Mirrors
+   * `mintral_serviceCode` from Alfresco; the only key that survives every
+   * workflow stage advance, so use it — never `taskId` or `id` — when
+   * resolving the live workflow task for a planned service.
+   */
+  mintral_serviceCode?: string;
   cliente: string;
   mintral_clientRut?: string;
   mintral_delegacionOrigen?: string;
@@ -597,12 +607,6 @@ export interface SelectedService {
   assignedTruck?: string;
   /** Assigned trailer id — placeholder until the trailer feed is wired. */
   assignedTrailer?: string;
-  /**
-   * Kanban column the task came from — used to pick the workflow transition
-   * when the user plans or assigns the service. Ephemeral; re-derived from
-   * the live kanban each fetch and not persisted on the booking.
-   */
-  currentStage?: TaskStage;
 }
 
 export type TaskStage =
@@ -645,13 +649,14 @@ async function cancelBookingWithWarning(
 
 async function syncServiceCategoryWithWorkflow(
   service: SelectedService,
-  bookingId: string
+  bookingId: string,
+  liveTaskId: string | undefined
 ): Promise<void> {
   if (!service.serviceCategory) {
     return;
   }
 
-  if (!service.taskId) {
+  if (!liveTaskId) {
     await cancelBookingWithWarning(
       bookingId,
       "Failed to cancel booking after missing task id:"
@@ -660,7 +665,7 @@ async function syncServiceCategoryWithWorkflow(
   }
 
   try {
-    await updateServiceCategory(service.taskId, service.serviceCategory);
+    await updateServiceCategory(liveTaskId, service.serviceCategory);
   } catch (err) {
     await cancelBookingWithWarning(
       bookingId,
@@ -677,9 +682,16 @@ interface PersistPlannedBookingParams {
   oldBookingId?: string;
   originalPlannedService: PlannedService | null;
   /**
-   * When set, the bookings POST also runs an Alfresco task transition. The
-   * server compensates (cancels the just-created booking) if the transition
-   * fails.
+   * Live Alfresco task id for the service at the moment the user confirmed,
+   * resolved from the kanban — never the booking — so it always points at
+   * the task currently representing this service. Undefined when the
+   * service has no active workflow task (rare; means the workflow finished
+   * before the user clicked Confirm).
+   */
+  liveTaskId: string | undefined;
+  /**
+   * When set, the workflow task is advanced after the booking is written
+   * (and after the service-category sync, when applicable).
    */
   taskAdvance?: BookingTaskAdvance;
   setBookingIds: Dispatch<SetStateAction<Map<string, string>>>;
@@ -731,6 +743,7 @@ async function persistPlannedBooking({
   slot,
   oldBookingId,
   originalPlannedService,
+  liveTaskId,
   taskAdvance,
   setBookingIds,
   setBookingVersion,
@@ -745,7 +758,7 @@ async function persistPlannedBooking({
     const booking = await createBooking(
       buildBookingRequest(calendarId, service, slot)
     );
-    await syncServiceCategoryWithWorkflow(service, booking.id);
+    await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
       await advanceWorkflowTask(taskAdvance.taskId, taskAdvance.transitionId);
     }
@@ -870,6 +883,16 @@ interface PlanningSelectionContextType {
   refreshSlots: () => void;
   /** Counter that increments after each booking change — use to trigger service list refresh */
   bookingVersion: number;
+  /**
+   * Resolve the *live* Alfresco task representing a service. Looks up by
+   * `mintral_serviceCode` against the kanban index — never trust a stored
+   * taskId, which goes stale the instant the workflow advances. Returns
+   * undefined when no active task exists for the service (e.g. the
+   * workflow finished).
+   */
+  getLiveTask: (
+    serviceCode: string | undefined
+  ) => { taskId: string; stage: TaskStage } | undefined;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
@@ -883,7 +906,13 @@ const StoredServiceSchema = z
   .object({
     mintral_clientRut: z.string().optional(),
     mintral_delegacionOrigen: z.string().optional(),
-    taskId: z.string().optional(),
+    /**
+     * Stable business id for the service. Persisted because `resource.id`
+     * is a derived display label (`${code}-${type}`) whose format is owed
+     * to the kanban transform — keeping the raw code lets the live task
+     * lookup work without parsing strings.
+     */
+    mintral_serviceCode: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
@@ -1005,6 +1034,53 @@ export function PlanningSelectionProvider({
     refresh: refreshSlots,
   } = useCalendarSlots(calendarId ?? null, selectedDateStr);
 
+  // Live workflow index for the user's active services. Intentionally
+  // *not* scoped by calendarId — the kanban API switches to
+  // `getUnbookedTasks` when calendarId is present, which excludes already-
+  // planned services and would make `getLiveTask` return undefined for any
+  // service the user is reassigning or removing. This index is keyed by
+  // `mintral_serviceCode` (unique across calendars), so the wider fetch is
+  // safe. Booking never persists `taskId` because Alfresco mints a new
+  // task per workflow stage; this is the single source of truth for "which
+  // Alfresco task represents service X right now".
+  const { data: liveTasksData, refresh: refreshLiveTasks } = useMyTasks(
+    ["planService", "assignDriver", "presentDriver", "prepareService", "missionControl"],
+    false,
+    1,
+    500
+  );
+
+  const serviceCodeToLiveTask = useMemo<
+    Map<string, { taskId: string; stage: TaskStage }>
+  >(() => {
+    const map = new Map<string, { taskId: string; stage: TaskStage }>();
+    if (!liveTasksData?.data) return map;
+    for (const [columnKey, board] of Object.entries(liveTasksData.data)) {
+      const stage = asTaskStageFromColumn(columnKey);
+      if (!stage) continue;
+      for (const task of board.tasks) {
+        const code = task.mintral_serviceCode;
+        if (code) map.set(code, { taskId: task.id, stage });
+      }
+    }
+    return map;
+  }, [liveTasksData]);
+
+  const getLiveTask = useCallback(
+    (serviceCode: string | undefined) =>
+      serviceCode ? serviceCodeToLiveTask.get(serviceCode) : undefined,
+    [serviceCodeToLiveTask]
+  );
+
+  // Re-fetch the live workflow index whenever a booking is created or
+  // removed — the workflow advance that ran alongside it likely changed
+  // each affected service's stage and task id.
+  useEffect(() => {
+    if (bookingVersion > 0) {
+      refreshLiveTasks();
+    }
+  }, [bookingVersion, refreshLiveTasks]);
+
   // Sync time windows from API to local state (only when there's no error)
   useEffect(() => {
     if (timeSlotsError) return;
@@ -1097,6 +1173,13 @@ export function PlanningSelectionProvider({
             // Canonical booking fields always win over stored data
             id: booking.resource.id,
             cliente: booking.resource.label ?? booking.resource.id,
+            // Bookings written before mintral_serviceCode was persisted only
+            // have the kanban-derived `${code}-${type}` resource id. Recover
+            // the code from the prefix so the live-task lookup still works
+            // on legacy bookings.
+            mintral_serviceCode:
+              storedService.mintral_serviceCode ??
+              booking.resource.id.split("-")[0],
           };
 
           loaded.push({
@@ -1514,15 +1597,21 @@ export function PlanningSelectionProvider({
         return updated;
       });
 
+      // Resolve the *current* Alfresco task for this service. We never trust
+      // a stored taskId — Alfresco mints a new task on every workflow stage
+      // advance, so the only safe lookup is by `mintral_serviceCode` against
+      // the live kanban index.
+      const liveTask = getLiveTask(effectiveService.mintral_serviceCode);
+
       // Reassignment only changes the slot; the workflow task has already been
       // advanced by a prior plan/assign action. Skip the transition in that
       // case so we don't try to advance a task that's no longer in scope.
       const transitionId = wasReassigning
         ? undefined
-        : getNextTransition(effectiveService.currentStage);
+        : getNextTransition(liveTask?.stage);
       const taskAdvance: BookingTaskAdvance | undefined =
-        transitionId && effectiveService.taskId
-          ? { taskId: effectiveService.taskId, transitionId }
+        transitionId && liveTask?.taskId
+          ? { taskId: liveTask.taskId, transitionId }
           : undefined;
 
       await persistPlannedBooking({
@@ -1531,6 +1620,7 @@ export function PlanningSelectionProvider({
         slot: slotToUse,
         oldBookingId: bookingIds.get(effectiveService.id),
         originalPlannedService,
+        liveTaskId: liveTask?.taskId,
         taskAdvance,
         setBookingIds,
         setBookingVersion,
@@ -1555,6 +1645,7 @@ export function PlanningSelectionProvider({
       calendarId,
       bookingIds,
       refreshSlots,
+      getLiveTask,
     ]
   );
 
@@ -1583,6 +1674,22 @@ export function PlanningSelectionProvider({
    */
   const removeService = useCallback(
     async (serviceId: string) => {
+      // Move the workflow task back toward planService BEFORE cancelling the
+      // booking. Resolve the live task by `mintral_serviceCode` against the
+      // kanban index — never trust a stored taskId, because Alfresco mints a
+      // new task per workflow stage. If the transition fails, bail out so
+      // the calendar still shows the service and the user can retry,
+      // mirroring the consistency guarantee the bookings POST gives on the
+      // forward direction.
+      const planned = plannedServices.find((p) => p.service.id === serviceId);
+      const liveTask = getLiveTask(planned?.service.mintral_serviceCode);
+      if (liveTask) {
+        const transition = getUnplanTransition(liveTask.stage);
+        if (transition) {
+          await advanceWorkflowTask(liveTask.taskId, transition);
+        }
+      }
+
       // Cancel the booking in the calendar backend
       const bookingId = bookingIds.get(serviceId);
       if (bookingId) {
@@ -1604,7 +1711,7 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds]
+    [bookingIds, plannedServices, getLiveTask]
   );
 
   /**
@@ -1759,6 +1866,7 @@ export function PlanningSelectionProvider({
       isSlotsLoading,
       refreshSlots,
       bookingVersion,
+      getLiveTask,
     }),
     [
       calendarId,
@@ -1803,6 +1911,7 @@ export function PlanningSelectionProvider({
       isSlotsLoading,
       refreshSlots,
       bookingVersion,
+      getLiveTask,
     ]
   );
 

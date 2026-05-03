@@ -232,6 +232,14 @@
         "title": "Planificar viaje",
         "assignmentTitle": "Asignar viaje",
         "servicesList": "Servicios del día",
+        "taskStage": {
+          "label": "Estado",
+          "planService": "Planificar Servicio",
+          "assignDriver": "Asignar Conductor",
+          "presentDriver": "Presentar Conductor",
+          "prepareService": "Controlar Servicio",
+          "missionControl": "Iniciar viaje"
+        },
         "noServiceSelected": "Seleccione un servicio del calendario para asignar conductor y vehículo",
         "selectServiceHint": "Seleccione un servicio para asignar conductor y vehículo",
         "searchPlaceholder": "Buscar por cliente, id, origen, destino, lugarCarguio, permanencia, tipoViaje...",

@@ -16,6 +16,7 @@ import {
   usePlanningSelection,
   type SelectedService,
   type SelectedSlot,
+  type TaskStage,
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import {
@@ -244,6 +245,12 @@ interface PlanningSidebarFormProps {
   readonly backendSlots?: SlotResponse[];
   /** Whether backend slots are currently loading */
   readonly isSlotsLoading?: boolean;
+  /**
+   * Live kanban stage of the selected task, derived by the parent from the
+   * freshly fetched myTasks payload. Never persisted on the booking — pass
+   * `undefined` when the task isn't in any active column.
+   */
+  readonly liveTaskStage?: TaskStage;
 }
 
 export function PlanningSidebarForm({
@@ -256,6 +263,7 @@ export function PlanningSidebarForm({
   slotEndTime,
   backendSlots,
   isSlotsLoading = false,
+  liveTaskStage,
 }: PlanningSidebarFormProps) {
   const [showAllIncidencias, setShowAllIncidencias] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -708,6 +716,13 @@ export function PlanningSidebarForm({
             )}
           </div>
         </FormSection>
+      )}
+      {/* Live workflow stage — sits above the KPIs as the form's first data row */}
+      {liveTaskStage && (
+        <InfoRow
+          label={tr("pages.planning.sidebar.taskStage.label", dict)}
+          value={tr(`pages.planning.sidebar.taskStage.${liveTaskStage}`, dict)}
+        />
       )}
       {/* KPIs Section */}
       <FormSection title={tr("pages.planning.sidebar.form.kpis", dict)}>

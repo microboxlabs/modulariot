@@ -23,13 +23,17 @@ export function getNextTransition(
 
 /**
  * Workflow transitions fired when "Eliminar Planificación" cancels a booking,
- * keyed by the task's *live* kanban stage. Each entry steps the workflow one
- * stage back toward `planService`. Stages omitted produce no transition
- * (either already at planService, or removing the planning from there is
- * not a single backward step and requires unassigning first).
+ * keyed by the task's *live* kanban stage. The shipping_coordination BPMN
+ * exposes a direct `"Planificar Servicio"` outcome from every gateway in the
+ * planning arm (assignDriver / presentDriver / prepareService /
+ * missionControl), so a single transition name returns the task all the way
+ * to planService no matter how far it had been advanced.
  */
 const UNPLAN_TRANSITIONS: Partial<Record<TaskStage, string>> = {
   assignDriver: "Planificar Servicio",
+  presentDriver: "Planificar Servicio",
+  prepareService: "Planificar Servicio",
+  missionControl: "Planificar Servicio",
 };
 
 export function getUnplanTransition(

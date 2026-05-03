@@ -1034,19 +1034,20 @@ export function PlanningSelectionProvider({
     refresh: refreshSlots,
   } = useCalendarSlots(calendarId ?? null, selectedDateStr);
 
-  // Live workflow index for this calendar's services. Fetched calendar-wide
-  // (no search filters — those are sidebar-display concerns) so any consumer
-  // that needs to act on a service's *current* Alfresco task can resolve it
-  // by `mintral_serviceCode`. The booking never persists `taskId` because
-  // Alfresco mints a new task per workflow stage, so a stored id goes stale
-  // the instant the workflow advances; this index is the single source of
-  // truth for "which task represents service X right now".
+  // Live workflow index for the user's active services. Intentionally
+  // *not* scoped by calendarId — the kanban API switches to
+  // `getUnbookedTasks` when calendarId is present, which excludes already-
+  // planned services and would make `getLiveTask` return undefined for any
+  // service the user is reassigning or removing. This index is keyed by
+  // `mintral_serviceCode` (unique across calendars), so the wider fetch is
+  // safe. Booking never persists `taskId` because Alfresco mints a new
+  // task per workflow stage; this is the single source of truth for "which
+  // Alfresco task represents service X right now".
   const { data: liveTasksData, refresh: refreshLiveTasks } = useMyTasks(
     ["planService", "assignDriver", "presentDriver", "prepareService", "missionControl"],
     false,
     1,
-    100,
-    calendarId ? `calendarId=${calendarId}` : undefined
+    500
   );
 
   const serviceCodeToLiveTask = useMemo<

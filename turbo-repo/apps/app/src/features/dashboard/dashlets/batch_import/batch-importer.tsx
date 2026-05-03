@@ -145,15 +145,30 @@ function getRowState(
  * Build the initial rowStates map from a freshly parsed document by
  * surfacing per-row validation errors from /validate as `failed` states.
  * Rows without errors are absent from the map and default to `unprocessed`.
+ *
+ * `prev` lets us reuse the existing RowState reference when a row's failed
+ * error string is identical between runs. Without that, every re-validation
+ * (e.g. triggered by a header rename) hands React.memo'd Rows fresh state
+ * objects, forcing a full re-render of every failed row — which unmounts
+ * any open Tooltip/popper underneath the cursor.
  */
 function hydrateStates(
   doc: ParsedDocument,
   validations: Record<number, string>,
+  prev: ReadonlyMap<number, RowState>,
 ): Map<number, RowState> {
   const map = new Map<number, RowState>();
   for (const r of doc.rows) {
     const err = validations[r.index];
-    if (err) {
+    if (!err) continue;
+    const prior = prev.get(r.index);
+    if (
+      prior &&
+      prior.status === "failed" &&
+      prior.errorMessage === err
+    ) {
+      map.set(r.index, prior);
+    } else {
       map.set(r.index, { status: "failed", errorMessage: err });
     }
   }
@@ -340,7 +355,7 @@ export function useBatchImporter({
      *  /bulk progress. See PRESERVE_DURING_IMPORT at module scope. */
     const applyHydrate = (validations: Record<number, string>) => {
       setRowStates((prev) => {
-        const next = hydrateStates(doc, validations);
+        const next = hydrateStates(doc, validations, prev);
         if (importingRef.current) {
           for (const [idx, state] of prev) {
             if (PRESERVE_DURING_IMPORT.has(state.status)) {
@@ -1193,10 +1208,17 @@ function VirtualPreview({
                 if (!row) return null;
                 const s = rowStates.get(row.index) ?? DEFAULT_STATE;
                 return (
+                  // `transform: translateY(...)` on each virtual row creates
+                  // its own stacking context. The StatusIcon's tooltip popper
+                  // is a sibling node (Flowbite renders inline, no portal),
+                  // so without `hover:z-20` later rows in DOM order paint
+                  // over the popper. Lifting the hovered row above its
+                  // siblings is enough — only one row is `:hover` at a time.
                   <div
                     key={v.index}
                     data-index={v.index}
                     ref={virtualizer.measureElement}
+                    className="hover:z-20"
                     style={{
                       position: "absolute",
                       top: 0,

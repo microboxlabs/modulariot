@@ -162,11 +162,7 @@ function hydrateStates(
     const err = validations[r.index];
     if (!err) continue;
     const prior = prev.get(r.index);
-    if (
-      prior &&
-      prior.status === "failed" &&
-      prior.errorMessage === err
-    ) {
+    if (prior?.status === "failed" && prior.errorMessage === err) {
       map.set(r.index, prior);
     } else {
       map.set(r.index, { status: "failed", errorMessage: err });

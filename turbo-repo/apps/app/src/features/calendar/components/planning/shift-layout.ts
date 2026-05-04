@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import {
   TimeWindowUtils,
+  getWeekOfMonth,
   isTimeWindow,
   type TimeSlot,
   type TimeWindowColor,
@@ -221,8 +222,7 @@ function getTwRangeOnDate(
   if (!parsed.days.includes(formatDay)) return null;
 
   if (parsed.weeks.length > 0) {
-    const weekOfMonth = Math.ceil(date.date() / 7);
-    if (!parsed.weeks.includes(weekOfMonth)) return null;
+    if (!parsed.weeks.includes(getWeekOfMonth(date))) return null;
   }
 
   return {

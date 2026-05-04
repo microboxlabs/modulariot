@@ -111,6 +111,25 @@ function rowsToGeoJson(
 }
 
 /**
+ * Fetches a URL and converts the response to a GeoJSON FeatureCollection.
+ * Throws on HTTP errors or AbortError (caller should check for AbortError).
+ */
+async function fetchGeoJson(
+  url: string,
+  init: RequestInit,
+  provider: { transformWkb?: boolean; geometryField?: string; latField?: string; lngField?: string; responsePath?: string },
+  unwrapResponse = false,
+): Promise<FeatureCollection> {
+  const res = await fetch(url, init);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const raw = unwrapResponse ? (provider.responsePath ? json : unwrapPgrestResponse(json)) : json;
+  return (provider.transformWkb || provider.latField || provider.responsePath)
+    ? rowsToGeoJson(raw, provider)
+    : (raw as FeatureCollection);
+}
+
+/**
  * Extracts a nested value from an object using dot-notation path.
  * E.g. extractByPath({ data: [1,2] }, "data") → [1,2]
  * E.g. extractByPath({ results: { items: [...] } }, "results.items") → [...]
@@ -195,15 +214,7 @@ export function useMapDataProvider(
 
       const fetchData = async () => {
         try {
-          const res = await fetch(resolvedUrl, {
-            method,
-            signal: controller.signal,
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = (await res.json()) as unknown;
-          const data = (provider.transformWkb || provider.latField || provider.responsePath)
-            ? rowsToGeoJson(json, provider)
-            : (json as FeatureCollection);
+          const data = await fetchGeoJson(resolvedUrl, { method, signal: controller.signal }, provider);
           setDynamicData(data);
           setIsLoading(false);
         } catch (err) {
@@ -272,16 +283,7 @@ export function useMapDataProvider(
 
       const fetchData = async () => {
         try {
-          const res = await fetch(url, {
-            ...init,
-            signal: controller.signal,
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          const raw = provider.responsePath ? json : unwrapPgrestResponse(json);
-          const data = (provider.transformWkb || provider.latField || provider.responsePath)
-            ? rowsToGeoJson(raw, provider)
-            : (raw as FeatureCollection);
+          const data = await fetchGeoJson(url, { ...init, signal: controller.signal }, provider, true);
           setDynamicData(data);
           setIsLoading(false);
         } catch (err) {
@@ -358,15 +360,7 @@ function setupLayerProvider(
 
     const fetchData = async () => {
       try {
-        const res = await fetch(resolvedUrl, {
-          method: provider.method ?? "GET",
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as unknown;
-        const data = (provider.transformWkb || provider.latField || provider.responsePath)
-          ? rowsToGeoJson(json, provider)
-          : (json as FeatureCollection);
+        const data = await fetchGeoJson(resolvedUrl, { method: provider.method ?? "GET", signal: controller.signal }, provider);
         setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
@@ -415,16 +409,7 @@ function setupLayerProvider(
 
     const fetchData = async () => {
       try {
-        const res = await fetch(url, {
-          ...init,
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const raw = provider.responsePath ? json : unwrapPgrestResponse(json);
-        const data = (provider.transformWkb || provider.latField || provider.responsePath)
-          ? rowsToGeoJson(raw, provider)
-          : (raw as FeatureCollection);
+        const data = await fetchGeoJson(url, { ...init, signal: controller.signal }, provider, true);
         setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
       } catch (err) {
         if ((err as Error).name === "AbortError") return;

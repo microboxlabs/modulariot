@@ -1109,14 +1109,36 @@ function DataPreviewSection({
 
   const hasData = layerHasData(item);
 
-  // Fetch for API mode
   useEffect(() => {
-    if (!open || item.dataMode !== "api" || !resolvedApiUrl.trim()) return;
+    if (!open) return;
+
+    let fetchUrl: string | null = null;
+    let fetchInit: RequestInit = {};
+
+    if (item.dataMode === "api" && resolvedApiUrl.trim()) {
+      fetchUrl = resolvedApiUrl.trim();
+    } else if (item.dataMode === "pgrest" && item.pgrestFunctionName.trim()) {
+      const resolvedParams = resolveFilterParams(
+        item.pgrestParams.filter((p) => p.key.trim()).map((p) => ({ key: p.key, value: p.value })),
+        activeFilters,
+      );
+      const built = buildPgrestFetch(
+        item.pgrestFunctionName.trim(),
+        item.pgrestHttpMethod,
+        resolvedParams,
+        item.dataSourceId || undefined,
+      );
+      fetchUrl = built.url;
+      fetchInit = built.init ?? {};
+    }
+
+    if (!fetchUrl) return;
+
     setLoading(true);
     setError(null);
 
     const controller = new AbortController();
-    fetch(resolvedApiUrl.trim(), { signal: controller.signal })
+    fetch(fetchUrl, { ...fetchInit, signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -1132,43 +1154,7 @@ function DataPreviewSection({
       });
 
     return () => controller.abort();
-  }, [open, item.dataMode, resolvedApiUrl]);
-
-  // Fetch for pgrest mode
-  useEffect(() => {
-    if (!open || item.dataMode !== "pgrest" || !item.pgrestFunctionName.trim()) return;
-    setLoading(true);
-    setError(null);
-
-    const controller = new AbortController();
-    const resolvedParams = resolveFilterParams(
-      item.pgrestParams.filter((p) => p.key.trim()).map((p) => ({ key: p.key, value: p.value })),
-      activeFilters,
-    );
-    const { url, init } = buildPgrestFetch(
-      item.pgrestFunctionName.trim(),
-      item.pgrestHttpMethod,
-      resolvedParams,
-      item.dataSourceId || undefined,
-    );
-
-    fetch(url, { ...init, signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json) => {
-        setFetchedData(JSON.stringify(json, null, 2));
-        setLoading(false);
-      })
-      .catch((err) => {
-        if ((err as Error).name === "AbortError") return;
-        setError((err as Error).message);
-        setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [open, item.dataMode, item.pgrestFunctionName, item.pgrestHttpMethod, item.pgrestParams, item.dataSourceId, activeFilters]);
+  }, [open, item.dataMode, resolvedApiUrl, item.pgrestFunctionName, item.pgrestHttpMethod, item.pgrestParams, item.dataSourceId, activeFilters]);
 
   const plannerPreview = useMemo(
     () => getPlannerPreview(item, plannerResults),

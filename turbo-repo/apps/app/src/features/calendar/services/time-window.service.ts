@@ -98,6 +98,7 @@ export function apiToLocalTimeWindow(
       endTimestamp: endTs,
       quota: response.capacity,
       color,
+      slotDurationMinutes: response.slotDurationMinutes,
     };
   }
 
@@ -116,6 +117,7 @@ export function apiToLocalTimeWindow(
     weeklyPattern,
     quota: response.capacity,
     color,
+    slotDurationMinutes: response.slotDurationMinutes,
   };
 }
 

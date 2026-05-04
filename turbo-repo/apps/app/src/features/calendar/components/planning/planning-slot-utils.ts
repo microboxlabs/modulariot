@@ -79,14 +79,12 @@ export interface SlotCellClassNameOptions {
 export function getSlotCellClassName(
   state: SlotState,
   isPastDay: boolean,
-  selected: boolean,
   options?: SlotCellClassNameOptions
 ): string {
   const {
     slotBlocked,
     hasTimeWindow,
     isQuotaFull,
-    isDisabled,
     windowColor,
     blockedStripeClass,
   } = state;
@@ -96,36 +94,23 @@ export function getSlotCellClassName(
     isFirstEditable = false,
   } = options ?? {};
   return twMerge(
-    "h-full w-full relative",
+    // The cell is now a passive ruler — overlay rectangles (rendered by
+    // ShiftOverlayLayer) are the actual click target and the only place a
+    // selection ring is drawn. `pointer-events-none` keeps clicks falling
+    // through to whichever element is on top at that point (overlay
+    // rectangle or chip).
+    "h-full w-full relative pointer-events-none",
     "border-l border-t border-gray-200 dark:border-gray-700",
     isFirstEditable && "border-l-2 border-l-primary-500 dark:border-l-primary-400",
-    "transition-all duration-200 p-1",
+    "transition-all duration-200 p-1 cursor-default",
     blockedStripeClass,
     isPastDay && !hasTimeWindow && "bg-gray-50/60 dark:bg-gray-900/20",
-    isDisabled ? "cursor-not-allowed" : "cursor-pointer",
     !isPastDay && !slotBlocked && isQuotaFull && "opacity-60",
+    !slotBlocked && hasTimeWindow && !isQuotaFull && windowColor.bg,
     !slotBlocked &&
       hasTimeWindow &&
-      !selected &&
-      !isQuotaFull &&
-      windowColor.bg,
-    !slotBlocked &&
-      hasTimeWindow &&
-      !selected &&
       isQuotaFull &&
       "bg-red-50 dark:bg-red-900/20",
-    selected
-      ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
-      : !isPastDay &&
-          !slotBlocked &&
-          !hasTimeWindow &&
-          "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-    !isPastDay &&
-      !slotBlocked &&
-      hasTimeWindow &&
-      !selected &&
-      !isQuotaFull &&
-      windowColor.hover,
     isLastDay && "border-r",
     isLastSlot && "border-b",
     isLastDay && isLastSlot && "rounded-br-lg"

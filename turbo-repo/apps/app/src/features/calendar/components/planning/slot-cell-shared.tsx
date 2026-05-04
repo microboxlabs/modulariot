@@ -3,12 +3,6 @@
 import { twMerge } from "tailwind-merge";
 import type { ReactNode } from "react";
 import type { SlotState } from "./planning-slot-utils";
-import type { PlannedService } from "./planning-selection-context";
-import { PlannedServiceChip } from "./planned-service-chip";
-import type {
-  I18nRecord,
-  I18nDictionary,
-} from "@/features/i18n/i18n.service.types";
 
 // ============================================================================
 // Time Label Cell
@@ -117,76 +111,18 @@ export function QuotaDisplay({
 }
 
 // ============================================================================
-// Slot Services List
-// ============================================================================
-
-interface SlotServicesProps {
-  readonly services: PlannedService[];
-  readonly reassigningServiceId?: string;
-  readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-  readonly onChipClick?: (ps: PlannedService) => void;
-  readonly dict: I18nDictionary | I18nRecord;
-  readonly layout?: "row" | "column";
-}
-
-export function SlotServices({
-  services,
-  reassigningServiceId,
-  onContextMenu,
-  onChipClick,
-  dict,
-  layout = "row",
-}: SlotServicesProps) {
-  if (services.length === 0) return null;
-
-  return (
-    <div
-      className={twMerge(
-        layout === "row"
-          ? "absolute inset-1 flex flex-row gap-0.5"
-          : "flex flex-col gap-0.5"
-      )}
-    >
-      {services.map((ps) => (
-        <PlannedServiceChip
-          key={ps.service.id}
-          plannedService={ps}
-          isBeingReassigned={reassigningServiceId === ps.service.id}
-          onContextMenu={onContextMenu}
-          onClick={onChipClick}
-          className={layout === "row" ? "flex-1" : "w-full"}
-          dict={dict}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
 // Slot Cell Content (combines all indicators)
 // ============================================================================
 
 interface SlotCellContentProps {
   readonly state: SlotState;
   readonly isPastDay: boolean;
-  readonly services: PlannedService[];
-  readonly reassigningServiceId?: string;
-  readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-  readonly onChipClick?: (ps: PlannedService) => void;
-  readonly dict: I18nDictionary | I18nRecord;
-  readonly servicesLayout?: "row" | "column";
   readonly children?: ReactNode;
 }
 
 export function SlotCellContent({
   state,
   isPastDay,
-  services,
-  reassigningServiceId,
-  onContextMenu,
-  onChipClick,
-  dict,
-  servicesLayout = "row",
   children,
 }: SlotCellContentProps) {
   const {
@@ -219,14 +155,9 @@ export function SlotCellContent({
         />
       )}
 
-      <SlotServices
-        services={services}
-        reassigningServiceId={reassigningServiceId}
-        onContextMenu={onContextMenu}
-        onChipClick={onChipClick}
-        dict={dict}
-        layout={servicesLayout}
-      />
+      {/* Chips intentionally NOT rendered here — they live inside the
+          ShiftOverlayLayer rectangles so chip click + context-menu work
+          without z-index fights with the overlay. */}
 
       {children}
     </>

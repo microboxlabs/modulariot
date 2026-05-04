@@ -162,6 +162,9 @@ export interface TimeSlot {
   quota?: number;
   // Visual color (optional, mainly for windows)
   color?: TimeWindowColor;
+  // Server-managed shift cadence in minutes; only present on TWs loaded from
+  // the API. Falls back to the row granularity (30 min) when missing.
+  slotDurationMinutes?: number;
 }
 
 /**
@@ -959,9 +962,13 @@ interface PlanningSelectionProviderProps {
 }
 
 /**
- * Gets the week number of the month (1-5) for a given date
+ * Gets the week number of the month (1-5) for a given date.
+ * Exported so other modules (e.g. the shift-overlay layout helper) use the
+ * exact same definition the weekly-pattern matcher does — otherwise the
+ * planner and the overlay would disagree on which dates a `W1`/`W2…` TW
+ * covers.
  */
-function getWeekOfMonth(date: dayjs.Dayjs): number {
+export function getWeekOfMonth(date: dayjs.Dayjs): number {
   const firstDayOfMonth = date.startOf("month");
   const firstMonday =
     firstDayOfMonth.isoWeekday() <= 1

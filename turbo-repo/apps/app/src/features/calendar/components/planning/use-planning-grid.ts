@@ -41,6 +41,7 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     selectedSlot,
     selectSlot,
     plannedServices,
+    timeSlots: configuredTimeSlots,
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
@@ -130,6 +131,10 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     // Time slots
     timeSlots,
     isLastSlot,
+
+    // Configured TWs/blocks for the current calendar (used by overlays
+    // that need to know the real shift cadence per time window).
+    configuredTimeSlots,
 
     // Planned services
     plannedServices,

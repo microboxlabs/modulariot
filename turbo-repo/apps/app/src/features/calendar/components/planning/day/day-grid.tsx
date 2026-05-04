@@ -15,8 +15,7 @@ import {
 } from "../planning-slot-utils";
 import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
 import { usePlanningGrid } from "../use-planning-grid";
-import { PlanningGridOverlays } from "../planning-grid-overlays";
-import { ShiftOverlayLayer } from "../shift-overlay-layer";
+import { PlanningGridShell } from "../planning-grid-shell";
 import {
   BASE_ROW_HEIGHT_PX,
   buildShiftLayout,
@@ -217,8 +216,37 @@ export default function DayGrid({
   const TIME_AXIS_WIDTH_PX = 64;
 
   return (
-    <div className="w-full h-full overflow-auto">
-     <div className="relative">
+    <PlanningGridShell
+      shiftOverlayTopPx={HEADER_HEIGHT_PX}
+      shiftOverlayLeftPx={TIME_AXIS_WIDTH_PX}
+      shiftOverlay={{
+        shifts: positionedShifts,
+        onShiftClick: handleShiftClick,
+        isShiftSelected,
+        getServicesForShift,
+        onChipClick: viewPlannedService,
+        onChipContextMenu: handleContextMenu,
+        reassigningServiceId: reassigningService?.service.service.id,
+        dict,
+      }}
+      gridOverlays={{
+        dict,
+        contextMenu,
+        onReassign: handleReassign,
+        onAssign: handleAssign,
+        onDeleteRequest: handleDeleteRequest,
+        onDeleteAssignmentRequest: handleDeleteAssignmentRequest,
+        onCloseContextMenu: handleCloseContextMenu,
+        deleteModal,
+        onConfirmDelete: handleConfirmDelete,
+        onCancelDelete: handleCancelDelete,
+        deleteAssignmentModal,
+        onConfirmDeleteAssignment: handleConfirmDeleteAssignment,
+        onCancelDeleteAssignment: handleCancelDeleteAssignment,
+        reassigningService,
+        selectedSlot,
+      }}
+    >
       <div className="grid" style={{ gridTemplateColumns: "64px 1fr" }}>
         {/* Header row - empty corner cell */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-800">
@@ -294,49 +322,6 @@ export default function DayGrid({
           );
         })}
       </div>
-
-      {/* Shift overlay: each rectangle owns its own chips and "add booking"
-          affordance. Sits over the day column only. */}
-      <div
-        className="pointer-events-none absolute"
-        style={{
-          top: HEADER_HEIGHT_PX,
-          left: TIME_AXIS_WIDTH_PX,
-          right: 0,
-          bottom: 0,
-        }}
-      >
-        <ShiftOverlayLayer
-          shifts={positionedShifts}
-          onShiftClick={handleShiftClick}
-          isShiftSelected={isShiftSelected}
-          getServicesForShift={getServicesForShift}
-          onChipClick={viewPlannedService}
-          onChipContextMenu={handleContextMenu}
-          reassigningServiceId={reassigningService?.service.service.id}
-          dict={dict}
-        />
-      </div>
-     </div>
-
-      {/* Context Menu */}
-      <PlanningGridOverlays
-        dict={dict}
-        contextMenu={contextMenu}
-        onReassign={handleReassign}
-        onAssign={handleAssign}
-        onDeleteRequest={handleDeleteRequest}
-        onDeleteAssignmentRequest={handleDeleteAssignmentRequest}
-        onCloseContextMenu={handleCloseContextMenu}
-        deleteModal={deleteModal}
-        onConfirmDelete={handleConfirmDelete}
-        onCancelDelete={handleCancelDelete}
-        deleteAssignmentModal={deleteAssignmentModal}
-        onConfirmDeleteAssignment={handleConfirmDeleteAssignment}
-        onCancelDeleteAssignment={handleCancelDeleteAssignment}
-        reassigningService={reassigningService}
-        selectedSlot={selectedSlot}
-      />
-    </div>
+    </PlanningGridShell>
   );
 }

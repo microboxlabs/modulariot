@@ -28,7 +28,7 @@ import { DeleteItemButton } from "../common/delete-item-button";
 import { useActiveProviders } from "../common/use-active-providers";
 import { PgrestFunctionAutocomplete } from "../common/pgrest-function-autocomplete";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
-import { usePlannerContext } from "../../context/planner-context";
+import { useOptionalPlannerContext } from "../../context/planner-context";
 import { useDashboardFilters } from "../../context/dashboard-filters-context";
 import { useDataProvider } from "../common/use-data-provider";
 import { DataProviderEntries } from "../common/data-provider-entries";
@@ -1096,7 +1096,7 @@ function DataPreviewSection({
   dictionary,
 }: Readonly<DataPreviewSectionProps>) {
   const searchParams = useSearchParams();
-  const { results: plannerResults } = usePlannerContext();
+  const { results: plannerResults } = useOptionalPlannerContext();
   const { activeFilters } = useDashboardFilters();
   const resolvedApiUrl = useMemo(
     () => resolveUrlTemplate(item.apiUrl, searchParams),

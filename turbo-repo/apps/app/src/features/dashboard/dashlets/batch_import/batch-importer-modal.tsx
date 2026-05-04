@@ -30,6 +30,10 @@ interface Props {
   initialTransforms?: Record<string, TransformStep[]>;
   /** Bubble transform changes back to the dashlet for persistence. */
   onTransformsChange?: (next: Record<string, TransformStep[]>) => void;
+  /** Persisted display-only date formats from the dashlet's widget config. */
+  initialDateDisplayFormats?: Record<string, string>;
+  /** Bubble display-format changes back to the dashlet for persistence. */
+  onDateDisplayFormatsChange?: (next: Record<string, string>) => void;
 }
 
 export function BatchImporterModal({
@@ -44,6 +48,8 @@ export function BatchImporterModal({
   filenameBase,
   initialTransforms,
   onTransformsChange,
+  initialDateDisplayFormats,
+  onDateDisplayFormatsChange,
 }: Readonly<Props>) {
   const state = useBatchImporter({
     api,
@@ -52,6 +58,8 @@ export function BatchImporterModal({
     filenameBase,
     initialTransforms,
     onTransformsChange,
+    initialDateDisplayFormats,
+    onDateDisplayFormatsChange,
   });
 
   const submitLabel = state.importing

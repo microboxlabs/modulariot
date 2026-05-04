@@ -2071,11 +2071,16 @@
             "lower": "Lower case",
             "abs": "Absolute value",
             "round": "Round",
-            "fixed": "Fixed decimals"
+            "fixed": "Fixed decimals",
+            "dateOnly": "Date only",
+            "startOfDay": "Start of day",
+            "toUTC": "To UTC"
           },
           "argLabel": {
             "fixed": "Number of decimals (0–20)"
-          }
+          },
+          "displayFormat": "Display format (visual only)",
+          "displayFormatHint": "dayjs tokens, e.g. DD/MM HH:mm. Does not change the value sent to the server."
         }
       }
     },

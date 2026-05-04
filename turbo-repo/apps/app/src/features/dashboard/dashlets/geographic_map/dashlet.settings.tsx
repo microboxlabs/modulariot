@@ -10,8 +10,9 @@ import {
   Select,
   Dropdown,
   DropdownItem,
+  Tooltip,
 } from "flowbite-react";
-import { HiPlus, HiChevronDown, HiCheck, HiXMark } from "react-icons/hi2";
+import { HiPlus, HiChevronDown, HiCheck, HiXMark, HiQuestionMarkCircle } from "react-icons/hi2";
 import type { DashletSettingsProps, DataProviderEntry } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
@@ -28,11 +29,13 @@ import { useActiveProviders } from "../common/use-active-providers";
 import { PgrestFunctionAutocomplete } from "../common/pgrest-function-autocomplete";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { usePlannerContext } from "../../context/planner-context";
+import { useDashboardFilters } from "../../context/dashboard-filters-context";
 import { useDataProvider } from "../common/use-data-provider";
 import { DataProviderEntries } from "../common/data-provider-entries";
 import { tr } from "@/features/i18n/tr.service";
 import { resolveUrlTemplate } from "@/features/map-visualization/use-map-data-provider";
 import { buildPgrestFetch } from "../common/pgrest-utils";
+import { resolveFilterParams } from "../common/resolve-filter-params";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker/advanced-color-picker";
 import type {
   MapLayer,
@@ -526,9 +529,39 @@ function PgrestLayerSection({
         ]}
       />
       <div>
-        <Label className="mb-1.5 block text-sm font-medium">
-          {tr("dashboard.settings.parameters", dictionary)}
-        </Label>
+        <div className="mb-1.5 flex items-center gap-1">
+          <Label className="text-sm font-medium">
+            {tr("dashboard.settings.parameters", dictionary)}
+          </Label>
+          <Tooltip
+            content={
+              <div className="space-y-1 text-xs">
+                <p>
+                  {tr("dashboard.settings.parametersHintIntro", dictionary)}{" "}
+                  <code className="rounded bg-gray-600 px-1 py-0.5 font-mono text-white">
+                    {"{{filter.<key>}}"}
+                  </code>
+                </p>
+                <p className="font-semibold">{tr("dashboard.settings.parametersHintExamples", dictionary)}</p>
+                <ul className="list-inside list-disc space-y-0.5">
+                  <li>
+                    <code className="font-mono">eq.{"{{filter.status}}"}</code>
+                  </li>
+                  <li>
+                    <code className="font-mono">gte.{"{{filter.date_range_from}}"}</code>
+                  </li>
+                  <li>
+                    <code className="font-mono">{"{{filter.organization_id}}"}</code>
+                  </li>
+                </ul>
+              </div>
+            }
+            placement="top"
+            className="max-w-72"
+          >
+            <HiQuestionMarkCircle className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
+          </Tooltip>
+        </div>
         <div className="space-y-1.5">
           {item.pgrestParams.map((p) => (
             <div key={p._id} className="flex items-center gap-1">
@@ -799,50 +832,6 @@ function LayerCard({
           />
         )}
 
-        {(item.dataMode === "api" || item.dataMode === "sse" || item.dataMode === "pgrest" || item.dataMode === "planner") && (
-          <div className="flex items-center justify-between">
-            <Label
-              htmlFor={`geo-wkb-${item.id}`}
-              className="text-sm text-gray-700 dark:text-gray-300"
-            >
-              {tr("dashboard.settings.transformWkb", dictionary)}
-            </Label>
-            <ToggleSwitch
-              id={`geo-wkb-${item.id}`}
-              checked={item.transformWkb}
-              onChange={(v) => set("transformWkb", v)}
-            />
-          </div>
-        )}
-
-        {(item.dataMode === "api" || item.dataMode === "sse" || item.dataMode === "pgrest" || item.dataMode === "planner") && item.transformWkb && (
-          <SettingsTextField
-            id={`geo-geomfield-${item.id}`}
-            label={tr("dashboard.settings.geometryField", dictionary)}
-            value={item.geometryField}
-            onChange={(v) => set("geometryField", v)}
-            placeholder="location"
-          />
-        )}
-
-        {(item.dataMode === "api" || item.dataMode === "sse" || item.dataMode === "pgrest" || item.dataMode === "planner") && !item.transformWkb && (
-          <div className="grid grid-cols-2 gap-2">
-            <SettingsTextField
-              id={`geo-latfield-${item.id}`}
-              label={tr("dashboard.settings.latField", dictionary)}
-              value={item.latField}
-              onChange={(v) => set("latField", v)}
-              placeholder="lat"
-            />
-            <SettingsTextField
-              id={`geo-lngfield-${item.id}`}
-              label={tr("dashboard.settings.lngField", dictionary)}
-              value={item.lngField}
-              onChange={(v) => set("lngField", v)}
-              placeholder="lng"
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1018,6 +1007,7 @@ function DataPreviewSection({
 }: Readonly<DataPreviewSectionProps>) {
   const searchParams = useSearchParams();
   const { results: plannerResults } = usePlannerContext();
+  const { activeFilters } = useDashboardFilters();
   const resolvedApiUrl = useMemo(
     () => resolveUrlTemplate(item.apiUrl, searchParams),
     [item.apiUrl, searchParams]
@@ -1070,10 +1060,14 @@ function DataPreviewSection({
     setError(null);
 
     const controller = new AbortController();
+    const resolvedParams = resolveFilterParams(
+      item.pgrestParams.filter((p) => p.key.trim()).map((p) => ({ key: p.key, value: p.value })),
+      activeFilters,
+    );
     const { url, init } = buildPgrestFetch(
       item.pgrestFunctionName.trim(),
       item.pgrestHttpMethod,
-      item.pgrestParams.filter((p) => p.key.trim()).map((p) => ({ key: p.key, value: p.value })),
+      resolvedParams,
       item.dataSourceId || undefined,
     );
 
@@ -1093,7 +1087,7 @@ function DataPreviewSection({
       });
 
     return () => controller.abort();
-  }, [open, item.dataMode, item.pgrestFunctionName, item.pgrestHttpMethod, item.pgrestParams, item.dataSourceId]);
+  }, [open, item.dataMode, item.pgrestFunctionName, item.pgrestHttpMethod, item.pgrestParams, item.dataSourceId, activeFilters]);
 
   // Planner data from context (no fetch needed)
   const plannerPreview = useMemo(() => {
@@ -1187,6 +1181,18 @@ function LayerStyleCard({
       onChange({ ...item, style: { ...item.style, [key]: value } }),
     [item, onChange]
   );
+
+  const set = useCallback(
+    <K extends keyof LayerSettingsItem>(key: K, value: LayerSettingsItem[K]) =>
+      onChange({ ...item, [key]: value }),
+    [item, onChange]
+  );
+
+  const hasDataProvider =
+    item.dataMode === "api" ||
+    item.dataMode === "sse" ||
+    item.dataMode === "pgrest" ||
+    item.dataMode === "planner";
 
   const isPinMode = (item.style.pointMode ?? "pin") === "pin";
 
@@ -1287,6 +1293,50 @@ function LayerStyleCard({
           </div>
         )}
 
+        {hasDataProvider && item.transformWkb && (
+          <SettingsTextField
+            id={`geo-geomfield-${item.id}`}
+            label={tr("dashboard.settings.geometryField", dictionary)}
+            value={item.geometryField}
+            onChange={(v) => set("geometryField", v)}
+            placeholder="location"
+          />
+        )}
+
+        {hasDataProvider && !item.transformWkb && (
+          <div className="grid grid-cols-2 gap-2">
+            <SettingsTextField
+              id={`geo-latfield-${item.id}`}
+              label={tr("dashboard.settings.latField", dictionary)}
+              value={item.latField}
+              onChange={(v) => set("latField", v)}
+              placeholder="lat"
+            />
+            <SettingsTextField
+              id={`geo-lngfield-${item.id}`}
+              label={tr("dashboard.settings.lngField", dictionary)}
+              value={item.lngField}
+              onChange={(v) => set("lngField", v)}
+              placeholder="lng"
+            />
+          </div>
+        )}
+
+        {hasDataProvider && (
+          <div className="flex items-center justify-between">
+            <Label
+              htmlFor={`geo-wkb-${item.id}`}
+              className="text-sm text-gray-700 dark:text-gray-300"
+            >
+              {tr("dashboard.settings.transformWkb", dictionary)}
+            </Label>
+            <ToggleSwitch
+              id={`geo-wkb-${item.id}`}
+              checked={item.transformWkb}
+              onChange={(v) => set("transformWkb", v)}
+            />
+          </div>
+        )}
       </div>
       <TooltipLayerSection item={item} onChange={onChange} dictionary={dictionary} />
       <DataPreviewSection item={item} dictionary={dictionary} />

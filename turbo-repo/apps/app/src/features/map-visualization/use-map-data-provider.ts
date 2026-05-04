@@ -4,7 +4,9 @@ import type { FeatureCollection } from "geojson";
 import type { MapDataProvider, MapLayer } from "./map-data-provider.types";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { buildPgrestFetch } from "@/features/dashboard/dashlets/common/pgrest-utils";
-import { usePlannerContext } from "@/features/dashboard/context/planner-context";
+import { resolveFilterParams } from "@/features/dashboard/dashlets/common/resolve-filter-params";
+import { useOptionalPlannerContext } from "@/features/dashboard/context/planner-context";
+import { useDashboardFilters } from "@/features/dashboard/context/dashboard-filters-context";
 
 // ============================================================================
 // URL template resolution
@@ -151,7 +153,8 @@ export function useMapDataProvider(
   provider: MapDataProvider | undefined
 ): MapDataProviderResult {
   const searchParams = useSearchParams();
-  const { results: plannerResults } = usePlannerContext();
+  const { results: plannerResults } = useOptionalPlannerContext();
+  const { activeFilters } = useDashboardFilters();
   const [dynamicData, setDynamicData] = useState<FeatureCollection | null>(
     null
   );
@@ -234,6 +237,7 @@ export function useMapDataProvider(
             ? rowsToGeoJson(json, provider)
             : (json as FeatureCollection);
           setDynamicData(data);
+          setError(null);
           setIsLoading(false);
         } catch {
           setError(new Error("Failed to parse SSE data"));
@@ -242,9 +246,12 @@ export function useMapDataProvider(
       };
 
       source.onerror = () => {
-        setError(new Error("SSE connection error"));
-        setIsLoading(false);
-        source.close();
+        // Only report a permanent failure when the browser has given up.
+        // Otherwise let EventSource reconnect automatically.
+        if (source.readyState === EventSource.CLOSED) {
+          setError(new Error("SSE connection closed"));
+          setIsLoading(false);
+        }
       };
 
       return () => source.close();
@@ -252,10 +259,11 @@ export function useMapDataProvider(
 
     if (provider.type === "pgrest") {
       const controller = new AbortController();
+      const resolvedParams = resolveFilterParams(provider.params, activeFilters);
       const { url, init } = buildPgrestFetch(
         provider.functionName,
         provider.method,
-        provider.params,
+        resolvedParams,
         provider.dataSourceId,
       );
 
@@ -295,7 +303,7 @@ export function useMapDataProvider(
 
       return () => controller.abort();
     }
-  }, [provider, searchParams]);
+  }, [provider, searchParams, activeFilters]);
 
   if (provider === undefined) {
     return { data: null, isLoading: false, error: null };
@@ -331,7 +339,8 @@ export function useMapLayersData(
   layersKey?: string
 ): MapLayerData[] {
   const searchParams = useSearchParams();
-  const { results: plannerResults } = usePlannerContext();
+  const { results: plannerResults } = useOptionalPlannerContext();
+  const { activeFilters } = useDashboardFilters();
   const [dynamicData, setDynamicData] = useState<
     Record<string, FeatureCollection | null>
   >({});
@@ -397,7 +406,8 @@ export function useMapLayersData(
           }
         };
 
-        source.onerror = () => source.close();
+        // Let EventSource auto-reconnect on transient errors;
+        // cleanup closes it when the effect is torn down.
         cleanups.push(() => source.close());
       }
 
@@ -405,10 +415,11 @@ export function useMapLayersData(
         const controller = new AbortController();
         cleanups.push(() => controller.abort());
 
+        const resolvedParams = resolveFilterParams(provider.params, activeFilters);
         const { url, init } = buildPgrestFetch(
           provider.functionName,
           provider.method,
-          provider.params,
+          resolvedParams,
           provider.dataSourceId,
         );
 
@@ -445,7 +456,7 @@ export function useMapLayersData(
 
     return () => cleanups.forEach((fn) => fn());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layersKey ?? layers, searchParams]);
+  }, [layersKey ?? layers, searchParams, activeFilters]);
 
   return useMemo(
     () =>

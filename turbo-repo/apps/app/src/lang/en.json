@@ -1644,6 +1644,8 @@
       "introspect": "Introspect",
       "httpMethod": "HTTP Method",
       "parameters": "Parameters",
+      "parametersHintIntro": "Use this syntax in the value field to reference a dashboard filter:",
+      "parametersHintExamples": "Examples:",
       "addParameter": "Add parameter",
       "totalItems": "{count} items",
       "totalItemsSingular": "{count} item",

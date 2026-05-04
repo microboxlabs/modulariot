@@ -1670,6 +1670,8 @@
       "introspect": "Inspeccionar",
       "httpMethod": "Método HTTP",
       "parameters": "Parámetros",
+      "parametersHintIntro": "Usa esta sintaxis en el campo de valor para referenciar un filtro del dashboard:",
+      "parametersHintExamples": "Ejemplos:",
       "addParameter": "Agregar parámetro",
       "totalItems": "{count} elementos",
       "totalItemsSingular": "{count} elemento",

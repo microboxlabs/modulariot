@@ -24,7 +24,13 @@ import { SlotCellContent, TimeLabelCell } from "./slot-cell-shared";
 import { usePlanningGrid } from "./use-planning-grid";
 import { PlanningGridOverlays } from "./planning-grid-overlays";
 import { ShiftOverlayLayer } from "./shift-overlay-layer";
-import { buildShiftLayout, type PositionedShift } from "./shift-layout";
+import {
+  BASE_ROW_HEIGHT_PX,
+  buildShiftLayout,
+  rowOffsetsFromHeights,
+  shiftContentHeightPx,
+  type PositionedShift,
+} from "./shift-layout";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -158,19 +164,6 @@ export default function PlanningWeekView({
     [checkSlotSelected]
   );
 
-  // Cells no longer expand for chip stacking (chips render inside the shift
-  // overlay rectangles, not in cells), so each row has the same fixed
-  // height. Matches the previous base value so the overall grid density is
-  // unchanged.
-  const ROW_HEIGHT_PX = 48;
-  const rowOffsets = useMemo(() => {
-    const offsets = [0];
-    for (let i = 0; i < timeSlots.length; i++) {
-      offsets.push(offsets[i] + ROW_HEIGHT_PX);
-    }
-    return offsets;
-  }, [timeSlots.length]);
-
   // Index planned services by date and exact "HH:MM" start so the overlay
   // layer can fetch the chips that belong inside each shift in O(1).
   const servicesByDateAndStart = useMemo(() => {
@@ -204,6 +197,61 @@ export default function PlanningWeekView({
     },
     [servicesByDateAndStart]
   );
+
+  // Two-pass shift layout (see DayGrid for the rationale). Week-view rows
+  // are shared across all 7 day columns, so the per-row required px/min is
+  // the MAX of any column's densest shift in that row — once any day
+  // column needs the row taller, every column inherits the new height.
+  const dayStartMin = startHour * 60;
+  const baselineRowOffsets = useMemo(
+    () =>
+      rowOffsetsFromHeights(
+        new Array(timeSlots.length).fill(BASE_ROW_HEIGHT_PX)
+      ),
+    [timeSlots.length]
+  );
+  const baseShifts = useMemo(() => {
+    const out: PositionedShift[] = [];
+    for (let i = 0; i < weekDays.length; i++) {
+      const day = weekDays[i];
+      out.push(
+        ...buildShiftLayout({
+          timeSlots: configuredTimeSlots,
+          date: day.date,
+          startHour,
+          rowOffsets: baselineRowOffsets,
+          columnIndex: i,
+          columnCount: weekDays.length,
+        })
+      );
+    }
+    return out;
+  }, [configuredTimeSlots, weekDays, startHour, baselineRowOffsets]);
+
+  const { rowHeights, rowOffsets } = useMemo(() => {
+    const requiredPxPerMin = new Array<number>(timeSlots.length).fill(
+      BASE_ROW_HEIGHT_PX / 30
+    );
+    for (const shift of baseShifts) {
+      const contentPx = shiftContentHeightPx(
+        getServicesForShift(shift).length
+      );
+      if (contentPx <= 0) continue;
+      const required = contentPx / shift.durationMinutes;
+      const startRow = Math.floor((shift.startsAtMin - dayStartMin) / 30);
+      const endRow = Math.min(
+        timeSlots.length - 1,
+        Math.floor((shift.endsAtMin - 1 - dayStartMin) / 30)
+      );
+      for (let r = Math.max(0, startRow); r <= endRow; r++) {
+        if (required > requiredPxPerMin[r]) requiredPxPerMin[r] = required;
+      }
+    }
+    const heights = requiredPxPerMin.map((p) =>
+      Math.max(BASE_ROW_HEIGHT_PX, Math.ceil(p * 30))
+    );
+    return { rowHeights: heights, rowOffsets: rowOffsetsFromHeights(heights) };
+  }, [baseShifts, getServicesForShift, timeSlots.length, dayStartMin]);
 
   // One concatenated array of overlay rectangles, with per-shift column
   // geometry so the overlay layer can place them inside the matching day
@@ -304,7 +352,7 @@ export default function PlanningWeekView({
               {/* Time label column */}
               <TimeLabelCell
                 label={slot.label}
-                minHeight={ROW_HEIGHT_PX}
+                minHeight={rowHeights[slotIdx]}
                 isLastSlot={isLastSlot(slotIdx)}
               />
 

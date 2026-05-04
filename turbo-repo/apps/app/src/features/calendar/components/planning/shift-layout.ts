@@ -6,6 +6,44 @@ import {
   type TimeWindowColor,
 } from "./planning-selection-context";
 
+/** Baseline pixel height of one 30-min row when no shift inside needs more. */
+export const BASE_ROW_HEIGHT_PX = 48;
+
+/**
+ * Approximate rendered height of a single chip inside a shift overlay.
+ * Matches the chip's `text-xs px-1.5 py-1` styling with two stacked text
+ * lines (service ID + route).
+ */
+const CHIP_HEIGHT_PX = 40;
+/** Vertical gap between stacked chips (Tailwind `gap-0.5`). */
+const CHIP_GAP_PX = 2;
+/** Total vertical padding inside the overlay (Tailwind `inset-1` × 2). */
+const OVERLAY_PADDING_PX = 8;
+
+/**
+ * Pixel height a shift's chip stack needs. Returns 0 when the shift has no
+ * services (the baseline rectangle suffices). Used by callers to decide
+ * whether the row containing the shift must be stretched.
+ */
+export function shiftContentHeightPx(serviceCount: number): number {
+  if (serviceCount <= 0) return 0;
+  return (
+    OVERLAY_PADDING_PX +
+    serviceCount * CHIP_HEIGHT_PX +
+    Math.max(0, serviceCount - 1) * CHIP_GAP_PX
+  );
+}
+
+/**
+ * Build cumulative pixel offsets from per-row heights. `offsets[i]` is the
+ * top of row `i`; the last entry is the bottom of the grid.
+ */
+export function rowOffsetsFromHeights(heights: readonly number[]): number[] {
+  const offsets = [0];
+  for (const h of heights) offsets.push(offsets[offsets.length - 1] + h);
+  return offsets;
+}
+
 export interface PositionedShift {
   id: string;
   twId: string;

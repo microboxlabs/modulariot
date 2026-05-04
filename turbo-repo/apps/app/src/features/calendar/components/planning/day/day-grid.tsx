@@ -17,7 +17,13 @@ import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
 import { usePlanningGrid } from "../use-planning-grid";
 import { PlanningGridOverlays } from "../planning-grid-overlays";
 import { ShiftOverlayLayer } from "../shift-overlay-layer";
-import { buildShiftLayout, type PositionedShift } from "../shift-layout";
+import {
+  BASE_ROW_HEIGHT_PX,
+  buildShiftLayout,
+  rowOffsetsFromHeights,
+  shiftContentHeightPx,
+  type PositionedShift,
+} from "../shift-layout";
 
 interface DayGridProps {
   lang: string;
@@ -133,19 +139,6 @@ export default function DayGrid({
     [checkSlotSelected]
   );
 
-  // Cells no longer expand for chip stacking (chips render inside the shift
-  // overlay rectangles, not in cells), so each row has the same fixed
-  // height. The constant matches the previous base value so the overall
-  // grid density is unchanged.
-  const ROW_HEIGHT_PX = 48;
-  const rowOffsets = useMemo(() => {
-    const offsets = [0];
-    for (let i = 0; i < timeSlots.length; i++) {
-      offsets.push(offsets[i] + ROW_HEIGHT_PX);
-    }
-    return offsets;
-  }, [timeSlots.length]);
-
   // Index planned services by exact start "HH:MM" on the current date so
   // the overlay layer can fetch the chips that belong inside each shift
   // rectangle in O(1).
@@ -169,6 +162,56 @@ export default function DayGrid({
       servicesByStartOnDate.get(`${shift.slotHour}:${shift.slotMinutes}`) ?? [],
     [servicesByStartOnDate]
   );
+
+  // Two-pass shift layout so rows containing chip-heavy shifts can stretch.
+  // Pass 1: build shifts on a baseline 48px-per-row grid to learn each
+  // shift's (start, end, duration) — geometry doesn't depend on heights yet.
+  // Pass 2: walk those shifts, derive a required px/min for each row from
+  // the densest shift inside, rebuild rowOffsets, then re-layout shifts.
+  // This mirrors the old chip-driven cell expansion so the time axis stays
+  // aligned with shift rectangles even when one slot holds multiple chips.
+  const dayStartMin = startHour * 60;
+  const baselineRowOffsets = useMemo(
+    () =>
+      rowOffsetsFromHeights(
+        new Array(timeSlots.length).fill(BASE_ROW_HEIGHT_PX)
+      ),
+    [timeSlots.length]
+  );
+  const baseShifts = useMemo(
+    () =>
+      buildShiftLayout({
+        timeSlots: configuredTimeSlots,
+        date: currentDate,
+        startHour,
+        rowOffsets: baselineRowOffsets,
+      }),
+    [configuredTimeSlots, currentDate, startHour, baselineRowOffsets]
+  );
+  const { rowHeights, rowOffsets } = useMemo(() => {
+    const requiredPxPerMin = new Array<number>(timeSlots.length).fill(
+      BASE_ROW_HEIGHT_PX / 30
+    );
+    for (const shift of baseShifts) {
+      const contentPx = shiftContentHeightPx(
+        getServicesForShift(shift).length
+      );
+      if (contentPx <= 0) continue;
+      const required = contentPx / shift.durationMinutes;
+      const startRow = Math.floor((shift.startsAtMin - dayStartMin) / 30);
+      const endRow = Math.min(
+        timeSlots.length - 1,
+        Math.floor((shift.endsAtMin - 1 - dayStartMin) / 30)
+      );
+      for (let r = Math.max(0, startRow); r <= endRow; r++) {
+        if (required > requiredPxPerMin[r]) requiredPxPerMin[r] = required;
+      }
+    }
+    const heights = requiredPxPerMin.map((p) =>
+      Math.max(BASE_ROW_HEIGHT_PX, Math.ceil(p * 30))
+    );
+    return { rowHeights: heights, rowOffsets: rowOffsetsFromHeights(heights) };
+  }, [baseShifts, getServicesForShift, timeSlots.length, dayStartMin]);
 
   const positionedShifts = useMemo(
     () =>
@@ -251,7 +294,7 @@ export default function DayGrid({
             <Fragment key={slot.label}>
               <TimeLabelCell
                 label={slot.label}
-                minHeight={ROW_HEIGHT_PX}
+                minHeight={rowHeights[slotIdx]}
                 isLastSlot={isLastSlot(slotIdx)}
               />
               <DayGridSlotCell

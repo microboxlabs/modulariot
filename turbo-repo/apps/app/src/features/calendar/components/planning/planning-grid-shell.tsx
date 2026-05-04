@@ -3,6 +3,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import { ShiftOverlayLayer } from "./shift-overlay-layer";
 import { PlanningGridOverlays } from "./planning-grid-overlays";
+import type { PlannedService } from "./planning-selection-context";
+import type { PositionedShift } from "./shift-layout";
+import type { UsePlanningGridReturn } from "./use-planning-grid";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
 interface PlanningGridShellProps {
   /**
@@ -43,6 +47,62 @@ interface PlanningGridShellProps {
  * Lifted out of the two views to remove the previous ~50-line copy of
  * identical wrapping JSX.
  */
+/**
+ * Build the `shiftOverlay` + `gridOverlays` prop bundles for
+ * `<PlanningGridShell>` from the planning-grid hook plus the view-specific
+ * overlay computeds. Lifts the per-view boilerplate (15+ identical fields
+ * per bundle wired to the same hook) out of `DayGrid` and `PlanningWeekView`.
+ */
+export function buildPlanningGridShellProps(params: {
+  planningGrid: UsePlanningGridReturn;
+  positionedShifts: readonly PositionedShift[];
+  onShiftClick: (shift: PositionedShift) => void;
+  isShiftSelected: (shift: PositionedShift) => boolean;
+  getServicesForShift: (shift: PositionedShift) => readonly PlannedService[];
+  dict: I18nDictionary;
+}): {
+  shiftOverlay: ComponentProps<typeof ShiftOverlayLayer>;
+  gridOverlays: ComponentProps<typeof PlanningGridOverlays>;
+} {
+  const {
+    planningGrid: pg,
+    positionedShifts,
+    onShiftClick,
+    isShiftSelected,
+    getServicesForShift,
+    dict,
+  } = params;
+  return {
+    shiftOverlay: {
+      shifts: positionedShifts,
+      onShiftClick,
+      isShiftSelected,
+      getServicesForShift,
+      onChipClick: pg.viewPlannedService,
+      onChipContextMenu: pg.handleContextMenu,
+      reassigningServiceId: pg.reassigningService?.service.service.id,
+      dict,
+    },
+    gridOverlays: {
+      dict,
+      contextMenu: pg.contextMenu,
+      onReassign: pg.handleReassign,
+      onAssign: pg.handleAssign,
+      onDeleteRequest: pg.handleDeleteRequest,
+      onDeleteAssignmentRequest: pg.handleDeleteAssignmentRequest,
+      onCloseContextMenu: pg.handleCloseContextMenu,
+      deleteModal: pg.deleteModal,
+      onConfirmDelete: pg.handleConfirmDelete,
+      onCancelDelete: pg.handleCancelDelete,
+      deleteAssignmentModal: pg.deleteAssignmentModal,
+      onConfirmDeleteAssignment: pg.handleConfirmDeleteAssignment,
+      onCancelDeleteAssignment: pg.handleCancelDeleteAssignment,
+      reassigningService: pg.reassigningService,
+      selectedSlot: pg.selectedSlot,
+    },
+  };
+}
+
 export function PlanningGridShell({
   children,
   shiftOverlayTopPx,

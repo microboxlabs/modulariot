@@ -22,7 +22,10 @@ import {
 } from "./planning-slot-utils";
 import { SlotCellContent, TimeLabelCell } from "./slot-cell-shared";
 import { usePlanningGrid } from "./use-planning-grid";
-import { PlanningGridShell } from "./planning-grid-shell";
+import {
+  PlanningGridShell,
+  buildPlanningGridShellProps,
+} from "./planning-grid-shell";
 import {
   BASE_ROW_HEIGHT_PX,
   buildShiftLayout,
@@ -95,8 +98,8 @@ export default function PlanningWeekView({
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
 
+  const planningGrid = usePlanningGrid({ startHour, endHour });
   const {
-    selectedSlot,
     handleSelectSlot,
     isSlotSelected: checkSlotSelected,
     timeSlots,
@@ -104,24 +107,9 @@ export default function PlanningWeekView({
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
-    reassigningService,
-    contextMenu,
-    deleteModal,
-    deleteAssignmentModal,
-    handleContextMenu,
-    handleCloseContextMenu,
-    handleReassign,
-    handleAssign,
-    handleDeleteRequest,
-    handleConfirmDelete,
-    handleCancelDelete,
-    handleDeleteAssignmentRequest,
-    handleConfirmDeleteAssignment,
-    handleCancelDeleteAssignment,
-    viewPlannedService,
     configuredTimeSlots,
     plannedServices,
-  } = usePlanningGrid({ startHour, endHour });
+  } = planningGrid;
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -263,37 +251,20 @@ export default function PlanningWeekView({
   const HEADER_HEIGHT_PX = 64;
   const TIME_AXIS_WIDTH_PX = 64;
 
+  const shellProps = buildPlanningGridShellProps({
+    planningGrid,
+    positionedShifts,
+    onShiftClick: handleShiftClick,
+    isShiftSelected,
+    getServicesForShift,
+    dict,
+  });
+
   return (
     <PlanningGridShell
       shiftOverlayTopPx={HEADER_HEIGHT_PX}
       shiftOverlayLeftPx={TIME_AXIS_WIDTH_PX}
-      shiftOverlay={{
-        shifts: positionedShifts,
-        onShiftClick: handleShiftClick,
-        isShiftSelected,
-        getServicesForShift,
-        onChipClick: viewPlannedService,
-        onChipContextMenu: handleContextMenu,
-        reassigningServiceId: reassigningService?.service.service.id,
-        dict,
-      }}
-      gridOverlays={{
-        dict,
-        contextMenu,
-        onReassign: handleReassign,
-        onAssign: handleAssign,
-        onDeleteRequest: handleDeleteRequest,
-        onDeleteAssignmentRequest: handleDeleteAssignmentRequest,
-        onCloseContextMenu: handleCloseContextMenu,
-        deleteModal,
-        onConfirmDelete: handleConfirmDelete,
-        onCancelDelete: handleCancelDelete,
-        deleteAssignmentModal,
-        onConfirmDeleteAssignment: handleConfirmDeleteAssignment,
-        onCancelDeleteAssignment: handleCancelDeleteAssignment,
-        reassigningService,
-        selectedSlot,
-      }}
+      {...shellProps}
     >
       <div
         className="grid min-w-150"

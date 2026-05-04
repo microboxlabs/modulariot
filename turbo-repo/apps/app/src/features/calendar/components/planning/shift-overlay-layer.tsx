@@ -1,5 +1,6 @@
 "use client";
 
+import dayjs from "dayjs";
 import { twMerge } from "tailwind-merge";
 import type {
   PlannedService,
@@ -90,6 +91,8 @@ export function ShiftOverlayLayer({
         return (
           <div
             key={s.id}
+            data-slot-date={dayjs(s.date).format("YYYY-MM-DD")}
+            data-slot-time={labelHM}
             className={className}
             style={positionStyle}
             title={title}

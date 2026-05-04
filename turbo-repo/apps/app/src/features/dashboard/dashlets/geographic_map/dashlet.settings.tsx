@@ -297,19 +297,68 @@ function buildProvider(item: LayerSettingsItem): MapDataProvider | undefined {
   return undefined;
 }
 
+function buildGeoFields(provider: NonNullable<MapLayer["provider"]>) {
+  return {
+    transformWkb: "transformWkb" in provider ? (provider.transformWkb ?? false) : false,
+    geometryField: "geometryField" in provider ? (provider.geometryField ?? "") : "",
+    latField: "latField" in provider ? (provider.latField ?? "") : "",
+    lngField: "lngField" in provider ? (provider.lngField ?? "") : "",
+    responsePath: "responsePath" in provider
+      ? ((provider as { responsePath?: string }).responsePath ?? "")
+      : "",
+  };
+}
+
+function buildProviderFields(provider: MapLayer["provider"]) {
+  let apiUrl = "";
+  let sseUrl = "";
+  let pgrestFunctionName = "";
+  let pgrestParams: { key: string; value: string; _id: string }[] = [];
+  let pgrestHttpMethod: "POST" | "GET" = "POST";
+  let dataSourceId = "";
+  let plannerVariableName = "";
+  let refreshIntervalSec = 0;
+  let transformWkb = false;
+  let geometryField = "";
+  let latField = "";
+  let lngField = "";
+  let responsePath = "";
+
+  if (!provider || provider.type === "static") {
+    return { apiUrl, sseUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, plannerVariableName, refreshIntervalSec, transformWkb, geometryField, latField, lngField, responsePath };
+  }
+
+  const geo = buildGeoFields(provider);
+  transformWkb = geo.transformWkb;
+  geometryField = geo.geometryField;
+  latField = geo.latField;
+  lngField = geo.lngField;
+  responsePath = geo.responsePath;
+
+  if (provider.type === "api") {
+    apiUrl = provider.url;
+    refreshIntervalSec = (provider.refreshInterval ?? 0) / 1000;
+  } else if (provider.type === "sse") {
+    sseUrl = provider.url;
+  } else if (provider.type === "pgrest") {
+    pgrestFunctionName = provider.functionName;
+    pgrestParams = provider.params.map((p) => ({ ...p, _id: crypto.randomUUID() }));
+    pgrestHttpMethod = provider.method;
+    dataSourceId = provider.dataSourceId ?? "";
+    refreshIntervalSec = (provider.refreshInterval ?? 0) / 1000;
+  } else if (provider.type === "planner") {
+    plannerVariableName = provider.variableName;
+  }
+
+  return { apiUrl, sseUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, plannerVariableName, refreshIntervalSec, transformWkb, geometryField, latField, lngField, responsePath };
+}
+
 function mapLayerToSettingsItem(layer: MapLayer): LayerSettingsItem {
   const mode = (layer.provider?.type ?? "none") as DataSourceMode;
   const geoJsonText =
     layer.provider?.type === "static"
       ? JSON.stringify(layer.provider.data, null, 2)
       : "";
-
-  let refreshIntervalSec = 0;
-  if (layer.provider?.type === "api" && layer.provider.refreshInterval) {
-    refreshIntervalSec = layer.provider.refreshInterval / 1000;
-  } else if (layer.provider?.type === "pgrest" && layer.provider.refreshInterval) {
-    refreshIntervalSec = layer.provider.refreshInterval / 1000;
-  }
 
   return {
     id: layer.id,
@@ -318,41 +367,7 @@ function mapLayerToSettingsItem(layer: MapLayer): LayerSettingsItem {
     dataMode: mode,
     geoJsonText,
     geoJsonError: false,
-    apiUrl: layer.provider?.type === "api" ? layer.provider.url : "",
-    refreshIntervalSec,
-    sseUrl: layer.provider?.type === "sse" ? layer.provider.url : "",
-    pgrestFunctionName:
-      layer.provider?.type === "pgrest" ? layer.provider.functionName : "",
-    pgrestParams:
-      layer.provider?.type === "pgrest"
-        ? layer.provider.params.map((p) => ({ ...p, _id: crypto.randomUUID() }))
-        : [],
-    pgrestHttpMethod:
-      layer.provider?.type === "pgrest" ? layer.provider.method : "POST",
-    dataSourceId:
-      layer.provider?.type === "pgrest" ? (layer.provider.dataSourceId ?? "") : "",
-    plannerVariableName:
-      layer.provider?.type === "planner" ? layer.provider.variableName : "",
-    transformWkb:
-      (layer.provider?.type === "api" || layer.provider?.type === "sse" || layer.provider?.type === "pgrest" || layer.provider?.type === "planner")
-        ? (layer.provider.transformWkb ?? false)
-        : false,
-    geometryField:
-      (layer.provider && "geometryField" in layer.provider)
-        ? (layer.provider.geometryField ?? "")
-        : "",
-    latField:
-      (layer.provider && "latField" in layer.provider)
-        ? (layer.provider.latField ?? "")
-        : "",
-    lngField:
-      (layer.provider && "lngField" in layer.provider)
-        ? (layer.provider.lngField ?? "")
-        : "",
-    responsePath:
-      (layer.provider && "responsePath" in layer.provider)
-        ? ((layer.provider as { responsePath?: string }).responsePath ?? "")
-        : "",
+    ...buildProviderFields(layer.provider),
     style: layer.style ?? {},
     tooltip: layer.tooltip ?? { template: "" },
   };

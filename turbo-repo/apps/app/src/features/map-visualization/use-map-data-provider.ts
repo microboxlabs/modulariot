@@ -123,7 +123,10 @@ async function fetchGeoJson(
   const res = await fetch(url, init);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  const raw = unwrapResponse ? (provider.responsePath ? json : unwrapPgrestResponse(json)) : json;
+  let raw: unknown = json;
+  if (unwrapResponse && !provider.responsePath) {
+    raw = unwrapPgrestResponse(json);
+  }
   return (provider.transformWkb || provider.latField || provider.responsePath)
     ? rowsToGeoJson(raw, provider)
     : (raw as FeatureCollection);
@@ -159,6 +162,22 @@ function unwrapPgrestResponse(json: unknown): unknown {
     return (json as Record<string, unknown>).data;
   }
   return json;
+}
+
+/**
+ * Fires fetchData immediately and, if refreshInterval > 0, sets up a repeat interval.
+ * Pushes the interval cleanup into the provided cleanups array.
+ */
+function scheduleRefetch(
+  fetchData: () => Promise<void>,
+  refreshInterval: number | undefined,
+  cleanups: (() => void)[],
+): void {
+  void fetchData();
+  if (refreshInterval && refreshInterval > 0) {
+    const interval = setInterval(() => void fetchData(), refreshInterval);
+    cleanups.push(() => clearInterval(interval));
+  }
 }
 
 // ============================================================================
@@ -224,20 +243,9 @@ export function useMapDataProvider(
         }
       };
 
-      void fetchData();
-
-      if (provider.refreshInterval && provider.refreshInterval > 0) {
-        const interval = setInterval(
-          () => void fetchData(),
-          provider.refreshInterval
-        );
-        return () => {
-          controller.abort();
-          clearInterval(interval);
-        };
-      }
-
-      return () => controller.abort();
+      const cleanups: (() => void)[] = [() => controller.abort()];
+      scheduleRefetch(fetchData, provider.refreshInterval, cleanups);
+      return () => cleanups.forEach((fn) => fn());
     }
 
     if (provider.type === "sse") {
@@ -293,20 +301,9 @@ export function useMapDataProvider(
         }
       };
 
-      void fetchData();
-
-      if (provider.refreshInterval && provider.refreshInterval > 0) {
-        const interval = setInterval(
-          () => void fetchData(),
-          provider.refreshInterval
-        );
-        return () => {
-          controller.abort();
-          clearInterval(interval);
-        };
-      }
-
-      return () => controller.abort();
+      const cleanups: (() => void)[] = [() => controller.abort()];
+      scheduleRefetch(fetchData, provider.refreshInterval, cleanups);
+      return () => cleanups.forEach((fn) => fn());
     }
   }, [provider, searchParams, activeFilters]);
 
@@ -368,12 +365,7 @@ function setupLayerProvider(
       }
     };
 
-    void fetchData();
-
-    if (provider.refreshInterval && provider.refreshInterval > 0) {
-      const interval = setInterval(() => void fetchData(), provider.refreshInterval);
-      cleanups.push(() => clearInterval(interval));
-    }
+    scheduleRefetch(fetchData, provider.refreshInterval, cleanups);
   }
 
   if (provider.type === "sse") {
@@ -417,12 +409,7 @@ function setupLayerProvider(
       }
     };
 
-    void fetchData();
-
-    if (provider.refreshInterval && provider.refreshInterval > 0) {
-      const interval = setInterval(() => void fetchData(), provider.refreshInterval);
-      cleanups.push(() => clearInterval(interval));
-    }
+    scheduleRefetch(fetchData, provider.refreshInterval, cleanups);
   }
 
   return cleanups;

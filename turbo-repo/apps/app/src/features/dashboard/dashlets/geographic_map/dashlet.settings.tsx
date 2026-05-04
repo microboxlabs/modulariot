@@ -303,6 +303,14 @@ function mapLayerToSettingsItem(layer: MapLayer): LayerSettingsItem {
     layer.provider?.type === "static"
       ? JSON.stringify(layer.provider.data, null, 2)
       : "";
+
+  let refreshIntervalSec = 0;
+  if (layer.provider?.type === "api" && layer.provider.refreshInterval) {
+    refreshIntervalSec = layer.provider.refreshInterval / 1000;
+  } else if (layer.provider?.type === "pgrest" && layer.provider.refreshInterval) {
+    refreshIntervalSec = layer.provider.refreshInterval / 1000;
+  }
+
   return {
     id: layer.id,
     name: layer.name,
@@ -311,12 +319,7 @@ function mapLayerToSettingsItem(layer: MapLayer): LayerSettingsItem {
     geoJsonText,
     geoJsonError: false,
     apiUrl: layer.provider?.type === "api" ? layer.provider.url : "",
-    refreshIntervalSec:
-      layer.provider?.type === "api" && layer.provider.refreshInterval
-        ? layer.provider.refreshInterval / 1000
-        : layer.provider?.type === "pgrest" && layer.provider.refreshInterval
-          ? layer.provider.refreshInterval / 1000
-          : 0,
+    refreshIntervalSec,
     sseUrl: layer.provider?.type === "sse" ? layer.provider.url : "",
     pgrestFunctionName:
       layer.provider?.type === "pgrest" ? layer.provider.functionName : "",
@@ -1001,6 +1004,78 @@ interface DataPreviewSectionProps {
   dictionary: DashletSettingsProps<DashletConfig>["dictionary"];
 }
 
+/**
+ * Determines whether a layer settings item has configured data.
+ */
+function layerHasData(item: LayerSettingsItem): boolean {
+  switch (item.dataMode) {
+    case "static":
+      return item.geoJsonText.trim() !== "";
+    case "api":
+      return item.apiUrl.trim() !== "";
+    case "pgrest":
+      return item.pgrestFunctionName.trim() !== "";
+    case "planner":
+      return (item.plannerVariableName ?? "").trim() !== "";
+    default:
+      return false;
+  }
+}
+
+/**
+ * Applies a dot-notation responsePath to a JSON string, returning the extracted subset.
+ */
+function applyResponsePath(text: string, responsePath: string): string {
+  const path = responsePath.trim();
+  if (!path) return text;
+  try {
+    let extracted: unknown = JSON.parse(text);
+    for (const key of path.split(".")) {
+      if (extracted === null || extracted === undefined || typeof extracted !== "object") {
+        return text;
+      }
+      extracted = (extracted as Record<string, unknown>)[key];
+    }
+    return JSON.stringify(extracted, null, 2);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * Resolves preview text for planner-type layers from context results.
+ */
+function getPlannerPreview(
+  item: LayerSettingsItem,
+  plannerResults: Map<string, { rows: Record<string, string>[]; loading: boolean; error: string | null }>,
+): string | null {
+  if (item.dataMode !== "planner") return null;
+  if (!(item.plannerVariableName ?? "").trim()) return null;
+  const result = plannerResults.get(item.plannerVariableName);
+  if (!result) return null;
+  if (result.loading) return "__loading__";
+  if (result.error) return `Error: ${result.error}`;
+  return JSON.stringify(result.rows, null, 2);
+}
+
+/**
+ * Picks the raw preview text based on the layer's data mode.
+ */
+function getRawPreviewText(
+  item: LayerSettingsItem,
+  plannerPreview: string | null,
+  fetchedData: string | null,
+): string | null {
+  switch (item.dataMode) {
+    case "static":
+      return item.geoJsonText;
+    case "planner":
+      return plannerPreview;
+    default:
+      return fetchedData;
+  }
+}
+
 function DataPreviewSection({
   item,
   dictionary,
@@ -1017,16 +1092,7 @@ function DataPreviewSection({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasData =
-    item.dataMode === "static"
-      ? item.geoJsonText.trim() !== ""
-      : item.dataMode === "api"
-        ? item.apiUrl.trim() !== ""
-        : item.dataMode === "pgrest"
-          ? item.pgrestFunctionName.trim() !== ""
-          : item.dataMode === "planner"
-            ? (item.plannerVariableName ?? "").trim() !== ""
-            : false;
+  const hasData = layerHasData(item);
 
   // Fetch for API mode
   useEffect(() => {
@@ -1089,41 +1155,17 @@ function DataPreviewSection({
     return () => controller.abort();
   }, [open, item.dataMode, item.pgrestFunctionName, item.pgrestHttpMethod, item.pgrestParams, item.dataSourceId, activeFilters]);
 
-  // Planner data from context (no fetch needed)
-  const plannerPreview = useMemo(() => {
-    if (item.dataMode !== "planner" || !(item.plannerVariableName ?? "").trim()) return null;
-    const result = plannerResults.get(item.plannerVariableName);
-    if (!result) return null;
-    if (result.loading) return "__loading__";
-    if (result.error) return `Error: ${result.error}`;
-    return JSON.stringify(result.rows, null, 2);
-  }, [item.dataMode, item.plannerVariableName, plannerResults]);
+  const plannerPreview = useMemo(
+    () => getPlannerPreview(item, plannerResults),
+    [item, plannerResults]
+  );
 
-  const rawPreviewText =
-    item.dataMode === "static"
-      ? item.geoJsonText
-      : item.dataMode === "planner"
-        ? plannerPreview
-        : fetchedData;
+  const rawPreviewText = getRawPreviewText(item, plannerPreview, fetchedData);
 
   // Apply responsePath extraction to the preview
   const previewText = useMemo(() => {
     if (!rawPreviewText || rawPreviewText === "__loading__") return rawPreviewText;
-    const path = (item.responsePath ?? "").trim();
-    if (!path) return rawPreviewText;
-    try {
-      const parsed = JSON.parse(rawPreviewText);
-      let extracted: unknown = parsed;
-      for (const key of path.split(".")) {
-        if (extracted === null || extracted === undefined || typeof extracted !== "object") {
-          return rawPreviewText;
-        }
-        extracted = (extracted as Record<string, unknown>)[key];
-      }
-      return JSON.stringify(extracted, null, 2);
-    } catch {
-      return rawPreviewText;
-    }
+    return applyResponsePath(rawPreviewText, item.responsePath ?? "");
   }, [rawPreviewText, item.responsePath]);
 
   if (!hasData && item.dataMode !== "sse") return null;

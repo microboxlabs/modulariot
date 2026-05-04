@@ -20,7 +20,7 @@ export function resolveUrlTemplate(
   url: string,
   params: URLSearchParams
 ): string {
-  return url.replaceAll(/\{\{([^}]+)\}\}/g, (_, key: string) => {
+  return url.replaceAll(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
     return params.get(key.trim()) ?? "";
   });
 }
@@ -62,9 +62,11 @@ function latLngToGeoJson(raw: unknown, latField: string, lngField: string): Feat
     features: records
       .map((record) => {
         const r = record as Record<string, unknown>;
-        const lat = parseFloat(String(r[latField] ?? ""));
-        const lng = parseFloat(String(r[lngField] ?? ""));
-        if (isNaN(lat) || isNaN(lng)) return null;
+        const rawLat = r[latField];
+        const rawLng = r[lngField];
+        const lat = Number.parseFloat(typeof rawLat === "string" || typeof rawLat === "number" ? String(rawLat) : "");
+        const lng = Number.parseFloat(typeof rawLng === "string" || typeof rawLng === "number" ? String(rawLng) : "");
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
         return {
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: [lng, lat] },
@@ -96,9 +98,10 @@ function rowsToGeoJson(
   // If data looks like a valid FeatureCollection, return it
   if (
     typeof data === "object" &&
-    "type" in (data as object) &&
+    data !== null &&
+    "type" in data &&
     (data as { type: unknown }).type === "FeatureCollection" &&
-    "features" in (data as object) &&
+    "features" in data &&
     Array.isArray((data as { features: unknown }).features)
   ) {
     return data as FeatureCollection;
@@ -334,6 +337,112 @@ export interface MapLayerData {
   data: FeatureCollection | null;
 }
 
+type SetDynamicData = (updater: (prev: Record<string, FeatureCollection | null>) => Record<string, FeatureCollection | null>) => void;
+
+/**
+ * Sets up fetching/streaming for a single dynamic layer and returns cleanup functions.
+ */
+function setupLayerProvider(
+  layer: MapLayer,
+  searchParams: URLSearchParams,
+  activeFilters: Record<string, string>,
+  setDynamicData: SetDynamicData,
+): (() => void)[] {
+  const provider = layer.provider!;
+  const cleanups: (() => void)[] = [];
+
+  if (provider.type === "api") {
+    const resolvedUrl = resolveUrlTemplate(provider.url, searchParams);
+    const controller = new AbortController();
+    cleanups.push(() => controller.abort());
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(resolvedUrl, {
+          method: provider.method ?? "GET",
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as unknown;
+        const data = (provider.transformWkb || provider.latField || provider.responsePath)
+          ? rowsToGeoJson(json, provider)
+          : (json as FeatureCollection);
+        setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setDynamicData((prev) => ({ ...prev, [layer.id]: null }));
+      }
+    };
+
+    void fetchData();
+
+    if (provider.refreshInterval && provider.refreshInterval > 0) {
+      const interval = setInterval(() => void fetchData(), provider.refreshInterval);
+      cleanups.push(() => clearInterval(interval));
+    }
+  }
+
+  if (provider.type === "sse") {
+    const resolvedUrl = resolveUrlTemplate(provider.url, searchParams);
+    const source = new EventSource(resolvedUrl);
+
+    source.onmessage = (event) => {
+      try {
+        const json = JSON.parse(event.data as string) as unknown;
+        const data = (provider.transformWkb || provider.latField || provider.responsePath)
+          ? rowsToGeoJson(json, provider)
+          : (json as FeatureCollection);
+        setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
+      } catch {
+        // ignore parse errors, keep last good data
+      }
+    };
+
+    cleanups.push(() => source.close());
+  }
+
+  if (provider.type === "pgrest") {
+    const controller = new AbortController();
+    cleanups.push(() => controller.abort());
+
+    const resolvedParams = resolveFilterParams(provider.params, activeFilters);
+    const { url, init } = buildPgrestFetch(
+      provider.functionName,
+      provider.method,
+      resolvedParams,
+      provider.dataSourceId,
+    );
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(url, {
+          ...init,
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const raw = provider.responsePath ? json : unwrapPgrestResponse(json);
+        const data = (provider.transformWkb || provider.latField || provider.responsePath)
+          ? rowsToGeoJson(raw, provider)
+          : (raw as FeatureCollection);
+        setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setDynamicData((prev) => ({ ...prev, [layer.id]: null }));
+      }
+    };
+
+    void fetchData();
+
+    if (provider.refreshInterval && provider.refreshInterval > 0) {
+      const interval = setInterval(() => void fetchData(), provider.refreshInterval);
+      cleanups.push(() => clearInterval(interval));
+    }
+  }
+
+  return cleanups;
+}
+
 export function useMapLayersData(
   layers: MapLayer[],
   layersKey?: string
@@ -354,104 +463,7 @@ export function useMapLayersData(
     const cleanups: (() => void)[] = [];
 
     for (const layer of dynamicLayers) {
-      const provider = layer.provider!;
-
-      if (provider.type === "api") {
-        const resolvedUrl = resolveUrlTemplate(provider.url, searchParams);
-        const controller = new AbortController();
-        cleanups.push(() => controller.abort());
-
-        const fetchData = async () => {
-          try {
-            const res = await fetch(resolvedUrl, {
-              method: provider.method ?? "GET",
-              signal: controller.signal,
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = (await res.json()) as unknown;
-            const data = (provider.transformWkb || provider.latField || provider.responsePath)
-              ? rowsToGeoJson(json, provider)
-              : (json as FeatureCollection);
-            setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
-          } catch (err) {
-            if ((err as Error).name === "AbortError") return;
-            setDynamicData((prev) => ({ ...prev, [layer.id]: null }));
-          }
-        };
-
-        void fetchData();
-
-        if (provider.refreshInterval && provider.refreshInterval > 0) {
-          const interval = setInterval(
-            () => void fetchData(),
-            provider.refreshInterval
-          );
-          cleanups.push(() => clearInterval(interval));
-        }
-      }
-
-      if (provider.type === "sse") {
-        const resolvedUrl = resolveUrlTemplate(provider.url, searchParams);
-        const source = new EventSource(resolvedUrl);
-
-        source.onmessage = (event) => {
-          try {
-            const json = JSON.parse(event.data as string) as unknown;
-            const data = (provider.transformWkb || provider.latField || provider.responsePath)
-              ? rowsToGeoJson(json, provider)
-              : (json as FeatureCollection);
-            setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
-          } catch {
-            // ignore parse errors, keep last good data
-          }
-        };
-
-        // Let EventSource auto-reconnect on transient errors;
-        // cleanup closes it when the effect is torn down.
-        cleanups.push(() => source.close());
-      }
-
-      if (provider.type === "pgrest") {
-        const controller = new AbortController();
-        cleanups.push(() => controller.abort());
-
-        const resolvedParams = resolveFilterParams(provider.params, activeFilters);
-        const { url, init } = buildPgrestFetch(
-          provider.functionName,
-          provider.method,
-          resolvedParams,
-          provider.dataSourceId,
-        );
-
-        const fetchData = async () => {
-          try {
-            const res = await fetch(url, {
-              ...init,
-              signal: controller.signal,
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const json = await res.json();
-            const raw = provider.responsePath ? json : unwrapPgrestResponse(json);
-            const data = (provider.transformWkb || provider.latField || provider.responsePath)
-              ? rowsToGeoJson(raw, provider)
-              : (raw as FeatureCollection);
-            setDynamicData((prev) => ({ ...prev, [layer.id]: data }));
-          } catch (err) {
-            if ((err as Error).name === "AbortError") return;
-            setDynamicData((prev) => ({ ...prev, [layer.id]: null }));
-          }
-        };
-
-        void fetchData();
-
-        if (provider.refreshInterval && provider.refreshInterval > 0) {
-          const interval = setInterval(
-            () => void fetchData(),
-            provider.refreshInterval
-          );
-          cleanups.push(() => clearInterval(interval));
-        }
-      }
+      cleanups.push(...setupLayerProvider(layer, searchParams, activeFilters, setDynamicData));
     }
 
     return () => cleanups.forEach((fn) => fn());

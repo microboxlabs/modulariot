@@ -20,8 +20,8 @@ import { ShiftOverlayLayer } from "../shift-overlay-layer";
 import {
   BASE_ROW_HEIGHT_PX,
   buildShiftLayout,
+  computeStretchedRowLayout,
   rowOffsetsFromHeights,
-  shiftContentHeightPx,
   type PositionedShift,
 } from "../shift-layout";
 
@@ -188,30 +188,16 @@ export default function DayGrid({
       }),
     [configuredTimeSlots, currentDate, startHour, baselineRowOffsets]
   );
-  const { rowHeights, rowOffsets } = useMemo(() => {
-    const requiredPxPerMin = new Array<number>(timeSlots.length).fill(
-      BASE_ROW_HEIGHT_PX / 30
-    );
-    for (const shift of baseShifts) {
-      const contentPx = shiftContentHeightPx(
-        getServicesForShift(shift).length
-      );
-      if (contentPx <= 0) continue;
-      const required = contentPx / shift.durationMinutes;
-      const startRow = Math.floor((shift.startsAtMin - dayStartMin) / 30);
-      const endRow = Math.min(
-        timeSlots.length - 1,
-        Math.floor((shift.endsAtMin - 1 - dayStartMin) / 30)
-      );
-      for (let r = Math.max(0, startRow); r <= endRow; r++) {
-        if (required > requiredPxPerMin[r]) requiredPxPerMin[r] = required;
-      }
-    }
-    const heights = requiredPxPerMin.map((p) =>
-      Math.max(BASE_ROW_HEIGHT_PX, Math.ceil(p * 30))
-    );
-    return { rowHeights: heights, rowOffsets: rowOffsetsFromHeights(heights) };
-  }, [baseShifts, getServicesForShift, timeSlots.length, dayStartMin]);
+  const { rowHeights, rowOffsets } = useMemo(
+    () =>
+      computeStretchedRowLayout({
+        baseShifts,
+        getServicesCount: (shift) => getServicesForShift(shift).length,
+        rowCount: timeSlots.length,
+        dayStartMin,
+      }),
+    [baseShifts, getServicesForShift, timeSlots.length, dayStartMin]
+  );
 
   const positionedShifts = useMemo(
     () =>

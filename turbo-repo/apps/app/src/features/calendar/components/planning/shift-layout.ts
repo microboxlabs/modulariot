@@ -44,6 +44,43 @@ export function rowOffsetsFromHeights(heights: readonly number[]): number[] {
   return offsets;
 }
 
+/**
+ * Walk every base-laid shift, derive its required px/min from the chip
+ * stack height, propagate the maximum to each row the shift spans, and
+ * return the resulting per-row heights + cumulative offsets. Shared by
+ * day and week views — week-view callers pass shifts from all 7 day
+ * columns so the row stretches as soon as any single column's shift
+ * needs more height (rows are shared across columns in the grid).
+ */
+export function computeStretchedRowLayout(params: {
+  baseShifts: readonly PositionedShift[];
+  getServicesCount: (shift: PositionedShift) => number;
+  rowCount: number;
+  dayStartMin: number;
+}): { rowHeights: number[]; rowOffsets: number[] } {
+  const { baseShifts, getServicesCount, rowCount, dayStartMin } = params;
+  const requiredPxPerMin = new Array<number>(rowCount).fill(
+    BASE_ROW_HEIGHT_PX / 30
+  );
+  for (const shift of baseShifts) {
+    const contentPx = shiftContentHeightPx(getServicesCount(shift));
+    if (contentPx <= 0) continue;
+    const required = contentPx / shift.durationMinutes;
+    const startRow = Math.floor((shift.startsAtMin - dayStartMin) / 30);
+    const endRow = Math.min(
+      rowCount - 1,
+      Math.floor((shift.endsAtMin - 1 - dayStartMin) / 30)
+    );
+    for (let r = Math.max(0, startRow); r <= endRow; r++) {
+      if (required > requiredPxPerMin[r]) requiredPxPerMin[r] = required;
+    }
+  }
+  const heights = requiredPxPerMin.map((p) =>
+    Math.max(BASE_ROW_HEIGHT_PX, Math.ceil(p * 30))
+  );
+  return { rowHeights: heights, rowOffsets: rowOffsetsFromHeights(heights) };
+}
+
 export interface PositionedShift {
   id: string;
   twId: string;

@@ -20,10 +20,11 @@ import {
   getSlotCellClassName,
   type SlotState,
 } from "./planning-slot-utils";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { SlotCellContent, TimeLabelCell } from "./slot-cell-shared";
 import { usePlanningGrid } from "./use-planning-grid";
 import { PlanningGridOverlays } from "./planning-grid-overlays";
+import { ShiftOverlayLayer } from "./shift-overlay-layer";
+import { buildShiftLayout, type PositionedShift } from "./shift-layout";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -47,76 +48,37 @@ interface WeekSlotCellProps {
   day: WeekDay;
   slot: { hour: number; minutes: number; label: string };
   slotState: SlotState;
-  selected: boolean;
-  slotServices: PlannedService[];
   isLastDay: boolean;
   isLastSlot: boolean;
-  reassigningService: {
-    service: PlannedService;
-    originalSlot: { date: Date; hour: number; minutes: number };
-  } | null;
-  onCellClick: (day: WeekDay, slot: { hour: number; minutes: number }) => void;
-  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-  onChipClick: (ps: PlannedService) => void;
-  dict: I18nRecord;
 }
 
 function WeekSlotCell({
   day,
   slot,
   slotState,
-  selected,
-  slotServices,
   isLastDay,
   isLastSlot,
-  reassigningService,
-  onCellClick,
-  onContextMenu,
-  onChipClick,
-  dict,
 }: Readonly<WeekSlotCellProps>) {
-  const { slotBlocked, isDisabled } = slotState;
   const dayIsPast = dayjs(day.date).isBefore(dayjs().startOf("day"), "day");
 
-  const handleClick = () => {
-    if (!isDisabled) onCellClick(day, slot);
-  };
-
-  const cellContent = (
-    <button
-      type="button"
-      tabIndex={isDisabled ? -1 : 0}
-      onClick={handleClick}
-      disabled={isDisabled}
-      data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
-      data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
-      className={twMerge(
-        "appearance-none border-0 p-0 m-0 text-left",
-        getSlotCellClassName(slotState, dayIsPast, selected, {
-          isLastDay,
-          isLastSlot,
-          isFirstEditable: day.isToday,
-        })
-      )}
-    >
-      <SlotCellContent
-        state={slotState}
-        isPastDay={dayIsPast}
-        services={slotServices}
-        reassigningServiceId={reassigningService?.service.service.id}
-        onContextMenu={onContextMenu}
-        onChipClick={onChipClick}
-        dict={dict}
-        servicesLayout="column"
-      />
-    </button>
+  return (
+    <div className="w-full h-full">
+      <div
+        data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
+        data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
+        className={twMerge(
+          "appearance-none border-0 p-0 m-0 text-left",
+          getSlotCellClassName(slotState, dayIsPast, {
+            isLastDay,
+            isLastSlot,
+            isFirstEditable: day.isToday,
+          })
+        )}
+      >
+        <SlotCellContent state={slotState} isPastDay={dayIsPast} />
+      </div>
+    </div>
   );
-
-  if (slotBlocked && !dayIsPast) {
-    return <div className="w-full h-full">{cellContent}</div>;
-  }
-
-  return <div className="w-full h-full">{cellContent}</div>;
 }
 
 export default function PlanningWeekView({
@@ -134,7 +96,6 @@ export default function PlanningWeekView({
     isSlotSelected: checkSlotSelected,
     timeSlots,
     isLastSlot,
-    getPlannedServicesForSlot: getServicesForSlot,
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
@@ -153,6 +114,8 @@ export default function PlanningWeekView({
     handleConfirmDeleteAssignment,
     handleCancelDeleteAssignment,
     viewPlannedService,
+    configuredTimeSlots,
+    plannedServices,
   } = usePlanningGrid({ startHour, endHour });
 
   // Read date from URL, fallback to prop or today
@@ -177,34 +140,99 @@ export default function PlanningWeekView({
     [today]
   );
 
-  const handleCellClick = useCallback(
-    (day: WeekDay, slot: { hour: number; minutes: number }) => {
+  const handleShiftClick = useCallback(
+    (shift: PositionedShift) => {
       handleSelectSlot({
-        date: day.date,
-        hour: slot.hour,
-        minutes: slot.minutes,
-        dayIndex: weekDays.findIndex((d) => d.date === day.date),
+        date: shift.date,
+        hour: shift.slotHour,
+        minutes: shift.slotMinutes,
+        dayIndex: shift.columnIndex,
       });
     },
-    [handleSelectSlot, weekDays]
+    [handleSelectSlot]
   );
 
-  const isSlotSelected = useCallback(
-    (day: WeekDay, slot: { hour: number; minutes: number }) => {
-      return checkSlotSelected(day.date, slot.hour, slot.minutes);
-    },
+  const isShiftSelected = useCallback(
+    (shift: PositionedShift) =>
+      checkSlotSelected(shift.date, shift.slotHour, shift.slotMinutes),
     [checkSlotSelected]
   );
 
-  const getPlannedServicesForSlot = useCallback(
-    (day: WeekDay, slot: { hour: number; minutes: number }) => {
-      return getServicesForSlot(day.date, slot.hour, slot.minutes);
+  // Cells no longer expand for chip stacking (chips render inside the shift
+  // overlay rectangles, not in cells), so each row has the same fixed
+  // height. Matches the previous base value so the overall grid density is
+  // unchanged.
+  const ROW_HEIGHT_PX = 48;
+  const rowOffsets = useMemo(() => {
+    const offsets = [0];
+    for (let i = 0; i < timeSlots.length; i++) {
+      offsets.push(offsets[i] + ROW_HEIGHT_PX);
+    }
+    return offsets;
+  }, [timeSlots.length]);
+
+  // Index planned services by date and exact "HH:MM" start so the overlay
+  // layer can fetch the chips that belong inside each shift in O(1).
+  const servicesByDateAndStart = useMemo(() => {
+    const map = new Map<string, Map<string, PlannedService[]>>();
+    for (const ps of plannedServices) {
+      const dayKey = dayjs(ps.slot.date).format("YYYY-MM-DD");
+      let inner = map.get(dayKey);
+      if (!inner) {
+        inner = new Map<string, PlannedService[]>();
+        map.set(dayKey, inner);
+      }
+      const slotKey = `${ps.slot.hour}:${ps.slot.minutes}`;
+      const arr = inner.get(slotKey);
+      if (arr) {
+        arr.push(ps);
+      } else {
+        inner.set(slotKey, [ps]);
+      }
+    }
+    return map;
+  }, [plannedServices]);
+
+  const getServicesForShift = useCallback(
+    (shift: PositionedShift) => {
+      const dayKey = dayjs(shift.date).format("YYYY-MM-DD");
+      return (
+        servicesByDateAndStart
+          .get(dayKey)
+          ?.get(`${shift.slotHour}:${shift.slotMinutes}`) ?? []
+      );
     },
-    [getServicesForSlot]
+    [servicesByDateAndStart]
   );
+
+  // One concatenated array of overlay rectangles, with per-shift column
+  // geometry so the overlay layer can place them inside the matching day
+  // column.
+  const positionedShifts = useMemo(() => {
+    const out: PositionedShift[] = [];
+    for (let i = 0; i < weekDays.length; i++) {
+      const day = weekDays[i];
+      out.push(
+        ...buildShiftLayout({
+          timeSlots: configuredTimeSlots,
+          date: day.date,
+          startHour,
+          rowOffsets,
+          columnIndex: i,
+          columnCount: weekDays.length,
+        })
+      );
+    }
+    return out;
+  }, [configuredTimeSlots, weekDays, startHour, rowOffsets]);
+
+  // Header band height in px (h-16 = 4rem = 64px) and time-axis column width.
+  const HEADER_HEIGHT_PX = 64;
+  const TIME_AXIS_WIDTH_PX = 64;
 
   return (
     <div className="w-full h-full overflow-auto">
+     <div className="relative">
       <div
         className="grid min-w-150"
         style={{
@@ -271,22 +299,12 @@ export default function PlanningWeekView({
 
         {/* Time slots grid */}
         {timeSlots.map((slot, slotIdx) => {
-          // Calculate max services across all days for this time slot to determine row height
-          const maxServicesInRow = Math.max(
-            1,
-            ...weekDays.map(
-              (day) => getPlannedServicesForSlot(day, slot).length
-            )
-          );
-          // Base height is 48px (h-12), add 20px per additional service
-          const rowMinHeight = 48 + Math.max(0, maxServicesInRow - 1) * 20;
-
           return (
             <Fragment key={slot.label}>
               {/* Time label column */}
               <TimeLabelCell
                 label={slot.label}
-                minHeight={rowMinHeight}
+                minHeight={ROW_HEIGHT_PX}
                 isLastSlot={isLastSlot(slotIdx)}
               />
 
@@ -302,8 +320,6 @@ export default function PlanningWeekView({
                     isSlotBlocked,
                   }
                 );
-                const selected = isSlotSelected(day, slot);
-                const slotServices = getPlannedServicesForSlot(day, slot);
 
                 return (
                   <WeekSlotCell
@@ -311,15 +327,8 @@ export default function PlanningWeekView({
                     day={day}
                     slot={slot}
                     slotState={slotState}
-                    selected={selected}
-                    slotServices={slotServices}
                     isLastDay={isLastDay(dayIdx)}
                     isLastSlot={isLastSlot(slotIdx)}
-                    reassigningService={reassigningService}
-                    onCellClick={handleCellClick}
-                    onContextMenu={handleContextMenu}
-                    onChipClick={viewPlannedService}
-                    dict={dict}
                   />
                 );
               })}
@@ -327,6 +336,30 @@ export default function PlanningWeekView({
           );
         })}
       </div>
+
+      {/* Shift overlay: each rectangle owns its own chips and "add booking"
+          affordance. */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          top: HEADER_HEIGHT_PX,
+          left: TIME_AXIS_WIDTH_PX,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        <ShiftOverlayLayer
+          shifts={positionedShifts}
+          onShiftClick={handleShiftClick}
+          isShiftSelected={isShiftSelected}
+          getServicesForShift={getServicesForShift}
+          onChipClick={viewPlannedService}
+          onChipContextMenu={handleContextMenu}
+          reassigningServiceId={reassigningService?.service.service.id}
+          dict={dict}
+        />
+      </div>
+     </div>
 
       {/* Overlays */}
       <PlanningGridOverlays

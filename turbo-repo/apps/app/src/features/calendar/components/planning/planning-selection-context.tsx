@@ -162,6 +162,9 @@ export interface TimeSlot {
   quota?: number;
   // Visual color (optional, mainly for windows)
   color?: TimeWindowColor;
+  // Server-managed shift cadence in minutes; only present on TWs loaded from
+  // the API. Falls back to the row granularity (30 min) when missing.
+  slotDurationMinutes?: number;
 }
 
 /**

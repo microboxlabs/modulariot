@@ -16,6 +16,8 @@ import {
 import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
 import { usePlanningGrid } from "../use-planning-grid";
 import { PlanningGridOverlays } from "../planning-grid-overlays";
+import { ShiftOverlayLayer } from "../shift-overlay-layer";
+import { buildShiftLayout, type PositionedShift } from "../shift-layout";
 
 interface DayGridProps {
   lang: string;
@@ -45,17 +47,7 @@ interface DayGridSlotCellProps {
   currentDate: Date;
   isPastDay: boolean;
   state: SlotState;
-  selected: boolean;
-  slotServices: PlannedService[];
   isLastSlot: boolean;
-  reassigningService: {
-    service: PlannedService;
-    originalSlot: { date: Date; hour: number; minutes: number };
-  } | null;
-  onCellClick: (slot: { hour: number; minutes: number }) => void;
-  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-  onChipClick: (ps: PlannedService) => void;
-  dict: I18nDictionary;
 }
 
 function DayGridSlotCell({
@@ -63,50 +55,20 @@ function DayGridSlotCell({
   currentDate,
   isPastDay,
   state,
-  selected,
-  slotServices,
   isLastSlot,
-  reassigningService,
-  onCellClick,
-  onContextMenu,
-  onChipClick,
-  dict,
 }: Readonly<DayGridSlotCellProps>) {
-  const { slotBlocked, isDisabled } = state;
-
-  const handleClick = () => {
-    if (!isDisabled) onCellClick(slot);
-  };
-
-  const cellContent = (
-    <button
-      type="button"
+  return (
+    <div
       data-slot-date={dayjs(currentDate).format("YYYY-MM-DD")}
       data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
-      onClick={handleClick}
-      disabled={isDisabled}
-      className={getSlotCellClassName(state, isPastDay, selected, {
+      className={getSlotCellClassName(state, isPastDay, {
         isLastSlot,
         isFirstEditable: !isPastDay,
       })}
     >
-      <SlotCellContent
-        state={state}
-        isPastDay={isPastDay}
-        services={slotServices}
-        reassigningServiceId={reassigningService?.service.service.id}
-        onContextMenu={onContextMenu}
-        onChipClick={onChipClick}
-        dict={dict}
-        servicesLayout="row"
-      />
-    </button>
+      <SlotCellContent state={state} isPastDay={isPastDay} />
+    </div>
   );
-
-  if (slotBlocked && !isPastDay) {
-    return <div className="w-full h-full">{cellContent}</div>;
-  }
-  return cellContent;
 }
 
 export default function DayGrid({
@@ -122,7 +84,6 @@ export default function DayGrid({
     isSlotSelected: checkSlotSelected,
     timeSlots,
     isLastSlot,
-    getPlannedServicesForSlot: getServicesForSlot,
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
@@ -141,6 +102,8 @@ export default function DayGrid({
     handleConfirmDeleteAssignment,
     handleCancelDeleteAssignment,
     viewPlannedService,
+    configuredTimeSlots,
+    plannedServices,
   } = usePlanningGrid({ startHour, endHour });
 
   const dayInfo = useMemo(
@@ -153,33 +116,80 @@ export default function DayGrid({
     return dayjs(currentDate).isBefore(dayjs().startOf("day"), "day");
   }, [currentDate]);
 
-  const handleCellClick = useCallback(
-    (slot: { hour: number; minutes: number }) => {
+  const handleShiftClick = useCallback(
+    (shift: PositionedShift) => {
       handleSelectSlot({
-        date: currentDate,
-        hour: slot.hour,
-        minutes: slot.minutes,
+        date: shift.date,
+        hour: shift.slotHour,
+        minutes: shift.slotMinutes,
       });
     },
-    [handleSelectSlot, currentDate]
+    [handleSelectSlot]
   );
 
-  const isSlotSelected = useCallback(
-    (slot: { hour: number; minutes: number }) => {
-      return checkSlotSelected(currentDate, slot.hour, slot.minutes);
-    },
-    [checkSlotSelected, currentDate]
+  const isShiftSelected = useCallback(
+    (shift: PositionedShift) =>
+      checkSlotSelected(shift.date, shift.slotHour, shift.slotMinutes),
+    [checkSlotSelected]
   );
 
-  const getPlannedServicesForSlot = useCallback(
-    (slot: { hour: number; minutes: number }) => {
-      return getServicesForSlot(currentDate, slot.hour, slot.minutes);
-    },
-    [getServicesForSlot, currentDate]
+  // Cells no longer expand for chip stacking (chips render inside the shift
+  // overlay rectangles, not in cells), so each row has the same fixed
+  // height. The constant matches the previous base value so the overall
+  // grid density is unchanged.
+  const ROW_HEIGHT_PX = 48;
+  const rowOffsets = useMemo(() => {
+    const offsets = [0];
+    for (let i = 0; i < timeSlots.length; i++) {
+      offsets.push(offsets[i] + ROW_HEIGHT_PX);
+    }
+    return offsets;
+  }, [timeSlots.length]);
+
+  // Index planned services by exact start "HH:MM" on the current date so
+  // the overlay layer can fetch the chips that belong inside each shift
+  // rectangle in O(1).
+  const servicesByStartOnDate = useMemo(() => {
+    const map = new Map<string, PlannedService[]>();
+    for (const ps of plannedServices) {
+      if (!dayjs(ps.slot.date).isSame(currentDate, "day")) continue;
+      const key = `${ps.slot.hour}:${ps.slot.minutes}`;
+      const arr = map.get(key);
+      if (arr) {
+        arr.push(ps);
+      } else {
+        map.set(key, [ps]);
+      }
+    }
+    return map;
+  }, [plannedServices, currentDate]);
+
+  const getServicesForShift = useCallback(
+    (shift: PositionedShift) =>
+      servicesByStartOnDate.get(`${shift.slotHour}:${shift.slotMinutes}`) ?? [],
+    [servicesByStartOnDate]
   );
+
+  const positionedShifts = useMemo(
+    () =>
+      buildShiftLayout({
+        timeSlots: configuredTimeSlots,
+        date: currentDate,
+        startHour,
+        rowOffsets,
+      }),
+    [configuredTimeSlots, currentDate, startHour, rowOffsets]
+  );
+
+  // Header band (sticky day/time-axis row) height in px — the time-slot grid
+  // starts immediately below this. Matches `h-20` (5rem) on the header cells.
+  const HEADER_HEIGHT_PX = 80;
+  // Time-axis column width — the overlay covers the day column only.
+  const TIME_AXIS_WIDTH_PX = 64;
 
   return (
     <div className="w-full h-full overflow-auto">
+     <div className="relative">
       <div className="grid" style={{ gridTemplateColumns: "64px 1fr" }}>
         {/* Header row - empty corner cell */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-800">
@@ -236,15 +246,12 @@ export default function DayGrid({
             getRemainingQuota,
             isSlotBlocked,
           });
-          const selected = isSlotSelected(slot);
-          const slotServices = getPlannedServicesForSlot(slot);
-          const rowMinHeight = 48 + Math.max(0, slotServices.length - 1) * 20;
 
           return (
             <Fragment key={slot.label}>
               <TimeLabelCell
                 label={slot.label}
-                minHeight={rowMinHeight}
+                minHeight={ROW_HEIGHT_PX}
                 isLastSlot={isLastSlot(slotIdx)}
               />
               <DayGridSlotCell
@@ -252,19 +259,36 @@ export default function DayGrid({
                 currentDate={currentDate}
                 isPastDay={isPastDay}
                 state={slotState}
-                selected={selected}
-                slotServices={slotServices}
                 isLastSlot={isLastSlot(slotIdx)}
-                reassigningService={reassigningService}
-                onCellClick={handleCellClick}
-                onContextMenu={handleContextMenu}
-                onChipClick={viewPlannedService}
-                dict={dict}
               />
             </Fragment>
           );
         })}
       </div>
+
+      {/* Shift overlay: each rectangle owns its own chips and "add booking"
+          affordance. Sits over the day column only. */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          top: HEADER_HEIGHT_PX,
+          left: TIME_AXIS_WIDTH_PX,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        <ShiftOverlayLayer
+          shifts={positionedShifts}
+          onShiftClick={handleShiftClick}
+          isShiftSelected={isShiftSelected}
+          getServicesForShift={getServicesForShift}
+          onChipClick={viewPlannedService}
+          onChipContextMenu={handleContextMenu}
+          reassigningServiceId={reassigningService?.service.service.id}
+          dict={dict}
+        />
+      </div>
+     </div>
 
       {/* Context Menu */}
       <PlanningGridOverlays

@@ -231,8 +231,8 @@ export function useBatchImporter({
       setDateDisplayFormats((prev) => {
         const next = { ...prev };
         const trimmed = value.trim();
-        if (!trimmed) delete next[target];
-        else next[target] = trimmed;
+        if (trimmed) next[target] = trimmed;
+        else delete next[target];
         onDateDisplayFormatsChangeRef.current?.(next);
         return next;
       });

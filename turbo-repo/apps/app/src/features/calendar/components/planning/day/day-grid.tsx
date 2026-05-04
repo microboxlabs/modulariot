@@ -67,8 +67,6 @@ function DayGridSlotCell({
 }: Readonly<DayGridSlotCellProps>) {
   return (
     <div
-      data-slot-date={dayjs(currentDate).format("YYYY-MM-DD")}
-      data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
       className={getSlotCellClassName(state, isPastDay, {
         isLastSlot,
         isFirstEditable: !isPastDay,

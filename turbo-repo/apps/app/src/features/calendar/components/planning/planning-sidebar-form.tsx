@@ -280,7 +280,8 @@ export function PlanningSidebarForm({
   // so typing/selecting within the same service doesn't thrash.
   useEffect(() => {
     setAssignmentData(assignmentDataFromService(selectedService));
-  }, [selectedService?.id]);
+    setSelectedServiceCategory(selectedService?.serviceCategory ?? "");
+  }, [selectedService?.id, selectedService?.serviceCategory]);
 
   const { serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes();
   const serviceCategoryOptions = serviceTypes.map((t) => ({

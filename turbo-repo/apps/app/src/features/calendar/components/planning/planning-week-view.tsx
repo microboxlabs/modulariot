@@ -72,8 +72,6 @@ function WeekSlotCell({
   return (
     <div className="w-full h-full">
       <div
-        data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
-        data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
         className={twMerge(
           "appearance-none border-0 p-0 m-0 text-left",
           getSlotCellClassName(slotState, dayIsPast, {

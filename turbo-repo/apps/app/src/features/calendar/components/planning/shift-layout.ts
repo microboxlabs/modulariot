@@ -39,8 +39,12 @@ export function shiftContentHeightPx(serviceCount: number): number {
  * top of row `i`; the last entry is the bottom of the grid.
  */
 export function rowOffsetsFromHeights(heights: readonly number[]): number[] {
-  const offsets = [0];
-  for (const h of heights) offsets.push(offsets[offsets.length - 1] + h);
+  let cumulative = 0;
+  const offsets = [cumulative];
+  for (const h of heights) {
+    cumulative += h;
+    offsets.push(cumulative);
+  }
   return offsets;
 }
 

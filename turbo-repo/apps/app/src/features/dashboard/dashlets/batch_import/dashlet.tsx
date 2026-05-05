@@ -10,14 +10,13 @@ import { tr } from "@/features/i18n/tr.service";
 import { makePgrestBatchApi } from "./engine/api";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
-import type { DuplicateStrategy, IntrospectedParam } from "./engine/types";
+import type { IntrospectedParam } from "./engine/types";
 import type { TransformStep } from "./engine/transforms";
 
 export interface DashletConfig {
   title: string;
   pgrestFunctionName: string;
   dataSourceId?: string;
-  defaultStrategy: DuplicateStrategy;
   acceptedFileTypes?: string;
   /** Per-column value transforms keyed by mapped column name. Persisted with
    *  the widget so the same cleanup pipeline applies on every re-import. */
@@ -27,7 +26,6 @@ export interface DashletConfig {
 export const defaultConfig: DashletConfig = {
   title: "",
   pgrestFunctionName: "",
-  defaultStrategy: "upsert",
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -125,7 +123,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             onClose={() => setOpen(false)}
             api={api}
             title={title}
-            defaultStrategy={config.defaultStrategy}
             acceptedFileTypes={config.acceptedFileTypes}
             dictionary={dictionary}
             params={params}

@@ -34,7 +34,6 @@ type RouteContext = { params: Promise<{ functionName: string }> };
 
 interface BulkBody {
   rows?: unknown;
-  duplicateStrategy?: unknown;
   /** Source provenance produced by /parse. Forwarded by the client; the
    *  server uses these as-is — they're informational, not security-sensitive. */
   sourceMeta?: IncomingSourceMeta;
@@ -135,9 +134,6 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const body = (await req.json().catch(() => null)) as BulkBody | null;
   const rows = sanitizeRows(body?.rows);
-  // `body.duplicateStrategy` is intentionally ignored for now: the existing
-  // client never wired it into PostgREST bodies either, so honoring it here
-  // would silently change behavior. A follow-up can opt-in to forwarding it.
 
   if (rows.length === 0) {
     return NextResponse.json(

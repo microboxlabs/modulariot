@@ -2,10 +2,7 @@
 
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { BatchImporterApi } from "./engine/api";
-import type {
-  DuplicateStrategy,
-  IntrospectedParam,
-} from "./engine/types";
+import type { IntrospectedParam } from "./engine/types";
 import type { TransformStep } from "./engine/transforms";
 import {
   BatchImporterView,
@@ -19,7 +16,6 @@ interface Props {
   onClose: () => void;
   api: BatchImporterApi;
   title: string;
-  defaultStrategy?: DuplicateStrategy;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
   /** RPC parameter schema — for the schema panel UI. */
@@ -37,7 +33,6 @@ export function BatchImporterModal({
   onClose,
   api,
   title,
-  defaultStrategy,
   acceptedFileTypes,
   dictionary,
   params,
@@ -47,7 +42,6 @@ export function BatchImporterModal({
 }: Readonly<Props>) {
   const state = useBatchImporter({
     api,
-    defaultStrategy,
     params,
     filenameBase,
     initialTransforms,

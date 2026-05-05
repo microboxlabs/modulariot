@@ -36,7 +36,7 @@ export default function Historic({
   if (error) {
     return (
       <p className="p-4 text-sm text-red-500">
-        {(dict.kanban as I18nRecord).noLoads as string}
+        {(dict.kanban as I18nRecord).loadError as string}
       </p>
     );
   }

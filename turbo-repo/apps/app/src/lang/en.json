@@ -585,6 +585,7 @@
         "expeditionNumber": "Expedition Number",
         "code": "Code",
         "noLoads": "No loads",
+        "loadError": "Failed to load history",
         "kanban_movements": "Kanban Movements",
         "load_table": "Load Table",
         "length": "Length",

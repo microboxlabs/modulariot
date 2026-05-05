@@ -586,6 +586,7 @@
         "expeditionNumber": "N° de expedición",
         "code": "Código",
         "noLoads": "No hay cargas",
+        "loadError": "Error al cargar el historial",
         "kanban_movements": "Movimientos de Kanban",
         "load_table": "Tabla de cargas",
         "length": "Largo",

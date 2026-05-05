@@ -1052,7 +1052,7 @@ function applyResponsePath(text: string, responsePath: string): string {
       extracted = (extracted as Record<string, unknown>)[key];
     }
     const result = JSON.stringify(extracted, null, 2);
-    return result === undefined ? "" : result;
+    return result ?? "";
   } catch {
     return text;
   }
@@ -1381,6 +1381,16 @@ function LayerStyleCard({
               onChange={(v) => set("transformWkb", v)}
             />
           </div>
+        )}
+
+        {hasDataProvider && (
+          <SettingsTextField
+            id={`geo-responsepath-${item.id}`}
+            label={tr("dashboard.settings.responsePath", dictionary)}
+            value={item.responsePath}
+            onChange={(v) => set("responsePath", v)}
+            placeholder="data.results"
+          />
         )}
       </div>
       <TooltipLayerSection item={item} onChange={onChange} dictionary={dictionary} />

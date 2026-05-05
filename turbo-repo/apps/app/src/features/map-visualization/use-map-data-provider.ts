@@ -21,7 +21,7 @@ export function resolveUrlTemplate(
   params: URLSearchParams
 ): string {
   return url.replaceAll(/\{\{([^{}]+)\}\}/g, (_, key: string) => {
-    return params.get(key.trim()) ?? "";
+    return encodeURIComponent(params.get(key.trim()) ?? "");
   });
 }
 

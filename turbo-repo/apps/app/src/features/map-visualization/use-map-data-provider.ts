@@ -39,16 +39,23 @@ function wkbResponseToGeoJson(raw: unknown, geometryField = "location"): Feature
   const records = Array.isArray(raw) ? raw : [raw];
   return {
     type: "FeatureCollection",
-    features: records.map((record) => {
-      const r = record as Record<string, unknown>;
-      const location = r[geometryField] as string | undefined;
-      const [lng, lat] = location ? parseWKBPoint(location) : [0, 0];
-      return {
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [lng, lat] },
-        properties: r,
-      };
-    }),
+    features: records
+      .map((record) => {
+        const r = record as Record<string, unknown>;
+        const location = r[geometryField];
+        if (!location || typeof location !== "string") return null;
+        try {
+          const [lng, lat] = parseWKBPoint(location);
+          return {
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [lng, lat] },
+            properties: r,
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null),
   };
 }
 
@@ -165,19 +172,34 @@ function unwrapPgrestResponse(json: unknown): unknown {
 }
 
 /**
- * Fires fetchData immediately and, if refreshInterval > 0, sets up a repeat interval.
- * Pushes the interval cleanup into the provided cleanups array.
+ * Fires fetchData immediately and, if refreshInterval > 0, serializes refreshes
+ * using an async loop that awaits each fetch before scheduling the next timeout.
+ * Pushes cleanup into the provided cleanups array.
  */
 function scheduleRefetch(
   fetchData: () => Promise<void>,
   refreshInterval: number | undefined,
   cleanups: (() => void)[],
 ): void {
-  void fetchData();
-  if (refreshInterval && refreshInterval > 0) {
-    const interval = setInterval(() => void fetchData(), refreshInterval);
-    cleanups.push(() => clearInterval(interval));
-  }
+  let cancelled = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const loop = async () => {
+    while (!cancelled) {
+      await fetchData();
+      if (cancelled || !refreshInterval || refreshInterval <= 0) break;
+      await new Promise<void>((resolve) => {
+        timeoutId = setTimeout(resolve, refreshInterval);
+      });
+    }
+  };
+
+  void loop();
+
+  cleanups.push(() => {
+    cancelled = true;
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  });
 }
 
 // ============================================================================

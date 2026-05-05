@@ -612,7 +612,7 @@ function PgrestLayerSection({
                 onClick={() => {
                   set("pgrestParams", item.pgrestParams.filter((pp) => pp._id !== p._id));
                 }}
-                ariaLabel="Delete parameter"
+                ariaLabel={tr("dashboard.settings.deleteParameter", dictionary)}
               />
             </div>
           ))}
@@ -721,7 +721,7 @@ function LayerCard({
           onChange={(t) => set("geometryType", t)}
           dictionary={dictionary}
         />
-        <DeleteItemButton onClick={onDelete} ariaLabel="Delete origin" />
+        <DeleteItemButton onClick={onDelete} ariaLabel={tr("dashboard.settings.deleteOrigin", dictionary)} />
       </div>
 
       {/* Body */}
@@ -1051,7 +1051,8 @@ function applyResponsePath(text: string, responsePath: string): string {
       }
       extracted = (extracted as Record<string, unknown>)[key];
     }
-    return JSON.stringify(extracted, null, 2);
+    const result = JSON.stringify(extracted, null, 2);
+    return result === undefined ? "" : result;
   } catch {
     return text;
   }
@@ -1136,6 +1137,7 @@ function DataPreviewSection({
 
     setLoading(true);
     setError(null);
+    setFetchedData(null);
 
     const controller = new AbortController();
     fetch(fetchUrl, { ...fetchInit, signal: controller.signal })
@@ -1190,14 +1192,14 @@ function DataPreviewSection({
       {open && (
         <div className="mt-2">
           {(loading || previewText === "__loading__") && (
-            <p className="text-xs text-gray-400">Loading...</p>
+            <p className="text-xs text-gray-400">{tr("dashboard.settings.previewLoading", dictionary)}</p>
           )}
           {error && (
             <p className="text-xs text-red-500">{error}</p>
           )}
           {item.dataMode === "sse" && (
             <p className="text-xs text-gray-400 italic">
-              SSE preview not available — data streams in real-time.
+              {tr("dashboard.settings.ssePreviewUnavailable", dictionary)}
             </p>
           )}
           {previewText && previewText !== "__loading__" && (

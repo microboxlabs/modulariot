@@ -59,7 +59,7 @@ export default function Loads({
     ]) as (string[] | React.ReactElement)[]) || [];
 
   return (
-    <div className="flex-1 w-0 min-w-full overflow-x-auto h-full transition-all duration-300">
+    <div className="flex-1 w-0 min-w-full overflow-x-auto h-full transition-all duration-300 rounded-b-lg border-t border-gray-200 dark:border-gray-600">
       <CustomTable
         content={content || []}
         no_data_message={(dict.kanban as I18nRecord).noLoads as string}

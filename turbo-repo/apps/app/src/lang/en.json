@@ -3408,7 +3408,12 @@
     "grid": {
       "title": "Collaborators",
       "collaboratorCount": "{count} collaborators",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "errorTitle": "Failed to load collaborators",
+      "errorDesc": "An error occurred while fetching the collaborators list. Please try again.",
+      "retry": "Retry",
+      "emptyTitle": "No collaborators found",
+      "emptyDesc": "There are no collaborators matching your current filters."
     },
     "rank": {
       "conductor-senior": "Senior Driver",

@@ -1,6 +1,8 @@
 import { TaskHistory, useTaskHistory } from "../hooks/use-task-history";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import CustomTable from "@/features/common/components/custom-table/custom-table";
+import { BaseTimelineEvent } from "@/features/common/components/timeline-event";
+import { Spinner } from "flowbite-react";
+import { HiArrowRight } from "react-icons/hi";
 
 export default function Historic({
   task_id,
@@ -17,53 +19,86 @@ export default function Historic({
     error,
   } = useTaskHistory(task_id, active);
 
-  // Ensure taskHistory is always an array
   const safeTaskHistory = Array.isArray(taskHistory) ? taskHistory : [];
 
-  const headers: string[] = [
-    (dict.kanban as I18nRecord).taskType as string,
-    (dict.kanban as I18nRecord).taskAction as string,
-    (dict.kanban as I18nRecord).finalizationDate as string,
-    (dict.kanban as I18nRecord).duration as string,
-    (dict.kanban as I18nRecord).completedBy as string,
-  ];
+  const completedItems = safeTaskHistory
+    .filter((item): item is TaskHistory & { endTime: string } => !!item.endTime)
+    .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime());
 
-  let content: string[][] = safeTaskHistory
-    .map((item: TaskHistory) => {
-      if (item.endTime) {
-        const formattedDate = formatDate(item.endTime);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
-        return [
-          ((dict.kanban as I18nRecord)[item.activityId as string] as string) ??
-            item.activityName,
-          ((dict.kanban as I18nRecord)[item.taskResult as string] as string) ??
-            item.taskResult,
-          formattedDate,
-          get_duration(item.startTime, item.endTime),
-          item.assignee ? item.assignee : "-",
-        ];
-      }
-      return undefined;
-    })
-    .filter((row): row is string[] => row !== undefined);
+  if (error) {
+    return (
+      <p className="p-4 text-sm text-red-500">
+        {(dict.kanban as I18nRecord).noLoads as string}
+      </p>
+    );
+  }
+
+  if (completedItems.length === 0) {
+    return (
+      <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
+        {(dict.kanban as I18nRecord).noLoads as string}
+      </p>
+    );
+  }
 
   return (
-    <div className="flex-1 w-0 min-w-full overflow-x-auto h-full transition-all duration-300">
-      <CustomTable
-        isLoading={isLoading}
-        error={error}
-        header={headers}
-        content={content}
-        no_data_message={(dict.kanban as I18nRecord).noLoads as string}
-      />
+    <div className="flex-1 w-0 min-w-full overflow-y-auto h-full p-4 transition-all duration-300 bg-white dark:bg-gray-800 rounded-b-lg border-t border-gray-200 dark:border-gray-600">
+      {completedItems.map((item, index) => {
+        const fromLabel =
+          ((dict.kanban as I18nRecord)[item.activityId] as string) ??
+          item.activityName;
+        const toLabel =
+          ((dict.kanban as I18nRecord)[item.taskResult] as string) ??
+          item.taskResult;
+
+        return (
+          <BaseTimelineEvent
+            key={`${item.activityId}-${item.endTime}`}
+            dotColor="bg-blue-500 dark:bg-blue-400"
+            isLast={index === completedItems.length - 1}
+          >
+            {/* Transition: from → to */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                {fromLabel}
+              </span>
+              <HiArrowRight className="h-3 w-3 shrink-0 text-gray-500 dark:text-gray-500" />
+              <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                {toLabel}
+              </span>
+            </div>
+
+            {/* Metadata: assignee + time highlighted */}
+            <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                {formatDate(item.endTime)}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {getDuration(item.startTime, item.endTime)}
+              </span>
+              {item.assignee && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {item.assignee}
+                </span>
+              )}
+            </div>
+          </BaseTimelineEvent>
+        );
+      })}
     </div>
   );
 }
 
-function get_duration(start: string, end: string) {
-  const endTimestamp = new Date(end).getTime();
-  const startTimestamp = new Date(start).getTime();
-  const duration = endTimestamp - startTimestamp;
+function getDuration(start: string, end: string): string {
+  const duration = new Date(end).getTime() - new Date(start).getTime();
   const seconds = Math.floor((duration / 1000) % 60);
   const minutes = Math.floor((duration / (1000 * 60)) % 60);
   const hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
@@ -76,9 +111,9 @@ function get_duration(start: string, end: string) {
   return parts.length > 0 ? parts.join(" ") : "0s";
 }
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string): string {
   const date = new Date(dateString);
-  const formattedDate = `${date.toLocaleDateString("es-ES", {
+  return `${date.toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -86,6 +121,4 @@ function formatDate(dateString: string) {
     hour: "2-digit",
     minute: "2-digit",
   })}`;
-
-  return formattedDate;
 }

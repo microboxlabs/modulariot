@@ -18,6 +18,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  widgetId,
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const { siteId } = useDashboard();
@@ -63,6 +64,7 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
       dictionary={dictionary}
+      widgetId={widgetId}
       isDirty={isDirty}
     >
       <div>

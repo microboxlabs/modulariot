@@ -110,8 +110,12 @@ function extractMintralIncidents(
     .map((incident) => [incident[0], incident[1]] as [string, string]);
 }
 
-function toPercent(value: number | null | undefined): number {
-  if (value == null) return 0;
+function toPercent(value: number | null | undefined): number | null {
+  // Preserve "no data" semantics — null/undefined upstream means the metric
+  // hasn't been measured, which is distinct from a measured 0%. Rendering
+  // and the backend sort agree on this via the calendarPlanningPriority
+  // preset (ecm-coordinator #238).
+  if (value == null) return null;
   return Math.round(value <= 1 ? value * 100 : value);
 }
 
@@ -307,8 +311,22 @@ export function PlanningSidebarClient({
   // service should resolve it via context's `getLiveTask`, which reads the
   // freshly fetched workflow index by `mintral_serviceCode` and is stable
   // across stage advances.
+  //
+  // Prefer `orderedTasks` when the proxy provides it: the planner relies on
+  // the calendarPlanningPriority preset's GLOBAL sort across stages, which
+  // is lost by `Object.values(data)` (board-binned). The proxy emits
+  // orderedTasks only on the single-call calendarId path; older consumers
+  // and the fanout paths still get the board-binned `data`.
   const apiServices = useMemo(() => {
-    if (!myTasksData?.data) return [];
+    if (!myTasksData) return [];
+
+    if (myTasksData.orderedTasks && myTasksData.orderedTasks.length > 0) {
+      return myTasksData.orderedTasks.map((task) =>
+        transformTaskToService(task)
+      );
+    }
+
+    if (!myTasksData.data) return [];
 
     const services: SelectedService[] = [];
     for (const board of Object.values(myTasksData.data)) {

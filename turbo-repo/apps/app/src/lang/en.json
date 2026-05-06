@@ -1741,7 +1741,6 @@
         "buttonLabelPlaceholder": "Import data",
         "endpoint": "Import Endpoint",
         "defaultEnv": "Default (env)",
-        "defaultStrategy": "Default duplicate strategy",
         "acceptedFileTypes": "Accepted File Types",
         "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
       },
@@ -2046,11 +2045,6 @@
           "updated": "Updated",
           "skipped": "Skipped",
           "failed": "Failed"
-        },
-        "strategy": {
-          "upsert": "Update (upsert)",
-          "skip": "Skip",
-          "create": "Create only (fail if exists)"
         },
         "validation": {
           "required": "Required",

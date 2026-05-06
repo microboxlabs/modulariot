@@ -16,7 +16,6 @@ import type {
   SourceMeta,
 } from "./engine/api";
 import type {
-  DuplicateStrategy,
   IntrospectedParam,
   ParsedDocument,
   RowState,
@@ -57,7 +56,6 @@ const EMPTY_STEPS: readonly TransformStep[] = [];
 
 export interface UseBatchImporterArgs {
   api: BatchImporterApi;
-  defaultStrategy?: DuplicateStrategy;
   /** RPC parameter schema — surfaced for the schema panel UI. Validation
    *  itself runs server-side via `api.validate`. */
   params?: IntrospectedParam[] | null;
@@ -113,8 +111,6 @@ export interface BatchImporterState {
    *  states are stale because the most recent re-validation failed; the UI
    *  should surface this so the user knows errors aren't being refreshed. */
   validationError: string | null;
-  strategy: DuplicateStrategy;
-  setStrategy: (s: DuplicateStrategy) => void;
   summary: Record<RowStatus | "total", number>;
   importable: boolean;
   hasFailed: boolean;
@@ -187,7 +183,6 @@ function hydrateStates(
 
 export function useBatchImporter({
   api,
-  defaultStrategy = "upsert",
   params,
   filenameBase,
   initialTransforms,
@@ -254,7 +249,6 @@ export function useBatchImporter({
   const [parsing, setParsing] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [strategy, setStrategy] = useState<DuplicateStrategy>(defaultStrategy);
 
   /** Ref-mirror of `importing` so the validation effect can read the latest
    *  value without listing `importing` in its deps (which would make every
@@ -570,7 +564,6 @@ export function useBatchImporter({
       try {
         await api.bulkSubmit(
           toProcess,
-          strategy,
           (line) => {
             patchRowStates((m) => {
               m.set(line.index, {
@@ -612,7 +605,7 @@ export function useBatchImporter({
         setImporting(false);
       }
     },
-    [api, doc, rowStates, strategy, patchRowStates, importing, sourceMeta],
+    [api, doc, rowStates, patchRowStates, importing, sourceMeta],
   );
 
   const onImport = useCallback(() => runImport(), [runImport]);
@@ -735,8 +728,6 @@ export function useBatchImporter({
     parsing,
     validating,
     validationError,
-    strategy,
-    setStrategy,
     summary,
     importable: summary.unprocessed > 0,
     hasFailed: summary.failed > 0,

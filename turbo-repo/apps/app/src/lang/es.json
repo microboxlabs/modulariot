@@ -1767,7 +1767,6 @@
         "buttonLabelPlaceholder": "Importar datos",
         "endpoint": "Endpoint de importación",
         "defaultEnv": "Por defecto (env)",
-        "defaultStrategy": "Estrategia de duplicados por defecto",
         "acceptedFileTypes": "Tipos de archivo aceptados",
         "acceptedFileTypesHint": "Extensiones separadas por coma. Dejar vacío para aceptar los valores por defecto (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
       },
@@ -2071,11 +2070,6 @@
           "updated": "Actualizado",
           "skipped": "Omitido",
           "failed": "Fallido"
-        },
-        "strategy": {
-          "upsert": "Actualizar (upsert)",
-          "skip": "Omitir",
-          "create": "Solo crear (falla si existe)"
         },
         "validation": {
           "required": "Requerido",

@@ -1,10 +1,5 @@
 import { buildDataSourceParams } from "../../common/pgrest-utils";
-import type {
-  DuplicateStrategy,
-  ParsedDocument,
-  ParsedRow,
-  RowStatus,
-} from "./types";
+import type { ParsedDocument, ParsedRow, RowStatus } from "./types";
 
 /** Source provenance computed by /parse and forwarded to /bulk so every
  *  imported row can carry audit metadata (filename, fingerprint, type). The
@@ -67,7 +62,6 @@ export interface BatchImporterApi {
   validate(rows: ParsedRow[], signal?: AbortSignal): Promise<ValidateResponse>;
   bulkSubmit(
     rows: ParsedRow[],
-    duplicateStrategy: DuplicateStrategy,
     onResult: (line: BulkResultLine) => void,
     context: BulkSubmitContext,
     signal?: AbortSignal,
@@ -173,10 +167,9 @@ export function makePgrestBatchApi(
         errors: body.errors ?? {},
       };
     },
-    async bulkSubmit(rows, duplicateStrategy, onResult, context, signal) {
+    async bulkSubmit(rows, onResult, context, signal) {
       const payload = {
         rows: rows.map((r) => ({ index: r.index, fields: r.fields })),
-        duplicateStrategy,
         sourceMeta: context.sourceMeta,
       };
       const res = await fetch(bulkUrl, {

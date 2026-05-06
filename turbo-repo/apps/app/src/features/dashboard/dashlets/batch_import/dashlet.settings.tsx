@@ -4,7 +4,6 @@ import { useState } from "react";
 import { TextInput, Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import type { DuplicateStrategy } from "./engine/types";
 import { SettingsShell } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 import { SettingsSelectField } from "../common/settings-fields";
@@ -31,9 +30,6 @@ export function DashletSettings({
     config.pgrestFunctionName || ""
   );
   const [dataSourceId, setDataSourceId] = useState(config.dataSourceId || "");
-  const [defaultStrategy, setDefaultStrategy] = useState<DuplicateStrategy>(
-    config.defaultStrategy || "upsert"
-  );
   const [acceptedFileTypes, setAcceptedFileTypes] = useState(
     config.acceptedFileTypes || ""
   );
@@ -42,7 +38,6 @@ export function DashletSettings({
     title,
     pgrestFunctionName,
     dataSourceId,
-    defaultStrategy,
     acceptedFileTypes,
   });
 
@@ -51,7 +46,6 @@ export function DashletSettings({
       title: title.trim(),
       pgrestFunctionName: pgrestFunctionName.trim(),
       dataSourceId: dataSourceId || undefined,
-      defaultStrategy,
       acceptedFileTypes: acceptedFileTypes.trim() || undefined,
     });
     onClose();
@@ -110,36 +104,6 @@ export function DashletSettings({
           dataSourceId={dataSourceId || undefined}
         />
       </div>
-
-      <SettingsSelectField
-        id="batch-import-strategy"
-        label={tr("dashboard.settings.batchImport.defaultStrategy", dictionary)}
-        value={defaultStrategy}
-        onChange={(v) => setDefaultStrategy(v as DuplicateStrategy)}
-        options={[
-          {
-            value: "upsert",
-            label: tr(
-              "dashboard.dashlets.batchImport.strategy.upsert",
-              dictionary
-            ),
-          },
-          {
-            value: "skip",
-            label: tr(
-              "dashboard.dashlets.batchImport.strategy.skip",
-              dictionary
-            ),
-          },
-          {
-            value: "create",
-            label: tr(
-              "dashboard.dashlets.batchImport.strategy.create",
-              dictionary
-            ),
-          },
-        ]}
-      />
 
       <div>
         <Label htmlFor="batch-import-accept" className="mb-1 block text-sm">

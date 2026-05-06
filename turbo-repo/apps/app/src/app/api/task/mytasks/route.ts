@@ -100,11 +100,13 @@ export async function GET(req: NextRequest) {
         }),
       ])) as FinishedWorkflowsResponse[];
     } else if (calendarId) {
-      taskResponses = (await Promise.all([
-        ...columns.map((column) => {
-          return getUnbookedTasks(session, column, options, calendarId);
-        }),
-      ])) as FastTasksResponse[];
+      // Single call with all definition keys so the backend can apply ORDER BY
+      // globally across stages — required for the calendarPlanningPriority
+      // preset to be correct on the planner sidebar (ecm-coordinator #238).
+      // toShippingKanban below re-bins the flat response by taskFormKey.
+      taskResponses = [
+        await getUnbookedTasks(session, columns, options, calendarId),
+      ] as FastTasksResponse[];
     } else {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {

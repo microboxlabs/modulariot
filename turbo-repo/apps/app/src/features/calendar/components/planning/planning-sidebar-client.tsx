@@ -11,7 +11,6 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
-  getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
 } from "./planning-selection-context";
@@ -269,6 +268,11 @@ export function PlanningSidebarClient({
       params.push(`calendarId=${calendarId}`);
     }
 
+    // Server-side sort preset (ecm-coordinator #238): C309 urgency first,
+    // then mintral_deliveryComplianceRate ASC. Resolves the pagination
+    // correctness gap of the previous client-side sort.
+    params.push("orderBy=mintral_calendarPlanningPriority");
+
     return params.join("&");
   }, [searchTags, calendarId]);
 
@@ -385,20 +389,11 @@ export function PlanningSidebarClient({
     []
   );
 
-  // Sort services by urgency/status priority:
-  // 1. Urgent (red-orange)
-  // 2. Error/Delayed (red) - 0% compliance
-  // 3. Warning (yellow) - partial compliance
-  // 4. Success/On time (green) - 100% compliance
+  // Sort order is applied server-side via the calendarPlanningPriority preset
+  // (ecm-coordinator #238). This memo only handles the client-side filters that
+  // don't have API params (lugarCarguio, permanencia, tipoViaje) and the legacy
+  // search-by-match-type fallback; the original order from the API is preserved.
   const sortedServices = useMemo(() => {
-    const getStatusPriority = (service: SelectedService): number => {
-      if (service.incidencias.includes("urgencia")) return 0; // Urgent first
-      const status = getLeadTimeStatus(service.leadTime);
-      if (status === "error") return 1;
-      if (status === "warning") return 2;
-      return 3; // success last
-    };
-
     let services = [...allServices];
 
     // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
@@ -453,7 +448,7 @@ export function PlanningSidebarClient({
       }
     }
 
-    return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
+    return services;
   }, [
     filteredServiceId,
     filterMatchType,

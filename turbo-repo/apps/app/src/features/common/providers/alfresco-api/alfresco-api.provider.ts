@@ -190,7 +190,7 @@ export async function getUnbookedTasks(
     body = {
       from,
       size,
-      filter: { ...(baseFilter ?? {}), definitionKeys: keys },
+      filter: { ...baseFilter, definitionKeys: keys },
       calendarId,
     };
   } else {

@@ -1,5 +1,6 @@
 import type { EChartsOption } from "echarts";
 import type { ChartType, SeriesConfig } from "./dashlet";
+import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { getColors, type ColorPalette } from "./chart-palettes";
 
 interface ChartOptionInput {
@@ -13,6 +14,7 @@ interface ChartOptionInput {
   customColors: string[];
   smooth: boolean;
   stacked: boolean;
+  tooltipTemplate?: string;
 }
 
 const DARK_TEXT = "#9ca3af";
@@ -48,18 +50,40 @@ function buildCartesianOption(
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
 
+  const useCustomTooltip = !!config.tooltipTemplate?.trim();
+
+  const tooltip: EChartsOption["tooltip"] = useCustomTooltip
+    ? {
+        trigger: "item",
+        appendToBody: true,
+        enterable: false,
+        hideDelay: 0,
+        triggerOn: "mousemove",
+        backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+        borderWidth: 0,
+        textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+        formatter: (params: unknown) => {
+          const p = params as { dataIndex?: number };
+          const row = rows[p.dataIndex ?? 0];
+          if (!row) return "";
+          const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
+          return resolved.replace(/\n/g, "<br>");
+        },
+      }
+    : {
+        trigger: "axis",
+        appendToBody: true,
+        enterable: false,
+        hideDelay: 0,
+        triggerOn: "mousemove",
+        backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+        borderWidth: 0,
+        textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+      };
+
   return {
     color: colors,
-    tooltip: {
-      trigger: "axis",
-      appendToBody: true,
-      enterable: false,
-      hideDelay: 0,
-      triggerOn: "mousemove",
-      backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-      borderWidth: 0,
-      textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-    },
+    tooltip,
     legend: {
       show: config.showLegend,
       textStyle: { color: textColor },
@@ -72,14 +96,23 @@ function buildCartesianOption(
       bottom: config.showLegend ? 32 : 8,
       containLabel: true,
     },
-    xAxis: {
-      type: "category",
-      data: rows.map((r) => r[config.xAxisColumn] ?? ""),
-      name: config.xAxisLabel || undefined,
-      nameTextStyle: { color: textColor },
-      axisLabel: { color: textColor },
-      axisLine: { lineStyle: { color: axisLineColor } },
-    },
+    xAxis: config.chartType === "scatter"
+      ? {
+          type: "value" as const,
+          name: config.xAxisLabel || undefined,
+          nameTextStyle: { color: textColor },
+          axisLabel: { color: textColor },
+          axisLine: { lineStyle: { color: axisLineColor } },
+          splitLine: { lineStyle: { color: axisLineColor } },
+        }
+      : {
+          type: "category" as const,
+          data: rows.map((r) => r[config.xAxisColumn] ?? ""),
+          name: config.xAxisLabel || undefined,
+          nameTextStyle: { color: textColor },
+          axisLabel: { color: textColor },
+          axisLine: { lineStyle: { color: axisLineColor } },
+        },
     yAxis: {
       type: "value",
       name: config.yAxisLabel || undefined,
@@ -91,10 +124,16 @@ function buildCartesianOption(
     series: config.series.map((s) => ({
       type: config.chartType as "line" | "bar" | "scatter",
       name: s.label,
-      data: rows.map((r) => {
-        const v = Number.parseFloat(r[s.columnKey]);
-        return Number.isFinite(v) ? v : null;
-      }),
+      data: config.chartType === "scatter"
+        ? rows.map((r) => {
+            const x = Number.parseFloat(r[config.xAxisColumn]);
+            const y = Number.parseFloat(r[s.columnKey]);
+            return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+          }).filter(Boolean)
+        : rows.map((r) => {
+            const v = Number.parseFloat(r[s.columnKey]);
+            return Number.isFinite(v) ? v : null;
+          }),
       smooth: config.chartType === "line" ? config.smooth : undefined,
       stack:
         config.stacked && config.chartType !== "scatter" ? "total" : undefined,
@@ -124,16 +163,34 @@ function buildPieOption(
 
   return {
     color: colors,
-    tooltip: {
-      trigger: "item",
-      appendToBody: true,
-      enterable: false,
-      hideDelay: 0,
-      triggerOn: "mousemove",
-      backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-      borderWidth: 0,
-      textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-    },
+    tooltip: config.tooltipTemplate?.trim()
+      ? {
+          trigger: "item",
+          appendToBody: true,
+          enterable: false,
+          hideDelay: 0,
+          triggerOn: "mousemove",
+          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+          borderWidth: 0,
+          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+          formatter: (params: unknown) => {
+            const p = params as { dataIndex?: number };
+            const row = rows[p.dataIndex ?? 0];
+            if (!row) return "";
+            const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
+            return resolved.replace(/\n/g, "<br>");
+          },
+        }
+      : {
+          trigger: "item",
+          appendToBody: true,
+          enterable: false,
+          hideDelay: 0,
+          triggerOn: "mousemove",
+          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+          borderWidth: 0,
+          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+        },
     legend: {
       show: config.showLegend,
       textStyle: { color: textColor },
@@ -167,16 +224,33 @@ function buildGaugeOption(
 
   return {
     color: colors,
-    tooltip: {
-      trigger: "item",
-      appendToBody: true,
-      enterable: false,
-      hideDelay: 0,
-      triggerOn: "mousemove",
-      backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-      borderWidth: 0,
-      textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-    },
+    tooltip: config.tooltipTemplate?.trim()
+      ? {
+          trigger: "item",
+          appendToBody: true,
+          enterable: false,
+          hideDelay: 0,
+          triggerOn: "mousemove",
+          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+          borderWidth: 0,
+          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+          formatter: () => {
+            const row = rows[0];
+            if (!row) return "";
+            const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
+            return resolved.replace(/\n/g, "<br>");
+          },
+        }
+      : {
+          trigger: "item",
+          appendToBody: true,
+          enterable: false,
+          hideDelay: 0,
+          triggerOn: "mousemove",
+          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+          borderWidth: 0,
+          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+        },
     series: [
       {
         type: "gauge",

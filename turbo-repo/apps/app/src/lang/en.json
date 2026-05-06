@@ -1843,6 +1843,7 @@
       "layerSaveError": "The following layers have incomplete data source configuration",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Template",
+      "dataPreview": "Data preview",
       "geometryPoint": "Point",
       "geometryPath": "Path",
       "geometryPolygon": "Polygon",

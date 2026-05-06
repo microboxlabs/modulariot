@@ -38,6 +38,7 @@ export interface DashletConfig {
   customColors: string[];
   smooth: boolean;
   stacked: boolean;
+  tooltipTemplate?: string;
   // Data source
   dataMode: "static" | "pgrest" | "planner";
   rows: Record<string, string>[];

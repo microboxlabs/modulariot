@@ -1868,6 +1868,7 @@
       "layerSaveError": "Las siguientes capas tienen configuración de fuente de datos incompleta",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Plantilla",
+      "dataPreview": "Vista previa de datos",
       "geometryPoint": "Punto",
       "geometryPath": "Ruta",
       "geometryPolygon": "Polígono",

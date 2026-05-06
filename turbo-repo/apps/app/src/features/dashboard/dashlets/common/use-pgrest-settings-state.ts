@@ -50,6 +50,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
   // Detect-columns state
   const [detecting, setDetecting] = useState(false);
   const [detectError, setDetectError] = useState<string | null>(null);
+  const [sampleRows, setSampleRows] = useState<Record<string, string>[]>([]);
 
   // Introspect state
   const [introspecting, setIntrospecting] = useState(false);
@@ -77,8 +78,11 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
       const rows = parseRows(await res.json());
       if (rows.length === 0) {
         setDetectError("Response returned no rows");
+        setSampleRows([]);
         return;
       }
+
+      setSampleRows(rows.slice(0, 3));
 
       const keys = Object.keys(rows[0]);
       const detected = cfgRef.current.onColumnsDetected(keys);
@@ -209,6 +213,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
     detecting,
     detectColumns,
     detectError,
+    sampleRows,
     introspecting,
     introspectError,
     paramHints,

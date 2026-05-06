@@ -135,7 +135,10 @@ export default function TaskActions({
         case OUTCOME_MISSION_CONTROL_V2:
           return taskType !== TYPE_WFSHIP2_PREPARE_SERVICE_TASK;
         case OUTCOME_MONITOR_TRIP_V2:
-          return taskType !== TYPE_WFSHIP2_MISSION_CONTROL_TASK;
+          return (
+            taskType !== TYPE_WFSHIP2_MISSION_CONTROL_TASK &&
+            taskType !== TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK
+          );
         case OUTCOME_CONFIRM_ARRIVAL_V2:
           return taskType !== TYPE_WFSHIP2_MONITOR_TRIP_TASK;
         case OUTCOME_CLOSE_MONITORING_V2:

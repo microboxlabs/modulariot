@@ -2097,11 +2097,16 @@
             "lower": "Minúsculas",
             "abs": "Valor absoluto",
             "round": "Redondear",
-            "fixed": "Decimales fijos"
+            "fixed": "Decimales fijos",
+            "dateOnly": "Solo fecha",
+            "startOfDay": "Inicio del día",
+            "toUTC": "A UTC"
           },
           "argLabel": {
             "fixed": "Cantidad de decimales (0–20)"
-          }
+          },
+          "displayFormat": "Formato visual (solo presentación)",
+          "displayFormatHint": "Tokens de dayjs, ej. DD/MM HH:mm. No cambia el valor enviado al servidor."
         }
       }
     },

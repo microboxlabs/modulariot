@@ -7,7 +7,6 @@ import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, CardVariant } from "./dashlet";
 import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
 import { type DashletIconKey } from "../common/icon-options";
-import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
 import {
   getHandlebarsStatus,
   getFlowbiteColor,
@@ -195,9 +194,8 @@ export function DashletSettings(
               className={`flex items-center gap-2 ${showIcon ? "" : "opacity-40 pointer-events-none"}`}
             >
               <IconPickerDropdown
-                options={DASHLET_ICON_OPTIONS}
                 value={icon}
-                onChange={setIcon}
+                onChange={(v) => setIcon(v as DashletIconKey)}
                 title={tr("dashboard.settings.selectIcon", dictionary)}
               />
               <AdvancedColorPicker

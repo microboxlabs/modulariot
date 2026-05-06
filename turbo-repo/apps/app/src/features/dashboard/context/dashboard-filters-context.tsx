@@ -63,17 +63,20 @@ function DashboardFiltersInner({ children }: Readonly<PropsWithChildren>) {
     return keys;
   }, [filters]);
 
-  // Extract active filter values from URL params
+  // Extract active filter values from URL params.
+  // Include both configured filter keys AND any other search params so that
+  // {{filter.<key>}} templates in pgrest parameters work even when the key
+  // is not registered as a dashboard filter (e.g. passed via URL navigation).
   const activeFilters = useMemo(() => {
     const result: Record<string, string> = {};
-    for (const key of filterKeys) {
-      const value = searchParams.get(key);
+    // Start with all URL search params
+    searchParams.forEach((value, key) => {
       if (value) {
         result[key] = value;
       }
-    }
+    });
     return result;
-  }, [searchParams, filterKeys]);
+  }, [searchParams]);
 
   const setFilter = useCallback(
     (key: string, value: string) => {

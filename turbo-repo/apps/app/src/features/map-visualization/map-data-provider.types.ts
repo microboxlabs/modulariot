@@ -99,14 +99,72 @@ export interface ApiMapDataProvider {
   url: string;
   method?: "GET" | "POST";
   refreshInterval?: number;
+  /** When true, the response is treated as MapPosition[] with WKB-encoded location fields
+   *  and transformed into a GeoJSON FeatureCollection before rendering. */
+  transformWkb?: boolean;
+  /** Column name containing the WKB geometry. Defaults to "location". */
+  geometryField?: string;
+  /** Column name for latitude (used when transformWkb is false and latField/lngField are set). */
+  latField?: string;
+  /** Column name for longitude. */
+  lngField?: string;
+  /** Dot-notation path to extract the array from the response (e.g. "data", "results.items"). */
+  responsePath?: string;
 }
 
 export interface SseMapDataProvider {
   type: "sse";
   url: string;
+  /** When true, each SSE event payload is treated as a MapPosition record (or array)
+   *  with a WKB-encoded location field and transformed into a GeoJSON FeatureCollection. */
+  transformWkb?: boolean;
+  /** Column name containing the WKB geometry. Defaults to "location". */
+  geometryField?: string;
+  /** Column name for latitude. */
+  latField?: string;
+  /** Column name for longitude. */
+  lngField?: string;
+  /** Dot-notation path to extract the array from the event payload (e.g. "data"). */
+  responsePath?: string;
+}
+
+export interface PgrestMapDataProvider {
+  type: "pgrest";
+  functionName: string;
+  method: "POST" | "GET";
+  params: { key: string; value: string }[];
+  dataSourceId?: string;
+  refreshInterval?: number;
+  /** When true, the response is treated as MapPosition[] with WKB-encoded location fields. */
+  transformWkb?: boolean;
+  /** Column name containing the WKB geometry. Defaults to "location". */
+  geometryField?: string;
+  /** Column name for latitude. */
+  latField?: string;
+  /** Column name for longitude. */
+  lngField?: string;
+  /** Dot-notation path to extract the array from the response (e.g. "data", "results.items"). */
+  responsePath?: string;
+}
+
+export interface PlannerMapDataProvider {
+  type: "planner";
+  variableName: string;
+  /** When true, the rows are treated as MapPosition[] with WKB-encoded location fields. */
+  transformWkb?: boolean;
+  /** Column name containing the WKB geometry. Defaults to "location". */
+  geometryField?: string;
+  /** Column name for latitude (used when transformWkb is false and latField/lngField are set). */
+  latField?: string;
+  /** Column name for longitude (used when transformWkb is false and latField/lngField are set). */
+  lngField?: string;
+  /** Dot-notation path to extract the array from the response (e.g. "data"). */
+  responsePath?: string;
 }
 
 export type MapDataProvider =
   | StaticMapDataProvider
   | ApiMapDataProvider
-  | SseMapDataProvider;
+  | SseMapDataProvider
+  | PgrestMapDataProvider
+  | PlannerMapDataProvider;

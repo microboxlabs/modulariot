@@ -100,11 +100,15 @@ export async function GET(req: NextRequest) {
         }),
       ])) as FinishedWorkflowsResponse[];
     } else if (calendarId) {
-      taskResponses = (await Promise.all([
-        ...columns.map((column) => {
-          return getUnbookedTasks(session, column, options, calendarId);
-        }),
-      ])) as FastTasksResponse[];
+      // Single call with all definition keys so the backend can apply ORDER BY
+      // globally across stages — required for the calendarPlanningPriority
+      // preset to be correct on the planner sidebar (ecm-coordinator #238).
+      // toShippingKanban below re-bins the flat response by taskFormKey, but
+      // the orderedTasks accumulator preserves the global backend order for
+      // consumers that rely on it.
+      taskResponses = [
+        await getUnbookedTasks(session, columns, options, calendarId),
+      ] as FastTasksResponse[];
     } else {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {
@@ -113,14 +117,21 @@ export async function GET(req: NextRequest) {
       ])) as FastTasksResponse[];
     }
 
+    // When the proxy issues a single combined backend call (calendarId branch)
+    // the response is already globally sorted; pass an accumulator so callers
+    // that need that order can read it without re-flattening from the
+    // board-binned data.
+    const orderedTasks =
+      calendarId && taskResponses.length === 1 ? [] : undefined;
     taskResponses.forEach((tasks) => {
-      toShippingKanban(tasks, data);
+      toShippingKanban(tasks, data, orderedTasks);
       total += tasks.total;
     });
 
     return NextResponse.json({
       total,
       data,
+      ...(orderedTasks ? { orderedTasks } : {}),
     });
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

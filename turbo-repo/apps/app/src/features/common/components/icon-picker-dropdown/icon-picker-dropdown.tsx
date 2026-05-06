@@ -31,11 +31,11 @@ function LazyIconCell({
   iconKey,
   selected,
   onSelect,
-}: {
+}: Readonly<{
   iconKey: IconKey;
   selected: boolean;
   onSelect: (key: IconKey) => void;
-}) {
+}>) {
   const [Icon, setIcon] = useState<ComponentType<{
     className?: string;
   }> | null>(null);
@@ -181,7 +181,7 @@ export function IconPickerDropdown({
   }, []);
 
   useEffect(() => {
-    const entry = ICON_REGISTRY[value as IconKey];
+    const entry = ICON_REGISTRY[value];
     if (entry) {
       entry.load().then((mod) => {
         if (mountedRef.current) setSelectedIcon(() => mod.default);

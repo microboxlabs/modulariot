@@ -19,12 +19,12 @@ export interface IconRegistryEntry {
  * Wrap a named export from react-icons into a default-style dynamic import.
  */
 function ri(
-  importFn: () => Promise<Record<string, ComponentType<{ className?: string }>>>,
+  importFn: () => Promise<Record<string, unknown>>,
   name: string
 ): () => Promise<{ default: ComponentType<{ className?: string }> }> {
   return async () => {
     const mod = await importFn();
-    const Icon = mod[name];
+    const Icon = mod[name] as ComponentType<{ className?: string }> | undefined;
     if (!Icon) throw new Error(`Icon "${name}" not found in module`);
     return { default: Icon };
   };
@@ -211,4 +211,4 @@ export const ICON_REGISTRY: Record<string, IconRegistryEntry> = {
 export type IconKey = keyof typeof ICON_REGISTRY;
 
 /** Sorted list of icon keys for rendering */
-export const ICON_KEYS: IconKey[] = Object.keys(ICON_REGISTRY) as IconKey[];
+export const ICON_KEYS: IconKey[] = Object.keys(ICON_REGISTRY);

@@ -22,6 +22,10 @@ export interface DashletConfig {
   /** Per-column value transforms keyed by mapped column name. Persisted with
    *  the widget so the same cleanup pipeline applies on every re-import. */
   transforms?: Record<string, TransformStep[]>;
+  /** Per-column display-only date format (dayjs tokens) keyed by mapped
+   *  column name. Does NOT modify the value sent to /bulk — purely shortens
+   *  cell rendering for date columns whose full ISO timestamp is too long. */
+  dateDisplayFormats?: Record<string, string>;
 }
 
 export const defaultConfig: DashletConfig = {
@@ -54,6 +58,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       updateWidgetConfig(widget.id, {
         ...widget.config,
         transforms: next,
+      });
+    },
+    [updateWidgetConfig, widget.id, widget.config],
+  );
+
+  /** Persist the per-column display-only date format map. Display formats
+   *  do not affect the value submitted to /bulk; they only short-render
+   *  long ISO timestamps in the preview grid. */
+  const handleDateDisplayFormatsChange = useCallback(
+    (next: Record<string, string>) => {
+      updateWidgetConfig(widget.id, {
+        ...widget.config,
+        dateDisplayFormats: next,
       });
     },
     [updateWidgetConfig, widget.id, widget.config],
@@ -132,6 +149,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             filenameBase={config.pgrestFunctionName}
             initialTransforms={config.transforms}
             onTransformsChange={handleTransformsChange}
+            initialDateDisplayFormats={config.dateDisplayFormats}
+            onDateDisplayFormatsChange={handleDateDisplayFormatsChange}
           />
         </>
       )}

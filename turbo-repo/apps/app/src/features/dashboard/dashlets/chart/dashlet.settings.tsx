@@ -12,6 +12,7 @@ import {
   SettingsTextareaField,
   SettingsFieldGrid,
   HbTextField,
+  HbTextareaField,
   HbInlineInput,
 } from "../common/settings-fields";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
@@ -92,6 +93,9 @@ export function DashletSettings({
   );
   const [smooth, setSmooth] = useState(config.smooth ?? false);
   const [stacked, setStacked] = useState(config.stacked ?? false);
+  const [tooltipTemplate, setTooltipTemplate] = useState(
+    config.tooltipTemplate ?? ""
+  );
 
   // Data state
   const [dataMode, setDataMode] = useState<SimpleDataMode>(
@@ -248,6 +252,7 @@ export function DashletSettings({
     customColors,
     smooth,
     stacked,
+    tooltipTemplate,
     dataMode,
     rowsJson,
     pgFn: pg.pgrestFunctionName,
@@ -289,6 +294,7 @@ export function DashletSettings({
       customColors,
       smooth,
       stacked,
+      tooltipTemplate: tooltipTemplate || undefined,
       dataMode,
       rows: parsedRows,
       pgrestFunctionName: pg.pgrestFunctionName,
@@ -471,6 +477,16 @@ export function DashletSettings({
           <ToggleSwitch checked={stacked} onChange={setStacked} />
         </div>
       )}
+
+      {/* Custom tooltip template */}
+      <HbTextareaField
+        id="ch-tooltip-template"
+        label={tr("dashboard.settings.tooltipTemplate", dictionary)}
+        value={tooltipTemplate}
+        onChange={setTooltipTemplate}
+        placeholder={"{{row.name}}\n{{row.value}}"}
+        rows={3}
+      />
     </>
   );
 

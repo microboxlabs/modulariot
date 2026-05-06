@@ -1832,6 +1832,7 @@
       "layerSaveError": "Las siguientes capas tienen configuración de fuente de datos incompleta",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Plantilla",
+      "dataPreview": "Vista previa de datos",
       "geometryPoint": "Punto",
       "geometryPath": "Ruta",
       "geometryPolygon": "Polígono",
@@ -2015,6 +2016,37 @@
           "upsert": "Actualizar (upsert)",
           "skip": "Omitir",
           "create": "Solo crear (falla si existe)"
+        },
+        "validation": {
+          "required": "Requerido",
+          "expectedType": "Se esperaba {expected}, se recibió {received}",
+          "invalidEnum": "Valor inválido. Opciones: {options}",
+          "tooSmall": "Debe ser ≥ {minimum}",
+          "tooBig": "Debe ser ≤ {maximum}",
+          "invalidDate": "Fecha inválida",
+          "invalidString": "Formato inválido"
+        },
+        "transforms": {
+          "title": "Transformaciones",
+          "empty": "Sin transformaciones aplicadas.",
+          "remove": "Quitar transformación",
+          "add": "Agregar",
+          "kinds": {
+            "trim": "Recortar espacios",
+            "upper": "Mayúsculas",
+            "lower": "Minúsculas",
+            "abs": "Valor absoluto",
+            "round": "Redondear",
+            "fixed": "Decimales fijos",
+            "dateOnly": "Solo fecha",
+            "startOfDay": "Inicio del día",
+            "toUTC": "A UTC"
+          },
+          "argLabel": {
+            "fixed": "Cantidad de decimales (0–20)"
+          },
+          "displayFormat": "Formato visual (solo presentación)",
+          "displayFormatHint": "Tokens de dayjs, ej. DD/MM HH:mm. No cambia el valor enviado al servidor."
         }
       }
     },

@@ -41,6 +41,39 @@ function noDataOption(darkMode: boolean, label = "No data"): EChartsOption {
   };
 }
 
+function buildTooltip(
+  config: ChartOptionInput,
+  rows: Record<string, string>[],
+  darkMode: boolean,
+  defaultTrigger: "axis" | "item" = "item",
+): NonNullable<EChartsOption["tooltip"]> {
+  const base = {
+    appendToBody: true,
+    enterable: false,
+    hideDelay: 0,
+    triggerOn: "mousemove" as const,
+    backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
+    borderWidth: 0,
+    textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
+  };
+
+  if (!config.tooltipTemplate?.trim()) {
+    return { trigger: defaultTrigger, ...base };
+  }
+
+  return {
+    trigger: "item",
+    ...base,
+    formatter: (params: unknown) => {
+      const p = params as { dataIndex?: number };
+      const row = rows[p.dataIndex ?? 0];
+      if (!row) return "";
+      const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
+      return resolved.replaceAll("\n", "<br>");
+    },
+  };
+}
+
 function buildCartesianOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
@@ -50,40 +83,9 @@ function buildCartesianOption(
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
 
-  const useCustomTooltip = !!config.tooltipTemplate?.trim();
-
-  const tooltip: EChartsOption["tooltip"] = useCustomTooltip
-    ? {
-        trigger: "item",
-        appendToBody: true,
-        enterable: false,
-        hideDelay: 0,
-        triggerOn: "mousemove",
-        backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-        borderWidth: 0,
-        textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-        formatter: (params: unknown) => {
-          const p = params as { dataIndex?: number };
-          const row = rows[p.dataIndex ?? 0];
-          if (!row) return "";
-          const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
-          return resolved.replace(/\n/g, "<br>");
-        },
-      }
-    : {
-        trigger: "axis",
-        appendToBody: true,
-        enterable: false,
-        hideDelay: 0,
-        triggerOn: "mousemove",
-        backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-        borderWidth: 0,
-        textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-      };
-
   return {
     color: colors,
-    tooltip,
+    tooltip: buildTooltip(config, rows, darkMode, "axis"),
     legend: {
       show: config.showLegend,
       textStyle: { color: textColor },
@@ -163,34 +165,7 @@ function buildPieOption(
 
   return {
     color: colors,
-    tooltip: config.tooltipTemplate?.trim()
-      ? {
-          trigger: "item",
-          appendToBody: true,
-          enterable: false,
-          hideDelay: 0,
-          triggerOn: "mousemove",
-          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-          borderWidth: 0,
-          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-          formatter: (params: unknown) => {
-            const p = params as { dataIndex?: number };
-            const row = rows[p.dataIndex ?? 0];
-            if (!row) return "";
-            const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
-            return resolved.replace(/\n/g, "<br>");
-          },
-        }
-      : {
-          trigger: "item",
-          appendToBody: true,
-          enterable: false,
-          hideDelay: 0,
-          triggerOn: "mousemove",
-          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-          borderWidth: 0,
-          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-        },
+    tooltip: buildTooltip(config, rows, darkMode),
     legend: {
       show: config.showLegend,
       textStyle: { color: textColor },
@@ -224,33 +199,7 @@ function buildGaugeOption(
 
   return {
     color: colors,
-    tooltip: config.tooltipTemplate?.trim()
-      ? {
-          trigger: "item",
-          appendToBody: true,
-          enterable: false,
-          hideDelay: 0,
-          triggerOn: "mousemove",
-          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-          borderWidth: 0,
-          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-          formatter: () => {
-            const row = rows[0];
-            if (!row) return "";
-            const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
-            return resolved.replace(/\n/g, "<br>");
-          },
-        }
-      : {
-          trigger: "item",
-          appendToBody: true,
-          enterable: false,
-          hideDelay: 0,
-          triggerOn: "mousemove",
-          backgroundColor: darkMode ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG,
-          borderWidth: 0,
-          textStyle: { color: darkMode ? DARK_TOOLTIP_TEXT : LIGHT_TOOLTIP_TEXT },
-        },
+    tooltip: buildTooltip(config, rows, darkMode),
     series: [
       {
         type: "gauge",

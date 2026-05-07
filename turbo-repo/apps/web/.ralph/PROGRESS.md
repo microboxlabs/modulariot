@@ -356,4 +356,55 @@ Avg: 8.8 (was 8.2 before the eyebrow tweak). All ≥ 7. No regression follow-ups
 
 Phase 2 progress: P2-01 ✅. Next: P2-02 feature bento (7 cards).
 
+## iter-10 — 2026-05-07 11:37 — P2-02 (feature bento, 7 primitives)
+Files:
+- `apps/web/src/features/marketing/components/feature-bento-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes the bento after symptoms section)
+
+Bento layout (12-col grid on desktop, 2-col on tablet, 1-col on mobile):
+- Row 1: **Symptom Intelligence engine** (8 cols, gradient hero card, "Learn how it works"
+  CTA → #symptoms) · **Real-time ingestion** (4)
+- Row 2: **Live ops dashboards** (4) · **Workflow orchestration** (4) · **Audit-ready
+  evidence** (4)
+- Row 3: **Bring your own cloud** (6, MIT-licensed callout) · **Developer APIs & SDKs** (6)
+
+Color accents follow BRIEF semantic mapping:
+- Symptom Intelligence → orange (critical / brand-defining)
+- Ingestion / Dashboards / Cloud → blue (data / OSS sovereignty)
+- Orchestration → yellow (attention)
+- Evidence / Developer APIs → gray (structure)
+
+Hero card has a brand-aligned gradient background (`from-orange-50 via-gray-50 to-blue-50`,
+dark variant uses `/30` alpha tints) plus larger typography (text-2xl). Other cards use
+the same border + gray-50 surface with hover border-tint.
+
+Decisions:
+- Pure Server Component again — no motion needed for static product info
+- 7 cards in Supabase-style asymmetric grid; the visual hierarchy (Symptom Intelligence
+  spans 8 cols on row 1) reinforces BRIEF: this is the differentiator, not just one
+  bullet among seven
+- Used Heroicons v2 (`react-icons/hi2`) for all icons in this section. Earlier sections
+  mix `hi` and `hi2` — flagged as P5-08 for Phase 5 polish
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.7s, 5 routes, 1h ISR, no warnings)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — all 7 BRIEF primitives present; Symptom Intelligence
+  framed as the engine that makes Modular IoT "different from a dashboard with alerts"
+- S-02 voice: **9/10** — concrete naming (GPS / MQTT / Kafka), grounded use cases
+  (regulators, post-mortems), no SaaS abstractions
+- S-03 design: **8/10** (degraded) — asymmetric grid balances visual weight; hero
+  card gradient draws the eye to the differentiator
+- S-04 reuse: **8/10** — reuses section header pattern from P2-01, brand tokens,
+  react-icons. New: bento grid + span helper, justified.
+- S-05 OSS signal: **8/10** — "Bring your own cloud" card explicitly mentions MIT-licensed,
+  self-host with docker compose / Helm / Kubernetes. Developer APIs card hints at OSS
+  surface area.
+
+Avg: 8.4. All ≥ 7. No regression follow-ups.
+
+Phase 2 progress: P2-01 ✅ P2-02 ✅. Next: **P2-03 architecture** (closes Phase 2
+narrative core).
+
 <!-- iterations append below this line -->

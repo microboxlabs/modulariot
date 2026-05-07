@@ -22,9 +22,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
 ## Phase 2 — Narrative core (the symptom-intelligence story)
 - [x] P2-01: Telemetry → Symptoms section (iter-9, 2026-05-07). Hard evals green. Soft 9.4 avg.
-- [ ] P2-02: Feature bento (7 cards) — ingestion, symptom intelligence, real-time dashboards,
-       orchestration, evidence/audit, OSS deployment, developer APIs.
-       Bento grid (Supabase-style asymmetric), each card uses brand color accent.
+- [x] P2-02: Feature bento, 7 primitives (iter-10, 2026-05-07). Hard evals green, soft 8.4 avg.
 - [ ] P2-03: Architecture section — `Capture → Stream → Symptom Intelligence → Orchestrate → Visualize/Audit`.
        Replaceable-components framing. NO mention of Postgres/Pulsar/n8n by name on this section.
 
@@ -86,6 +84,10 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        animations set `opacity:0` in SSR HTML, which can hurt LCP. If P5 perf eval
        shows LCP > 2.0s, swap framer-motion entrance animations for CSS-only
        @keyframes (the data-flow sweep is already CSS-only).
+- [ ] P5-08: Standardize on Heroicons v2 (`react-icons/hi2`) across all marketing
+       sections. (iter-10 discovered) Currently `hi` is used in promo-ribbon + hero +
+       part of P2-01, while `hi2` is used in P2-02 and the rest of P2-01. Pick one
+       family for visual consistency.
 - [ ] P5-07: Replace promo-ribbon localStorage check with an inline-script pattern
        (matching ThemeModeScript) so returning dismissed visitors get zero FOUC.
        (iter-6 discovered) Currently 1-frame flicker is acceptable for Phase 1.

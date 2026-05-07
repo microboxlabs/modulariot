@@ -1,70 +1,53 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { HiX } from "react-icons/hi";
 
-const STORAGE_KEY = "miot.promo.ribbon.v1.dismissed";
-
-type Props = {
-  message: string;
-  cta?: { label: string; href: string };
+/**
+ * Promo ribbon — dark bar above the header, per design system.
+ *
+ * Pure RSC. No dismiss state — design treats the ribbon as a globally-scoped
+ * announcement controlled by deploy config, not per-user preference. If product
+ * later wants user-side dismiss, re-introduce a small client wrapper.
+ */
+type PromoRibbonProps = {
+  tag?: string;
+  message?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
 };
 
-export function PromoRibbon({ message, cta }: Props) {
-  // Render visible by default — server HTML always includes the ribbon so it
-  // appears for first-time visitors without flash. Returning dismissed users
-  // get a single-frame FOUC; tradeoff accepted for Phase 1 (revisit in P5
-  // polish with an inline-script pattern à la ThemeModeScript).
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem(STORAGE_KEY) === "1") {
-        setVisible(false);
-      }
-    } catch {
-      // localStorage unavailable (private browsing on some engines) — keep visible
-    }
-  }, []);
-
-  const dismiss = () => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      // ignore
-    }
-    setVisible(false);
-  };
-
-  if (!visible) return null;
-
+export function PromoRibbon({
+  tag = "v0.9 Alpha",
+  message = "Modular IoT joins the CNCF Sandbox track",
+  ctaLabel = "Read the announcement",
+  ctaHref = "#community",
+}: PromoRibbonProps) {
   return (
     <div
       role="region"
       aria-label="Site announcement"
-      className="relative w-full bg-gradient-to-r from-blue-600 via-blue-500 to-orange-500 text-white"
+      className="flex items-center justify-center gap-2.5 bg-ink-1 px-4 py-2.5 text-center text-[13px] tracking-[-0.005em] text-surface-1 dark:bg-blue-600"
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-center gap-3 px-4 py-2 text-sm sm:px-6">
-        <span className="text-center sm:text-left">{message}</span>
-        {cta ? (
-          <Link
-            href={cta.href}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white/15 px-2 py-0.5 font-medium ring-1 ring-white/30 transition-colors hover:bg-white/25"
-          >
-            {cta.label}
-            <span aria-hidden>→</span>
-          </Link>
-        ) : null}
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label="Dismiss announcement"
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+      <span className="inline-flex items-center rounded-full bg-white/15 px-2 py-px text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white">
+        {tag}
+      </span>
+      <span>{message}</span>
+      <Link
+        href={ctaHref}
+        className="inline-flex items-center gap-1 underline decoration-from-font underline-offset-[3px] opacity-90 transition-opacity hover:opacity-100"
+      >
+        {ctaLabel}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="size-3.5"
+          aria-hidden
         >
-          <HiX aria-hidden className="size-4" />
-        </button>
-      </div>
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </Link>
     </div>
   );
 }

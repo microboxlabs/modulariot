@@ -1271,4 +1271,36 @@ Avg: 9.4. Strongest hero so far.
 
 PA progress: PA-01..03 ✅. Next: PA-04 promo dark-bar.
 
+## PA-iter-4 — 2026-05-07 — PA-04 (promo dark-bar)
+Files:
+- `apps/web/src/features/layout/components/promo-ribbon.tsx` (REWRITTEN, RSC)
+- `apps/web/src/app/layout.tsx` (UPDATED — drops props, ribbon now self-contained)
+
+Changes:
+- Converted from "use client" → pure RSC. Dropped useState/useEffect/localStorage
+  versioning. Design treats the ribbon as deploy-config controlled, not user-side.
+- Replaced gradient bg with `bg-ink-1` (near-black per design) + white text.
+  Dark mode swaps to `bg-blue-600` per design's `[data-theme="dark"] .promo` rule.
+- `.promo-pill` chip: `rgba(255,255,255,0.15)` bg, 10.5px uppercase, 0.06em tracking
+- Copy: "v0.9 Alpha · Modular IoT joins the CNCF Sandbox track · Read the announcement"
+  (design's exact i18n.jsx EN strings)
+- Removed unicode → arrow → inline SVG ArrowRight (design system rule)
+- Removed dismiss X — moot now that the ribbon has no client state. P5-07 task
+  becomes obsolete and gets folded into PA-12 cleanup.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (5.8s, 4 routes — fastest yet, fewer modules to compile)
+
+Soft eval self-pass:
+- S-01 narrative: 8/10 — concise launch announcement, drives to community
+- S-02 voice: 9/10 — sentence case, dispatch-style (no exclamation marks, no emoji)
+- S-03 design coherence: **10/10** — pixel-close to design's `.promo` rule
+- S-04 reuse: 9/10 — brand tokens, shared ArrowRight inline SVG pattern from hero
+- S-05 OSS signal: 7/10 — section is launch ribbon, OSS implicit via CNCF mention
+
+Avg: 8.6.
+
+PA progress: PA-01..04 ✅. P5-07 (ribbon FOUC inline-script) → no longer needed.
+Next: PA-05 marquee tenants strip (NEW section).
+
 <!-- iterations append below this line -->

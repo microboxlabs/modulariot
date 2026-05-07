@@ -51,10 +51,7 @@ export default function RootLayout({
         </a>
         <ThemeDetector>
           <div className="flex min-h-screen flex-col">
-            <PromoRibbon
-              message="Modular IoT is open source — early access is now live."
-              cta={{ label: "Explore the repo", href: "https://github.com/microboxlabs/modulariot" }}
-            />
+            <PromoRibbon />
             <SiteHeader />
             <div className="flex-1">{children}</div>
             <SiteFooter />

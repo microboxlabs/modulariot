@@ -22,13 +22,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-03: Hero rewrite — flat + terminal-window pipeline (PA-iter-3, 2026-05-07).
 
-- [ ] PA-04: **Promo ribbon rewrite — dark bar.**
-       - Replace gradient bg with `bg-ink-1` (near-black) and white text
-       - Add `.promo-pill` (small uppercase tag chip with `rgba(255,255,255,0.18)` bg)
-       - Copy from design: "v0.9 Alpha · Modular IoT joins the CNCF Sandbox track · Read the announcement"
-       - Underline link with offset, opacity 0.9
-       - Drop the dismiss X for now (design doesn't include it; can re-add later if telemetry shows users want it). Or keep as a small ghost button at the right.
-       - Acceptance: matches design's `.promo` styling pixel-close at 1280 viewport
+- [x] PA-04: Promo dark-bar (PA-iter-4, 2026-05-07).
 
 - [ ] PA-05: **Marquee tenants strip (NEW section).**
        - Inserted between hero and symptom narrative
@@ -208,7 +202,6 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
        sections. (iter-10 discovered) Currently `hi` is used in promo-ribbon + hero +
        part of P2-01, while `hi2` is used in P2-02 and the rest of P2-01. Pick one
        family for visual consistency.
-- [ ] P5-07: Replace promo-ribbon localStorage check with an inline-script pattern
-       (matching ThemeModeScript) so returning dismissed visitors get zero FOUC.
-       (iter-6 discovered) Currently 1-frame flicker is acceptable for Phase 1.
+- [x] P5-07: ~~Promo-ribbon FOUC fix~~ — OBSOLETE. PA-04 dropped client state entirely;
+       the ribbon is now pure RSC with no dismiss → no FOUC possible.
 <!-- new tasks discovered mid-iteration get appended here with iter id -->

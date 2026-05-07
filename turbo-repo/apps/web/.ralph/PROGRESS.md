@@ -534,4 +534,48 @@ Soft eval self-pass:
 
 Avg: 8.2. Phase 3 progress: P3-01 ✅. Next: P3-02 hardware/cloud banner.
 
+## iter-13 — 2026-05-07 11:57 — P3-02 (compatibility banner)
+Files:
+- `apps/web/src/features/marketing/components/compatibility-banner-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes banner after domain strip)
+
+Section structure:
+- Eyebrow "Open-source and composable" + headline "Plug into your stack.
+  **Stay in your cloud.**" + sub
+- Two-card split: "Capture from any source" (5 protocol pills: GPS/GNSS,
+  MQTT, LoRaWAN, Webhooks, Custom SDK) and "Deploy where you run"
+  (5 deployment pills: docker compose, Kubernetes/Helm, Bare metal,
+  Any cloud, Air-gapped)
+- Each card has a tail line: source-side "Custom protocol? Add an ingester
+  in a few hundred lines"; deploy-side "MIT-licensed. No vendor lock-in.
+  Bring your own cloud, your own database, your own compliance boundary."
+- Footer link: "Read the source on GitHub →"
+
+Decisions:
+- Designed specifically to lift the S-05 score that dipped to 6 in iter-12.
+  Dual-axis OSS framing (composability + sovereignty) without crowding the
+  narrative — the section's natural topic IS OSS deployability.
+- Pill rows use the same border/bg-white treatment as nav/footer chrome —
+  visual consistency carries the OSS-flavored content
+- "Air-gapped" added intentionally — speaks to defense / regulated industry
+  prospects without a separate logo bar
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.0s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — captures BYOC + swap-a-box composability + real-time
+  protocol breadth in a single section
+- S-02 voice: **9/10** — concrete ("a few hundred lines"), pithy
+  ("Your data never leaves"), no SaaS-speak
+- S-03 design: **8/10** (degraded) — pill rows are scannable, two-card split balances
+- S-04 reuse: **9/10** — section header, brand tokens, hi2 + FaGithub icon
+  (matches header GitHub button)
+- S-05 OSS signal: **10/10** — eyebrow + MIT callout + "no vendor lock-in" +
+  GitHub link with icon. Recovered from iter-12 dip; no escalation triggered.
+
+Avg: **9.0**.
+
+Phase 3 progress: P3-01 ✅ P3-02 ✅. Next: P3-03 dashboard showcase (last of Phase 3).
+
 <!-- iterations append below this line -->

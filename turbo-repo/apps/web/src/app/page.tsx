@@ -3,6 +3,7 @@ import { TelemetrySymptomsSection } from "@/features/marketing/components/teleme
 import { FeatureBentoSection } from "@/features/marketing/components/feature-bento-section";
 import { ArchitectureSection } from "@/features/marketing/components/architecture-section";
 import { DomainStripSection } from "@/features/marketing/components/domain-strip-section";
+import { CompatibilityBannerSection } from "@/features/marketing/components/compatibility-banner-section";
 
 export default function HomePage() {
   return (
@@ -12,6 +13,7 @@ export default function HomePage() {
       <FeatureBentoSection />
       <ArchitectureSection />
       <DomainStripSection />
+      <CompatibilityBannerSection />
     </main>
   );
 }

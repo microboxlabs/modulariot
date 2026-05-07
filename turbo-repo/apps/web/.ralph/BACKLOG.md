@@ -27,8 +27,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
 ## Phase 3 — Trust & showcase
 - [x] P3-01: Domain strip (iter-12, 2026-05-07). Hard evals green, soft 8.2 avg.
-- [ ] P3-02: Hardware/cloud compatibility banner — generic icons for GPS providers,
-       cloud providers, deployment models
+- [x] P3-02: Compatibility banner (iter-13, 2026-05-07). Hard evals green, soft 9.0 avg.
 - [ ] P3-03: Dashboard showcase — composite mock (map + symptom timeline + incident state +
        control-tower view). Static image OR a stylized SVG composition; do NOT embed live app.
 

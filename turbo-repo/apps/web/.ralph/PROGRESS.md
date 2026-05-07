@@ -1085,4 +1085,46 @@ Halt condition fired per LOOP.md:
 
 Loop halted cleanly. Next ralph run can pick up from the carry-over list above.
 
+---
+
+## Run-2 alignment ralph — design ref landed, PA backlog generated
+
+Design reference dropped at
+`apps/web/.ralph/design-ref/ModularIoT Design System-landing/`
+on 2026-05-07. Full design system, not just landing HTML — includes:
+- `README.md` + `SKILL.md` (platform vs tenant doctrine)
+- `colors_and_type.css` + `landing/tokens.css` (canonical token system)
+- `landing/Modular IoT Landing.html` + `landing/{app,hero-visual,showcase,
+  icons,i18n,tweaks-panel}.jsx` + `landing/landing.css`
+- `preview/` (24 design-system component previews)
+- `uploads/` (4 PNG screenshots + 1 MP4)
+
+PA-00 diff captured 30+ deltas spanning foundation (palette, type scale,
+status semantics), visual language (no gradients, terminal-window
+pipeline, dense monospace data rows, marquee tenants strip), information
+architecture (no separate Architecture / Domain / Compatibility sections —
+those collapse into Marquee + Framework + Symptom narrative), and voice
+(neutral-operational radio-dispatch, EN/ES bilingual, no emoji or unicode
+arrows, sentence case, Apache-2.0 not MIT).
+
+User decision (2026-05-07): **full rewrite to design + purge Mintral assets.**
+Reason for purge: web-site palette I rescued in iter-2 was Mintral tenant
+brand (yellow `#FFB017`, "Selective Blue" `#0790ff`), not platform.
+Design system explicitly separates platform layer (Flowbite blue
+`#1C64F2` + status semantics) from tenant overrides (Mintral, Gama, etc.).
+I baked a tenant skin into the platform site.
+
+PA-01..PA-12 now populated in BACKLOG.md ordered for safe execution:
+foundation tokens first, then section-by-section rewrites bottom-up,
+voice/cleanup last. Charter for run-2 already in place (12-iter cap,
+halt on stuck blocker, S-03 enabled now ref exists, S-06 delta-list
+sub-eval enabled).
+
+Halt block from run-1 (READY FOR REVIEW) preserved above for context.
+Run-2 starts fresh from iter-1 in a new charter context. Carry-over
+discovered tasks from run-1 (P0-07 dark logo, P0-08 favicon set,
+P3-04 SVG restyle, P5-07 ribbon inline-script, P5-08 Heroicons,
+P5-09 copy-to-clipboard) are mostly **moot** after the rewrite — kept
+in BACKLOG for traceability but not on the execution path.
+
 <!-- iterations append below this line -->

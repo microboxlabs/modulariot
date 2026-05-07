@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.k-col { background:#F3F4F6; border-radius:8px; padding:12px; width:280px; }
+.k-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.k-hdr .t { font-size:12px; font-weight:600; color:#374151; text-transform:uppercase; letter-spacing:0.05em; }
+.k-hdr .c { background:#E5E7EB; color:#4B5563; font-size:11px; padding:1px 7px; border-radius:999px; font-weight:500; }
+.k-card { background:#fff; border:1px solid #E5E7EB; border-radius:8px; padding:12px; margin-bottom:8px; }
+.k-card .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.k-card .trip { font-family:monospace; font-size:11px; color:#6B7280; }
+.k-card .title { font-size:14px; font-weight:600; color:#111928; margin-bottom:4px; }
+.k-card .sub { font-size:12px; color:#4B5563; margin-bottom:10px; }
+.k-card .meta { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#6B7280; }
+.b { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:500; }
+.b.pending { background:#FEF3C7; color:#D97706; }
+.b.info    { background:#E1EFFE; color:#1A56DB; }
+.av { width:20px; height:20px; border-radius:50%; background:#1C64F2; color:#fff; font-size:10px; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+.alert { box-shadow: 0 0 10px rgba(225,29,72,0.6); border-color: #FDA4AF; }
+</style></head>
+<body>
+<div class="card" style="padding:16px;background:#F9FAFB;">
+  <div class="k-col">
+    <div class="k-hdr"><span class="t">Monitoring in course</span><span class="c">4</span></div>
+    <div class="k-card">
+      <div class="top"><span class="trip">VJ-24-8710</span><span class="b info">En curso</span></div>
+      <div class="title">Camión 412 · Tocopilla → Antofagasta</div>
+      <div class="sub">Conductor · Juan Pérez R.</div>
+      <div class="meta"><span>ETA: 14:32</span><span class="av">JP</span></div>
+    </div>
+    <div class="k-card alert">
+      <div class="top"><span class="trip">VJ-24-8711</span><span class="b pending">Requiere Overlord</span></div>
+      <div class="title">Camión 207 · Sin coordinación</div>
+      <div class="sub">Iniciado · 08:14 · GPS activo</div>
+      <div class="meta"><span>Duración 03:42</span><span class="av" style="background:#F59E0B">MC</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

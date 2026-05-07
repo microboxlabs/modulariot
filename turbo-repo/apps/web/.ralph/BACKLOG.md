@@ -8,14 +8,167 @@ description: Ordered, phased task queue for the ralph loop. Top unblocked task i
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[!]` blocked
 Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
-## Phase A — Design alignment (run-2 charter)
-Awaiting design reference at `apps/web/.ralph/design-ref/`. PA-01..PA-12 will be
-populated by an iter-0 diff once the reference is in place. The diff agent reads
-each existing section against the matching design section and writes a focused
-adjustment task per delta cluster (one PA-NN per section, max 12).
+## Phase A — Design alignment (run-2)
+Design ref landed at `apps/web/.ralph/design-ref/ModularIoT Design System-landing/`.
+Diff complete. Tasks below ordered for safe execution: foundation first, then
+section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
-- [!] PA-00: Diff current implementation against `apps/web/.ralph/design-ref/`
-       to populate PA-01..PA-12. **BLOCKED on user dropping the export.**
+- [x] PA-00: Diff complete (2026-05-07). Design system read; 30+ deltas captured;
+       12-iter alignment plan generated with user approval (full-rewrite + Mintral-purge).
+
+- [ ] PA-01: **Foundation tokens.** Rewrite `globals.css` `@theme` block to match
+       design canonical (`tokens.css` + `landing.css`):
+       - Flowbite blue scale (`--color-blue-600: #1C64F2`, `--color-blue-700: #1A56DB`)
+       - Replace Selective Blue palette
+       - Drop Yellow scale entirely (Mintral-tenant, not platform)
+       - Add semantic tokens: `--color-signal #3F83F8`, `--color-symptom #F59E0B`,
+         `--color-action #0E9F6E`, `--color-urgent #E11D48`
+       - Add `--ink-1..4`, `--surface-1..3`, `--hairline*` aliases
+       - Body 14px (was 16); type scale 11/12/14/16/18/20/24/30/36
+       - Add DM Sans Google Font import (via next/font for the marketing display)
+       - Add `live-pulse` (green) and `alert-pulse` (rose) keyframes
+       - Acceptance: `/dev/tokens` would re-render correctly (route already deleted,
+         so just verify build green and one target color resolves: e.g. `bg-blue-600`
+         renders #1C64F2 in the rendered HTML)
+
+- [ ] PA-02: **Purge Mintral assets + new brand-mark.**
+       - Delete `public/brand/{logo,headlogo,headlogo-dark,hero-pipeline,architecture,
+         pattern-light,pattern-dark}.svg` and `public/brand/showcase/*.svg`
+       - Replace `<SiteHeader>` and `<SiteFooter>` brand element with the design's
+         `BrandMark` pattern: 24px square (`bg-ink-1`) with two 8×8 inner squares
+         (one `bg-blue-600`, one `bg-yellow-500`-ish-but-actually-the-design-uses-#FFB017
+         INLINE in the .brand-mark::after rule — I'll match that exactly even though
+         we removed yellow from the palette: this is a brand-mark literal, not a token)
+       - Wordmark from "Modular IoT" → "modulariot" (lowercase, weight 600, ink-1)
+       - Update `public/brand/README.md` to describe the new mark
+       - Acceptance: hero/header/footer no longer reference removed assets; build green
+
+- [ ] PA-03: **Hero rewrite — flat + terminal-window pipeline visual.**
+       - Drop framer-motion-style entrance animations; design hero is static
+       - Drop gradient clip-text headline → use design's split: `<h1>{line1}<br/><span style={color: ink-3}>{line2}</span></h1>`
+       - Drop dual radial gradient wash → use design's `.hero-bg` (60px linear-gradient grid with radial mask, opacity 0.4, hairline color)
+       - Build new `HeroVisual` component: rounded card with `border-1 + shadow-30px-60px`,
+         `pipeline-head` mac-window-dots + monospace title "modulariot/pipeline" + live-pulse
+         green dot status, body shows the 5-stage data flow as inline mini-cards
+       - Buttons: `btn-primary` is `bg-ink-1` (near-black) with white text (NOT blue);
+         `btn-secondary` is white bg with hairline border
+       - Hero meta row: live-pulse + "47ms median ingest · 1,247 devices · v0.9.2" or
+         use design's exact i18n strings
+       - Acceptance: SSR HTML ships fully visible (no opacity:0 / hidden elements); build green
+
+- [ ] PA-04: **Promo ribbon rewrite — dark bar.**
+       - Replace gradient bg with `bg-ink-1` (near-black) and white text
+       - Add `.promo-pill` (small uppercase tag chip with `rgba(255,255,255,0.18)` bg)
+       - Copy from design: "v0.9 Alpha · Modular IoT joins the CNCF Sandbox track · Read the announcement"
+       - Underline link with offset, opacity 0.9
+       - Drop the dismiss X for now (design doesn't include it; can re-add later if telemetry shows users want it). Or keep as a small ghost button at the right.
+       - Acceptance: matches design's `.promo` styling pixel-close at 1280 viewport
+
+- [ ] PA-05: **Marquee tenants strip (NEW section).**
+       - Inserted between hero and symptom narrative
+       - Horizontal scrolling marquee with brand-display font (Oswald or DM Sans bold uppercase)
+         showing tenant names: MINTRAL · GAMA · SQM · CCU · MELÓN · SITRANS · ULTRAMAR ·
+         FLOTA NORTE · MICROBOXLABS, each with a "/ tenant" tag
+       - 30s linear infinite animation (gated by reduce-motion globals)
+       - Top + bottom hairline borders; `marquee-label` says e.g.
+         "Trusted by tenants in production" or "Operational tenants on Modular IoT"
+       - Acceptance: smoothly loops; respects reduce-motion (animation paused);
+         all 9 tenant names visible in DOM
+
+- [ ] PA-06: **Symptom narrative rewrite — dense data flow.**
+       - Replace current 5 prose cards with design's 5-column `symptom-stage` grid
+       - Each step: eyebrow ("01 · CAPTURE"), title, body sentence, then 3-4 monospace
+         data rows with colored row-dots (signal blue, accent blue-light, symptom amber,
+         action green, neutral gray for the 5 stages respectively)
+       - Flow-arrows between columns (absolute positioned at right: -10px, top: 50%)
+       - Bottom: `Insight` pill + footnote ("Symptoms are the operating unit, not alerts")
+       - Pull copy from `design-ref/.../landing/i18n.jsx` t.symptom.steps array
+       - Acceptance: 5 columns on lg+, stacked on <960px, flow-arrows hidden on mobile
+
+- [ ] PA-07: **Bento rewrite — 6-col with mini-visuals.**
+       - Replace current bento with design's `.bento` 6-col grid using span classes:
+         `b-3 b-3 b-2 b-2 b-2 b-6`
+       - 6 cards: Symptoms (b-3) · Ingest (b-3) · Orchestrate (b-2) · Dashboards (b-2) ·
+         Evidence (b-2) · Open source (b-6)
+       - Each card: title + body (38ch max-width, 13.5px ink-3), tiny "TAG" pill in
+         top-right (`bg-surface-2 + border-hairline + uppercase`), and a mini-visual
+         in the bottom area:
+         - SymptomVisual: 3 rows with `name · state · sev N` colored dots
+         - IngestVisual: mono API call snippet with accent + ink-4 highlights
+         - OrchestVisual: 3 mono rows with "ok" green tags
+         - DashVisual: 2×2 mini-tile grid with "VJ-48N · NN%" stats
+         - EvidenceVisual: mono log lines with `›` leading char
+         - OssVisual: helm command + green check + GitHub mark in 64px ink-1 box
+       - Acceptance: all 6 mini-visuals render distinctly; layout reflows mobile/tablet/desktop
+
+- [ ] PA-08: **Framework banner (NEW, replaces CompatibilityBannerSection).**
+       - 8-up icon grid with 1px hairline dividers, rounded-10 outer border
+       - Items: protocols (HTTP/REST, MQTT, Kafka, gRPC, Webhooks) and stack (K8s/Helm,
+         docker compose, Postgres+Pulsar) — exact 8 items from design's t.framework.items
+       - Generic SVG icons from design's `iconFor` map (protocol/stream/store/workflow/cloud)
+       - Compact section padding (56px); centered title + lede
+       - Delete `compatibility-banner-section.tsx` after the new section ships and
+         `page.tsx` swaps it in
+       - Acceptance: 8-cell grid on lg+, 4-cell on <960px
+
+- [ ] PA-09: **Showcase rewrite — Kanban + Map (replaces DashboardShowcase).**
+       - Split layout (1.1fr / 1fr): Kanban mock on left, Map mock + check-list on right
+       - Kanban: 3 columns (Pendiente · En curso · Aprobada) with 2-3 cards each, each
+         card has: VJ ID monospace tag, faena/route line, status dot, severity, mini-meta
+       - Map mock: world-map placeholder OR a stylized abstract grid showing fleet pins
+         (use simple SVG, brand-color pins). Static for v1.
+       - Check-list (`.showcase-list`): 4-5 bullets with `accent-soft` filled-circle
+         check icons (`I.check` from design), bold title + 1-line body each
+       - Pull copy from `t.showcase.bullets`
+       - Delete `dashboard-showcase-section.tsx` after new section ships
+       - Acceptance: split layout reflows; Kanban + Map both render
+
+- [ ] PA-10: **Quick start rewrite — 3-up cards (not terminals).**
+       - Replace current terminal-style code panels with design's `.qs-card` 3-up grid
+       - 3 cards: Helm chart · n8n flows · REST API
+       - Each card: 36px square accent-soft icon chip (helm/flow/api icon),
+         title (14.5px semibold), body (13px ink-3), mono meta footer with arrow icon
+       - Cards link out (deferring inline-code; the design treats these as "pick a path"
+         not "copy a snippet")
+       - Acceptance: 3-up on desktop, stacked mobile; hover translateY(-2px) + border tint
+
+- [ ] PA-11: **Community + Final CTA + Footer rewrites.**
+       - **Community**: replace current 3-path layout with design's `.community-card`:
+         a single rounded white card containing left side (eyebrow + title + lede + 2 CTA buttons)
+         and right side (3 stat cells with big tabular `ci-stat` + uppercase `ci-label`).
+         Stats: stars · contributors · countries (placeholder values per design).
+         Drop "honest empty state" placeholder avatars.
+       - **Final CTA**: replace gradient slab with design's dark `--ink-1` rounded slab
+         (radius-16, padding-64, centered). White `btn-primary` and ghost-bordered `btn-secondary`.
+         Display heading clamp(32px, 4.4vw, 52px). NO gradient text.
+       - **Footer**: 5-col grid (1.5fr + 4×1fr): brand col (mark + lowercase wordmark + tagline +
+         GitHub btn with star count) + Product/Developers/Company/Resources columns. Bottom row:
+         "© 2026 MicroboxLabs · Apache-2.0" + live-pulse "All systems operational"
+       - Acceptance: each section matches design at 1280; license string changed MIT → Apache-2.0
+
+- [ ] PA-12: **Voice pass + structural cleanup + i18n stub + theme toggle.**
+       - **Delete duplicate sections**: `architecture-section.tsx`, `domain-strip-section.tsx`,
+         (and `compatibility-banner-section.tsx` if PA-08 didn't already). Their content
+         lives in the rewritten Symptom Narrative + Marquee + Framework.
+       - **Replace all unicode arrows** (`<span aria-hidden>→</span>`) with proper SVG icons
+         from design's `I.arrow` definition. Same for any other unicode glyphs.
+       - **Sentence case audit**: scan all headlines and CTAs; convert any Title Case
+         to Sentence case per design system rules.
+       - **Add Apache-2.0 footer text** (already in PA-11 but double-check).
+       - **EN/ES toggle stub**: add a basic `lang` cookie + `<LangToggle />` button in
+         header showing EN / ES with the active one bold. Wire to a tiny dictionary so
+         hero + symptom + bento + final CTA copy switches. Defer full-page i18n to
+         next-intl in a future iter; this iter just proves the pattern.
+       - **Theme toggle**: add a `<ThemeToggle />` button in header next to LangToggle,
+         wired to the existing ThemeDetector + cookie. Light/dark moon/sun icons.
+       - Acceptance: only design-spec sections compose `page.tsx`; build green; LangToggle
+         flips the visible copy in at least one section; theme toggle flips dark mode.
+
+## Phase 6 — Ops pages (deferred again — out of 12-iter alignment scope)
+- [ ] P6-01: `/docs` stub
+- [ ] P6-02: `/pricing` stub (OSS-first framing — "self-host free / managed coming")
+- [ ] P6-03: `/open-source` page (deeper OSS story, contribution guide link)
+- [ ] P6-04: `/status` placeholder
 
 ## Phase 0 — Foundation (must finish before Phase 1)
 - [x] P0-01: Audit `apps/app` → write `STACK.md` (iter-1, 2026-05-07)

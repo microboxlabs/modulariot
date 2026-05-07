@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.sb { background:#fff; border:1px solid #E5E7EB; border-radius:8px; padding:10px 8px; width:240px; }
+.it { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:8px; font-size:14px; color:#374151; cursor:pointer; font-weight:500;}
+.it:hover { background:#F3F4F6; }
+.it.active { background:#EBF5FF; color:#1A56DB; }
+.it svg { width:20px; height:20px; flex-shrink:0; stroke-width:2; }
+.it .c { background:#E5E7EB; color:#4B5563; font-size:10px; padding:1px 7px; border-radius:999px; font-weight:500; margin-left:auto; }
+.it.active .c { background:#1C64F2; color:#fff; }
+</style></head>
+<body>
+<div class="card" style="padding:16px;background:#F9FAFB;">
+  <div style="display:flex;gap:20px;">
+    <div class="sb">
+      <div class="it"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Inicio</div>
+      <div class="it active"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Mis tareas<span class="c">12</span></div>
+      <div class="it"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Mapa</div>
+      <div class="it"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Reportes</div>
+      <div class="it"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Configuración</div>
+    </div>
+    <div style="font-size:12px;color:var(--fg-3);line-height:1.6;">
+      <strong style="color:var(--fg-2);">Sidebar item</strong><br>
+      256 px expanded<br>
+      40 px row height<br>
+      Active: blue-50 bg, blue-700 text<br>
+      Counter pill on right<br>
+      Flowbite Icons outline, 20 px
+    </div>
+  </div>
+</div>
+</body></html>

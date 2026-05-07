@@ -12,12 +12,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P0-01: Audit `apps/app` → write `STACK.md` (iter-1, 2026-05-07)
 - [x] P0-02: Rescue brand assets from `apps/web-site` (iter-2, 2026-05-07)
 - [x] P0-03: Bootstrap `apps/web` (iter-3, 2026-05-07). H-01/02/03/10 all green.
-- [ ] P0-04: Wire design tokens. **Reduced scope**: brand palette is already in
-       `apps/web/src/app/globals.css` (rescued from web-site, iter-3 confirmed). Remaining work:
-       (1) add semantic aliases (primary/attention/critical/neutral) as additional `@theme` vars,
-       (2) extend `flowbite-theme.ts` to skin Card / Navbar / Badge with the brand colors,
-       (3) build a `/_dev/tokens` route that demos the skinned primitives at all color steps
-       (deleted in P5-06).
+- [x] P0-04: Token-skin + `/dev/tokens` demo (iter-4, 2026-05-07). H-01/02/03 green.
 - [ ] P0-05: Base layout + global nav shell (with visible GitHub button) + footer shell.
        — (acceptance: layout renders on `/`, links are placeholder hrefs, GitHub button
        links to https://github.com/microboxlabs/modulariot)
@@ -66,7 +61,8 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        skip-to-content link
 - [ ] P5-05: Perf pass — LCP < 2.0s, CLS < 0.05, first-load JS < 180KB on `/`. Convert any
        hero animations to CSS-only or WAAPI if framer-motion bloats the bundle.
-- [ ] P5-06: Delete `/_dev/tokens` route from P0-04
+- [ ] P5-06: Delete `/dev/tokens` route from P0-04 (note: actual path uses `dev/`,
+       not `_dev/` — leading underscore is reserved as a private folder in App Router)
 
 ## Phase 6 — Ops pages (after halt; may roll into next ralph run)
 - [ ] P6-01: `/docs` stub

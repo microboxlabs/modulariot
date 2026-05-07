@@ -6,7 +6,6 @@ import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, CardVariant } from "./dashlet";
 import { SimpleDashletSettings } from "../common/simple-dashlet-settings";
-import { type DashletIconKey } from "../common/icon-options";
 import {
   getHandlebarsStatus,
   getFlowbiteColor,
@@ -78,7 +77,7 @@ export function DashletSettings(
     props.config.cardVariant ?? "horizontal"
   );
   const [showIcon, setShowIcon] = useState(props.config.showIcon !== false);
-  const [icon, setIcon] = useState<DashletIconKey>(props.config.icon ?? "cart");
+  const [icon, setIcon] = useState<string>(props.config.icon ?? "cart");
   const [iconColor, setIconColor] = useState<string>(
     props.config.iconColor ?? "3b82f6"
   );
@@ -195,7 +194,7 @@ export function DashletSettings(
             >
               <IconPickerDropdown
                 value={icon}
-                onChange={(v) => setIcon(v as DashletIconKey)}
+                onChange={(v) => setIcon(v)}
                 title={tr("dashboard.settings.selectIcon", dictionary)}
                 searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
                 emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}

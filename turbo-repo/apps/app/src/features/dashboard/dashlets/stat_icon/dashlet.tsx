@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { IconType } from "react-icons";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { PgrestDashletFields, useDashletPgrest } from "../common/use-dashlet-pgrest";
@@ -8,8 +9,8 @@ import {
   DashletError,
   parseResolvedNumber,
 } from "../common/dashlet-states";
-import { type DashletIconKey } from "../common/icon-options";
 import { DASHLET_ICON_OPTIONS } from "../common/icon-options";
+import { ICON_REGISTRY } from "@/features/common/components/icon-picker-dropdown/icon-registry";
 import {
   evaluateColorRulesGeneric,
   buildIconStyle,
@@ -39,8 +40,7 @@ export interface DashletConfig extends PgrestDashletFields {
   cardVariant?: CardVariant;
   /** Whether to show the icon */
   showIcon?: boolean;
-  /** Selected icon key */
-  icon?: DashletIconKey;
+  icon?: string;
   /** Icon color (hex without #) */
   iconColor?: string;
   /** Whether to use custom background color */
@@ -103,12 +103,35 @@ const FIELD_DEFAULTS: Record<string, string> = {
   goToUrl: "",
 };
 
-/** Get the icon component from the icon key */
-function getIconFromKey(key: DashletIconKey | undefined): IconType | undefined {
-  if (!key) return undefined;
-  const found = DASHLET_ICON_OPTIONS.find((opt) => opt.value === key);
-  // Cast to IconType since react-icons/hi2 icons are compatible
-  return found?.icon as IconType | undefined;
+/** Resolves an icon key from both the legacy DASHLET_ICON_OPTIONS and the new ICON_REGISTRY. */
+function useIconFromKey(key: string | undefined): IconType | undefined {
+  // Legacy keys resolve synchronously
+  const legacyIcon = key
+    ? (DASHLET_ICON_OPTIONS.find((opt) => opt.value === key)?.icon as IconType | undefined)
+    : undefined;
+
+  const [registryIcon, setRegistryIcon] = useState<IconType | undefined>(undefined);
+
+  useEffect(() => {
+    if (!key || legacyIcon) {
+      setRegistryIcon(undefined);
+      return;
+    }
+    const entry = ICON_REGISTRY[key];
+    if (!entry) return;
+    let cancelled = false;
+    entry
+      .load()
+      .then((mod) => {
+        if (!cancelled) setRegistryIcon(() => mod.default as unknown as IconType);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [key, legacyIcon]);
+
+  return legacyIcon ?? registryIcon;
 }
 
 // ============================================================================
@@ -225,7 +248,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const showGoTo = config.showGoTo === true;
   const goToUrl = normalizeGoToUrl(resolved.goToUrl ?? "");
   const hasGoToLink = showGoTo && goToUrl.length > 0;
-  const IconComponent = getIconFromKey(iconKey);
+  const IconComponent = useIconFromKey(iconKey);
 
   // Evaluate value color rules
   const valueColorRulesConfig = normalizeValueColorRulesConfig(

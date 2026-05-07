@@ -498,4 +498,40 @@ Discovered: P3-05 (or fold into P3-04) — restyle architecture.svg to brand tok
 Next: Phase 3 (P3-01 domain strip → P3-02 cloud/hardware banner → P3-03 dashboard
 showcase).
 
+## iter-12 — 2026-05-07 11:51 — P3-01 (domain strip)
+Files:
+- `apps/web/src/features/marketing/components/domain-strip-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes after architecture)
+
+Section structure (intentionally quiet):
+- Centered eyebrow "Built from real operational pressure"
+- Headline (smaller, h2): "For logistics, fleet operations, and industrial telemetry."
+  — verbatim BRIEF fallback line, since no real public-customer logos exist yet
+- 3-up grid of domain cards: Logistics · Fleet operations · Industrial telemetry
+- Each card: blue icon (truck / signal / building-office) + name + 1-line example
+  using BRIEF-grounded vocabulary (cargo runs, signal-loss windows, driver fatigue,
+  geofence breaches, threshold violations, root-cause symptoms)
+
+Decisions:
+- Honored BRIEF's "Use cautiously. … use [the line] instead of fake social proof."
+  No fake logo wall. The card examples ARE the proof.
+- Smaller visual weight than the surrounding sections — h2 is `text-2xl/3xl`, padding
+  py-16 (vs py-20/24 elsewhere). Acts as a visual breath between the analytical
+  architecture section and the upcoming dashboard showcase.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.1s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — BRIEF line verbatim; examples ground each domain
+- S-02 voice: **9/10** — concrete operational vocabulary, no SaaS abstractions
+- S-03 design: **8/10** (degraded) — quiet 3-up grid; visual weight calibrated below
+  surrounding sections to act as a breath
+- S-04 reuse: **9/10** — established section pattern, brand tokens, hi2 icons
+- S-05 OSS signal: **6/10** — section is a quiet trust strip; chrome (GitHub badge,
+  promo ribbon) carries OSS signal at page level, but section-scoped score is low.
+  **First S-05 < 7**; tracking but not escalating yet (escalate at 2 consecutive).
+
+Avg: 8.2. Phase 3 progress: P3-01 ✅. Next: P3-02 hardware/cloud banner.
+
 <!-- iterations append below this line -->

@@ -26,8 +26,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P2-03: Architecture section (iter-11, 2026-05-07). Hard evals green, soft 8.6 avg.
 
 ## Phase 3 — Trust & showcase
-- [ ] P3-01: Domain strip — "Built for logistics, fleet operations, and industrial telemetry"
-       (NO fake logos)
+- [x] P3-01: Domain strip (iter-12, 2026-05-07). Hard evals green, soft 8.2 avg.
 - [ ] P3-02: Hardware/cloud compatibility banner — generic icons for GPS providers,
        cloud providers, deployment models
 - [ ] P3-03: Dashboard showcase — composite mock (map + symptom timeline + incident state +

@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
 import ThemeDetector from "@/features/theme/components/ThemeDetector";
+import { SiteHeader } from "@/features/layout/components/site-header";
+import { SiteFooter } from "@/features/layout/components/site-footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -27,7 +29,13 @@ export default function RootLayout({
       </head>
       <body className="bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-50">
         <ThemeInit />
-        <ThemeDetector>{children}</ThemeDetector>
+        <ThemeDetector>
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <div className="flex-1">{children}</div>
+            <SiteFooter />
+          </div>
+        </ThemeDetector>
       </body>
     </html>
   );

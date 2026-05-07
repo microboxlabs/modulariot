@@ -164,4 +164,36 @@ nav/footer shells once brand presence is on the public route.
 Phase 0 status after iter-4: P0-01..04 ✅. One Phase 0 task remaining: P0-05
 (base layout + nav shell + footer shell). Then Phase 1 hero work begins.
 
+## iter-5 — 2026-05-07 10:18 — P0-05 (nav + footer shells)
+Files:
+- `apps/web/src/features/layout/components/site-header.tsx` (NEW) — sticky, backdrop-blur,
+  4 placeholder nav anchors, "Star on GitHub" button with FaGithub icon, light/dark logo swap
+- `apps/web/src/features/layout/components/site-footer.tsx` (NEW) — 4-column structure
+  (Product / Developers / Company / Resources), brand mark, GitHub icon, copyright
+- `apps/web/src/app/layout.tsx` (UPDATED) — wraps children with SiteHeader + SiteFooter
+  inside ThemeDetector; min-h-screen flex column keeps footer pinned
+- `apps/web/src/app/page.tsx` (UPDATED) — drops standalone min-h-screen now that layout owns it
+
+Decisions:
+- Header/footer live INSIDE ThemeDetector so they appear together with content after theme
+  settles (no flicker between Spinner and final layout).
+- Nav anchors use `#section` placeholders matching the section IDs Phase 1+ will introduce.
+- GitHub URL is hard-coded `https://github.com/microboxlabs/modulariot` (matches `git remote`).
+- Light/dark logo `<Image>` pair set up via `dark:hidden` / `dark:block` Tailwind classes —
+  P0-07 (real dark variant) will swap the asset without touching the markup.
+- Did NOT introduce a `(marketing)` route group to exclude the dev/tokens page from the
+  global header/footer — keeping it simple for Phase 0; revisit if dev-route chrome
+  causes confusion during reviews.
+
+Hard evals:
+- H-01 typecheck ✅
+- H-02 lint ✅
+- H-03 build ✅ (5 routes, 5.0s; flowbite class-list regenerated cleanly)
+- H-10 dev — no regression expected; not re-run this iter
+
+Soft evals: still N/A. The placeholder hero on `/` has not yet earned brief-narrative
+evaluation; that begins at P1-03 when the real hero ships.
+
+**Phase 0 complete.** Next: Phase 1 (P1-01 promo ribbon → P1-02 GitHub stars → P1-03 hero).
+
 <!-- iterations append below this line -->

@@ -13,9 +13,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P0-02: Rescue brand assets from `apps/web-site` (iter-2, 2026-05-07)
 - [x] P0-03: Bootstrap `apps/web` (iter-3, 2026-05-07). H-01/02/03/10 all green.
 - [x] P0-04: Token-skin + `/dev/tokens` demo (iter-4, 2026-05-07). H-01/02/03 green.
-- [ ] P0-05: Base layout + global nav shell (with visible GitHub button) + footer shell.
-       — (acceptance: layout renders on `/`, links are placeholder hrefs, GitHub button
-       links to https://github.com/microboxlabs/modulariot)
+- [x] P0-05: Base layout + nav + footer shells (iter-5, 2026-05-07). H-01/02/03 green.
 
 ## Phase 1 — Hero & header (the first impression)
 - [ ] P1-01: Promo ribbon component — dismissible via localStorage, server-renderable

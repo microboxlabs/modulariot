@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-8 px-6 text-center">
+    <main className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-8 px-6 py-24 text-center">
       <Image
         src="/brand/logo.svg"
         alt="Modular IoT"

@@ -1,6 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
-import { BrandMark } from "./brand-mark";
 
 const REPO_URL = "https://github.com/microboxlabs/modulariot";
 
@@ -33,10 +33,15 @@ export function SiteFooter() {
             <Link
               href="/"
               aria-label="modulariot — home"
-              className="inline-flex items-center gap-2.5 text-[16px] font-semibold tracking-[-0.01em] text-ink-1 dark:text-gray-50"
+              className="inline-flex items-center"
             >
-              <BrandMark size={24} />
-              modulariot
+              <Image
+                src="/brand/logo-modulariot.svg"
+                alt="modulariot"
+                width={148}
+                height={36}
+                className="h-8 w-auto dark:brightness-0 dark:invert"
+              />
             </Link>
             <p className="max-w-[280px] text-[13.5px] leading-[1.6] text-ink-3 dark:text-gray-400">
               Real-time operational intelligence. Open-source. Yours to run.

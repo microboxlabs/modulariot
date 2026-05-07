@@ -1,5 +1,5 @@
+import Image from "next/image";
 import Link from "next/link";
-import { BrandMark } from "./brand-mark";
 import { GitHubStarBadge } from "./github-star-badge";
 import { LangToggle } from "./lang-toggle";
 import { ThemeToggle } from "./theme-toggle";
@@ -19,10 +19,18 @@ export function SiteHeader() {
         <Link
           href="/"
           aria-label="modulariot — home"
-          className="inline-flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-ink-1 dark:text-gray-50"
+          className="inline-flex items-center"
         >
-          <BrandMark />
-          modulariot
+          {/* Real platform lockup. Navy fill works on light surfaces; dark
+              mode applies brightness-0 + invert to render it as white. */}
+          <Image
+            src="/brand/logo-modulariot.svg"
+            alt="modulariot"
+            width={132}
+            height={32}
+            priority
+            className="h-7 w-auto dark:brightness-0 dark:invert"
+          />
         </Link>
 
         <nav aria-label="Primary" className="hidden flex-1 items-center gap-1 md:flex">

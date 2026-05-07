@@ -18,9 +18,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 ## Phase 1 — Hero & header (the first impression)
 - [x] P1-01: Promo ribbon (iter-6, 2026-05-07). Hard evals green.
 - [x] P1-02: Live GitHub star count (iter-7, 2026-05-07). Hard evals green.
-- [ ] P1-03: Hero section — promise + subtext (BRIEF copy) + dual CTA (primary "See it running",
-       secondary "Star on GitHub") + animated telemetry visual (small canvas / SVG; respects
-       `prefers-reduced-motion`)
+- [x] P1-03: Hero section (iter-8, 2026-05-07). Hard evals green. Soft eval self-pass.
 
 ## Phase 2 — Narrative core (the symptom-intelligence story)
 - [ ] P2-01: "Telemetry → Symptoms" section — 5-step horizontal flow:
@@ -82,6 +80,14 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        to brand palette. (iter-2 discovery) Current colors are generic slate-50/900/red-500;
        must move to blue/yellow/orange/gray brand tokens before P3-03 ships. Belongs in
        Phase 3 alongside the dashboard showcase.
+- [ ] P1-04: After flowbite-theme.ts has fully-skinned Button/Card primitives, refactor
+       hero CTAs from bare `<a>` / `<Link>` + Tailwind to the skinned `<Button>` primitive.
+       (iter-8 deferred) Hero currently uses bare elements for tighter visual control;
+       worth the brand consistency once the skin matures.
+- [ ] P1-05: LCP/perf review of the hero. (iter-8 deferred) framer-motion entrance
+       animations set `opacity:0` in SSR HTML, which can hurt LCP. If P5 perf eval
+       shows LCP > 2.0s, swap framer-motion entrance animations for CSS-only
+       @keyframes (the data-flow sweep is already CSS-only).
 - [ ] P5-07: Replace promo-ribbon localStorage check with an inline-script pattern
        (matching ThemeModeScript) so returning dismissed visitors get zero FOUC.
        (iter-6 discovered) Currently 1-frame flicker is acceptable for Phase 1.

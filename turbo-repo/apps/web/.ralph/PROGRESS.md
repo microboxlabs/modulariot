@@ -262,4 +262,55 @@ Soft evals: still N/A — this is chrome enhancement, not narrative content.
 Phase 1 progress: P1-01 ✅ P1-02 ✅. Next: **P1-03 hero** (the big one — first
 visitor-facing narrative section, soft evals start here).
 
+## iter-8 — 2026-05-07 11:23 — P1-03 (hero section)
+Files:
+- `apps/web/src/features/marketing/components/hero-section.tsx` (NEW, "use client")
+- `apps/web/src/app/page.tsx` (UPDATED — composes HeroSection)
+
+Hero structure:
+- Eyebrow chip ("Open-source · real-time · symptom intelligence" with brand dot)
+- Gradient headline ("...built around symptoms" in blue→orange `bg-clip-text`)
+- BRIEF-aligned subtext (signals → symptoms with state/severity/treatment → evidence;
+  "Own your data. Own your stack. Own your control tower.")
+- Dual CTA (primary blue "See it running" → #demo, secondary "Explore the repo" → GitHub)
+- Footnote: "Self-host on your cloud · Deploy with docker compose · MIT-licensed"
+- Visual: rescued `hero-pipeline.svg` framed in a card, with a CSS-only sweep
+  animation (`@keyframes pipeline-sweep`) that disables under prefers-reduced-motion
+- Background: dual radial gradient wash (blue + orange tints, 12% / 10% alpha)
+
+Decisions:
+- "use client" because framer-motion entrance animations need hydration. Tradeoff
+  noted as P1-05 (potential LCP impact since `initial: { opacity: 0 }` ships in SSR HTML).
+- Used bare `<a>`/`<Link>` + Tailwind for CTAs instead of flowbite-react `<Button>` for
+  tighter visual control. Tracked as P1-04 to migrate once button skin matures.
+- Sweep animation uses CSS @keyframes (not framer-motion) so it works regardless
+  of JS hydration timing.
+- `useReducedMotion()` from framer-motion gates the sweep visibility too — both
+  motion sources respect the user preference.
+
+Hard evals:
+- H-01 typecheck ✅
+- H-02 lint ✅
+- H-03 build ✅ (6.7s, 5 routes, 1h ISR; no warnings)
+- H-04..H-09 — same status as before; chrome MCP visual deferred to user-attended iter
+
+Soft eval self-pass (judge prompts from EVALS.md applied to the hero output):
+- S-01 Narrative fidelity: **9/10** — eyebrow + headline + subtext + footnote land
+  symptom intelligence + OSS-first + real-time + operational evidence
+- S-02 Voice: **8/10** — technical/concrete; the "Own your X" triplet is faintly
+  familiar but the third item (`control tower`) is BRIEF-grounded so it earns the line
+- S-03 Design coherence: **7/10** — degraded mode (no design ref). Brand palette
+  honored (blue + orange wash + gradient headline), pipeline visual reinforces flow.
+  Yellow is absent from hero — fits later (attention/highlight). Re-score when P0-06
+  unblocks.
+- S-04 Reuse discipline: **8/10** — reuses brand tokens, react-icons (matches header),
+  rescued SVG. New: bare CTA buttons (deferred refactor → P1-04).
+- S-05 OSS signal: **10/10** — "Open-source" twice in copy, GitHub button, MIT-license
+  callout, "self-host on your cloud", deployable banner.
+
+All ≥ 7. No follow-up tasks spawned beyond the deferrals already noted (P1-04, P1-05).
+
+Phase 1 progress: P1-01..03 ✅ — **Phase 1 complete**. Next: Phase 2 (P2-01 Telemetry → Symptoms,
+P2-02 feature bento, P2-03 architecture).
+
 <!-- iterations append below this line -->

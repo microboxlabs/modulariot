@@ -30,6 +30,12 @@ export default function RootLayout({
       </head>
       <body className="bg-white font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-50">
         <ThemeInit />
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow-lg focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+        >
+          Skip to content
+        </a>
         <ThemeDetector>
           <div className="flex min-h-screen flex-col">
             <PromoRibbon

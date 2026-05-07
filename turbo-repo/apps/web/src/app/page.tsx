@@ -12,7 +12,7 @@ import { FinalCtaSection } from "@/features/marketing/components/final-cta-secti
 
 export default function HomePage() {
   return (
-    <main>
+    <main id="main" tabIndex={-1} className="focus:outline-none">
       <HeroSection />
       <TelemetrySymptomsSection />
       <FeatureBentoSection />

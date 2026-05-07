@@ -914,4 +914,42 @@ Discovered during window:
 No same-eval-red 3 iters (no halt). 10 iters remain in budget; Phase 5 has 3 tasks left
 (P5-04 a11y, P5-05 perf, P5-06 dev/tokens cleanup) plus the discovered carry-overs.
 
+## iter-21 — 2026-05-07 12:45 — P5-04 (a11y pass)
+Files:
+- `apps/web/src/app/layout.tsx` (UPDATED — added skip-to-content link)
+- `apps/web/src/app/page.tsx` (UPDATED — `<main id="main" tabIndex={-1}>`)
+- `apps/web/src/app/globals.css` (UPDATED — global focus-visible ring)
+
+Changes:
+1. **Skip-to-content link**: first focusable element in body, `sr-only` until
+   focus-visible, then absolutely positions at top-4/left-4 with brand-blue
+   button styling. Targets `#main` on the page's `<main>` element.
+2. **Main landmark target**: `<main id="main" tabIndex={-1}>` ensures the skip
+   link successfully transfers focus into the main content (without tabIndex,
+   non-interactive `<main>` would not receive focus).
+3. **Global focus-visible style** in globals.css: a single `:where(a, button,
+   [role=button], input, select, textarea, summary):focus-visible` rule applies
+   a 2px brand-blue outline + offset to every interactive element when focused
+   via keyboard. Specificity 0 from `:where()` so component-local
+   `focus-visible:ring-*` overrides cleanly. Mouse focus is unaffected.
+
+Section-level a11y was already in good shape from earlier iterations:
+- All `<section>` use `aria-labelledby` pointing to their h2 IDs
+- Heading hierarchy: 1 h1 (hero), 1 h2 per section, h3 within
+- Decorative SVGs have `aria-hidden`, content SVGs have meaningful `alt`
+- All `target="_blank"` links have `rel="noreferrer"`
+- Icon-only buttons have `aria-label`
+- Lists use `<ul>` / `<ol>` with `<li>` semantically
+- `<html lang="en" suppressHydrationWarning>` set in root layout
+- Form-like elements (none yet) — N/A this phase
+
+Live axe scan deferred — needs claude-in-chrome MCP attended. Captured in
+PROGRESS as a gap; user-attended iter (or P5-05 perf bench attempt) can
+complete the audit. The structural fixes above cover what's safe to ship blind.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.7s, 5 routes, 1h ISR)
+
+Phase 5 progress: P5-01..04 ✅. Next: P5-05 perf pass.
+
 <!-- iterations append below this line -->

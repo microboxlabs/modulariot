@@ -1127,4 +1127,41 @@ P3-04 SVG restyle, P5-07 ribbon inline-script, P5-08 Heroicons,
 P5-09 copy-to-clipboard) are mostly **moot** after the rewrite — kept
 in BACKLOG for traceability but not on the execution path.
 
+## PA-iter-1 — 2026-05-07 — PA-01 (foundation tokens)
+Files:
+- `apps/web/src/app/globals.css` (REWRITTEN — `@theme` block now matches design)
+- `apps/web/src/app/layout.tsx` (UPDATED — added DM Sans next/font)
+
+Token replacements (Flowbite blue + design statuses + ink/surface/hairline aliases):
+- Blue scale: Selective Blue (`#0790ff`) → Flowbite blue (`#1C64F2` at 600 = primary,
+  `#1A56DB` at 700 = hover); design's blue-500 `#3F83F8` doubles as signal status
+- Gray scale: rewritten to match Flowbite gray (was a custom warm-gray ramp; now the
+  canonical `#F9FAFB → #0B1220` ramp from design)
+- New status tokens: `--color-signal`, `--color-symptom`, `--color-action`,
+  `--color-urgent` — usable as `bg-signal`, `text-symptom`, etc.
+- New surface/ink/hairline aliases: `--color-surface-1..3`, `--color-ink-1..4`,
+  `--color-hairline`, `--color-hairline-strong`. Marketing components in PA-03..PA-12
+  will switch to these from raw `bg-white text-gray-900`.
+- Type scale: `--text-base: 14px` (was Tailwind default 16); full ramp 11/12/14/16/18/20/24/30/36
+- Fonts: `--font-sans` (Inter) + `--font-display` (DM Sans) wired via next/font/google
+- Keyframes: `live-pulse` (green halo, 2s ease-out infinite) and `alert-pulse`
+  (rose 0→6px halo + 14px blur) ready for hero-meta dots and urgent-row glows
+
+Transient block:
+- Yellow + orange palette stops kept temporarily so still-untouched sections keep
+  rendering during PA-02..PA-11 rewrites. Documented in globals.css as a
+  TRANSIENT block; PA-12 deletes both stops along with the duplicate sections that
+  depend on them. Avoids ugly intermediate states across the loop.
+
+Updated focus-visible outline color: was `--color-blue-500` (#3F83F8 now =
+signal status), now `--color-blue-600` (#1C64F2 = canonical primary).
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.0s, 4 routes)
+- S-03 design coherence: enabled now that ref exists. **Section-level not yet scored
+  because no markup changed in PA-01.** First S-03/S-06 evals run at PA-03 (hero rewrite).
+- S-06 design diff: same — fires at PA-03+
+
+PA progress: PA-01 ✅. Next: PA-02 (purge Mintral assets + new BrandMark CSS pattern).
+
 <!-- iterations append below this line -->

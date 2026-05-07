@@ -16,20 +16,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 - [x] PA-00: Diff complete (2026-05-07). Design system read; 30+ deltas captured;
        12-iter alignment plan generated with user approval (full-rewrite + Mintral-purge).
 
-- [ ] PA-01: **Foundation tokens.** Rewrite `globals.css` `@theme` block to match
-       design canonical (`tokens.css` + `landing.css`):
-       - Flowbite blue scale (`--color-blue-600: #1C64F2`, `--color-blue-700: #1A56DB`)
-       - Replace Selective Blue palette
-       - Drop Yellow scale entirely (Mintral-tenant, not platform)
-       - Add semantic tokens: `--color-signal #3F83F8`, `--color-symptom #F59E0B`,
-         `--color-action #0E9F6E`, `--color-urgent #E11D48`
-       - Add `--ink-1..4`, `--surface-1..3`, `--hairline*` aliases
-       - Body 14px (was 16); type scale 11/12/14/16/18/20/24/30/36
-       - Add DM Sans Google Font import (via next/font for the marketing display)
-       - Add `live-pulse` (green) and `alert-pulse` (rose) keyframes
-       - Acceptance: `/dev/tokens` would re-render correctly (route already deleted,
-         so just verify build green and one target color resolves: e.g. `bg-blue-600`
-         renders #1C64F2 in the rendered HTML)
+- [x] PA-01: Foundation tokens (PA-iter-1, 2026-05-07). Hard evals green.
 
 - [ ] PA-02: **Purge Mintral assets + new brand-mark.**
        - Delete `public/brand/{logo,headlogo,headlogo-dark,hero-pipeline,architecture,

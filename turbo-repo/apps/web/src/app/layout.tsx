@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, DM_Sans } from "next/font/google";
 import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
 import ThemeDetector from "@/features/theme/components/ThemeDetector";
@@ -14,6 +14,15 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+// DM Sans is the design's display face for marketing numerals (counters at 100px)
+// and the marquee tenant labels. Only used where `font-display` is set.
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  variable: "--font-dm-sans",
+});
+
 export const metadata: Metadata = {
   title: "Modular IoT — Open-source real-time monitoring",
   description:
@@ -24,7 +33,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${dmSans.variable}`}
+    >
       <head>
         <ThemeModeScript />
       </head>

@@ -667,4 +667,48 @@ Avg: **9.0**.
 
 Phase 4 progress: P4-01 ✅. Next: P4-02 quick-start code block.
 
+## iter-16 — 2026-05-07 12:14 — P4-02 (quick start)
+Files:
+- `apps/web/src/features/marketing/components/quick-start-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes after examples)
+
+Section structure:
+- Eyebrow "Quick start" + headline "Two commands. **First symptom in five minutes.**"
+  + sub: "No SaaS sign-up. No license keys. Clone, boot the stack on your machine,
+  post a signal, watch it light up the dashboard."
+- Two-card grid (1 col mobile, 2 col desktop):
+  - 01 Clone and run: `git clone … && docker compose up`
+  - 02 Send your first signal: `curl -X POST localhost:8080/v1/signals …` with
+    realistic fleet payload (truck-47, speed 118, geofence zone-a)
+- Each card: brand-blue ring icon chip + numbered title + blurb + dark code panel
+  with comments in blue-300 (translucent), `$ ` prompt in gray, command text in white
+
+Decisions:
+- Pure RSC; no syntax highlighter library (shiki adds bundle weight). Hand-rolled
+  styling: 3 line-kind variants (`comment | command | blank`) — enough visual
+  hierarchy without a parser.
+- Skipped copy-to-clipboard buttons in v1 to keep this section in RSC.
+  Tracked as P5-09 — small "use client" leaf during Phase 5 polish.
+- Numbered chip pattern matches P2-01 + P2-03 — visual continuity for sequential
+  flows across the page.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.6s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — operational-symptom narrative + OSS deployment in
+  the same breath ("watch it become a symptom" right after `docker compose up`)
+- S-02 voice: **10/10** — "No SaaS sign-up. No license keys." Concrete realistic
+  fleet payload (truck-47, speed 118, geofence zone-a). Almost defiant clarity.
+- S-03 design: **8/10** (degraded) — clean code cards, dark code panels read like
+  terminal screenshots
+- S-04 reuse: **9/10** — numbered chip + ring icon pattern from architecture,
+  two-card grid from compatibility banner
+- S-05 OSS signal: **10/10** — git clone + GitHub URL in command, docker compose,
+  "No SaaS / No license keys" framing
+
+Avg: **9.2** — joint highest with iter-13.
+
+Phase 4 progress: P4-01 ✅ P4-02 ✅. Next: P4-03 community / OSS section (closes Phase 4).
+
 <!-- iterations append below this line -->

@@ -32,8 +32,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
 ## Phase 4 — Developer surface
 - [x] P4-01: Examples gallery (iter-15, 2026-05-07). Hard evals green, soft 9.0 avg.
-- [ ] P4-02: Quick start code block — copyable `docker compose` snippet + `git clone` + a
-       2-line API call example. Use shiki or a minimal highlighter.
+- [x] P4-02: Quick start code block (iter-16, 2026-05-07). Hard evals green, soft 9.2 avg.
 - [ ] P4-03: Community / OSS section — GitHub link, contributors strip (placeholder), roadmap stub link
 
 ## Phase 5 — Polish
@@ -79,6 +78,9 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        animations set `opacity:0` in SSR HTML, which can hurt LCP. If P5 perf eval
        shows LCP > 2.0s, swap framer-motion entrance animations for CSS-only
        @keyframes (the data-flow sweep is already CSS-only).
+- [ ] P5-09: Add copy-to-clipboard buttons on the QuickStartSection code blocks.
+       (iter-16 deferred) Requires "use client" leaf — defer until P5 polish so other
+       Phase 4-5 work stays in RSC.
 - [ ] P5-08: Standardize on Heroicons v2 (`react-icons/hi2`) across all marketing
        sections. (iter-10 discovered) Currently `hi` is used in promo-ribbon + hero +
        part of P2-01, while `hi2` is used in P2-02 and the rest of P2-01. Pick one

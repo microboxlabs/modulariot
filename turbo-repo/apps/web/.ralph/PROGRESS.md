@@ -313,4 +313,47 @@ All ≥ 7. No follow-up tasks spawned beyond the deferrals already noted (P1-04,
 Phase 1 progress: P1-01..03 ✅ — **Phase 1 complete**. Next: Phase 2 (P2-01 Telemetry → Symptoms,
 P2-02 feature bento, P2-03 architecture).
 
+## iter-9 — 2026-05-07 11:31 — P2-01 (Telemetry → Symptoms)
+Files:
+- `apps/web/src/features/marketing/components/telemetry-symptoms-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes the section after Hero)
+
+Section structure (the conceptual heart of BRIEF):
+- Eyebrow: "Open-source symptom intelligence" (orange, uppercase, narrow)
+- Headline: "A symptom is **not just an alert.**" (BRIEF claim verbatim with brand-orange emphasis)
+- Subhead: noise → behavior → symptom → treatment → evidence summary
+- 5 step cards (responsive: stacked mobile → 2-col tablet → 5-col desktop):
+  01 Signals (blue) · 02 Behaviors (blue) · 03 Symptoms (orange) ·
+  04 Treatments (orange) · 05 Evidence (gray)
+- Long arrow connectors between cards on lg+ (`HiArrowLongRight`)
+- Section background `bg-gray-50 / dark:bg-gray-950` with top+bottom borders to
+  visually separate from the hero's gradient wash
+
+Implementation notes:
+- Pure Server Component (no "use client") — content is static, doesn't need motion
+- Brand color progression mirrors BRIEF semantic mapping: blue = upstream/data,
+  orange = symptom/critical state, gray = evidence/structure
+- Numbered steps (01..05) using `tabular-nums` for typographic alignment
+- Step text rewritten from raw BRIEF bullets to single concrete sentences
+  ("Behaviors elevated to operational state with severity, ownership, and lifecycle.")
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.9s, 5 routes static, no warnings)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — exact BRIEF mapping, claim verbatim, all 5 steps
+- S-02 voice: **9/10** — concrete, technical, no SaaS-speak
+- S-03 design: **8/10** (degraded) — brand color progression matches BRIEF semantic mapping;
+  yellow absent (intentional — fits attention/highlight, not this flow)
+- S-04 reuse: **9/10** — establishes section pattern (eyebrow + headline + cards)
+  that P2-02 bento and P2-03 architecture will reuse
+- S-05 OSS signal: **8/10** after eyebrow tweak. Initial draft scored 5/10 (no OSS
+  callout in section); nudged eyebrow from "Symptom intelligence" → "Open-source
+  symptom intelligence" to lift signal without diluting the narrative core.
+  Tradeoff aligned with BRIEF's "OSS signals everywhere".
+
+Avg: 8.8 (was 8.2 before the eyebrow tweak). All ≥ 7. No regression follow-ups.
+
+Phase 2 progress: P2-01 ✅. Next: P2-02 feature bento (7 cards).
+
 <!-- iterations append below this line -->

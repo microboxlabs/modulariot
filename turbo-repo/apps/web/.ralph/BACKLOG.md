@@ -21,9 +21,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P1-03: Hero section (iter-8, 2026-05-07). Hard evals green. Soft eval self-pass.
 
 ## Phase 2 — Narrative core (the symptom-intelligence story)
-- [ ] P2-01: "Telemetry → Symptoms" section — 5-step horizontal flow:
-       signals → behaviors → symptoms → treatments → evidence. Each step has a one-sentence
-       explainer and a small visual. Hero claim: "A symptom is not just an alert."
+- [x] P2-01: Telemetry → Symptoms section (iter-9, 2026-05-07). Hard evals green. Soft 9.4 avg.
 - [ ] P2-02: Feature bento (7 cards) — ingestion, symptom intelligence, real-time dashboards,
        orchestration, evidence/audit, OSS deployment, developer APIs.
        Bento grid (Supabase-style asymmetric), each card uses brand color accent.

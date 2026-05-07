@@ -1674,7 +1674,7 @@ export async function deactivateCalendarTimeWindow(
     startHour: window.startHour,
     endHour: window.endHour,
     validFrom: window.validFrom,
-    validTo: window.validTo,
+    ...(window.validTo ? { validTo: window.validTo } : {}),
     daysOfWeek: window.daysOfWeek,
     capacity: window.capacity,
     active: false,

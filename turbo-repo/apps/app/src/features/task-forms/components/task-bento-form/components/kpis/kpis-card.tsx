@@ -98,6 +98,7 @@ const leadTimeStatusColors = {
   success: "text-gray-700 dark:text-gray-300",
   warning: "text-gray-700 dark:text-gray-300",
   error: "text-yellow-500 dark:text-yellow-400",
+  unknown: "text-gray-400 dark:text-gray-500",
 };
 
 /**
@@ -123,18 +124,20 @@ export default function KpisCard({ task, dict }: KpisCardProps) {
           ({tr("pages.planning.sidebar.form.leadTimeLocCount", dict, { count: String(totalLines) })})
         </span>
       </div>
-      {/* Column 2: Progress bar */}
+      {/* Column 2: Progress bar — null compliance shows an empty bar (see #238). */}
       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${getBarColor(leadTime.lineasoc_pctn_cumplimiento, leadTimeStatus === "error")}`}
-          style={{ width: `${leadTime.lineasoc_pctn_cumplimiento}%` }}
+          className={`h-full rounded-full transition-all ${getBarColor(leadTime.lineasoc_pctn_cumplimiento ?? 0, leadTimeStatus === "error")}`}
+          style={{ width: `${leadTime.lineasoc_pctn_cumplimiento ?? 0}%` }}
         />
       </div>
-      {/* Column 3: Percentage */}
+      {/* Column 3: Percentage — render "—" when there's no measured rate. */}
       <span
         className={`text-xs font-medium text-right ${leadTimeStatusColors[leadTimeStatus]}`}
       >
-        {leadTime.lineasoc_pctn_cumplimiento}%
+        {leadTime.lineasoc_pctn_cumplimiento == null
+          ? "—"
+          : `${leadTime.lineasoc_pctn_cumplimiento}%`}
       </span>
       {/* Column 4: Metadata */}
       <span className="text-xs text-gray-500 dark:text-gray-400">

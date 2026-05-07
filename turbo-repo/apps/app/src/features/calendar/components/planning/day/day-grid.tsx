@@ -15,7 +15,17 @@ import {
 } from "../planning-slot-utils";
 import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
 import { usePlanningGrid } from "../use-planning-grid";
-import { PlanningGridOverlays } from "../planning-grid-overlays";
+import {
+  PlanningGridShell,
+  buildPlanningGridShellProps,
+} from "../planning-grid-shell";
+import {
+  BASE_ROW_HEIGHT_PX,
+  buildShiftLayout,
+  computeStretchedRowLayout,
+  rowOffsetsFromHeights,
+  type PositionedShift,
+} from "../shift-layout";
 
 interface DayGridProps {
   lang: string;
@@ -45,17 +55,7 @@ interface DayGridSlotCellProps {
   currentDate: Date;
   isPastDay: boolean;
   state: SlotState;
-  selected: boolean;
-  slotServices: PlannedService[];
   isLastSlot: boolean;
-  reassigningService: {
-    service: PlannedService;
-    originalSlot: { date: Date; hour: number; minutes: number };
-  } | null;
-  onCellClick: (slot: { hour: number; minutes: number }) => void;
-  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-  onChipClick: (ps: PlannedService) => void;
-  dict: I18nDictionary;
 }
 
 function DayGridSlotCell({
@@ -63,50 +63,18 @@ function DayGridSlotCell({
   currentDate,
   isPastDay,
   state,
-  selected,
-  slotServices,
   isLastSlot,
-  reassigningService,
-  onCellClick,
-  onContextMenu,
-  onChipClick,
-  dict,
 }: Readonly<DayGridSlotCellProps>) {
-  const { slotBlocked, isDisabled } = state;
-
-  const handleClick = () => {
-    if (!isDisabled) onCellClick(slot);
-  };
-
-  const cellContent = (
-    <button
-      type="button"
-      data-slot-date={dayjs(currentDate).format("YYYY-MM-DD")}
-      data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
-      onClick={handleClick}
-      disabled={isDisabled}
-      className={getSlotCellClassName(state, isPastDay, selected, {
+  return (
+    <div
+      className={getSlotCellClassName(state, isPastDay, {
         isLastSlot,
         isFirstEditable: !isPastDay,
       })}
     >
-      <SlotCellContent
-        state={state}
-        isPastDay={isPastDay}
-        services={slotServices}
-        reassigningServiceId={reassigningService?.service.service.id}
-        onContextMenu={onContextMenu}
-        onChipClick={onChipClick}
-        dict={dict}
-        servicesLayout="row"
-      />
-    </button>
+      <SlotCellContent state={state} isPastDay={isPastDay} />
+    </div>
   );
-
-  if (slotBlocked && !isPastDay) {
-    return <div className="w-full h-full">{cellContent}</div>;
-  }
-  return cellContent;
 }
 
 export default function DayGrid({
@@ -116,32 +84,18 @@ export default function DayGrid({
   startHour = 8,
   endHour = 22,
 }: Readonly<DayGridProps>) {
+  const planningGrid = usePlanningGrid({ startHour, endHour });
   const {
-    selectedSlot,
     handleSelectSlot,
     isSlotSelected: checkSlotSelected,
     timeSlots,
     isLastSlot,
-    getPlannedServicesForSlot: getServicesForSlot,
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
-    reassigningService,
-    contextMenu,
-    deleteModal,
-    deleteAssignmentModal,
-    handleContextMenu,
-    handleCloseContextMenu,
-    handleReassign,
-    handleAssign,
-    handleDeleteRequest,
-    handleConfirmDelete,
-    handleCancelDelete,
-    handleDeleteAssignmentRequest,
-    handleConfirmDeleteAssignment,
-    handleCancelDeleteAssignment,
-    viewPlannedService,
-  } = usePlanningGrid({ startHour, endHour });
+    configuredTimeSlots,
+    plannedServices,
+  } = planningGrid;
 
   const dayInfo = useMemo(
     () => getDayInfo(currentDate, lang),
@@ -153,33 +107,115 @@ export default function DayGrid({
     return dayjs(currentDate).isBefore(dayjs().startOf("day"), "day");
   }, [currentDate]);
 
-  const handleCellClick = useCallback(
-    (slot: { hour: number; minutes: number }) => {
+  const handleShiftClick = useCallback(
+    (shift: PositionedShift) => {
       handleSelectSlot({
-        date: currentDate,
-        hour: slot.hour,
-        minutes: slot.minutes,
+        date: shift.date,
+        hour: shift.slotHour,
+        minutes: shift.slotMinutes,
       });
     },
-    [handleSelectSlot, currentDate]
+    [handleSelectSlot]
   );
 
-  const isSlotSelected = useCallback(
-    (slot: { hour: number; minutes: number }) => {
-      return checkSlotSelected(currentDate, slot.hour, slot.minutes);
-    },
-    [checkSlotSelected, currentDate]
+  const isShiftSelected = useCallback(
+    (shift: PositionedShift) =>
+      checkSlotSelected(shift.date, shift.slotHour, shift.slotMinutes),
+    [checkSlotSelected]
   );
 
-  const getPlannedServicesForSlot = useCallback(
-    (slot: { hour: number; minutes: number }) => {
-      return getServicesForSlot(currentDate, slot.hour, slot.minutes);
-    },
-    [getServicesForSlot, currentDate]
+  // Index planned services by exact start "HH:MM" on the current date so
+  // the overlay layer can fetch the chips that belong inside each shift
+  // rectangle in O(1).
+  const servicesByStartOnDate = useMemo(() => {
+    const map = new Map<string, PlannedService[]>();
+    for (const ps of plannedServices) {
+      if (!dayjs(ps.slot.date).isSame(currentDate, "day")) continue;
+      const key = `${ps.slot.hour}:${ps.slot.minutes}`;
+      const arr = map.get(key);
+      if (arr) {
+        arr.push(ps);
+      } else {
+        map.set(key, [ps]);
+      }
+    }
+    return map;
+  }, [plannedServices, currentDate]);
+
+  const getServicesForShift = useCallback(
+    (shift: PositionedShift) =>
+      servicesByStartOnDate.get(`${shift.slotHour}:${shift.slotMinutes}`) ?? [],
+    [servicesByStartOnDate]
   );
+
+  // Two-pass shift layout so rows containing chip-heavy shifts can stretch.
+  // Pass 1: build shifts on a baseline 48px-per-row grid to learn each
+  // shift's (start, end, duration) — geometry doesn't depend on heights yet.
+  // Pass 2: walk those shifts, derive a required px/min for each row from
+  // the densest shift inside, rebuild rowOffsets, then re-layout shifts.
+  // This mirrors the old chip-driven cell expansion so the time axis stays
+  // aligned with shift rectangles even when one slot holds multiple chips.
+  const dayStartMin = startHour * 60;
+  const baselineRowOffsets = useMemo(
+    () =>
+      rowOffsetsFromHeights(
+        new Array(timeSlots.length).fill(BASE_ROW_HEIGHT_PX)
+      ),
+    [timeSlots.length]
+  );
+  const baseShifts = useMemo(
+    () =>
+      buildShiftLayout({
+        timeSlots: configuredTimeSlots,
+        date: currentDate,
+        startHour,
+        rowOffsets: baselineRowOffsets,
+      }),
+    [configuredTimeSlots, currentDate, startHour, baselineRowOffsets]
+  );
+  const { rowHeights, rowOffsets } = useMemo(
+    () =>
+      computeStretchedRowLayout({
+        baseShifts,
+        getServicesCount: (shift) => getServicesForShift(shift).length,
+        rowCount: timeSlots.length,
+        dayStartMin,
+      }),
+    [baseShifts, getServicesForShift, timeSlots.length, dayStartMin]
+  );
+
+  const positionedShifts = useMemo(
+    () =>
+      buildShiftLayout({
+        timeSlots: configuredTimeSlots,
+        date: currentDate,
+        startHour,
+        rowOffsets,
+      }),
+    [configuredTimeSlots, currentDate, startHour, rowOffsets]
+  );
+
+  // Header band (sticky day/time-axis row) height in px — the time-slot grid
+  // starts immediately below this. Matches `h-20` (5rem) on the header cells.
+  const HEADER_HEIGHT_PX = 80;
+  // Time-axis column width — the overlay covers the day column only.
+  const TIME_AXIS_WIDTH_PX = 64;
+
+  const shellProps = buildPlanningGridShellProps({
+    planningGrid,
+    positionedShifts,
+    onShiftClick: handleShiftClick,
+    isShiftSelected,
+    getServicesForShift,
+    dict,
+  });
 
   return (
-    <div className="w-full h-full overflow-auto">
+    <PlanningGridShell
+      shiftOverlayTopPx={HEADER_HEIGHT_PX}
+      shiftOverlayLeftPx={TIME_AXIS_WIDTH_PX}
+      {...shellProps}
+    >
       <div className="grid" style={{ gridTemplateColumns: "64px 1fr" }}>
         {/* Header row - empty corner cell */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-800">
@@ -236,15 +272,12 @@ export default function DayGrid({
             getRemainingQuota,
             isSlotBlocked,
           });
-          const selected = isSlotSelected(slot);
-          const slotServices = getPlannedServicesForSlot(slot);
-          const rowMinHeight = 48 + Math.max(0, slotServices.length - 1) * 20;
 
           return (
             <Fragment key={slot.label}>
               <TimeLabelCell
                 label={slot.label}
-                minHeight={rowMinHeight}
+                minHeight={rowHeights[slotIdx]}
                 isLastSlot={isLastSlot(slotIdx)}
               />
               <DayGridSlotCell
@@ -252,38 +285,12 @@ export default function DayGrid({
                 currentDate={currentDate}
                 isPastDay={isPastDay}
                 state={slotState}
-                selected={selected}
-                slotServices={slotServices}
                 isLastSlot={isLastSlot(slotIdx)}
-                reassigningService={reassigningService}
-                onCellClick={handleCellClick}
-                onContextMenu={handleContextMenu}
-                onChipClick={viewPlannedService}
-                dict={dict}
               />
             </Fragment>
           );
         })}
       </div>
-
-      {/* Context Menu */}
-      <PlanningGridOverlays
-        dict={dict}
-        contextMenu={contextMenu}
-        onReassign={handleReassign}
-        onAssign={handleAssign}
-        onDeleteRequest={handleDeleteRequest}
-        onDeleteAssignmentRequest={handleDeleteAssignmentRequest}
-        onCloseContextMenu={handleCloseContextMenu}
-        deleteModal={deleteModal}
-        onConfirmDelete={handleConfirmDelete}
-        onCancelDelete={handleCancelDelete}
-        deleteAssignmentModal={deleteAssignmentModal}
-        onConfirmDeleteAssignment={handleConfirmDeleteAssignment}
-        onCancelDeleteAssignment={handleCancelDeleteAssignment}
-        reassigningService={reassigningService}
-        selectedSlot={selectedSlot}
-      />
-    </div>
+    </PlanningGridShell>
   );
 }

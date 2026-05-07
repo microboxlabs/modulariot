@@ -169,7 +169,7 @@ export async function getUserTasks(
 
 export async function getUnbookedTasks(
   session: Session,
-  definitionKey: string,
+  definitionKey: string | string[],
   options: {
     from?: number;
     size?: number;
@@ -177,22 +177,39 @@ export async function getUnbookedTasks(
   } = {},
   calendarId: string
 ): Promise<FastTasksResponse> {
-  const { from = 0, size = 100, filter = undefined } = options;
+  const { from = 0, size = 100, filter: baseFilter = undefined } = options;
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/unbooked`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  // When called with multiple keys, push them onto filter.definitionKeys so the
+  // backend can issue a single IN-clause query and apply ORDER BY globally —
+  // see ecm-coordinator #238. The singular form is preserved for back-compat.
+  let body: Record<string, unknown>;
+  if (Array.isArray(definitionKey)) {
+    const keys = definitionKey.filter((k) => k.length > 0);
+    body = {
+      from,
+      size,
+      filter: { ...baseFilter, definitionKeys: keys },
+      calendarId,
+    };
+  } else {
+    body = {
+      from,
+      size,
+      definitionKey: definitionKey.length === 0 ? undefined : definitionKey,
+      filter: baseFilter,
+      calendarId,
+    };
+  }
+
   const result = await fetcher(url, {
     method: "POST",
     headers: {
       ...headers,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      size,
-      definitionKey: definitionKey.length == 0 ? undefined : definitionKey,
-      filter,
-      calendarId,
-    }),
+    body: JSON.stringify(body),
   });
 
   return result as FastTasksResponse;

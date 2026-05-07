@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "flowbite-react";
-import { HiExclamation, HiCheck, HiX } from "react-icons/hi";
+import { HiExclamation, HiCheck, HiX, HiMinus } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -26,14 +26,15 @@ export interface ServiceEventProps {
 }
 
 /**
- * Get the icon and styles for lead time based on compliance percentage
- * 100% → ✓ CheckMark (success)
- * > 0% and < 100% → ⚠ Warning
- * 0% → ✗ Error
+ * Get the icon and styles for lead time based on compliance percentage.
+ *  unknown (null) → — Minus (no data — distinct from 0%)
+ *  100% → ✓ CheckMark (success)
+ *  > 0% and < 100% → ⚠ Warning
+ *  0% → ✗ Error
  */
 function getLeadTimeStyles(leadTime: LeadTimeData): {
   text: string;
-  icon: typeof HiCheck | typeof HiExclamation | typeof HiX;
+  icon: typeof HiCheck | typeof HiExclamation | typeof HiX | typeof HiMinus;
 } {
   const status = getLeadTimeStatus(leadTime);
   switch (status) {
@@ -51,6 +52,11 @@ function getLeadTimeStyles(leadTime: LeadTimeData): {
       return {
         text: "text-yellow-400 dark:text-yellow-300",
         icon: HiX,
+      };
+    case "unknown":
+      return {
+        text: "text-gray-400 dark:text-gray-500",
+        icon: HiMinus,
       };
   }
 }
@@ -219,7 +225,9 @@ export function ServiceEvent({ service, dict, className }: ServiceEventProps) {
               className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
             />
             <span className={twMerge("font-medium", leadTimeStyles.text)}>
-              {service.leadTime.lineasoc_pctn_cumplimiento}%
+              {service.leadTime.lineasoc_pctn_cumplimiento == null
+                ? "—"
+                : `${service.leadTime.lineasoc_pctn_cumplimiento}%`}
             </span>
           </div>
 

@@ -16,8 +16,18 @@ interface Props {
   target: string;
   /** Expected schema type for the column ("string" | "number" | "integer" | …). */
   expectedType: string | undefined;
+  /** Expected schema format ("date" | "date-time" | …). When set, switches
+   *  the available transform list to date-scoped kinds and reveals the
+   *  display-only format input below the transforms list. */
+  expectedFormat: string | undefined;
   steps: readonly TransformStep[];
+  /** Current display-only format string for date columns (dayjs tokens).
+   *  Empty when unset. Display formats are NOT transforms — they only change
+   *  rendering, never the value submitted to the server. */
+  dateDisplayFormat: string;
   onChange: (next: TransformStep[]) => void;
+  /** Update the display-only format. Pass empty string to clear. */
+  onDateDisplayFormatChange: (value: string) => void;
   onClose: () => void;
   dictionary: I18nRecord;
 }
@@ -25,8 +35,11 @@ interface Props {
 export function TransformsPopover({
   target,
   expectedType,
+  expectedFormat,
   steps,
+  dateDisplayFormat,
   onChange,
+  onDateDisplayFormatChange,
   onClose,
   dictionary,
 }: Readonly<Props>) {
@@ -49,7 +62,9 @@ export function TransformsPopover({
     };
   }, [onClose]);
 
-  const available = transformsForType(expectedType);
+  const available = transformsForType(expectedType, expectedFormat);
+  const isDateColumn =
+    expectedFormat === "date" || expectedFormat === "date-time";
 
   const removeAt = (idx: number) => {
     onChange(steps.filter((_, i) => i !== idx));
@@ -178,6 +193,33 @@ export function TransformsPopover({
               {tk(k)}
             </button>
           ))}
+        </div>
+      )}
+
+      {isDateColumn && (
+        <div className="mt-3 border-t border-gray-200 pt-2 dark:border-gray-700">
+          <label
+            htmlFor={`${target}-display-format`}
+            className="mb-1 block font-semibold text-gray-700 dark:text-gray-200"
+          >
+            {tr(
+              "dashboard.dashlets.batchImport.transforms.displayFormat",
+              dictionary,
+            )}
+          </label>
+          <input
+            id={`${target}-display-format`}
+            value={dateDisplayFormat}
+            onChange={(e) => onDateDisplayFormatChange(e.target.value)}
+            placeholder="DD/MM HH:mm"
+            className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          />
+          <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+            {tr(
+              "dashboard.dashlets.batchImport.transforms.displayFormatHint",
+              dictionary,
+            )}
+          </p>
         </div>
       )}
     </div>

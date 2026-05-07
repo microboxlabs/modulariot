@@ -107,7 +107,7 @@ export function PlannedServiceChip({
         }
       }}
       className={twMerge(
-        "min-w-0 w-full",
+        "min-w-0 w-full pointer-events-auto",
         "rounded flex items-center",
         onClick ? "cursor-pointer" : "cursor-context-menu",
         "text-xs font-medium px-1.5 py-1 border-l-4",

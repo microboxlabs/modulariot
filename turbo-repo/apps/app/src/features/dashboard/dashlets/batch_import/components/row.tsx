@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import dayjs from "dayjs";
 import type { ParsedRow, RowState, RowStatus } from "../engine/types";
 import { StatusIcon } from "./status-icon";
 
@@ -24,16 +25,31 @@ interface RowProps {
    *  string is exposed via `title` so a hover-tooltip still shows the time.
    *  Identity-stable across renders so React.memo can skip cleanly. */
   dateColumns: ReadonlySet<string>;
+  /** Optional per-column display-only date format (dayjs tokens) keyed by
+   *  mapped column name. Only consulted for columns in `dateColumns`. The
+   *  underlying `row.fields[h]` value is left untouched, so `/bulk` still
+   *  POSTs the original timestamp. */
+  dateDisplayFormats: Record<string, string>;
 }
 
 const ISO_DATE_PREFIX = /^(\d{4}-\d{2}-\d{2})T/;
 
-/** For a cell that maps to a date-typed RPC parameter, slice off the time
- *  portion of an ISO 8601 string for display while keeping the original value
- *  in `title` so hover surfaces the precision. The underlying `row.fields`
- *  string is unchanged — `/bulk` still POSTs the full timestamp and the
- *  validator's `datetime({ offset: true })` keeps passing. */
-function renderDateCell(value: string): { display: string; title: string } {
+/** For a cell that maps to a date-typed RPC parameter, render a friendlier
+ *  display string while keeping the original value in `title` so hover
+ *  surfaces the precision. Priority:
+ *   1. Caller-supplied dayjs `format` (per-column display preference).
+ *   2. Cheap regex slice that extracts the YYYY-MM-DD prefix of an ISO 8601
+ *      string — the historical default.
+ *  Either way, the underlying `row.fields` value is unchanged so submission
+ *  to `/bulk` still passes the validator's `datetime({ offset: true })`. */
+function renderDateCell(
+  value: string,
+  format?: string,
+): { display: string; title: string } {
+  if (format) {
+    const d = dayjs(value);
+    if (d.isValid()) return { display: d.format(format), title: value };
+  }
   const match = ISO_DATE_PREFIX.exec(value);
   return match ? { display: match[1], title: value } : { display: value, title: value };
 }
@@ -45,6 +61,7 @@ export const Row = memo(function Row({
   statusLabel,
   gridTemplate,
   dateColumns,
+  dateDisplayFormats,
 }: Readonly<RowProps>) {
   return (
     <div
@@ -71,7 +88,7 @@ export const Row = memo(function Row({
           );
         }
         if (dateColumns.has(h)) {
-          const { display, title } = renderDateCell(raw);
+          const { display, title } = renderDateCell(raw, dateDisplayFormats[h]);
           return (
             <div
               key={h}

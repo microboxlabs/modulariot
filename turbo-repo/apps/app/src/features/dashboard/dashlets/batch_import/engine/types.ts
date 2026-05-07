@@ -20,8 +20,6 @@ export type RowStatus =
   | "failed"
   | "wait";
 
-export type DuplicateStrategy = "create" | "upsert" | "skip";
-
 export interface ParsedRow {
   index: number;
   /** Deterministic hash of the row's fields — stable across re-uploads of the

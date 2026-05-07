@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "flowbite-react";
 import type { RowStatus } from "../engine/types";
 
 interface StatusStyle {
@@ -38,10 +39,14 @@ const STYLES: Record<RowStatus, StatusStyle> = {
 };
 
 /**
- * Intentionally uses a plain `title` attribute rather than Flowbite's Tooltip.
- * With 4000+ rows, mounting 4000 Tooltip instances (each with its own popper
- * machinery) was the single largest contributor to the preview table's freeze.
- * Native title shows on hover at zero DOM / JS cost.
+ * Failed rows mount a real Tooltip; everything else stays a bare span. The
+ * native `title` we used before inherits an OS-controlled show delay (often
+ * 1–2s, occasionally much longer) and resets that timer on every cursor move
+ * or DOM update beneath the pointer — which made errors take tens of seconds
+ * to appear during a streaming import. The popper-cost concern that drove the
+ * native-only choice is addressed by virtualization (only ~12 rows rendered)
+ * + this `tooltip ?` gate (only failed rows mount one), so the live count is
+ * a handful, not thousands.
  */
 export function StatusIcon({
   status,
@@ -49,16 +54,30 @@ export function StatusIcon({
   label,
 }: Readonly<{ status: RowStatus; tooltip?: string; label: string }>) {
   const style = STYLES[status];
-  const title = tooltip ? `${label}\n${tooltip}` : label;
-  // cursor-help: signals a hover-tooltip is available without implying a
-  // click action. Matches what users expect on validation-error indicators.
-  return (
+  const icon = (
     <span
-      title={title}
-      className={`inline-flex h-6 w-6 cursor-help items-center justify-center rounded-full text-sm font-bold leading-none ${style.className}`}
+      className={`inline-flex h-6 w-6 ${tooltip ? "cursor-help" : ""} items-center justify-center rounded-full text-sm font-bold leading-none ${style.className}`}
       aria-label={label}
     >
       {style.glyph}
     </span>
+  );
+
+  if (!tooltip) return icon;
+
+  return (
+    <Tooltip
+      content={
+        <div className="max-w-sm whitespace-pre-line text-left">
+          <div className="font-semibold">{label}</div>
+          <div>{tooltip}</div>
+        </div>
+      }
+      placement="right"
+      style="light"
+      arrow={false}
+    >
+      {icon}
+    </Tooltip>
   );
 }

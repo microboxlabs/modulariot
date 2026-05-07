@@ -16,7 +16,6 @@ import type {
   SourceMeta,
 } from "./engine/api";
 import type {
-  DuplicateStrategy,
   IntrospectedParam,
   ParsedDocument,
   RowState,
@@ -57,7 +56,6 @@ const EMPTY_STEPS: readonly TransformStep[] = [];
 
 export interface UseBatchImporterArgs {
   api: BatchImporterApi;
-  defaultStrategy?: DuplicateStrategy;
   /** RPC parameter schema — surfaced for the schema panel UI. Validation
    *  itself runs server-side via `api.validate`. */
   params?: IntrospectedParam[] | null;
@@ -70,6 +68,13 @@ export interface UseBatchImporterArgs {
   /** Notified whenever the transforms map changes so the parent can persist
    *  it (e.g. into the dashlet's widget config). */
   onTransformsChange?: (next: Record<string, TransformStep[]>) => void;
+  /** Persisted display-only date formats keyed by mapped column name. Does
+   *  NOT alter the submitted value — only used by `renderDateCell` to shorten
+   *  long ISO timestamps in the preview grid. */
+  initialDateDisplayFormats?: Record<string, string>;
+  /** Notified whenever the date-display-formats map changes so the parent
+   *  can persist it. */
+  onDateDisplayFormatsChange?: (next: Record<string, string>) => void;
 }
 
 export interface BatchImporterState {
@@ -85,6 +90,13 @@ export interface BatchImporterState {
   transforms: Record<string, TransformStep[]>;
   /** Replace the transforms list for one mapped column. Pass [] to clear. */
   setColumnTransforms: (target: string, steps: TransformStep[]) => void;
+  /** Per-column display-only date formats (dayjs tokens) keyed by mapped
+   *  column name. Consumed by `Row` to shorten long ISO timestamps; the
+   *  value submitted to /bulk is unaffected. */
+  dateDisplayFormats: Record<string, string>;
+  /** Set or clear (pass empty string) the display format for one mapped
+   *  column. */
+  setColumnDateDisplayFormat: (target: string, value: string) => void;
   /** Names the RPC schema expects — surfaced as autocomplete options. */
   expectedNames: string[];
   /** Full schema introspection — passed through so the view can render a
@@ -99,8 +111,6 @@ export interface BatchImporterState {
    *  states are stale because the most recent re-validation failed; the UI
    *  should surface this so the user knows errors aren't being refreshed. */
   validationError: string | null;
-  strategy: DuplicateStrategy;
-  setStrategy: (s: DuplicateStrategy) => void;
   summary: Record<RowStatus | "total", number>;
   importable: boolean;
   hasFailed: boolean;
@@ -145,15 +155,26 @@ function getRowState(
  * Build the initial rowStates map from a freshly parsed document by
  * surfacing per-row validation errors from /validate as `failed` states.
  * Rows without errors are absent from the map and default to `unprocessed`.
+ *
+ * `prev` lets us reuse the existing RowState reference when a row's failed
+ * error string is identical between runs. Without that, every re-validation
+ * (e.g. triggered by a header rename) hands React.memo'd Rows fresh state
+ * objects, forcing a full re-render of every failed row — which unmounts
+ * any open Tooltip/popper underneath the cursor.
  */
 function hydrateStates(
   doc: ParsedDocument,
   validations: Record<number, string>,
+  prev: ReadonlyMap<number, RowState>,
 ): Map<number, RowState> {
   const map = new Map<number, RowState>();
   for (const r of doc.rows) {
     const err = validations[r.index];
-    if (err) {
+    if (!err) continue;
+    const prior = prev.get(r.index);
+    if (prior?.status === "failed" && prior.errorMessage === err) {
+      map.set(r.index, prior);
+    } else {
       map.set(r.index, { status: "failed", errorMessage: err });
     }
   }
@@ -162,11 +183,12 @@ function hydrateStates(
 
 export function useBatchImporter({
   api,
-  defaultStrategy = "upsert",
   params,
   filenameBase,
   initialTransforms,
   onTransformsChange,
+  initialDateDisplayFormats,
+  onDateDisplayFormatsChange,
 }: UseBatchImporterArgs): BatchImporterState {
   const [raw, setRaw] = useState("");
   const [rawDoc, setRawDoc] = useState<ParsedDocument | null>(null);
@@ -178,6 +200,9 @@ export function useBatchImporter({
   const [transforms, setTransforms] = useState<
     Record<string, TransformStep[]>
   >(() => initialTransforms ?? {});
+  const [dateDisplayFormats, setDateDisplayFormats] = useState<
+    Record<string, string>
+  >(() => initialDateDisplayFormats ?? {});
   const [rowStates, setRowStates] = useState<ReadonlyMap<number, RowState>>(
     () => new Map(),
   );
@@ -200,11 +225,30 @@ export function useBatchImporter({
     },
     [],
   );
+
+  /** Same ref-mirror pattern as `onTransformsChangeRef` so the setter can
+   *  fire the parent persistence callback without re-creating itself when
+   *  the parent re-renders. */
+  const onDateDisplayFormatsChangeRef = useRef(onDateDisplayFormatsChange);
+  onDateDisplayFormatsChangeRef.current = onDateDisplayFormatsChange;
+
+  const setColumnDateDisplayFormat = useCallback(
+    (target: string, value: string) => {
+      setDateDisplayFormats((prev) => {
+        const next = { ...prev };
+        const trimmed = value.trim();
+        if (trimmed) next[target] = trimmed;
+        else delete next[target];
+        onDateDisplayFormatsChangeRef.current?.(next);
+        return next;
+      });
+    },
+    [],
+  );
   const [importing, setImporting] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [strategy, setStrategy] = useState<DuplicateStrategy>(defaultStrategy);
 
   /** Ref-mirror of `importing` so the validation effect can read the latest
    *  value without listing `importing` in its deps (which would make every
@@ -340,7 +384,7 @@ export function useBatchImporter({
      *  /bulk progress. See PRESERVE_DURING_IMPORT at module scope. */
     const applyHydrate = (validations: Record<number, string>) => {
       setRowStates((prev) => {
-        const next = hydrateStates(doc, validations);
+        const next = hydrateStates(doc, validations, prev);
         if (importingRef.current) {
           for (const [idx, state] of prev) {
             if (PRESERVE_DURING_IMPORT.has(state.status)) {
@@ -448,6 +492,30 @@ export function useBatchImporter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawDoc, headerMap]);
 
+  // Same prune pattern for the display-only date format map: drop entries
+  // whose mapped column no longer exists so a previous file's preferences
+  // don't leak into the next one.
+  useEffect(() => {
+    if (!rawDoc) {
+      if (Object.keys(dateDisplayFormats).length > 0) {
+        setDateDisplayFormats({});
+        onDateDisplayFormatsChangeRef.current?.({});
+      }
+      return;
+    }
+    const mapped = new Set(rawDoc.headers.map((h) => headerMap[h] ?? h));
+    const stale = Object.keys(dateDisplayFormats).filter((k) => !mapped.has(k));
+    if (stale.length > 0) {
+      setDateDisplayFormats((prev) => {
+        const next = { ...prev };
+        for (const k of stale) delete next[k];
+        onDateDisplayFormatsChangeRef.current?.(next);
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawDoc, headerMap]);
+
   useEffect(() => () => cancelPendingParse(), [cancelPendingParse]);
 
   /** Aborts the in-flight /bulk stream so closing the modal mid-import
@@ -496,7 +564,6 @@ export function useBatchImporter({
       try {
         await api.bulkSubmit(
           toProcess,
-          strategy,
           (line) => {
             patchRowStates((m) => {
               m.set(line.index, {
@@ -538,7 +605,7 @@ export function useBatchImporter({
         setImporting(false);
       }
     },
-    [api, doc, rowStates, strategy, patchRowStates, importing, sourceMeta],
+    [api, doc, rowStates, patchRowStates, importing, sourceMeta],
   );
 
   const onImport = useCallback(() => runImport(), [runImport]);
@@ -651,6 +718,8 @@ export function useBatchImporter({
     headerMap,
     transforms,
     setColumnTransforms,
+    dateDisplayFormats,
+    setColumnDateDisplayFormat,
     expectedNames,
     params: params ?? null,
     renameHeader,
@@ -659,8 +728,6 @@ export function useBatchImporter({
     parsing,
     validating,
     validationError,
-    strategy,
-    setStrategy,
     summary,
     importable: summary.unprocessed > 0,
     hasFailed: summary.failed > 0,
@@ -703,6 +770,8 @@ export function BatchImporterView({
     headerMap,
     transforms,
     setColumnTransforms,
+    dateDisplayFormats,
+    setColumnDateDisplayFormat,
     expectedNames,
     params,
     renameHeader,
@@ -735,6 +804,17 @@ export function BatchImporterView({
   const expectedTypes = useMemo(() => {
     const map: Record<string, string> = {};
     for (const p of params ?? []) map[p.name] = p.type;
+    return map;
+  }, [params]);
+
+  /** Lookup table from RPC param name -> declared schema format ("date",
+   *  "date-time", …). Threaded into header cells so the transforms picker
+   *  can surface date-scoped steps for date columns. */
+  const expectedFormats = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of params ?? []) {
+      if (p.format) map[p.name] = p.format;
+    }
     return map;
   }, [params]);
 
@@ -865,9 +945,12 @@ export function BatchImporterView({
           headerMap={headerMap}
           expectedNames={expectedNames}
           expectedTypes={expectedTypes}
+          expectedFormats={expectedFormats}
           dateColumns={dateColumns}
           transforms={transforms}
           setColumnTransforms={setColumnTransforms}
+          dateDisplayFormats={dateDisplayFormats}
+          setColumnDateDisplayFormat={setColumnDateDisplayFormat}
           renameHeader={renameHeader}
           rowStates={rowStates}
           importing={importing}
@@ -911,9 +994,12 @@ interface PreviewProps {
   headerMap: Record<string, string>;
   expectedNames: string[];
   expectedTypes: Record<string, string>;
+  expectedFormats: Record<string, string>;
   dateColumns: ReadonlySet<string>;
   transforms: Record<string, TransformStep[]>;
   setColumnTransforms: (target: string, steps: TransformStep[]) => void;
+  dateDisplayFormats: Record<string, string>;
+  setColumnDateDisplayFormat: (target: string, value: string) => void;
   renameHeader: (original: string, target: string) => void;
   rowStates: ReadonlyMap<number, RowState>;
   importing: boolean;
@@ -943,9 +1029,12 @@ function VirtualPreview({
   headerMap,
   expectedNames,
   expectedTypes,
+  expectedFormats,
   dateColumns,
   transforms,
   setColumnTransforms,
+  dateDisplayFormats,
+  setColumnDateDisplayFormat,
   renameHeader,
   rowStates,
   importing,
@@ -1173,9 +1262,12 @@ function VirtualPreview({
                       displayName={displayName}
                       expectedNames={expectedNames}
                       expectedType={expectedTypes[displayName]}
+                      expectedFormat={expectedFormats[displayName]}
                       transforms={transforms[displayName] ?? EMPTY_STEPS}
+                      dateDisplayFormat={dateDisplayFormats[displayName] ?? ""}
                       onRename={renameHeader}
                       onTransformsChange={setColumnTransforms}
+                      onDateDisplayFormatChange={setColumnDateDisplayFormat}
                       dictionary={dictionary}
                     />
                   );
@@ -1193,10 +1285,17 @@ function VirtualPreview({
                 if (!row) return null;
                 const s = rowStates.get(row.index) ?? DEFAULT_STATE;
                 return (
+                  // `transform: translateY(...)` on each virtual row creates
+                  // its own stacking context. The StatusIcon's tooltip popper
+                  // is a sibling node (Flowbite renders inline, no portal),
+                  // so without `hover:z-20` later rows in DOM order paint
+                  // over the popper. Lifting the hovered row above its
+                  // siblings is enough — only one row is `:hover` at a time.
                   <div
                     key={v.index}
                     data-index={v.index}
                     ref={virtualizer.measureElement}
+                    className="hover:z-20"
                     style={{
                       position: "absolute",
                       top: 0,
@@ -1212,6 +1311,7 @@ function VirtualPreview({
                       statusLabel={statusLabels[s.status]}
                       gridTemplate={gridTemplate}
                       dateColumns={dateColumns}
+                      dateDisplayFormats={dateDisplayFormats}
                     />
                   </div>
                 );

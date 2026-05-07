@@ -10,24 +10,26 @@ import { tr } from "@/features/i18n/tr.service";
 import { makePgrestBatchApi } from "./engine/api";
 import { buildDataSourceParams } from "../common/pgrest-utils";
 import { BatchImporterModal } from "./batch-importer-modal";
-import type { DuplicateStrategy, IntrospectedParam } from "./engine/types";
+import type { IntrospectedParam } from "./engine/types";
 import type { TransformStep } from "./engine/transforms";
 
 export interface DashletConfig {
   title: string;
   pgrestFunctionName: string;
   dataSourceId?: string;
-  defaultStrategy: DuplicateStrategy;
   acceptedFileTypes?: string;
   /** Per-column value transforms keyed by mapped column name. Persisted with
    *  the widget so the same cleanup pipeline applies on every re-import. */
   transforms?: Record<string, TransformStep[]>;
+  /** Per-column display-only date format (dayjs tokens) keyed by mapped
+   *  column name. Does NOT modify the value sent to /bulk — purely shortens
+   *  cell rendering for date columns whose full ISO timestamp is too long. */
+  dateDisplayFormats?: Record<string, string>;
 }
 
 export const defaultConfig: DashletConfig = {
   title: "",
   pgrestFunctionName: "",
-  defaultStrategy: "upsert",
 };
 
 export const layoutDefaults: DashletLayoutDefaults = {
@@ -54,6 +56,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       updateWidgetConfig(widget.id, {
         ...widget.config,
         transforms: next,
+      });
+    },
+    [updateWidgetConfig, widget.id, widget.config],
+  );
+
+  /** Persist the per-column display-only date format map. Display formats
+   *  do not affect the value submitted to /bulk; they only short-render
+   *  long ISO timestamps in the preview grid. */
+  const handleDateDisplayFormatsChange = useCallback(
+    (next: Record<string, string>) => {
+      updateWidgetConfig(widget.id, {
+        ...widget.config,
+        dateDisplayFormats: next,
       });
     },
     [updateWidgetConfig, widget.id, widget.config],
@@ -125,13 +140,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             onClose={() => setOpen(false)}
             api={api}
             title={title}
-            defaultStrategy={config.defaultStrategy}
             acceptedFileTypes={config.acceptedFileTypes}
             dictionary={dictionary}
             params={params}
             filenameBase={config.pgrestFunctionName}
             initialTransforms={config.transforms}
             onTransformsChange={handleTransformsChange}
+            initialDateDisplayFormats={config.dateDisplayFormats}
+            onDateDisplayFormatsChange={handleDateDisplayFormatsChange}
           />
         </>
       )}

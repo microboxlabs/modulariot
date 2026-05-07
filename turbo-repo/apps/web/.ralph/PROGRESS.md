@@ -1502,4 +1502,66 @@ Avg: 8.4.
 PA progress: PA-01..08 ✅. **8 of 12 alignment iters done.** Next: PA-09 showcase
 rewrite (Kanban + Map + check-list, replaces DashboardShowcaseSection).
 
+## PA-iter-9 — 2026-05-07 — PA-09 (showcase Kanban + Map + check-list)
+Files:
+- `apps/web/src/features/marketing/components/kanban-mock.tsx` (NEW, "use client")
+- `apps/web/src/features/marketing/components/map-mock.tsx` (NEW, "use client")
+- `apps/web/src/features/marketing/components/dashboard-showcase-section.tsx`
+  (REWRITTEN — RSC composing the two mocks)
+
+Per design's `.showcase` rule (split 1.1fr / 1fr on lg+, stacks <lg):
+
+**KanbanMock** ("use client"):
+- 14px corner card with mac-window-style title bar: live-pulse + "Torre de control · Mintral"
+  + monospace "12 visibles · ETA 14:32" meta
+- 3 columns: Pending (amber chip) · In progress (blue chip) · Approved (green chip)
+- 4 trips rotating across columns on a 2.2s tick: VJ-4821 (O. Mendoza, Faena Norte, 32t),
+  VJ-4815 (L. Quiroga, Salar Sur, 28t), VJ-4807 (M. Vargas, Faena Este, 30t),
+  VJ-4798 (C. Rojas, Puerto, 31t — pinned to Approved)
+- VJ-4821 pulses with rose alert-pulse halo every ~5 ticks + "SÍNTOMA" badge —
+  demonstrates symptom-aware kanban claim verbatim from design
+
+**MapMock** ("use client"):
+- Same 14px corner card chrome as Kanban
+- "Mapa · satellite view" header + "4 vehículos" meta
+- Background: dual blue+green radial gradients (subtle), 32px hairline grid overlay,
+  dashed brand-blue geofence rectangle, 2 dashed route SVGs
+- 4 truck pins (T-01..T-04) with positions animated on a 1.1s tick (linear transition)
+- T-02 toggles symptom state every 4 ticks — when sym=true: rose pin + alert-pulse halo
+
+**Check-list (RSC)** — 4 bullets per design's t.showcase.bullets:
+- Status-first density · Symptom-aware kanban · Map · Timeline · Evidence ·
+  Bilingual operator copy
+- Each: 22px circle (bg-blue-50 + blue-600 check icon) + bold title + 1-line body
+
+Section structure:
+- eyebrow "Operator experience" + h2 clamp(30,3.8vw,46px) "Built for the people
+  who run operations" + 17px lede
+- 1.1fr Kanban / 1fr (Map stacked over check-list) on lg+
+
+Replaces run-1's fake-stats DashboardShowcase ("1,247 devices · 14 active symptoms")
+with two animated mini-products that *show* the operator experience.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (5.9s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — "operator experience" demonstrated visually instead
+  of described; kanban-pulse and map-pin animations validate "symptom-aware" claim
+- S-02 voice: **10/10** — Spanish vocabulary preserved per design system rules
+  (Faena Norte / Salar Sur / Torre de control / "12 visibles · ETA 14:32" / SÍNTOMA),
+  English UI labels in sentence case
+- S-03 design coherence: **10/10** — exact split ratio, mac-window chrome, kanban
+  column chip colors, alert-pulse halo, map gradient + grid + geofence dashes,
+  check-list circle styling
+- S-04 reuse: **9/10** — live-pulse + alert-pulse keyframes from globals.css,
+  brand tokens, monospace type. New: CheckIcon inline SVG (could be shared).
+- S-05 OSS signal: **6/10** — section is operator-experience focused, OSS not the
+  topic. Acceptable per scope.
+
+Avg: **9.0**.
+
+PA progress: PA-01..09 ✅. **9 of 12 alignment iters done.** Next: PA-10 quick-start
+cards (3-up replacing terminal blocks).
+
 <!-- iterations append below this line -->

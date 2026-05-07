@@ -32,17 +32,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-08: Framework banner replaces CompatibilityBannerSection (PA-iter-8, 2026-05-07).
 
-- [ ] PA-09: **Showcase rewrite — Kanban + Map (replaces DashboardShowcase).**
-       - Split layout (1.1fr / 1fr): Kanban mock on left, Map mock + check-list on right
-       - Kanban: 3 columns (Pendiente · En curso · Aprobada) with 2-3 cards each, each
-         card has: VJ ID monospace tag, faena/route line, status dot, severity, mini-meta
-       - Map mock: world-map placeholder OR a stylized abstract grid showing fleet pins
-         (use simple SVG, brand-color pins). Static for v1.
-       - Check-list (`.showcase-list`): 4-5 bullets with `accent-soft` filled-circle
-         check icons (`I.check` from design), bold title + 1-line body each
-       - Pull copy from `t.showcase.bullets`
-       - Delete `dashboard-showcase-section.tsx` after new section ships
-       - Acceptance: split layout reflows; Kanban + Map both render
+- [x] PA-09: Showcase Kanban + Map + check-list (PA-iter-9, 2026-05-07).
 
 - [ ] PA-10: **Quick start rewrite — 3-up cards (not terminals).**
        - Replace current terminal-style code panels with design's `.qs-card` 3-up grid

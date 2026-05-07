@@ -25,6 +25,8 @@ const DARK_TOOLTIP_BG = "#374151";
 const LIGHT_TOOLTIP_BG = "#ffffff";
 const DARK_TOOLTIP_TEXT = "#f3f4f6";
 const LIGHT_TOOLTIP_TEXT = "#111827";
+const DARK_AXIS_NAME = "#e5e7eb";
+const LIGHT_AXIS_NAME = "#374151";
 
 function noDataOption(darkMode: boolean, label = "No data"): EChartsOption {
   return {
@@ -65,8 +67,12 @@ function buildTooltip(
     trigger: "item",
     ...base,
     formatter: (params: unknown) => {
-      const p = params as { dataIndex?: number };
-      const row = rows[p.dataIndex ?? 0];
+      const p = params as { dataIndex?: number; data?: unknown[] };
+      // For scatter, the original row index is stored as the 3rd element
+      const rowIdx = Array.isArray(p.data) && p.data.length >= 3
+        ? (p.data[2] as number)
+        : (p.dataIndex ?? 0);
+      const row = rows[rowIdx];
       if (!row) return "";
       const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
       return resolved.replaceAll("\n", "<br>");
@@ -82,6 +88,7 @@ function buildCartesianOption(
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
+  const axisNameStyle = { color: darkMode ? DARK_AXIS_NAME : LIGHT_AXIS_NAME, fontWeight: "bold" as const, fontSize: 13 };
 
   return {
     color: colors,
@@ -94,15 +101,17 @@ function buildCartesianOption(
     grid: {
       left: 8,
       right: 8,
-      top: 24,
-      bottom: config.showLegend ? 32 : 8,
+      top: 36,
+      bottom: config.showLegend ? 48 : 24,
       containLabel: true,
     },
     xAxis: config.chartType === "scatter"
       ? {
           type: "value" as const,
           name: config.xAxisLabel || undefined,
-          nameTextStyle: { color: textColor },
+          nameLocation: "center" as const,
+          nameGap: 25,
+          nameTextStyle: axisNameStyle,
           axisLabel: { color: textColor },
           axisLine: { lineStyle: { color: axisLineColor } },
           splitLine: { lineStyle: { color: axisLineColor } },
@@ -111,14 +120,16 @@ function buildCartesianOption(
           type: "category" as const,
           data: rows.map((r) => r[config.xAxisColumn] ?? ""),
           name: config.xAxisLabel || undefined,
-          nameTextStyle: { color: textColor },
+          nameLocation: "center" as const,
+          nameGap: 25,
+          nameTextStyle: axisNameStyle,
           axisLabel: { color: textColor },
           axisLine: { lineStyle: { color: axisLineColor } },
         },
     yAxis: {
       type: "value",
       name: config.yAxisLabel || undefined,
-      nameTextStyle: { color: textColor },
+      nameTextStyle: axisNameStyle,
       axisLabel: { color: textColor },
       axisLine: { lineStyle: { color: axisLineColor } },
       splitLine: { lineStyle: { color: axisLineColor } },
@@ -127,11 +138,15 @@ function buildCartesianOption(
       type: config.chartType as "line" | "bar" | "scatter",
       name: s.label,
       data: config.chartType === "scatter"
-        ? rows.map((r) => {
-            const x = Number.parseFloat(r[config.xAxisColumn]);
-            const y = Number.parseFloat(r[s.columnKey]);
-            return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
-          }).filter(Boolean)
+        ? rows.reduce<number[][]>((acc, r, i) => {
+            const rawX = r[config.xAxisColumn];
+            const rawY = r[s.columnKey];
+            if (rawX == null || rawX === "" || rawY == null || rawY === "") return acc;
+            const x = Number.parseFloat(String(rawX));
+            const y = Number.parseFloat(String(rawY));
+            if (Number.isFinite(x) && Number.isFinite(y)) acc.push([x, y, i]);
+            return acc;
+          }, [])
         : rows.map((r) => {
             const v = Number.parseFloat(r[s.columnKey]);
             return Number.isFinite(v) ? v : null;
@@ -141,6 +156,10 @@ function buildCartesianOption(
         config.stacked && config.chartType !== "scatter" ? "total" : undefined,
       ...(s.color ? { itemStyle: { color: s.color } } : {}),
     })),
+    dataZoom: [
+      { type: "inside", xAxisIndex: 0, throttle: 0, filterMode: "none" },
+      { type: "inside", yAxisIndex: 0, throttle: 0, filterMode: "none" },
+    ],
   };
 }
 

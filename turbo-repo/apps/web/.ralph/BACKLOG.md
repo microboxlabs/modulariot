@@ -36,19 +36,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-10: Quick start 3-up cards + ExamplesGallery absorbed (PA-iter-10, 2026-05-07).
 
-- [ ] PA-11: **Community + Final CTA + Footer rewrites.**
-       - **Community**: replace current 3-path layout with design's `.community-card`:
-         a single rounded white card containing left side (eyebrow + title + lede + 2 CTA buttons)
-         and right side (3 stat cells with big tabular `ci-stat` + uppercase `ci-label`).
-         Stats: stars · contributors · countries (placeholder values per design).
-         Drop "honest empty state" placeholder avatars.
-       - **Final CTA**: replace gradient slab with design's dark `--ink-1` rounded slab
-         (radius-16, padding-64, centered). White `btn-primary` and ghost-bordered `btn-secondary`.
-         Display heading clamp(32px, 4.4vw, 52px). NO gradient text.
-       - **Footer**: 5-col grid (1.5fr + 4×1fr): brand col (mark + lowercase wordmark + tagline +
-         GitHub btn with star count) + Product/Developers/Company/Resources columns. Bottom row:
-         "© 2026 MicroboxLabs · Apache-2.0" + live-pulse "All systems operational"
-       - Acceptance: each section matches design at 1280; license string changed MIT → Apache-2.0
+- [x] PA-11: Community + Final CTA + Footer rewrites (PA-iter-11, 2026-05-07).
 
 - [ ] PA-12: **Voice pass + structural cleanup + i18n stub + theme toggle.**
        - **Delete duplicate sections**: `architecture-section.tsx`, `domain-strip-section.tsx`,

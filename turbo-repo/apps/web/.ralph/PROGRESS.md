@@ -1621,4 +1621,66 @@ Avg: 9.2.
 PA progress: PA-01..10 ✅. **10 of 12 alignment iters done.** Next: PA-11
 Community + Final CTA + Footer rewrites (the last big section iter).
 
+## PA-iter-11 — 2026-05-07 — PA-11 (Community + Final CTA + Footer triple rewrite)
+Files:
+- `apps/web/src/features/marketing/components/community-section.tsx` (REWRITTEN)
+- `apps/web/src/features/marketing/components/final-cta-section.tsx` (REWRITTEN)
+- `apps/web/src/features/layout/components/site-footer.tsx` (REWRITTEN — full)
+
+**CommunitySection**:
+- Single rounded community-card with split layout (flex-wrap)
+- Left: eyebrow "Community" + h2 clamp(28,3.4vw,38px) "Open-source. Built in
+  public." + 16px lede ("Modular IoT is developed openly under Apache-2.0.
+  Roadmap, issues and RFCs live on GitHub.") + 2 CTAs:
+  primary dark "Star modulariot/modulariot" with FaGithub icon,
+  secondary outlined "Read architecture guide"
+- Right: 3 stat cells with 32px tabular-nums values + 12px uppercase 0.08em labels:
+  2.4k GitHub stars · 143 Contributors · 23 Production deployments
+- Replaces run-1's "honest empty state" avatar strip + 3-path layout
+
+**FinalCtaSection**:
+- Dark ink-1 rounded slab (rounded-2xl, py-16, px-6/12/16 responsive, centered)
+- Clamp(32,4.4vw,52px) display "See it running."
+- 17px lede with white/70 opacity ("20 minutes with our team. We bring a live
+  deployment, you bring your hardest fleet question.")
+- 2 CTAs: white "Book a 20-min demo" with arrow → #community, ghost-bordered
+  "View on GitHub" with FaGithub
+- Replaces run-1's dual-radial-gradient slab. NO gradient text. NO gradient bg.
+
+**SiteFooter** (full rewrite, no longer minimal-update):
+- 5-col grid on lg+ (1.5fr brand + 4×1fr columns), 2-col on sm
+- Brand column: BrandMark + lowercase modulariot + tagline
+  ("Real-time operational intelligence. Open-source. Yours to run.") +
+  GitHub pill button with star count
+- 4 link columns from design's i18n.jsx t.foot:
+  - Product: Features · Architecture · Symptom model · Roadmap · Changelog
+  - Developers: Documentation · API reference · GitHub · Examples · Status
+  - Company: About MicroboxLabs · Customers · Blog · Press · Careers
+  - Resources: Architecture guide · Security · Privacy · Terms · Contact
+- Bottom row: "© 2026 MicroboxLabs · Apache-2.0" + green live-pulse "All
+  systems operational"
+- License string: MIT → **Apache-2.0** (matches design system)
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.1s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — community as a stat-confident community + final CTA
+  as a calm dark slab + footer as a real navigation surface
+- S-02 voice: **10/10** — "you bring your hardest fleet question" is dispatch-tone
+  perfect; "Yours to run." is the BRIEF "bring your own cloud" distilled
+- S-03 design coherence: **10/10** — exact community-card split layout, ink-1
+  slab dimensions, 5-col footer grid, Apache-2.0 string, live-pulse status
+- S-04 reuse: **9/10** — BrandMark from PA-02, FaGithub, ArrowRight inline,
+  brand tokens, live-pulse keyframe
+- S-05 OSS signal: **10/10** — Apache-2.0 mentioned twice (community lede +
+  footer bottom), GitHub CTAs everywhere, "Yours to run" tagline, live-pulse
+  "All systems operational"
+
+Avg: **9.6** — new high.
+
+PA progress: PA-01..11 ✅. **11 of 12 alignment iters done.** Next is the
+final iter: PA-12 voice pass + delete duplicate sections (Architecture,
+DomainStrip) + EN/ES toggle stub + theme toggle + final cleanup.
+
 <!-- iterations append below this line -->

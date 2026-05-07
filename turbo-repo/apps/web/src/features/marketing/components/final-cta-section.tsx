@@ -1,72 +1,70 @@
+/**
+ * Final CTA — dark ink-1 rounded slab, centered display headline + lede + 2 CTAs.
+ * Replaces run-1's gradient-wash slab. Source: design-ref/.../landing/{app.jsx
+ * FinalCTA, landing.css .final-cta}.
+ */
+
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
-import { HiArrowRight, HiOutlineBookOpen } from "react-icons/hi2";
 
 const REPO_URL = "https://github.com/microboxlabs/modulariot";
+
+function ArrowRight({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  );
+}
 
 export function FinalCtaSection() {
   return (
     <section
-      id="cta"
-      aria-labelledby="cta-heading"
-      className="relative overflow-hidden bg-gray-950 text-white"
+      id="final"
+      aria-labelledby="final-heading"
+      className="py-16 lg:py-[64px]"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_30%_30%,theme(colors.blue.500/0.25),transparent_60%),radial-gradient(50%_60%_at_75%_70%,theme(colors.orange.500/0.20),transparent_70%)]"
-      />
-
-      <div className="relative mx-auto flex max-w-4xl flex-col items-center gap-8 px-4 py-24 text-center sm:px-6 lg:py-28">
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-blue-200 backdrop-blur-md">
-          <span className="size-1.5 rounded-full bg-orange-400" aria-hidden />
-          Open-source · early access
-        </span>
-
-        <h2
-          id="cta-heading"
-          className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl"
-        >
-          From telemetry to symptoms{" "}
-          <span className="bg-gradient-to-r from-blue-300 to-orange-300 bg-clip-text text-transparent">
-            in five minutes.
-          </span>
-        </h2>
-
-        <p className="max-w-xl text-base text-gray-300">
-          Clone the repo. Boot the stack. Post a signal. Watch it become a
-          symptom your team can actually act on. Stay on your cloud — your data
-          never leaves.
-        </p>
-
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="#quickstart"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-colors hover:bg-blue-400"
+      <div className="mx-auto max-w-[1280px] px-6">
+        <div className="relative overflow-hidden rounded-2xl bg-ink-1 px-6 py-16 text-center text-surface-1 sm:px-12 lg:px-16 dark:border dark:border-hairline dark:bg-gray-900">
+          <h2
+            id="final-heading"
+            className="font-semibold leading-[1.1] tracking-[-0.025em]"
+            style={{ fontSize: "clamp(32px, 4.4vw, 52px)" }}
           >
-            See it running
-            <HiArrowRight aria-hidden className="size-4" />
-          </Link>
-          <Link
-            href="#docs"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-colors hover:bg-white/10"
-          >
-            <HiOutlineBookOpen aria-hidden className="size-4" />
-            Read the docs
-          </Link>
-          <a
-            href={REPO_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-colors hover:bg-white/10"
-          >
-            <FaGithub aria-hidden className="size-4" />
-            Star on GitHub
-          </a>
+            See it running.
+          </h2>
+          <p className="mx-auto mt-4 max-w-[56ch] text-[17px] leading-[1.55] text-white/70">
+            20 minutes with our team. We bring a live deployment, you bring
+            your hardest fleet question.
+          </p>
+          <div className="mt-7 inline-flex flex-wrap justify-center gap-3">
+            <Link
+              href="#community"
+              className="inline-flex items-center gap-2 rounded-lg bg-surface-1 px-5 py-3 text-[15px] font-medium leading-none text-ink-1 transition-colors hover:bg-surface-3"
+            >
+              Book a 20-min demo
+              <ArrowRight />
+            </Link>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/25 bg-transparent px-5 py-3 text-[15px] font-medium leading-none text-surface-1 transition-colors hover:bg-white/10"
+            >
+              <FaGithub aria-hidden className="size-4" />
+              View on GitHub
+            </a>
+          </div>
         </div>
-
-        <p className="text-xs text-gray-400">
-          MIT-licensed · Self-host on your cloud · No SaaS sign-up required
-        </p>
       </div>
     </section>
   );

@@ -1,4 +1,5 @@
 import { HeroSection } from "@/features/marketing/components/hero-section";
+import { MarqueeSection } from "@/features/marketing/components/marquee-section";
 import { TelemetrySymptomsSection } from "@/features/marketing/components/telemetry-symptoms-section";
 import { FeatureBentoSection } from "@/features/marketing/components/feature-bento-section";
 import { ArchitectureSection } from "@/features/marketing/components/architecture-section";
@@ -14,6 +15,7 @@ export default function HomePage() {
   return (
     <main id="main" tabIndex={-1} className="focus:outline-none">
       <HeroSection />
+      <MarqueeSection />
       <TelemetrySymptomsSection />
       <FeatureBentoSection />
       <ArchitectureSection />

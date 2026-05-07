@@ -24,16 +24,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-04: Promo dark-bar (PA-iter-4, 2026-05-07).
 
-- [ ] PA-05: **Marquee tenants strip (NEW section).**
-       - Inserted between hero and symptom narrative
-       - Horizontal scrolling marquee with brand-display font (Oswald or DM Sans bold uppercase)
-         showing tenant names: MINTRAL · GAMA · SQM · CCU · MELÓN · SITRANS · ULTRAMAR ·
-         FLOTA NORTE · MICROBOXLABS, each with a "/ tenant" tag
-       - 30s linear infinite animation (gated by reduce-motion globals)
-       - Top + bottom hairline borders; `marquee-label` says e.g.
-         "Trusted by tenants in production" or "Operational tenants on Modular IoT"
-       - Acceptance: smoothly loops; respects reduce-motion (animation paused);
-         all 9 tenant names visible in DOM
+- [x] PA-05: Marquee tenants strip (PA-iter-5, 2026-05-07).
 
 - [ ] PA-06: **Symptom narrative rewrite — dense data flow.**
        - Replace current 5 prose cards with design's 5-column `symptom-stage` grid

@@ -1303,4 +1303,54 @@ Avg: 8.6.
 PA progress: PA-01..04 ✅. P5-07 (ribbon FOUC inline-script) → no longer needed.
 Next: PA-05 marquee tenants strip (NEW section).
 
+## PA-iter-5 — 2026-05-07 — PA-05 (marquee tenants strip)
+Files:
+- `apps/web/src/features/marketing/components/marquee-section.tsx` (NEW, RSC)
+- `apps/web/src/app/globals.css` (UPDATED — added `@keyframes marquee`)
+- `apps/web/src/app/page.tsx` (UPDATED — composes MarqueeSection after Hero)
+
+Section structure (RSC, no client JS):
+- Border-y hairline strip on `bg-surface-1`, py-7 padding
+- Centered eyebrow label: "Built for logistics, fleet operations, mining and
+  industrial telemetry" (12px uppercase 0.12em tracking, ink-3)
+- Scrolling track: 18 items (9 tenants × 2 to make the 50% translate seamless),
+  flex gap-16, animation 30s linear infinite via `@keyframes marquee` keyframe
+  in globals.css
+- Each item: DM Sans bold uppercase (`font-display` token from PA-01) at 18px
+  with 0.1em tracking + opacity-70 ink-3, inline-flex with a small "/ tenant"
+  tag in `font-sans` 10px ink-4
+
+Tenants in design order (per design app.jsx):
+MINTRAL · GAMA · SQM · CCU · MELÓN · SITRANS · ULTRAMAR · FLOTA NORTE · MICROBOXLABS
+
+This positions Modular IoT as the **multi-tenant platform** powering several real
+deployments — replacing run-1's generic "Built for industries" trust strip with
+actual production tenant names. **Strongest single positioning shift in the run.**
+
+Reduce-motion handling: the global `@media (prefers-reduced-motion: reduce)` rule
+clamps `animation-duration: 0.01ms`. Effect: marquee renders one full cycle
+instantly then stays at translateX(-50%) — items still visible since list is
+doubled. Acceptable; users with reduced-motion preferences see static tenants.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.0s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — repositions the product as multi-tenant platform; this
+  IS BRIEF's "Modular IoT (the platform) vs Mintral et al (the tenants)" distinction
+  made visual
+- S-02 voice: **9/10** — sentence-case label per design system rule, no SaaS-speak
+- S-03 design coherence: **9/10** — exact 30s animation, 18px display type, 64px
+  gap, /tenant tag pattern. One delta: design uses Oswald fallback; mine uses
+  DM Sans (loaded in PA-01) — both are heavy uppercase faces, visually similar
+- S-04 reuse: **9/10** — uses `font-display` token from PA-01 + brand surface/ink
+  tokens; new keyframe in globals follows the established motion-keyframes block
+- S-05 OSS signal: **8/10** — MICROBOXLABS in the marquee implies open-stewardship,
+  not explicit OSS callout (not the section's job)
+
+Avg: 9.0.
+
+PA progress: PA-01..05 ✅. **5 of 12 alignment iters done.** Next: PA-06 symptom
+narrative (5-col dense data flow with monospace rows + flow-arrows).
+
 <!-- iterations append below this line -->

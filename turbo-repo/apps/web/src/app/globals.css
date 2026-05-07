@@ -137,6 +137,10 @@ body {
   from { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.10), 0 0 0 0 rgba(225, 29, 72, 0.4); }
   to   { box-shadow: 0 0 0 6px rgba(225, 29, 72, 0.10), 0 0 14px rgba(225, 29, 72, 0.6); }
 }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
 
 /* ---------- Global prefers-reduced-motion gate ---------- */
 @media (prefers-reduced-motion: reduce) {

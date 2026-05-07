@@ -806,4 +806,41 @@ Avg: **9.4** — new high.
 Phase 5 progress: P5-01 ✅. Next: P5-02 footer polish (already a shell from P0-05;
 this iter expands it to the BRIEF four-column structure).
 
+## iter-19 — 2026-05-07 12:33 — P5-02 (footer polish)
+Files:
+- `apps/web/src/features/layout/components/site-footer.tsx` (REWRITTEN)
+
+Changes:
+- Added a brand column (logo + wordmark + tagline + repo wordmark link),
+  promoting the structure from 4-col → 5-col on desktop (1 brand + 4 link cols)
+- Renamed third column "Company" → "Community" — page leans OSS-community,
+  not corporate
+- Real anchor mapping for in-page links: `#symptoms`, `#product`, `#architecture`,
+  `#dashboards`, `#compatibility`, `#quickstart`, `#examples`, `#open-source`
+- External links to GitHub Issues, Discussions, Projects, CONTRIBUTING.md, LICENSE
+- `isExternal()` helper picks `<a target="_blank">` vs Next `<Link>` automatically
+- Tagline under brand: "Open-source real-time monitoring, built around symptoms."
+- Bottom row copyright reframed: "© 2026 Modular IoT. MIT-licensed. Self-hosted.
+  Your data, your cloud."
+- "microboxlabs/modulariot" wordmark below brand becomes a low-key repo callout
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (7.1s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **8/10** — tagline carries BRIEF promise; footer's a navigation
+  surface so narrative is necessarily condensed
+- S-02 voice: **8/10** — "Your data, your cloud." is the closing line
+- S-03 design: **8/10** (degraded) — 5-col grid, brand cohesion improved by
+  promoting brand mark to a dedicated column
+- S-04 reuse: **9/10** — brand tokens, FaGithub icon, link styles
+- S-05 OSS signal: **10/10** — GitHub link 3× (header repo wordmark, columns,
+  bottom icon), MIT-licensed callout, LICENSE link
+
+Avg: **8.6**.
+
+Phase 5 progress: P5-01 ✅ P5-02 ✅. Next: P5-03 motion pass (subtle data-flow
+animation in architecture + global prefers-reduced-motion gate for animate-pulse
+in showcase + final CTA).
+
 <!-- iterations append below this line -->

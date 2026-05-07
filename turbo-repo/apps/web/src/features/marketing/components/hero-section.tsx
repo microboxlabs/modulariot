@@ -1,123 +1,124 @@
-import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
-import { HiArrowRight } from "react-icons/hi";
+import { HeroVisual } from "./hero-visual";
 
 const REPO_URL = "https://github.com/microboxlabs/modulariot";
 
+function ArrowRight({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 export function HeroSection() {
-  // Entrance is CSS-only @keyframes (see <style> below) — no framer-motion.
-  // SSR HTML ships visible (opacity:1 default), animation re-enters from
-  // opacity:0 → 1 with a stagger via animation-delay. Reduced-motion is
-  // handled by the global gate in globals.css (iter-20).
   return (
     <section
-      id="hero"
       aria-labelledby="hero-heading"
-      className="relative overflow-hidden"
+      className="relative overflow-hidden pt-[84px] pb-24"
     >
-      {/* subtle pattern wash, brand colors */}
+      {/* subtle 60px grid background, masked by a top-elliptical fade */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_60%_at_30%_20%,theme(colors.blue.500/0.12),transparent_60%),radial-gradient(40%_50%_at_85%_80%,theme(colors.orange.500/0.10),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-40"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, var(--color-hairline) 1px, transparent 1px), linear-gradient(to bottom, var(--color-hairline) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+          maskImage:
+            "radial-gradient(ellipse at top, black 0%, transparent 70%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse at top, black 0%, transparent 70%)",
+        }}
       />
 
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-12 lg:gap-16 lg:py-28">
-        <div className="flex flex-col gap-6 lg:col-span-7">
-          <span
-            className="hero-fade-up inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/40 dark:text-blue-300"
-            style={{ animationDelay: "0ms" }}
-          >
-            <span className="size-1.5 rounded-full bg-blue-500" aria-hidden />
-            Open-source · real-time · symptom intelligence
+      <div className="mx-auto grid max-w-[1280px] grid-cols-1 items-center gap-16 px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        {/* left: copy */}
+        <div>
+          <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-blue-600 dark:text-blue-400">
+            <span
+              className="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"
+              aria-hidden
+            />
+            Open-source · Apache-2.0
           </span>
 
           <h1
             id="hero-heading"
-            className="hero-fade-up text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl"
-            style={{ animationDelay: "50ms" }}
+            className="mt-[18px] text-balance font-semibold leading-[1.05] tracking-[-0.025em] text-ink-1 dark:text-gray-50"
+            style={{ fontSize: "clamp(40px, 5.6vw, 64px)" }}
           >
-            Open-source real-time monitoring,{" "}
-            <span className="bg-gradient-to-r from-blue-500 to-orange-500 bg-clip-text text-transparent">
-              built around symptoms.
+            Real-time signals,
+            <br />
+            <span className="text-ink-3 dark:text-gray-400">
+              operational understanding.
             </span>
           </h1>
 
           <p
-            className="hero-fade-up max-w-xl text-lg text-gray-600 dark:text-gray-300"
-            style={{ animationDelay: "100ms" }}
+            className="mt-4 max-w-[56ch] text-balance text-[18px] leading-[1.55] text-ink-2 dark:text-gray-300"
           >
-            Modular IoT captures live signals, turns them into symptoms with
-            state, severity, and treatment, and gives operators evidence they
-            can act on. Own your data. Own your stack. Own your control tower.
+            Modular IoT turns raw telemetry into living symptoms — then into
+            coordinated action. Open-source, composable, and deployed in your
+            cloud.
           </p>
 
-          <div
-            className="hero-fade-up flex flex-wrap gap-3 pt-2"
-            style={{ animationDelay: "150ms" }}
-          >
+          <div className="mt-8 flex flex-wrap items-center gap-2.5">
             <Link
-              href="#demo"
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-600"
+              href="#final"
+              className="inline-flex items-center gap-2 rounded-lg border border-ink-1 bg-ink-1 px-5 py-3 text-[15px] font-medium leading-none text-surface-1 transition-colors hover:bg-ink-2 hover:border-ink-2 dark:border-gray-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-200"
             >
-              See it running
-              <HiArrowRight aria-hidden className="size-4" />
+              Book a 20-min demo
+              <ArrowRight />
             </Link>
             <a
               href={REPO_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
+              className="inline-flex items-center gap-2 rounded-lg border border-hairline-strong bg-surface-1 px-5 py-3 text-[15px] font-medium leading-none text-ink-1 transition-colors hover:bg-surface-3 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 dark:hover:bg-gray-800"
             >
               <FaGithub aria-hidden className="size-4" />
-              Explore the repo
+              View on GitHub
             </a>
           </div>
 
-          <p
-            className="hero-fade-up text-xs text-gray-500 dark:text-gray-400"
-            style={{ animationDelay: "200ms" }}
-          >
-            Self-host on your cloud · Deploy with docker compose · MIT-licensed
-          </p>
-        </div>
-
-        <div
-          className="hero-fade-up relative lg:col-span-5"
-          style={{ animationDelay: "100ms" }}
-        >
-          <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <Image
-              src="/brand/hero-pipeline.svg"
-              alt="Telemetry flowing through Modular IoT pipeline"
-              width={400}
-              height={300}
-              priority
-              className="h-auto w-full"
-            />
+          <div className="mt-6 inline-flex flex-wrap items-center gap-4 text-[13px] text-ink-3 dark:text-gray-400">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="inline-block size-2 rounded-full bg-action"
+                style={{ animation: "live-pulse 2s ease-out infinite" }}
+                aria-hidden
+              />
+              Live since 2024
+            </span>
             <span
+              className="inline-block size-1 rounded-full bg-ink-4"
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 left-0 w-12 animate-[pipeline-sweep_4.5s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/10"
             />
+            <span>23 active deployments</span>
+            <span
+              className="inline-block size-1 rounded-full bg-ink-4"
+              aria-hidden
+            />
+            <span>Built from real fleet operations</span>
           </div>
         </div>
-      </div>
 
-      <style>{`
-        @keyframes pipeline-sweep {
-          0% { transform: translateX(0%); opacity: 0; }
-          15% { opacity: 1; }
-          85% { opacity: 1; }
-          100% { transform: translateX(900%); opacity: 0; }
-        }
-        @keyframes hero-fade-up {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .hero-fade-up {
-          animation: hero-fade-up 0.5s ease-out backwards;
-        }
-      `}</style>
+        {/* right: terminal-window pipeline visual */}
+        <div>
+          <HeroVisual />
+        </div>
+      </div>
     </section>
   );
 }

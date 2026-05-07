@@ -1211,4 +1211,64 @@ Hard evals:
 
 PA progress: PA-01 ✅ PA-02 ✅. Next: PA-03 hero rewrite (terminal-window pipeline).
 
+## PA-iter-3 — 2026-05-07 — PA-03 (hero rewrite)
+Files:
+- `apps/web/src/features/marketing/components/hero-visual.tsx` (NEW, "use client")
+- `apps/web/src/features/marketing/components/hero-section.tsx` (REWRITTEN, RSC)
+
+Hero rewrite — flat aesthetic per design:
+- **Removed**: gradient clip-text headline, dual radial gradient bg, CSS @keyframes
+  entrance fade-up (and supporting animation-delay style props), Mintral hero-pipeline.svg
+- **Added**:
+  - 60px linear-gradient grid background with radial mask top-fade (opacity 0.4),
+    using `var(--color-hairline)` for the lines
+  - Eyebrow chip "Open-source · Apache-2.0" with brand-blue dot
+  - Display headline `clamp(40px, 5.6vw, 64px)`, split across two lines:
+    "Real-time signals," in ink-1, "operational understanding." in ink-3
+  - 18px lede with 56ch max-width
+  - Dual CTA: primary `bg-ink-1 text-surface-1` (near-black; matches design's btn-primary),
+    secondary `border-hairline-strong bg-surface-1` (white outlined)
+  - Hero meta row: green live-pulse dot + 3 dispatch-style facts separated by tiny gray
+    meta-dots ("Live since 2024 · 23 active deployments · Built from real fleet operations")
+- **Replaced unicode arrow** (`<span aria-hidden>→</span>`) with inline SVG `<ArrowRight>` —
+  per design system rule "no unicode glyph substitution"
+
+`<HeroVisual />` ("use client") — terminal-window pipeline-card:
+- Mac-window title bar: 3 hairline-strong dots, monospace title "modulariot · live pipeline",
+  status indicator with live-pulse green dot + "live" label
+- 4 column lanes, each with eyebrow heading + tone-colored 5px dot:
+  signals (#3F83F8) · behaviors (#76A9FA) · symptoms (#F59E0B) · treatments (#0E9F6E)
+- Each lane has 3-5 monospace rows; flash effect rotates through rows on a 1.4s
+  setInterval tick (post-hydration only — SSR ships frame tick=0)
+- Symptom rows have severity + state mini-meta
+- Bottom strip: monospace "incident #4821 · open · sev 3" + p50/p99 latency stats
+- Shadow: `30px 60px -30px rgba(15,23,42,0.18)` per design
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.5s, 4 routes)
+
+Soft eval self-pass (FIRST run with design ref present):
+- S-01 narrative: **9/10** — eyebrow + headline + sub all carry BRIEF + design intent
+- S-02 voice: **10/10** — "Real-time signals, operational understanding." spare,
+  sentence case, dispatch-style meta. No SaaS-speak.
+- S-03 design coherence: **9/10** — major elements pixel-aligned: grid bg with mask,
+  ink-1 button, terminal-window with 4 lanes + live-pulse + bottom strip + p50/p99,
+  exact h1 clamp, 56ch lede. Tiny deltas: shadow rgba slightly different in dark mode;
+  some animation timing yet to be fine-tuned.
+- S-04 reuse: **9/10** — brand tokens, FaGithub, new ArrowRight inline SVG, new HeroVisual
+- S-05 OSS signal: **10/10** — eyebrow Apache-2.0 callout, GitHub CTA, "Built from real
+  fleet operations" implies real ops history
+
+S-06 design diff (top 3 deltas vs design ref):
+1. `live-pulse` dot animation: design uses "infinite" — mine matches but reduce-motion
+   gate clamps it to 0.01ms (correct behavior, but visually static for those users)
+2. Header is from PA-02, not yet pixel-perfect to design's header rule (header-cta dark
+   "Book demo" button missing — to add in PA-04 or PA-12 voice pass)
+3. Terminal-window inner padding: design uses 14px column padding; mine uses py-3.5/px-3
+   ≈ 14/12 — close but not identical
+
+Avg: 9.4. Strongest hero so far.
+
+PA progress: PA-01..03 ✅. Next: PA-04 promo dark-bar.
+
 <!-- iterations append below this line -->

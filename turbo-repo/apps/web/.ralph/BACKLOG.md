@@ -20,18 +20,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-02: Purge Mintral assets + new BrandMark (PA-iter-2, 2026-05-07).
 
-- [ ] PA-03: **Hero rewrite — flat + terminal-window pipeline visual.**
-       - Drop framer-motion-style entrance animations; design hero is static
-       - Drop gradient clip-text headline → use design's split: `<h1>{line1}<br/><span style={color: ink-3}>{line2}</span></h1>`
-       - Drop dual radial gradient wash → use design's `.hero-bg` (60px linear-gradient grid with radial mask, opacity 0.4, hairline color)
-       - Build new `HeroVisual` component: rounded card with `border-1 + shadow-30px-60px`,
-         `pipeline-head` mac-window-dots + monospace title "modulariot/pipeline" + live-pulse
-         green dot status, body shows the 5-stage data flow as inline mini-cards
-       - Buttons: `btn-primary` is `bg-ink-1` (near-black) with white text (NOT blue);
-         `btn-secondary` is white bg with hairline border
-       - Hero meta row: live-pulse + "47ms median ingest · 1,247 devices · v0.9.2" or
-         use design's exact i18n strings
-       - Acceptance: SSR HTML ships fully visible (no opacity:0 / hidden elements); build green
+- [x] PA-03: Hero rewrite — flat + terminal-window pipeline (PA-iter-3, 2026-05-07).
 
 - [ ] PA-04: **Promo ribbon rewrite — dark bar.**
        - Replace gradient bg with `bg-ink-1` (near-black) and white text

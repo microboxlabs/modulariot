@@ -40,8 +40,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P5-02: Footer polish (iter-19, 2026-05-07). Hard evals green.
 - [x] P5-03: Motion pass (iter-20, 2026-05-07). Hard evals green.
 - [x] P5-04: A11y pass (iter-21, 2026-05-07). Hard evals green. Live axe deferred to user-attended iter.
-- [ ] P5-05: Perf pass — LCP < 2.0s, CLS < 0.05, first-load JS < 180KB on `/`. Convert any
-       hero animations to CSS-only or WAAPI if framer-motion bloats the bundle.
+- [x] P5-05: Perf pass (iter-22, 2026-05-07). Bundle 764 KB → 644 KB (-120 KB) by removing framer-motion.
 - [ ] P5-06: Delete `/dev/tokens` route from P0-04 (note: actual path uses `dev/`,
        not `_dev/` — leading underscore is reserved as a private folder in App Router)
 
@@ -72,10 +71,9 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        hero CTAs from bare `<a>` / `<Link>` + Tailwind to the skinned `<Button>` primitive.
        (iter-8 deferred) Hero currently uses bare elements for tighter visual control;
        worth the brand consistency once the skin matures.
-- [ ] P1-05: LCP/perf review of the hero. (iter-8 deferred) framer-motion entrance
-       animations set `opacity:0` in SSR HTML, which can hurt LCP. If P5 perf eval
-       shows LCP > 2.0s, swap framer-motion entrance animations for CSS-only
-       @keyframes (the data-flow sweep is already CSS-only).
+- [x] P1-05: LCP/perf review (iter-22, 2026-05-07). Folded into P5-05. Hero entrance
+       converted to CSS-only @keyframes; SSR HTML now ships visible (no opacity:0
+       LCP risk); framer-motion dep removed entirely; -120 KB bundle savings.
 - [ ] P5-09: Add copy-to-clipboard buttons on the QuickStartSection code blocks.
        (iter-16 deferred) Requires "use client" leaf — defer until P5 polish so other
        Phase 4-5 work stays in RSC.

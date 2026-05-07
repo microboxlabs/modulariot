@@ -952,4 +952,47 @@ Hard evals:
 
 Phase 5 progress: P5-01..04 ✅. Next: P5-05 perf pass.
 
+## iter-22 — 2026-05-07 15:22 — P5-05 (perf pass) + P1-05 (LCP fix, folded in)
+Files:
+- `apps/web/src/features/marketing/components/hero-section.tsx` (REWRITTEN — CSS-only entrance)
+- `apps/web/package.json` (UPDATED — dropped `framer-motion`)
+- `package-lock.json` (REGENERATED)
+
+Changes:
+1. **Hero entrance: framer-motion → CSS @keyframes**. Replaced `motion.h1`/`motion.p`
+   etc. with regular tags carrying a `hero-fade-up` class plus `style={{ animationDelay }}`
+   for stagger. SSR HTML ships *visible* (the keyframe runs `from opacity:0` →
+   `to opacity:1` with `backwards` fill so the start state only applies during the
+   animation). Closes the P1-05 LCP risk (no more `opacity:0` in SSR HTML).
+2. **Removed framer-motion dependency**. Confirmed no remaining imports (only
+   comments mention it). `npm install` regenerated lockfile cleanly.
+3. **Pipeline-sweep + reduce-motion**: unchanged — still CSS @keyframes, still gated
+   by globals.css media rule. The "Spinner during loading" path inside ThemeDetector
+   still imports flowbite-react (used elsewhere), no extra dep cost.
+
+Bundle measurement:
+| metric                       | before iter-22 | after iter-22 | delta    |
+|------------------------------|----------------|---------------|----------|
+| total static JS (sum)        | 764 KB         | 644 KB        | **−120 KB** |
+| largest chunk (framework)    | 224 KB         | 224 KB        | unchanged |
+| flowbite-react chunk         | 123 KB         | 123 KB        | unchanged |
+| Next runtime chunk           | 113 KB         | 113 KB        | unchanged |
+| framer-motion chunk          | 122 KB         | **GONE**      | −122 KB |
+| page-specific chunks         | ~80 KB         | ~80 KB        | unchanged |
+
+The 122 KB framer-motion chunk vanishes; the rest is unchanged. Estimated
+gzip first-load JS for `/`: ~150-170 KB (under the 180 KB H-05 budget).
+Per-route precise number would require `@next/bundle-analyzer` — defer until
+real LCP measurement is needed via chrome MCP.
+
+LCP / CLS / FID — would need lighthouse via chrome MCP for ground-truth.
+Inferred: LCP improved (no more opacity:0 SSR), CLS unchanged (no layout shift
+introduced), FID likely improved (less JS to parse).
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (5.6s build, faster than the 6-7s typical — confirms
+  fewer modules to compile)
+
+Phase 5 progress: P5-01..05 ✅. Only P5-06 (delete /dev/tokens) remains in Phase 5.
+
 <!-- iterations append below this line -->

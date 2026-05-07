@@ -23,8 +23,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 ## Phase 2 — Narrative core (the symptom-intelligence story)
 - [x] P2-01: Telemetry → Symptoms section (iter-9, 2026-05-07). Hard evals green. Soft 9.4 avg.
 - [x] P2-02: Feature bento, 7 primitives (iter-10, 2026-05-07). Hard evals green, soft 8.4 avg.
-- [ ] P2-03: Architecture section — `Capture → Stream → Symptom Intelligence → Orchestrate → Visualize/Audit`.
-       Replaceable-components framing. NO mention of Postgres/Pulsar/n8n by name on this section.
+- [x] P2-03: Architecture section (iter-11, 2026-05-07). Hard evals green, soft 8.6 avg.
 
 ## Phase 3 — Trust & showcase
 - [ ] P3-01: Domain strip — "Built for logistics, fleet operations, and industrial telemetry"
@@ -72,10 +71,11 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        from web-site in iter-3 and lives at `apps/web/src/app/favicon.ico`. Still missing:
        `apple-touch-icon.png`, `icon-192/512.png`, OG card 1200x630. Source: `public/brand/logo.svg`.
        Tooling: `sharp` or `realfavicongenerator`. Schedule before Phase 5 polish.
-- [ ] P3-04: Restyle `showcase/dashboard-map.svg` and `showcase/symptom-timeline.svg`
-       to brand palette. (iter-2 discovery) Current colors are generic slate-50/900/red-500;
-       must move to blue/yellow/orange/gray brand tokens before P3-03 ships. Belongs in
-       Phase 3 alongside the dashboard showcase.
+- [ ] P3-04: Restyle `showcase/dashboard-map.svg`, `showcase/symptom-timeline.svg`,
+       AND `architecture.svg` to brand palette + Inter font. (iter-2/iter-11 discovery)
+       Current colors are generic slate-50/900/red-500; arch.svg uses Arial. Move to
+       blue/yellow/orange/gray + Inter via `font-family` overrides or rebuild as React
+       components. Schedule in Phase 3 alongside the dashboard showcase.
 - [ ] P1-04: After flowbite-theme.ts has fully-skinned Button/Card primitives, refactor
        hero CTAs from bare `<a>` / `<Link>` + Tailwind to the skinned `<Button>` primitive.
        (iter-8 deferred) Hero currently uses bare elements for tighter visual control;

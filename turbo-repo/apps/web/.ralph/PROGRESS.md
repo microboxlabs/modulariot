@@ -443,4 +443,59 @@ Discovered tasks added during the 10-iter window:
 
 No same-eval-red 3 iters (no halt). 20 iters remain in budget.
 
+## iter-11 — 2026-05-07 11:44 — P2-03 (architecture)
+Files:
+- `apps/web/src/features/marketing/components/architecture-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes architecture after bento)
+
+Section structure:
+- Eyebrow "Architecture" + headline "Five stages. **Each one swappable.**" + sub
+  ("Modular IoT keeps a consistent operational model … and lets each building
+  block evolve.")
+- Two-column layout (lg+): rescued `architecture.svg` framed in a card on the left
+  (cols 1-7), 5-stage ordered list on the right (cols 8-12). Stacks on mobile.
+- 5 stages with numbered chips (01..05), brand-colored icons:
+  01 Capture (blue) · 02 Stream (blue) · 03 Symptom Intelligence (orange) ·
+  04 Orchestrate (yellow) · 05 Visualize & audit (gray)
+- Footnote: **"Each block is a contract, not a vendor. Specific technologies
+  evolve with the product."** — direct realization of BRIEF's swap-a-box framing
+  without naming any technology
+
+Decisions:
+- Pure Server Component, no motion, no client JS
+- Honored BRIEF's explicit "do NOT mention Postgres/Pulsar/n8n" rule — the section
+  argues composability via the contract metaphor, not via stack inventory
+- Stage 03 "Symptom Intelligence" lands in the visual middle (top of fold of the
+  list) — the differentiator gets the dramatic position
+- Reused architecture.svg as-is even though its colors and font diverge from the
+  brand skin. Restyling it is more polish than P2-03 needs; P3-04 (showcase SVGs)
+  could absorb it, or a new P3-05 task
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (15.1s — cold cache; 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — directly delivers BRIEF's "swap-a-box / consistent
+  operational model" narrative; closes Phase 2 with a coherent throughline
+- S-02 voice: **9/10** — "Operators see the now; auditors see the why" + "Each
+  block is a contract, not a vendor" are punchy and grounded
+- S-03 design: **8/10** (degraded) — two-column layout balances visual + textual,
+  numbered chips reuse the P2-01 numbering convention
+- S-04 reuse: **9/10** — section header, brand tokens, hi2 icons, image card frame.
+  New: ring-tinted icon chips (justifiable refinement)
+- S-05 OSS signal: **7/10** — "contract not vendor" hints at OSS sovereignty but
+  doesn't shout it; section topic is composability not OSS, so the lower score
+  reflects topical scope, not a regression
+
+Avg: 8.6. All ≥ 7.
+
+**Phase 2 complete.** Page now tells the full narrative: hero → "symptom is not
+just an alert" 5-step transform → 7 product primitives → architecture composability.
+
+Discovered: P3-05 (or fold into P3-04) — restyle architecture.svg to brand tokens
++ Inter font alongside the showcase SVGs.
+
+Next: Phase 3 (P3-01 domain strip → P3-02 cloud/hardware banner → P3-03 dashboard
+showcase).
+
 <!-- iterations append below this line -->

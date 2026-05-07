@@ -1,8 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FaGithub } from "react-icons/fa";
-
-const REPO_URL = "https://github.com/microboxlabs/modulariot";
+import { GitHubStarBadge } from "./github-star-badge";
 
 const NAV_LINKS = [
   { label: "Product", href: "#product" },
@@ -53,15 +51,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <a
-          href={REPO_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
-        >
-          <FaGithub aria-hidden className="size-4" />
-          <span>Star on GitHub</span>
-        </a>
+        <GitHubStarBadge />
       </div>
     </header>
   );

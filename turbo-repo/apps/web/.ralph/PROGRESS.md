@@ -228,4 +228,38 @@ Ribbon is announcement chrome, not the page's narrative.
 
 Phase 1 progress: P1-01 ✅. Next iter picks P1-02 (live GitHub star count).
 
+## iter-7 — 2026-05-07 11:17 — P1-02 (live GitHub star count)
+Files:
+- `apps/web/src/features/layout/components/github-star-badge.tsx` (NEW, async RSC)
+- `apps/web/src/features/layout/components/site-header.tsx` (UPDATED — uses badge)
+
+Approach:
+- Async Server Component fetches `https://api.github.com/repos/microboxlabs/modulariot`
+  with `next: { revalidate: 3600 }` — once an hour ISR refresh
+- Compact format via `Intl.NumberFormat("en", { notation: "compact" })` (1.2k, 12.5k…)
+- Full count exposed via `aria-label` for screen readers; visual count is compact
+- Graceful fallback: 4xx/5xx, network error, or non-numeric `stargazers_count` →
+  badge renders without count, identical to pre-iter-7 button
+
+Build verification: route table now shows `Revalidate 1h, Expire 1y` on every page,
+confirming the fetch's revalidate setting propagates through the shared layout.
+Static page generation went 173ms → 714ms (the build-time fetch is the delta).
+
+Decisions:
+- Did NOT add a GitHub API token. Unauthed limit is 60/hour/IP — at 1 fetch/hour this
+  is fine; if we hit it we'll add `GITHUB_TOKEN` to `globalEnv` in turbo.json (P5 task).
+- Did NOT use `<Suspense>` — static prerender awaits naturally and a streaming
+  fallback would just flash a no-count button. Simpler is better here.
+- Repo may currently be private; the fallback covers that without breaking the page.
+
+Hard evals:
+- H-01 typecheck ✅
+- H-02 lint ✅
+- H-03 build ✅ (6.2s; static, ISR every 1h)
+
+Soft evals: still N/A — this is chrome enhancement, not narrative content.
+
+Phase 1 progress: P1-01 ✅ P1-02 ✅. Next: **P1-03 hero** (the big one — first
+visitor-facing narrative section, soft evals start here).
+
 <!-- iterations append below this line -->

@@ -17,8 +17,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
 ## Phase 1 — Hero & header (the first impression)
 - [x] P1-01: Promo ribbon (iter-6, 2026-05-07). Hard evals green.
-- [ ] P1-02: Header polish — live GitHub star count fetched at build time
-       (`fetch` in a Server Component with `revalidate: 3600`), graceful fallback if rate-limited
+- [x] P1-02: Live GitHub star count (iter-7, 2026-05-07). Hard evals green.
 - [ ] P1-03: Hero section — promise + subtext (BRIEF copy) + dual CTA (primary "See it running",
        secondary "Star on GitHub") + animated telemetry visual (small canvas / SVG; respects
        `prefers-reduced-motion`)

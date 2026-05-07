@@ -1164,4 +1164,51 @@ Hard evals:
 
 PA progress: PA-01 ✅. Next: PA-02 (purge Mintral assets + new BrandMark CSS pattern).
 
+## PA-iter-2 — 2026-05-07 — PA-02 (purge Mintral + BrandMark)
+Files deleted (Mintral-tenant assets):
+- `apps/web/public/brand/{logo,headlogo,headlogo-dark,hero-pipeline,architecture,
+  pattern-light,pattern-dark}.svg`
+- `apps/web/public/brand/showcase/{dashboard-map,symptom-timeline}.svg`
+
+Files added/updated:
+- `apps/web/src/features/layout/components/brand-mark.tsx` (NEW, RSC) — pure CSS
+  brand-mark: ink-1 outer + blue-600 top-left inset + `#FFB017` bottom-right inset.
+  Inline `#FFB017` because the platform palette no longer carries yellow tokens.
+  Configurable `size` prop scales linearly.
+- `apps/web/src/features/layout/components/site-header.tsx` — rewrite:
+  - Replaces `<Image src="/brand/headlogo.svg">` light/dark pair with `<BrandMark />`
+    + lowercase `modulariot` wordmark
+  - 60px header height (was 56), max-width 1280px (was 1152px / 6xl)
+  - Nav anchors updated to design's section IDs: `#features`, `#symptom`, `#showcase`,
+    `#quickstart`, `#community`. Old anchors (`#product`, `#architecture`,
+    `#open-source`, `#docs`) wired to the upcoming PA-rewritten sections.
+  - Switched to design's surface/ink/hairline tokens: `border-hairline`, `bg-surface-1/85`,
+    `text-ink-1`, `text-ink-2`
+- `apps/web/src/features/layout/components/site-footer.tsx` — minimal change:
+  - Replaces `<Image src="/brand/logo.svg">` with `<BrandMark size={28} />`
+  - Wordmark "Modular IoT" → "modulariot"
+  - Aria-label updated to lowercase
+  - Bottom row says "© 2026 MicroboxLabs · modulariot. MIT-licensed…"
+    (License string still MIT — design uses Apache-2.0; switch deferred to PA-11
+    where the full footer rewrite happens)
+- `apps/web/public/brand/README.md` — rewritten to document the CSS-only mark and
+  the Mintral-asset purge
+
+Transient state during PA-02 → PA-03/08/09:
+- `hero-section.tsx` references deleted `/brand/hero-pipeline.svg` (404 at runtime,
+  gone after PA-03)
+- `architecture-section.tsx` references deleted `/brand/architecture.svg` (gone with
+  the section in PA-12)
+- `dashboard-showcase-section.tsx` references deleted `/brand/showcase/*.svg`
+  (replaced in PA-09 with Kanban + Map mocks)
+- Build passes (Next/Image only validates path strings, not file presence)
+- Visual breakage acceptable per the user's "full rewrite" decision
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.3s, 4 routes)
+- S-03 / S-06: header + footer changes are too small relative to design ref to
+  meaningfully score this iter. First useful S-03/S-06 fires at PA-03 (hero rewrite).
+
+PA progress: PA-01 ✅ PA-02 ✅. Next: PA-03 hero rewrite (terminal-window pipeline).
+
 <!-- iterations append below this line -->

@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
+import { BrandMark } from "./brand-mark";
 
 const REPO_URL = "https://github.com/microboxlabs/modulariot";
 const ISSUES_URL = `${REPO_URL}/issues`;
@@ -65,19 +65,11 @@ export function SiteFooter() {
           <div className="col-span-2 flex flex-col gap-3 lg:col-span-1">
             <Link
               href="/"
-              aria-label="Modular IoT — home"
-              className="inline-flex items-center gap-2"
+              aria-label="modulariot — home"
+              className="inline-flex items-center gap-2.5 text-base font-semibold tracking-[-0.01em]"
             >
-              <Image
-                src="/brand/logo.svg"
-                alt="Modular IoT"
-                width={32}
-                height={32}
-                className="size-8"
-              />
-              <span className="text-base font-semibold tracking-tight">
-                Modular IoT
-              </span>
+              <BrandMark size={28} />
+              modulariot
             </Link>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Open-source real-time monitoring, built around symptoms.
@@ -86,7 +78,7 @@ export function SiteFooter() {
               href={REPO_URL}
               target="_blank"
               rel="noreferrer"
-              aria-label="Modular IoT on GitHub"
+              aria-label="modulariot on GitHub"
               className="mt-2 inline-flex w-fit items-center gap-2 text-sm text-gray-700 transition-colors hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
             >
               <FaGithub aria-hidden className="size-4" />
@@ -128,14 +120,14 @@ export function SiteFooter() {
 
         <div className="flex flex-col items-start justify-between gap-4 border-t border-gray-200 pt-6 text-xs text-gray-500 sm:flex-row sm:items-center dark:border-gray-800 dark:text-gray-400">
           <span>
-            © {new Date().getFullYear()} Modular IoT. MIT-licensed.
-            Self-hosted. Your data, your cloud.
+            © {new Date().getFullYear()} MicroboxLabs · modulariot.
+            MIT-licensed. Self-hosted. Your data, your cloud.
           </span>
           <a
             href={REPO_URL}
             target="_blank"
             rel="noreferrer"
-            aria-label="Modular IoT on GitHub"
+            aria-label="modulariot on GitHub"
             className="transition-colors hover:text-gray-900 dark:hover:text-white"
           >
             <FaGithub aria-hidden className="size-5" />

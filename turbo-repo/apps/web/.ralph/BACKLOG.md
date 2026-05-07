@@ -18,17 +18,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-01: Foundation tokens (PA-iter-1, 2026-05-07). Hard evals green.
 
-- [ ] PA-02: **Purge Mintral assets + new brand-mark.**
-       - Delete `public/brand/{logo,headlogo,headlogo-dark,hero-pipeline,architecture,
-         pattern-light,pattern-dark}.svg` and `public/brand/showcase/*.svg`
-       - Replace `<SiteHeader>` and `<SiteFooter>` brand element with the design's
-         `BrandMark` pattern: 24px square (`bg-ink-1`) with two 8×8 inner squares
-         (one `bg-blue-600`, one `bg-yellow-500`-ish-but-actually-the-design-uses-#FFB017
-         INLINE in the .brand-mark::after rule — I'll match that exactly even though
-         we removed yellow from the palette: this is a brand-mark literal, not a token)
-       - Wordmark from "Modular IoT" → "modulariot" (lowercase, weight 600, ink-1)
-       - Update `public/brand/README.md` to describe the new mark
-       - Acceptance: hero/header/footer no longer reference removed assets; build green
+- [x] PA-02: Purge Mintral assets + new BrandMark (PA-iter-2, 2026-05-07).
 
 - [ ] PA-03: **Hero rewrite — flat + terminal-window pipeline visual.**
        - Drop framer-motion-style entrance animations; design hero is static

@@ -36,7 +36,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P4-03: Community / OSS section (iter-17, 2026-05-07). Hard evals green, soft 9.2 avg.
 
 ## Phase 5 — Polish
-- [ ] P5-01: Final CTA section — three paths: "See it running" / "Read the docs" / "Star on GitHub"
+- [x] P5-01: Final CTA (iter-18, 2026-05-07). Hard evals green, soft 9.4 avg (new high).
 - [ ] P5-02: Footer (product / developers / company / resources columns)
 - [ ] P5-03: Motion pass — subtle data-flow animation on architecture section,
        `prefers-reduced-motion` respected everywhere

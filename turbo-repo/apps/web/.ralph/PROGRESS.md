@@ -760,4 +760,50 @@ Avg: **9.2** — joint highest with iters 13 and 16.
 primitives → architecture → domains → compatibility → dashboard → examples →
 quick start → community. **9 sections live, plus chrome.** Phase 5 polish remains.
 
+## iter-18 — 2026-05-07 12:27 — P5-01 (final CTA)
+Files:
+- `apps/web/src/features/marketing/components/final-cta-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes after community)
+
+Section structure:
+- Dark gradient surface (`bg-gray-950` + dual radial wash from blue-500/25 +
+  orange-500/20) — visually distinct closing moment
+- Eyebrow pill ("Open-source · early access" with pulsing orange dot, glassmorphic)
+- Massive gradient-clip headline: "From telemetry to symptoms **in five minutes.**"
+  — literal BRIEF arc condensed to one line
+- Sub: "Clone the repo. Boot the stack. Post a signal. Watch it become a symptom
+  your team can actually act on. Stay on your cloud — your data never leaves."
+- Three CTAs (primary + 2 secondaries):
+  - "See it running" → #quickstart (blue button, blue shadow)
+  - "Read the docs" → #docs (glass border)
+  - "Star on GitHub" → repo URL (glass border, FaGithub icon)
+- Footnote: "MIT-licensed · Self-host on your cloud · No SaaS sign-up required"
+
+Decisions:
+- Visual mirror of the hero's gradient wash but inverted (dark bg, brighter
+  accents) — visually bookends the page
+- Primary CTA targets `#quickstart` to drive scrolls back up to the docker compose
+  block. Visitors who reach the bottom and want action don't need to leave the page.
+- Glass buttons (border + bg-white/5 + backdrop-blur) provide the secondary
+  hierarchy without competing with the primary blue button
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.3s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — headline literally distills BRIEF's arc; sub
+  reiterates the symptom story + BYOC promise
+- S-02 voice: **9/10** — concrete imperatives (Clone. Boot. Post. Watch.)
+- S-03 design: **9/10** (degraded) — strongest visual moment so far; gradient
+  clip-text + dual-radial wash + glass buttons read as a real product page
+- S-04 reuse: **9/10** — gradient wash pattern from hero, eyebrow chip pattern,
+  CTA button conventions
+- S-05 OSS signal: **10/10** — eyebrow "Open-source · early access", MIT footnote,
+  "No SaaS sign-up", GitHub CTA
+
+Avg: **9.4** — new high.
+
+Phase 5 progress: P5-01 ✅. Next: P5-02 footer polish (already a shell from P0-05;
+this iter expands it to the BRIEF four-column structure).
+
 <!-- iterations append below this line -->

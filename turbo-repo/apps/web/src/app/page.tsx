@@ -8,6 +8,7 @@ import { DashboardShowcaseSection } from "@/features/marketing/components/dashbo
 import { ExamplesGallerySection } from "@/features/marketing/components/examples-gallery-section";
 import { QuickStartSection } from "@/features/marketing/components/quick-start-section";
 import { CommunitySection } from "@/features/marketing/components/community-section";
+import { FinalCtaSection } from "@/features/marketing/components/final-cta-section";
 
 export default function HomePage() {
   return (
@@ -22,6 +23,7 @@ export default function HomePage() {
       <ExamplesGallerySection />
       <QuickStartSection />
       <CommunitySection />
+      <FinalCtaSection />
     </main>
   );
 }

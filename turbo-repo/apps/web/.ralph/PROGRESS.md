@@ -843,4 +843,41 @@ Phase 5 progress: P5-01 ✅ P5-02 ✅. Next: P5-03 motion pass (subtle data-flow
 animation in architecture + global prefers-reduced-motion gate for animate-pulse
 in showcase + final CTA).
 
+## iter-20 — 2026-05-07 12:39 — P5-03 (motion pass)
+Files:
+- `apps/web/src/app/globals.css` (UPDATED — added global prefers-reduced-motion gate)
+- `apps/web/src/features/marketing/components/architecture-section.tsx` (UPDATED —
+  added subtle data-flow sweep over the architecture diagram + scoped @keyframes)
+
+Changes:
+
+1. **Global motion gate** in globals.css. A single `@media (prefers-reduced-motion:
+   reduce)` rule that nukes every animation/transition site-wide:
+     - `animation-duration: 0.01ms`
+     - `animation-iteration-count: 1`
+     - `transition-duration: 0.01ms`
+     - `scroll-behavior: auto`
+   This catches every motion source (hero pipeline-sweep, showcase animate-pulse,
+   architecture data-flow, framer-motion entrances, and any future addition) without
+   per-component opt-in. Safer than relying on each new component to remember.
+
+2. **Architecture data-flow sweep** in architecture-section.tsx. A blue-tinted
+   gradient strip (`from-transparent via-blue-500/20 to-transparent`, 16px wide)
+   sweeps left-to-right over the architecture diagram every 6 seconds via
+   `@keyframes architecture-flow`. Subtle — visualizes data flowing through the
+   pipeline without competing with the static diagram. The reduce-motion gate
+   above stops it for users who prefer reduced motion.
+
+Audit confirmed: the only pre-existing animations on the page were
+`animate-[pipeline-sweep]` (hero, already gated) and `animate-pulse` (dashboard
+showcase orange dot, NOT gated). The global rule now covers both.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (7.1s, 5 routes, 1h ISR)
+
+Soft evals: chrome/utility iter — narrative content unchanged. Skipped explicit
+soft-eval scoring; would just re-score existing sections.
+
+Phase 5 progress: P5-01 ✅ P5-02 ✅ P5-03 ✅. Next: P5-04 a11y pass.
+
 <!-- iterations append below this line -->

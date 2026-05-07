@@ -96,13 +96,19 @@ export function ArchitectureSection() {
 
         <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-12">
           <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <Image
                 src="/brand/architecture.svg"
                 alt="Modular IoT architecture flow: capture → stream → symptom intelligence → orchestrate → visualize"
                 width={800}
                 height={400}
                 className="h-auto w-full"
+              />
+              {/* Subtle data-flow sweep — gated by prefers-reduced-motion at the
+                  global level (see globals.css). */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-16 animate-[architecture-flow_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent dark:via-blue-400/15"
               />
             </div>
           </div>
@@ -139,6 +145,15 @@ export function ArchitectureSection() {
           with the product.
         </p>
       </div>
+
+      <style>{`
+        @keyframes architecture-flow {
+          0% { transform: translateX(-10%); opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { transform: translateX(700%); opacity: 0; }
+        }
+      `}</style>
     </section>
   );
 }

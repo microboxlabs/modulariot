@@ -82,3 +82,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
+
+/* Global prefers-reduced-motion gate.
+   Reduces every animation/transition to a near-instant single iteration.
+   Site-wide motion sources (hero pipeline-sweep, showcase animate-pulse,
+   architecture data-flow, framer-motion entrances) all comply through this. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -38,8 +38,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 ## Phase 5 — Polish
 - [x] P5-01: Final CTA (iter-18, 2026-05-07). Hard evals green, soft 9.4 avg (new high).
 - [x] P5-02: Footer polish (iter-19, 2026-05-07). Hard evals green.
-- [ ] P5-03: Motion pass — subtle data-flow animation on architecture section,
-       `prefers-reduced-motion` respected everywhere
+- [x] P5-03: Motion pass (iter-20, 2026-05-07). Hard evals green.
 - [ ] P5-04: A11y pass — axe clean (0 critical/serious), focus rings, contrast on brand colors,
        skip-to-content link
 - [ ] P5-05: Perf pass — LCP < 2.0s, CLS < 0.05, first-load JS < 180KB on `/`. Convert any

@@ -11,18 +11,13 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 ## Phase 0 — Foundation (must finish before Phase 1)
 - [x] P0-01: Audit `apps/app` → write `STACK.md` (iter-1, 2026-05-07)
 - [x] P0-02: Rescue brand assets from `apps/web-site` (iter-2, 2026-05-07)
-- [ ] P0-03: Bootstrap `apps/web` (workspace `@modulariot/web`) by mirroring
-       `apps/web-site/package.json` (Next 16, React 19, Tailwind v4, flowbite-react,
-       framer-motion, server-only). Use port 3041. Add `check-types`, `lint`, `build`,
-       `dev`, `start`, `test`, `format`, `format:check`, `knip` scripts matching repo conventions.
-       — (acceptance: `npx turbo run check-types lint build --filter=@modulariot/web` all green
-       on a hello-world page)
-- [ ] P0-04: Wire design tokens in Tailwind v4 config — brand palette
-       (blue / yellow / orange / gray) with semantic aliases (primary, attention, critical,
-       neutral). Token-skin Flowbite-React via theme provider so default Flowbite styling
-       is overridden across buttons, cards, navbars.
-       — (acceptance: storybook-style demo page at `/_dev/tokens` shows skinned primitives;
-       deleted before Phase 5 polish)
+- [x] P0-03: Bootstrap `apps/web` (iter-3, 2026-05-07). H-01/02/03/10 all green.
+- [ ] P0-04: Wire design tokens. **Reduced scope**: brand palette is already in
+       `apps/web/src/app/globals.css` (rescued from web-site, iter-3 confirmed). Remaining work:
+       (1) add semantic aliases (primary/attention/critical/neutral) as additional `@theme` vars,
+       (2) extend `flowbite-theme.ts` to skin Card / Navbar / Badge with the brand colors,
+       (3) build a `/_dev/tokens` route that demos the skinned primitives at all color steps
+       (deleted in P5-06).
 - [ ] P0-05: Base layout + global nav shell (with visible GitHub button) + footer shell.
        — (acceptance: layout renders on `/`, links are placeholder hrefs, GitHub button
        links to https://github.com/microboxlabs/modulariot)
@@ -87,9 +82,10 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [ ] P0-07: Produce a real dark-variant header logo. (iter-2) `headlogo.svg` and
        `headlogo-dark.svg` rescued from web-site are byte-identical — bug in source.
        Likely Phase 1 work; do not ship Phase 1 nav until this is resolved.
-- [ ] P0-08: Generate favicon set (favicon.ico, apple-touch-icon, icon.png at 16/32/192/512,
-       OG card 1200x630). (iter-2) None found in web-site. Source: `logo.svg`. Tooling:
-       `sharp` or `realfavicongenerator`. Schedule before Phase 5 polish.
+- [ ] P0-08: Generate full favicon set. (iter-2/iter-3 update) `favicon.ico` was rescued
+       from web-site in iter-3 and lives at `apps/web/src/app/favicon.ico`. Still missing:
+       `apple-touch-icon.png`, `icon-192/512.png`, OG card 1200x630. Source: `public/brand/logo.svg`.
+       Tooling: `sharp` or `realfavicongenerator`. Schedule before Phase 5 polish.
 - [ ] P3-04: Restyle `showcase/dashboard-map.svg` and `showcase/symptom-timeline.svg`
        to brand palette. (iter-2 discovery) Current colors are generic slate-50/900/red-500;
        must move to blue/yellow/orange/gray brand tokens before P3-03 ships. Belongs in

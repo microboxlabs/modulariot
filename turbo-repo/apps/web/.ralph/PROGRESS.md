@@ -89,4 +89,43 @@ Surprises captured (now BACKLOG tasks):
 Skipped from web-site/public on purpose: `mintral-logo.svg` (client brand), `figma.svg`,
 `flowbite.svg`, `flowbite-react.svg`, `vercel.svg` (third-party).
 
+## iter-3 — 2026-05-07 10:00 — P0-03 (bootstrap apps/web)
+Files (apps/web/):
+- `package.json` (mirrors web-site stack; flowbite-react ^0.12.10 from apps/app; port 3041)
+- `tsconfig.json` (extends @repo/typescript-config/nextjs.json; @/* → ./src/*)
+- `eslint.config.mjs` (mirrors apps/app — flat config + @repo/eslint-config/next-js)
+- `next.config.mjs` (withFlowbiteReact, output=standalone, no basePath, no MDX, no Azure remotes)
+- `postcss.config.mjs`, `prettier.config.mjs`, `.gitignore`
+- `.flowbite-react/{config.json,init.tsx}` (mirrors apps/app, dark+rsc=true)
+- `src/app/{layout.tsx,page.tsx,globals.css,favicon.ico}`
+- `src/features/theme/flowbite-theme.ts` (drops apps/app's sidebar override)
+- `src/features/theme/components/{ThemeDetector.tsx,CookieThemeChecking.ts}`
+
+**Big find**: brand palette tokens (blue/yellow/orange/gray, all 11 stops each) are
+ALREADY defined as Tailwind v4 `@theme` vars in `apps/web-site/app/globals.css`. Mirrored
+verbatim into `apps/web/src/app/globals.css`. P0-04 scope reduced to semantic aliases +
+flowbite-react theme overrides.
+
+**Dependency surprise**: `flowbite-react patch` (postinstall command from web-site/v0.11.7)
+was removed in v0.12+. Removed the postinstall script — apps/app doesn't use it either.
+class-list.json is now generated automatically by the next.config plugin during build/dev.
+
+**Build-time auto-mutation**: the flowbite-react Next plugin rewrites globals.css on first
+build, replacing `@plugin "flowbite-react/plugin/tailwindcss"` with the matching
+`@import` form. Confirmed harmless and re-runnable.
+
+Hard evals:
+- H-01 typecheck ✅ (`turbo run check-types --filter=@modulariot/web`, 1.3s)
+- H-02 lint ✅ (1.4s, 0 errors / 0 warn)
+- H-03 build ✅ (5.5s, 4 routes prerendered as static)
+- H-04 knip — N/A (not in scripts for v1; revisit when codebase has real surface)
+- H-05 bundle budget — N/A (placeholder hero, real check at first content section)
+- H-06..H-09 chrome MCP — DEFERRED to first user-attended iteration (Chrome+extension required)
+- H-10 dev server boots ✅ (turbopack ready in 220ms, GET / → 200, title + Inter font wired)
+
+Soft evals: N/A (placeholder hero only, no narrative/design content yet to score)
+
+Phase 0 status after iter-3: P0-01 ✅ P0-02 ✅ P0-03 ✅ — over halfway. Remaining: P0-04
+(token-skin, reduced scope), P0-05 (nav + footer shells). Then Phase 1.
+
 <!-- iterations append below this line -->

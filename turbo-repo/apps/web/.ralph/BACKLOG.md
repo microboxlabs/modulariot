@@ -41,8 +41,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P5-03: Motion pass (iter-20, 2026-05-07). Hard evals green.
 - [x] P5-04: A11y pass (iter-21, 2026-05-07). Hard evals green. Live axe deferred to user-attended iter.
 - [x] P5-05: Perf pass (iter-22, 2026-05-07). Bundle 764 KB → 644 KB (-120 KB) by removing framer-motion.
-- [ ] P5-06: Delete `/dev/tokens` route from P0-04 (note: actual path uses `dev/`,
-       not `_dev/` — leading underscore is reserved as a private folder in App Router)
+- [x] P5-06: Deleted `/dev/tokens` route (iter-23, 2026-05-07). Build dropped 5→4 routes.
 
 ## Phase 6 — Ops pages (after halt; may roll into next ralph run)
 - [ ] P6-01: `/docs` stub

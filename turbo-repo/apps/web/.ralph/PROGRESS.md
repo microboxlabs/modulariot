@@ -711,4 +711,53 @@ Avg: **9.2** — joint highest with iter-13.
 
 Phase 4 progress: P4-01 ✅ P4-02 ✅. Next: P4-03 community / OSS section (closes Phase 4).
 
+## iter-17 — 2026-05-07 12:21 — P4-03 (community / OSS)
+Files:
+- `apps/web/src/features/marketing/components/community-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes after quick start)
+
+Section structure:
+- Eyebrow "Community" (orange) + headline "Built in public. **Built with operators.**"
+  + sub: "Modular IoT is grown by the people who run real fleets, real telemetry,
+  real control rooms. The code is open, the roadmap is public, the conversation
+  is welcoming."
+- **Honest empty-state contributor strip**: dashed-border card with 5 placeholder
+  avatar circles (gradient blue→orange), "Be one of the first contributors" line,
+  "Star and watch on GitHub" primary CTA. Implements BRIEF's "no fake social proof"
+  rule by *being* the empty state explicitly, not faking population.
+- 3-card "Ways to contribute" grid (1 col mobile, 3 col desktop):
+  - Code: blue chip · "Browse open issues" → /issues
+  - Discuss & shape: yellow chip · "Join the discussion" → /discussions
+  - Steer the roadmap: orange chip · "View the roadmap" → /projects · with
+    voice line "no surprise quarterly drops"
+
+Decisions:
+- Pure RSC, no client state needed for a static contribution-paths page
+- Used color accents per path (blue / yellow / orange) to differentiate the
+  three contribution modes visually — code = data/build (blue), discussion =
+  attention (yellow), roadmap = critical/forward-looking (orange)
+- Placeholder avatars are gradient discs (not generated faces) — communicates
+  "humans coming, none yet" without being deceptive
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (7.0s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — "built in public" + "built with operators" lands BRIEF's
+  open-source-first + grounded-in-real-ops simultaneously
+- S-02 voice: **9/10** — "real fleets, real telemetry, real control rooms" rhythmic
+  triplet; "no surprise quarterly drops" is a specific dig at proprietary roadmaps
+- S-03 design: **9/10** (degraded) — dashed empty-state strip is the cleanest
+  honest-empty-state pattern in the page so far; ring-tinted chips reinforce
+  cross-section consistency
+- S-04 reuse: **9/10** — section header, ring chip pattern, card grid
+- S-05 OSS signal: **10/10** — every link goes to GitHub; explicit star CTA;
+  "code is open, roadmap is public" line
+
+Avg: **9.2** — joint highest with iters 13 and 16.
+
+**Phase 4 complete.** Page narrative arc is now: hero → symptom transform →
+primitives → architecture → domains → compatibility → dashboard → examples →
+quick start → community. **9 sections live, plus chrome.** Phase 5 polish remains.
+
 <!-- iterations append below this line -->

@@ -33,7 +33,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 ## Phase 4 — Developer surface
 - [x] P4-01: Examples gallery (iter-15, 2026-05-07). Hard evals green, soft 9.0 avg.
 - [x] P4-02: Quick start code block (iter-16, 2026-05-07). Hard evals green, soft 9.2 avg.
-- [ ] P4-03: Community / OSS section — GitHub link, contributors strip (placeholder), roadmap stub link
+- [x] P4-03: Community / OSS section (iter-17, 2026-05-07). Hard evals green, soft 9.2 avg.
 
 ## Phase 5 — Polish
 - [ ] P5-01: Final CTA section — three paths: "See it running" / "Read the docs" / "Star on GitHub"

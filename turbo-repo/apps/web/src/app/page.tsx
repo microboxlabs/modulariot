@@ -7,6 +7,7 @@ import { CompatibilityBannerSection } from "@/features/marketing/components/comp
 import { DashboardShowcaseSection } from "@/features/marketing/components/dashboard-showcase-section";
 import { ExamplesGallerySection } from "@/features/marketing/components/examples-gallery-section";
 import { QuickStartSection } from "@/features/marketing/components/quick-start-section";
+import { CommunitySection } from "@/features/marketing/components/community-section";
 
 export default function HomePage() {
   return (
@@ -20,6 +21,7 @@ export default function HomePage() {
       <DashboardShowcaseSection />
       <ExamplesGallerySection />
       <QuickStartSection />
+      <CommunitySection />
     </main>
   );
 }

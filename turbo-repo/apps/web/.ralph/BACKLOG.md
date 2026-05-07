@@ -26,15 +26,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-05: Marquee tenants strip (PA-iter-5, 2026-05-07).
 
-- [ ] PA-06: **Symptom narrative rewrite — dense data flow.**
-       - Replace current 5 prose cards with design's 5-column `symptom-stage` grid
-       - Each step: eyebrow ("01 · CAPTURE"), title, body sentence, then 3-4 monospace
-         data rows with colored row-dots (signal blue, accent blue-light, symptom amber,
-         action green, neutral gray for the 5 stages respectively)
-       - Flow-arrows between columns (absolute positioned at right: -10px, top: 50%)
-       - Bottom: `Insight` pill + footnote ("Symptoms are the operating unit, not alerts")
-       - Pull copy from `design-ref/.../landing/i18n.jsx` t.symptom.steps array
-       - Acceptance: 5 columns on lg+, stacked on <960px, flow-arrows hidden on mobile
+- [x] PA-06: Symptom narrative dense data flow (PA-iter-6, 2026-05-07).
 
 - [ ] PA-07: **Bento rewrite — 6-col with mini-visuals.**
        - Replace current bento with design's `.bento` 6-col grid using span classes:

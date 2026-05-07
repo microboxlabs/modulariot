@@ -1353,4 +1353,50 @@ Avg: 9.0.
 PA progress: PA-01..05 ✅. **5 of 12 alignment iters done.** Next: PA-06 symptom
 narrative (5-col dense data flow with monospace rows + flow-arrows).
 
+## PA-iter-6 — 2026-05-07 — PA-06 (symptom narrative dense data flow)
+Files:
+- `apps/web/src/features/marketing/components/telemetry-symptoms-section.tsx` (REWRITTEN)
+
+Section ID changed: `#symptoms` → `#symptom` to match the nav anchor that PA-02
+already points at.
+
+Layout per design:
+- Section head: eyebrow "The conceptual heart" with brand-blue dot + h2 clamp(30,
+  3.8vw, 46px) "From signals to symptoms to action" + 17px lede max-w 56ch
+- 5-column ordered list (lg+, stacks <lg). Each column = `symptom-step`:
+  - Eyebrow numbered marker: "01 · Capture", "02 · Stream", "03 · Identify",
+    "04 · Orchestrate", "05 · Audit"
+  - Title (16px semibold), body (12px ink-3)
+  - 3-5 monospace data rows with colored 6px row-dot per stage tone:
+    01 #3F83F8 · 02 #76A9FA · 03 #F59E0B · 04 #0E9F6E · 05 #6B7280
+- Flow-arrows between columns (absolute, right:-10px top:50%, lg+ only,
+  hidden on mobile)
+- Bottom Insight callout: chip + "A symptom is not just an alert — it has
+  state, severity, owners, and outcomes." (BRIEF claim verbatim)
+
+Replaced run-1's 5 prose-blurb cards with the design's terminal-style
+data-flow grid. Each row is a real telemetry artifact (`gps.lat 23.6438`,
+`Driver fatigue · open · sev 2`, `compliance: ISO 39001`) — feels like a
+real operations console, not a marketing diagram.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (5.9s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — section IS the symptom-intelligence story; BRIEF
+  claim verbatim in the Insight callout
+- S-02 voice: **10/10** — dispatch-style data rows, sentence case, no SaaS-speak
+- S-03 design coherence: **9/10** — pixel-close to design's `.symptom-stage`
+  rule. Tiny delta: design has a row-flash animation (each row briefly highlights
+  with `--accent-soft` background) — deferred to PA-12 polish if needed
+- S-04 reuse: **9/10** — new FlowArrow inline SVG (matches ArrowRight pattern),
+  brand tokens, section-head pattern from hero
+- S-05 OSS signal: **6/10** — section is purely about the conceptual model; OSS
+  not the focus here. Acceptable per the section's BRIEF role.
+
+Avg: 8.8.
+
+PA progress: PA-01..06 ✅. **6 of 12 alignment iters done — halfway.**
+Next: PA-07 bento rewrite with 6 mini-visuals (the densest single iter remaining).
+
 <!-- iterations append below this line -->

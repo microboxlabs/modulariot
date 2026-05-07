@@ -1564,4 +1564,61 @@ Avg: **9.0**.
 PA progress: PA-01..09 ✅. **9 of 12 alignment iters done.** Next: PA-10 quick-start
 cards (3-up replacing terminal blocks).
 
+## PA-iter-10 — 2026-05-07 — PA-10 (quick start 3-up + ExamplesGallery absorbed)
+Files:
+- `apps/web/src/features/marketing/components/quick-start-section.tsx` (REWRITTEN)
+- `apps/web/src/features/marketing/components/examples-gallery-section.tsx` (DELETED)
+- `apps/web/src/app/page.tsx` (UPDATED — drops ExamplesGallery import + render)
+
+Key insight: design has no separate ExamplesGallery. The quickstart 3-up IS the
+developer surface — it absorbs the role of run-1's 6-card gallery.
+
+Section structure per design `.qs-grid` / `.qs-card`:
+- Eyebrow "Quick start" + h2 "Start monitoring in minutes" + 17px lede
+  ("Templates and reference deployments to skip the integration grind.")
+- 3-up grid (1 col mobile, 3 col lg+) with hover `translateY(-0.5)` and
+  hairline-strong border tint
+- Each card:
+  - 36px square `bg-blue-50 text-blue-600` icon chip (kind-specific SVG)
+  - Title 14.5px semibold
+  - Body 13px ink-3 with flex-1 (fills card)
+  - Footer: top-border + monospace meta + ArrowRight inline SVG
+
+3 cards from design's i18n.jsx t.quickstart.cards (verbatim):
+1. **Helm chart · Kubernetes** — "Deploy the full platform — broker, processor,
+   dashboards — to any K8s cluster." — meta: `modulariot/helm · v0.9.2`
+2. **n8n workflow templates** — "12 ready-made flows: dispatch escalation, ETA
+   recalculation, fatigue protocol." — meta: `templates/n8n · 12 flows`
+3. **Symptom API examples** — "REST + WebSocket clients in TypeScript, Python,
+   Go. Define and observe symptoms." — meta: `examples/symptom-api · 3 langs`
+
+Each card is a `<Link target="_blank">` to the repo root for now (concrete
+example paths come when published; href update is a routine one-liner).
+
+Inline SVG icons drawn for helm (layered chart), n8n (workflow connected
+circles, matches Framework banner pattern), api (code brackets `</>`).
+
+Pure RSC — no animation needed; cards are link surfaces.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (5.7s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — three clear developer paths instead of run-1's
+  "everything's open source!" 6-card overflow
+- S-02 voice: **10/10** — "12 ready-made flows: dispatch escalation, ETA
+  recalculation, fatigue protocol" — every word concrete; no SaaS-speak
+- S-03 design coherence: **10/10** — pixel-close to design's qs-grid + qs-card
+  rules (36px chip, 14.5px title, 13px body, mono meta footer with top border)
+- S-04 reuse: **9/10** — ArrowRight inline SVG (now used in 3 sections),
+  brand tokens, qs-icon pattern
+- S-05 OSS signal: **8/10** — Apache-2.0 not directly mentioned, but each card
+  links to GitHub repo; `modulariot/helm`, `templates/n8n`, `examples/symptom-api`
+  paths imply public artefacts
+
+Avg: 9.2.
+
+PA progress: PA-01..10 ✅. **10 of 12 alignment iters done.** Next: PA-11
+Community + Final CTA + Footer rewrites (the last big section iter).
+
 <!-- iterations append below this line -->

@@ -34,14 +34,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-09: Showcase Kanban + Map + check-list (PA-iter-9, 2026-05-07).
 
-- [ ] PA-10: **Quick start rewrite — 3-up cards (not terminals).**
-       - Replace current terminal-style code panels with design's `.qs-card` 3-up grid
-       - 3 cards: Helm chart · n8n flows · REST API
-       - Each card: 36px square accent-soft icon chip (helm/flow/api icon),
-         title (14.5px semibold), body (13px ink-3), mono meta footer with arrow icon
-       - Cards link out (deferring inline-code; the design treats these as "pick a path"
-         not "copy a snippet")
-       - Acceptance: 3-up on desktop, stacked mobile; hover translateY(-2px) + border tint
+- [x] PA-10: Quick start 3-up cards + ExamplesGallery absorbed (PA-iter-10, 2026-05-07).
 
 - [ ] PA-11: **Community + Final CTA + Footer rewrites.**
        - **Community**: replace current 3-path layout with design's `.community-card`:

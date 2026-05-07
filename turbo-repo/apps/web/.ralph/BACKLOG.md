@@ -28,21 +28,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-06: Symptom narrative dense data flow (PA-iter-6, 2026-05-07).
 
-- [ ] PA-07: **Bento rewrite — 6-col with mini-visuals.**
-       - Replace current bento with design's `.bento` 6-col grid using span classes:
-         `b-3 b-3 b-2 b-2 b-2 b-6`
-       - 6 cards: Symptoms (b-3) · Ingest (b-3) · Orchestrate (b-2) · Dashboards (b-2) ·
-         Evidence (b-2) · Open source (b-6)
-       - Each card: title + body (38ch max-width, 13.5px ink-3), tiny "TAG" pill in
-         top-right (`bg-surface-2 + border-hairline + uppercase`), and a mini-visual
-         in the bottom area:
-         - SymptomVisual: 3 rows with `name · state · sev N` colored dots
-         - IngestVisual: mono API call snippet with accent + ink-4 highlights
-         - OrchestVisual: 3 mono rows with "ok" green tags
-         - DashVisual: 2×2 mini-tile grid with "VJ-48N · NN%" stats
-         - EvidenceVisual: mono log lines with `›` leading char
-         - OssVisual: helm command + green check + GitHub mark in 64px ink-1 box
-       - Acceptance: all 6 mini-visuals render distinctly; layout reflows mobile/tablet/desktop
+- [x] PA-07: Bento rewrite — 6-col with 6 mini-visuals (PA-iter-7, 2026-05-07).
 
 - [ ] PA-08: **Framework banner (NEW, replaces CompatibilityBannerSection).**
        - 8-up icon grid with 1px hairline dividers, rounded-10 outer border

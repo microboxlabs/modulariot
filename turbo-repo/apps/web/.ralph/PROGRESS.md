@@ -1399,4 +1399,62 @@ Avg: 8.8.
 PA progress: PA-01..06 ✅. **6 of 12 alignment iters done — halfway.**
 Next: PA-07 bento rewrite with 6 mini-visuals (the densest single iter remaining).
 
+## PA-iter-7 — 2026-05-07 — PA-07 (bento with 6 mini-visuals)
+Files:
+- `apps/web/src/features/marketing/components/feature-bento-section.tsx` (REWRITTEN)
+
+Section ID `#features` (per design) replaces run-1's `#product`. Already aligned
+with header nav from PA-02.
+
+Layout per design's `.bento` 6-col grid + `b-3 b-3 b-2 b-2 b-2 b-6` spans:
+- Row 1: **Symptom Intelligence** (b-3) · **Real-time ingestion** (b-3)
+- Row 2: **Orchestration** (b-2) · **Live dashboards** (b-2) · **Evidence vault** (b-2)
+- Row 3: **Open-source · BYO cloud** (b-6, full row)
+
+Each card: 240px min-h, 14px corner, hairline border with hairline-strong on hover,
+title (16px semibold) + body (13.5px ink-3 max-w 38ch) + uppercase TAG pill, then
+a unique mini-visual:
+
+1. **SymptomVisual**: 3 stacked rows with colored dot + name + monospace
+   "state · sev N" meta. Symptoms: Driver fatigue (amber sev 2), Geofence exit
+   (rose sev 3), Engine overheat (signal-blue watch).
+2. **IngestVisual**: monospace API-call snippet:
+   `POST /v1/signals` + JSON body in brand-blue + "→ behavior.detected · 47ms"
+3. **OrchestVisual**: 3 monospace rows ("sms → supervisor", "task → tower",
+   "trip.hold ack") each with green "ok" tag.
+4. **DashVisual**: 2×2 mini-tile grid showing trip status — "VJ-48N · NN%"
+   counters with tabular-nums.
+5. **EvidenceVisual**: 4 monospace log lines with `›` leading char and dashed
+   bottom borders ("14:32:08 sms.sent" → "14:32:21 hold.released").
+6. **OssVisual**: split — left side has helm command + green deploy
+   confirmation; right side is a 64px ink-1 box with the GitHub mark.
+
+Each TAG pill: Core · I/O · Workflow · UI · Storage · OSS — from design i18n.
+
+All visuals are pure CSS/JSX, no SVG dependencies. Reuse: brand tokens, monospace
+type, status colors. The OssVisual's GitHub mark is an inline SVG (replaces what
+would have been the FaGithub import — slightly larger but consistent with the
+hero's inline ArrowRight pattern).
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.4s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **10/10** — every primitive shows itself instead of just being
+  named; the cards literally render mini-products. Symptom Intelligence isn't
+  described, it's *demonstrated* as 3 stateful rows with severity.
+- S-02 voice: **9/10** — concrete tags ("Core", "I/O"), real numbers ("47ms",
+  "94%"), real names ("VJ-481", "O. Mendoza")
+- S-03 design coherence: **9/10** — exact span layout, 240px min-h, 14px corners,
+  TAG pill placement, all 6 mini-visuals match design's component definitions
+- S-04 reuse: **9/10** — span helper pattern, brand tokens. The OssVisual GitHub
+  SVG path is inlined; could move to a shared `<GithubMark />` later.
+- S-05 OSS signal: **10/10** — Apache-2.0 callout in body, helm command demo,
+  GitHub mark prominent. The b-6 OSS card is the heaviest visual on the row.
+
+Avg: 9.4 — joint highest with PA-iter-3 hero.
+
+PA progress: PA-01..07 ✅. **7 of 12 alignment iters done.** Next: PA-08 framework
+banner (8-up icon grid, replaces compatibility-banner-section).
+
 <!-- iterations append below this line -->

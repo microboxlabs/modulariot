@@ -1641,6 +1641,8 @@
       "dynamicValuesHint": "Usa la sintaxis {code} para valores dinámicos",
       "defineVariablesHint": "Define variables accesibles mediante {code}",
       "selectIcon": "Seleccionar ícono",
+      "searchIcons": "Buscar íconos…",
+      "noIconsFound": "No se encontraron íconos",
       "titlePlaceholder": "Título de tarjeta o {{data_provider.title}}",
       "valuePlaceholder": "ej., {{data_provider.value}}%",
       "descriptorPlaceholder": "Descripción o {{data_provider.descriptor}}",

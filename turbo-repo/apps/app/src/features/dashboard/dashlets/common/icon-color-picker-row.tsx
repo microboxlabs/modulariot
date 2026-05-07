@@ -34,6 +34,8 @@ export function IconColorPickerRow<TColor extends string>({
           value={icon}
           onChange={(v) => onIconChange(v as DashletIconKey)}
           title={tr("dashboard.settings.icon", dictionary)}
+          searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
+          emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}
         />
       </SettingsPickerItem>
       <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>

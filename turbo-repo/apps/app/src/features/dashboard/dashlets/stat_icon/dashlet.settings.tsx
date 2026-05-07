@@ -197,6 +197,8 @@ export function DashletSettings(
                 value={icon}
                 onChange={(v) => setIcon(v as DashletIconKey)}
                 title={tr("dashboard.settings.selectIcon", dictionary)}
+                searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
+                emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}
               />
               <AdvancedColorPicker
                 value={iconColor}

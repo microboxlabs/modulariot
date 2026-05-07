@@ -51,12 +51,16 @@ function LazyIconCell({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const entry = ICON_REGISTRY[iconKey];
     if (entry) {
-      entry.load().then((mod) => {
-        if (mountedRef.current) setIcon(() => mod.default);
-      });
+      entry.load()
+        .then((mod) => {
+          if (!cancelled && mountedRef.current) setIcon(() => mod.default);
+        })
+        .catch(() => {});
     }
+    return () => { cancelled = true; };
   }, [iconKey]);
 
   const handleMouseEnter = useCallback(() => {
@@ -112,13 +116,15 @@ function LazyIconCell({
 
 interface IconPickerDropdownProps {
   /** Currently selected icon key from the registry */
-  value: string;
+  value: IconKey;
   /** Callback when an icon is selected */
-  onChange: (key: string) => void;
-  /** @deprecated Ignored – icons come from the registry */
-  options?: unknown[];
+  onChange: (key: IconKey) => void;
   /** Tooltip for the trigger */
   title?: string;
+  /** Placeholder text for the search input */
+  searchPlaceholder?: string;
+  /** Message shown when no icons match the search */
+  emptyMessage?: string;
   /** Additional trigger button classes */
   className?: string;
 }
@@ -130,7 +136,9 @@ interface IconPickerDropdownProps {
 export function IconPickerDropdown({
   value,
   onChange,
-  title = "Select icon",
+  title,
+  searchPlaceholder,
+  emptyMessage,
   className,
 }: Readonly<IconPickerDropdownProps>) {
   const { isOpen, position, triggerRef, toggle, close } = usePickerDropdown({
@@ -181,14 +189,18 @@ export function IconPickerDropdown({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const entry = ICON_REGISTRY[value];
     if (entry) {
-      entry.load().then((mod) => {
-        if (mountedRef.current) setSelectedIcon(() => mod.default);
-      });
+      entry.load()
+        .then((mod) => {
+          if (!cancelled && mountedRef.current) setSelectedIcon(() => mod.default);
+        })
+        .catch(() => {});
     } else {
       setSelectedIcon(null);
     }
+    return () => { cancelled = true; };
   }, [value]);
 
   return (
@@ -235,7 +247,7 @@ export function IconPickerDropdown({
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search icons…"
+                  placeholder={searchPlaceholder ?? "Search icons…"}
                   className="w-full pl-7 pr-2 py-1 text-xs rounded-md bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-300"
                 />
               </div>
@@ -245,7 +257,7 @@ export function IconPickerDropdown({
             <div data-icon-grid className="overflow-y-auto overflow-x-hidden flex-1 p-2">
               {filteredKeys.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-4">
-                  No icons found
+                  {emptyMessage ?? "No icons found"}
                 </p>
               ) : (
                 <div

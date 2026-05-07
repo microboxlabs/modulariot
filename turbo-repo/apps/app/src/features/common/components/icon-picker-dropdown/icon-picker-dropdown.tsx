@@ -86,6 +86,7 @@ function LazyIconCell({
     <div ref={cellRef} className="relative group" onMouseEnter={handleMouseEnter}>
       <button
         type="button"
+        aria-label={label}
         onClick={() => onSelect(iconKey)}
         className={twMerge(
           "w-9 h-9 flex items-center justify-center rounded-md transition-colors",

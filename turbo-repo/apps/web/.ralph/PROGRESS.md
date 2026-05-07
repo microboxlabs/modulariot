@@ -578,4 +578,50 @@ Avg: **9.0**.
 
 Phase 3 progress: P3-01 ✅ P3-02 ✅. Next: P3-03 dashboard showcase (last of Phase 3).
 
+## iter-14 — 2026-05-07 12:03 — P3-03 (dashboard showcase)
+Files:
+- `apps/web/src/features/marketing/components/dashboard-showcase-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes showcase after compatibility)
+
+Section structure:
+- Eyebrow "Operations view" (orange) + headline "One glance. **Every active symptom.**"
+- Outer container: gradient card (`from-blue-50 via-white to-orange-50`) with shadow,
+  acting as the dashboard chrome
+- Status chip strip (4 chips with `tabular-nums`): Devices online (1,247) ·
+  Active symptoms (14) · Resolved today (47) · Healthy fleet (98.9%) — each
+  with brand-tinted ring (blue/orange/yellow/gray)
+- Two-canvas grid (lg+: 7/5 split): rescued `dashboard-map.svg` (live fleet map,
+  with pulsing orange "3 incidents in last 5 min" indicator) and
+  `symptom-timeline.svg` (with "14 active" callout)
+- Caption: "Composite mock — your operations view is configurable per fleet, per
+  tenant, and per role. The data behind every visualization stays in your infrastructure."
+
+Decisions:
+- Did NOT restyle the rescued SVGs in this iteration (P3-04 task tracks that).
+  Their slate palette reads acceptably inside the gradient-on-white container.
+- Used `<Image>` with explicit width/height for both SVGs to avoid layout shift
+  (CLS). Both flow `h-auto w-full` for responsive resize.
+- The pulsing dot on the map card adds liveness without expensive animation —
+  pure Tailwind `animate-pulse`, prefers-reduced-motion-aware via the user agent.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.3s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — control-tower view, symptom timeline, evidence trail,
+  realistic operational counters
+- S-02 voice: **9/10** — concrete numbers, configurable framing, no SaaS abstractions
+- S-03 design: **8/10** (degraded) — gradient chrome + ring-tinted chips feels
+  product-grade; SVG slate palette will improve when P3-04 ships
+- S-04 reuse: **9/10** — brand tokens, ring/section patterns; introduces stat chip
+  pattern that final-CTA section could reuse
+- S-05 OSS signal: **7/10** — "data stays in your infrastructure" + tenant-/role-
+  configurable framing imply OSS sovereignty without making it the focus
+
+Avg: **8.4**.
+
+**Phase 3 complete.** Page now carries the full trust-and-showcase arc: domains →
+compatibility → live product mock. Next: Phase 4 developer surface (P4-01 examples
+gallery → P4-02 quick start → P4-03 community).
+
 <!-- iterations append below this line -->

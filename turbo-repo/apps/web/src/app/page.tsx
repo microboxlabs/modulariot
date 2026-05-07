@@ -4,6 +4,7 @@ import { FeatureBentoSection } from "@/features/marketing/components/feature-ben
 import { ArchitectureSection } from "@/features/marketing/components/architecture-section";
 import { DomainStripSection } from "@/features/marketing/components/domain-strip-section";
 import { CompatibilityBannerSection } from "@/features/marketing/components/compatibility-banner-section";
+import { DashboardShowcaseSection } from "@/features/marketing/components/dashboard-showcase-section";
 
 export default function HomePage() {
   return (
@@ -14,6 +15,7 @@ export default function HomePage() {
       <ArchitectureSection />
       <DomainStripSection />
       <CompatibilityBannerSection />
+      <DashboardShowcaseSection />
     </main>
   );
 }

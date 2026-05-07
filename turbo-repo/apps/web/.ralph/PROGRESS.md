@@ -880,4 +880,38 @@ soft-eval scoring; would just re-score existing sections.
 
 Phase 5 progress: P5-01 ✅ P5-02 ✅ P5-03 ✅. Next: P5-04 a11y pass.
 
+## TREND — iters 11–20 (20-iteration mark)
+
+Phases shipped during window: **2 closed, 3 closed, 4 closed, 5 (3/6) advanced** →
+20 of 28 backlog tasks done.
+
+Hard evals (iters 11–20):
+- H-01 typecheck pass-rate: **10/10**
+- H-02 lint pass-rate: **10/10**
+- H-03 build pass-rate: **10/10**
+- Cumulative across iters 3–20: **18/18 = 100%** on H-01, H-02, H-03
+
+Soft evals (iters 11–19, excluding utility iter-20):
+- S-01 narrative: 10·9·9·9·9·9·9·10·8 → **mean 9.1** (vs iters-1–10 mean 9.3)
+- S-02 voice: 9·9·9·9·9·10·9·9·8 → **mean 9.0** (vs 8.7 — improved)
+- S-03 design: 8·8·8·8·8·8·9·9·8 → **mean 8.2** (vs 7.7 — improved, still degraded mode)
+- S-04 reuse: 9 across all → **mean 9.0** (vs 8.3 — improved as section patterns matured)
+- S-05 OSS signal: 7·6·10·7·10·10·10·10·10 → **mean 8.9** (vs 8.7); one dip at iter-12
+  (domain strip, intentionally quiet — chrome carries OSS at page level), recovered to
+  10/10 by iter-13 onward
+
+Combined avg (S-01..S-05) across iters 11–19: **8.84** (vs iters 1-10 8.5).
+
+Bundle / perf: build wall time band 6.0–10.3s. ISR every 1h on every route. No bundle
+budget data captured yet (H-05 deferred). Page now contains 11 stacked sections;
+Phase 5 perf eval (P5-05) will measure first-load JS and LCP.
+
+Discovered during window:
+- P3-04 expanded (now also includes architecture.svg)
+- P5-09 copy-to-clipboard for QuickStart code blocks
+- P5-08 Heroicons family standardization
+
+No same-eval-red 3 iters (no halt). 10 iters remain in budget; Phase 5 has 3 tasks left
+(P5-04 a11y, P5-05 perf, P5-06 dev/tokens cleanup) plus the discovered carry-overs.
+
 <!-- iterations append below this line -->

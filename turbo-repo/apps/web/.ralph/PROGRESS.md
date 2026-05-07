@@ -196,4 +196,36 @@ evaluation; that begins at P1-03 when the real hero ships.
 
 **Phase 0 complete.** Next: Phase 1 (P1-01 promo ribbon → P1-02 GitHub stars → P1-03 hero).
 
+## iter-6 — 2026-05-07 10:25 — P1-01 (promo ribbon)
+Files:
+- `apps/web/src/features/layout/components/promo-ribbon.tsx` (NEW, "use client")
+- `apps/web/src/app/layout.tsx` (UPDATED, mounts ribbon above SiteHeader)
+
+Component:
+- Brand gradient (blue-600 → blue-500 → orange-500) with white type
+- Optional CTA pill ("Explore the repo →" linking to GitHub)
+- Dismiss X stores `miot.promo.ribbon.v1.dismissed=1` in localStorage
+- Versioned storage key (`v1`) so we can revive the ribbon for a future
+  campaign without remembering old dismissals
+- Defaults to visible on initial render so first-time visitors see it; returning
+  dismissed users get a 1-frame FOUC (acceptable per BACKLOG; documented as
+  P5-07 follow-up to swap in an inline-script gate during polish)
+
+Decisions:
+- "use client" is required for localStorage; isolating the dynamic part to a
+  small leaf component avoids dragging the rest of the layout out of RSC
+- Wrapping `localStorage.getItem` and `setItem` in try/catch covers the rare
+  case of disabled storage in private/embedded browsers — silent fallback to
+  always-visible
+
+Hard evals:
+- H-01 typecheck ✅
+- H-02 lint ✅
+- H-03 build ✅ (5 routes, 6.3s with cache miss; ribbon doesn't break SSR)
+
+Soft evals: still N/A — narrative content begins shipping at P1-03 (hero).
+Ribbon is announcement chrome, not the page's narrative.
+
+Phase 1 progress: P1-01 ✅. Next iter picks P1-02 (live GitHub star count).
+
 <!-- iterations append below this line -->

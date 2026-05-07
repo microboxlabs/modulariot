@@ -16,8 +16,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P0-05: Base layout + nav + footer shells (iter-5, 2026-05-07). H-01/02/03 green.
 
 ## Phase 1 — Hero & header (the first impression)
-- [ ] P1-01: Promo ribbon component — dismissible via localStorage, server-renderable
-       — (acceptance: dismissed state persists, no FOUC)
+- [x] P1-01: Promo ribbon (iter-6, 2026-05-07). Hard evals green.
 - [ ] P1-02: Header polish — live GitHub star count fetched at build time
        (`fetch` in a Server Component with `revalidate: 3600`), graceful fallback if rate-limited
 - [ ] P1-03: Hero section — promise + subtext (BRIEF copy) + dual CTA (primary "See it running",
@@ -84,4 +83,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        to brand palette. (iter-2 discovery) Current colors are generic slate-50/900/red-500;
        must move to blue/yellow/orange/gray brand tokens before P3-03 ships. Belongs in
        Phase 3 alongside the dashboard showcase.
+- [ ] P5-07: Replace promo-ribbon localStorage check with an inline-script pattern
+       (matching ThemeModeScript) so returning dismissed visitors get zero FOUC.
+       (iter-6 discovered) Currently 1-frame flicker is acceptable for Phase 1.
 <!-- new tasks discovered mid-iteration get appended here with iter id -->

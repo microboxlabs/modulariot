@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
 import ThemeDetector from "@/features/theme/components/ThemeDetector";
+import { PromoRibbon } from "@/features/layout/components/promo-ribbon";
 import { SiteHeader } from "@/features/layout/components/site-header";
 import { SiteFooter } from "@/features/layout/components/site-footer";
 import "./globals.css";
@@ -31,6 +32,10 @@ export default function RootLayout({
         <ThemeInit />
         <ThemeDetector>
           <div className="flex min-h-screen flex-col">
+            <PromoRibbon
+              message="Modular IoT is open source — early access is now live."
+              cta={{ label: "Explore the repo", href: "https://github.com/microboxlabs/modulariot" }}
+            />
             <SiteHeader />
             <div className="flex-1">{children}</div>
             <SiteFooter />

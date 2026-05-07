@@ -1457,4 +1457,49 @@ Avg: 9.4 — joint highest with PA-iter-3 hero.
 PA progress: PA-01..07 ✅. **7 of 12 alignment iters done.** Next: PA-08 framework
 banner (8-up icon grid, replaces compatibility-banner-section).
 
+## PA-iter-8 — 2026-05-07 — PA-08 (framework banner)
+Files:
+- `apps/web/src/features/marketing/components/framework-banner-section.tsx` (NEW, RSC)
+- `apps/web/src/features/marketing/components/compatibility-banner-section.tsx` (DELETED)
+- `apps/web/src/app/page.tsx` (UPDATED — swap + reposition)
+
+Section structure per design:
+- Border-y hairline strip on bg-surface-1, py-14 padding
+- Centered head: 18px semibold title "Use Modular IoT with any hardware and any
+  cloud" + 14px ink-3 lede "Composable by design. Swap components without
+  rewriting your operational model."
+- 8-up icon grid using the design's hairline-divider trick: outer container has
+  `bg-hairline` and `gap: 1px`, cells have `bg-surface-1` — the 1px gap shows
+  through as a divider. rounded-10 outer border. 4-up below `lg`.
+- 8 items: MQTT · REST · Pulsar · Kafka · Postgres · n8n · AWS·GCP·Azure ·
+  On-prem·Air-gap (per design's i18n). Each cell: 22px stroke icon (one of 5
+  inline SVG kinds — protocol/stream/store/workflow/cloud) + 11.5px label.
+
+Reposition in page.tsx: FrameworkBannerSection now sits **right after
+FeatureBentoSection** per design narrative. The old CompatibilityBannerSection
+file is deleted (was previously between Architecture/Domain and Showcase).
+
+Old run-1 sections still present (will be removed in PA-12):
+- ArchitectureSection (uses deleted /brand/architecture.svg, broken at runtime)
+- DomainStripSection (no broken assets, just duplicates the marquee role)
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.0s, 4 routes, no warnings)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — composability story made visual via 8-cell grid;
+  pairs naturally with the bento above
+- S-02 voice: **9/10** — concise label set, sentence-case head, no SaaS-speak
+- S-03 design coherence: **10/10** — pixel-close to design's `.framework`
+  rule, including the `gap: 1px on hairline bg` divider trick
+- S-04 reuse: **8/10** — new inline SVG icons for the 5 kinds. Could move to
+  shared `<Icon />` if more sections need them; for now inline is fine.
+- S-05 OSS signal: **6/10** — section is composability-focused, OSS not the
+  topic. Score acceptable per scope.
+
+Avg: 8.4.
+
+PA progress: PA-01..08 ✅. **8 of 12 alignment iters done.** Next: PA-09 showcase
+rewrite (Kanban + Map + check-list, replaces DashboardShowcaseSection).
+
 <!-- iterations append below this line -->

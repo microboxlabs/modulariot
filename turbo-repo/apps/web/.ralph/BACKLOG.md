@@ -30,15 +30,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-07: Bento rewrite — 6-col with 6 mini-visuals (PA-iter-7, 2026-05-07).
 
-- [ ] PA-08: **Framework banner (NEW, replaces CompatibilityBannerSection).**
-       - 8-up icon grid with 1px hairline dividers, rounded-10 outer border
-       - Items: protocols (HTTP/REST, MQTT, Kafka, gRPC, Webhooks) and stack (K8s/Helm,
-         docker compose, Postgres+Pulsar) — exact 8 items from design's t.framework.items
-       - Generic SVG icons from design's `iconFor` map (protocol/stream/store/workflow/cloud)
-       - Compact section padding (56px); centered title + lede
-       - Delete `compatibility-banner-section.tsx` after the new section ships and
-         `page.tsx` swaps it in
-       - Acceptance: 8-cell grid on lg+, 4-cell on <960px
+- [x] PA-08: Framework banner replaces CompatibilityBannerSection (PA-iter-8, 2026-05-07).
 
 - [ ] PA-09: **Showcase rewrite — Kanban + Map (replaces DashboardShowcase).**
        - Split layout (1.1fr / 1fr): Kanban mock on left, Map mock + check-list on right

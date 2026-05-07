@@ -41,12 +41,12 @@ cd ecm-srv
 
 ### AI Harness
 
+Managed with [uv](https://docs.astral.sh/uv/) (install via `brew install uv`).
+
 ```bash
 cd miot-harness
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-miot-harness demo "Tell me the story of delivery compliance this month and suggest one dashboard widget."
+uv sync
+uv run miot-harness demo "Tell me the story of delivery compliance this month and suggest one dashboard widget."
 ```
 
 ## Contributing

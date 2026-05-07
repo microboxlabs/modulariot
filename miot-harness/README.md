@@ -42,25 +42,40 @@ application.
 
 ## Setup
 
+This project uses [uv](https://docs.astral.sh/uv/) for environment and
+dependency management. Install uv (`brew install uv` or see the uv docs), then:
+
 ```bash
 cd miot-harness
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+uv sync
 cp .env.example .env
 ```
+
+`uv sync` creates `.venv/`, installs the project plus the `dev` dependency
+group, and pins exact versions in `uv.lock`. Commit `uv.lock` so the harness
+builds reproducibly across machines and CI.
 
 Run the local demo without requiring a model key:
 
 ```bash
-miot-harness demo "Tell me the story of delivery compliance this month and suggest one dashboard widget."
+uv run miot-harness demo "Tell me the story of delivery compliance this month and suggest one dashboard widget."
 ```
 
 Run the API:
 
 ```bash
-uvicorn miot_harness.api.server:create_app --factory --reload
+uv run uvicorn miot_harness.api.server:create_app --factory --reload
 ```
+
+Run the test suite:
+
+```bash
+uv run pytest
+```
+
+Add a runtime dependency with `uv add <pkg>` (e.g. `uv add tavily-python` if
+you wire up a Tavily-backed search tool, per the LangChain Deep Agents
+quickstart). Add a dev-only dependency with `uv add --dev <pkg>`.
 
 ## Design Defaults
 

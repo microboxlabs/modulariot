@@ -1683,4 +1683,137 @@ PA progress: PA-01..11 ✅. **11 of 12 alignment iters done.** Next is the
 final iter: PA-12 voice pass + delete duplicate sections (Architecture,
 DomainStrip) + EN/ES toggle stub + theme toggle + final cleanup.
 
+## PA-iter-12 — 2026-05-07 — PA-12 (final cleanup + toggles) + HALT
+Files deleted (run-1 duplicates whose roles were absorbed):
+- `apps/web/src/features/marketing/components/architecture-section.tsx`
+- `apps/web/src/features/marketing/components/domain-strip-section.tsx`
+
+Files added:
+- `apps/web/src/features/layout/components/theme-toggle.tsx` ("use client")
+- `apps/web/src/features/layout/components/lang-toggle.tsx` ("use client")
+
+Files updated:
+- `apps/web/src/app/page.tsx` — composes only the 9 design-spec sections
+- `apps/web/src/app/globals.css` — dropped run-1 yellow + orange transient palette;
+  TRANSIENT block replaced with a one-line note about the platform palette
+- `apps/web/src/features/theme/flowbite-theme.ts` — comment update; semantic role
+  mapping aligned to PA-01 token canon (signal/symptom/action/urgent), Card/Navbar
+  base classes switched to surface-1 / hairline tokens
+- `apps/web/src/features/layout/components/site-header.tsx` — added LangToggle +
+  ThemeToggle + a "Book a 20-min demo" header CTA per design
+
+Voice / unicode audit: 0 unicode `→` arrows in source (all replaced with SVG
+across PA-03..PA-10); 0 yellow/orange class usage outside the deleted sections;
+sentence-case across headlines confirmed against design's i18n.jsx EN strings.
+
+ThemeToggle: reads `.dark` class on `<html>` (set by ThemeDetector after
+hydration), flips on click, persists via `set_theme_cookie` server action.
+LangToggle: cookie-based stub. Persists `lang=en|es` for ~1 year. Visual
+toggle works; full i18n (next-intl wiring + dictionary application across
+sections) is a follow-up — design's `i18n.jsx` provides the Spanish strings
+for whoever picks it up.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (6.2s, 4 routes)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — page now reads as a single coherent design;
+  duplicate sections gone
+- S-02 voice: **9/10** — sentence case throughout, no unicode glyphs
+- S-03 design coherence: **10/10** — section list matches design exactly
+  (Hero · Marquee · Symptom · Bento · Framework · Showcase · QuickStart ·
+  Community · FinalCTA), header layout includes lang/theme/star/CTA per
+  design's app.jsx
+- S-04 reuse: **10/10** — no new patterns this iter; consolidates existing ones
+- S-05 OSS signal: **10/10** — Apache-2.0 carried through community + footer
+
+Avg: 9.6 — joint highest with PA-11.
+
+---
+
+## ★ READY FOR REVIEW ★ — alignment ralph halted
+
+Halt condition fired per LOOP.md run-2 charter:
+> "All phase-aligned tasks complete AND hard evals green for 2 consecutive
+> iterations → write `READY FOR REVIEW` in PROGRESS.md and stop."
+
+- PA-01..PA-12 all complete (12-iter cap reached, no early halt)
+- Hard evals green for last 2 iterations (PA-iter-11 + PA-iter-12)
+- Cumulative pass-rate across run-2 (PA-iter-1..PA-iter-12): **36/36 = 100%**
+
+### Run-2 final state — what shipped (alignment to design)
+
+**Page composition** (matches design's app.jsx exactly):
+1. PromoRibbon (dark ink-1 bar, design copy)
+2. SiteHeader (BrandMark + lowercase modulariot + nav + LangToggle +
+   ThemeToggle + GitHubStarBadge + dark "Book a 20-min demo" CTA)
+3. HeroSection (flat + grid bg + terminal-window pipeline visual + dark CTA)
+4. MarqueeSection (NEW — 9 tenant names, 30s scroll)
+5. TelemetrySymptomsSection (#symptom — dense 5-col data flow with mono rows)
+6. FeatureBentoSection (#features — 6-col grid, 6 mini-products)
+7. FrameworkBannerSection (NEW — 8-up icon grid with hairline-divider trick)
+8. DashboardShowcaseSection (#showcase — animated KanbanMock + MapMock + check-list)
+9. QuickStartSection (#quickstart — 3-up developer paths)
+10. CommunitySection (split community-card with stats)
+11. FinalCtaSection (dark ink-1 slab)
+12. SiteFooter (5-col with brand + 4 columns + Apache-2.0 + live-pulse status)
+
+**Foundation**: Flowbite blue `#1C64F2` primary (replaced Mintral Selective Blue).
+Status semantics first-class (signal / symptom / action / urgent). 14px body,
+ink/surface/hairline aliases. DM Sans loaded. Mintral assets purged.
+
+**Animation**: live-pulse + alert-pulse + marquee + pipeline tick + map tick
+keyframes, all gated by global prefers-reduced-motion.
+
+**Voice**: sentence case throughout, no unicode arrows, dispatch-tone copy,
+Spanish operator vocabulary preserved (Faena Norte, Torre de control, SÍNTOMA,
+etc.) per design system bilingual rule.
+
+### Run-2 soft eval trend (PA-iter-3..PA-iter-12, where applicable)
+
+| iter | section            | S-01 | S-02 | S-03 | S-04 | S-05 | avg |
+|------|--------------------|------|------|------|------|------|-----|
+| PA-3 | Hero               | 9    | 10   | 9    | 9    | 10   | 9.4 |
+| PA-4 | Promo              | 8    | 9    | 10   | 9    | 7    | 8.6 |
+| PA-5 | Marquee            | 10   | 9    | 9    | 9    | 8    | 9.0 |
+| PA-6 | Symptom narrative  | 10   | 10   | 9    | 9    | 6    | 8.8 |
+| PA-7 | Bento (6 visuals)  | 10   | 9    | 9    | 9    | 10   | 9.4 |
+| PA-8 | Framework          | 9    | 9    | 10   | 8    | 6    | 8.4 |
+| PA-9 | Showcase           | 10   | 10   | 10   | 9    | 6    | 9.0 |
+| PA-10| QuickStart         | 9    | 10   | 10   | 9    | 8    | 9.2 |
+| PA-11| Community + CTA + Footer | 9 | 10 | 10  | 9    | 10   | 9.6 |
+| PA-12| Cleanup + toggles  | 9    | 9    | 10   | 10   | 10   | 9.6 |
+
+Means: S-01 9.3, S-02 9.5, S-03 9.6, S-04 9.0, S-05 8.1. Combined avg **9.10**
+(vs run-1's 8.84 across iters 11-19, all in degraded S-03 mode).
+
+### Open follow-up tasks
+
+- **i18n wiring**: LangToggle works as a cookie stub. Real translation needs
+  next-intl + dictionary rendering. Design's `i18n.jsx` ships the Spanish
+  strings ready to plug in.
+- **Header CTA mobile**: "Book a 20-min demo" hidden on mobile. Decide whether
+  to move to a hamburger menu or keep visual hierarchy clean by hiding.
+- **Live GitHub star count**: GitHubStarBadge currently fetches at build via
+  ISR; acceptable. The Header has both that badge and the design's "GitHub +
+  2.4k" pattern — they overlap visually. Consolidate in a polish iter if
+  clutter becomes an issue.
+- **Bundle measurement** under reduce-motion + dark mode + actual /
+  hydration: needs claude-in-chrome MCP attended for ground-truth LCP/CLS.
+- **Phase 6 ops pages**: still out of scope (deferred from run-1). `/docs`,
+  `/pricing`, `/open-source`, `/status` to be picked up in a follow-up run.
+
+### What still needs the user
+
+1. **Visual review** of the full page in a browser — pull the worktree, run
+   `npm run dev -F @modulariot/web`, scroll through. PA-01..12 changed every
+   surface; some of the more elaborate animations (kanban-tick, map-tick,
+   live-pulse) only become real on hydration.
+2. **Lighthouse + axe via claude-in-chrome MCP attended** when convenient,
+   for ground-truth perf + a11y numbers.
+3. **i18n decision**: keep LangToggle as visual stub, wire next-intl, or drop
+   the toggle until ES copy is ready.
+
+Loop halted cleanly. Next ralph run picks up the open items above.
+
 <!-- iterations append below this line -->

@@ -3,17 +3,21 @@ import { createTheme } from "flowbite-react";
 /**
  * Modular IoT flowbite-react skin.
  *
- * The brand palette in globals.css OVERRIDES Tailwind's default blue/yellow/
- * orange/gray scales — so any flowbite-react component that uses `bg-blue-500`,
- * `text-orange-600`, etc. automatically picks up the brand colors. This file
- * only needs to override defaults that look too "stock flowbite" for the
- * Modular IoT identity (rounder corners, softer borders, brand-tinted shadows).
+ * The platform palette in globals.css overrides Tailwind's default blue
+ * scale to the Flowbite values (#1C64F2 primary). Status semantics live
+ * as `--color-signal / --color-symptom / --color-action / --color-urgent`.
+ *
+ * Marketing sections use design tokens directly (text-ink-1, bg-surface-2,
+ * border-hairline) and don't lean heavily on flowbite primitives. This
+ * skin only nudges the few flowbite components used in the secured
+ * surfaces or in fallback positions.
  *
  * Semantic role mapping (used in copy, not as CSS aliases):
- *   primary    → blue-500   (#0790ff)  — core platform actions, links
- *   attention  → yellow-500 (#ffb300)  — warnings, energy, highlights
- *   critical   → orange-500 (#ff6a14)  — incidents, motion, urgent state
- *   neutral    → gray-500   (#5b6770)  — structure, secondary surfaces
+ *   primary    → blue-600  (#1C64F2)  — core platform actions
+ *   signal     → blue-500  (#3F83F8)  — data in flight
+ *   symptom    → amber-500 (#F59E0B)  — watching / warning
+ *   action     → green-500 (#0E9F6E)  — approved / success
+ *   urgent     → rose-600  (#E11D48)  — alert / critical
  */
 export const flowbiteTheme = createTheme({
   button: {
@@ -21,7 +25,7 @@ export const flowbiteTheme = createTheme({
   },
   card: {
     root: {
-      base: "flex rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900",
+      base: "flex rounded-xl border border-hairline bg-surface-1 dark:border-gray-800 dark:bg-gray-900",
       children: "flex h-full flex-col justify-center gap-3 p-6",
     },
   },
@@ -32,10 +36,10 @@ export const flowbiteTheme = createTheme({
   },
   navbar: {
     root: {
-      base: "border-b border-gray-200 bg-white/80 px-4 py-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/80",
+      base: "border-b border-hairline bg-surface-1/85 px-4 py-3 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/85",
     },
   },
   alert: {
-    base: "flex flex-col gap-2 rounded-xl p-4 text-sm",
+    base: "flex flex-col gap-2 rounded-lg p-4 text-sm",
   },
 });

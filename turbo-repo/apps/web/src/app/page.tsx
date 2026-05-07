@@ -2,8 +2,6 @@ import { HeroSection } from "@/features/marketing/components/hero-section";
 import { MarqueeSection } from "@/features/marketing/components/marquee-section";
 import { TelemetrySymptomsSection } from "@/features/marketing/components/telemetry-symptoms-section";
 import { FeatureBentoSection } from "@/features/marketing/components/feature-bento-section";
-import { ArchitectureSection } from "@/features/marketing/components/architecture-section";
-import { DomainStripSection } from "@/features/marketing/components/domain-strip-section";
 import { FrameworkBannerSection } from "@/features/marketing/components/framework-banner-section";
 import { DashboardShowcaseSection } from "@/features/marketing/components/dashboard-showcase-section";
 import { QuickStartSection } from "@/features/marketing/components/quick-start-section";
@@ -18,8 +16,6 @@ export default function HomePage() {
       <TelemetrySymptomsSection />
       <FeatureBentoSection />
       <FrameworkBannerSection />
-      <ArchitectureSection />
-      <DomainStripSection />
       <DashboardShowcaseSection />
       <QuickStartSection />
       <CommunitySection />

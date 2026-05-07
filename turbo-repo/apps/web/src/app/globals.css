@@ -154,33 +154,6 @@ body {
   }
 }
 
-/* ---------- TRANSIENT (PA-01 → PA-12) ----------
-   Yellow + orange palette stops kept temporarily so still-untouched
-   sections (DomainStrip, FeatureBento orchestration card, hero CSS) keep
-   rendering during PA-02..PA-11 rewrites. PA-12 deletes these stops along
-   with the duplicate sections that depend on them. */
-@theme {
-  --color-yellow-50: #fffde7;
-  --color-yellow-100: #fffac1;
-  --color-yellow-200: #fff186;
-  --color-yellow-300: #ffe141;
-  --color-yellow-400: #ffce0d;
-  --color-yellow-500: #ffb300;
-  --color-yellow-600: #d18900;
-  --color-yellow-700: #a66102;
-  --color-yellow-800: #894b0a;
-  --color-yellow-900: #743e0f;
-  --color-yellow-950: #441f04;
-
-  --color-orange-50: #fff6ed;
-  --color-orange-100: #ffebd4;
-  --color-orange-200: #ffd3a8;
-  --color-orange-300: #ffb470;
-  --color-orange-400: #ff8837;
-  --color-orange-500: #ff6a14;
-  --color-orange-600: #f04c06;
-  --color-orange-700: #c73707;
-  --color-orange-800: #9e2c0e;
-  --color-orange-900: #7f270f;
-  --color-orange-950: #451005;
-}
+/* PA-12 dropped the run-1 yellow + orange palette stops (Mintral-tenant
+   colors). The platform palette is the Flowbite blue scale + the four
+   status semantic tokens (signal/symptom/action/urgent) defined above. */

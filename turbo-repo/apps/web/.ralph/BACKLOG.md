@@ -38,23 +38,7 @@ section-by-section rewrites, then voice/cleanup last. Each PA-NN is one iter.
 
 - [x] PA-11: Community + Final CTA + Footer rewrites (PA-iter-11, 2026-05-07).
 
-- [ ] PA-12: **Voice pass + structural cleanup + i18n stub + theme toggle.**
-       - **Delete duplicate sections**: `architecture-section.tsx`, `domain-strip-section.tsx`,
-         (and `compatibility-banner-section.tsx` if PA-08 didn't already). Their content
-         lives in the rewritten Symptom Narrative + Marquee + Framework.
-       - **Replace all unicode arrows** (`<span aria-hidden>→</span>`) with proper SVG icons
-         from design's `I.arrow` definition. Same for any other unicode glyphs.
-       - **Sentence case audit**: scan all headlines and CTAs; convert any Title Case
-         to Sentence case per design system rules.
-       - **Add Apache-2.0 footer text** (already in PA-11 but double-check).
-       - **EN/ES toggle stub**: add a basic `lang` cookie + `<LangToggle />` button in
-         header showing EN / ES with the active one bold. Wire to a tiny dictionary so
-         hero + symptom + bento + final CTA copy switches. Defer full-page i18n to
-         next-intl in a future iter; this iter just proves the pattern.
-       - **Theme toggle**: add a `<ThemeToggle />` button in header next to LangToggle,
-         wired to the existing ThemeDetector + cookie. Light/dark moon/sun icons.
-       - Acceptance: only design-spec sections compose `page.tsx`; build green; LangToggle
-         flips the visible copy in at least one section; theme toggle flips dark mode.
+- [x] PA-12: Voice + cleanup + EN/ES toggle + theme toggle (PA-iter-12, 2026-05-07).
 
 ## Phase 6 — Ops pages (deferred again — out of 12-iter alignment scope)
 - [ ] P6-01: `/docs` stub

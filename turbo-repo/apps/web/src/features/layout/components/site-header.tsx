@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BrandMark } from "./brand-mark";
 import { GitHubStarBadge } from "./github-star-badge";
+import { LangToggle } from "./lang-toggle";
+import { ThemeToggle } from "./theme-toggle";
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
@@ -36,7 +38,15 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <LangToggle />
+          <ThemeToggle />
           <GitHubStarBadge />
+          <Link
+            href="#final"
+            className="hidden h-[34px] items-center rounded-md border border-ink-1 bg-ink-1 px-3.5 text-[13px] font-medium leading-none text-surface-1 transition-colors hover:bg-ink-2 hover:border-ink-2 sm:inline-flex dark:border-gray-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-200"
+          >
+            Book a 20-min demo
+          </Link>
         </div>
       </div>
     </header>

@@ -407,4 +407,40 @@ Avg: 8.4. All ≥ 7. No regression follow-ups.
 Phase 2 progress: P2-01 ✅ P2-02 ✅. Next: **P2-03 architecture** (closes Phase 2
 narrative core).
 
+## TREND — iters 1–10 (10-iteration mark per LOOP.md)
+
+Phases shipped: **0 ✅, 1 ✅, 2 (2/3) ✅** → 10 of 28 backlog tasks done.
+
+Hard evals (where applicable, iters 3–10):
+- H-01 typecheck pass-rate: **8/8** (100%)
+- H-02 lint pass-rate: **8/8** (100%)
+- H-03 build pass-rate: **8/8** (100%)
+- H-10 dev server boots: ran on iter-3, no regression since
+- H-04 knip / H-05 bundle / H-06–09 chrome-MCP: **deferred** (knip not in scripts;
+  bundle eyeballed via build output; chrome MCP needs Chrome+extension attended)
+
+Soft evals (iters 8–10 only — earlier iters had no narrative content):
+- S-01 narrative: 9, 10, 9 → **mean 9.3**, min 9, max 10
+- S-02 voice: 8, 9, 9 → **mean 8.7**
+- S-03 design: 7, 8, 8 → **mean 7.7** (all in degraded mode without ref)
+- S-04 reuse: 8, 9, 8 → **mean 8.3**
+- S-05 OSS signal: 10, 8, 8 → **mean 8.7**
+
+Bundle / perf: build output reports `Revalidate 1h, Expire 1y` on every route, all
+static prerender, build wall time 5.0–6.9s. No bundle budget data captured yet (H-05
+deferred). First-load JS not measured via the chrome MCP path; will land when Phase 3
+or Phase 5 perf eval runs.
+
+Discovered tasks added during the 10-iter window:
+- P0-06 (BLOCKED on user — design-file ref)
+- P0-07 (real dark headlogo)
+- P0-08 (favicon set generation)
+- P3-04 (showcase SVG restyle)
+- P1-04 (migrate hero CTAs to skinned Button once skin matures)
+- P1-05 (LCP review of framer-motion entrance animations)
+- P5-07 (promo-ribbon inline-script for zero-FOUC)
+- P5-08 (standardize Heroicons family across sections)
+
+No same-eval-red 3 iters (no halt). 20 iters remain in budget.
+
 <!-- iterations append below this line -->

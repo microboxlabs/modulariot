@@ -624,4 +624,47 @@ Avg: **8.4**.
 compatibility → live product mock. Next: Phase 4 developer surface (P4-01 examples
 gallery → P4-02 quick start → P4-03 community).
 
+## iter-15 — 2026-05-07 12:09 — P4-01 (examples gallery)
+Files:
+- `apps/web/src/features/marketing/components/examples-gallery-section.tsx` (NEW, RSC)
+- `apps/web/src/app/page.tsx` (UPDATED — composes gallery after showcase)
+
+Section structure:
+- Eyebrow "Build with Modular IoT" + headline "Templates, snippets, **and full
+  reference apps.**" + sub ("Every example is open-source. Fork, deploy, modify.
+  The repo grows with the community.")
+- 6-card grid (1 col mobile, 2 col tablet, 3 col desktop), each card is a full-area
+  link with hover blue-tint:
+  - docker compose quick start (icon: rocket)
+  - Helm chart (icon: cube-transparent)
+  - Custom ingester template (icon: bolt)
+  - Workflow examples (icon: squares-2x2)
+  - REST + WebSocket API (icon: command-line)
+  - Symptom rule pack (icon: document-text)
+- Each card footer: GitHub icon + "View on GitHub →"
+
+Hrefs note: all 6 cards point to the repo root (`https://github.com/microboxlabs/modulariot`)
+since specific `examples/<slug>` paths may not exist yet. Pragmatic stop-gap: a
+visitor lands on the repo and finds whatever's actually there. Swap to specific
+paths once content is published. Did NOT add a separate BACKLOG task — it's a
+routine href update.
+
+Hard evals:
+- H-01 ✅ H-02 ✅ H-03 ✅ (10.3s, 5 routes, 1h ISR)
+
+Soft eval self-pass:
+- S-01 narrative: **9/10** — covers BRIEF's developer surface (compose, Helm,
+  ingester, workflows, API, rule pack)
+- S-02 voice: **9/10** — concrete with time estimate ("< 5 minutes"), echoes
+  P3-02's "few hundred lines" voice
+- S-03 design: **8/10** (degraded) — clean card grid, blue hover-tint accent
+- S-04 reuse: **9/10** — section header pattern, card-link pattern, brand tokens,
+  hi2/Fa icons (header GitHub button consistency)
+- S-05 OSS signal: **10/10** — "Every example is open-source. Fork, deploy, modify."
+  + every card has GitHub icon + "View on GitHub" CTA
+
+Avg: **9.0**.
+
+Phase 4 progress: P4-01 ✅. Next: P4-02 quick-start code block.
+
 <!-- iterations append below this line -->

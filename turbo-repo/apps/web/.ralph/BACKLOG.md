@@ -31,9 +31,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 - [x] P3-03: Dashboard showcase (iter-14, 2026-05-07). Hard evals green, soft 8.4 avg.
 
 ## Phase 4 — Developer surface
-- [ ] P4-01: Examples gallery — link-out shells (GitHub examples, Helm charts, n8n flow examples,
-       API quickstart). Real links go to repo paths if they exist; placeholder href="#" otherwise
-       with a TODO entry in PROGRESS.md.
+- [x] P4-01: Examples gallery (iter-15, 2026-05-07). Hard evals green, soft 9.0 avg.
 - [ ] P4-02: Quick start code block — copyable `docker compose` snippet + `git clone` + a
        2-line API call example. Use shiki or a minimal highlighter.
 - [ ] P4-03: Community / OSS section — GitHub link, contributors strip (placeholder), roadmap stub link

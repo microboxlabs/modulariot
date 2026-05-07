@@ -8,6 +8,15 @@ description: Ordered, phased task queue for the ralph loop. Top unblocked task i
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[!]` blocked
 Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
+## Phase A — Design alignment (run-2 charter)
+Awaiting design reference at `apps/web/.ralph/design-ref/`. PA-01..PA-12 will be
+populated by an iter-0 diff once the reference is in place. The diff agent reads
+each existing section against the matching design section and writes a focused
+adjustment task per delta cluster (one PA-NN per section, max 12).
+
+- [!] PA-00: Diff current implementation against `apps/web/.ralph/design-ref/`
+       to populate PA-01..PA-12. **BLOCKED on user dropping the export.**
+
 ## Phase 0 — Foundation (must finish before Phase 1)
 - [x] P0-01: Audit `apps/app` → write `STACK.md` (iter-1, 2026-05-07)
 - [x] P0-02: Rescue brand assets from `apps/web-site` (iter-2, 2026-05-07)

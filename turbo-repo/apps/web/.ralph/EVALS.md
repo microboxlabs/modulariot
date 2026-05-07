@@ -41,7 +41,8 @@ relevant BRIEF.md excerpt only — not the full conversation.
 |------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | S-01 | Narrative fidelity | "Reading only the changed section, does the visitor learn one of BRIEF.md's core ideas (symptom intelligence / OSS-first / modular / real-time / operational evidence)? Score 0-10 and name which idea." |
 | S-02 | Voice              | "Is the copy serious-but-not-corporate, technical-but-understandable per BRIEF? Flag every line that reads as generic SaaS. Score 0-10."                                          |
-| S-03 | Design coherence   | "Compare the screenshot to the Modular IoT design file (link in PROGRESS.md). Score visual alignment 0-10. List the top 3 specific deltas with element names."                    |
+| S-03 | Design coherence   | "Compare the screenshot to the design reference at `apps/web/.ralph/design-ref/`. Score visual alignment 0-10. List the top 3 specific deltas with element names." **DISABLE this eval entirely if design-ref/ is empty or missing — record `S-03: SKIPPED (no ref)` instead of a fake number.** |
+| S-06 | Design diff        | "For the changed section only, list the top 3 visual deltas vs the corresponding section in `apps/web/.ralph/design-ref/`. Each delta as `<element>: <observed> → <design says>`. These deltas auto-generate next-iter BACKLOG entries." Only runs if design-ref/ exists. |
 | S-04 | Reuse discipline   | "Did this iteration use existing apps/app primitives, or invent new ones? Cite specific filenames and components. Score 0-10."                                                    |
 | S-05 | OSS signal         | "Is the open-source identity visible in this section (badge, repo link, deployable banner, license callout, contributor reference)? Score 0-10."                                  |
 

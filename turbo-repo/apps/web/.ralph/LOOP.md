@@ -64,10 +64,13 @@ Tells the symptom-intelligence story per `BRIEF.md`.
   write `BLOCKER: design-file-fetch` in PROGRESS.md and ask the user for an export.
 
 ## Halt conditions (loop stops, hands back to user)
-- Phases 0–5 complete AND hard evals green for 2 consecutive iterations → write
-  `READY FOR REVIEW` in PROGRESS.md and stop.
+- All phase-aligned tasks complete AND hard evals green for 2 consecutive iterations
+  → write `READY FOR REVIEW` in PROGRESS.md and stop.
 - Same hard eval red 3 iterations running → write `BLOCKER: <eval>` and stop.
-- Iteration counter reaches 30 → stop regardless.
+- **Any BACKLOG task in `[!]` BLOCKED state for more than 2 iterations → halt**
+  with `BLOCKER STUCK: <task-id>` so the user can unblock. Do NOT march past.
+- **Iteration counter reaches 12** → stop regardless. (Tightened from 30 in the
+  alignment-run charter; smaller batches force more user check-ins.)
 - User-set token budget exceeded → stop.
 
 ## Decision principles (when soft evals or codex disagree)

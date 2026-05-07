@@ -1791,6 +1791,47 @@ export async function cancelBooking(bookingId: string): Promise<void> {
   }
 }
 
+/** Stage values accepted by the coordinator's calendar binding webscript. */
+export type CalendarBindingStage =
+  | "planned"
+  | "assigned"
+  | "unassigned"
+  | "none";
+
+/**
+ * Tell the coordinator that a (service, calendar) binding changed. Used
+ * for ops fired from the client *after* a separate API call (cancel,
+ * calendar-change, unassign) — the bookings POST flow handles its own
+ * binding update inline.
+ *
+ * Tuple fields are only honoured by the coordinator when stage="assigned".
+ */
+export async function notifyCalendarBinding(payload: {
+  numero_servicio: string;
+  calendar_id: string;
+  stage: CalendarBindingStage;
+  tipo_servicio?: string;
+  carrier_id?: string;
+  driver_id?: string;
+  driver2_id?: string | null;
+  truck_id?: string;
+  trailer_id?: string | null;
+}): Promise<void> {
+  const response = await fetch("/app/api/calendar/binding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const message =
+      typeof err.error === "string"
+        ? err.error
+        : "Calendar binding update failed";
+    throw new Error(message);
+  }
+}
+
 const BookingListResponseSchema = z.object({
   data: z.array(
     z.object({

@@ -29,6 +29,7 @@ import {
   listBookings,
   updateServiceCategory,
   advanceWorkflowTask,
+  notifyCalendarBinding,
 } from "@/features/common/providers/client-api.provider";
 import type { BookingTaskAdvance } from "@/features/common/providers/client-api.provider";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
@@ -1711,6 +1712,21 @@ export function PlanningSelectionProvider({
         });
       }
 
+      // Tell the coordinator the service is no longer in this calendar.
+      // Best-effort: a failure here just leaves a stale binding row in
+      // act_ru_variable, which the next planner action on this calendar
+      // will overwrite. Don't block the user-visible removal on it.
+      const numeroServicio = planned?.service.mintral_serviceCode;
+      if (numeroServicio && calendarId) {
+        await notifyCalendarBinding({
+          numero_servicio: numeroServicio,
+          calendar_id: calendarId,
+          stage: "none",
+        }).catch((err) =>
+          console.warn("Failed to notify calendar binding (none):", err)
+        );
+      }
+
       // Remove from local state
       setPlannedServices((prev) =>
         prev.filter((p) => p.service.id !== serviceId)
@@ -1719,7 +1735,7 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask]
+    [bookingIds, plannedServices, getLiveTask, calendarId]
   );
 
   /**

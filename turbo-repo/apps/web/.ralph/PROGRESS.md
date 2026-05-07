@@ -71,4 +71,22 @@ Key findings worth flagging for future iterations:
 - Ask the user (NEXT TIME they engage): export the design HTML/screenshots to
   `apps/web/.ralph/design-ref/` so S-03 can resume with a real comparator.
 
+## iter-2 — 2026-05-07 09:53 — P0-02 (rescue brand assets from apps/web-site)
+Files:
+- `apps/web/public/brand/{logo,headlogo,headlogo-dark,hero-pipeline,architecture,pattern-light,pattern-dark}.svg` (rescued)
+- `apps/web/public/brand/showcase/{dashboard-map,symptom-timeline}.svg` (rescued + renamed from .png)
+- `apps/web/public/brand/README.md` (provenance + warnings)
+
+Hard evals: N/A (still no app to build)
+Soft evals: N/A
+
+Surprises captured (now BACKLOG tasks):
+- P0-07: `headlogo.svg` and `headlogo-dark.svg` are byte-identical in source — need real dark variant
+- P0-08: no favicon set in web-site → must generate from `logo.svg` before Phase 5
+- P3-04: `showcase/*.png` files were SVG mislabeled — now `.svg`. Their palette is generic slate;
+  must restyle to brand tokens before shipping P3-03.
+
+Skipped from web-site/public on purpose: `mintral-logo.svg` (client brand), `figma.svg`,
+`flowbite.svg`, `flowbite-react.svg`, `vercel.svg` (third-party).
+
 <!-- iterations append below this line -->

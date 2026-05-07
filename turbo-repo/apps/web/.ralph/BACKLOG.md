@@ -10,10 +10,7 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
 
 ## Phase 0 — Foundation (must finish before Phase 1)
 - [x] P0-01: Audit `apps/app` → write `STACK.md` (iter-1, 2026-05-07)
-- [ ] P0-02: Audit `apps/web-site` → rescue brand assets to `apps/web/public/brand/`
-       (logo svgs, favicons, social images, owl mascot if any)
-       — (acceptance: assets committed under apps/web/public/brand/, with a README.md
-       documenting their provenance and intended usage)
+- [x] P0-02: Rescue brand assets from `apps/web-site` (iter-2, 2026-05-07)
 - [ ] P0-03: Bootstrap `apps/web` (workspace `@modulariot/web`) by mirroring
        `apps/web-site/package.json` (Next 16, React 19, Tailwind v4, flowbite-react,
        framer-motion, server-only). Use port 3041. Add `check-types`, `lint`, `build`,
@@ -87,4 +84,14 @@ Format: `- [STATUS] PHASE-NN: title — (acceptance: ...)`
        design URL. Ask user to drop an HTML/screenshot export at
        `apps/web/.ralph/design-ref/`. Until then S-03 is downgraded to brief-alignment
        only. **BLOCKED on user**.
+- [ ] P0-07: Produce a real dark-variant header logo. (iter-2) `headlogo.svg` and
+       `headlogo-dark.svg` rescued from web-site are byte-identical — bug in source.
+       Likely Phase 1 work; do not ship Phase 1 nav until this is resolved.
+- [ ] P0-08: Generate favicon set (favicon.ico, apple-touch-icon, icon.png at 16/32/192/512,
+       OG card 1200x630). (iter-2) None found in web-site. Source: `logo.svg`. Tooling:
+       `sharp` or `realfavicongenerator`. Schedule before Phase 5 polish.
+- [ ] P3-04: Restyle `showcase/dashboard-map.svg` and `showcase/symptom-timeline.svg`
+       to brand palette. (iter-2 discovery) Current colors are generic slate-50/900/red-500;
+       must move to blue/yellow/orange/gray brand tokens before P3-03 ships. Belongs in
+       Phase 3 alongside the dashboard showcase.
 <!-- new tasks discovered mid-iteration get appended here with iter id -->

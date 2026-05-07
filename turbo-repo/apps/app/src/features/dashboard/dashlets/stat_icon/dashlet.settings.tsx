@@ -194,7 +194,7 @@ export function DashletSettings(
             >
               <IconPickerDropdown
                 value={icon}
-                onChange={(v) => setIcon(v)}
+                onChange={setIcon}
                 title={tr("dashboard.settings.selectIcon", dictionary)}
                 searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
                 emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}

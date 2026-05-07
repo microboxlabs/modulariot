@@ -226,6 +226,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     refreshIntervalMs
   );
 
+  const iconKey = config.icon ?? "cart";
+  const IconComponent = useIconFromKey(iconKey);
+
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
@@ -236,7 +239,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const cardVariant: CardVariant = config.cardVariant ?? "horizontal";
   const showIcon = config.showIcon !== false;
-  const iconKey = config.icon ?? "cart";
   const iconColorHex = config.iconColor ?? "3b82f6";
   const showBgColor = config.showBgColor === true;
   const bgColorHex = config.bgColor ?? "3b82f6";
@@ -248,7 +250,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const showGoTo = config.showGoTo === true;
   const goToUrl = normalizeGoToUrl(resolved.goToUrl ?? "");
   const hasGoToLink = showGoTo && goToUrl.length > 0;
-  const IconComponent = useIconFromKey(iconKey);
 
   // Evaluate value color rules
   const valueColorRulesConfig = normalizeValueColorRulesConfig(

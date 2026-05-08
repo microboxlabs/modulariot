@@ -1,0 +1,51 @@
+/* preview card shared styles — used by /preview/*.html */
+@import url("../colors_and_type.css");
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  color: var(--fg-1);
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+.card {
+  width: 700px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.card.flush { padding: 0; }
+.row { display: flex; gap: 12px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.grid { display: grid; gap: 8px; }
+.swatch {
+  border-radius: var(--radius-md);
+  height: 72px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+.swatch .hex {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.4);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.swatch.light .hex { color: #111; background: rgba(255,255,255,0.7); }
+.swatch .name {
+  position: absolute; top: 6px; left: 8px;
+  font-size: 10px; font-weight: 600; color: #fff;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.swatch.light .name { color: #111; }
+.label { font-size: 11px; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.06em; }

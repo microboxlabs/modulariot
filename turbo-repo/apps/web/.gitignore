@@ -1,0 +1,17 @@
+# next
+.next/
+out/
+next-env.d.ts
+
+# build artefacts
+dist/
+
+# env
+.env*.local
+
+# misc
+.DS_Store
+*.tsbuildinfo
+
+# flowbite-react auto-generated (rebuilt by postinstall)
+.flowbite-react/class-list.json

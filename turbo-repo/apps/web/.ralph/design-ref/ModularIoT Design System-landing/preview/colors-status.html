@@ -1,0 +1,153 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .eyebrow { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-3); margin:0 0 6px; }
+  .sub { font-size:12px; color:var(--fg-3); margin:2px 0 12px; line-height:1.5; }
+  .row { display:grid; grid-template-columns:140px 1fr 200px; gap:12px; align-items:stretch; margin-top:14px; }
+  .row:first-of-type { margin-top:0; }
+  .head { padding:10px 12px; border:1px solid var(--border-subtle); border-radius:8px; background:var(--bg-2); display:flex; flex-direction:column; justify-content:space-between; }
+  .head .t { font-size:13px; font-weight:600; color:var(--fg-1); }
+  .head .h { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--fg-3); margin-top:4px; }
+  .head .u { font-size:11px; color:var(--fg-2); line-height:1.4; margin-top:8px; }
+  .ramp { display:grid; grid-template-columns:repeat(11, 1fr); border:1px solid var(--border-subtle); border-radius:8px; overflow:hidden; }
+  .step { height:56px; display:flex; flex-direction:column; justify-content:flex-end; padding:5px 6px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9.5px; line-height:1.2; }
+  .step b { display:block; font-family:Inter,system-ui,sans-serif; font-weight:600; font-size:10px; letter-spacing:.02em; opacity:.9; }
+  .anchor { outline:2px solid #111; outline-offset:-2px; }
+  .badges { display:flex; flex-direction:column; gap:6px; align-items:flex-start; justify-content:center; padding:10px 12px; border:1px solid var(--border-subtle); border-radius:8px; background:#fff; }
+  .pill { padding:2px 10px; border-radius:999px; font-size:11px; font-weight:500; }
+  .meta { font-size:10px; color:var(--fg-3); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .note { margin-top:18px; padding:12px 14px; background:var(--bg-2); border:1px solid var(--border-subtle); border-radius:8px; font-size:12px; color:var(--fg-2); line-height:1.55; }
+  .note strong { color:var(--fg-1); }
+</style>
+</head>
+<body>
+<div class="card" style="background:#fff;">
+
+  <p class="eyebrow">Status ramps — derived from Success <code>#008A2E</code></p>
+  <p class="sub">A single anchor drives all four status families: pick hue, hold saturation ≈ 100% and lightness ≈ 27% at the <b>600</b> step, scale the rest. Anchor step outlined in black.</p>
+
+  <!-- SUCCESS -->
+  <div class="row">
+    <div class="head">
+      <div>
+        <div class="t">Success</div>
+        <div class="h">hsl(144, 100%, 27%)</div>
+      </div>
+      <div class="u">Completed trip, approved signature, safe condition.</div>
+    </div>
+    <div class="ramp">
+      <div class="step" style="background:#E6F8EC;color:#00260D;"><b>50</b>#E6F8EC</div>
+      <div class="step" style="background:#BFEECF;color:#00260D;"><b>100</b>#BFEECF</div>
+      <div class="step" style="background:#8CDDAA;color:#00260D;"><b>200</b>#8CDDAA</div>
+      <div class="step" style="background:#4EC97E;color:#00260D;"><b>300</b>#4EC97E</div>
+      <div class="step" style="background:#18B254;color:#fff;"><b>400</b>#18B254</div>
+      <div class="step" style="background:#009B39;color:#fff;"><b>500</b>#009B39</div>
+      <div class="step anchor" style="background:#008A2E;color:#fff;"><b>600</b>#008A2E</div>
+      <div class="step" style="background:#007526;color:#fff;"><b>700</b>#007526</div>
+      <div class="step" style="background:#00601F;color:#fff;"><b>800</b>#00601F</div>
+      <div class="step" style="background:#004B18;color:#fff;"><b>900</b>#004B18</div>
+      <div class="step" style="background:#00260D;color:#fff;"><b>950</b>#00260D</div>
+    </div>
+    <div class="badges">
+      <span class="pill" style="background:#E6F8EC;color:#007526;">Aprobada</span>
+      <span class="meta">bg 50 · text 700</span>
+    </div>
+  </div>
+
+  <!-- WARNING -->
+  <div class="row">
+    <div class="head">
+      <div>
+        <div class="t">Warning</div>
+        <div class="h">hsl(32, 100%, 27%)</div>
+      </div>
+      <div class="u">Pending dispatcher review, awaiting signature.</div>
+    </div>
+    <div class="ramp">
+      <div class="step" style="background:#FFF3E4;color:#2E1700;"><b>50</b>#FFF3E4</div>
+      <div class="step" style="background:#FFE0B8;color:#2E1700;"><b>100</b>#FFE0B8</div>
+      <div class="step" style="background:#FFC377;color:#2E1700;"><b>200</b>#FFC377</div>
+      <div class="step" style="background:#FFA436;color:#2E1700;"><b>300</b>#FFA436</div>
+      <div class="step" style="background:#F08A00;color:#fff;"><b>400</b>#F08A00</div>
+      <div class="step" style="background:#C87100;color:#fff;"><b>500</b>#C87100</div>
+      <div class="step anchor" style="background:#8A4F00;color:#fff;"><b>600</b>#8A4F00</div>
+      <div class="step" style="background:#754300;color:#fff;"><b>700</b>#754300</div>
+      <div class="step" style="background:#5E3600;color:#fff;"><b>800</b>#5E3600</div>
+      <div class="step" style="background:#4A2A00;color:#fff;"><b>900</b>#4A2A00</div>
+      <div class="step" style="background:#2E1700;color:#fff;"><b>950</b>#2E1700</div>
+    </div>
+    <div class="badges">
+      <span class="pill" style="background:#FFF3E4;color:#8A4F00;">Pendiente</span>
+      <span class="meta">bg 50 · text 600</span>
+    </div>
+  </div>
+
+  <!-- DANGER -->
+  <div class="row">
+    <div class="head">
+      <div>
+        <div class="t">Danger</div>
+        <div class="h">hsl(0, 100%, 27%)</div>
+      </div>
+      <div class="u">Rejected, failed signature, driver blocked.</div>
+    </div>
+    <div class="ramp">
+      <div class="step" style="background:#FDE6E6;color:#260000;"><b>50</b>#FDE6E6</div>
+      <div class="step" style="background:#F8BFBF;color:#260000;"><b>100</b>#F8BFBF</div>
+      <div class="step" style="background:#F08C8C;color:#260000;"><b>200</b>#F08C8C</div>
+      <div class="step" style="background:#E55353;color:#fff;"><b>300</b>#E55353</div>
+      <div class="step" style="background:#D21F1F;color:#fff;"><b>400</b>#D21F1F</div>
+      <div class="step" style="background:#B50000;color:#fff;"><b>500</b>#B50000</div>
+      <div class="step anchor" style="background:#8A0000;color:#fff;"><b>600</b>#8A0000</div>
+      <div class="step" style="background:#750000;color:#fff;"><b>700</b>#750000</div>
+      <div class="step" style="background:#600000;color:#fff;"><b>800</b>#600000</div>
+      <div class="step" style="background:#4B0000;color:#fff;"><b>900</b>#4B0000</div>
+      <div class="step" style="background:#260000;color:#fff;"><b>950</b>#260000</div>
+    </div>
+    <div class="badges">
+      <span class="pill" style="background:#FDE6E6;color:#8A0000;">Rechazada</span>
+      <span class="meta">bg 50 · text 600</span>
+    </div>
+  </div>
+
+  <!-- INFO -->
+  <div class="row">
+    <div class="head">
+      <div>
+        <div class="t">Info</div>
+        <div class="h">hsl(214, 100%, 27%)</div>
+      </div>
+      <div class="u">In-progress trip, live status, informational nudge.</div>
+    </div>
+    <div class="ramp">
+      <div class="step" style="background:#E6F0FC;color:#00122E;"><b>50</b>#E6F0FC</div>
+      <div class="step" style="background:#BFD6F7;color:#00122E;"><b>100</b>#BFD6F7</div>
+      <div class="step" style="background:#8CB7F0;color:#00122E;"><b>200</b>#8CB7F0</div>
+      <div class="step" style="background:#5094E9;color:#fff;"><b>300</b>#5094E9</div>
+      <div class="step" style="background:#1E72D9;color:#fff;"><b>400</b>#1E72D9</div>
+      <div class="step" style="background:#0058B8;color:#fff;"><b>500</b>#0058B8</div>
+      <div class="step anchor" style="background:#00468A;color:#fff;"><b>600</b>#00468A</div>
+      <div class="step" style="background:#003B75;color:#fff;"><b>700</b>#003B75</div>
+      <div class="step" style="background:#00305F;color:#fff;"><b>800</b>#00305F</div>
+      <div class="step" style="background:#00254A;color:#fff;"><b>900</b>#00254A</div>
+      <div class="step" style="background:#00122E;color:#fff;"><b>950</b>#00122E</div>
+    </div>
+    <div class="badges">
+      <span class="pill" style="background:#E6F0FC;color:#00468A;">En curso</span>
+      <span class="meta">bg 50 · text 600</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Derivation.</strong> Success <code>#008A2E</code> anchors at
+    <code>hsl(144, 100%, 27%)</code>. The other three hues (Warning 32°,
+    Danger 0°, Info 214°) inherit the same saturation and lightness at step
+    <b>600</b>, then ramp by holding saturation and scaling L from 95→5%.
+    This keeps the four families at matched visual weight — a <em>success</em>
+    badge and a <em>danger</em> badge read as equals, not as one shouting
+    over the other. Default badge styling is <code>bg&nbsp;50</code> with
+    <code>text&nbsp;600/700</code>.
+  </div>
+
+</div>
+</body></html>

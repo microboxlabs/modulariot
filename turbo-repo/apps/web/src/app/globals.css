@@ -1,0 +1,159 @@
+@import "tailwindcss";
+@import "flowbite-react/plugin/tailwindcss";
+@source "../../.flowbite-react/class-list.json";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Modular IoT — design system tokens (run-2 alignment, PA-01)
+   Source of truth: apps/web/.ralph/design-ref/.../landing/{tokens,landing}.css
+   - Platform palette only. Mintral-tenant yellow is NOT here.
+   - Status semantics are first-class.
+   - Body 14px (operator-density), gray ramp from Flowbite.
+   ============================================================ */
+@theme {
+  /* ---------- Primary: Flowbite blue ----------
+     blue-600 is the primary CTA, blue-700 the hover state. blue-500 doubles
+     as the "signal" status color (data in flight). */
+  --color-blue-50: #EBF5FF;
+  --color-blue-100: #E1EFFE;
+  --color-blue-200: #C3DDFD;
+  --color-blue-300: #A4CAFE;
+  --color-blue-400: #76A9FA;
+  --color-blue-500: #3F83F8;
+  --color-blue-600: #1C64F2; /* primary CTA */
+  --color-blue-700: #1A56DB; /* hover */
+  --color-blue-800: #1E429F;
+  --color-blue-900: #233876;
+  --color-blue-950: #1A2A52;
+
+  /* ---------- Neutrals: Flowbite gray ramp ---------- */
+  --color-gray-50:  #F9FAFB;
+  --color-gray-100: #F3F4F6;
+  --color-gray-200: #E5E7EB;
+  --color-gray-300: #D1D5DB;
+  --color-gray-400: #9CA3AF;
+  --color-gray-500: #6B7280;
+  --color-gray-600: #4B5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1F2A37;
+  --color-gray-900: #111928;
+  --color-gray-950: #0B1220;
+
+  /* ---------- Status semantics (cross-tenant, fixed) ----------
+     These are operator-product status colors. Available as `bg-signal`,
+     `text-symptom`, `ring-action`, `bg-urgent`, etc. */
+  --color-signal:  #3F83F8;  /* data in flight (= blue-500) */
+  --color-symptom: #F59E0B;  /* watching / amber warning */
+  --color-action:  #0E9F6E;  /* approved / success */
+  --color-urgent:  #E11D48;  /* alert / rose-600 */
+
+  /* ---------- Status amber + green + rose stops (used by badges/alerts) ---------- */
+  --color-amber-50:  #FFFBEB;
+  --color-amber-100: #FEF3C7;
+  --color-amber-500: #F59E0B;
+  --color-amber-600: #D97706;
+  --color-amber-700: #B45309;
+
+  --color-green-50:  #F3FAF7;
+  --color-green-100: #DEF7EC;
+  --color-green-500: #0E9F6E;
+  --color-green-700: #046C4E;
+
+  --color-rose-50:  #FFF1F2;
+  --color-rose-100: #FFE4E6;
+  --color-rose-500: #F43F5E;
+  --color-rose-600: #E11D48;
+  --color-rose-700: #BE123C;
+
+  /* ---------- Surface + text aliases (named after design's landing.css) ----------
+     Available as `bg-surface-1`, `text-ink-2`, `border-hairline`, etc. */
+  --color-surface-1: #FFFFFF;          /* canvas */
+  --color-surface-2: #F9FAFB;          /* sunken / page bg */
+  --color-surface-3: #F3F4F6;          /* hover / kanban rail */
+
+  --color-ink-1: #0B1220;              /* primary text */
+  --color-ink-2: #374151;              /* secondary text */
+  --color-ink-3: #6B7280;              /* tertiary / meta */
+  --color-ink-4: #9CA3AF;              /* placeholder / muted */
+
+  --color-hairline: #E5E7EB;
+  --color-hairline-strong: #D1D5DB;
+
+  /* ---------- Type scale (operator density: body 14, not 16) ---------- */
+  --text-xs:   11px;
+  --text-sm:   12px;
+  --text-base: 14px;  /* product body — overrides Tailwind default 16 */
+  --text-md:   16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  30px;
+  --text-4xl:  36px;
+
+  /* ---------- Font families ----------
+     Inter loaded via next/font; DM Sans for display numerals.
+     The CSS vars are exposed by next/font as --font-inter / --font-dm-sans. */
+  --font-sans:    var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-dm-sans), var(--font-inter), sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ---------- Body defaults (operator density) ---------- */
+body {
+  font-feature-settings: "cv02", "cv03", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Subtle scrollbars (mirrors apps/app convention) ---------- */
+:root {
+  scrollbar-color: transparent transparent;
+  --scrollbar-thumb: rgb(168, 178, 195);
+  --scrollbar-thumb-hover: rgb(31 41 55);
+}
+.dark {
+  --scrollbar-thumb: rgb(107 114 128);
+  --scrollbar-thumb-hover: #444;
+}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+/* ---------- Focus-visible ring (uses new primary blue-600) ---------- */
+:where(a, button, [role="button"], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-blue-600);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* ---------- Status / motion keyframes (from design system) ---------- */
+@keyframes live-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(14, 159, 110, 0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(14, 159, 110, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(14, 159, 110, 0); }
+}
+@keyframes alert-pulse {
+  from { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.10), 0 0 0 0 rgba(225, 29, 72, 0.4); }
+  to   { box-shadow: 0 0 0 6px rgba(225, 29, 72, 0.10), 0 0 14px rgba(225, 29, 72, 0.6); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ---------- Global prefers-reduced-motion gate ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* PA-12 dropped the run-1 yellow + orange palette stops (Mintral-tenant
+   colors). The platform palette is the Flowbite blue scale + the four
+   status semantic tokens (signal/symptom/action/urgent) defined above. */

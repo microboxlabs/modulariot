@@ -7,6 +7,7 @@ import pytest
 from pydantic import BaseModel
 
 from miot_harness.agents.data_fetcher import data_fetcher_node
+from miot_harness.config import HarnessSettings
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import PermissionResult
@@ -71,7 +72,9 @@ async def test_fetcher_invokes_pending_step_and_appends_evidence():
     }
     events: list[HarnessEvent] = []
 
-    update = await data_fetcher_node(state, registry=registry, progress=events.append)
+    update = await data_fetcher_node(
+        state, registry=registry, settings=HarnessSettings(), progress=events.append
+    )
 
     assert update["pending_step_index"] == 1
     assert update["next_action"] == "judge_freshness"
@@ -122,7 +125,9 @@ async def test_fetcher_records_failure_on_tool_error():
     }
     events: list[HarnessEvent] = []
 
-    update = await data_fetcher_node(state, registry=registry, progress=events.append)
+    update = await data_fetcher_node(
+        state, registry=registry, settings=HarnessSettings(), progress=events.append
+    )
 
     assert update.get("failure")
     assert "connection lost" in update["failure"]
@@ -166,7 +171,9 @@ async def test_fetcher_denied_permission_records_failure():
         "turn_count": 1,
     }
 
-    update = await data_fetcher_node(state, registry=registry, progress=lambda e: None)
+    update = await data_fetcher_node(
+        state, registry=registry, settings=HarnessSettings(), progress=lambda e: None
+    )
     assert update.get("failure")
     assert "Mintral" in update["failure"] or "permission" in update["failure"].lower()
 
@@ -184,5 +191,7 @@ async def test_fetcher_no_pending_step_is_noop():
         "evidence": [],
         "turn_count": 2,
     }
-    update = await data_fetcher_node(state, registry=ToolRegistry(), progress=lambda e: None)
+    update = await data_fetcher_node(
+        state, registry=ToolRegistry(), settings=HarnessSettings(), progress=lambda e: None
+    )
     assert update.get("next_action") == "ready_to_synthesize"

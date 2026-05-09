@@ -10,9 +10,10 @@ the synthesizer for graceful refusal — no double-fetching.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
+from miot_harness.config import HarnessSettings
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoEvidence
@@ -33,7 +34,13 @@ def _emit_failed(progress: Progress, ctx: HarnessContext, tool: str, reason: str
     )
 
 
-def _evidence_from_output(step_id: str, tool: str, output: Any) -> NexoEvidence:
+def _evidence_from_output(
+    step_id: str,
+    tool: str,
+    output: Any,
+    *,
+    warn_minutes: int,
+) -> NexoEvidence:
     if hasattr(output, "model_dump"):
         dump = output.model_dump()
     elif isinstance(output, dict):
@@ -59,6 +66,14 @@ def _evidence_from_output(step_id: str, tool: str, output: Any) -> NexoEvidence:
     elif "value" in dump:
         sample_size = 1
 
+    is_stale = False
+    if isinstance(refreshed_at, datetime):
+        age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
+        is_stale = age_minutes > warn_minutes
+    elif refreshed_at is None and dump:
+        # Tool returned data but no refreshed_at — treat as unverified
+        is_stale = True
+
     return NexoEvidence(
         step_id=step_id,
         tool=tool,
@@ -66,7 +81,7 @@ def _evidence_from_output(step_id: str, tool: str, output: Any) -> NexoEvidence:
         refreshed_at=refreshed_at if isinstance(refreshed_at, datetime) else None,
         output=dump,
         sample_size=sample_size,
-        is_stale=False,  # set by freshness_judge
+        is_stale=is_stale,
     )
 
 
@@ -74,6 +89,7 @@ async def data_fetcher_node(
     state: dict[str, Any],
     *,
     registry: ToolRegistry,
+    settings: HarnessSettings,
     progress: Progress,
 ) -> dict[str, Any]:
     plan = state.get("plan")
@@ -94,7 +110,12 @@ async def data_fetcher_node(
         _emit_failed(progress, ctx, step.tool, str(exc))
         return {"failure": f"{step.tool} raised: {exc}"}
 
-    evidence = _evidence_from_output(step.id, step.tool, output)
+    evidence = _evidence_from_output(
+        step.id,
+        step.tool,
+        output,
+        warn_minutes=settings.nexo_freshness_warn_minutes,
+    )
     return {
         "evidence": [evidence],  # appended by NexoState's operator.add reducer
         "pending_step_index": pending + 1,

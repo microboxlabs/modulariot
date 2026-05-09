@@ -12,6 +12,7 @@ class HarnessRunRecord(BaseModel):
     status: str = "created"
     events: list[HarnessEvent] = Field(default_factory=list)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
+    answer: str | None = None
 
 
 class JsonRunStore:

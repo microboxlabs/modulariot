@@ -85,7 +85,8 @@ async def load_nexo_tools(
     # 1. ACL check — fail-closed if any fn_refresh_* is directly grantable.
     try:
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(_ACL_CHECK_SQL, schema)
+            async with conn.transaction(readonly=True):
+                row = await conn.fetchrow(_ACL_CHECK_SQL, schema)
         leak = row["fn_refresh_direct_leak"] if row else None
         if leak is None or leak > 0:
             logger.critical(
@@ -142,7 +143,9 @@ async def load_nexo_tools(
 
     # 3. Introspect — get the surviving fn_dx_* descriptors.
     try:
-        descriptors = await introspect_nexo_functions(pool, schema=schema)
+        async with pool.acquire() as conn:
+            async with conn.transaction(readonly=True):
+                descriptors = await introspect_nexo_functions(conn, schema=schema)
     except Exception as exc:  # noqa: BLE001
         logger.critical("Nexo: pg_proc introspection raised %s; disabling", exc)
         return NexoBootResult(

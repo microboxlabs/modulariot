@@ -9,16 +9,20 @@ from miot_harness.integrations.nexo.pool import (
 )
 
 
-def test_server_settings_constant():
-    assert NEXO_SERVER_SETTINGS == {
-        "default_transaction_read_only": "on",
-        "statement_timeout": "30s",
-        "idle_in_transaction_session_timeout": "5s",
-    }
+def test_server_settings_constant_is_pgbouncer_safe():
+    """PgBouncer transaction-pooling rejects unknown startup parameters,
+    so we ship NO server_settings at pool-creation time. Read-only
+    enforcement is per-transaction at each call site instead."""
+    assert NEXO_SERVER_SETTINGS == {}
 
 
 @pytest.mark.asyncio
-async def test_create_nexo_pool_passes_dsn_and_server_settings(monkeypatch):
+async def test_create_nexo_pool_does_not_pass_server_settings(monkeypatch):
+    """Regression for the PgBouncer 'unsupported startup parameter:
+    default_transaction_read_only' boot failure observed against
+    coordinador-prod. The pool factory must NOT forward
+    server_settings to asyncpg.create_pool.
+    """
     creds = NexoCredentials(
         host="h", port=5432, database="d", user="u", password="p"
     )
@@ -37,7 +41,7 @@ async def test_create_nexo_pool_passes_dsn_and_server_settings(monkeypatch):
 
     assert pool == "POOL_SENTINEL"
     assert captured["dsn"] == creds.dsn
-    assert captured["kwargs"]["server_settings"] == NEXO_SERVER_SETTINGS
+    assert "server_settings" not in captured["kwargs"]
     assert captured["kwargs"]["min_size"] == 1
     assert captured["kwargs"]["max_size"] == 4
 

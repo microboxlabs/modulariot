@@ -2,9 +2,26 @@
 
 The pool is owned by the FastAPI lifespan hook (see B7); this module
 just exposes a thin factory so tests and boot can build pools the same
-way. `server_settings` is applied to every connection on acquire,
-giving us read-only sessions even if the role itself lacks role-level
-ALTER ROLE defaults (the case for CosmoDB-managed roles).
+way.
+
+Read-only enforcement note (PgBouncer compatibility):
+The Coordinador prod tunnel routes through `prod-mintral-pgbouncer` in
+transaction-pooling mode, which rejects unknown startup parameters
+(`default_transaction_read_only`, `statement_timeout`,
+`idle_in_transaction_session_timeout`) sent via asyncpg's
+`server_settings=`. Setting them poisons the StartupMessage and the
+boot fails with `unsupported startup parameter`.
+
+Instead we enforce read-only on a per-transaction basis using
+`async with conn.transaction(readonly=True)`, which issues
+`BEGIN READ ONLY` — fully supported by PgBouncer + Postgres. Every
+call site under integrations/nexo/ wraps queries in such a
+transaction, so mutation attempts are blocked at the DB layer.
+
+NEXO_SERVER_SETTINGS is kept as an exported (empty) dict for tests
+and any future settings PgBouncer's `track_extra_parameters` allows
+(client_encoding, datestyle, timezone, geqo, intervalstyle,
+application_name).
 """
 
 from __future__ import annotations
@@ -15,11 +32,7 @@ import asyncpg
 
 from miot_harness.integrations.nexo.credentials import NexoCredentials
 
-NEXO_SERVER_SETTINGS: dict[str, str] = {
-    "default_transaction_read_only": "on",
-    "statement_timeout": "30s",
-    "idle_in_transaction_session_timeout": "5s",
-}
+NEXO_SERVER_SETTINGS: dict[str, str] = {}
 
 
 async def create_nexo_pool(
@@ -29,17 +42,16 @@ async def create_nexo_pool(
     max_size: int = 4,
     **extra: Any,
 ) -> asyncpg.Pool:
-    """Create an asyncpg.Pool for Nexo with safe defaults.
+    """Create an asyncpg.Pool for Nexo, PgBouncer-safe.
 
-    Read-only enforcement is applied via `server_settings`, which
-    asyncpg passes to each new connection's startup options. This
-    catches mutation attempts at the DB layer regardless of role
-    defaults.
+    Does NOT pass `server_settings` (PgBouncer rejects unknown startup
+    parameters in transaction-pooling mode). Read-only enforcement is
+    applied per-transaction via `conn.transaction(readonly=True)` at
+    each call site.
     """
     return await asyncpg.create_pool(
         dsn=creds.dsn,
         min_size=min_size,
         max_size=max_size,
-        server_settings=NEXO_SERVER_SETTINGS,
         **extra,
     )

@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import pytest
+
+from miot_harness.integrations.nexo.credentials import NexoCredentials
+from miot_harness.integrations.nexo.pool import (
+    NEXO_SERVER_SETTINGS,
+    create_nexo_pool,
+)
+
+
+def test_server_settings_constant():
+    assert NEXO_SERVER_SETTINGS == {
+        "default_transaction_read_only": "on",
+        "statement_timeout": "30s",
+        "idle_in_transaction_session_timeout": "5s",
+    }
+
+
+@pytest.mark.asyncio
+async def test_create_nexo_pool_passes_dsn_and_server_settings(monkeypatch):
+    creds = NexoCredentials(
+        host="h", port=5432, database="d", user="u", password="p"
+    )
+    captured: dict = {}
+
+    async def fake_create_pool(dsn=None, **kwargs):  # noqa: D401
+        captured["dsn"] = dsn
+        captured["kwargs"] = kwargs
+        return "POOL_SENTINEL"
+
+    import asyncpg
+
+    monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
+
+    pool = await create_nexo_pool(creds, min_size=1, max_size=4)
+
+    assert pool == "POOL_SENTINEL"
+    assert captured["dsn"] == creds.dsn
+    assert captured["kwargs"]["server_settings"] == NEXO_SERVER_SETTINGS
+    assert captured["kwargs"]["min_size"] == 1
+    assert captured["kwargs"]["max_size"] == 4
+
+
+@pytest.mark.asyncio
+async def test_create_nexo_pool_default_sizes(monkeypatch):
+    creds = NexoCredentials(host="h", port=5432, database="d", user="u", password="p")
+    captured: dict = {}
+
+    async def fake_create_pool(dsn=None, **kwargs):
+        captured.update(kwargs)
+        return None
+
+    import asyncpg
+
+    monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
+
+    await create_nexo_pool(creds)
+
+    # Conservative defaults; harness has at most ~handful of concurrent runs
+    assert captured["min_size"] >= 1
+    assert captured["max_size"] >= captured["min_size"]

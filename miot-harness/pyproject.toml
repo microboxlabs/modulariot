@@ -13,9 +13,12 @@ authors = [
   { name = "Microbox Labs" }
 ]
 dependencies = [
+  "asyncpg>=0.30",
   "deepagents>=0.5.6",
   "fastapi>=0.115",
   "langchain>=1.2",
+  "langchain-anthropic>=0.3",
+  "langchain-openai>=0.3",
   "langgraph>=1.1",
   "pydantic>=2.10",
   "pydantic-settings>=2.6",
@@ -30,6 +33,7 @@ dev = [
   "mypy>=1.13",
   "pytest>=8.3",
   "pytest-asyncio>=0.25",
+  "pytest-postgresql>=6.1",
   "ruff>=0.8",
 ]
 

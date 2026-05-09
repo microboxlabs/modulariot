@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 miot-harness = "miot_harness.cli:main"
+miot-harness-evals = "miot_harness.evals.run_golden:main"
 
 [dependency-groups]
 dev = [

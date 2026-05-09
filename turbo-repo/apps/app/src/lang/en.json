@@ -319,6 +319,14 @@
           "planningTab": "Planning",
           "assignmentTab": "Assignment"
         },
+        "taskStage": {
+          "label": "Stage",
+          "planService": "Plan service",
+          "assignDriver": "Assign driver",
+          "presentDriver": "Present driver",
+          "prepareService": "Prepare service",
+          "missionControl": "Mission control"
+        },
         "contextMenu": {
           "service": "Service",
           "chipTitle": "Right-click for options",

@@ -319,6 +319,14 @@
           "planningTab": "Planificación",
           "assignmentTab": "Asignación"
         },
+        "taskStage": {
+          "label": "Etapa",
+          "planService": "Planificar servicio",
+          "assignDriver": "Asignar conductor",
+          "presentDriver": "Presentar conductor",
+          "prepareService": "Preparar servicio",
+          "missionControl": "Control de misión"
+        },
         "contextMenu": {
           "service": "Servicio",
           "chipTitle": "Clic derecho para opciones",

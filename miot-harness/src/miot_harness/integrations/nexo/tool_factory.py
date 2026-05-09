@@ -208,8 +208,9 @@ def build_nexo_tool(
         sql = f"SELECT * FROM {schema}.{descriptor.name}({sql_args})"
 
         async with pool.acquire() as conn:
-            await conn.execute(f"SET LOCAL search_path TO {schema}, public")
-            raw_rows = await conn.fetch(sql, *positional)
+            async with conn.transaction(readonly=True):
+                await conn.execute(f"SET LOCAL search_path TO {schema}, public")
+                raw_rows = await conn.fetch(sql, *positional)
 
         rows = [_row_to_dict(r) for r in raw_rows]
         refreshed_at = rows[0].get("refreshed_at") if rows else None
@@ -257,21 +258,9 @@ def build_nexo_tool(
                 truncated=False,
             )
 
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="tool.completed",
-                message=f"Completed {name}",
-                data={
-                    "tool": name,
-                    "source": "Coordinador · nexo (Citus DB)",
-                    "refreshed_at": refreshed_at,
-                    "layer": layer,
-                    "domain": domain,
-                    "truncated": getattr(output, "truncated", False),
-                },
-            )
-        )
+        # Metadata (source/refreshed_at/layer/domain/truncated) is lifted by
+        # HarnessTool.invoke from the typed output_model into the
+        # tool.completed event so we don't double-emit.
         return output
 
     return HarnessTool(

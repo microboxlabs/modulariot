@@ -54,6 +54,11 @@ def _mock_pool(centro_refreshed: datetime, fn_refresh_leak: int = 0) -> MagicMoc
     fake_conn.fetchrow = AsyncMock(side_effect=fetchrow)
     fake_conn.execute = AsyncMock()
 
+    txn_cm = MagicMock()
+    txn_cm.__aenter__ = AsyncMock(return_value=None)
+    txn_cm.__aexit__ = AsyncMock(return_value=None)
+    fake_conn.transaction = MagicMock(return_value=txn_cm)
+
     pool = MagicMock()
     cm = MagicMock()
     cm.__aenter__ = AsyncMock(return_value=fake_conn)
@@ -138,3 +143,17 @@ async def test_connection_failure_disables_nexo_without_raising(monkeypatch):
 
     result = await load_nexo_tools(registry, settings=_settings(), pool=pool)
     assert result.enabled is False
+
+
+@pytest.mark.asyncio
+async def test_invalid_schema_name_disables_nexo():
+    """Operator-supplied schema must match [a-z_][a-z0-9_]* — refuse otherwise."""
+    registry = ToolRegistry()
+    pool = _mock_pool(centro_refreshed=datetime.now(UTC))
+    bad_settings = _settings(nexo_search_path="public; DROP TABLE x")
+
+    result = await load_nexo_tools(registry, settings=bad_settings, pool=pool)
+
+    assert result.enabled is False
+    assert "schema" in (result.reason or "").lower()
+    assert registry.names() == []

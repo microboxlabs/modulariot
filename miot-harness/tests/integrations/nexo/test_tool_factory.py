@@ -136,10 +136,38 @@ async def test_check_permission_allows_locked_tenant():
     assert decision.decision == PermissionDecision.ALLOW
 
 
+def _make_pool_with_rows(rows: list[dict[str, Any]]) -> MagicMock:
+    """Build an async-context-manager-shaped pool/connection that returns rows."""
+
+    class _RowDict(dict):
+        # asyncpg.Record-like just enough for _row_to_dict
+        pass
+
+    fake_conn = MagicMock()
+    fake_conn.fetch = AsyncMock(return_value=[_RowDict(r) for r in rows])
+    fake_conn.execute = AsyncMock()
+
+    txn_cm = MagicMock()
+    txn_cm.__aenter__ = AsyncMock(return_value=None)
+    txn_cm.__aexit__ = AsyncMock(return_value=None)
+    fake_conn.transaction = MagicMock(return_value=txn_cm)
+
+    acquire_cm = MagicMock()
+    acquire_cm.__aenter__ = AsyncMock(return_value=fake_conn)
+    acquire_cm.__aexit__ = AsyncMock(return_value=None)
+
+    pool = MagicMock()
+    pool.acquire = MagicMock(return_value=acquire_cm)
+    return pool
+
+
 @pytest.mark.asyncio
-async def test_call_runs_sql_and_extracts_refreshed_at():
-    """call() acquires a connection, runs SELECT * FROM nexo.<fn>($1,...),
-    and surfaces refreshed_at_* + truncation flag in the output."""
+async def test_invoke_runs_sql_and_lifts_metadata_into_event():
+    """invoke() acquires a connection, opens a read-only transaction,
+    runs SELECT * FROM nexo.<fn>($1,...), surfaces refreshed_at_* +
+    truncation flag in the output, and HarnessTool.invoke lifts the
+    output's metadata fields into the single tool.completed event.
+    """
     refreshed = datetime(2026, 5, 8, 10, 0, tzinfo=UTC)
     rows = [
         {
@@ -148,37 +176,40 @@ async def test_call_runs_sql_and_extracts_refreshed_at():
             "refreshed_at_servicios": refreshed,
         }
     ]
-
-    fake_conn = MagicMock()
-    fake_conn.fetch = AsyncMock(return_value=[
-        type("Row", (), {"_d": r, "__iter__": lambda self: iter(self._d.items()),
-                          "items": lambda self: self._d.items(),
-                          "keys": lambda self: list(self._d.keys()),
-                          "__getitem__": lambda self, k: self._d[k]})()
-        for r in rows
-    ])
-    fake_conn.execute = AsyncMock()  # for SET LOCAL search_path
-
-    pool = MagicMock()
-    # acquire returns an async context manager
-    acquire_cm = MagicMock()
-    acquire_cm.__aenter__ = AsyncMock(return_value=fake_conn)
-    acquire_cm.__aexit__ = AsyncMock(return_value=None)
-    pool.acquire = MagicMock(return_value=acquire_cm)
-
+    pool = _make_pool_with_rows(rows)
     tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
     progress_events: list[Any] = []
 
-    output = await tool.call(_ctx(), tool.input_model(), progress_events.append)
+    output = await tool.invoke(_ctx(), {}, progress_events.append)
 
     dump = output.model_dump()
     assert dump.get("refreshed_at") == refreshed
-    assert "rows" in dump
     assert dump["rows"][0]["n_eta_riesgo"] == 3
-    # tool.completed event was emitted with metadata
     completed = [e for e in progress_events if e.type == "tool.completed"]
-    assert len(completed) == 1
+    assert len(completed) == 1, "exactly one tool.completed per invocation"
     data = completed[0].data
     assert data["source"].startswith("Coordinador")
     assert data["refreshed_at"] == refreshed
     assert data["layer"] == "meta"
+    assert data["truncated"] is False
+
+
+@pytest.mark.asyncio
+async def test_invoke_truncates_long_row_lists():
+    """S9: row lists capped at 5; truncated=True; total_count preserved."""
+    refreshed = datetime(2026, 5, 8, 10, 0, tzinfo=UTC)
+    rows = [
+        {"servicio_id": i, "refreshed_at_servicios": refreshed} for i in range(12)
+    ]
+    pool = _make_pool_with_rows(rows)
+    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
+    events: list[Any] = []
+
+    output = await tool.invoke(_ctx(), {}, events.append)
+    dump = output.model_dump()
+
+    assert dump["truncated"] is True
+    assert dump["total_count"] == 12
+    assert len(dump["rows"]) == 5
+    completed = [e for e in events if e.type == "tool.completed"]
+    assert completed[0].data["truncated"] is True

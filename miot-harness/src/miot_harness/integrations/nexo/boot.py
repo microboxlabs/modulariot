@@ -17,6 +17,7 @@ Nexo is misconfigured (review item C4).
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -29,6 +30,8 @@ from miot_harness.integrations.nexo.tool_factory import build_nexo_tool
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+_SCHEMA_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,16 @@ async def load_nexo_tools(
         )
 
     schema = settings.nexo_search_path
+    if not _SCHEMA_NAME_RE.match(schema):
+        logger.critical(
+            "Nexo: refusing to boot with invalid schema name %r (must match [a-z_][a-z0-9_]*)",
+            schema,
+        )
+        return NexoBootResult(
+            enabled=False,
+            registered=[],
+            reason=f"Invalid schema name: {schema!r}",
+        )
 
     # 1. ACL check — fail-closed if any fn_refresh_* is directly grantable.
     try:
@@ -97,8 +110,9 @@ async def load_nexo_tools(
     # 2. Connectivity + freshness probe on centro_control.
     try:
         async with pool.acquire() as conn:
-            await conn.execute(f"SET LOCAL search_path TO {schema}, public")
-            probe = await conn.fetchrow(_CENTRO_CONTROL_PROBE_SQL.format(schema=schema))
+            async with conn.transaction(readonly=True):
+                await conn.execute(f"SET LOCAL search_path TO {schema}, public")
+                probe = await conn.fetchrow(_CENTRO_CONTROL_PROBE_SQL.format(schema=schema))
         refreshed_at = _extract_refreshed_at(dict(probe) if probe else {})
         if refreshed_at is None:
             logger.warning("Nexo: centro_control probe returned no refreshed_at; continuing")

@@ -8,6 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.events import HarnessEvent
 
 
 class NexoStep(BaseModel):
@@ -41,3 +42,7 @@ class NexoState(TypedDict, total=False):
     pending_step_index: int
     answer: str | None
     failure: str | None
+    # Event channel: nodes return {"_events": [evt, ...]} deltas;
+    # LangGraph appends via operator.add so the run record can drain
+    # them in document order. Phase D wires a Phase 1 SSE consumer.
+    _events: Annotated[list[HarnessEvent], operator.add]

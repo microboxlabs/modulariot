@@ -23,6 +23,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
@@ -31,7 +32,10 @@ from miot_harness.runtime.tool import Progress
 
 logger = logging.getLogger(__name__)
 
-_TENANT_REFUSAL = "Coordinador is Mintral-only. I can't answer for other tenants."
+
+def _tenant_refusal(tenant_lock: str) -> str:
+    label = tenant_lock.capitalize() if tenant_lock else "the locked tenant"
+    return f"Coordinador is {label}-only. I can't answer for other tenants."
 
 
 _SYNTH_SYSTEM_TEMPLATE = """\
@@ -86,19 +90,22 @@ async def synthesizer_node(
     *,
     model: BaseChatModel,
     progress: Progress,
+    settings: HarnessSettings | None = None,
 ) -> dict[str, Any]:
     ctx: HarnessContext = state["ctx"]
     failure = state.get("failure")
     evidence: list[NexoEvidence] = list(state.get("evidence", []))
+    tenant_lock = settings.nexo_tenant_lock if settings is not None else "mintral"
 
     if failure:
         answer = _render_failure(failure)
         _emit(progress, ctx.run_id, answer)
         return {"answer": answer}
 
-    if ctx.tenant_id != "mintral" and not evidence:
-        _emit(progress, ctx.run_id, _TENANT_REFUSAL)
-        return {"answer": _TENANT_REFUSAL}
+    if ctx.tenant_id != tenant_lock and not evidence:
+        refusal = _tenant_refusal(tenant_lock)
+        _emit(progress, ctx.run_id, refusal)
+        return {"answer": refusal}
 
     user_message = state.get("user_message", "")
     system = _SYNTH_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -27,6 +28,16 @@ from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.runtime.plan import NexoEvidence
 
 logger = logging.getLogger(__name__)
+
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+
+
+def _strip_fences(text: str) -> str:
+    text = text.strip()
+    match = _JSON_FENCE_RE.search(text)
+    if match:
+        return match.group(1).strip()
+    return text
 
 
 _ANALYST_SYSTEM_TEMPLATE = """\
@@ -93,7 +104,7 @@ async def domain_analyst_node(
     verdict = "ready"
     reasoning = ""
     try:
-        payload = json.loads(text)
+        payload = json.loads(_strip_fences(text))
         if isinstance(payload, dict):
             verdict = payload.get("verdict", "ready")
             reasoning = payload.get("reasoning", "")

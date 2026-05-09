@@ -45,12 +45,15 @@ from miot_harness.runtime.plan import NexoState
 from miot_harness.tools.registry import ToolRegistry
 
 
-def _make_progress_collector(state: dict[str, Any]):
-    """Each node call collects events into state['_events'] (free-form
-    list, not part of the typed NexoState contract). The supervisor /
-    run record can drain this in the wiring layer."""
-    sink: list[HarnessEvent] = state.setdefault("_events", [])  # type: ignore[arg-type]
-    return sink.append
+def _make_event_buffer() -> tuple[list[HarnessEvent], Any]:
+    """Return (buffer, append) — nodes push events into the buffer, then
+    return them in their state delta as `_events`. NexoState declares
+    `_events` with a list/operator.add reducer so events accumulate in
+    order across supersteps without relying on in-place mutation
+    of state (which is not part of the LangGraph contract).
+    """
+    buf: list[HarnessEvent] = []
+    return buf, buf.append
 
 
 async def _tenant_gate_node(state: dict[str, Any], *, settings: HarnessSettings) -> dict[str, Any]:
@@ -86,25 +89,36 @@ def build_nexo_graph(
 ):
     graph = StateGraph(NexoState)
 
+    def _merge_events(delta: dict[str, Any], events: list[HarnessEvent]) -> dict[str, Any]:
+        if events:
+            existing = delta.get("_events") or []
+            delta["_events"] = [*existing, *events]
+        return delta
+
     async def _filter_expert(state):
         return await filter_expert_node(state, registry=registry, model=models["filter_expert"])
 
     async def _data_fetcher(state):
-        progress = _make_progress_collector(state)
-        return await data_fetcher_node(
+        buf, progress = _make_event_buffer()
+        delta = await data_fetcher_node(
             state, registry=registry, settings=settings, progress=progress
         )
+        return _merge_events(delta, buf)
 
     def _freshness_judge(state):
-        progress = _make_progress_collector(state)
-        return freshness_judge_node(state, settings=settings, progress=progress)
+        buf, progress = _make_event_buffer()
+        delta = freshness_judge_node(state, settings=settings, progress=progress)
+        return _merge_events(delta, buf)
 
     async def _domain_analyst(state):
         return await domain_analyst_node(state, model=models["domain_analyst"])
 
     async def _synthesizer(state):
-        progress = _make_progress_collector(state)
-        return await synthesizer_node(state, model=models["synthesizer"], progress=progress)
+        buf, progress = _make_event_buffer()
+        delta = await synthesizer_node(
+            state, model=models["synthesizer"], progress=progress, settings=settings
+        )
+        return _merge_events(delta, buf)
 
     async def _critic(state):
         return await critic_node(state, settings=settings, model=models["critic"])

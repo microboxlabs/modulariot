@@ -1,5 +1,12 @@
 """Filter Expert (Haiku tier).
 
+Real Claude often wraps structured output in ```json``` fences; we
+strip those before parsing. We also clear `next_action` on every
+return so the supervisor doesn't re-enter filter_expert in a loop
+when the analyst signals "need_more_tools" repeatedly.
+
+
+
 One LLM call per turn. Given the user message and a catalog of
 coordinador_* tools (with @meta / Layer hints), emits a single
 NexoStep representing the next tool call. The supervisor then routes
@@ -16,16 +23,30 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
 
+from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoPlan, NexoStep
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+
+
+def _strip_fences(text: str) -> str:
+    """Real Claude wraps structured output in ```json fences; strip them."""
+    text = text.strip()
+    match = _JSON_FENCE_RE.search(text)
+    if match:
+        return match.group(1).strip()
+    return text
 
 _FILTER_EXPERT_SYSTEM_TEMPLATE = """\
 You are the Filter Expert for Coordinador (Mintral fleet operations).
@@ -63,8 +84,9 @@ def build_tool_catalog(registry: ToolRegistry) -> str:
 
 
 def _parse_step(text: str) -> NexoStep | None:
+    cleaned = _strip_fences(text)
     try:
-        payload = json.loads(text)
+        payload = json.loads(cleaned)
     except json.JSONDecodeError:
         return None
     try:
@@ -101,7 +123,17 @@ async def filter_expert_node(
     step = _parse_step(text)
     if step is None:
         logger.error("filter_expert: model returned unparseable response: %r", text[:200])
-        return {"failure": "filter_expert returned malformed step"}
+        return {
+            "failure": "filter_expert returned malformed step",
+            "next_action": None,
+        }
+
+    if not step.tool.startswith("coordinador_"):
+        logger.error("filter_expert: model picked non-Nexo tool %r", step.tool)
+        return {
+            "failure": f"filter_expert picked out-of-scope tool: {step.tool}",
+            "next_action": None,
+        }
 
     if step.tool not in registry.names():
         logger.error(
@@ -109,18 +141,45 @@ async def filter_expert_node(
         )
         return {
             "failure": f"filter_expert proposed unknown tool: {step.tool}",
+            "next_action": None,
         }
 
     plan = state.get("plan")
+    try:
+        if plan is None:
+            new_plan = NexoPlan(steps=[step])
+        else:
+            new_plan = NexoPlan(
+                steps=[*plan.steps, step],
+                final_format=plan.final_format,
+            )
+    except ValidationError as exc:
+        # NexoPlan caps steps at max_length=4 (review item N13).
+        logger.warning(
+            "filter_expert: plan capped at max steps; routing to synth (%s)", exc
+        )
+        return {
+            "failure": "plan reached max step cap; synthesizing with current evidence",
+            "next_action": "ready_to_synthesize",
+        }
+
+    ctx: HarnessContext = state["ctx"]
+    plan_created_event = None
     if plan is None:
-        new_plan = NexoPlan(steps=[step])
-    else:
-        new_plan = NexoPlan(
-            steps=[*plan.steps, step],
-            final_format=plan.final_format,
+        plan_created_event = HarnessEvent(
+            run_id=ctx.run_id,
+            type="plan.created",
+            message="Initial plan created by filter_expert",
+            data={"step_count": len(new_plan.steps), "first_tool": step.tool},
         )
 
-    return {
+    delta: dict[str, Any] = {
         "plan": new_plan,
         "turn_count": int(state.get("turn_count", 0)) + 1,
+        # CRITICAL: clear next_action so the supervisor doesn't re-enter
+        # this node when the previous turn was "need_more_tools".
+        "next_action": None,
     }
+    if plan_created_event is not None:
+        delta["_events"] = [plan_created_event]
+    return delta

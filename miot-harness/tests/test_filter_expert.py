@@ -12,7 +12,7 @@ from miot_harness.agents.filter_expert import (
 )
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.plan import NexoPlan, NexoStep
-from miot_harness.runtime.tool import HarnessTool
+from miot_harness.runtime.tool import HarnessTool  # noqa: F401
 from miot_harness.tools.registry import ToolRegistry
 
 
@@ -138,6 +138,99 @@ async def test_filter_expert_appends_to_existing_plan():
     assert len(new_plan.steps) == 2
     assert new_plan.steps[1].tool == "coordinador_kpi_servicio"
     assert new_plan.steps[1].args == {"p_servicio_id": 42}
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_clears_next_action():
+    """Regression: when invoked because previous turn had
+    next_action='need_more_tools', filter_expert MUST clear next_action
+    so the supervisor doesn't loop right back into this node."""
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    fake_response = json.dumps({
+        "intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r",
+    })
+    model = FakeListChatModel(responses=[fake_response])
+    state = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "turn_count": 1,
+        "next_action": "need_more_tools",
+    }
+    update = await filter_expert_node(state, registry=registry, model=model)
+    assert update.get("next_action") is None
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_handles_json_fenced_response():
+    """Real Claude often wraps JSON in ```json ... ``` fences."""
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    fenced = '```json\n{"intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r"}\n```'
+    model = FakeListChatModel(responses=[fenced])
+    state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    update = await filter_expert_node(state, registry=registry, model=model)
+    assert "plan" in update
+    assert update["plan"].steps[0].tool == "coordinador_centro_control"
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_handles_plan_max_steps():
+    """When NexoPlan's max_length=4 cap is hit, fail soft → route to synth."""
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    fake_response = json.dumps({
+        "intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r",
+    })
+    model = FakeListChatModel(responses=[fake_response])
+    full_plan = NexoPlan(
+        steps=[
+            NexoStep(intent=f"i{i}", tool="coordinador_centro_control", args={}, rationale="r")
+            for i in range(4)
+        ]
+    )
+    state = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "plan": full_plan,
+        "pending_step_index": 4,
+        "evidence": [],
+        "turn_count": 4,
+    }
+    update = await filter_expert_node(state, registry=registry, model=model)
+    assert update.get("failure")
+    assert update.get("next_action") == "ready_to_synthesize"
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_refuses_non_coordinador_tool():
+    """Defense: model could pick a non-Nexo tool that's in the registry."""
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    registry.register(_stub_tool("get_delivery_compliance_metrics", "non-Nexo"))
+    fake_response = json.dumps({
+        "intent": "x", "tool": "get_delivery_compliance_metrics", "args": {}, "rationale": "r",
+    })
+    model = FakeListChatModel(responses=[fake_response])
+    state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    update = await filter_expert_node(state, registry=registry, model=model)
+    assert update.get("failure")
+    assert "out-of-scope" in update["failure"] or "scope" in update["failure"].lower()
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_emits_plan_created_event_on_first_step():
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    fake_response = json.dumps({
+        "intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r",
+    })
+    model = FakeListChatModel(responses=[fake_response])
+    state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    update = await filter_expert_node(state, registry=registry, model=model)
+    events = update.get("_events") or []
+    assert any(e.type == "plan.created" for e in events)
 
 
 @pytest.mark.asyncio

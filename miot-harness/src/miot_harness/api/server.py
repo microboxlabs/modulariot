@@ -6,12 +6,14 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.integrations.nexo.boot import load_nexo_tools
 from miot_harness.integrations.nexo.credentials import load_nexo_credentials
 from miot_harness.integrations.nexo.pool import create_nexo_pool
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.factory import build_harness
+from miot_harness.runtime.nexo_graph import build_nexo_graph
 from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
 
@@ -50,6 +52,27 @@ def _make_lifespan(harness: HarnessSupervisor, settings: HarnessSettings):
                     len(result.registered),
                     settings.nexo_db_alias,
                 )
+                # Build the conversational graph and inject into the
+                # supervisor. Per-agent models come from settings.
+                try:
+                    models = {
+                        "filter_expert": get_chat_model(settings.nexo_filter_expert_model),
+                        "domain_analyst": get_chat_model(settings.nexo_analyst_model),
+                        "synthesizer": get_chat_model(settings.nexo_synthesizer_model),
+                        "critic": get_chat_model(settings.nexo_critic_model),
+                        "summarizer": get_chat_model(settings.nexo_summarizer_model),
+                    }
+                    harness.nexo_graph = build_nexo_graph(
+                        registry=harness.tools, settings=settings, models=models
+                    )
+                    logger.info("Nexo: conversational graph wired")
+                except Exception as exc:  # noqa: BLE001
+                    logger.critical(
+                        "Nexo: failed to build chat models / graph (%s); falling back to Nexo disabled",
+                        exc,
+                    )
+                    app.state.nexo_enabled = False
+                    harness.nexo_graph = None
         except Exception as exc:  # noqa: BLE001 — boot must not die
             logger.critical(
                 "Nexo: lifespan boot failed (%s); harness continues with Nexo disabled", exc

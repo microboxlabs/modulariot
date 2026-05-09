@@ -35,6 +35,8 @@ def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):
     monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", str(tmp_path))
     monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_ALIAS", "test-alias")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    # Provider keys required by the chat-model factory once Nexo enables
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
 
     # Fake .env on disk
     (tmp_path / "databases" / "test-alias").mkdir(parents=True)

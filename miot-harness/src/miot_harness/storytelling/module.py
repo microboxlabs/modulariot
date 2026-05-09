@@ -145,4 +145,3 @@ class StorytellingModule:
             )
         )
         return story
-

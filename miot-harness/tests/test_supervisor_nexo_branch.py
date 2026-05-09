@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -14,7 +13,9 @@ from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry, build_default_registry
 
 
-def _supervisor(tmp_path, nexo_graph=None, *, registry: ToolRegistry | None = None) -> HarnessSupervisor:
+def _supervisor(
+    tmp_path, nexo_graph=None, *, registry: ToolRegistry | None = None
+) -> HarnessSupervisor:
     return HarnessSupervisor(
         router=IntentRouter(),
         tools=registry if registry is not None else ToolRegistry(),
@@ -30,10 +31,12 @@ async def test_nexo_route_invokes_graph_when_present(tmp_path):
     invoke the compiled nexo graph and surface the answer + events."""
     fake_event = HarnessEvent(run_id="r", type="answer.completed", message="done", data={})
     fake_graph = type("FakeGraph", (), {})()
-    fake_graph.ainvoke = AsyncMock(return_value={
-        "answer": "Operativo OK",
-        "_events": [fake_event],
-    })
+    fake_graph.ainvoke = AsyncMock(
+        return_value={
+            "answer": "Operativo OK",
+            "_events": [fake_event],
+        }
+    )
     sup = _supervisor(tmp_path, nexo_graph=fake_graph)
 
     record = await sup.run(UserRequest(message="estado coordinador?", tenant_id="mintral"))

@@ -25,7 +25,8 @@ critic seat is wired even when disabled.
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Hashable
+from typing import Any, cast
 
 from langchain_core.language_models import BaseChatModel
 from langgraph.graph import END, StateGraph
@@ -86,7 +87,7 @@ def build_nexo_graph(
     registry: ToolRegistry,
     settings: HarnessSettings,
     models: dict[str, BaseChatModel],
-):
+) -> Any:
     graph = StateGraph(NexoState)
 
     def _merge_events(delta: dict[str, Any], events: list[HarnessEvent]) -> dict[str, Any]:
@@ -95,39 +96,53 @@ def build_nexo_graph(
             delta["_events"] = [*existing, *events]
         return delta
 
-    async def _filter_expert(state):
-        return await filter_expert_node(state, registry=registry, model=models["filter_expert"])
+    async def _filter_expert(state: NexoState) -> dict[str, Any]:
+        return await filter_expert_node(
+            cast(dict[str, Any], state), registry=registry, model=models["filter_expert"]
+        )
 
-    async def _data_fetcher(state):
+    async def _data_fetcher(state: NexoState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
         delta = await data_fetcher_node(
-            state, registry=registry, settings=settings, progress=progress
+            cast(dict[str, Any], state),
+            registry=registry,
+            settings=settings,
+            progress=progress,
         )
         return _merge_events(delta, buf)
 
-    def _freshness_judge(state):
+    def _freshness_judge(state: NexoState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
-        delta = freshness_judge_node(state, settings=settings, progress=progress)
+        delta = freshness_judge_node(
+            cast(dict[str, Any], state), settings=settings, progress=progress
+        )
         return _merge_events(delta, buf)
 
-    async def _domain_analyst(state):
-        return await domain_analyst_node(state, model=models["domain_analyst"])
+    async def _domain_analyst(state: NexoState) -> dict[str, Any]:
+        return await domain_analyst_node(
+            cast(dict[str, Any], state), model=models["domain_analyst"]
+        )
 
-    async def _synthesizer(state):
+    async def _synthesizer(state: NexoState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
         delta = await synthesizer_node(
-            state, model=models["synthesizer"], progress=progress, settings=settings
+            cast(dict[str, Any], state),
+            model=models["synthesizer"],
+            progress=progress,
+            settings=settings,
         )
         return _merge_events(delta, buf)
 
-    async def _critic(state):
-        return await critic_node(state, settings=settings, model=models["critic"])
+    async def _critic(state: NexoState) -> dict[str, Any]:
+        return await critic_node(
+            cast(dict[str, Any], state), settings=settings, model=models["critic"]
+        )
 
-    async def _summarizer(state):
-        return await summarizer_node(state, model=models["summarizer"])
+    async def _summarizer(state: NexoState) -> dict[str, Any]:
+        return await summarizer_node(cast(dict[str, Any], state), model=models["summarizer"])
 
-    async def _tenant_gate(state):
-        return await _tenant_gate_node(state, settings=settings)
+    async def _tenant_gate(state: NexoState) -> dict[str, Any]:
+        return await _tenant_gate_node(cast(dict[str, Any], state), settings=settings)
 
     graph.add_node("tenant_gate", _tenant_gate)
     graph.add_node("filter_expert", _filter_expert)
@@ -140,11 +155,12 @@ def build_nexo_graph(
 
     graph.set_entry_point("tenant_gate")
 
-    def route(state):
-        return _route(state, settings)
+    def route(state: NexoState) -> str:
+        return _route(cast(dict[str, Any], state), settings)
 
     # Most nodes route via the supervisor; synthesizer always flows
     # through critic to END so the seat stays wired.
+    _route_map: dict[Hashable, str] = {k: v for k, v in _ROUTE_MAP.items()}
     for source in (
         "tenant_gate",
         "filter_expert",
@@ -153,7 +169,7 @@ def build_nexo_graph(
         "domain_analyst",
         "summarizer",
     ):
-        graph.add_conditional_edges(source, route, _ROUTE_MAP)
+        graph.add_conditional_edges(source, route, _route_map)
 
     graph.add_edge("synthesizer", "critic")
     graph.add_edge("critic", END)

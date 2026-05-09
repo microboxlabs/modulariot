@@ -17,10 +17,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 import asyncpg
-
 
 _LAYER_PREFIX_RE = re.compile(r"^(L1|L2|L3|VT)\s*:\s*", re.IGNORECASE)
 _META_BLOCK_RE = re.compile(r"@meta\s*\n(.*?)\n@end", re.DOTALL)
@@ -75,7 +73,7 @@ def parse_pg_description(raw: str | None) -> ParsedDescription:
             meta[key.strip()] = value.strip()
         layer = "meta"
         before = text[: meta_match.start()].strip()
-        after = text[meta_match.end():].strip()
+        after = text[meta_match.end() :].strip()
         title = before.splitlines()[0].strip() if before else ""
         rest_before = "\n".join(before.splitlines()[1:]).strip()
         body = "\n\n".join(part for part in (rest_before, after) if part)
@@ -84,7 +82,7 @@ def parse_pg_description(raw: str | None) -> ParsedDescription:
     prefix = _LAYER_PREFIX_RE.match(text)
     if prefix:
         layer = prefix.group(1).upper()
-        body = text[prefix.end():].strip()
+        body = text[prefix.end() :].strip()
         return ParsedDescription(title="", body=body, layer=layer, meta={})
 
     return ParsedDescription(title="", body=text, layer="", meta={})
@@ -164,7 +162,7 @@ def _split_args(signature: str) -> list[FunctionArg]:
             has_default = False
         else:
             head = raw[:default_idx].strip()
-            default_expr = raw[default_idx + len(" DEFAULT "):].strip()
+            default_expr = raw[default_idx + len(" DEFAULT ") :].strip()
             has_default = True
         head_parts = head.split(maxsplit=1)
         if len(head_parts) == 2:

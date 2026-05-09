@@ -110,14 +110,14 @@ async def synthesizer_node(
     user_message = state.get("user_message", "")
     system = _SYNTH_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
     rendered = _render_evidence_for_synth(evidence)
-    human = (
-        f"User question:\n{user_message}\n\nEvidence:\n{rendered}\n\nWrite the answer."
-    )
+    human = f"User question:\n{user_message}\n\nEvidence:\n{rendered}\n\nWrite the answer."
 
-    response = await model.ainvoke([
-        SystemMessage(content=system),
-        HumanMessage(content=human),
-    ])
+    response = await model.ainvoke(
+        [
+            SystemMessage(content=system),
+            HumanMessage(content=human),
+        ]
+    )
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):
         text = str(text)

@@ -23,9 +23,7 @@ async def test_create_nexo_pool_does_not_pass_server_settings(monkeypatch):
     coordinador-prod. The pool factory must NOT forward
     server_settings to asyncpg.create_pool.
     """
-    creds = NexoCredentials(
-        host="h", port=5432, database="d", user="u", password="p"
-    )
+    creds = NexoCredentials(host="h", port=5432, database="d", user="u", password="p")
     captured: dict = {}
 
     async def fake_create_pool(dsn=None, **kwargs):  # noqa: D401

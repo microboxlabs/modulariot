@@ -28,7 +28,9 @@ async def test_critic_disabled_passes_through_without_llm():
     # Empty FakeListChatModel — would raise IndexError if invoked
     model = FakeListChatModel(responses=[])
 
-    update = await critic_node(state, settings=HarnessSettings(nexo_critic_enabled=False), model=model)
+    update = await critic_node(
+        state, settings=HarnessSettings(nexo_critic_enabled=False), model=model
+    )
 
     # Pass-through: no changes
     assert update == {} or update.get("answer") == state["answer"]
@@ -47,7 +49,9 @@ async def test_critic_enabled_runs_check_and_can_pass_answer():
         "turn_count": 2,
     }
 
-    update = await critic_node(state, settings=HarnessSettings(nexo_critic_enabled=True), model=model)
+    update = await critic_node(
+        state, settings=HarnessSettings(nexo_critic_enabled=True), model=model
+    )
     # No state change on pass
     assert update == {} or "answer" not in update or update["answer"] == state["answer"]
 
@@ -56,7 +60,9 @@ async def test_critic_enabled_runs_check_and_can_pass_answer():
 async def test_critic_enabled_flags_concerns_in_state():
     """A 'fail' verdict surfaces concerns into state so the synthesizer
     or the run record can show them, but does not block the answer in v1."""
-    model = FakeListChatModel(responses=['{"verdict": "fail", "concerns": "did not cite refreshed_at"}'])
+    model = FakeListChatModel(
+        responses=['{"verdict": "fail", "concerns": "did not cite refreshed_at"}']
+    )
     state = {
         "user_message": "?",
         "ctx": _ctx(),
@@ -65,6 +71,8 @@ async def test_critic_enabled_flags_concerns_in_state():
         "turn_count": 2,
     }
 
-    update = await critic_node(state, settings=HarnessSettings(nexo_critic_enabled=True), model=model)
+    update = await critic_node(
+        state, settings=HarnessSettings(nexo_critic_enabled=True), model=model
+    )
     assert "critic_concerns" in update
     assert "refreshed_at" in update["critic_concerns"]

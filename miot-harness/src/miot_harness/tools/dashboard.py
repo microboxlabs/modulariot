@@ -85,9 +85,7 @@ async def _apply_patch_call(
     __: Progress,
 ) -> DashboardPatchOutput:
     message = (
-        "Dashboard patch accepted for application."
-        if value.approval_id
-        else "Approval required."
+        "Dashboard patch accepted for application." if value.approval_id else "Approval required."
     )
     return DashboardPatchOutput(
         applied=bool(value.approval_id),

@@ -28,4 +28,3 @@ class JsonRunStore:
     def load(self, run_id: str) -> HarnessRunRecord:
         path = self.runs_dir / f"{run_id}.json"
         return HarnessRunRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
-

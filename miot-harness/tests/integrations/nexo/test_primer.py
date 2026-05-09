@@ -18,13 +18,13 @@ def test_primer_covers_required_topics():
     text = COORDINADOR_PRIMER.lower()
     # Per doc 10 lines 165-185, the primer must teach:
     for needle in (
-        "service",          # service / proc_inst
-        "pod",              # POD
-        "eta",              # ETA buckets
-        "fecha_tipo",       # date-type enum
-        "es_critico",       # critical flag
-        "refreshed_at",     # freshness rule
-        "mintral",          # single-tenant lock
+        "service",  # service / proc_inst
+        "pod",  # POD
+        "eta",  # ETA buckets
+        "fecha_tipo",  # date-type enum
+        "es_critico",  # critical flag
+        "refreshed_at",  # freshness rule
+        "mintral",  # single-tenant lock
     ):
         assert needle in text, f"primer missing required topic: {needle}"
 

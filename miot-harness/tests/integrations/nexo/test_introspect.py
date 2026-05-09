@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import pytest
-
 from miot_harness.integrations.nexo.introspect import (
     ParsedDescription,
     is_denied,
     parse_pg_description,
 )
-
 
 # ---------- parse_pg_description ----------
 
@@ -98,7 +95,9 @@ def test_denied_by_explicit_name():
 
 
 def test_denied_by_meta_side_effects():
-    assert is_denied(name="fn_dx_anything", meta={"side_effects": "writes_to_all_dx_tables"}) is True
+    assert (
+        is_denied(name="fn_dx_anything", meta={"side_effects": "writes_to_all_dx_tables"}) is True
+    )
     assert is_denied(name="fn_dx_anything", meta={"side_effects": "writes_partial"}) is True
 
 

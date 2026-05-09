@@ -49,17 +49,17 @@ async def critic_node(
 
     user_message = state.get("user_message", "")
     evidence = state.get("evidence", [])
-    rendered = json.dumps([e.model_dump() if hasattr(e, "model_dump") else e for e in evidence], default=str)[:2000]
-    human = (
-        f"User question: {user_message}\n\n"
-        f"Proposed answer:\n{answer}\n\n"
-        f"Evidence:\n{rendered}"
-    )
+    rendered = json.dumps(
+        [e.model_dump() if hasattr(e, "model_dump") else e for e in evidence], default=str
+    )[:2000]
+    human = f"User question: {user_message}\n\nProposed answer:\n{answer}\n\nEvidence:\n{rendered}"
 
-    response = await model.ainvoke([
-        SystemMessage(content=_CRITIC_SYSTEM),
-        HumanMessage(content=human),
-    ])
+    response = await model.ainvoke(
+        [
+            SystemMessage(content=_CRITIC_SYSTEM),
+            HumanMessage(content=human),
+        ]
+    )
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):
         text = str(text)

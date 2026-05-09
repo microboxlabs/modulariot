@@ -67,7 +67,15 @@ def test_analyst_requests_more_data_loops_back_to_filter_expert():
         "plan": plan,
         "pending_step_index": 1,
         "evidence": [
-            NexoEvidence(step_id="s", tool="t", source="x", refreshed_at=None, output={}, sample_size=0, is_stale=False)
+            NexoEvidence(
+                step_id="s",
+                tool="t",
+                source="x",
+                refreshed_at=None,
+                output={},
+                sample_size=0,
+                is_stale=False,
+            )
         ],
         "turn_count": 2,
         "next_action": "need_more_tools",
@@ -80,7 +88,15 @@ def test_analyst_ready_routes_to_synthesizer():
         "user_message": "?",
         "ctx": _ctx(),
         "evidence": [
-            NexoEvidence(step_id="s", tool="t", source="x", refreshed_at=None, output={}, sample_size=0, is_stale=False)
+            NexoEvidence(
+                step_id="s",
+                tool="t",
+                source="x",
+                refreshed_at=None,
+                output={},
+                sample_size=0,
+                is_stale=False,
+            )
         ],
         "turn_count": 3,
         "next_action": "ready_to_synthesize",
@@ -116,7 +132,15 @@ def test_turn_cap_forces_synthesizer():
         "user_message": "?",
         "ctx": _ctx(),
         "evidence": [
-            NexoEvidence(step_id="s", tool="t", source="x", refreshed_at=None, output={}, sample_size=0, is_stale=False)
+            NexoEvidence(
+                step_id="s",
+                tool="t",
+                source="x",
+                refreshed_at=None,
+                output={},
+                sample_size=0,
+                is_stale=False,
+            )
         ],
         "turn_count": 8,
         "next_action": "need_more_tools",
@@ -144,7 +168,15 @@ def test_default_after_freshness_judge_routes_to_analyst():
         "plan": plan,
         "pending_step_index": 1,
         "evidence": [
-            NexoEvidence(step_id="s", tool="t", source="x", refreshed_at=None, output={}, sample_size=0, is_stale=False)
+            NexoEvidence(
+                step_id="s",
+                tool="t",
+                source="x",
+                refreshed_at=None,
+                output={},
+                sample_size=0,
+                is_stale=False,
+            )
         ],
         "turn_count": 2,
         "next_action": "analyze",

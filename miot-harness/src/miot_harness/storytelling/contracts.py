@@ -50,4 +50,3 @@ class StoryArtifact(BaseModel):
     widget_drafts: list[WidgetDraft] = Field(default_factory=list)
     approval_proposals: list[ApprovalProposal] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-

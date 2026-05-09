@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, get_type_hints
+from typing import get_type_hints
 
 import pytest
 from pydantic import ValidationError
@@ -26,20 +26,14 @@ def test_nexo_step_auto_id():
 
 
 def test_nexo_plan_steps_max_length_four():
-    steps = [
-        NexoStep(intent=f"i{i}", tool="t", args={}, rationale="r")
-        for i in range(4)
-    ]
+    steps = [NexoStep(intent=f"i{i}", tool="t", args={}, rationale="r") for i in range(4)]
     plan = NexoPlan(steps=steps)
     assert len(plan.steps) == 4
     assert plan.final_format == "answer"
 
     with pytest.raises(ValidationError):
         NexoPlan(
-            steps=[
-                NexoStep(intent=f"i{i}", tool="t", args={}, rationale="r")
-                for i in range(5)
-            ]
+            steps=[NexoStep(intent=f"i{i}", tool="t", args={}, rationale="r") for i in range(5)]
         )
 
 
@@ -88,9 +82,7 @@ def test_nexo_state_evidence_uses_add_reducer():
         "evidence field must be Annotated to provide a LangGraph reducer"
     )
     metadata = evidence_hint.__metadata__
-    assert operator.add in metadata, (
-        "evidence reducer must be operator.add (or list_append alias)"
-    )
+    assert operator.add in metadata, "evidence reducer must be operator.add (or list_append alias)"
 
 
 def test_nexo_state_required_fields_present():

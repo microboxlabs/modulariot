@@ -12,4 +12,3 @@ def test_default_registry_contains_first_slice_tools() -> None:
         "get_delivery_compliance_metrics",
         "get_workflow_bottlenecks",
     ]
-

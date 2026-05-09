@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from miot_harness.config import HarnessSettings, get_settings
 
@@ -69,5 +70,5 @@ def test_provider_api_keys_read_from_env(monkeypatch):
 
 def test_supervisor_mode_validates_literal(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_NEXO_SUPERVISOR_MODE", "bogus")
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         HarnessSettings()

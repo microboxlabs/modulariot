@@ -54,7 +54,10 @@ async def test_fetcher_invokes_pending_step_and_appends_evidence():
     registry.register(
         _stub_tool(
             "coordinador_centro_control",
-            {"rows": [{"n_eta_riesgo": 3, "refreshed_at_servicios": refreshed}], "refreshed_at": refreshed},
+            {
+                "rows": [{"n_eta_riesgo": 3, "refreshed_at_servicios": refreshed}],
+                "refreshed_at": refreshed,
+            },
         )
     )
     plan = NexoPlan(

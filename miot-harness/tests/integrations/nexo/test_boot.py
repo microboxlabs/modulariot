@@ -23,7 +23,9 @@ def _descriptor(name: str = "fn_dx_centro_control") -> FunctionDescriptor:
         name=name,
         proc_oid=10,
         description=ParsedDescription(layer="L1", body="kpi"),
-        args=[FunctionArg(name="p_tenant", pg_type="text", has_default=True, default_expr="'mintral'")],
+        args=[
+            FunctionArg(name="p_tenant", pg_type="text", has_default=True, default_expr="'mintral'")
+        ],
         returns_kind="table",
         returns_columns=[("refreshed_at_servicios", "timestamptz")],
     )
@@ -128,7 +130,11 @@ async def test_no_pool_disables_nexo_without_raising():
     result = await load_nexo_tools(registry, settings=_settings(), pool=None)
     assert result.enabled is False
     assert registry.names() == []
-    assert "tunnel" in (result.reason or "").lower() or "pool" in (result.reason or "").lower() or "disabled" in (result.reason or "").lower()
+    assert (
+        "tunnel" in (result.reason or "").lower()
+        or "pool" in (result.reason or "").lower()
+        or "disabled" in (result.reason or "").lower()
+    )
 
 
 @pytest.mark.asyncio

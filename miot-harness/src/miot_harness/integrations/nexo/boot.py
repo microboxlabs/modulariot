@@ -90,7 +90,8 @@ async def load_nexo_tools(
         leak = row["fn_refresh_direct_leak"] if row else None
         if leak is None or leak > 0:
             logger.critical(
-                "Nexo: ACL check failed (fn_refresh_direct_leak=%s); disabling integration", leak,
+                "Nexo: ACL check failed (fn_refresh_direct_leak=%s); disabling integration",
+                leak,
             )
             return NexoBootResult(
                 enabled=False,
@@ -121,7 +122,8 @@ async def load_nexo_tools(
             age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
             if age_minutes > settings.nexo_freshness_refuse_minutes:
                 logger.critical(
-                    "Nexo: centro_control snapshot is %.0f min old (refuse threshold %d). Disabling.",
+                    "Nexo: centro_control snapshot is %.0f min old "
+                    "(refuse threshold %d). Disabling.",
                     age_minutes,
                     settings.nexo_freshness_refuse_minutes,
                 )
@@ -173,7 +175,9 @@ async def load_nexo_tools(
                 exc,
             )
 
-    logger.info("Nexo: enabled — %d tools registered (alias=%s)", len(registered), settings.nexo_db_alias)
+    logger.info(
+        "Nexo: enabled — %d tools registered (alias=%s)", len(registered), settings.nexo_db_alias
+    )
     return NexoBootResult(enabled=True, registered=registered)
 
 

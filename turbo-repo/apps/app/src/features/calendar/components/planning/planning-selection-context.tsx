@@ -661,11 +661,24 @@ async function syncServiceCategoryWithWorkflow(
   }
 
   if (!liveTaskId) {
-    await cancelBookingWithWarning(
+    // The kanban index didn't surface a live task for this service — most
+    // commonly because the workflow has advanced past the planner-tracked
+    // stages while the user was on the page (or never was at one). The
+    // local binding state already captured the (carrier, driver, truck)
+    // tuple via the bookings POST → coordinator binding webscript, so
+    // rolling back the booking here would drift state for no upside.
+    // Log + skip; a future user action on the service will retry the
+    // category sync once a live task is in scope.
+    console.warn(
+      "Service category sync skipped — no live Alfresco task for service",
+      service.mintral_serviceCode,
+      "(category:",
+      service.serviceCategory,
+      ", booking:",
       bookingId,
-      "Failed to cancel booking after missing task id:"
+      ")"
     );
-    throw new Error("Missing Alfresco task id for service category");
+    return;
   }
 
   try {

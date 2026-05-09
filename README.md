@@ -4,13 +4,14 @@ Open-source platform for fleet and asset monitoring. Integrates data from hardwa
 
 ## Architecture
 
-Three workspaces, one monorepo:
+Four workspaces, one monorepo:
 
 | Workspace | Role | Stack |
 |-----------|------|-------|
 | `quarkus-srv/` | **Integration** — data ingestion, real-time monitoring, anomaly detection | Quarkus, Java 21, PostgreSQL |
 | `ecm-srv/` | **Coordinator** — workflows, document management, compliance | Alfresco ECM |
 | `turbo-repo/` | **Frontend** — dashboards, admin UI, documentation | Next.js, TypeScript |
+| `miot-harness/` | **AI harness** — ASK MIOT agents, tools, approvals, Storytelling artifacts | Python, LangChain Deep Agents |
 
 ## Getting Started
 
@@ -36,6 +37,16 @@ cd quarkus-srv
 ```bash
 cd ecm-srv
 # setup instructions TBD
+```
+
+### AI Harness
+
+Managed with [uv](https://docs.astral.sh/uv/) (install via `brew install uv`).
+
+```bash
+cd miot-harness
+uv sync
+uv run miot-harness demo "Tell me the story of delivery compliance this month and suggest one dashboard widget."
 ```
 
 ## Contributing

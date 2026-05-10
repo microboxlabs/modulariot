@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
 import asyncpg
 from pydantic import BaseModel, ConfigDict, Field, create_model
@@ -31,7 +31,6 @@ from miot_harness.integrations.nexo.introspect import (
     FunctionDescriptor,
 )
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool, Progress
 
@@ -78,7 +77,7 @@ def _python_type_for(pg_type: str) -> type:
         # Arrays — strip and wrap in list[]
         inner = _python_type_for(base[:-2].strip())
         return list[inner]  # type: ignore[valid-type]
-    return _PG_TYPE_MAP.get(base, Any)  # type: ignore[return-value]
+    return _PG_TYPE_MAP.get(base, Any)
 
 
 def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel]:
@@ -90,7 +89,7 @@ def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel
             fields[arg.name] = (py_type | None, Field(default=None))
         else:
             fields[arg.name] = (py_type, Field(...))
-    model = create_model(
+    model: type[BaseModel] = create_model(
         f"_Input_{name}",
         __config__=ConfigDict(arbitrary_types_allowed=True, extra="forbid"),
         **fields,
@@ -99,7 +98,7 @@ def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel
 
 
 def _output_model_for(name: str, returns_kind: str) -> type[BaseModel]:
-    common = {
+    common: dict[str, Any] = {
         "refreshed_at": (datetime | None, Field(default=None)),
         "source": (str, Field(default="Coordinador · nexo (Citus DB)")),
         "layer": (str, Field(default="")),
@@ -113,11 +112,12 @@ def _output_model_for(name: str, returns_kind: str) -> type[BaseModel]:
         common["data"] = (dict[str, Any], Field(default_factory=dict))
     else:
         common["value"] = (Any, Field(default=None))
-    return create_model(
+    output_model: type[BaseModel] = create_model(
         f"_Output_{name}",
         __config__=ConfigDict(arbitrary_types_allowed=True),
         **common,
     )
+    return output_model
 
 
 def _render_description(descriptor: FunctionDescriptor) -> str:
@@ -133,18 +133,24 @@ def _render_description(descriptor: FunctionDescriptor) -> str:
             meta_lines.append(f"Domain: {parsed.meta['domain']}")
         if "returns" in parsed.meta:
             meta_lines.append(f"Returns: {parsed.meta['returns']}")
-        body = "\n\n".join(part for part in [
-            "\n\n".join(body_parts),
-            "\n".join(meta_lines),
-            SHARED_FILTER_PRIMER,
-        ] if part)
+        body = "\n\n".join(
+            part
+            for part in [
+                "\n\n".join(body_parts),
+                "\n".join(meta_lines),
+                SHARED_FILTER_PRIMER,
+            ]
+            if part
+        )
         return body
     if parsed.layer in {"L1", "L2", "L3", "VT"}:
         return f"[Layer {parsed.layer}] {parsed.body}\n\n{SHARED_FILTER_PRIMER}"
     return f"{parsed.body or descriptor.name}\n\n{SHARED_FILTER_PRIMER}"
 
 
-def _truncate_rows(rows: list[dict[str, Any]], cap: int = 5) -> tuple[list[dict[str, Any]], int, bool]:
+def _truncate_rows(
+    rows: list[dict[str, Any]], cap: int = 5
+) -> tuple[list[dict[str, Any]], int, bool]:
     total = len(rows)
     if total <= cap:
         return rows, total, False
@@ -185,7 +191,7 @@ def build_nexo_tool(
     pool: asyncpg.Pool,
     tenant_lock: str,
     schema: str = "nexo",
-) -> HarnessTool:
+) -> HarnessTool[BaseModel, BaseModel]:
     name = "coordinador_" + descriptor.name.removeprefix("fn_dx_")
     description = _render_description(descriptor)
     input_model = _input_model_from_args(name, descriptor.args)

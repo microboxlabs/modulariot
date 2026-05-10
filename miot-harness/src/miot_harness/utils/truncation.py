@@ -19,17 +19,19 @@ from typing import Any
 DEFAULT_ROW_CAP = 5
 DEFAULT_DICT_KEY_CAP = 20
 
-_ALWAYS_KEEP_KEYS = frozenset({
-    # KPIs the analyst commonly cites
-    "n_eta_riesgo",
-    "n_pod_pendiente",
-    "n_servicios",
-    "n_criticos",
-    "es_critico",
-    "eta_clasificacion",
-    "fecha_tipo",
-    "delta_eta_horas",
-})
+_ALWAYS_KEEP_KEYS = frozenset(
+    {
+        # KPIs the analyst commonly cites
+        "n_eta_riesgo",
+        "n_pod_pendiente",
+        "n_servicios",
+        "n_criticos",
+        "es_critico",
+        "eta_clasificacion",
+        "fecha_tipo",
+        "delta_eta_horas",
+    }
+)
 
 
 def _is_refreshed_at(key: object) -> bool:
@@ -57,7 +59,11 @@ def _truncate_dict(payload: dict[str, Any], cap: int) -> tuple[dict[str, Any], d
                 if info["truncated"]:
                     any_truncated = True
                     total_count = max(total_count, info["total_count"])
-        return out, {"truncated": any_truncated, "total_count": total_count, "truncated_keys": truncated_keys}
+        return out, {
+            "truncated": any_truncated,
+            "total_count": total_count,
+            "truncated_keys": truncated_keys,
+        }
 
     # Pick keys to keep: refreshed_at_* + always-keep set + first
     # remaining keys to fill the cap.

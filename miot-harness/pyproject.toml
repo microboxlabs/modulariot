@@ -56,3 +56,7 @@ pythonpath = ["src"]
 python_version = "3.11"
 strict = true
 packages = ["miot_harness"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg", "asyncpg.*", "yaml"]
+ignore_missing_imports = true

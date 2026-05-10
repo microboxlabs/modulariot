@@ -41,10 +41,12 @@ async def summarizer_node(
         return {}
 
     rendered = "\n".join(f"- [{m.get('role')}] {m.get('content', '')}" for m in messages[:-1])
-    response = await model.ainvoke([
-        SystemMessage(content=_SUMMARIZER_SYSTEM),
-        HumanMessage(content=rendered),
-    ])
+    response = await model.ainvoke(
+        [
+            SystemMessage(content=_SUMMARIZER_SYSTEM),
+            HumanMessage(content=rendered),
+        ]
+    )
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):
         text = str(text)

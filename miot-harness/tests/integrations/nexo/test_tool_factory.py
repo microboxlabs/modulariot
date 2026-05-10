@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import ValidationError
 
 from miot_harness.integrations.nexo.introspect import (
     FunctionArg,
@@ -34,8 +35,12 @@ def _table_descriptor() -> FunctionDescriptor:
             meta={"domain": "[services, fleet]", "returns": "kpi_summary", "side_effects": "none"},
         ),
         args=[
-            FunctionArg(name="p_tenant", pg_type="text", has_default=True, default_expr="'mintral'"),
-            FunctionArg(name="p_window_hours", pg_type="integer", has_default=True, default_expr="24"),
+            FunctionArg(
+                name="p_tenant", pg_type="text", has_default=True, default_expr="'mintral'"
+            ),
+            FunctionArg(
+                name="p_window_hours", pg_type="integer", has_default=True, default_expr="24"
+            ),
         ],
         returns_kind="table",
         returns_columns=[
@@ -51,7 +56,11 @@ def _json_descriptor() -> FunctionDescriptor:
         name="fn_dx_kpi_servicio",
         proc_oid=12346,
         description=ParsedDescription(layer="L3", body="per-service KPI"),
-        args=[FunctionArg(name="p_servicio_id", pg_type="bigint", has_default=False, default_expr=None)],
+        args=[
+            FunctionArg(
+                name="p_servicio_id", pg_type="bigint", has_default=False, default_expr=None
+            )
+        ],
         returns_kind="json",
         returns_columns=[],
     )
@@ -92,7 +101,7 @@ def test_input_model_fields_optional_when_default_present():
 def test_input_model_field_required_when_no_default():
     tool = build_nexo_tool(_json_descriptor(), pool=MagicMock(), tenant_lock="mintral")
     # p_servicio_id is required (no default)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         tool.input_model()
     instance = tool.input_model(p_servicio_id=42)
     assert instance.p_servicio_id == 42
@@ -198,9 +207,7 @@ async def test_invoke_runs_sql_and_lifts_metadata_into_event():
 async def test_invoke_truncates_long_row_lists():
     """S9: row lists capped at 5; truncated=True; total_count preserved."""
     refreshed = datetime(2026, 5, 8, 10, 0, tzinfo=UTC)
-    rows = [
-        {"servicio_id": i, "refreshed_at_servicios": refreshed} for i in range(12)
-    ]
+    rows = [{"servicio_id": i, "refreshed_at_servicios": refreshed} for i in range(12)]
     pool = _make_pool_with_rows(rows)
     tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
     events: list[Any] = []

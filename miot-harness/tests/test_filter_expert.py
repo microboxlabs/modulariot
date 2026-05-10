@@ -77,12 +77,14 @@ async def test_filter_expert_produces_single_step():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI summary"))
 
-    fake_response = json.dumps({
-        "intent": "fetch operational summary",
-        "tool": "coordinador_centro_control",
-        "args": {},
-        "rationale": "broad question; L1 first",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "fetch operational summary",
+            "tool": "coordinador_centro_control",
+            "args": {},
+            "rationale": "broad question; L1 first",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
 
     state: dict[str, Any] = {
@@ -112,16 +114,20 @@ async def test_filter_expert_appends_to_existing_plan():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_kpi_servicio", "[Layer L3] per-service"))
 
-    fake_response = json.dumps({
-        "intent": "drill into service 42",
-        "tool": "coordinador_kpi_servicio",
-        "args": {"p_servicio_id": 42},
-        "rationale": "follow-up for failing service",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "drill into service 42",
+            "tool": "coordinador_kpi_servicio",
+            "args": {"p_servicio_id": 42},
+            "rationale": "follow-up for failing service",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
 
     existing_plan = NexoPlan(
-        steps=[NexoStep(intent="initial", tool="coordinador_centro_control", args={}, rationale="r")]
+        steps=[
+            NexoStep(intent="initial", tool="coordinador_centro_control", args={}, rationale="r")
+        ]
     )
     state = {
         "user_message": "and service 42?",
@@ -147,9 +153,14 @@ async def test_filter_expert_clears_next_action():
     so the supervisor doesn't loop right back into this node."""
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
-    fake_response = json.dumps({
-        "intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "x",
+            "tool": "coordinador_centro_control",
+            "args": {},
+            "rationale": "r",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
     state = {
         "user_message": "?",
@@ -167,7 +178,12 @@ async def test_filter_expert_handles_json_fenced_response():
     """Real Claude often wraps JSON in ```json ... ``` fences."""
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
-    fenced = '```json\n{"intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r"}\n```'
+    fenced = (
+        '```json\n'
+        '{"intent": "x", "tool": "coordinador_centro_control", '
+        '"args": {}, "rationale": "r"}\n'
+        '```'
+    )
     model = FakeListChatModel(responses=[fenced])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
     update = await filter_expert_node(state, registry=registry, model=model)
@@ -180,9 +196,14 @@ async def test_filter_expert_handles_plan_max_steps():
     """When NexoPlan's max_length=4 cap is hit, fail soft → route to synth."""
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
-    fake_response = json.dumps({
-        "intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "x",
+            "tool": "coordinador_centro_control",
+            "args": {},
+            "rationale": "r",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
     full_plan = NexoPlan(
         steps=[
@@ -209,9 +230,14 @@ async def test_filter_expert_refuses_non_coordinador_tool():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
     registry.register(_stub_tool("get_delivery_compliance_metrics", "non-Nexo"))
-    fake_response = json.dumps({
-        "intent": "x", "tool": "get_delivery_compliance_metrics", "args": {}, "rationale": "r",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "x",
+            "tool": "get_delivery_compliance_metrics",
+            "args": {},
+            "rationale": "r",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
     update = await filter_expert_node(state, registry=registry, model=model)
@@ -223,9 +249,14 @@ async def test_filter_expert_refuses_non_coordinador_tool():
 async def test_filter_expert_emits_plan_created_event_on_first_step():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
-    fake_response = json.dumps({
-        "intent": "x", "tool": "coordinador_centro_control", "args": {}, "rationale": "r",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "x",
+            "tool": "coordinador_centro_control",
+            "args": {},
+            "rationale": "r",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
     update = await filter_expert_node(state, registry=registry, model=model)
@@ -240,12 +271,14 @@ async def test_filter_expert_refuses_unknown_tool():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "L1"))
 
-    fake_response = json.dumps({
-        "intent": "x",
-        "tool": "coordinador_does_not_exist",
-        "args": {},
-        "rationale": "r",
-    })
+    fake_response = json.dumps(
+        {
+            "intent": "x",
+            "tool": "coordinador_does_not_exist",
+            "args": {},
+            "rationale": "r",
+        }
+    )
     model = FakeListChatModel(responses=[fake_response])
 
     state = {

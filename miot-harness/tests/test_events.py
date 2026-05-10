@@ -44,6 +44,7 @@ def test_event_seq_settable():
 
 def test_event_seq_must_be_int():
     import pytest
+    from pydantic import ValidationError
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         HarnessEvent(run_id="run_x", type="run.started", message="hi", seq="not-int")

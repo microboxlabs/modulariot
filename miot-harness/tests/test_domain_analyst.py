@@ -30,10 +30,16 @@ def _ev(output: dict[str, Any] | None = None, is_stale: bool = False) -> NexoEvi
 
 @pytest.mark.asyncio
 async def test_analyst_signals_ready_to_synthesize():
-    model = FakeListChatModel(responses=[json.dumps({
-        "verdict": "ready",
-        "reasoning": "evidence covers the user's question",
-    })])
+    model = FakeListChatModel(
+        responses=[
+            json.dumps(
+                {
+                    "verdict": "ready",
+                    "reasoning": "evidence covers the user's question",
+                }
+            )
+        ]
+    )
     state: dict[str, Any] = {
         "user_message": "what's operational status?",
         "ctx": _ctx(),
@@ -48,10 +54,16 @@ async def test_analyst_signals_ready_to_synthesize():
 
 @pytest.mark.asyncio
 async def test_analyst_requests_more_tools():
-    model = FakeListChatModel(responses=[json.dumps({
-        "verdict": "need_more",
-        "reasoning": "need POD compliance to answer the followup",
-    })])
+    model = FakeListChatModel(
+        responses=[
+            json.dumps(
+                {
+                    "verdict": "need_more",
+                    "reasoning": "need POD compliance to answer the followup",
+                }
+            )
+        ]
+    )
     state = {
         "user_message": "and what about POD coverage?",
         "ctx": _ctx(),

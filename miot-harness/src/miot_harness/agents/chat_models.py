@@ -11,6 +11,7 @@ plain ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).
 from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
+from pydantic import SecretStr
 
 from miot_harness.config import get_settings
 
@@ -22,21 +23,21 @@ def get_chat_model(name: str) -> BaseChatModel:
         from langchain_anthropic import ChatAnthropic
 
         if not settings.anthropic_api_key:
-            raise RuntimeError(
-                "ANTHROPIC_API_KEY is not set; cannot construct Claude chat model"
-            )
-        return ChatAnthropic(model_name=name, api_key=settings.anthropic_api_key, timeout=60, stop=None)
+            raise RuntimeError("ANTHROPIC_API_KEY is not set; cannot construct Claude chat model")
+        return ChatAnthropic(
+            model_name=name,
+            api_key=SecretStr(settings.anthropic_api_key),
+            timeout=60,
+            stop=None,
+        )
 
     if name.startswith("gpt-") or name.startswith("o1-") or name.startswith("o3-"):
         from langchain_openai import ChatOpenAI
 
         if not settings.openai_api_key:
-            raise RuntimeError(
-                "OPENAI_API_KEY is not set; cannot construct OpenAI chat model"
-            )
-        return ChatOpenAI(model=name, api_key=settings.openai_api_key)
+            raise RuntimeError("OPENAI_API_KEY is not set; cannot construct OpenAI chat model")
+        return ChatOpenAI(model=name, api_key=SecretStr(settings.openai_api_key))
 
     raise ValueError(
-        f"Unsupported chat model name: {name!r}. "
-        "Expected a claude-* / gpt-* / o1-* / o3-* prefix."
+        f"Unsupported chat model name: {name!r}. Expected a claude-* / gpt-* / o1-* / o3-* prefix."
     )

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -20,9 +21,11 @@ from miot_harness.runtime.supervisor import HarnessSupervisor
 logger = logging.getLogger(__name__)
 
 
-def _make_lifespan(harness: HarnessSupervisor, settings: HarnessSettings):
+def _make_lifespan(
+    harness: HarnessSupervisor, settings: HarnessSettings
+) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.nexo_enabled = False
         app.state.nexo_pool = None
         app.state.nexo_registered = []
@@ -68,7 +71,8 @@ def _make_lifespan(harness: HarnessSupervisor, settings: HarnessSettings):
                     logger.info("Nexo: conversational graph wired")
                 except Exception as exc:  # noqa: BLE001
                     logger.critical(
-                        "Nexo: failed to build chat models / graph (%s); falling back to Nexo disabled",
+                        "Nexo: failed to build chat models / graph (%s); "
+                        "falling back to Nexo disabled",
                         exc,
                     )
                     app.state.nexo_enabled = False

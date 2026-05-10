@@ -60,20 +60,28 @@ def _registry_with_centro() -> tuple[ToolRegistry, datetime]:
 def _models(filter_step_tool: str = "coordinador_centro_control") -> dict[str, Any]:
     """Scripted FakeListChatModels for each LLM seat in the staged graph."""
     return {
-        "filter_expert": FakeListChatModel(responses=[
-            json.dumps({
-                "intent": "fetch operational summary",
-                "tool": filter_step_tool,
-                "args": {},
-                "rationale": "broad question",
-            }),
-        ]),
-        "domain_analyst": FakeListChatModel(responses=[
-            json.dumps({"verdict": "ready", "reasoning": "have evidence"}),
-        ]),
-        "synthesizer": FakeListChatModel(responses=[
-            "Operativo: 3 ETA en riesgo. Snapshot al instante.",
-        ]),
+        "filter_expert": FakeListChatModel(
+            responses=[
+                json.dumps(
+                    {
+                        "intent": "fetch operational summary",
+                        "tool": filter_step_tool,
+                        "args": {},
+                        "rationale": "broad question",
+                    }
+                ),
+            ]
+        ),
+        "domain_analyst": FakeListChatModel(
+            responses=[
+                json.dumps({"verdict": "ready", "reasoning": "have evidence"}),
+            ]
+        ),
+        "synthesizer": FakeListChatModel(
+            responses=[
+                "Operativo: 3 ETA en riesgo. Snapshot al instante.",
+            ]
+        ),
         "critic": FakeListChatModel(responses=[]),
         "summarizer": FakeListChatModel(responses=[]),
     }
@@ -149,4 +157,8 @@ async def test_stale_data_routes_through_synth_failure_path():
 
     # Synth failure path emits a localized refusal and never asks the synth model
     assert final.get("answer")
-    assert "stale" in final["answer"].lower() or "snapshot" in final["answer"].lower() or "stale" in (final.get("failure") or "").lower()
+    assert (
+        "stale" in final["answer"].lower()
+        or "snapshot" in final["answer"].lower()
+        or "stale" in (final.get("failure") or "").lower()
+    )

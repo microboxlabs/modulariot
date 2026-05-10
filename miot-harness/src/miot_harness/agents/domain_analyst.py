@@ -65,14 +65,10 @@ def _render_evidence(evidence: list[NexoEvidence]) -> str:
     for i, ev in enumerate(evidence, start=1):
         stale = " [STALE]" if ev.is_stale else ""
         refreshed = ev.refreshed_at.isoformat() if ev.refreshed_at else "unknown"
-        sample = (
-            f" sample_size={ev.sample_size}" if ev.sample_size is not None else ""
-        )
+        sample = f" sample_size={ev.sample_size}" if ev.sample_size is not None else ""
         # Cap to avoid bloating prompt
         snippet = json.dumps(ev.output, default=str)[:1000]
-        lines.append(
-            f"[{i}] tool={ev.tool} refreshed_at={refreshed}{stale}{sample}\n    {snippet}"
-        )
+        lines.append(f"[{i}] tool={ev.tool} refreshed_at={refreshed}{stale}{sample}\n    {snippet}")
     return "\n".join(lines)
 
 
@@ -89,14 +85,14 @@ async def domain_analyst_node(
     user_message = state.get("user_message", "")
     system = _ANALYST_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
     rendered = _render_evidence(evidence)
-    human = (
-        f"User question:\n{user_message}\n\nEvidence collected so far:\n{rendered}"
-    )
+    human = f"User question:\n{user_message}\n\nEvidence collected so far:\n{rendered}"
 
-    response = await model.ainvoke([
-        SystemMessage(content=system),
-        HumanMessage(content=human),
-    ])
+    response = await model.ainvoke(
+        [
+            SystemMessage(content=system),
+            HumanMessage(content=human),
+        ]
+    )
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):
         text = str(text)

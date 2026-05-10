@@ -29,9 +29,7 @@ DEFAULT_SUBAGENTS = [
     SubAgentSpec(
         name="dashboard_visualizer",
         description="Proposes dashboard widget drafts from story findings.",
-        system_prompt=(
-            "You propose dashboard widgets as drafts only. Mutations require approval."
-        ),
+        system_prompt=("You propose dashboard widgets as drafts only. Mutations require approval."),
     ),
 ]
 
@@ -46,4 +44,3 @@ def create_deep_agent_kwargs() -> dict[str, Any]:
         ),
         "subagents": [agent.__dict__ for agent in DEFAULT_SUBAGENTS],
     }
-

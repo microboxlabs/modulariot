@@ -58,9 +58,9 @@ try:
 except ImportError:  # pragma: no cover
     pytest.skip("pytest-postgresql not installed", allow_module_level=True)
 
-import asyncpg
+import asyncpg  # noqa: E402
 
-from miot_harness.integrations.nexo.introspect import introspect_nexo_functions
+from miot_harness.integrations.nexo.introspect import introspect_nexo_functions  # noqa: E402
 
 _SEED_SQL = """
 CREATE SCHEMA IF NOT EXISTS nexo;
@@ -119,9 +119,7 @@ async def test_introspect_real_pg_filters_denylist(postgresql):
     """postgresql fixture is a psycopg connection; we read the proc info,
     then connect via asyncpg to the same DB to exercise the real query."""
     info = postgresql.info
-    dsn = (
-        f"postgresql://{info.user}@{info.host}:{info.port}/{info.dbname}"
-    )
+    dsn = f"postgresql://{info.user}@{info.host}:{info.port}/{info.dbname}"
 
     # Seed via the psycopg connection (sync)
     with postgresql.cursor() as cur:

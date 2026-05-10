@@ -28,4 +28,3 @@ class UserRequest(BaseModel):
             user_id=self.user_id,
             route_context=self.route_context,
         )
-

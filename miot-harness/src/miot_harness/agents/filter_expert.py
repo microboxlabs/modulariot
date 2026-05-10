@@ -48,6 +48,7 @@ def _strip_fences(text: str) -> str:
         return match.group(1).strip()
     return text
 
+
 _FILTER_EXPERT_SYSTEM_TEMPLATE = """\
 You are the Filter Expert for Coordinador (Mintral fleet operations).
 You pick the SINGLE next coordinador_* tool call to advance the user's
@@ -111,10 +112,12 @@ async def filter_expert_node(
     system = _FILTER_EXPERT_SYSTEM_TEMPLATE.format(catalog=catalog)
 
     user_message = state.get("user_message", "")
-    response = await model.ainvoke([
-        SystemMessage(content=system),
-        HumanMessage(content=user_message),
-    ])
+    response = await model.ainvoke(
+        [
+            SystemMessage(content=system),
+            HumanMessage(content=user_message),
+        ]
+    )
 
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):
@@ -136,9 +139,7 @@ async def filter_expert_node(
         }
 
     if step.tool not in registry.names():
-        logger.error(
-            "filter_expert: model hallucinated tool %r (not in registry)", step.tool
-        )
+        logger.error("filter_expert: model hallucinated tool %r (not in registry)", step.tool)
         return {
             "failure": f"filter_expert proposed unknown tool: {step.tool}",
             "next_action": None,
@@ -155,9 +156,7 @@ async def filter_expert_node(
             )
     except ValidationError as exc:
         # NexoPlan caps steps at max_length=4 (review item N13).
-        logger.warning(
-            "filter_expert: plan capped at max steps; routing to synth (%s)", exc
-        )
+        logger.warning("filter_expert: plan capped at max steps; routing to synth (%s)", exc)
         return {
             "failure": "plan reached max step cap; synthesizing with current evidence",
             "next_action": "ready_to_synthesize",

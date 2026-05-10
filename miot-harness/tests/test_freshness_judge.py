@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from miot_harness.agents.freshness_judge import FRESHNESS_FRESH, FRESHNESS_REFUSE, FRESHNESS_WARN, freshness_judge_node
+from miot_harness.agents.freshness_judge import (
+    FRESHNESS_FRESH,
+    FRESHNESS_REFUSE,
+    FRESHNESS_WARN,
+    freshness_judge_node,
+)
 from miot_harness.config import HarnessSettings
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
@@ -45,7 +50,9 @@ def test_fresh_evidence_passes_through():
 def test_warn_zone_marks_is_stale_and_emits_warning_event():
     state = {
         "ctx": _ctx(),
-        "evidence": [_ev(datetime.now(UTC) - timedelta(minutes=45))],  # > warn (30) but < refuse (240)
+        "evidence": [
+            _ev(datetime.now(UTC) - timedelta(minutes=45))
+        ],  # > warn (30) but < refuse (240)
         "turn_count": 1,
     }
     events: list[HarnessEvent] = []

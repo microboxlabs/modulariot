@@ -34,7 +34,9 @@ def test_eta_word_boundary_does_not_match_etapa(router: IntentRouter):
     'etapa', 'meta', and 'completada' don't trigger the Nexo path."""
     for false_positive in ("etapa siguiente", "meta cumplida", "completada"):
         result = router.route(false_positive)
-        assert result.route != HarnessRoute.NEXO_QUERY, f"unexpected NEXO match for {false_positive!r}"
+        assert result.route != HarnessRoute.NEXO_QUERY, (
+            f"unexpected NEXO match for {false_positive!r}"
+        )
 
 
 def test_storytelling_still_routes_correctly(router: IntentRouter):

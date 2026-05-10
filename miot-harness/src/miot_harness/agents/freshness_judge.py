@@ -59,7 +59,10 @@ def freshness_judge_node(
             HarnessEvent(
                 run_id=ctx.run_id,
                 type="freshness.warning",
-                message=f"Snapshot age {age_minutes if age_minutes is not None else 'unknown'} min ({verdict})",
+                message=(
+                    f"Snapshot age {age_minutes if age_minutes is not None else 'unknown'} "
+                    f"min ({verdict})"
+                ),
                 data={
                     "tool": last.tool,
                     "verdict": verdict,

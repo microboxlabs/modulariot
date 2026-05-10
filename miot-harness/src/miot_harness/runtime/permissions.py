@@ -24,4 +24,3 @@ class PermissionResult(BaseModel):
     @classmethod
     def deny(cls, reason: str) -> "PermissionResult":
         return cls(decision=PermissionDecision.DENY, reason=reason)
-

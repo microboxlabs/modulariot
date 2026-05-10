@@ -26,10 +26,10 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -104,14 +104,16 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
         refreshed_at: datetime | None = None
         source: str = "Coordinador · nexo (Citus DB)"
 
-    async def _check(ctx, inp):
+    async def _check(ctx: HarnessContext, inp: BaseModel) -> PermissionResult:
         if ctx.tenant_id != "mintral":
             return PermissionResult.deny("Mintral-only")
         return PermissionResult.allow()
 
     refreshed = datetime.now(UTC)
 
-    async def _call(ctx, inp, progress):
+    async def _call(
+        ctx: HarnessContext, inp: BaseModel, progress: Callable[..., None]
+    ) -> _Out:
         return _Out(
             rows=[{"n_criticos": 2, "n_eta_riesgo": 3, "refreshed_at_servicios": refreshed}],
             refreshed_at=refreshed,
@@ -132,7 +134,8 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
                 call=_call,
             )
         )
-    # Always register a centro_control fallback so empty expected_tools (refusal cases) still resolve
+    # Always register a centro_control fallback so empty expected_tools (refusal cases)
+    # still resolve.
     if "coordinador_centro_control" not in registry.names() and not expected:
         registry.register(
             HarnessTool(
@@ -151,20 +154,31 @@ def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
     expected = entry.get("expected_tools") or ["coordinador_centro_control"]
     chosen = expected[0]
     return {
-        "filter_expert": FakeListChatModel(responses=[
-            json.dumps({
-                "intent": "fetch eval",
-                "tool": chosen,
-                "args": {},
-                "rationale": "scripted",
-            }),
-        ]),
-        "domain_analyst": FakeListChatModel(responses=[
-            json.dumps({"verdict": "ready", "reasoning": "evidence ok"}),
-        ]),
-        "synthesizer": FakeListChatModel(responses=[
-            f"Resultado al snapshot {datetime.now(UTC).isoformat()}: 2 servicios críticos, 3 ETA en riesgo.",
-        ]),
+        "filter_expert": FakeListChatModel(
+            responses=[
+                json.dumps(
+                    {
+                        "intent": "fetch eval",
+                        "tool": chosen,
+                        "args": {},
+                        "rationale": "scripted",
+                    }
+                ),
+            ]
+        ),
+        "domain_analyst": FakeListChatModel(
+            responses=[
+                json.dumps({"verdict": "ready", "reasoning": "evidence ok"}),
+            ]
+        ),
+        "synthesizer": FakeListChatModel(
+            responses=[
+                (
+                    f"Resultado al snapshot {datetime.now(UTC).isoformat()}: "
+                    "2 servicios críticos, 3 ETA en riesgo."
+                ),
+            ]
+        ),
         "critic": FakeListChatModel(responses=[]),
         "summarizer": FakeListChatModel(responses=[]),
     }
@@ -201,24 +215,22 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
         category=entry.get("category", ""),
         tool_selection=(any(t in expected_tools for t in plan_tools) if expected_tools else None),
         filter_sanity=(not any(t in forbidden for t in plan_tools)),
-        freshness_citation=(
-            "refreshed" in answer
-            or "snapshot" in answer
-            or "hace" in answer
-        ) if not refusal_expected else None,
+        freshness_citation=("refreshed" in answer or "snapshot" in answer or "hace" in answer)
+        if not refusal_expected
+        else None,
         refusal=(answer_is_refusal == refusal_expected) if refusal_expected else None,
         no_hallucination=all(
             sub.lower() in answer for sub in (entry.get("expected_kpis_mentioned") or [])
-        ) if not refusal_expected else None,
+        )
+        if not refusal_expected
+        else None,
         latency_ms=latency_ms,
     )
 
 
 def _commit_sha() -> str:
     try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], text=True
-        ).strip()
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
     except Exception:
         return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
@@ -300,7 +312,11 @@ def main(argv: list[str] | None = None) -> int:
         "--mode",
         default="fake",
         choices=("static", "fake", "real"),
-        help="static = YAML validation only; fake = scripted FakeListChatModel run; real = live LLM (TODO).",
+        help=(
+            "static = YAML validation only; "
+            "fake = scripted FakeListChatModel run; "
+            "real = live LLM (TODO)."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -318,7 +334,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode != "static":
         ok = sum(1 for s in payload["scored"] if not s.get("notes"))
         total = len(payload["scored"])
-        print(f"Wrote {Path(args.out_dir) / (payload.get('commit', 'baseline') + '.json')}: {ok}/{total} ran cleanly")
+        out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + ".json")
+        print(f"Wrote {out_path}: {ok}/{total} ran cleanly")
     else:
         print(f"Validated {len(yaml.safe_load(yaml_path.read_text()))} entries")
     return 0

@@ -3,6 +3,14 @@ from __future__ import annotations
 import pytest
 
 from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.config import get_settings
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def test_get_chat_model_returns_anthropic_for_claude(monkeypatch):
@@ -38,10 +46,5 @@ def test_get_chat_model_unknown_provider_raises():
 
 def test_get_chat_model_missing_anthropic_key_raises(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    # Settings cache should not preserve a key
-    from miot_harness.config import get_settings
-
-    get_settings.cache_clear()
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         get_chat_model("claude-haiku-4-5")
-    get_settings.cache_clear()

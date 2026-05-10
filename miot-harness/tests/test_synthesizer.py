@@ -48,8 +48,9 @@ async def test_synthesizes_answer_from_evidence():
 
 @pytest.mark.asyncio
 async def test_synthesizes_refusal_when_failure_set():
-    """When state['failure'] is set, the synthesizer must produce a
-    graceful refusal — without making any LLM call (cheap path)."""
+    """When state['failure'] is set with a snapshot-stale reason, the
+    synthesizer renders the freshness retry advice — without making any
+    LLM call (cheap path)."""
     state = {
         "user_message": "?",
         "ctx": _ctx(),
@@ -64,6 +65,39 @@ async def test_synthesizes_refusal_when_failure_set():
 
     assert update["answer"]
     assert "stale" in update["answer"].lower() or "snapshot" in update["answer"].lower()
+    assert "answer.completed" in {e.type for e in events}
+
+
+@pytest.mark.asyncio
+async def test_planning_failure_does_not_leak_snapshot_retry_advice():
+    """When filter_expert returns malformed JSON (or any non-freshness
+    failure), the answer must NOT tell the user to wait for a fresh
+    snapshot — that's the wrong remedy. T03 fix.
+
+    The replacement copy nudges the user to reformulate; internal
+    pipeline detail ('filter_expert', 'malformed step') is hidden.
+    """
+    state = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "turn_count": 1,
+        "failure": "filter_expert returned malformed step",
+    }
+    events: list[HarnessEvent] = []
+    model = FakeListChatModel(responses=[])
+
+    update = await synthesizer_node(state, model=model, progress=events.append)
+
+    answer = update["answer"]
+    assert answer
+    # NEGATIVE assertions — the misleading freshness copy must be gone.
+    assert "snapshot" not in answer.lower()
+    assert "fresco" not in answer.lower()
+    assert "filter_expert" not in answer  # internal detail hidden
+    # POSITIVE assertions — the neutral planning copy is shown.
+    assert "planificar" in answer.lower()
+    assert "reformúlala" in answer.lower() or "reformula" in answer.lower()
     assert "answer.completed" in {e.type for e in events}
 
 

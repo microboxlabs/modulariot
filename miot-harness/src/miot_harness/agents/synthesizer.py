@@ -53,10 +53,32 @@ Rules:
 """
 
 
+_SNAPSHOT_STALE_PREFIX = "Coordinador snapshot is stale"
+
+
 def _render_failure(reason: str) -> str:
+    """Render a graceful refusal for the user.
+
+    The previous copy unconditionally suggested waiting for a fresh
+    snapshot, which was misleading whenever the failure was not
+    freshness-related (planning errors, tool errors, permission denials).
+    We now route by reason category:
+
+    - Snapshot stale → keep the original freshness retry advice; the
+      user's right move is to wait for the upstream refresh job.
+    - Anything else → a neutral planning copy that nudges the user to
+      reformulate. Internal `reason` text (e.g. "filter_expert returned
+      malformed step") is intentionally hidden — it leaks pipeline
+      structure with no user value.
+    """
+    if reason.startswith(_SNAPSHOT_STALE_PREFIX):
+        return (
+            f"No puedo responder ahora mismo: {reason} "
+            "Reintenta cuando el snapshot esté fresco o consulta con operaciones."
+        )
     return (
-        f"No puedo responder ahora mismo: {reason} "
-        "Reintenta cuando el snapshot esté fresco o consulta con operaciones."
+        "No pude planificar la consulta; "
+        "reformúlala con más detalle o pide ayuda al equipo."
     )
 
 

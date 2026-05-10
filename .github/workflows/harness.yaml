@@ -209,7 +209,13 @@ jobs:
           context: miot-harness
           file: miot-harness/Dockerfile
           platforms: linux/amd64
-          push: true
+          # Cross-fork PRs lack `packages: write` to the org's GHCR, so
+          # `push: true` produces "denied: installation not allowed to
+          # Create organization package". Same-repo PRs and pushes
+          # still publish; fork PRs build-only (lint + image-evals
+          # still gate the diff). Once the PR lands on trunk, the
+          # trunk-push event runs the full publish path.
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -243,6 +249,9 @@ jobs:
     name: Distribution Evals
     runs-on: ubuntu-latest
     needs: publish-image
+    # Skipped on cross-fork PRs (no image was pushed; nothing to verify).
+    # Same-repo PRs and pushes always run this.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -319,7 +328,7 @@ jobs:
             echo "| Lint & Test | ${{ needs.lint-and-test.result }} |"
             echo "| Image Evals (pre) | ${{ needs.image-evals-pre-publish.result }} |"
             echo "| Image | ${{ needs.publish-image.result }} |"
-            echo "| Distribution Evals | ${{ needs.distribution-evals.result }} |"
+            echo "| Distribution Evals | ${{ needs.distribution-evals.result == 'skipped' && 'skipped (fork PR)' || needs.distribution-evals.result }} |"
             echo "| Security Scan | ${{ needs.security-scan.result == 'skipped' && 'skipped (PR)' || needs.security-scan.result }} |"
             echo ""
             echo "**Version:** ${{ needs.lint-and-test.outputs.version }}"

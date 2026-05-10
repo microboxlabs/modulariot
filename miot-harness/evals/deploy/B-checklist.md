@@ -31,7 +31,13 @@ and as part of any incident review where CI behaved unexpectedly.
 - [ ] `summary` runs `if: always()` so failed runs still get a
       readable summary block.
 
-## Tag policy (verified by `08-tag-discipline.sh`, but spot-check too)
+## Tag policy
+
+These claims live in the `metadata-action` config inside
+`harness.yaml`. Spot-check a recent run's image tags against the
+expected pattern. (We deliberately don't ship a script: the
+`metadata-action` config IS the spec; re-asserting it from a script
+would duplicate YAML.)
 
 - [ ] PR build: tags `pr-<n>` + `sha-<short>` on GHCR ONLY. **Nothing
       on Docker Hub.**
@@ -56,6 +62,10 @@ and as part of any incident review where CI behaved unexpectedly.
       the most recent non-PR run (Code → Security → Code scanning).
 - [ ] `summary` job wrote a table to `$GITHUB_STEP_SUMMARY` that
       shows lint, evals, image, distribution, security results.
+- [ ] Removing `provenance: true` or `sbom: true` from the
+      `build-push-action@v6` call must make `07-attestations-present.sh`
+      FAIL. That's the negative-control proof the supply-chain eval
+      works; verify manually whenever that step is touched.
 
 ## Secrets surface
 
@@ -68,5 +78,6 @@ and as part of any incident review where CI behaved unexpectedly.
 
 - Image pull semantics → `05-pulls-from-ghcr.sh`, `06-pulls-from-dockerhub.sh`
 - Attestation predicate types → `07-attestations-present.sh`
-- Tag discipline for a specific run → `08-tag-discipline.sh`
-- Job-set drift over time → `04-workflow-shape.sh` (optional)
+- Tag discipline + workflow self-shape are deliberately NOT scripted.
+  The PR check UI surfaces missing/failed jobs; the metadata-action
+  config IS the tag spec. Scripting either is paranoid and brittle.

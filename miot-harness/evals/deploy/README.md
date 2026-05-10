@@ -6,19 +6,27 @@ container — distinct from the LLM-quality evals one level up
 suites share a directory but never share a runner; their exit codes
 mean different things.
 
-See plan
-[`.cursor/plans/ai-first/13-server-deployment/10-deploy-evals.md`](../../.cursor/plans/ai-first/13-server-deployment/10-deploy-evals.md)
-for the full eval design (three categories: image-works, ci-executes,
-distribution).
+The selection here is intentionally small. We ship only the checks
+that catch a class of bug CI doesn't naturally fail on:
 
-## What's here (Category A — image works)
+- `docker build` failure → CI already fails; we don't double-check.
+- The container actually works at runtime → not implicit; **02 catches it.**
+- Manifest landed at the registry → push exit 0 isn't a guarantee; **05/06 catch it.**
+- Provenance + SBOM attestations present → silently degrades if
+  someone removes `provenance: true`; **07 is the negative-control.**
 
-| Script | Asserts |
-|---|---|
-| `01-image-builds.sh` | `docker build` succeeds; compressed image ≤ 250 MB |
-| `02-image-boots.sh` | `docker run` boots within timeout; `/health` returns 200 with the deploy-readable shape (`status`, `env`, `nexo.{enabled,tools,snapshot_age_minutes}`) |
-| `03-image-runs-demo.sh` | `miot-harness demo "..."` runs to completion inside the container (gated on `HARNESS_EVAL_DEMO=1` or a model API key in env, since it consumes credit) |
-| `run-all.sh` | Orchestrator. Runs Category A; `--with-distribution` is a stub for T10a (Category C) |
+## What's here
+
+| Script | Category | Asserts |
+|---|---|---|
+| `01-image-builds.sh` | A — image works | `docker build` succeeds; compressed image ≤ `HARNESS_EVAL_MAX_COMPRESSED_MB` (default 250). The build itself is implicit; the size budget is the load-bearing assertion. |
+| `02-image-boots.sh` | A — image works | `docker run` boots within timeout; `/health` returns 200 with the deploy-readable shape (`status`, `env`, `nexo.{enabled,tools,snapshot_age_minutes}`). |
+| `03-image-runs-demo.sh` | A — image works | `miot-harness demo "..."` runs to completion inside the container. Gated on `HARNESS_EVAL_DEMO=1` or a model API key in env (consumes credit). |
+| `05-pulls-from-ghcr.sh` | C — distribution | Anonymous `docker pull` from GHCR succeeds for the given digest/tag. |
+| `06-pulls-from-dockerhub.sh` | C — distribution | Same against the Docker Hub mirror; catches PR-skip-guard regressions and rotated `DOCKERHUB_TOKEN`. |
+| `07-attestations-present.sh` | C — distribution | `gh attestation verify` finds both a SLSA provenance predicate AND an SBOM predicate (SPDX / CycloneDX). |
+| `B-checklist.md` | B — workflow shape | Review-style runbook for claims too brittle to automate. |
+| `run-all.sh` | — | Orchestrator. Runs Category A only; Category C scripts take registry-derived args and are invoked by CI's `distribution-evals` job (or manually with a real digest). |
 
 Each script emits `PASS|FAIL <ID>` as its first stdout line so CI logs
 are easy to grep. All scripts self-clean their containers/images on
@@ -74,10 +82,13 @@ before starting.
 ## What these evals do NOT cover
 
 - **LLM quality** — the agent-quality goldens at `evals/judge_prompt.md`.
-- **Workflow shape** — verifying the GitHub Actions job graph; tracked
-  in plan §"Category B" (mostly a checklist, not a script).
-- **Registry distribution** — pulls from GHCR / Docker Hub, attestations,
-  tag discipline; tracked as Category C in T10a.
+- **Workflow shape** — verifying the GitHub Actions job graph as a
+  script. The PR check UI already shows missing/failed jobs; a self-
+  shape script is paranoid and brittle. See `B-checklist.md` for the
+  review-style alternative.
+- **Tag-pattern verification** — that PR runs got `pr-<n>` and trunk
+  pushes got `latest`. The `metadata-action` config IS the spec; a
+  script that re-asserts it would just duplicate the YAML.
 
 ## Contract for new scripts
 

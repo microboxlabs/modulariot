@@ -62,3 +62,60 @@ async def test_create_nexo_pool_default_sizes(monkeypatch):
     # Conservative defaults; harness has at most ~handful of concurrent runs
     assert captured["min_size"] >= 1
     assert captured["max_size"] >= captured["min_size"]
+
+
+# --- DSN-bypass path (T05) -------------------------------------------------
+# Container deploys mount `MIOT_HARNESS_NEXO_DSN` as a single secret instead
+# of a full db-scripts directory. The pool factory must accept a raw DSN
+# without requiring a NexoCredentials wrapper, and produce an equivalent
+# pool to the file-based path.
+
+
+@pytest.mark.asyncio
+async def test_create_nexo_pool_with_raw_dsn(monkeypatch):
+    captured: dict = {}
+
+    async def fake_create_pool(dsn=None, **kwargs):
+        captured["dsn"] = dsn
+        captured["kwargs"] = kwargs
+        return "POOL_DSN_PATH"
+
+    import asyncpg
+
+    monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
+
+    pool = await create_nexo_pool(dsn="postgresql://u:p@h:5432/d")
+
+    assert pool == "POOL_DSN_PATH"
+    assert captured["dsn"] == "postgresql://u:p@h:5432/d"
+    # Same PgBouncer guard: still no server_settings even via the DSN path.
+    assert "server_settings" not in captured["kwargs"]
+
+
+@pytest.mark.asyncio
+async def test_dsn_kwarg_overrides_creds_when_both_passed(monkeypatch):
+    """Precedence rule: explicit DSN wins over file-derived credentials.
+    Mirrors industry standard (Django DATABASE_URL, sqlx, etc.) and
+    keeps containerized deploys free of stale alias-file fallout."""
+    creds = NexoCredentials(host="ignored", port=1, database="x", user="x", password="x")
+    captured: dict = {}
+
+    async def fake_create_pool(dsn=None, **kwargs):
+        captured["dsn"] = dsn
+        return None
+
+    import asyncpg
+
+    monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
+
+    await create_nexo_pool(creds, dsn="postgresql://override:secret@db:6432/citus")
+
+    assert captured["dsn"] == "postgresql://override:secret@db:6432/citus"
+    assert "ignored" not in captured["dsn"]
+
+
+@pytest.mark.asyncio
+async def test_create_nexo_pool_requires_creds_or_dsn():
+    """At least one source of truth must be passed — caller bug surfacing."""
+    with pytest.raises(ValueError, match="creds.*dsn|dsn.*creds"):
+        await create_nexo_pool()

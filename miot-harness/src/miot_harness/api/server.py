@@ -31,8 +31,11 @@ def _make_lifespan(
         app.state.nexo_registered = []
         app.state.nexo_snapshot_age_minutes = None
 
-        if settings.nexo_db_scripts_root is None:
-            logger.info("Nexo: disabled (MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT not set)")
+        if settings.nexo_dsn is None and settings.nexo_db_scripts_root is None:
+            logger.info(
+                "Nexo: disabled (neither MIOT_HARNESS_NEXO_DSN nor "
+                "MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT is set)"
+            )
             try:
                 yield
             finally:
@@ -41,11 +44,20 @@ def _make_lifespan(
 
         pool = None
         try:
-            creds = load_nexo_credentials(
-                db_scripts_root=settings.nexo_db_scripts_root,
-                alias=settings.nexo_db_alias,
-            )
-            pool = await create_nexo_pool(creds)
+            if settings.nexo_dsn is not None:
+                logger.info(
+                    "Nexo: using MIOT_HARNESS_NEXO_DSN (db-scripts file lookup bypassed)"
+                )
+                pool = await create_nexo_pool(dsn=settings.nexo_dsn)
+            else:
+                # Guarded above: when nexo_dsn is None, db_scripts_root is
+                # not None (otherwise the early-return would have fired).
+                assert settings.nexo_db_scripts_root is not None
+                creds = load_nexo_credentials(
+                    db_scripts_root=settings.nexo_db_scripts_root,
+                    alias=settings.nexo_db_alias,
+                )
+                pool = await create_nexo_pool(creds)
             result = await load_nexo_tools(harness.tools, settings=settings, pool=pool)
             app.state.nexo_enabled = result.enabled
             app.state.nexo_registered = list(result.registered)

@@ -1,0 +1,96 @@
+# =============================================================================
+# Local-only docker-compose for miot-harness.
+# -----------------------------------------------------------------------------
+# Purpose: contract test that the Dockerfile builds and runs against the
+# same `.env` your `uv run uvicorn ...` workflow uses. NOT consumed by CI
+# (CI builds via the GitHub workflow defined in plan 09-github-workflow.md).
+#
+# Quick reference:
+#   docker compose up                         # harness only
+#   docker compose --profile tunnel up        # harness + pgbouncer-tunnel
+#                                             # placeholder
+#   docker compose down                       # stop + remove containers
+#   docker compose logs -f harness            # tail harness logs
+#
+# The pgbouncer-tunnel profile does NOT actually open a tunnel — that
+# requires kubectl access to the AKS cluster which only exists on the
+# operator's host. The placeholder prints the canonical command to run
+# locally so you don't have to remember it.
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # harness — the FastAPI server, built from the local Dockerfile.
+  # ---------------------------------------------------------------------------
+  harness:
+    container_name: miot-harness
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 0.0.0-dev marks images built outside CI; CI overrides with the
+        # tag-derived semver per plan 09-github-workflow.md.
+        HARNESS_VERSION: 0.0.0-dev
+    image: miot-harness:local
+    env_file:
+      - .env
+    environment:
+      # Override the workspace dir to the volume mount below. .env may set
+      # a host-path default; the container path needs to be /app/.miot-
+      # workspace which the Dockerfile pre-creates with the right ownership.
+      MIOT_HARNESS_WORKSPACE_DIR: /app/.miot-workspace
+    ports:
+      - "8000:8000"
+    volumes:
+      - harness-workspace:/app/.miot-workspace
+    # Resolves `host.docker.internal` on Linux so MIOT_HARNESS_NEXO_DSN
+    # pointing at host.docker.internal:6434 (a host-side kubectl
+    # port-forward) works without --network host. macOS / Windows
+    # Docker Desktop already provide this name automatically; the
+    # extra_hosts is a no-op there.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=2).status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # pgbouncer-tunnel — placeholder under the `tunnel` profile.
+  # ---------------------------------------------------------------------------
+  # Documents the kubectl command rather than running it. We keep it as a
+  # service (not just a doc) so `docker compose --profile tunnel up`
+  # mirrors the production Pod-with-sidecar topology — useful for verifying
+  # network behavior without a real kubeconfig.
+  pgbouncer-tunnel:
+    container_name: miot-harness-pgbouncer-tunnel
+    image: alpine:3.20
+    profiles: ["tunnel"]
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cat <<'EOF'
+        ===============================================================
+        pgbouncer-tunnel placeholder is running.
+        To open a real tunnel to coordinador-prod-harness, run on the
+        HOST (not in this container):
+
+          kubectl --context AKS-MINT_COORDINADOR_BI_PROD \
+            port-forward svc/prod-mintral-pgbouncer 6434:6432 \
+            -n <namespace>
+
+        Then point MIOT_HARNESS_NEXO_DSN at host.docker.internal:6434
+        (or use --network host on Linux) so the harness container
+        reaches the tunnel.
+        ===============================================================
+        EOF
+        exec sleep infinity
+
+volumes:
+  harness-workspace:
+    name: miot-harness-workspace

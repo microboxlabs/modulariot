@@ -1,0 +1,337 @@
+# =============================================================================
+# Harness CI — ASK MIOT Agent Backend (miot-harness)
+# -----------------------------------------------------------------------------
+# Builds, tests, and publishes the FastAPI agent harness as a Docker image.
+# Triggers only on changes within miot-harness/ (and this workflow file).
+#
+# Docker image:
+#   - GitHub Container Registry (GHCR) — primary
+#   - Docker Hub — mirror, non-PR only
+#
+# Tagging:
+#   - PRs:        ghcr.io/microboxlabs/miot-harness:pr-<number>
+#   - trunk:      ghcr.io/microboxlabs/miot-harness:latest
+#   - Tags:       ghcr.io/microboxlabs/miot-harness:<version>
+#   - All builds: ghcr.io/microboxlabs/miot-harness:sha-<short>
+#
+# Required secrets:
+#   - DOCKERHUB_USERNAME
+#   - DOCKERHUB_TOKEN
+#
+# Job graph (per plan 13-server-deployment/10-deploy-evals.md):
+#   lint-and-test
+#       ↓
+#   image-evals-pre-publish    (Category A — runs locally before push)
+#       ↓
+#   publish-image              (build + push to GHCR + Docker Hub)
+#       ↓
+#   distribution-evals         (Category C — verifies registry artifacts)
+#       ↓
+#   security-scan, summary
+# =============================================================================
+
+name: Harness CI
+
+on:
+  push:
+    paths:
+      - 'miot-harness/**'
+      - '.github/workflows/harness.yaml'
+    branches: [trunk, main]
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'miot-harness/**'
+      - '.github/workflows/harness.yaml'
+    branches: [trunk, main]
+  workflow_dispatch:
+
+env:
+  GHCR_REGISTRY: ghcr.io
+  DOCKERHUB_REGISTRY: docker.io
+  IMAGE_OWNER: microboxlabs
+  IMAGE_NAME: miot-harness
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Lint, type-check, and test the Python source.
+  # ---------------------------------------------------------------------------
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-release: ${{ steps.version.outputs.is-release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "miot-harness/uv.lock"
+
+      - name: Pin Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+        working-directory: miot-harness
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
+            echo "is-release=true"   >> "$GITHUB_OUTPUT"
+          else
+            VERSION="0.0.0-$(echo "$GITHUB_SHA" | cut -c1-7)"
+            echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
+            echo "is-release=false"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+        working-directory: miot-harness
+
+      - name: Ruff
+        run: uv run ruff check src tests
+        working-directory: miot-harness
+
+      - name: Mypy
+        run: uv run mypy
+        working-directory: miot-harness
+
+      - name: Pytest
+        run: uv run pytest -q
+        working-directory: miot-harness
+
+  # ---------------------------------------------------------------------------
+  # 2) Category A deploy evals — image builds + boots locally.
+  #    Runs `bash miot-harness/evals/deploy/run-all.sh`, which executes
+  #    01-image-builds.sh + 02-image-boots.sh. 03-image-runs-demo.sh skips
+  #    by default (no API key in CI).
+  #    Gates `publish-image`: if the image can't build or boot here, no
+  #    point pushing it to a registry.
+  # ---------------------------------------------------------------------------
+  image-evals-pre-publish:
+    name: Image Evals (pre-publish)
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      HARNESS_VERSION: ${{ needs.lint-and-test.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Category A evals (build + boot)
+        run: bash miot-harness/evals/deploy/run-all.sh
+
+  # ---------------------------------------------------------------------------
+  # 3) Build with buildx and push to GHCR + Docker Hub.
+  #    Note: `image-evals-pre-publish` already built once with plain
+  #    `docker build`; this job rebuilds via buildx with GHA cache so
+  #    subsequent runs are fast even though the first run pays for two
+  #    builds. Optimizing this (single buildx build, loaded for evals,
+  #    pushed afterwards) is tracked as a follow-up.
+  # ---------------------------------------------------------------------------
+  publish-image:
+    name: Build & Publish Image
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, image-evals-pre-publish]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+      security-events: write
+    outputs:
+      image-digest: ${{ steps.build-push.outputs.digest }}
+      image-tags:   ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKERHUB_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
+            ${{ github.event_name != 'pull_request' && format('{0}/{1}/{2}', env.DOCKERHUB_REGISTRY, env.IMAGE_OWNER, env.IMAGE_NAME) || '' }}
+          tags: |
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=ASK MIOT multi-agent backend harness
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.version=${{ needs.lint-and-test.outputs.version }}
+
+      - name: Build and push
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: miot-harness
+          file: miot-harness/Dockerfile
+          platforms: linux/amd64
+          # Cross-fork PRs lack `packages: write` to the org's GHCR, so
+          # `push: true` produces "denied: installation not allowed to
+          # Create organization package". Same-repo PRs and pushes
+          # still publish; fork PRs build-only (lint + image-evals
+          # still gate the diff). Once the PR lands on trunk, the
+          # trunk-push event runs the full publish path.
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            HARNESS_VERSION=${{ needs.lint-and-test.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Image summary
+        run: |
+          {
+            echo "## 🐳 ${{ env.IMAGE_NAME }} published"
+            echo ""
+            echo "### Tags"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo "### Digest"
+            echo '```'
+            echo "${{ steps.build-push.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 4) Category C deploy evals — verifies the image is actually pullable
+  #    from the registries with correct attestations. Catches silent push
+  #    failures (build-push-action exit 0 but manifest broken) and the
+  #    silent-regression case where someone removes provenance/sbom from
+  #    the build-push-action call.
+  # ---------------------------------------------------------------------------
+  distribution-evals:
+    name: Distribution Evals
+    runs-on: ubuntu-latest
+    needs: publish-image
+    # Skipped on cross-fork PRs (no image was pushed; nothing to verify).
+    # Same-repo PRs and pushes always run this.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      attestations: read
+      packages: read
+    env:
+      DIGEST: ${{ needs.publish-image.outputs.image-digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull from GHCR (anonymous)
+        run: bash miot-harness/evals/deploy/05-pulls-from-ghcr.sh "$DIGEST"
+
+      - name: Verify provenance + SBOM attestations
+        run: bash miot-harness/evals/deploy/07-attestations-present.sh "$DIGEST"
+
+      - name: Pull from Docker Hub (mirror, non-PR only)
+        if: github.event_name != 'pull_request'
+        run: bash miot-harness/evals/deploy/06-pulls-from-dockerhub.sh "$DIGEST"
+
+  # ---------------------------------------------------------------------------
+  # 5) Security scan (non-PR only). Trivy SARIF → GitHub Security tab.
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: publish-image
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Run Trivy
+        # Pinned by SHA to match the existing pattern in `ci.yaml` and to
+        # make the step reproducible (trivy-action@master is mutable).
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
+        with:
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ needs.publish-image.outputs.image-digest }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+        continue-on-error: true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results.sarif"
+          category: "harness-security"
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # 6) Final summary — always runs, even when earlier jobs fail.
+  # ---------------------------------------------------------------------------
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs:
+      - lint-and-test
+      - image-evals-pre-publish
+      - publish-image
+      - distribution-evals
+      - security-scan
+    if: always()
+    steps:
+      - name: Render summary
+        run: |
+          {
+            echo "# 📊 Harness Build Summary"
+            echo ""
+            echo "| Stage | Status |"
+            echo "|---|---|"
+            echo "| Lint & Test | ${{ needs.lint-and-test.result }} |"
+            echo "| Image Evals (pre) | ${{ needs.image-evals-pre-publish.result }} |"
+            echo "| Image | ${{ needs.publish-image.result }} |"
+            echo "| Distribution Evals | ${{ needs.distribution-evals.result == 'skipped' && 'skipped (fork PR)' || needs.distribution-evals.result }} |"
+            echo "| Security Scan | ${{ needs.security-scan.result == 'skipped' && 'skipped (PR)' || needs.security-scan.result }} |"
+            echo ""
+            echo "**Version:** ${{ needs.lint-and-test.outputs.version }}"
+            echo "**Release:** ${{ needs.lint-and-test.outputs.is-release }}"
+            echo "**Commit:** \`${GITHUB_SHA::7}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

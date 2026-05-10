@@ -39,6 +39,7 @@ class NexoBootResult:
     enabled: bool
     registered: list[str]
     reason: str | None = None
+    snapshot_age_minutes: float | None = None
 
 
 _ACL_CHECK_SQL = """
@@ -110,6 +111,7 @@ async def load_nexo_tools(
         )
 
     # 2. Connectivity + freshness probe on centro_control.
+    age_minutes: float | None = None
     try:
         async with pool.acquire() as conn:
             async with conn.transaction(readonly=True):
@@ -134,6 +136,7 @@ async def load_nexo_tools(
                         f"Snapshot stale: refreshed_at age {age_minutes:.0f}min "
                         f"> refuse threshold {settings.nexo_freshness_refuse_minutes}min."
                     ),
+                    snapshot_age_minutes=age_minutes,
                 )
     except Exception as exc:  # noqa: BLE001
         logger.critical("Nexo: centro_control probe raised %s; disabling", exc)
@@ -178,7 +181,9 @@ async def load_nexo_tools(
     logger.info(
         "Nexo: enabled — %d tools registered (alias=%s)", len(registered), settings.nexo_db_alias
     )
-    return NexoBootResult(enabled=True, registered=registered)
+    return NexoBootResult(
+        enabled=True, registered=registered, snapshot_age_minutes=age_minutes
+    )
 
 
 def _extract_refreshed_at(row: dict[str, Any]) -> datetime | None:

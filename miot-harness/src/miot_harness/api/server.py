@@ -29,9 +29,13 @@ def _make_lifespan(
         app.state.nexo_enabled = False
         app.state.nexo_pool = None
         app.state.nexo_registered = []
+        app.state.nexo_snapshot_age_minutes = None
 
-        if settings.nexo_db_scripts_root is None:
-            logger.info("Nexo: disabled (MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT not set)")
+        if settings.nexo_dsn is None and settings.nexo_db_scripts_root is None:
+            logger.info(
+                "Nexo: disabled (neither MIOT_HARNESS_NEXO_DSN nor "
+                "MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT is set)"
+            )
             try:
                 yield
             finally:
@@ -40,14 +44,24 @@ def _make_lifespan(
 
         pool = None
         try:
-            creds = load_nexo_credentials(
-                db_scripts_root=settings.nexo_db_scripts_root,
-                alias=settings.nexo_db_alias,
-            )
-            pool = await create_nexo_pool(creds)
+            if settings.nexo_dsn is not None:
+                logger.info(
+                    "Nexo: using MIOT_HARNESS_NEXO_DSN (db-scripts file lookup bypassed)"
+                )
+                pool = await create_nexo_pool(dsn=settings.nexo_dsn)
+            else:
+                # Guarded above: when nexo_dsn is None, db_scripts_root is
+                # not None (otherwise the early-return would have fired).
+                assert settings.nexo_db_scripts_root is not None
+                creds = load_nexo_credentials(
+                    db_scripts_root=settings.nexo_db_scripts_root,
+                    alias=settings.nexo_db_alias,
+                )
+                pool = await create_nexo_pool(creds)
             result = await load_nexo_tools(harness.tools, settings=settings, pool=pool)
             app.state.nexo_enabled = result.enabled
             app.state.nexo_registered = list(result.registered)
+            app.state.nexo_snapshot_age_minutes = result.snapshot_age_minutes
             if result.enabled:
                 app.state.nexo_pool = pool
                 logger.info(
@@ -75,7 +89,16 @@ def _make_lifespan(
                         "falling back to Nexo disabled",
                         exc,
                     )
+                    # Tools registered fine but the supervisor can't reach
+                    # them without the graph — clear the public state so
+                    # /health reports the disabled-and-empty truth, not a
+                    # tool list that is unreachable. The pool is closed by
+                    # the outer `finally` below; we just drop the public
+                    # reference here.
                     app.state.nexo_enabled = False
+                    app.state.nexo_pool = None
+                    app.state.nexo_registered = []
+                    app.state.nexo_snapshot_age_minutes = None
                     harness.nexo_graph = None
         except Exception as exc:  # noqa: BLE001 — boot must not die
             logger.critical(
@@ -104,8 +127,16 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "env": settings.env}
+    async def health() -> dict[str, object]:
+        return {
+            "status": "ok",
+            "env": settings.env,
+            "nexo": {
+                "enabled": app.state.nexo_enabled,
+                "tools": list(app.state.nexo_registered),
+                "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
+            },
+        }
 
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(request: UserRequest) -> HarnessRunRecord:

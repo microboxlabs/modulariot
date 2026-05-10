@@ -24,12 +24,25 @@ class HarnessSettings(BaseSettings):
     # Nexo data integration (Coordinador / Mintral)
     nexo_db_scripts_root: Path | None = None
     nexo_db_alias: str = "coordinador-dev"
+    # Direct DSN override. When set, bypasses the
+    # `db_scripts_root + alias` file lookup so containerized deployments
+    # can mount a single secret instead of a full db-scripts directory.
+    # Precedence: nexo_dsn > db_scripts_root file. If neither is set,
+    # Nexo is disabled at boot.
+    nexo_dsn: str | None = None
+    # Surfaces in Postgres `pg_stat_activity.application_name` so DBAs
+    # can attribute connections to the harness without log correlation.
+    nexo_application_name: str = "miot-harness"
     nexo_tenant_lock: str = "mintral"
     nexo_search_path: str = "nexo"
     nexo_freshness_warn_minutes: int = 30
     nexo_freshness_refuse_minutes: int = 240
     nexo_max_turns: int = 8
     nexo_critic_enabled: bool = False
+
+    # Operations / observability
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    request_id_header: str = "x-request-id"
 
     # Multi-agent model assignment (per plan 12 §"Cost-control rules")
     nexo_supervisor_mode: Literal["rule", "llm"] = "rule"

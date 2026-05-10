@@ -1,8 +1,14 @@
 """Parse db-scripts `.env` files into asyncpg-ready credentials.
 
-Each `databases/<alias>/.env` is a flat KEY=VALUE file (no quoting, no
-shell expansion). We read PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD
-and assemble a URL-encoded DSN suitable for `asyncpg.create_pool(dsn=...)`.
+Each `databases/<alias>/.env` is a flat KEY=VALUE file (no shell
+expansion). We read PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD and
+assemble a URL-encoded DSN suitable for `asyncpg.create_pool(dsn=...)`.
+
+Values may be optionally wrapped in a single matching pair of ASCII
+quotes (`'...'` or `"..."`) — both styles are accepted and unwrapped.
+Files written by shell-oriented tooling commonly quote values that
+contain shell metacharacters; without unwrapping, the literal quotes
+were sent to Postgres and produced SASL auth failures.
 """
 
 from __future__ import annotations
@@ -30,6 +36,24 @@ class NexoCredentials:
 _REQUIRED = ("PGHOST", "PGDATABASE", "PGUSER", "PGPASSWORD")
 
 
+def _strip_matching_quotes(value: str) -> str:
+    """Strip a single matching pair of surrounding ASCII quotes.
+
+    Examples::
+
+        "abc"        -> abc
+        'abc'        -> abc
+        "ab'cd"      -> ab'cd      (inner quote preserved)
+        'abc         -> 'abc       (unbalanced, preserved verbatim)
+        abc"         -> abc"       (unbalanced, preserved verbatim)
+        ""           -> ""         (empty, preserved)
+        "            -> "          (single char, preserved)
+    """
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1]
+    return value
+
+
 def _parse_env_file(path: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     for raw in path.read_text().splitlines():
@@ -39,7 +63,7 @@ def _parse_env_file(path: Path) -> dict[str, str]:
         if "=" not in line:
             continue
         key, _, value = line.partition("=")
-        out[key.strip()] = value.strip()
+        out[key.strip()] = _strip_matching_quotes(value.strip())
     return out
 
 

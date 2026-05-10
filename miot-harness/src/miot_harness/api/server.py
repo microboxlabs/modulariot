@@ -29,6 +29,7 @@ def _make_lifespan(
         app.state.nexo_enabled = False
         app.state.nexo_pool = None
         app.state.nexo_registered = []
+        app.state.nexo_snapshot_age_minutes = None
 
         if settings.nexo_db_scripts_root is None:
             logger.info("Nexo: disabled (MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT not set)")
@@ -48,6 +49,7 @@ def _make_lifespan(
             result = await load_nexo_tools(harness.tools, settings=settings, pool=pool)
             app.state.nexo_enabled = result.enabled
             app.state.nexo_registered = list(result.registered)
+            app.state.nexo_snapshot_age_minutes = result.snapshot_age_minutes
             if result.enabled:
                 app.state.nexo_pool = pool
                 logger.info(
@@ -104,8 +106,16 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "env": settings.env}
+    async def health() -> dict[str, object]:
+        return {
+            "status": "ok",
+            "env": settings.env,
+            "nexo": {
+                "enabled": app.state.nexo_enabled,
+                "tools": list(app.state.nexo_registered),
+                "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
+            },
+        }
 
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(request: UserRequest) -> HarnessRunRecord:

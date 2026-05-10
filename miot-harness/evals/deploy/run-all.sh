@@ -28,10 +28,27 @@ declare -a CATEGORY_A=(
   "03-image-runs-demo.sh"
 )
 
+# Category C scripts take registry args (digest, tag, run-id). They
+# can't run from the orchestrator without those, so the orchestrator
+# only documents them — CI calls them directly with the values out of
+# the publish-image job. Local invocation is `bash 0X-foo.sh <arg>`.
+declare -a CATEGORY_C_DOCS=(
+  "05-pulls-from-ghcr.sh <tag-or-digest>"
+  "06-pulls-from-dockerhub.sh <tag-or-digest>"
+  "07-attestations-present.sh <digest>"
+  "08-tag-discipline.sh <run-id>"
+)
+
 declare -a SCRIPTS=("${CATEGORY_A[@]}")
 
 if [[ "$WITH_DISTRIBUTION" == "1" ]]; then
-  echo "(--with-distribution) Category C scripts not yet implemented; T10a." >&2
+  echo "(--with-distribution) Category C scripts take registry-derived" >&2
+  echo "                     arguments and aren't run by this orchestrator." >&2
+  echo "                     Invoke directly:" >&2
+  for s in "${CATEGORY_C_DOCS[@]}"; do echo "                       bash $HERE/$s" >&2; done
+  echo "                     Or rely on the harness.yaml CI workflow's" >&2
+  echo "                     distribution-evals job, which calls them with" >&2
+  echo "                     real digests + run-ids." >&2
   echo "Continuing with Category A only." >&2
 fi
 

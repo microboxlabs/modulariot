@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -54,27 +55,39 @@ Rules:
 
 
 _SNAPSHOT_STALE_PREFIX = "Coordinador snapshot is stale"
+_SNAPSHOT_AGE_RE = re.compile(r"\(age\s*(\d+)\s*min")
 
 
 def _render_failure(reason: str) -> str:
-    """Render a graceful refusal for the user.
+    """Render a graceful refusal for the user (Spanish, user-facing).
 
     The previous copy unconditionally suggested waiting for a fresh
     snapshot, which was misleading whenever the failure was not
     freshness-related (planning errors, tool errors, permission denials).
     We now route by reason category:
 
-    - Snapshot stale → keep the original freshness retry advice; the
-      user's right move is to wait for the upstream refresh job.
+    - Snapshot stale → render the freshness retry advice in Spanish.
+      The internal `reason` text (which is in English, formatted by
+      `freshness_judge`) is NOT shown to the user; the age in minutes is
+      parsed out so the user-facing message stays in one language.
     - Anything else → a neutral planning copy that nudges the user to
       reformulate. Internal `reason` text (e.g. "filter_expert returned
       malformed step") is intentionally hidden — it leaks pipeline
       structure with no user value.
     """
     if reason.startswith(_SNAPSHOT_STALE_PREFIX):
+        m = _SNAPSHOT_AGE_RE.search(reason)
+        if m:
+            age = m.group(1)
+            return (
+                f"No puedo responder ahora mismo: el snapshot tiene {age} minutos. "
+                "Vuelve a intentarlo cuando esté fresco o consulta con operaciones."
+            )
+        # Fallback if `reason` format ever changes in the upstream node —
+        # still Spanish, no English leakage.
         return (
-            f"No puedo responder ahora mismo: {reason} "
-            "Reintenta cuando el snapshot esté fresco o consulta con operaciones."
+            "No puedo responder ahora mismo: el snapshot está desactualizado. "
+            "Vuelve a intentarlo cuando esté fresco o consulta con operaciones."
         )
     return (
         "No pude planificar la consulta; "

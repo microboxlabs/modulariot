@@ -89,7 +89,16 @@ def _make_lifespan(
                         "falling back to Nexo disabled",
                         exc,
                     )
+                    # Tools registered fine but the supervisor can't reach
+                    # them without the graph — clear the public state so
+                    # /health reports the disabled-and-empty truth, not a
+                    # tool list that is unreachable. The pool is closed by
+                    # the outer `finally` below; we just drop the public
+                    # reference here.
                     app.state.nexo_enabled = False
+                    app.state.nexo_pool = None
+                    app.state.nexo_registered = []
+                    app.state.nexo_snapshot_age_minutes = None
                     harness.nexo_graph = None
         except Exception as exc:  # noqa: BLE001 — boot must not die
             logger.critical(

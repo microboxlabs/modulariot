@@ -13,7 +13,10 @@ from miot_harness.config import get_settings
 
 @pytest.fixture(autouse=True)
 def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    # The "Nexo disabled" assumption requires NEITHER the file-path config
+    # NOR the DSN bypass to be set in the environment.
     monkeypatch.delenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

@@ -59,13 +59,21 @@ docker run -d --name "$NAME" \
 
 # Wait for boot before invoking the demo. Reuses the polling pattern
 # from 02-image-boots.sh — keep them in sync if you change either.
+# Fail-fast on timeout so a never-ready container surfaces here with a
+# clear message instead of a confusing "demo command exited 1" later.
 DEADLINE=$(( $(date +%s) + 15 ))
+READY=0
 while [[ $(date +%s) -lt $DEADLINE ]]; do
   if curl -fs --max-time 2 "http://localhost:${PORT}/health" >/dev/null 2>&1; then
+    READY=1
     break
   fi
   sleep 0.5
 done
+
+if [[ "$READY" != "1" ]]; then
+  fail "/health on port ${PORT} did not respond within 15s"
+fi
 
 # The demo CLI is a console-script entrypoint. We pass a benign
 # storytelling prompt that exercises the supervisor + a tool call,

@@ -288,7 +288,9 @@ jobs:
       security-events: write
     steps:
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@master
+        # Pinned by SHA to match the existing pattern in `ci.yaml` and to
+        # make the step reproducible (trivy-action@master is mutable).
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
         with:
           image-ref: "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ needs.publish-image.outputs.image-digest }}"
           format: "sarif"

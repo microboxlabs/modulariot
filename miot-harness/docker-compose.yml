@@ -44,6 +44,13 @@ services:
       - "8000:8000"
     volumes:
       - harness-workspace:/app/.miot-workspace
+    # Resolves `host.docker.internal` on Linux so MIOT_HARNESS_NEXO_DSN
+    # pointing at host.docker.internal:6434 (a host-side kubectl
+    # port-forward) works without --network host. macOS / Windows
+    # Docker Desktop already provide this name automatically; the
+    # extra_hosts is a no-op there.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=2).status==200 else 1)"]

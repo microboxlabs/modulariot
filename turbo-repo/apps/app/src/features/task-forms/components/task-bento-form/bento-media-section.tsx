@@ -16,12 +16,16 @@ export default function BentoMediaSection({
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
 
   return (
-    <div className="flex gap-2 w-full" style={{ height: "650px" }}>
+    <div
+      className="flex w-full transition-all duration-500 ease-in-out"
+      style={{ height: isMediaExpanded ? "min(85vh, 900px)" : "650px" }}
+    >
       {/* Geographic — desktop only, collapses smoothly when viewer opens */}
       <div
         className="hidden lg:flex overflow-hidden bg-white dark:bg-gray-800 rounded-lg sm:border border-gray-300 dark:border-gray-700 transition-all duration-500 ease-in-out"
         style={{
           width: isMediaExpanded ? "0%" : "66.666%",
+          marginRight: isMediaExpanded ? "0px" : "8px",
           opacity: isMediaExpanded ? 0 : 1,
           minWidth: 0,
         }}
@@ -36,7 +40,11 @@ export default function BentoMediaSection({
 
       {/* FileImages — expands to fill geographic space */}
       <div
-        className="p-2 overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
+        className={`overflow-hidden rounded-lg bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out ${
+          isMediaExpanded
+            ? "border border-gray-300 dark:border-gray-700"
+            : "border border-dashed border-gray-300 dark:border-gray-700"
+        }`}
         style={{
           width: isMediaExpanded ? "100%" : "33.333%",
           minWidth: 0,

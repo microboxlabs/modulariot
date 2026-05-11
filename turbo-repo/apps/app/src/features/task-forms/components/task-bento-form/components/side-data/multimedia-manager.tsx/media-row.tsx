@@ -1,23 +1,46 @@
 "use client";
 
+import { Checkbox } from "flowbite-react";
 import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 import { useEffect, useState } from "react";
 import { IoImagesOutline } from "react-icons/io5";
 import { FaRegFilePdf } from "react-icons/fa";
+import { HiPencilSquare } from "react-icons/hi2";
 import { getCategories } from "./clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+
+export type ReviewStatus = "pending" | "approved" | "rejected";
+
+const STATUS_CONFIG: Record<ReviewStatus, { dotCls: string; textCls: string; label: string }> = {
+  pending:  { dotCls: "bg-amber-500", textCls: "text-amber-600 dark:text-amber-400", label: "Pending" },
+  approved: { dotCls: "bg-green-500", textCls: "text-green-600 dark:text-green-400", label: "Approved" },
+  rejected: { dotCls: "bg-red-500",   textCls: "text-red-600 dark:text-red-400",     label: "Rejected" },
+};
 
 export default function MediaRow({
   file,
   index,
   type,
   onSelect,
+  isSelected = false,
+  onToggleSelect,
+  status = "pending",
+  statusSetAt,
+  statusSetBy,
+  onEdit,
   dictionary,
 }: {
   file: any;
   index: number;
   type: "image" | "document";
   onSelect: (index: number) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+  status?: ReviewStatus;
+  statusSetAt?: Date;
+  statusSetBy?: string;
+  onEdit?: () => void;
   dictionary: I18nRecord;
 }) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
@@ -35,36 +58,106 @@ export default function MediaRow({
   const categoryLabel = categories[tag as keyof typeof categories]?.label;
   const FallbackIcon = type === "image" ? IoImagesOutline : FaRegFilePdf;
 
+  const version = file.entry.properties["cm:versionLabel"];
+  const lastEditor = file.entry.modifiedByUser?.displayName;
+  const modifiedAt = file.entry.modifiedAt ? formatDateString(file.entry.modifiedAt) : null;
+  const secondaryParts = [
+    version ? `v${version}` : null,
+    lastEditor ? `By ${lastEditor}` : null,
+    modifiedAt ? `Updated: ${modifiedAt}` : null,
+  ].filter(Boolean);
+
+  const statusCfg = STATUS_CONFIG[status];
+  const statusChangeLine =
+    statusSetAt && status !== "pending"
+      ? [statusCfg.label, `on ${formatDateString(statusSetAt.toISOString())}`, statusSetBy ? `by ${statusSetBy}` : null].filter(Boolean).join(" ")
+      : null;
+
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(index)}
-      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-left cursor-pointer"
+    <div
+      className={`group w-full flex items-start gap-2 px-2 py-2 rounded-lg transition-colors ${
+        isSelected
+          ? "bg-blue-50 dark:bg-blue-900/20"
+          : "hover:bg-gray-100 dark:hover:bg-gray-700"
+      }`}
     >
-      {/* Thumbnail */}
-      <div className="w-9 h-9 rounded-md overflow-hidden bg-gray-200 dark:bg-gray-600 shrink-0 flex items-center justify-center">
-        {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={file.entry.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <FallbackIcon className="w-4 h-4 text-gray-400" />
-        )}
+      {/* Checkbox */}
+      <div
+        className="h-full flex items-center justify-center pt-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox
+          checked={isSelected}
+          onChange={() => onToggleSelect?.(file.entry.id)}
+          className="cursor-pointer"
+        />
       </div>
 
-      {/* Name */}
-      <span className="text-sm text-gray-800 dark:text-gray-200 truncate flex-1 min-w-0">
-        {file.entry.name}
-      </span>
+      {/* Main content — opens viewer */}
+      <button
+        type="button"
+        onClick={() => onSelect(index)}
+        className="flex-1 flex items-start gap-2 min-w-0 text-left cursor-pointer"
+      >
+        {/* Thumbnail */}
+        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-200 dark:bg-gray-600 shrink-0 flex items-center justify-center mt-0.5">
+          {thumbnailUrl ? (
+            <img
+              src={thumbnailUrl}
+              alt={file.entry.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <FallbackIcon className="w-5 h-5 text-gray-400" />
+          )}
+        </div>
 
-      {/* Tag as button-style badge */}
-      {categoryLabel && (
-        <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-          {categoryLabel}
-        </span>
+        {/* Text content */}
+        <div className="flex flex-col flex-1 min-w-0 gap-1">
+          {/* Primary row: name · dot · category */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate flex-1">
+              {file.entry.name}
+            </span>
+            {categoryLabel && (
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                {categoryLabel}
+              </span>
+            )}
+            <span
+              title={statusCfg.label}
+              className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotCls}`}
+            />
+          </div>
+
+          {/* Secondary row: version · editor · update date · category */}
+          {secondaryParts.length > 0 && (
+            <span className="text-xs text-gray-400 dark:text-gray-500 truncate">
+              {secondaryParts.join(" · ")}
+            </span>
+          )}
+
+          {/* Status change row: only shown after a decision */}
+          {statusChangeLine && (
+            <span className={`text-xs font-medium ${statusCfg.textCls}`}>
+              {statusChangeLine}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {type === "image" && onEdit && (
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            title="Replace file"
+            onClick={onEdit}
+            className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+          >
+            <HiPencilSquare className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
-    </button>
+    </div>
   );
 }

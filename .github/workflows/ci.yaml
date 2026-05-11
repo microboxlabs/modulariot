@@ -11,7 +11,7 @@
 # Applications built:
 #   - docs: Documentation site (miot-docs)
 #   - app: Main application (miot-app)
-#   - web-site: Public website (miot-web-site)
+#   - web: Marketing website (miot-web)
 #
 # Tagging Strategy:
 #   - PRs:        ghcr.io/microboxlabs/<image>:pr-<number>
@@ -219,7 +219,7 @@ jobs:
           key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
 
       - name: Build apps with Turbo
-        run: npx turbo run build --filter=@modulariot/docs --filter=@modulariot/app --filter=@modulariot/web-site
+        run: npx turbo run build --filter=@modulariot/docs --filter=@modulariot/app --filter=@modulariot/web
         working-directory: turbo-repo
 
       - name: Stage docs artifacts
@@ -236,12 +236,12 @@ jobs:
           cp -r turbo-repo/apps/app/.next/static /tmp/build-app/.next/static
           cp -r turbo-repo/apps/app/public /tmp/build-app/public
 
-      - name: Stage web-site artifacts
+      - name: Stage web artifacts
         run: |
-          mkdir -p /tmp/build-web-site/.next
-          cp -r turbo-repo/apps/web-site/.next/standalone /tmp/build-web-site/.next/standalone
-          cp -r turbo-repo/apps/web-site/.next/static /tmp/build-web-site/.next/static
-          cp -r turbo-repo/apps/web-site/public /tmp/build-web-site/public
+          mkdir -p /tmp/build-web/.next
+          cp -r turbo-repo/apps/web/.next/standalone /tmp/build-web/.next/standalone
+          cp -r turbo-repo/apps/web/.next/static /tmp/build-web/.next/static
+          cp -r turbo-repo/apps/web/public /tmp/build-web/public
 
       - name: Upload docs artifact
         uses: actions/upload-artifact@v4
@@ -259,11 +259,11 @@ jobs:
           include-hidden-files: true
           retention-days: 1
 
-      - name: Upload web-site artifact
+      - name: Upload web artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-web-site
-          path: /tmp/build-web-site/
+          name: build-web
+          path: /tmp/build-web/
           include-hidden-files: true
           retention-days: 1
 
@@ -285,8 +285,8 @@ jobs:
             image-name: miot-docs
           - app: app
             image-name: miot-app
-          - app: web-site
-            image-name: miot-web-site
+          - app: web
+            image-name: miot-web
 
     permissions:
       contents: read

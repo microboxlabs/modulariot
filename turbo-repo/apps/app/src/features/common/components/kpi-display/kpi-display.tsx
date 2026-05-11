@@ -1,6 +1,6 @@
 "use client";
 
-import { HiCheck, HiExclamation, HiClock, HiX } from "react-icons/hi";
+import { HiCheck, HiExclamation, HiClock, HiX, HiMinus } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import { type LeadTimeData, getLeadTimeStatus } from "./kpi-display.types";
 import { type I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -117,12 +117,14 @@ const leadTimeStatusColors = {
   success: "text-gray-700 dark:text-gray-300",
   warning: "text-gray-700 dark:text-gray-300",
   error: "text-yellow-500 dark:text-yellow-400",
+  unknown: "text-gray-400 dark:text-gray-500",
 };
 
 const leadTimeBarColors = {
   success: "bg-gray-400",
   warning: "bg-gray-400",
   error: "bg-yellow-400 dark:bg-yellow-300",
+  unknown: "bg-gray-200 dark:bg-gray-600",
 };
 
 /**
@@ -138,7 +140,17 @@ export function LeadTimeDisplay({ leadTime, compact, dict }: LeadTimeDisplayProp
     success: HiCheck,
     warning: HiExclamation,
     error: HiX,
+    unknown: HiMinus,
   }[status];
+
+  const pctLabel =
+    leadTime.lineasoc_pctn_cumplimiento == null
+      ? "—"
+      : `${leadTime.lineasoc_pctn_cumplimiento}%`;
+  const barWidth =
+    leadTime.lineasoc_pctn_cumplimiento == null
+      ? "0%"
+      : `${leadTime.lineasoc_pctn_cumplimiento}%`;
 
   const totalLines =
     leadTime.total_lineasoc_cumplen + leadTime.total_lineasoc_incumplen;
@@ -164,7 +176,7 @@ export function LeadTimeDisplay({ leadTime, compact, dict }: LeadTimeDisplayProp
                 "h-full rounded-full transition-all",
                 leadTimeBarColors[status]
               )}
-              style={{ width: `${leadTime.lineasoc_pctn_cumplimiento}%` }}
+              style={{ width: barWidth }}
             />
           </div>
           {/* Percentage */}
@@ -174,7 +186,7 @@ export function LeadTimeDisplay({ leadTime, compact, dict }: LeadTimeDisplayProp
               leadTimeStatusColors[status]
             )}
           >
-            {leadTime.lineasoc_pctn_cumplimiento}%
+            {pctLabel}
           </span>
           {/* Source breakdown: cumplen/incumplen */}
           <span className="text-xs text-gray-500 dark:text-gray-400 min-w-[100px]">
@@ -213,7 +225,7 @@ export function LeadTimeDisplay({ leadTime, compact, dict }: LeadTimeDisplayProp
               leadTimeStatusColors[status]
             )}
           >
-            {leadTime.lineasoc_pctn_cumplimiento}%
+            {pctLabel}
           </span>
         </div>
       </div>
@@ -259,7 +271,7 @@ export function LeadTimeDisplay({ leadTime, compact, dict }: LeadTimeDisplayProp
               "h-full rounded-full transition-all",
               leadTimeBarColors[status]
             )}
-            style={{ width: `${leadTime.lineasoc_pctn_cumplimiento}%` }}
+            style={{ width: barWidth }}
           />
         </div>
         <span className="text-[10px] text-gray-500 dark:text-gray-400 w-8 text-right tabular-nums">

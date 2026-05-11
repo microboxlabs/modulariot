@@ -926,7 +926,8 @@ const StoredServiceSchema = z
       .object({
         total_lineasoc_cumplen: z.number(),
         total_lineasoc_incumplen: z.number(),
-        lineasoc_pctn_cumplimiento: z.number(),
+        // null means "not measured yet" — distinct from a measured 0%.
+        lineasoc_pctn_cumplimiento: z.number().nullable(),
       })
       .optional(),
     eta: z.string().optional(),

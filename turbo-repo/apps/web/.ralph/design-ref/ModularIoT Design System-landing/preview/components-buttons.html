@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:9px 16px; border-radius:8px; font-family:Inter; font-weight:500; font-size:14px; line-height:1; cursor:pointer; border:1px solid transparent; transition:background 120ms, border 120ms; }
+.btn.primary { background:#1C64F2; color:#fff; }
+.btn.primary:hover { background:#1A56DB; }
+.btn.secondary { background:#fff; color:#111928; border-color:#D1D5DB; }
+.btn.secondary:hover { background:#F9FAFB; }
+.btn.danger { background:#E11D48; color:#fff; }
+.btn.ghost { background:transparent; color:#1C64F2; }
+.btn.ghost:hover { background:#EBF5FF; }
+.btn.xs { padding:5px 10px; font-size:12px; }
+.btn.sm { padding:7px 12px; font-size:13px; }
+.btn.lg { padding:12px 20px; font-size:15px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+</style></head>
+<body>
+<div class="card">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <button class="btn primary">Sign in</button>
+    <button class="btn primary">Confirm delivery</button>
+    <button class="btn secondary">Cancel</button>
+    <button class="btn danger">Código negro</button>
+    <button class="btn ghost">Forgot password?</button>
+    <button class="btn primary" disabled>Disabled</button>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <button class="btn primary xs">xs</button>
+    <button class="btn primary sm">sm</button>
+    <button class="btn primary">base</button>
+    <button class="btn primary lg">lg</button>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:var(--fg-3);font-family:monospace">radius 8 · hover darkens 1 step · 4 px focus ring (blue-200)</span>
+  </div>
+</div>
+</body></html>

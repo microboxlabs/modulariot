@@ -1,0 +1,61 @@
+# =============================================================================
+# Build-context exclusions for `docker build` of miot-harness.
+# -----------------------------------------------------------------------------
+# The Dockerfile (next to this file) only COPYs pyproject.toml, uv.lock,
+# README.md, and src/, so excluded files don't leak into the image. But
+# they DO bloat the build context that Docker transfers to the daemon —
+# meaningful on developer machines where .venv is hundreds of MB.
+#
+# Order: most-bloat-first so the context shrinks fast.
+# =============================================================================
+
+# Python virtualenv — biggest single offender (~hundreds of MB).
+.venv/
+
+# Local harness state — runtime artifacts, never appropriate to copy in.
+.miot-workspace/
+
+# Tool caches (test runners, type checker, lint).
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Bytecode / compiled artifacts. uv rebuilds bytecode in-image anyway.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment & secrets.
+# `.env` would leak credentials; `.env.example` is documentation, not
+# something the runtime should read (settings come from the platform).
+.env
+.env.example
+
+# Dev-only directories not needed at runtime. Tests pull in fixtures
+# that the production image doesn't need; evals/docs are out-of-band.
+tests/
+evals/
+docs/
+examples/
+
+# Editor / OS noise.
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Git internals — never needed by the build.
+.git/
+.gitignore
+.gitattributes
+
+# Plan / planning state (gitignored anyway, but belt-and-braces).
+.cursor/
+.claude/
+
+# Build artifacts.
+dist/
+build/
+*.egg-info/

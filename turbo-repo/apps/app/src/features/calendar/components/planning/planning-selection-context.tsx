@@ -590,6 +590,13 @@ export interface SelectedService {
   lugarCarguio: string;
   destino: string;
   tipoViaje: TripType;
+  /**
+   * Raw Alfresco `mintral_serviceKind` value (e.g. "Sider", "Doble Sider").
+   * Unlike `tipoViaje` — a lossy display projection — this is forwarded
+   * verbatim on the booking payload so the bookings route can populate the
+   * coordinator binding's `tipo_servicio` and reach the assigned stage.
+   */
+  mintral_serviceKind?: string;
   ocupacion: number; // percentage 0-100
   permanencia: string;
   leadTime: LeadTimeData;
@@ -959,6 +966,7 @@ const StoredServiceSchema = z
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
     tipoViaje: z.enum(["Sider", "Doble Sider", "Rampla"]).optional(),
+    mintral_serviceKind: z.string().optional(),
     ocupacion: z.number().optional(),
     permanencia: z.string().optional(),
     leadTime: z

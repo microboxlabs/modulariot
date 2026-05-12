@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 7
+Iteration: 8
 Last updated: 2026-05-12
 
 ---
@@ -35,7 +35,7 @@ Last updated: 2026-05-12
 - [ ] **D3** One week of data accumulated: 50+ runs, cache hit ratio > 30% (target > 60% by week 2), per-agent cost breakdown matches expectations.
 
 ## Phase E — Agentic Search (loosen the harness)
-- [ ] **E1** LLM intent router + mode selection. New `runtime/intent_router.py` + `runtime/mode_resolver.py`. `RunRequest.mode: Literal["auto","canned","meta","agentic"] = "auto"`. Confidence threshold + keyword fallback. Tests: 30-prompt confusion matrix + 4 mode-bypass tests.
+- [x] **E1** LLM intent router + mode selection. New `runtime/intent_router.py` + `runtime/mode_resolver.py`. `RunRequest.mode: Literal["auto","canned","meta","agentic"] = "auto"`. Confidence threshold + keyword fallback. Tests: 30-prompt confusion matrix + 4 mode-bypass tests.
 - [ ] **E2** Meta-question agent. New `agents/meta_agent.py` (Haiku tier). Answers schema/primer questions from cached introspection + primer; no SQL.
 - [ ] **E3** Composable DB primitives (PR #2 redemption): `nexo_describe`, `nexo_select`, `nexo_grep`, `nexo_explain`. sqlglot AST gate + EXPLAIN cost gate + allowlist (`nexo.dx_*` + `fn_dx_*`). Tests must pass before moving on.
 - [ ] **E4** Provenance log: `observability/provenance.py` writes `(question, sql, plan_cost, rows_returned, refreshed_at, run_id, tenant_id)` to `evals/provenance/YYYY-MM-DD.jsonl`. `scripts/provenance-curate.py` surfaces candidates.
@@ -53,6 +53,12 @@ Last updated: 2026-05-12
 - [ ] **F5** Open PR. Verification artifacts: telemetry screenshots, dashboard exports, cost-report JSON, provenance log summary, multi-turn chat transcript.
 
 ---
+
+---
+
+## Out-of-order task summary
+
+- **E1 done before B/C/D**: B1+ blocked by operator preconditions (Docker, tunnel, ANTHROPIC_API_KEY) per `.ralph/blockers.md`. E1-E9 are offline-doable (FakeListChatModel + InMemorySpanExporter), so we skip ahead per the loop's "first task whose dependencies are met" rule. Live verification (D2/D3, F2/F3/F4) and infra-touching tasks (B1-B4, C1-C4) stay [ ] until preconditions are cleared.
 
 ## Open blockers (clear or escalate)
 

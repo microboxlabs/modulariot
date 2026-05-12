@@ -1,8 +1,14 @@
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+# The four explicit dispatch surfaces a caller can request. "auto" is the
+# default (LLM intent router decides). The other three bypass the router
+# and dispatch directly — useful for evals, cost-sensitive callers, and
+# operator debugging.
+RunMode = Literal["auto", "canned", "meta", "agentic"]
 
 
 class HarnessContext(BaseModel):
@@ -20,6 +26,7 @@ class UserRequest(BaseModel):
     tenant_id: str = "demo-tenant"
     user_id: str = "demo-user"
     route_context: dict[str, Any] = Field(default_factory=dict)
+    mode: RunMode = "auto"
 
     def to_context(self) -> HarnessContext:
         return HarnessContext(

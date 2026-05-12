@@ -23,6 +23,13 @@ class HarnessRoute(StrEnum):
     DIRECT = "direct"
     STORYTELLING_RUN = "storytelling_run"
     NEXO_QUERY = "nexo_query"
+    # Phase E (plan 13): three Nexo modes give cost/quality tiers and
+    # let the operator dashboard split per-mode behavior. NEXO_META is
+    # the only mode allowed for non-Mintral tenants (meta-info is
+    # non-confidential per `decisions made -> tenant gate behavior`).
+    NEXO_META = "nexo_meta"
+    NEXO_AGENTIC = "nexo_agentic"
+    OTHER = "other"
 
 
 class RouteResult(BaseModel):

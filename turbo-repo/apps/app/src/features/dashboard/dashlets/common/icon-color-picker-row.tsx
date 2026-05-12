@@ -8,7 +8,7 @@ import { IconPickerDropdown } from "@/features/common/components/icon-picker-dro
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { SettingsPickerRow, SettingsPickerItem } from "./settings-fields";
-import { DASHLET_ICON_OPTIONS, type DashletIconKey } from "./icon-options";
+import { type DashletIconKey } from "./icon-options";
 
 interface IconColorPickerRowProps<TColor extends string> {
   icon: DashletIconKey;
@@ -31,10 +31,11 @@ export function IconColorPickerRow<TColor extends string>({
     <SettingsPickerRow>
       <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
         <IconPickerDropdown
-          options={DASHLET_ICON_OPTIONS}
           value={icon}
-          onChange={onIconChange}
+          onChange={(v) => onIconChange(v as DashletIconKey)}
           title={tr("dashboard.settings.icon", dictionary)}
+          searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
+          emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}
         />
       </SettingsPickerItem>
       <SettingsPickerItem label={tr("dashboard.settings.color", dictionary)}>

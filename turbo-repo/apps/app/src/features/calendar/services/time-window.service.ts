@@ -135,6 +135,22 @@ export function apiToLocalTimeWindow(
 }
 
 /**
+ * Slot-generation fields for a TimeWindowRequest. BLOCK windows ignore them server-side, so send
+ * nothing; for WINDOWs send the mode ("auto" → "AUTO") and, only in manual mode, the admin-set duration.
+ */
+function slotGenerationRequestFields(
+  slot: TimeSlot
+): Pick<TimeWindowRequest, "slotGenerationMode" | "slotDurationMinutes"> {
+  if (slot.kind === "block") return {};
+  const slotGenerationMode =
+    slot.slotGenerationMode === "manual" ? "MANUAL" : "AUTO";
+  if (slotGenerationMode === "MANUAL" && slot.slotDurationMinutes != null) {
+    return { slotGenerationMode, slotDurationMinutes: slot.slotDurationMinutes };
+  }
+  return { slotGenerationMode };
+}
+
+/**
  * Convert the app's local TimeSlot to an API TimeWindowRequest.
  *
  * @param slot      - The local time slot to convert.
@@ -149,22 +165,7 @@ export function localToApiTimeWindow(
   // Blocks have no quota — the backend ignores capacity for BLOCK rows but
   // requires a non-negative number; send 0 explicitly.
   const capacity = slot.kind === "block" ? 0 : slot.quota ?? 1;
-  // Blocks ignore slot-generation settings server-side; for WINDOWs send the mode
-  // (default "auto" → "AUTO") and, only in manual mode, the admin-set duration.
-  const generationFields: Pick<
-    TimeWindowRequest,
-    "slotGenerationMode" | "slotDurationMinutes"
-  > =
-    apiKind === "BLOCK"
-      ? {}
-      : {
-          slotGenerationMode:
-            slot.slotGenerationMode === "manual" ? "MANUAL" : "AUTO",
-          ...(slot.slotGenerationMode === "manual" &&
-          slot.slotDurationMinutes != null
-            ? { slotDurationMinutes: slot.slotDurationMinutes }
-            : {}),
-        };
+  const generationFields = slotGenerationRequestFields(slot);
 
   if (slot.type === "daily-override") {
     const start = slot.startTimestamp ? dayjs(slot.startTimestamp) : dayjs();

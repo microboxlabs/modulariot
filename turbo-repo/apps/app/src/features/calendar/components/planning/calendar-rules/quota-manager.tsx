@@ -371,6 +371,139 @@ interface QuotaManagerProps {
   onRulesChange?: (windows: TimeWindow[], formatString: string) => void;
 }
 
+interface SlotGenerationSectionProps {
+  readonly timeWindow: TimeWindow;
+  readonly acct: ReturnType<typeof slotAccounting>;
+  readonly messages: QuotaManagerMessages;
+  readonly onModeChange: (mode: "auto" | "manual") => void;
+  readonly onDurationChange: (minutes: number) => void;
+}
+
+/**
+ * Per-window "slot generation" control: an Auto/Manual toggle, a (manual-only) slot-duration ± input,
+ * a derived "N slots fit · M assignable · K unassignable" hint, and amber warnings when capacity
+ * exceeds the slots that fit or the duration leaves a leftover tail. Extracted from the window-row
+ * render so the row callback stays under the cognitive-complexity limit.
+ */
+function SlotGenerationSection({
+  timeWindow,
+  acct,
+  messages,
+  onModeChange,
+  onDurationChange,
+}: SlotGenerationSectionProps) {
+  const isManual = timeWindow.slotGenerationMode === "manual";
+  const slotDuration = timeWindow.slotDurationMinutes ?? 30;
+  return (
+    <div className="flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 shrink-0">
+          {messages.generationMode}
+        </span>
+        <div className="flex items-center gap-1 p-0.5 bg-gray-100 dark:bg-gray-800 rounded-md flex-1">
+          <button
+            type="button"
+            onClick={() => onModeChange("auto")}
+            className={twMerge(
+              "flex-1 py-1 text-[10px] font-semibold rounded transition-all duration-200",
+              isManual
+                ? "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+            )}
+          >
+            {messages.modeAuto}
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("manual")}
+            className={twMerge(
+              "flex-1 py-1 text-[10px] font-semibold rounded transition-all duration-200",
+              isManual
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            )}
+          >
+            {messages.modeManual}
+          </button>
+        </div>
+        {isManual && (
+          <div
+            className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md shrink-0"
+            title={messages.slotDurationLabel}
+          >
+            <button
+              type="button"
+              onClick={() => onDurationChange(slotDuration - 5)}
+              disabled={slotDuration <= MIN_SLOT_DURATION_MINUTES}
+              className={twMerge(
+                "w-5 h-5 flex items-center justify-center rounded text-gray-600 dark:text-gray-300 text-xs transition-colors",
+                slotDuration <= MIN_SLOT_DURATION_MINUTES
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-gray-200 dark:hover:bg-gray-700"
+              )}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={MIN_SLOT_DURATION_MINUTES}
+              key={`dur-${timeWindow.id}-${slotDuration}`}
+              defaultValue={slotDuration}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onDurationChange(
+                    Number.parseInt((e.target as HTMLInputElement).value) ||
+                      MIN_SLOT_DURATION_MINUTES
+                  );
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              onBlur={(e) =>
+                onDurationChange(
+                  Number.parseInt(e.target.value) || MIN_SLOT_DURATION_MINUTES
+                )
+              }
+              aria-label={messages.slotDurationLabel}
+              className="w-9 text-center text-xs font-bold text-gray-700 dark:text-gray-200 bg-transparent border-0 focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-[9px] text-gray-400 pr-1">min</span>
+            <button
+              type="button"
+              onClick={() => onDurationChange(slotDuration + 5)}
+              className="w-5 h-5 flex items-center justify-center rounded text-gray-600 dark:text-gray-300 text-xs transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="text-[10px] text-gray-500 dark:text-gray-400">
+        {messages.slotsHint
+          .replace("{total}", String(acct.totalSlots))
+          .replace("{bookable}", String(acct.bookableSlots))
+          .replace("{unassignable}", String(acct.unassignable))}
+      </div>
+      {acct.capacityExceedsSlots && (
+        <div className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+          ⚠{" "}
+          {messages.capacityExceedsSlots.replace(
+            "{bookable}",
+            String(acct.bookableSlots)
+          )}
+        </div>
+      )}
+      {acct.leftoverMinutes > 0 && (
+        <div className="text-[10px] text-amber-500 dark:text-amber-400">
+          {messages.leftoverMinutes.replace(
+            "{minutes}",
+            String(acct.leftoverMinutes)
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function QuotaManager({
   messages,
   onRulesChange,
@@ -700,8 +833,6 @@ export default function QuotaManager({
           const windowCode = formatTimeWindowCode(window);
           const pattern = getSlotPattern(window);
           const acct = slotAccounting(window, andenesCount);
-          const isManualMode = window.slotGenerationMode === "manual";
-          const slotDuration = window.slotDurationMinutes ?? 30;
           const isAllWeeks = pattern.weeks.length === 0;
           const hasCollision = windowsWithCollisions.has(window.id);
           const windowDate = TimeWindowUtils.getDate(window);
@@ -854,126 +985,17 @@ export default function QuotaManager({
                 </div>
 
                 {/* Slot generation: Auto / Manual + (manual) slot duration */}
-                <div className="flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 shrink-0">
-                      {messages.generationMode}
-                    </span>
-                    <div className="flex items-center gap-1 p-0.5 bg-gray-100 dark:bg-gray-800 rounded-md flex-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateSlotGenerationMode(window.id, "auto")
-                        }
-                        className={twMerge(
-                          "flex-1 py-1 text-[10px] font-semibold rounded transition-all duration-200",
-                          isManualMode
-                            ? "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                            : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                        )}
-                      >
-                        {messages.modeAuto}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateSlotGenerationMode(window.id, "manual")
-                        }
-                        className={twMerge(
-                          "flex-1 py-1 text-[10px] font-semibold rounded transition-all duration-200",
-                          isManualMode
-                            ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                        )}
-                      >
-                        {messages.modeManual}
-                      </button>
-                    </div>
-                    {isManualMode && (
-                      <div
-                        className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md shrink-0"
-                        title={messages.slotDurationLabel}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSlotDuration(window.id, slotDuration - 5)
-                          }
-                          disabled={slotDuration <= MIN_SLOT_DURATION_MINUTES}
-                          className={twMerge(
-                            "w-5 h-5 flex items-center justify-center rounded text-gray-600 dark:text-gray-300 text-xs transition-colors",
-                            slotDuration <= MIN_SLOT_DURATION_MINUTES
-                              ? "opacity-40 cursor-not-allowed"
-                              : "hover:bg-gray-200 dark:hover:bg-gray-700"
-                          )}
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          min={MIN_SLOT_DURATION_MINUTES}
-                          key={`dur-${window.id}-${slotDuration}`}
-                          defaultValue={slotDuration}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              updateSlotDuration(
-                                window.id,
-                                Number.parseInt(
-                                  (e.target as HTMLInputElement).value
-                                ) || MIN_SLOT_DURATION_MINUTES
-                              );
-                              (e.target as HTMLInputElement).blur();
-                            }
-                          }}
-                          onBlur={(e) =>
-                            updateSlotDuration(
-                              window.id,
-                              Number.parseInt(e.target.value) ||
-                                MIN_SLOT_DURATION_MINUTES
-                            )
-                          }
-                          aria-label={messages.slotDurationLabel}
-                          className="w-9 text-center text-xs font-bold text-gray-700 dark:text-gray-200 bg-transparent border-0 focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <span className="text-[9px] text-gray-400 pr-1">
-                          min
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSlotDuration(window.id, slotDuration + 5)
-                          }
-                          className="w-5 h-5 flex items-center justify-center rounded text-gray-600 dark:text-gray-300 text-xs transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
-                        >
-                          +
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                    {messages.slotsHint
-                      .replace("{total}", String(acct.totalSlots))
-                      .replace("{bookable}", String(acct.bookableSlots))
-                      .replace("{unassignable}", String(acct.unassignable))}
-                  </div>
-                  {acct.capacityExceedsSlots && (
-                    <div className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                      ⚠{" "}
-                      {messages.capacityExceedsSlots.replace(
-                        "{bookable}",
-                        String(acct.bookableSlots)
-                      )}
-                    </div>
-                  )}
-                  {acct.leftoverMinutes > 0 && (
-                    <div className="text-[10px] text-amber-500 dark:text-amber-400">
-                      {messages.leftoverMinutes.replace(
-                        "{minutes}",
-                        String(acct.leftoverMinutes)
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SlotGenerationSection
+                  timeWindow={window}
+                  acct={acct}
+                  messages={messages}
+                  onModeChange={(mode) =>
+                    updateSlotGenerationMode(window.id, mode)
+                  }
+                  onDurationChange={(minutes) =>
+                    updateSlotDuration(window.id, minutes)
+                  }
+                />
 
                 {/* Time Range */}
                 <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">

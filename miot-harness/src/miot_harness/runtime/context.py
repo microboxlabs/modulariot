@@ -27,6 +27,7 @@ class UserRequest(BaseModel):
     user_id: str = "demo-user"
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
+    conversation_id: str | None = None
 
     def to_context(self) -> HarnessContext:
         return HarnessContext(

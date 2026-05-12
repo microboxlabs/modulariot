@@ -13,6 +13,10 @@ class HarnessRunRecord(BaseModel):
     events: list[HarnessEvent] = Field(default_factory=list)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
     answer: str | None = None
+    # Phase E (plan 13): the conversation this run belongs to. None for
+    # one-shot requests; set when the caller passes `conversation_id`.
+    # Langfuse groups runs by this attribute.
+    conversation_id: str | None = None
 
 
 class JsonRunStore:

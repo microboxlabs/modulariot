@@ -25,6 +25,10 @@ export interface BookingRequest {
   slot: SlotData;
 }
 
+export interface BookingUpdateRequest {
+  resource: ResourceData;
+}
+
 export interface BookingResponse {
   id: string;
   calendarId: string;

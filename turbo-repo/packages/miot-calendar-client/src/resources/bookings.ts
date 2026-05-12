@@ -3,6 +3,7 @@ import type {
   BookingListResponse,
   BookingRequest,
   BookingResponse,
+  BookingUpdateRequest,
 } from "../types.js";
 
 const BASE = "/api/v1/miot-calendar/bookings";
@@ -31,6 +32,17 @@ export function createBookingsApi(fetcher: Fetcher) {
           ? { "X-User-Id": options.userId }
           : undefined,
       });
+    },
+
+    /**
+     * Update an existing booking's resource payload in place. The slot is not
+     * changed; move a booking by cancelling and recreating it.
+     */
+    update(
+      id: string,
+      body: BookingUpdateRequest,
+    ): Promise<BookingResponse> {
+      return fetcher("PUT", `${BASE}/${id}`, { body });
     },
 
     cancel(id: string): Promise<void> {

@@ -25,10 +25,12 @@ import {
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
   createBooking,
+  updateBooking,
   cancelBooking,
   listBookings,
   updateServiceCategory,
   advanceWorkflowTask,
+  notifyCalendarBinding,
 } from "@/features/common/providers/client-api.provider";
 import type { BookingTaskAdvance } from "@/features/common/providers/client-api.provider";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
@@ -660,11 +662,24 @@ async function syncServiceCategoryWithWorkflow(
   }
 
   if (!liveTaskId) {
-    await cancelBookingWithWarning(
+    // The kanban index didn't surface a live task for this service — most
+    // commonly because the workflow has advanced past the planner-tracked
+    // stages while the user was on the page (or never was at one). The
+    // local binding state already captured the (carrier, driver, truck)
+    // tuple via the bookings POST → coordinator binding webscript, so
+    // rolling back the booking here would drift state for no upside.
+    // Log + skip; a future user action on the service will retry the
+    // category sync once a live task is in scope.
+    console.warn(
+      "Service category sync skipped — no live Alfresco task for service",
+      service.mintral_serviceCode,
+      "(category:",
+      service.serviceCategory,
+      ", booking:",
       bookingId,
-      "Failed to cancel booking after missing task id:"
+      ")"
     );
-    throw new Error("Missing Alfresco task id for service category");
+    return;
   }
 
   try {
@@ -758,9 +773,24 @@ async function persistPlannedBooking({
   }
 
   try {
-    const booking = await createBooking(
-      buildBookingRequest(calendarId, service, slot)
-    );
+    const bookingRequest = buildBookingRequest(calendarId, service, slot);
+    const booking = await createBooking(bookingRequest);
+
+    // Re-confirming a service in the same slot (e.g. "Asignar" on an
+    // already-planned service) hits the bookings POST 409 path, which resolves
+    // to the *existing* booking without applying the new resource.data — and so
+    // `booking.id === oldBookingId`. Push the payload onto it explicitly so the
+    // change (e.g. the assignment tuple) survives a refresh, and skip the
+    // old-booking cancel below since it would delete the booking we just kept.
+    const reusedExistingBooking =
+      oldBookingId !== undefined && booking.id === oldBookingId;
+    if (reusedExistingBooking) {
+      // On failure the pre-existing booking is left intact (with stale data);
+      // rethrow so the outer catch rolls back the optimistic UI. We never
+      // cancel it here — it is the service's current plan.
+      await updateBooking(booking.id, { resource: bookingRequest.resource });
+    }
+
     await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
       await advanceWorkflowTask(taskAdvance.taskId, taskAdvance.transitionId);
@@ -772,7 +802,7 @@ async function persistPlannedBooking({
       return next;
     });
 
-    if (oldBookingId) {
+    if (oldBookingId && !reusedExistingBooking) {
       await cancelBookingWithWarning(
         oldBookingId,
         "Failed to cancel old booking:"
@@ -1711,6 +1741,21 @@ export function PlanningSelectionProvider({
         });
       }
 
+      // Tell the coordinator the service is no longer in this calendar.
+      // Best-effort: a failure here just leaves a stale binding row in
+      // act_ru_variable, which the next planner action on this calendar
+      // will overwrite. Don't block the user-visible removal on it.
+      const numeroServicio = planned?.service.mintral_serviceCode;
+      if (numeroServicio && calendarId) {
+        await notifyCalendarBinding({
+          numero_servicio: numeroServicio,
+          calendar_id: calendarId,
+          stage: "none",
+        }).catch((err) =>
+          console.warn("Failed to notify calendar binding (none):", err)
+        );
+      }
+
       // Remove from local state
       setPlannedServices((prev) =>
         prev.filter((p) => p.service.id !== serviceId)
@@ -1719,7 +1764,7 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask]
+    [bookingIds, plannedServices, getLiveTask, calendarId]
   );
 
   /**

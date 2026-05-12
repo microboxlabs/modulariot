@@ -131,7 +131,12 @@ class HarnessSupervisor:
             "evidence": [],
             "turn_count": 0,
         }
-        with agent_span("run", run_id=ctx.run_id, tenant_id=ctx.tenant_id):
+        with agent_span(
+            "run",
+            run_id=ctx.run_id,
+            tenant_id=ctx.tenant_id,
+            mode=ctx.mode,
+        ):
             final_state = await self.nexo_graph.ainvoke(initial_state)
 
         # Drain the graph's _events channel into the run record in order

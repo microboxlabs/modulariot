@@ -54,7 +54,7 @@ def _instrument(model: BaseChatModel, agent_name: str, ctx: HarnessContext) -> A
 
     The callback emits one ``nexo.<agent>`` span per LLM call with full
     GenAI semconv attribution (tokens, cache split, cost) and the
-    ``modular.{agent, run_id, tenant_id}`` attrs Langfuse groups by.
+    ``modular.{agent, run_id, tenant_id, mode}`` attrs Langfuse groups by.
     Returns a `Runnable` proxy which is interface-compatible with
     `BaseChatModel.ainvoke` — the agent nodes only call that surface.
     """
@@ -63,6 +63,7 @@ def _instrument(model: BaseChatModel, agent_name: str, ctx: HarnessContext) -> A
         agent_name=agent_name,
         run_id=ctx.run_id,
         tenant_id=ctx.tenant_id,
+        mode=ctx.mode,
     )
     return model.with_config(callbacks=[cb])
 

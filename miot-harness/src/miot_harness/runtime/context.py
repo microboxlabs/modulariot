@@ -18,6 +18,9 @@ class HarnessContext(BaseModel):
     user_id: str
     route_context: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # Phase E (plan 13): the mode the caller requested. Set from
+    # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
+    mode: RunMode = "auto"
 
 
 class UserRequest(BaseModel):
@@ -35,4 +38,5 @@ class UserRequest(BaseModel):
             tenant_id=self.tenant_id,
             user_id=self.user_id,
             route_context=self.route_context,
+            mode=self.mode,
         )

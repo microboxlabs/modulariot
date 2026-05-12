@@ -167,6 +167,15 @@ export interface TimeSlot {
   // Server-managed shift cadence in minutes; only present on TWs loaded from
   // the API. Falls back to the row granularity (30 min) when missing.
   slotDurationMinutes?: number;
+  // How slot duration is determined: "auto" (derived from quota/parallelism) or
+  // "manual" (admin-set slotDurationMinutes). Ignored for blocks. Treated as "auto"
+  // when absent (older TWs / pre-v0.5.0 backend).
+  slotGenerationMode?: "auto" | "manual";
+  // Derived counts from the API (when present): total slots the window generates
+  // (`totalSlots`) and how many are bookable (`bookableSlots`); the rest, up to
+  // `totalSlots`, are OVERFLOW. Recompute locally when absent.
+  totalSlots?: number;
+  bookableSlots?: number;
 }
 
 /**

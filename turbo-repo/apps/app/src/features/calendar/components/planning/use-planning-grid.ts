@@ -51,6 +51,7 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     reassigningService,
     updateServiceAssignment,
     viewPlannedService,
+    andenesCount,
   } = usePlanningSelection();
 
   // Clear every assignment slot on the planned service — carrier, drivers,
@@ -135,6 +136,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     // Configured TWs/blocks for the current calendar (used by overlays
     // that need to know the real shift cadence per time window).
     configuredTimeSlots,
+
+    // Calendar parallelism (andenes count) — used to mark MANUAL-window overflow shifts.
+    andenesCount,
 
     // Planned services
     plannedServices,

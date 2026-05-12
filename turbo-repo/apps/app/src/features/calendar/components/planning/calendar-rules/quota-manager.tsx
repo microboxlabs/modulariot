@@ -226,10 +226,74 @@ function PortalDatepicker({
   );
 }
 
+/** Minimum admin-settable slot duration, in minutes (mirrors the backend bound). */
+const MIN_SLOT_DURATION_MINUTES = 5;
+
+/** Window length in minutes, from a window's parsed pattern. */
+function windowLengthMinutes(window: TimeWindow): number {
+  const p = getSlotPattern(window);
+  return p.endHour * 60 + p.endMinutes - (p.startHour * 60 + p.startMinutes);
+}
+
+/**
+ * Slot accounting for a window: how many slots fit, how many are bookable, how many overflow.
+ * In MANUAL mode `totalSlots = floor(windowMinutes / slotDurationMinutes)` and
+ * `bookableSlots = min(ceil(quota / parallelism), totalSlots)`; in AUTO mode every slot is bookable
+ * (`ceil(quota / parallelism)`). API-provided totals on the window win when present.
+ */
+function slotAccounting(window: TimeWindow, parallelism: number) {
+  const quota = window.quota ?? 0;
+  const p = Math.max(parallelism, 1);
+  const bookableNeeded = Math.max(Math.ceil(quota / p), 1);
+  const isManual = window.slotGenerationMode === "manual";
+  const minutes = windowLengthMinutes(window);
+  const duration = window.slotDurationMinutes ?? 30;
+  let totalSlots: number;
+  let bookableSlots: number;
+  if (window.totalSlots != null && window.bookableSlots != null) {
+    totalSlots = window.totalSlots;
+    bookableSlots = window.bookableSlots;
+  } else if (isManual && duration > 0) {
+    totalSlots = Math.floor(minutes / duration);
+    bookableSlots = Math.min(bookableNeeded, totalSlots);
+  } else {
+    totalSlots = bookableNeeded;
+    bookableSlots = bookableNeeded;
+  }
+  return {
+    totalSlots,
+    bookableSlots,
+    unassignable: Math.max(totalSlots - bookableSlots, 0),
+    capacityExceedsSlots: isManual && bookableNeeded > totalSlots,
+    leftoverMinutes: isManual && duration > 0 ? minutes % duration : 0,
+  };
+}
+
+/** Default slot duration when switching a window to MANUAL: the AUTO-equivalent length, clamped to [5, windowMinutes]. */
+function defaultManualDuration(window: TimeWindow, parallelism: number): number {
+  const minutes = windowLengthMinutes(window);
+  const numberOfSlots = Math.max(
+    Math.ceil((window.quota ?? 0) / Math.max(parallelism, 1)),
+    1
+  );
+  const derived = Math.floor(minutes / numberOfSlots) || 1;
+  return Math.max(
+    MIN_SLOT_DURATION_MINUTES,
+    Math.min(derived, Math.max(minutes, MIN_SLOT_DURATION_MINUTES))
+  );
+}
+
 export interface QuotaManagerMessages {
   noWindows: string;
   windowPlaceholder: string;
   availableQuotas: string;
+  generationMode: string;
+  modeAuto: string;
+  modeManual: string;
+  slotDurationLabel: string;
+  slotsHint: string;
+  capacityExceedsSlots: string;
+  leftoverMinutes: string;
   deleteWindow: string;
   weekly: string;
   dailyException: string;
@@ -267,6 +331,13 @@ export function getQuotaManagerMessages(
     noWindows: tr(`${QUOTA_MANAGER_BASE}.noWindows`, dict),
     windowPlaceholder: tr(`${QUOTA_MANAGER_BASE}.windowPlaceholder`, dict),
     availableQuotas: tr(`${QUOTA_MANAGER_BASE}.availableQuotas`, dict),
+    generationMode: tr(`${QUOTA_MANAGER_BASE}.generationMode`, dict),
+    modeAuto: tr(`${QUOTA_MANAGER_BASE}.modeAuto`, dict),
+    modeManual: tr(`${QUOTA_MANAGER_BASE}.modeManual`, dict),
+    slotDurationLabel: tr(`${QUOTA_MANAGER_BASE}.slotDurationLabel`, dict),
+    slotsHint: tr(`${QUOTA_MANAGER_BASE}.slotsHint`, dict),
+    capacityExceedsSlots: tr(`${QUOTA_MANAGER_BASE}.capacityExceedsSlots`, dict),
+    leftoverMinutes: tr(`${QUOTA_MANAGER_BASE}.leftoverMinutes`, dict),
     deleteWindow: tr(`${QUOTA_MANAGER_BASE}.deleteWindow`, dict),
     weekly: tr(`${QUOTA_MANAGER_BASE}.weekly`, dict),
     dailyException: tr(`${QUOTA_MANAGER_BASE}.dailyException`, dict),
@@ -300,11 +371,144 @@ interface QuotaManagerProps {
   onRulesChange?: (windows: TimeWindow[], formatString: string) => void;
 }
 
+interface SlotGenerationSectionProps {
+  readonly timeWindow: TimeWindow;
+  readonly acct: ReturnType<typeof slotAccounting>;
+  readonly messages: QuotaManagerMessages;
+  readonly onModeChange: (mode: "auto" | "manual") => void;
+  readonly onDurationChange: (minutes: number) => void;
+}
+
+/**
+ * Per-window "slot generation" control: an Auto/Manual toggle, a (manual-only) slot-duration ± input,
+ * a derived "N slots fit · M assignable · K unassignable" hint, and amber warnings when capacity
+ * exceeds the slots that fit or the duration leaves a leftover tail. Extracted from the window-row
+ * render so the row callback stays under the cognitive-complexity limit.
+ */
+function SlotGenerationSection({
+  timeWindow,
+  acct,
+  messages,
+  onModeChange,
+  onDurationChange,
+}: SlotGenerationSectionProps) {
+  const isManual = timeWindow.slotGenerationMode === "manual";
+  const slotDuration = timeWindow.slotDurationMinutes ?? 30;
+  return (
+    <div className="flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 shrink-0">
+          {messages.generationMode}
+        </span>
+        <div className="flex items-center gap-1 p-0.5 bg-gray-100 dark:bg-gray-800 rounded-md flex-1">
+          <button
+            type="button"
+            onClick={() => onModeChange("auto")}
+            className={twMerge(
+              "flex-1 py-1 text-[10px] font-semibold rounded transition-all duration-200",
+              isManual
+                ? "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+            )}
+          >
+            {messages.modeAuto}
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("manual")}
+            className={twMerge(
+              "flex-1 py-1 text-[10px] font-semibold rounded transition-all duration-200",
+              isManual
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            )}
+          >
+            {messages.modeManual}
+          </button>
+        </div>
+        {isManual && (
+          <div
+            className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md shrink-0"
+            title={messages.slotDurationLabel}
+          >
+            <button
+              type="button"
+              onClick={() => onDurationChange(slotDuration - 5)}
+              disabled={slotDuration <= MIN_SLOT_DURATION_MINUTES}
+              className={twMerge(
+                "w-5 h-5 flex items-center justify-center rounded text-gray-600 dark:text-gray-300 text-xs transition-colors",
+                slotDuration <= MIN_SLOT_DURATION_MINUTES
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-gray-200 dark:hover:bg-gray-700"
+              )}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={MIN_SLOT_DURATION_MINUTES}
+              key={`dur-${timeWindow.id}-${slotDuration}`}
+              defaultValue={slotDuration}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onDurationChange(
+                    Number.parseInt((e.target as HTMLInputElement).value) ||
+                      MIN_SLOT_DURATION_MINUTES
+                  );
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              onBlur={(e) =>
+                onDurationChange(
+                  Number.parseInt(e.target.value) || MIN_SLOT_DURATION_MINUTES
+                )
+              }
+              aria-label={messages.slotDurationLabel}
+              className="w-9 text-center text-xs font-bold text-gray-700 dark:text-gray-200 bg-transparent border-0 focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-[9px] text-gray-400 pr-1">min</span>
+            <button
+              type="button"
+              onClick={() => onDurationChange(slotDuration + 5)}
+              className="w-5 h-5 flex items-center justify-center rounded text-gray-600 dark:text-gray-300 text-xs transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="text-[10px] text-gray-500 dark:text-gray-400">
+        {messages.slotsHint
+          .replace("{total}", String(acct.totalSlots))
+          .replace("{bookable}", String(acct.bookableSlots))
+          .replace("{unassignable}", String(acct.unassignable))}
+      </div>
+      {acct.capacityExceedsSlots && (
+        <div className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+          ⚠{" "}
+          {messages.capacityExceedsSlots.replace(
+            "{bookable}",
+            String(acct.bookableSlots)
+          )}
+        </div>
+      )}
+      {acct.leftoverMinutes > 0 && (
+        <div className="text-[10px] text-amber-500 dark:text-amber-400">
+          {messages.leftoverMinutes.replace(
+            "{minutes}",
+            String(acct.leftoverMinutes)
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function QuotaManager({
   messages,
   onRulesChange,
 }: Readonly<QuotaManagerProps>) {
-  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } =
+  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI, andenesCount } =
     usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
   const colorOptions = useMemo(() => getColorOptions(messages), [messages]);
@@ -527,6 +731,49 @@ export default function QuotaManager({
     [timeWindows, setTimeWindows]
   );
 
+  const updateSlotGenerationMode = useCallback(
+    (id: string, mode: "auto" | "manual") => {
+      setTimeWindows(
+        timeWindows.map((w) => {
+          if (w.id !== id) return w;
+          if (mode === "auto") return { ...w, slotGenerationMode: "auto" };
+          const minutes = windowLengthMinutes(w);
+          const keepCurrent =
+            w.slotDurationMinutes != null &&
+            w.slotDurationMinutes >= MIN_SLOT_DURATION_MINUTES &&
+            w.slotDurationMinutes <= minutes;
+          return {
+            ...w,
+            slotGenerationMode: "manual",
+            slotDurationMinutes: keepCurrent
+              ? w.slotDurationMinutes
+              : defaultManualDuration(w, Math.max(andenesCount, 1)),
+          };
+        })
+      );
+    },
+    [timeWindows, setTimeWindows, andenesCount]
+  );
+
+  const updateSlotDuration = useCallback(
+    (id: string, minutes: number) => {
+      setTimeWindows(
+        timeWindows.map((w) =>
+          w.id === id
+            ? {
+                ...w,
+                slotDurationMinutes: Math.max(
+                  MIN_SLOT_DURATION_MINUTES,
+                  Math.round(minutes) || MIN_SLOT_DURATION_MINUTES
+                ),
+              }
+            : w
+        )
+      );
+    },
+    [timeWindows, setTimeWindows]
+  );
+
   const updateTimeWindow = useCallback(
     (id: string, field: "start" | "end", timeStr: string) => {
       const { hour, minutes } = parseTime(timeStr);
@@ -585,6 +832,7 @@ export default function QuotaManager({
         {timeWindows.map((window, index) => {
           const windowCode = formatTimeWindowCode(window);
           const pattern = getSlotPattern(window);
+          const acct = slotAccounting(window, andenesCount);
           const isAllWeeks = pattern.weeks.length === 0;
           const hasCollision = windowsWithCollisions.has(window.id);
           const windowDate = TimeWindowUtils.getDate(window);
@@ -735,6 +983,19 @@ export default function QuotaManager({
                     options={colorOptions}
                   />
                 </div>
+
+                {/* Slot generation: Auto / Manual + (manual) slot duration */}
+                <SlotGenerationSection
+                  timeWindow={window}
+                  acct={acct}
+                  messages={messages}
+                  onModeChange={(mode) =>
+                    updateSlotGenerationMode(window.id, mode)
+                  }
+                  onDurationChange={(minutes) =>
+                    updateSlotDuration(window.id, minutes)
+                  }
+                />
 
                 {/* Time Range */}
                 <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg p-2">

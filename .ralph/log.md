@@ -118,7 +118,15 @@ Append-only. One entry per iteration. Format:
 
 - Task: Phase E code review + cheap followups + supervisor-wire-up blocker note
 - Status: completed (loop stopping with BLOCKER)
-- Commit: <pending>
+- Commit: 501a545e
+
+## Iteration 18 — 2026-05-12
+
+- Task: BLOCKER triage — Stage 1 (1A supervisor wire-up + 1B B-scaffolding + 1C cost CLI)
+- Status: completed
+- Commits: a63fd949 (1A), 2bdbdefb (1B), <pending 1C>
+- Notes: User picked Stage 1 (code-only first) for resolving the BLOCKER. Three commits land all offline-doable work: (1A) supervisor consumes `resolve_mode` / `LLMIntentRouter` / `agentic_graph` / `meta_agent_node` / `InMemoryConversationStore`; factory + FastAPI lifespan inject them on boot; 7 new tests cover canned/meta/agentic/non-Mintral-refused/auto/conversation-roundtrip/backward-compat. (1B) `infra/observability/` scaffolding: `docker-compose.yml` (7-service stack postgres+clickhouse+redis+minio+langfuse-web+langfuse-worker+otel-collector w/ health-checked depends_on), `otel-collector-config.yaml` (OTLP gRPC+HTTP receivers, memory_limiter+batch processors, otlphttp/langfuse exporter), `bootstrap.sh` (compose up, health poll, Langfuse bootstrap-API key mint, prints .env paste-block), `README.md` (bring-up, privacy posture, backup/restore via tar, backend-swap recipe, troubleshooting table). All YAML/shell linted offline. (1C) `observability/report.py` + 13 tests: pure `aggregate_cost(traces, by=agent|tenant|mode)` returning sorted `CostRow` with cost/tokens/n; `parse_since('7d'/'24h'/'90m')`; `--fixture` JSONL mode shipped for offline use; live Langfuse fetch deferred to F-phase. Marked B1-B4 + C3 as [x] in state.md; C1/C2/C4 explicitly noted as live-stack-dependent. Full suite: 295 passed, 1 skipped. Stage 2 (Docker install + API key + tunnel) is on the user.
+
 - Notes: Dispatched `superpowers:requesting-code-review` for the Phase E surface (E1 router/resolver, E2 meta, E4 provenance, E5 conversation, E6 agentic_graph, E7 tenancy, E8/E9 mode telemetry — E3 was reviewed earlier). 0 Critical, 7 Important, 5 Minor. Applied cheap fixes here: (#4) `.env.example` gained 3 new sections for MIOT_HARNESS_INTENT_ROUTER_{MODEL,CONFIDENCE_THRESHOLD} and MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD; (#2) `agentic_graph.py` docstring rewritten to be honest about which nodes are wired vs which are deferred; (#3) `_ = provenance_log` clarified with intent comment. Big remaining Important #1 — supervisor doesn't yet consume `resolve_mode` / `LLMIntentRouter` / `InMemoryConversationStore` / `build_agentic_graph` / `meta_agent_node` — written up as a new OPEN entry in `.ralph/blockers.md` with concrete step-list for the F-phase wire-up. The F-phase tasks (F2-F5) are all gated on operator preconditions (Docker daemon, SSH tunnel, ANTHROPIC_API_KEY) per blockers.md. Output BLOCKER and STOP — every remaining task in document order requires either operator preconditions or the supervisor wire-up that depends on them. Full suite: 275 passed, 1 skipped.
 
 

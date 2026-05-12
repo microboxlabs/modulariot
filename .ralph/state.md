@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 17
+Iteration: 18
 Last updated: 2026-05-12
 
 ---
@@ -18,16 +18,16 @@ Last updated: 2026-05-12
 - [x] **A6** Tests: `test_callbacks.py` (span emission), `test_pricing.py` (cost math), `test_propagation.py` (the LangGraph gotcha test — 3-node fake graph, assert run_id hierarchy + per-agent attribution).
 
 ## Phase B — Backend deployment (Langfuse stack)
-- [ ] **B1** Create `infra/observability/docker-compose.yml` with `postgres:16`, `clickhouse:24`, `langfuse-web:3`, `langfuse-worker:3`, `otel-collector:0.95`. Volumes persisted. Starting point: Langfuse's official compose + Collector sidecar.
-- [ ] **B2** Create `infra/observability/otel-collector-config.yaml` — OTLP gRPC/HTTP receivers, `batch` + `memory_limiter` processors, `otlp/langfuse` exporter.
-- [ ] **B3** Create `infra/observability/bootstrap.sh` to bring the stack up, wait for langfuse-web health, create the `miot-harness-local` project, print API keys for operator to paste into `.env`.
-- [ ] **B4** Write `infra/observability/README.md` covering local bring-up, Langfuse UI access, backup/restore, backend-swap recipe.
+- [x] **B1** Create `infra/observability/docker-compose.yml` with `postgres:16`, `clickhouse:24`, `langfuse-web:3`, `langfuse-worker:3`, `otel-collector:0.95`. Volumes persisted. Starting point: Langfuse's official compose + Collector sidecar.
+- [x] **B2** Create `infra/observability/otel-collector-config.yaml` — OTLP gRPC/HTTP receivers, `batch` + `memory_limiter` processors, `otlp/langfuse` exporter.
+- [x] **B3** Create `infra/observability/bootstrap.sh` to bring the stack up, wait for langfuse-web health, create the `miot-harness-local` project, print API keys for operator to paste into `.env`.
+- [x] **B4** Write `infra/observability/README.md` covering local bring-up, Langfuse UI access, backup/restore, backend-swap recipe.
 
 ## Phase C — Per-agent dashboards + cost reports
-- [ ] **C1** End-to-end verification: 10 mintral curl runs covering G6/G7/G8. Verify per-agent hierarchy in Langfuse, token sums add up, `cache_read.input_tokens` non-zero on primer.
-- [ ] **C2** Build 6 dashboards (committed as JSON): per-agent cost, cache hit ratio (threshold 60%), per-tenant cost, per-mode cost split, latency per agent, tool execution success rate.
-- [ ] **C3** Cost report CLI: `python -m miot_harness.observability.report --since 7d --by agent|tenant|mode`.
-- [ ] **C4** Alerting: cache hit ratio < 30% for 24h → alert. Daily cost > 2× baseline → alert. Slack webhook if available, otherwise commit-and-alert.
+- [ ] **C1** End-to-end verification: 10 mintral curl runs covering G6/G7/G8. Verify per-agent hierarchy in Langfuse, token sums add up, `cache_read.input_tokens` non-zero on primer. *(needs live stack)*
+- [ ] **C2** Build 6 dashboards (committed as JSON): per-agent cost, cache hit ratio (threshold 60%), per-tenant cost, per-mode cost split, latency per agent, tool execution success rate. *(needs live Langfuse to export JSON)*
+- [x] **C3** Cost report CLI: `python -m miot_harness.observability.report --since 7d --by agent|tenant|mode`. *(fixture-mode shipped; live Langfuse fetch wires in F-phase)*
+- [ ] **C4** Alerting: cache hit ratio < 30% for 24h → alert. Daily cost > 2× baseline → alert. Slack webhook if available, otherwise commit-and-alert. *(deferred: aggregation source = live Langfuse traces)*
 
 ## Phase D — Telemetry verification gate
 - [ ] **D1** `uv run pytest` green. All new tests pass; plan 12's 139 tests still green.

@@ -510,6 +510,14 @@ export function BaseSearchDropdown<
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [activeFilter, setActiveFilter] =
     useState<ActiveFilter<TMatchType> | null>(null);
+  // Remembers the resolved option for the current `selectedId` so the trigger
+  // can still render its label after the backing `items` page stops including
+  // it — e.g. picking an off-page search result, or before the server-pinned
+  // row arrives on reopen. Without this the trigger falls back to the
+  // placeholder, making a successful selection look like it failed.
+  const [lastSelectedItem, setLastSelectedItem] = useState<TOption | null>(
+    null
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -531,6 +539,14 @@ export function BaseSearchDropdown<
   useEffect(() => {
     if (onQueryChange) onQueryChange(debouncedQuery);
   }, [onQueryChange, debouncedQuery]);
+
+  // Cache the option object for the active selection while it's present in
+  // `items`, so it survives the list being re-fetched for a new query/page.
+  useEffect(() => {
+    if (!selectedId) return;
+    const found = items.find((item) => item.id === selectedId);
+    if (found) setLastSelectedItem(found);
+  }, [items, selectedId]);
 
   // Calculate grouped results when no filter is active
   const groupedResults = useMemo(
@@ -700,7 +716,9 @@ export function BaseSearchDropdown<
     ]
   );
 
-  const selectedItem = items.find((item) => item.id === selectedId);
+  const selectedItem =
+    items.find((item) => item.id === selectedId) ??
+    (lastSelectedItem?.id === selectedId ? lastSelectedItem : undefined);
 
   const toggleDropdown = useCallback(() => {
     if (disabled) return;

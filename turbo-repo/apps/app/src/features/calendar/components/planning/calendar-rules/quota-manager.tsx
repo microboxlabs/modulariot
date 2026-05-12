@@ -236,35 +236,33 @@ function windowLengthMinutes(window: TimeWindow): number {
 }
 
 /**
- * Slot accounting for a window: how many slots fit, how many are bookable, how many overflow.
- * In MANUAL mode `totalSlots = floor(windowMinutes / slotDurationMinutes)` and
- * `bookableSlots = min(ceil(quota / parallelism), totalSlots)`; in AUTO mode every slot is bookable
- * (`ceil(quota / parallelism)`). API-provided totals on the window win when present.
+ * Slot accounting for a window: how many slots the grid generates and the most bookings it can
+ * actually hold (`parallelism` per slot, never more than the window's quota cap). In MANUAL mode
+ * `totalSlots = floor(windowMinutes / slotDurationMinutes)`; in AUTO mode `ceil(quota / parallelism)`.
+ * The grid intentionally has more slots than `quota / parallelism` in MANUAL mode — the surplus
+ * stays empty. API-provided `totalSlots` on the window wins when present.
  */
 function slotAccounting(window: TimeWindow, parallelism: number) {
   const quota = window.quota ?? 0;
   const p = Math.max(parallelism, 1);
-  const bookableNeeded = Math.max(Math.ceil(quota / p), 1);
   const isManual = window.slotGenerationMode === "manual";
   const minutes = windowLengthMinutes(window);
   const duration = window.slotDurationMinutes ?? 30;
   let totalSlots: number;
-  let bookableSlots: number;
-  if (window.totalSlots != null && window.bookableSlots != null) {
+  if (window.totalSlots != null) {
     totalSlots = window.totalSlots;
-    bookableSlots = window.bookableSlots;
   } else if (isManual && duration > 0) {
     totalSlots = Math.floor(minutes / duration);
-    bookableSlots = Math.min(bookableNeeded, totalSlots);
   } else {
-    totalSlots = bookableNeeded;
-    bookableSlots = bookableNeeded;
+    totalSlots = Math.max(Math.ceil(quota / p), 1);
   }
+  const gridCapacity = totalSlots * p;
   return {
     totalSlots,
-    bookableSlots,
-    unassignable: Math.max(totalSlots - bookableSlots, 0),
-    capacityExceedsSlots: isManual && bookableNeeded > totalSlots,
+    // The most bookings that can land in this window on a day: parallelism per slot, capped at quota.
+    maxBookable: quota > 0 ? Math.min(gridCapacity, quota) : gridCapacity,
+    // Admin set a coarser duration than their quota needs: fewer slots × parallelism than the quota.
+    capacityExceedsSlots: isManual && gridCapacity < quota,
     leftoverMinutes: isManual && duration > 0 ? minutes % duration : 0,
   };
 }
@@ -381,9 +379,9 @@ interface SlotGenerationSectionProps {
 
 /**
  * Per-window "slot generation" control: an Auto/Manual toggle, a (manual-only) slot-duration ± input,
- * a derived "N slots fit · M assignable · K unassignable" hint, and amber warnings when capacity
- * exceeds the slots that fit or the duration leaves a leftover tail. Extracted from the window-row
- * render so the row callback stays under the cognitive-complexity limit.
+ * a derived "N slots fit · up to M bookings" hint, and amber warnings when the quota exceeds what the
+ * grid can hold or the duration leaves a leftover tail. Extracted from the window-row render so the
+ * row callback stays under the cognitive-complexity limit.
  */
 function SlotGenerationSection({
   timeWindow,
@@ -480,15 +478,14 @@ function SlotGenerationSection({
       <div className="text-[10px] text-gray-500 dark:text-gray-400">
         {messages.slotsHint
           .replace("{total}", String(acct.totalSlots))
-          .replace("{bookable}", String(acct.bookableSlots))
-          .replace("{unassignable}", String(acct.unassignable))}
+          .replace("{max}", String(acct.maxBookable))}
       </div>
       {acct.capacityExceedsSlots && (
         <div className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
           ⚠{" "}
           {messages.capacityExceedsSlots.replace(
-            "{bookable}",
-            String(acct.bookableSlots)
+            "{max}",
+            String(acct.maxBookable)
           )}
         </div>
       )}

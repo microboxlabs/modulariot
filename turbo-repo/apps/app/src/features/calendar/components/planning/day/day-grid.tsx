@@ -6,7 +6,11 @@ import "dayjs/locale/es";
 import "dayjs/locale/en";
 import { twMerge } from "tailwind-merge";
 import type { DayInfo } from "../planning-day-view.types";
-import type { PlannedService } from "../planning-selection-context";
+import {
+  isTimeWindow,
+  type PlannedService,
+  type TimeWindow,
+} from "../planning-selection-context";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import {
   computeSlotState,
@@ -94,9 +98,27 @@ export default function DayGrid({
     getRemainingQuota,
     isSlotBlocked,
     configuredTimeSlots,
-    andenesCount,
     plannedServices,
   } = planningGrid;
+
+  // Lookup TW config by id + a per-shift "is this window at its booking capacity for the day?"
+  // check derived from the planned services. When true, no shift in that window accepts a new
+  // booking (the empty ones render as muted "spare" slots). `getRemainingQuota` clamps at 0 and
+  // already excludes the service being reassigned.
+  const timeWindowById = useMemo(() => {
+    const map = new Map<string, TimeWindow>();
+    for (const tw of configuredTimeSlots) {
+      if (isTimeWindow(tw)) map.set(tw.id, tw);
+    }
+    return map;
+  }, [configuredTimeSlots]);
+  const isShiftWindowFull = useCallback(
+    (shift: PositionedShift) => {
+      const tw = timeWindowById.get(shift.twId);
+      return tw ? getRemainingQuota(tw, shift.date) <= 0 : false;
+    },
+    [timeWindowById, getRemainingQuota]
+  );
 
   const dayInfo = useMemo(
     () => getDayInfo(currentDate, lang),
@@ -110,16 +132,16 @@ export default function DayGrid({
 
   const handleShiftClick = useCallback(
     (shift: PositionedShift) => {
-      // Overflow rectangles (beyond a MANUAL window's bookable quota) aren't bookable —
-      // the overlay already hides the "add" affordance for them; this is belt-and-suspenders.
-      if (!shift.assignable) return;
+      // The window is at its booking capacity for the day — the overlay already hides the "add"
+      // affordance for these; this is belt-and-suspenders.
+      if (isShiftWindowFull(shift)) return;
       handleSelectSlot({
         date: shift.date,
         hour: shift.slotHour,
         minutes: shift.slotMinutes,
       });
     },
-    [handleSelectSlot]
+    [handleSelectSlot, isShiftWindowFull]
   );
 
   const isShiftSelected = useCallback(
@@ -174,9 +196,8 @@ export default function DayGrid({
         date: currentDate,
         startHour,
         rowOffsets: baselineRowOffsets,
-        parallelism: andenesCount,
       }),
-    [configuredTimeSlots, andenesCount, currentDate, startHour, baselineRowOffsets]
+    [configuredTimeSlots, currentDate, startHour, baselineRowOffsets]
   );
   const { rowHeights, rowOffsets } = useMemo(
     () =>
@@ -196,9 +217,8 @@ export default function DayGrid({
         date: currentDate,
         startHour,
         rowOffsets,
-        parallelism: andenesCount,
       }),
-    [configuredTimeSlots, andenesCount, currentDate, startHour, rowOffsets]
+    [configuredTimeSlots, currentDate, startHour, rowOffsets]
   );
 
   // Header band (sticky day/time-axis row) height in px — the time-slot grid
@@ -213,6 +233,7 @@ export default function DayGrid({
     onShiftClick: handleShiftClick,
     isShiftSelected,
     getServicesForShift,
+    isWindowFull: isShiftWindowFull,
     dict,
   });
 

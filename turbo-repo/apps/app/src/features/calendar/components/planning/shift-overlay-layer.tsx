@@ -7,7 +7,7 @@ import type {
   TimeWindowColor,
 } from "./planning-selection-context";
 import type { PositionedShift } from "./shift-layout";
-import { OVERFLOW_STRIPE_CLASS } from "./planning-slot-utils";
+import { SPARE_SLOT_STRIPE_CLASS } from "./planning-slot-utils";
 import { PlannedServiceChip } from "./planned-service-chip";
 import type {
   I18nDictionary,
@@ -21,6 +21,12 @@ interface Props {
   readonly getServicesForShift?: (
     shift: PositionedShift
   ) => readonly PlannedService[];
+  /**
+   * True when the shift's time window has reached its booking capacity for that day. Derived from
+   * the planned services upstream — when true, no shift in the window accepts a new booking (the
+   * empty ones render as muted "spare" slots).
+   */
+  readonly isWindowFull?: (shift: PositionedShift) => boolean;
   readonly onChipClick?: (ps: PlannedService) => void;
   readonly onChipContextMenu?: (
     e: React.MouseEvent,
@@ -47,6 +53,7 @@ export function ShiftOverlayLayer({
   onShiftClick,
   isShiftSelected,
   getServicesForShift,
+  isWindowFull,
   onChipClick,
   onChipContextMenu,
   reassigningServiceId,
@@ -57,15 +64,18 @@ export function ShiftOverlayLayer({
       {shifts.map((s) => {
         const c = SHIFT_COLOR_CLASSES[s.twColor] ?? SHIFT_COLOR_CLASSES.emerald;
         const services = getServicesForShift?.(s) ?? [];
+        const hasServices = services.length > 0;
         const isFull = services.length >= s.capacity;
-        // OVERFLOW: rectangle generated beyond the MANUAL window's bookable quota — rendered for
-        // visibility (grey hatch) but not bookable; no "add" affordance, never selectable.
-        const isOverflow = !s.assignable;
+        // Window-full: the parent TW has reached its booking capacity for the day, so no shift in
+        // it accepts a new booking — regardless of order, even into a partially-full one. The empty
+        // ones render as muted "spare" slots (the grid intentionally has more slots than capacity).
+        const windowFull = isWindowFull?.(s) ?? false;
+        const spareSlot = windowFull && !hasServices;
         // Past-day shifts are read-only: cannot be planned or assigned.
         // Chips inside them stay clickable for view/inspection only.
         const canAdd =
-          !s.isPastDay && !isFull && !isOverflow && Boolean(onShiftClick);
-        const selected = !isOverflow && (isShiftSelected?.(s) ?? false);
+          !s.isPastDay && !isFull && !windowFull && Boolean(onShiftClick);
+        const selected = !windowFull && (isShiftSelected?.(s) ?? false);
         const colWidth = 100 / s.columnCount;
         const colLeft = colWidth * s.columnIndex;
         const positionStyle = {
@@ -76,14 +86,14 @@ export function ShiftOverlayLayer({
         } satisfies React.CSSProperties;
         const className = twMerge(
           "absolute rounded-md border border-dashed",
-          !isOverflow && c.border,
-          !isOverflow && c.tint,
+          !spareSlot && c.border,
+          !spareSlot && c.tint,
           canAdd && "transition-colors",
           canAdd && c.hover,
-          isFull && !isOverflow && "border-solid",
-          // OVERFLOW overlays: neutral-grey hatch + solid grey border + muted, no hover.
-          isOverflow &&
-            `border-solid border-gray-400/60 dark:border-gray-600/60 opacity-60 ${OVERFLOW_STRIPE_CLASS}`,
+          isFull && !spareSlot && "border-solid",
+          // Spare-slot overlays: neutral-grey hatch + solid grey border + muted, no hover.
+          spareSlot &&
+            `border-solid border-gray-400/60 dark:border-gray-600/60 opacity-60 ${SPARE_SLOT_STRIPE_CLASS}`,
           // Past-day overlays are visually muted and use a non-dashed
           // grey border so they don't read as "click me to plan".
           s.isPastDay &&
@@ -91,8 +101,8 @@ export function ShiftOverlayLayer({
           selected && `border-solid ring-2 ${c.selectedRing}`
         );
         const labelHM = formatHM(s.slotHour, s.slotMinutes);
-        const title = isOverflow
-          ? "Beyond window capacity — not assignable"
+        const title = windowFull
+          ? "Window is at capacity for this day — not assignable"
           : `${labelHM} – ${formatHM(
               Math.floor(s.endsAtMin / 60),
               s.endsAtMin % 60
@@ -121,11 +131,11 @@ export function ShiftOverlayLayer({
 
             {/* Time label in the corner — hidden when chips occupy the
                 rectangle since they already make the slot identifiable. */}
-            {services.length === 0 && s.height >= 24 && (
+            {!hasServices && s.height >= 24 && (
               <span
                 className={twMerge(
                   "absolute top-0.5 left-1.5 text-[10px] font-medium leading-none pointer-events-none",
-                  isOverflow ? "text-gray-400 dark:text-gray-500" : c.label
+                  spareSlot ? "text-gray-400 dark:text-gray-500" : c.label
                 )}
               >
                 {labelHM}
@@ -139,7 +149,7 @@ export function ShiftOverlayLayer({
                 vertically so each chip uses the full overlay width to
                 show the service info; chips beyond the rectangle's
                 height overflow visibly. */}
-            {services.length > 0 && (
+            {hasServices && (
               <div className="absolute inset-1 flex flex-col gap-0.5 pointer-events-none">
                 {services.map((ps) => (
                   <PlannedServiceChip

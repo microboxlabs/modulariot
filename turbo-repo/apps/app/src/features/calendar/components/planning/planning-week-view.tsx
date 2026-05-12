@@ -14,7 +14,11 @@ import type {
   WeekDay,
 } from "./planning-week-view.types";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
-import type { PlannedService } from "./planning-selection-context";
+import {
+  isTimeWindow,
+  type PlannedService,
+  type TimeWindow,
+} from "./planning-selection-context";
 import {
   computeSlotState,
   getSlotCellClassName,
@@ -106,9 +110,28 @@ export default function PlanningWeekView({
     getRemainingQuota,
     isSlotBlocked,
     configuredTimeSlots,
-    andenesCount,
     plannedServices,
   } = planningGrid;
+
+  // Lookup TW config by id, plus a per-shift "is this window at its booking capacity for the day?"
+  // check derived from the planned services. When true, no shift in that window accepts a new
+  // booking (the empty ones render as muted "spare" slots, since the grid intentionally has more
+  // slots than the window can hold). `getRemainingQuota` clamps at 0 and already excludes the
+  // service being reassigned.
+  const timeWindowById = useMemo(() => {
+    const map = new Map<string, TimeWindow>();
+    for (const tw of configuredTimeSlots) {
+      if (isTimeWindow(tw)) map.set(tw.id, tw);
+    }
+    return map;
+  }, [configuredTimeSlots]);
+  const isShiftWindowFull = useCallback(
+    (shift: PositionedShift) => {
+      const tw = timeWindowById.get(shift.twId);
+      return tw ? getRemainingQuota(tw, shift.date) <= 0 : false;
+    },
+    [timeWindowById, getRemainingQuota]
+  );
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -134,9 +157,9 @@ export default function PlanningWeekView({
 
   const handleShiftClick = useCallback(
     (shift: PositionedShift) => {
-      // Overflow rectangles (beyond a MANUAL window's bookable quota) aren't bookable —
-      // the overlay already hides the "add" affordance for them; this is belt-and-suspenders.
-      if (!shift.assignable) return;
+      // The window is at its booking capacity for the day — the overlay already hides the "add"
+      // affordance for these; this is belt-and-suspenders.
+      if (isShiftWindowFull(shift)) return;
       handleSelectSlot({
         date: shift.date,
         hour: shift.slotHour,
@@ -144,7 +167,7 @@ export default function PlanningWeekView({
         dayIndex: shift.columnIndex,
       });
     },
-    [handleSelectSlot]
+    [handleSelectSlot, isShiftWindowFull]
   );
 
   const isShiftSelected = useCallback(
@@ -211,12 +234,11 @@ export default function PlanningWeekView({
           rowOffsets: baselineRowOffsets,
           columnIndex: i,
           columnCount: weekDays.length,
-          parallelism: andenesCount,
         })
       );
     }
     return out;
-  }, [configuredTimeSlots, andenesCount, weekDays, startHour, baselineRowOffsets]);
+  }, [configuredTimeSlots, weekDays, startHour, baselineRowOffsets]);
 
   const { rowHeights, rowOffsets } = useMemo(
     () =>
@@ -244,12 +266,11 @@ export default function PlanningWeekView({
           rowOffsets,
           columnIndex: i,
           columnCount: weekDays.length,
-          parallelism: andenesCount,
         })
       );
     }
     return out;
-  }, [configuredTimeSlots, andenesCount, weekDays, startHour, rowOffsets]);
+  }, [configuredTimeSlots, weekDays, startHour, rowOffsets]);
 
   // Header band height in px (h-16 = 4rem = 64px) and time-axis column width.
   const HEADER_HEIGHT_PX = 64;
@@ -261,6 +282,7 @@ export default function PlanningWeekView({
     onShiftClick: handleShiftClick,
     isShiftSelected,
     getServicesForShift,
+    isWindowFull: isShiftWindowFull,
     dict,
   });
 

@@ -6,6 +6,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
@@ -50,6 +51,9 @@ def _make_lifespan(
                 disable_batch=False,
                 telemetry_enabled=False,  # do not phone home; we self-host
             )
+            # HTTP request spans parent the per-run `nexo.run` span so the
+            # full request → graph → LLM tree shows up in Langfuse.
+            FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
             logger.info(
                 "OTel: tracing enabled (service=%s, env=%s, endpoint=%s)",
                 settings.otel_service_name,

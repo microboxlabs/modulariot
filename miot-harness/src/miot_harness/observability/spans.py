@@ -1,9 +1,16 @@
-"""Per-agent span context manager.
+"""Run-level span context manager.
 
-The root ``nexo.run`` span is opened by the FastAPI lifespan or the
-graph entry point. Each LangGraph node opens a child via ``agent_span`` so
-that LLM-call spans emitted by ``NexoTelemetryCallback`` nest under the
-correct agent in Langfuse.
+The supervisor opens a ``nexo.run`` root span around the whole graph
+invocation (see ``runtime/supervisor.py``). LangGraph node bodies do not
+wrap themselves in ``agent_span`` — instead, the per-agent
+``NexoTelemetryCallback`` emits one ``nexo.<agent>`` span per LLM call
+(in ``observability/callbacks.py``). Both layers share the
+``modular.run_id`` attribute so Langfuse can regroup spans even when
+LangGraph's parallel branches break OTel context propagation.
+
+This helper exists for cases where deterministic (non-LLM) work needs a
+named span — currently only the supervisor's root span. Future tool
+invocations may use it; the callback layer covers LLM spans.
 """
 
 from __future__ import annotations

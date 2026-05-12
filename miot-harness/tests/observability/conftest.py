@@ -17,16 +17,27 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 
-class _NexoSpanFilter(InMemorySpanExporter):
+_HARNESS_SPAN_PREFIXES = (
+    "nexo.",
+    # Reserved for Phase B: Traceloop / OpenLLMetry auto-instrumentation
+    # emits spans like `anthropic.chat`, `openai.chat`, `gen_ai.completion`.
+    "gen_ai.",
+    "anthropic.",
+    "openai.",
+)
+
+
+class _HarnessSpanExporter(InMemorySpanExporter):
     """In-memory exporter that drops pytest-opentelemetry's own fixture/test spans.
 
     pytest-opentelemetry attaches a TracerProvider that emits one span per test
-    item, fixture, and runtest call. We only want spans the harness itself
-    produced (everything we emit lives under `nexo.*` or `gen_ai.*`).
+    item, fixture, and runtest call. We keep only spans produced by the
+    harness (under `nexo.*`) and by the auto-instrumented LLM SDKs
+    (`gen_ai.*` / `anthropic.*` / `openai.*` — wired in Phase B).
     """
 
     def export(self, spans: tuple[ReadableSpan, ...]) -> SpanExportResult:  # type: ignore[override]
-        filtered = tuple(s for s in spans if s.name.startswith("nexo."))
+        filtered = tuple(s for s in spans if s.name.startswith(_HARNESS_SPAN_PREFIXES))
         return super().export(filtered)
 
 
@@ -39,7 +50,7 @@ def _session_exporter() -> Iterator[InMemorySpanExporter]:
             f"Expected an SDK TracerProvider, got {type(provider).__name__}; "
             "observability tests cannot capture spans."
         )
-    exporter = _NexoSpanFilter()
+    exporter = _HarnessSpanExporter()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     yield exporter
 

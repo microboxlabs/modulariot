@@ -8,11 +8,15 @@ exporter flushes.
 
 from __future__ import annotations
 
+import logging
+
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+logger = logging.getLogger(__name__)
 
 
 def configure_tracing(
@@ -27,10 +31,28 @@ def configure_tracing(
     When ``enabled`` is ``False`` returns ``None`` and leaves the global
     provider untouched; callers can no-op all downstream span work by
     checking the return value.
+
+    OpenTelemetry's global provider is install-once. If something already
+    installed a real ``TracerProvider`` (for example, pytest-opentelemetry
+    at session start, or a previous lifespan iteration in a hot-reload
+    scenario), we **return that existing provider** rather than silently
+    handing back a detached new one whose spans would never reach the
+    collector.
     """
 
     if not enabled:
         return None
+
+    existing = trace.get_tracer_provider()
+    if isinstance(existing, TracerProvider):
+        logger.warning(
+            "configure_tracing: TracerProvider already installed; reusing it "
+            "(service=%s, env=%s). A second SDK provider would be silently "
+            "detached.",
+            service_name,
+            environment,
+        )
+        return existing
 
     resource = Resource.create(
         {

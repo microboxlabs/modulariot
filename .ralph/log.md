@@ -51,7 +51,15 @@ Append-only. One entry per iteration. Format:
 
 - Task: A6 LangGraph parallel-branch propagation gotcha test
 - Status: completed
+- Commit: f3d89989
+
+## Iteration 7 — 2026-05-12
+
+- Task: Phase A code-review followups (Issues 1-5 + Rec 4)
+- Status: completed
 - Commit: <pending>
+- Notes: Acted on reviewer feedback (`superpowers:requesting-code-review` checkpoint after Phase A). (1) Added 6 new MIOT_HARNESS_OTEL_*/MIOT_HARNESS_LANGFUSE_* entries to `.env.example` so the file's "every config.py setting documented here" invariant holds. (2) Broadened `tests/observability/conftest.py` span filter from `nexo.*` only to `(nexo., gen_ai., anthropic., openai.)` so Phase B Traceloop auto-instrumentation spans aren't silently dropped in tests. (3) `observability/otel.py`: if a real `TracerProvider` is already globally installed (pytest-opentelemetry, hot-reload), `configure_tracing` now logs a warning and returns the EXISTING provider instead of silently handing back a detached one whose spans go nowhere. Test rewrite uses `patch` on `trace.get_tracer_provider`/`trace.set_tracer_provider` so we can exercise both branches without polluting global state. (4) `observability/spans.py` docstring rewritten — removed the stale claim that nodes wrap themselves in `agent_span` (they don't; the callback emits `nexo.<agent>` for LLM calls; `agent_span` is currently only used for the root `nexo.run` in supervisor). (5) `tests/observability/test_propagation.py`: added `await asyncio.sleep(0)` to force event-loop interleaving between branches + corrected docstring to specify what the test does and doesn't prove (structural attr defense vs. OTel-context propagation). (Rec 4) Wired `FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)` in lifespan so HTTP request spans parent `nexo.run` and the full request → graph → LLM tree shows up in Langfuse. Full suite: 186 passed, 1 skipped, 0 failed.
+
 - Notes: A6's other two test files (test_callbacks.py, test_pricing.py) were written under A2 as part of TDD on the source files. A6 adds the missing piece: `tests/observability/test_propagation.py` — a synthetic 3-node graph `planner → (branch_a ∥ branch_b) → joiner` with LangGraph fan-out where each parallel branch instantiates its own `NexoTelemetryCallback`. Asserts that even under parallel execution every emitted `nexo.*` span carries the right `modular.{agent,run_id,tenant_id}` (the explicit attrs Langfuse regroups by when OTel context propagation breaks across LangGraph branches). Second test: 20 concurrent callbacks via `asyncio.gather` confirm per-`run_id` span-dict isolation. Phase A is now [x] across A1-A6; next checkpoint = `superpowers:requesting-code-review`. Full suite: 185 passed, 1 skipped, 0 failed.
 
 

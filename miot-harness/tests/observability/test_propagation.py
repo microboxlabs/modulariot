@@ -6,11 +6,16 @@ under a sibling, and `usage_metadata` may be misattributed.
 
 Our defense (built into `NexoTelemetryCallback`): every span carries
 `modular.agent` AND `modular.run_id` set from the callback's init args at
-node-build time. Even if OTel's parent-context propagation breaks, Langfuse
-can regroup by these explicit attrs.
+callback-construction time, BEFORE the LLM call's context is captured. Even
+if OTel's parent-context propagation breaks, Langfuse can regroup by these
+explicit attrs.
 
-This test asserts the regrouping is reliable on a synthetic 3-node graph
-that fans out to two parallel branches.
+This test asserts the structural-attribution defense holds on a synthetic
+3-node graph that fans out to two parallel branches. We force genuine
+interleaving via `await asyncio.sleep(0)` inside each branch so the event
+loop yields between the two `model.ainvoke` calls — without that,
+`FakeListChatModel`'s synchronous fast path runs each branch to completion
+within its own task and never actually exercises concurrent suspension.
 """
 
 from __future__ import annotations
@@ -54,7 +59,9 @@ def _build_parallel_graph(run_id: str) -> Any:
             agent_name="branch_a", run_id=run_id, tenant_id="mintral"
         )
         model = _model("a-answer").with_config(callbacks=[cb])
+        await asyncio.sleep(0)  # let branch_b interleave
         resp = await model.ainvoke([HumanMessage(content="a")])
+        await asyncio.sleep(0)
         return {"answer_a": resp.content}
 
     async def branch_b(state: _State) -> dict[str, Any]:
@@ -62,7 +69,9 @@ def _build_parallel_graph(run_id: str) -> Any:
             agent_name="branch_b", run_id=run_id, tenant_id="mintral"
         )
         model = _model("b-answer").with_config(callbacks=[cb])
+        await asyncio.sleep(0)  # let branch_a interleave
         resp = await model.ainvoke([HumanMessage(content="b")])
+        await asyncio.sleep(0)
         return {"answer_b": resp.content}
 
     async def joiner(state: _State) -> dict[str, Any]:

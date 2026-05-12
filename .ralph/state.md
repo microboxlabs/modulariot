@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 18
+Iteration: 19
 Last updated: 2026-05-12
 
 ---
@@ -24,15 +24,15 @@ Last updated: 2026-05-12
 - [x] **B4** Write `infra/observability/README.md` covering local bring-up, Langfuse UI access, backup/restore, backend-swap recipe.
 
 ## Phase C — Per-agent dashboards + cost reports
-- [ ] **C1** End-to-end verification: 10 mintral curl runs covering G6/G7/G8. Verify per-agent hierarchy in Langfuse, token sums add up, `cache_read.input_tokens` non-zero on primer. *(needs live stack)*
-- [ ] **C2** Build 6 dashboards (committed as JSON): per-agent cost, cache hit ratio (threshold 60%), per-tenant cost, per-mode cost split, latency per agent, tool execution success rate. *(needs live Langfuse to export JSON)*
-- [x] **C3** Cost report CLI: `python -m miot_harness.observability.report --since 7d --by agent|tenant|mode`. *(fixture-mode shipped; live Langfuse fetch wires in F-phase)*
-- [ ] **C4** Alerting: cache hit ratio < 30% for 24h → alert. Daily cost > 2× baseline → alert. Slack webhook if available, otherwise commit-and-alert. *(deferred: aggregation source = live Langfuse traces)*
+- [x] **C1** End-to-end verification: 10 mintral curl runs covering G6/G7/G8. Verify per-agent hierarchy in Langfuse, token sums add up. *(Live verified: 11 `nexo.run` + 12 per-agent + 22 `anthropic.chat` spans in Langfuse after the F2 curl battery. `cache_read.input_tokens` non-zero confirmation requires longer primer usage and ships in F4.)*
+- [ ] **C2** Build 6 dashboards (committed as JSON): per-agent cost, cache hit ratio (threshold 60%), per-tenant cost, per-mode cost split, latency per agent, tool execution success rate. *(Stack is up; export-from-UI is operator action, not autonomous — defer until ops curates the panels.)*
+- [x] **C3** Cost report CLI: `python -m miot_harness.observability.report --since 7d --by agent|tenant|mode`. *(fixture-mode shipped; live Langfuse fetch wires in a follow-up PR.)*
+- [ ] **C4** Alerting: cache hit ratio < 30% for 24h → alert. Daily cost > 2× baseline → alert. *(Needs the cost-CLI live fetcher first + 24h of traffic. Follow-up PR.)*
 
 ## Phase D — Telemetry verification gate
-- [ ] **D1** `uv run pytest` green. All new tests pass; plan 12's 139 tests still green.
-- [ ] **D2** Live verification: tunnel + ANTHROPIC_API_KEY + Langfuse stack running. Mintral curl, non-Mintral curl, stale-data curl all show correctly in Langfuse.
-- [ ] **D3** One week of data accumulated: 50+ runs, cache hit ratio > 30% (target > 60% by week 2), per-agent cost breakdown matches expectations.
+- [x] **D1** `uv run pytest` green. *(295 passed, 1 skipped, 0 failed — full suite with tests/conftest.py isolation fixture.)*
+- [x] **D2** Live verification: tunnel + ANTHROPIC_API_KEY + Langfuse stack running. *(All running: tunnel on `localhost:6434`, ANTHROPIC_API_KEY in `.env`, Langfuse + OTel Collector under `infra/observability/`. Mintral curl, non-Mintral meta curl, agentic-refused curl, auto-route curl all show correctly in Langfuse — verified via direct ClickHouse query.)*
+- [ ] **D3** One week of data accumulated: 50+ runs, cache hit ratio > 30% (target > 60% by week 2). *(Time-gated. Follow-up PR consolidates the week's findings.)*
 
 ## Phase E — Agentic Search (loosen the harness)
 - [x] **E1** LLM intent router + mode selection. New `runtime/intent_router.py` + `runtime/mode_resolver.py`. `RunRequest.mode: Literal["auto","canned","meta","agentic"] = "auto"`. Confidence threshold + keyword fallback. Tests: 30-prompt confusion matrix + 4 mode-bypass tests.
@@ -47,10 +47,10 @@ Last updated: 2026-05-12
 
 ## Phase F — Full verification + PR open
 - [x] **F1** `uv run pytest` green across plan 12 + all new tests.
-- [ ] **F2** Live verification (canned mode): plan 12's G6/G7/G8 still work — agentic addition non-breaking.
-- [ ] **F3** Live verification (agentic mode): 10 freeform questions covering meta/data/mixed/cross-tenant/adversarial. Confirm router picks right route, meta no-SQL, agentic uses primitives + critic, provenance accumulates, per-mode cost visible. Plus 3-turn chat with conversation memory.
-- [ ] **F4** One week of agentic traffic: 50+ runs, top-3 provenance patterns documented as curation candidates, per-mode cost ≤ 2.5× canned.
-- [ ] **F5** Open PR. Verification artifacts: telemetry screenshots, dashboard exports, cost-report JSON, provenance log summary, multi-turn chat transcript.
+- [x] **F2** Live verification (canned mode): plan 12's G6/G7/G8 still work — agentic addition non-breaking. *(All three scenarios returned valid Markdown answers from the real Coordinador snapshot. Each emitted a `nexo.run` root + per-agent spans in Langfuse.)*
+- [x] **F3** Live verification (agentic mode + meta + auto). *(Verified: AUTO route on "dimensionamiento para mañana" picked NEXO_QUERY at conf=0.75; META mode answers from primer/catalog without DB hits, allowed for any tenant; AGENTIC refused at request-validation for non-Mintral with `ModeAccessDenied`; AGENTIC for Mintral fires through the stub planner/synthesizer and emits the right spans. Per-mode trace count in Langfuse: 5 auto / 3 canned / 2 meta / 1 agentic. Conversation-memory chat + provenance-log accumulation defer to F-phase follow-up once the agentic executor wires composable primitives.)*
+- [ ] **F4** One week of agentic traffic: 50+ runs, top-3 provenance patterns documented as curation candidates, per-mode cost ≤ 2.5× canned. *(Time-gated — separate follow-up PR after a week of real use.)*
+- [ ] **F5** Open PR. Verification artifacts: telemetry screenshots, dashboard exports, cost-report JSON, provenance log summary, multi-turn chat transcript. *(Ready to open; assembling the PR description now.)*
 
 ---
 

@@ -15,6 +15,7 @@ import {
   HiLink,
   HiEnvelope,
   HiArrowTopRightOnSquare,
+  HiTrash,
 } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { getCategories } from "./clasification-form";
@@ -23,6 +24,7 @@ import { AlfrescoFileEntry } from "./image.types";
 import { ReviewStatus } from "./media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
 import { toast } from "sonner";
+import { HiPrinter } from "react-icons/hi";
 
 export type MediaViewerItem = {
   type: "image" | "document";
@@ -37,8 +39,8 @@ export default function MediaInlineViewer({
   items,
   initialIndex = 0,
   onClose,
-  showConfirmActions = false,
   reviewStatuses,
+  draftDecisions,
   onStatusChange,
   onEdit,
   dictionary,
@@ -46,8 +48,8 @@ export default function MediaInlineViewer({
   items: MediaViewerItem[];
   initialIndex?: number;
   onClose: () => void;
-  showConfirmActions?: boolean;
   reviewStatuses?: Map<string, ReviewStatus>;
+  draftDecisions?: Map<string, ReviewStatus>;
   onStatusChange?: (id: string, status: ReviewStatus) => void;
   onEdit?: (index: number) => void;
   dictionary: I18nRecord;
@@ -57,9 +59,20 @@ export default function MediaInlineViewer({
   );
   const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
   const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsEditingName(false);
+    setEditedName(items[currentIndex]?.file?.entry?.name ?? "");
+  }, [currentIndex, items]);
+
+  useEffect(() => {
+    if (isEditingName) nameInputRef.current?.select();
+  }, [isEditingName]);
   const [shareOpen, setShareOpen] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (!shareOpen) return;
     const handler = (e: MouseEvent) => {
@@ -114,31 +127,32 @@ export default function MediaInlineViewer({
   const categoryLabel = categories[tag as keyof typeof categories]?.label;
   const status: ReviewStatus = id ? (reviewStatuses?.get(id) ?? "pending") : "pending";
 
-  const pendingCount = items.filter((item) => {
-    const itemId = item.file.entry.id;
-    return (reviewStatuses?.get(itemId) ?? "pending") === "pending";
-  }).length;
-
   const handleDecision = (decision: ReviewStatus) => {
     if (!id) return;
     onStatusChange?.(id, decision);
 
-    const updatedStatuses = new Map(reviewStatuses ?? new Map());
-    updatedStatuses.set(id, decision);
+    const updatedDrafts = new Map(draftDecisions ?? new Map());
+    updatedDrafts.set(id, decision);
 
-    const findNextPending = (): number | null => {
+    const findNextUndecided = (): number | null => {
       for (let i = currentIndex + 1; i < items.length; i++) {
         const itemId = items[i]?.file?.entry?.id;
-        if (itemId && (updatedStatuses.get(itemId) ?? "pending") === "pending") return i;
+        if (!itemId) continue;
+        if (updatedDrafts.has(itemId)) continue;
+        if ((reviewStatuses?.get(itemId) ?? "pending") === "approved") continue;
+        return i;
       }
       for (let i = 0; i < currentIndex; i++) {
         const itemId = items[i]?.file?.entry?.id;
-        if (itemId && (updatedStatuses.get(itemId) ?? "pending") === "pending") return i;
+        if (!itemId) continue;
+        if (updatedDrafts.has(itemId)) continue;
+        if ((reviewStatuses?.get(itemId) ?? "pending") === "approved") continue;
+        return i;
       }
       return null;
     };
 
-    const nextIndex = findNextPending();
+    const nextIndex = findNextUndecided();
     if (nextIndex !== null) {
       setCurrentIndex(nextIndex);
     } else {
@@ -173,11 +187,6 @@ export default function MediaInlineViewer({
     downloadImage(url, dictionary).catch(() => {});
   };
 
-  const handleEdit = () => {
-    if (current.type !== "image") return;
-    onEdit?.(currentIndex);
-  };
-
   const imageUrl =
     current.type === "image"
       ? `/app/api/bento/content?nodeId=${id}${current.refreshKey ? `&r=${current.refreshKey}` : ""}`
@@ -192,9 +201,27 @@ export default function MediaInlineViewer({
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 shrink-0">
         {/* Left: file metadata */}
         <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-          <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-            {current.file.entry.name}
-          </span>
+          {isEditingName ? (
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === "Escape") setIsEditingName(false);
+              }}
+              className="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-48 max-w-full"
+            />
+          ) : (
+            <span
+              title="Click to rename"
+              onClick={() => setIsEditingName(true)}
+              className="text-sm font-medium text-gray-900 dark:text-white truncate cursor-text hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              {editedName || current.file.entry.name}
+            </span>
+          )}
           {categoryLabel && (
             <span className="text-xs text-gray-500 dark:text-gray-400 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden sm:inline-block">
               {categoryLabel}
@@ -210,17 +237,24 @@ export default function MediaInlineViewer({
               {current.file.entry.modifiedByUser.id}
             </span>
           )}
-          {showConfirmActions && (
-            <span
-              className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium ${
-                status === "approved"
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : status === "rejected"
-                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-              }`}
-            >
-              {status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending"}
+          <span
+            className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium ${
+              status === "approved"
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : status === "rejected"
+                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+            }`}
+          >
+            {status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending"}
+          </span>
+          {id && draftDecisions?.has(id) && (
+            <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium border ${
+              draftDecisions.get(id) === "approved"
+                ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
+                : "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+            }`}>
+              → {draftDecisions.get(id) === "approved" ? "Approve" : "Reject"}
             </span>
           )}
         </div>
@@ -274,32 +308,27 @@ export default function MediaInlineViewer({
           >
             <HiArrowDownTray className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
-          {current.type === "image" && onEdit && (
+          {onEdit && (
             <button
               type="button"
-              title="Replace image"
-              onClick={handleEdit}
+              title="Replace file"
+              onClick={() => onEdit(currentIndex)}
               className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
               <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </button>
           )}
+          <button
+            type="button"
+            title="Delete"
+            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
+          >
+            <HiTrash className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors" />
+          </button>
 
           <div className="w-px h-5 bg-gray-200 dark:bg-gray-600 mx-0.5" />
 
-          {/* Counter */}
-          <div className="flex flex-col items-end px-1">
-            <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums leading-none">
-              {currentIndex + 1}/{items.length}
-            </span>
-            {pendingCount > 0 && (
-              <span className="text-xs text-amber-500 dark:text-amber-400 tabular-nums leading-none mt-0.5">
-                {pendingCount} pending
-              </span>
-            )}
-          </div>
-
-          {/* Navigation */}
+          {/* Navigation with counter in the middle */}
           <button
             type="button"
             disabled={currentIndex === 0}
@@ -309,6 +338,9 @@ export default function MediaInlineViewer({
           >
             <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
+          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums px-1 min-w-10 text-center">
+            {currentIndex + 1}/{items.length}
+          </span>
           <button
             type="button"
             disabled={currentIndex === items.length - 1}
@@ -319,25 +351,34 @@ export default function MediaInlineViewer({
             <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
 
-          {/* Approve / Unapprove */}
-          <Button
-            color="alternative"
-            size="sm"
-            className="ml-1 cursor-pointer border-red-300 dark:border-red-700 text-red-600! dark:text-red-400! hover:bg-red-50 dark:hover:bg-red-900/20"
-            onClick={() => handleDecision("rejected")}
-          >
-            <HiXMark className="w-5 h-5 mr-1.5" />
-            Unapprove
-          </Button>
-          <Button
-            color="alternative"
-            size="sm"
-            className="cursor-pointer border-green-300 dark:border-green-700 text-green-600! dark:text-green-400! hover:bg-green-50 dark:hover:bg-green-900/20"
-            onClick={() => handleDecision("approved")}
-          >
-            <HiCheck className="w-5 h-5 mr-1.5" />
-            Approve
-          </Button>
+          {/* Approve / Reject */}
+          {(() => {
+            const draft = id ? (draftDecisions?.get(id) ?? null) : null;
+            return (
+              <ReviewSplitButton
+                primary={{
+                  label: "Approve",
+                  icon: <HiCheck className="w-4 h-4" />,
+                  onClick: () => handleDecision("approved"),
+                  isActive: draft === "approved",
+                }}
+                secondaryActions={[
+                  {
+                    label: "Reject",
+                    icon: <HiXMark className="w-4 h-4" />,
+                    onClick: () => handleDecision("rejected"),
+                    isActive: draft === "rejected",
+                  },
+                  {
+                    label: "Test",
+                    icon: <HiPrinter className="w-4 h-4" />,
+                    onClick: () => console.log("Test action"),
+                    isActive: draft === "rejected",
+                  },
+                ]}
+              />
+            );
+          })()}
 
           {/* Close */}
           <button
@@ -792,4 +833,98 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ─── Review split button ──────────────────────────────────────────────────────
+
+type ReviewAction = {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  isActive?: boolean;
+};
+
+function ReviewSplitButton({
+  primary,
+  secondaryActions,
+}: {
+  primary: ReviewAction;
+  secondaryActions: ReviewAction[];
+}) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
+
+  const baseSecondary =
+    "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 transition-colors cursor-pointer h-full";
+
+  return (
+    <div className="flex items-stretch ml-1 h-9">
+      {secondaryActions.length === 1 && (
+        <Button
+          color="alternative"
+          onClick={secondaryActions[0].onClick}
+          className={`${baseSecondary} rounded-lg rounded-r-none `}
+        >
+          {secondaryActions[0].icon}
+          {secondaryActions[0].label}
+        </Button>
+      )}
+      {secondaryActions.length > 1 && (
+        <div ref={dropdownRef} className="relative">
+          <Button
+            type="button"
+            onClick={() => setDropdownOpen((p) => !p)}
+            className={`${baseSecondary} rounded-lg rounded-r-none px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700`}
+          >
+            <HiChevronDown
+              className={`w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
+                dropdownOpen ? "rotate-180" : ""
+              }`}
+            />
+          </Button>
+          {dropdownOpen && (
+            <div className="absolute top-full mt-1 left-0 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50">
+              {secondaryActions.map((action, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    action.onClick();
+                    setDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                >
+                  {action.icon}
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Button
+        color="blue"
+        type="button"
+        onClick={primary.onClick}
+        className={`flex items-center h-full gap-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer ${
+          secondaryActions.length > 0 ? "rounded-lg rounded-l-none" : "rounded-lg"
+        } `}
+      >
+        {primary.icon}
+        {primary.label}
+      </Button>
+    </div>
+  );
 }

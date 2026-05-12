@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import Geographic from "@/features/shipping/components/geographic";
@@ -14,9 +14,16 @@ export default function BentoMediaSection({
   dict: I18nDictionary;
 }) {
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMediaExpanded || !containerRef.current) return;
+    containerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [isMediaExpanded]);
 
   return (
     <div
+      ref={containerRef}
       className="flex w-full transition-all duration-500 ease-in-out"
       style={{ height: isMediaExpanded ? "min(85vh, 900px)" : "650px" }}
     >
@@ -40,11 +47,7 @@ export default function BentoMediaSection({
 
       {/* FileImages — expands to fill geographic space */}
       <div
-        className={`overflow-hidden rounded-lg bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out ${
-          isMediaExpanded
-            ? "border border-gray-300 dark:border-gray-700"
-            : "border border-dashed border-gray-300 dark:border-gray-700"
-        }`}
+        className="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
         style={{
           width: isMediaExpanded ? "100%" : "33.333%",
           minWidth: 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Checkbox } from "flowbite-react";
+import { Button, Checkbox } from "flowbite-react";
 import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 import { useEffect, useState } from "react";
 import { IoImagesOutline } from "react-icons/io5";
@@ -28,6 +28,7 @@ export default function MediaRow({
   status = "pending",
   statusSetAt,
   statusSetBy,
+  hideStatusDot = false,
   onEdit,
   dictionary,
 }: {
@@ -40,6 +41,7 @@ export default function MediaRow({
   status?: ReviewStatus;
   statusSetAt?: Date;
   statusSetBy?: string;
+  hideStatusDot?: boolean;
   onEdit?: () => void;
   dictionary: I18nRecord;
 }) {
@@ -75,15 +77,11 @@ export default function MediaRow({
 
   return (
     <div
-      className={`group w-full flex items-start gap-2 px-2 py-2 rounded-lg transition-colors ${
-        isSelected
-          ? "bg-blue-50 dark:bg-blue-900/20"
-          : "hover:bg-gray-100 dark:hover:bg-gray-700"
-      }`}
+      className={`group w-full flex items-start rounded-lg transition-colors`}
     >
       {/* Checkbox */}
       <div
-        className="h-full flex items-center justify-center pt-1"
+        className="h-full flex items-center justify-center px-2"
         onClick={(e) => e.stopPropagation()}
       >
         <Checkbox
@@ -94,13 +92,13 @@ export default function MediaRow({
       </div>
 
       {/* Main content — opens viewer */}
-      <button
-        type="button"
+      <Button
+        color="alternative"
         onClick={() => onSelect(index)}
-        className="flex-1 flex items-start gap-2 min-w-0 text-left cursor-pointer"
+        className="flex-1 flex items-start gap-2 min-w-0 text-left cursor-pointer p-2 h-fit border-0! focus:ring-0! dark:hover:bg-gray-700/50! rounded-lg transition-colors"
       >
         {/* Thumbnail */}
-        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-200 dark:bg-gray-600 shrink-0 flex items-center justify-center mt-0.5">
+        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-200 dark:bg-gray-600 shrink-0 flex items-center justify-center self-center">
           {thumbnailUrl ? (
             <img
               src={thumbnailUrl}
@@ -124,10 +122,12 @@ export default function MediaRow({
                 {categoryLabel}
               </span>
             )}
-            <span
-              title={statusCfg.label}
-              className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotCls}`}
-            />
+            {!hideStatusDot && (
+              <span
+                title={statusCfg.label}
+                className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotCls}`}
+              />
+            )}
           </div>
 
           {/* Secondary row: version · editor · update date · category */}
@@ -139,12 +139,12 @@ export default function MediaRow({
 
           {/* Status change row: only shown after a decision */}
           {statusChangeLine && (
-            <span className={`text-xs font-medium ${statusCfg.textCls}`}>
+            <span className={`text-xs ${status === "approved" ? "text-gray-400 dark:text-gray-500" : `font-medium ${statusCfg.textCls}`}`}>
               {statusChangeLine}
             </span>
           )}
         </div>
-      </button>
+      </Button>
 
       {type === "image" && onEdit && (
         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>

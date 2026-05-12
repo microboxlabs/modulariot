@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Checkbox, Modal, ModalHeader, ModalBody, ModalFooter } from "flowbite-react";
+import { Button, Checkbox, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { HiChevronDown, HiArrowDownTray, HiCheck, HiXMark, HiExclamationTriangle } from "react-icons/hi2";
@@ -92,6 +92,86 @@ export async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
   }
 }
 
+function MediaSection({
+  label,
+  filteredCount,
+  isExpanded,
+  onToggleExpanded,
+  checkboxTitle,
+  allItemIds,
+  selectedIds,
+  setSelectedIds,
+  emptyText,
+  children,
+}: {
+  label: string;
+  filteredCount: number;
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
+  checkboxTitle: string;
+  allItemIds: string[];
+  selectedIds: Set<string>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  emptyText: string;
+  children: React.ReactNode;
+}) {
+  const allChecked = allItemIds.length > 0 && allItemIds.every((id) => selectedIds.has(id));
+  const someChecked = allItemIds.some((id) => selectedIds.has(id)) && !allChecked;
+
+  return (
+    <div className={`flex flex-col ${isExpanded ? "border-b border-gray-200 dark:border-gray-600" : ""}`}>
+      <div className="flex items-center sticky top-0 z-10 bg-gray-50/60 dark:bg-gray-800/80 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0 border-b border-b border-gray-200 dark:border-gray-600"
+        >
+          <div className="flex items-center gap-2 flex-1 text-left group transition-colors min-w-0">
+            <HiChevronDown
+              className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200 shrink-0 ${
+                isExpanded ? "" : "-rotate-90"
+              }`}
+            />
+            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 uppercase tracking-wider transition-colors">
+              {label}
+            </span>
+            <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+              ({filteredCount})
+            </span>
+          </div>
+
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              title={checkboxTitle}
+              checked={allChecked}
+              ref={(el) => {
+                if (el) el.indeterminate = someChecked;
+              }}
+              onChange={(e) => {
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  if (e.target.checked) { allItemIds.forEach((id) => next.add(id)); }
+                  else { allItemIds.forEach((id) => next.delete(id)); }
+                  return next;
+                });
+                if (!isExpanded) onToggleExpanded();
+              }}
+            />
+          </div>
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="flex flex-col gap-2 py-2 pr-2">
+          {filteredCount > 0 ? children : (
+            <p className="text-xs text-gray-400 dark:text-gray-500 px-2">{emptyText}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FileImages({
   task,
   dictionary,
@@ -120,6 +200,7 @@ export default function FileImages({
 
   const [isImagesExpanded, setIsImagesExpanded] = useState(true);
   const [isDocumentsExpanded, setIsDocumentsExpanded] = useState(true);
+  const [viewMode, setViewMode] = useState<"approved" | "review">("approved");
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -144,6 +225,7 @@ export default function FileImages({
   const [reviewStatuses, setReviewStatuses] = useState<Map<string, ReviewStatus>>(new Map());
   const [reviewStatusTimestamps, setReviewStatusTimestamps] = useState<Map<string, Date>>(new Map());
   const [reviewStatusUsers, setReviewStatusUsers] = useState<Map<string, string>>(new Map());
+  const [draftDecisions, setDraftDecisions] = useState<Map<string, ReviewStatus>>(new Map());
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
 
   const reviewSummary = useMemo(() => {
@@ -153,21 +235,54 @@ export default function FileImages({
     return { approved, rejected, pending };
   }, [allIds, reviewStatuses]);
 
+  const draftSummary = useMemo(() => {
+    const approved = allIds.filter((id) => draftDecisions.get(id) === "approved").length;
+    const rejected = allIds.filter((id) => draftDecisions.get(id) === "rejected").length;
+    const undecided = allIds.filter((id) => !draftDecisions.has(id)).length;
+    return { approved, rejected, undecided };
+  }, [allIds, draftDecisions]);
+
+  const effectiveSummary = useMemo(() => {
+    const reviewTabIds = allIds.filter((id) => reviewStatuses.get(id) !== "approved");
+    const effective = (id: string) => draftDecisions.get(id) ?? reviewStatuses.get(id) ?? "pending";
+    const approved = reviewTabIds.filter((id) => effective(id) === "approved").length;
+    const rejected = reviewTabIds.filter((id) => effective(id) === "rejected").length;
+    const pending  = reviewTabIds.filter((id) => effective(id) === "pending").length;
+    return { approved, rejected, pending };
+  }, [allIds, draftDecisions, reviewStatuses]);
+
+  const filteredImages = useMemo(
+    () =>
+      images
+        .map((img, idx) => ({ img, idx }))
+        .filter(({ img }) => {
+          const s = reviewStatuses.get(img.file.entry.id) ?? "pending";
+          return viewMode === "approved" ? s === "approved" : s !== "approved";
+        }),
+    [images, viewMode, reviewStatuses]
+  );
+
+  const filteredDocuments = useMemo(
+    () =>
+      documents
+        .map((doc: { file: AlfrescoFileEntry }, idx: number) => ({ doc, idx }))
+        .filter(({ doc }) => {
+          const s = reviewStatuses.get(doc.file.entry.id) ?? "pending";
+          return viewMode === "approved" ? s === "approved" : s !== "approved";
+        }),
+    [documents, viewMode, reviewStatuses]
+  );
+
 
   // Inline viewer state
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const [viewerMode, setViewerMode] = useState<"browse" | "confirm">("browse");
 
   const { data: session } = useSession();
   const currentUserName = session?.user?.name ?? session?.user?.email ?? undefined;
 
   const handleStatusChange = useCallback((id: string, status: ReviewStatus) => {
-    setReviewStatuses((prev) => new Map(prev).set(id, status));
-    setReviewStatusTimestamps((prev) => new Map(prev).set(id, new Date()));
-    if (currentUserName) {
-      setReviewStatusUsers((prev) => new Map(prev).set(id, currentUserName));
-    }
-  }, [currentUserName]);
+    setDraftDecisions((prev) => new Map(prev).set(id, status));
+  }, []);
 
   const { mutate: globalMutate } = useSWRConfig();
 
@@ -218,9 +333,8 @@ export default function FileImages({
   );
 
   const openViewer = useCallback(
-    (index: number, mode: "browse" | "confirm" = "browse") => {
+    (index: number) => {
       setViewerIndex(index);
-      setViewerMode(mode);
       onRequestExpand?.();
     },
     [onRequestExpand]
@@ -233,12 +347,12 @@ export default function FileImages({
 
   const handleReplaceImage = useCallback(
     async (file: File, index: number) => {
-      const imageToReplace = images[index];
-      if (!imageToReplace?.file?.entry?.id) {
+      const item = allMediaItems[index];
+      if (!item?.file?.entry?.id) {
         toast.error(tr("bento.multimedia.update_error", dictionary));
         return;
       }
-      const nodeId = imageToReplace.file.entry.id;
+      const nodeId = item.file.entry.id;
       setIsUpdatingImage(true);
       const updatePromise = putBentoMultimedia(nodeId, file).then((result) => {
         if (!result.success) throw new Error("Update failed");
@@ -253,14 +367,16 @@ export default function FileImages({
         await updatePromise;
         await mutate();
         await mutateContents();
-        await globalMutate(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
-        setImageRefreshKey((prev) => prev + 1);
+        if (item.type === "image") {
+          await globalMutate(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+          setImageRefreshKey((prev) => prev + 1);
+        }
       } finally {
         setIsUpdatingImage(false);
         setEditImageIndex(null);
       }
     },
-    [images, dictionary, mutate, mutateContents, globalMutate]
+    [allMediaItems, dictionary, mutate, mutateContents, globalMutate]
   );
 
   if (!packageId) return null;
@@ -284,8 +400,8 @@ export default function FileImages({
           items={allMediaItems}
           initialIndex={viewerIndex}
           onClose={closeViewer}
-          showConfirmActions={viewerMode === "confirm"}
           reviewStatuses={reviewStatuses}
+          draftDecisions={draftDecisions}
           onStatusChange={handleStatusChange}
           onEdit={(i) => setEditImageIndex(i)}
           dictionary={dictionary}
@@ -297,7 +413,8 @@ export default function FileImages({
             if (editImageIndex !== null) handleReplaceImage(file, editImageIndex);
           }}
           dictionary={dictionary}
-          imageName={editImageIndex === null ? undefined : images[editImageIndex]?.file?.entry?.name}
+          imageName={editImageIndex === null ? undefined : allMediaItems[editImageIndex]?.file?.entry?.name}
+          accept={editImageIndex !== null && allMediaItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
         />
       </div>
     );
@@ -388,44 +505,61 @@ export default function FileImages({
       <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
 
             {/* Shared header */}
-            <div className="flex items-center gap-2 px-2 py-1.5 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide shrink-0">
+            <div className="flex items-center gap-2.5 p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide shrink-0">
                 Multimedia
                 <span className="ml-1.5 font-medium text-gray-400 dark:text-gray-500 normal-case tracking-normal">
-                  ({allIds.length})
+                  ({reviewSummary.approved}/{allIds.length})
                 </span>
               </span>
-              {reviewSummary.pending > 0 && (
+
+              {/* View toggle */}
+              <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                 <button
                   type="button"
-                  onClick={() => openViewer(0, "confirm")}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/40 transition-colors cursor-pointer"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                  <span className="text-xs font-medium">{reviewSummary.pending} pending</span>
-                </button>
-              )}
-              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => document.getElementById("file-input")?.click()}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
-                >
-                  <MdOutlineFileUpload className="w-3.5 h-3.5" />
-                  <span className="text-xs">Upload or drop</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={selectedIds.size === 0}
-                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${
-                    selectedIds.size > 0
-                      ? "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
-                      : "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                  onClick={() => setViewMode("approved")}
+                  className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                    viewMode === "approved"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <HiArrowDownTray className="w-3.5 h-3.5" />
-                  <span className="text-xs">Download</span>
+                  Approved
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("review")}
+                  className={`relative flex items-center gap-1.5 px-3 py-1 text-xs font-medium border-l border-gray-200 dark:border-gray-600 transition-colors cursor-pointer ${
+                    viewMode === "review"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  Review
+                  {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || draftDecisions.size > 0) && (
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                <Button
+                  color="alternative"
+                  onClick={() => document.getElementById("file-input")?.click()}
+                  className="p-2 py-1! h-7 text-xs! gap-1"
+                >
+                  <MdOutlineFileUpload className="w-3.5 h-3.5 mr-1" />
+                  Upload
+                </Button>
+                <Button
+                  color="alternative"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => document.getElementById("file-input")?.click()}
+                  className="p-2 py-1! h-7 text-xs! gap-1"
+                >
+                  <HiArrowDownTray className="w-3.5 h-3.5" />
+                  Download
+                </Button>
                 <div className="flex items-center self-center px-1">
                   <Checkbox
                     title="Select all"
@@ -445,171 +579,87 @@ export default function FileImages({
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
 
               {/* Images sub-section */}
-              <div className="flex flex-col">
-                <div className="flex items-center sticky top-0 z-10 bg-gray-50/60 dark:bg-gray-800/80 backdrop-blur-sm">
-                  <button
-                    type="button"
-                    onClick={() => setIsImagesExpanded((p) => !p)}
-                    className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0"
-                  >
-                    <HiChevronDown
-                      className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200 shrink-0 ${
-                        isImagesExpanded ? "" : "-rotate-90"
-                      }`}
-                    />
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 uppercase tracking-wider transition-colors">
-                      {tr("bento.multimedia.gallery", dictionary)}
-                    </span>
-                    <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
-                      ({images.length})
-                    </span>
-                  </button>
-                  <div className="px-2 shrink-0 " onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      title="Select all images"
-                      checked={images.length > 0 && images.every((img) => selectedIds.has(img.file.entry.id))}
-                      ref={(el) => {
-                        if (el) {
-                          const count = images.filter((img) => selectedIds.has(img.file.entry.id)).length;
-                          el.indeterminate = count > 0 && count < images.length;
-                        }
-                      }}
-                      onChange={(e) => {
-                        const ids = images.map((img) => img.file.entry.id);
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          if (e.target.checked) { ids.forEach((id) => next.add(id)); }
-                          else { ids.forEach((id) => next.delete(id)); }
-                          return next;
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {isImagesExpanded && (
-                  <div className="flex flex-col gap-0.5 py-1 px-1">
-                    {images.length > 0 ? (
-                      images.map((image, index) => (
-                        <MediaRow
-                          key={image.file.entry.id}
-                          file={image.file}
-                          index={index}
-                          type="image"
-                          onSelect={(i) => openViewer(i, "browse")}
-                          isSelected={selectedIds.has(image.file.entry.id)}
-                          onToggleSelect={toggleSelect}
-                          status={reviewStatuses.get(image.file.entry.id) ?? "pending"}
-                          statusSetAt={reviewStatusTimestamps.get(image.file.entry.id)}
-                          statusSetBy={reviewStatusUsers.get(image.file.entry.id)}
-                          dictionary={dictionary}
-                        />
-                      ))
-                    ) : (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 px-2 py-2">
-                        {tr("bento.multimedia.noImages", dictionary)}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-gray-200 dark:border-gray-600" />
-
+              <MediaSection
+                label={tr("bento.multimedia.gallery", dictionary)}
+                filteredCount={filteredImages.length}
+                isExpanded={isImagesExpanded}
+                onToggleExpanded={() => setIsImagesExpanded((p) => !p)}
+                checkboxTitle="Select all images"
+                allItemIds={images.map((img) => img.file.entry.id)}
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                emptyText={tr("bento.multimedia.noImages", dictionary)}
+              >
+                {filteredImages.map(({ img: image, idx: originalIndex }) => (
+                  <MediaRow
+                    key={image.file.entry.id}
+                    file={image.file}
+                    index={originalIndex}
+                    type="image"
+                    onSelect={(i) => openViewer(i)}
+                    isSelected={selectedIds.has(image.file.entry.id)}
+                    onToggleSelect={toggleSelect}
+                    status={draftDecisions.get(image.file.entry.id) ?? reviewStatuses.get(image.file.entry.id) ?? "pending"}
+                    statusSetAt={reviewStatusTimestamps.get(image.file.entry.id)}
+                    statusSetBy={reviewStatusUsers.get(image.file.entry.id)}
+                    hideStatusDot={viewMode === "approved"}
+                    dictionary={dictionary}
+                  />
+                ))}
+              </MediaSection>
               {/* Documents sub-section */}
-              <div className="flex flex-col">
-                <div className="flex items-center sticky top-0 z-10 bg-gray-50/60 dark:bg-gray-800/80 backdrop-blur-sm">
-                  <button
-                    type="button"
-                    onClick={() => setIsDocumentsExpanded((p) => !p)}
-                    className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0"
-                  >
-                    <HiChevronDown
-                      className={`w-3.5 h-3.5 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200 shrink-0 ${
-                        isDocumentsExpanded ? "" : "-rotate-90"
-                      }`}
-                    />
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 uppercase tracking-wider transition-colors">
-                      {tr("bento.multimedia.documents", dictionary)}
-                    </span>
-                    <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
-                      ({documents.length})
-                    </span>
-                  </button>
-                  <div className="px-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      title="Select all documents"
-                      checked={documents.length > 0 && documents.every((doc: { file: AlfrescoFileEntry }) => selectedIds.has(doc.file.entry.id))}
-                      ref={(el) => {
-                        if (el) {
-                          const count = documents.filter((doc: { file: AlfrescoFileEntry }) => selectedIds.has(doc.file.entry.id)).length;
-                          el.indeterminate = count > 0 && count < documents.length;
-                        }
-                      }}
-                      onChange={(e) => {
-                        const ids = documents.map((doc: { file: AlfrescoFileEntry }) => doc.file.entry.id);
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          if (e.target.checked) { ids.forEach((id) => next.add(id)); }
-                          else { ids.forEach((id) => next.delete(id)); }
-                          return next;
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {isDocumentsExpanded && (
-                  <div className="flex flex-col gap-0.5 py-1 px-1">
-                    {documents.length > 0 ? (
-                      documents.map((doc: { file: AlfrescoFileEntry }, docIndex: number) => (
-                        <MediaRow
-                          key={doc.file.entry.id}
-                          file={doc.file}
-                          index={docIndex}
-                          type="document"
-                          onSelect={(i) => openViewer(images.length + i, "browse")}
-                          isSelected={selectedIds.has(doc.file.entry.id)}
-                          onToggleSelect={toggleSelect}
-                          status={reviewStatuses.get(doc.file.entry.id) ?? "pending"}
-                          statusSetAt={reviewStatusTimestamps.get(doc.file.entry.id)}
-                          statusSetBy={reviewStatusUsers.get(doc.file.entry.id)}
-                          dictionary={dictionary}
-                        />
-                      ))
-                    ) : (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 px-2 py-2">
-                        {tr("bento.multimedia.noDocuments", dictionary)}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+              <MediaSection
+                label={tr("bento.multimedia.documents", dictionary)}
+                filteredCount={filteredDocuments.length}
+                isExpanded={isDocumentsExpanded}
+                onToggleExpanded={() => setIsDocumentsExpanded((p) => !p)}
+                checkboxTitle="Select all documents"
+                allItemIds={documents.map((doc: { file: AlfrescoFileEntry }) => doc.file.entry.id)}
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                emptyText={tr("bento.multimedia.noDocuments", dictionary)}
+              >
+                {filteredDocuments.map(({ doc, idx: originalIndex }) => (
+                  <MediaRow
+                    key={doc.file.entry.id}
+                    file={doc.file}
+                    index={originalIndex}
+                    type="document"
+                    onSelect={(i) => openViewer(images.length + i)}
+                    isSelected={selectedIds.has(doc.file.entry.id)}
+                    onToggleSelect={toggleSelect}
+                    status={draftDecisions.get(doc.file.entry.id) ?? reviewStatuses.get(doc.file.entry.id) ?? "pending"}
+                    statusSetAt={reviewStatusTimestamps.get(doc.file.entry.id)}
+                    statusSetBy={reviewStatusUsers.get(doc.file.entry.id)}
+                    hideStatusDot={viewMode === "approved"}
+                    dictionary={dictionary}
+                  />
+                ))}
+              </MediaSection>
 
             </div>
 
             {/* Card footer — commit review */}
-            {allIds.length > 0 && (
+            {allIds.length > 0 && viewMode === "review" && (
               <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/60">
                 <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                    {reviewSummary.approved} approved
+                    {effectiveSummary.approved} approved
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                    {reviewSummary.rejected} rejected
+                    {effectiveSummary.rejected} rejected
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                    {reviewSummary.pending} pending
+                    {effectiveSummary.pending} pending
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsCommitModalOpen(true)}
-                  disabled={reviewSummary.approved === 0 && reviewSummary.rejected === 0}
+                  disabled={draftDecisions.size === 0}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Commit review
@@ -619,53 +669,90 @@ export default function FileImages({
           </div>
 
       {/* Commit confirmation modal */}
-      <Modal show={isCommitModalOpen} onClose={() => setIsCommitModalOpen(false)} size="md">
-        <ModalHeader>Submit review</ModalHeader>
+      <Modal
+        dismissible
+        show={isCommitModalOpen}
+        onClose={() => setIsCommitModalOpen(false)}
+        size="md"
+        theme={{
+          content: {
+            base: "relative w-full p-4 md:h-auto",
+            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
+          },
+          header: {
+            base: "flex items-center justify-between rounded-t border-b p-5 dark:border-gray-600",
+            title: "text-base font-semibold text-gray-900 dark:text-white",
+            close: { base: "hidden" },
+          },
+          body: {
+            base: "flex-1 overflow-auto px-5 pb-5",
+          },
+        }}
+      >
+        <ModalHeader className="border-none">
+          <div className="flex flex-col">
+            <span className="text-base font-semibold">Submit review</span>
+            <span className="text-sm text-gray-500 mt-1 font-normal">
+              This action will apply the following decisions
+            </span>
+          </div>
+        </ModalHeader>
         <ModalBody>
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Are you sure you want to submit your review? This action will apply the following decisions:
-            </p>
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3 p-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                 <HiCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
                 <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                  {reviewSummary.approved} {reviewSummary.approved === 1 ? "file" : "files"} approved
+                  {draftSummary.approved} {draftSummary.approved === 1 ? "file" : "files"} will be approved
                 </span>
               </div>
               <div className="flex items-center gap-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                 <HiXMark className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
                 <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                  {reviewSummary.rejected} {reviewSummary.rejected === 1 ? "file" : "files"} rejected
+                  {draftSummary.rejected} {draftSummary.rejected === 1 ? "file" : "files"} will be rejected
                 </span>
               </div>
-              {reviewSummary.pending > 0 && (
+              {draftSummary.undecided > 0 && (
                 <div className="flex items-center gap-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                   <HiExclamationTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                    {reviewSummary.pending} {reviewSummary.pending === 1 ? "file" : "files"} still pending — no decision will be applied to them
+                    {draftSummary.undecided} {draftSummary.undecided === 1 ? "file" : "files"} without a decision — will not be changed
                   </span>
                 </div>
               )}
             </div>
+            <div className="flex justify-end pt-2">
+              <Button
+                color="blue"
+                onClick={() => {
+                  const now = new Date();
+                  setReviewStatuses((prev) => {
+                    const next = new Map(prev);
+                    draftDecisions.forEach((status, id) => next.set(id, status));
+                    return next;
+                  });
+                  setReviewStatusTimestamps((prev) => {
+                    const next = new Map(prev);
+                    draftDecisions.forEach((_, id) => next.set(id, now));
+                    return next;
+                  });
+                  if (currentUserName) {
+                    setReviewStatusUsers((prev) => {
+                      const next = new Map(prev);
+                      draftDecisions.forEach((_, id) => next.set(id, currentUserName));
+                      return next;
+                    });
+                  }
+                  setDraftDecisions(new Map());
+                  setIsCommitModalOpen(false);
+                  toast.success("Review submitted successfully");
+                }}
+              >
+                Confirm
+              </Button>
+            </div>
           </div>
         </ModalBody>
-        <ModalFooter>
-          <div className="flex justify-end gap-2 w-full">
-            <Button color="gray" onClick={() => setIsCommitModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              color="blue"
-              onClick={() => {
-                setIsCommitModalOpen(false);
-                toast.success("Review submitted successfully");
-              }}
-            >
-              Confirm
-            </Button>
-          </div>
-        </ModalFooter>
       </Modal>
 
       {/* Modals */}
@@ -676,7 +763,8 @@ export default function FileImages({
           if (editImageIndex !== null) handleReplaceImage(file, editImageIndex);
         }}
         dictionary={dictionary}
-        imageName={editImageIndex === null ? undefined : images[editImageIndex]?.file?.entry?.name}
+        imageName={editImageIndex === null ? undefined : allMediaItems[editImageIndex]?.file?.entry?.name}
+        accept={editImageIndex !== null && allMediaItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
       />
 
       <FileViewer

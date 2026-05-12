@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.router import HarnessRoute, IntentRouter
@@ -130,7 +131,8 @@ class HarnessSupervisor:
             "evidence": [],
             "turn_count": 0,
         }
-        final_state = await self.nexo_graph.ainvoke(initial_state)
+        with agent_span("run", run_id=ctx.run_id, tenant_id=ctx.tenant_id):
+            final_state = await self.nexo_graph.ainvoke(initial_state)
 
         # Drain the graph's _events channel into the run record in order
         for evt in final_state.get("_events") or []:

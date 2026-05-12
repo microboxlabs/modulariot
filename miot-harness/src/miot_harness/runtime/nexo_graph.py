@@ -40,10 +40,29 @@ from miot_harness.agents.summarizer import summarizer_node
 from miot_harness.agents.supervisor import next_agent
 from miot_harness.agents.synthesizer import synthesizer_node
 from miot_harness.config import HarnessSettings
+from miot_harness.observability.callbacks import NexoTelemetryCallback
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoState
 from miot_harness.tools.registry import ToolRegistry
+
+
+def _instrument(model: BaseChatModel, agent_name: str, ctx: HarnessContext) -> Any:
+    """Wrap a chat model with a per-agent telemetry callback for this run.
+
+    The callback emits one ``nexo.<agent>`` span per LLM call with full
+    GenAI semconv attribution (tokens, cache split, cost) and the
+    ``modular.{agent, run_id, tenant_id}`` attrs Langfuse groups by.
+    Returns a `Runnable` proxy which is interface-compatible with
+    `BaseChatModel.ainvoke` — the agent nodes only call that surface.
+    """
+
+    cb = NexoTelemetryCallback(
+        agent_name=agent_name,
+        run_id=ctx.run_id,
+        tenant_id=ctx.tenant_id,
+    )
+    return model.with_config(callbacks=[cb])
 
 
 def _make_event_buffer() -> tuple[list[HarnessEvent], Any]:
@@ -97,8 +116,11 @@ def build_nexo_graph(
         return delta
 
     async def _filter_expert(state: NexoState) -> dict[str, Any]:
+        ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         return await filter_expert_node(
-            cast(dict[str, Any], state), registry=registry, model=models["filter_expert"]
+            cast(dict[str, Any], state),
+            registry=registry,
+            model=_instrument(models["filter_expert"], "filter_expert", ctx),
         )
 
     async def _data_fetcher(state: NexoState) -> dict[str, Any]:
@@ -119,27 +141,37 @@ def build_nexo_graph(
         return _merge_events(delta, buf)
 
     async def _domain_analyst(state: NexoState) -> dict[str, Any]:
+        ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         return await domain_analyst_node(
-            cast(dict[str, Any], state), model=models["domain_analyst"]
+            cast(dict[str, Any], state),
+            model=_instrument(models["domain_analyst"], "domain_analyst", ctx),
         )
 
     async def _synthesizer(state: NexoState) -> dict[str, Any]:
+        ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await synthesizer_node(
             cast(dict[str, Any], state),
-            model=models["synthesizer"],
+            model=_instrument(models["synthesizer"], "synthesizer", ctx),
             progress=progress,
             settings=settings,
         )
         return _merge_events(delta, buf)
 
     async def _critic(state: NexoState) -> dict[str, Any]:
+        ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         return await critic_node(
-            cast(dict[str, Any], state), settings=settings, model=models["critic"]
+            cast(dict[str, Any], state),
+            settings=settings,
+            model=_instrument(models["critic"], "critic", ctx),
         )
 
     async def _summarizer(state: NexoState) -> dict[str, Any]:
-        return await summarizer_node(cast(dict[str, Any], state), model=models["summarizer"])
+        ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
+        return await summarizer_node(
+            cast(dict[str, Any], state),
+            model=_instrument(models["summarizer"], "summarizer", ctx),
+        )
 
     async def _tenant_gate(state: NexoState) -> dict[str, Any]:
         return await _tenant_gate_node(cast(dict[str, Any], state), settings=settings)

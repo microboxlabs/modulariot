@@ -23,6 +23,14 @@ Append-only. One entry per iteration. Format:
 
 - Task: A2 observability package scaffold (otel/pricing/spans/callbacks)
 - Status: completed
-- Commit: <pending>
+- Commit: bfdac6a1
 - Notes: New `miot_harness.observability` package with `pricing.py` (versioned `ModelPricing` table for Opus 4.7 / Sonnet 4.6 / Haiku 4.5 / gpt-4o-mini, Anthropic-bucket `TokenUsage`, `compute_cost` quantized to 6 decimals, `UnknownModelError`), `otel.py` (`configure_tracing` returns None when disabled, else builds `TracerProvider` w/ Resource carrying `service.name`/`service.namespace=modular`/`deployment.environment` + `BatchSpanProcessor(OTLPSpanExporter)`; `shutdown_tracing` is None-safe), `spans.py` (`agent_span(name, run_id, tenant_id?, mode?)` ctxmgr setting `gen_ai.operation.name`/`modular.*` attrs and nesting under parent context), `callbacks.py` (`NexoTelemetryCallback` tracking per-run-id span handles, mapping LangChain `usage_metadata` total-input back into Anthropic buckets, emitting `gen_ai.{system,request.model,usage.input/output/cache_read/cache_creation/cost_usd}` + `modular.{agent,run_id,tenant_id,mode}` and `Status(ERROR)` on `on_llm_error`). Tests: 17 new (`test_pricing.py`, `test_spans.py`, `test_otel.py`, `test_callbacks.py`) attaching an `InMemorySpanExporter` to pytest-opentelemetry's pre-installed provider, filtered to `nexo.*` spans. Full suite: 175 passed, 1 skipped, 0 failed.
+
+## Iteration 3 — 2026-05-12
+
+- Task: A3 wire telemetry callbacks into Nexo graph nodes + supervisor root span
+- Status: completed
+- Commit: <pending>
+- Notes: Added `_instrument(model, agent_name, ctx)` helper in `runtime/nexo_graph.py` that returns `model.with_config(callbacks=[NexoTelemetryCallback(...)])`. Wired through every LLM-bearing node wrapper (filter_expert, domain_analyst, synthesizer, critic, summarizer) using `ctx.run_id`/`ctx.tenant_id` from `HarnessContext`. In `runtime/supervisor.py`, wrapped `nexo_graph.ainvoke(...)` in `agent_span("run", run_id, tenant_id)` so a `nexo.run` root span lives over the graph invocation. Tests: 2 new (`tests/observability/test_graph_wiring.py`) — per-agent spans carry the expected `modular.{agent,run_id,tenant_id}` and the root `nexo.run` span carries `gen_ai.operation.name`. Full suite: 177 passed, 1 skipped, 0 failed.
+
 

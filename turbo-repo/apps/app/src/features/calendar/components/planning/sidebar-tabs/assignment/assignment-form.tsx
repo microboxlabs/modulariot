@@ -283,6 +283,7 @@ export function AssignmentForm({
     delegacion: mintralDelegacionOrigen,
     resourceType: "CARRIER",
     query: carrierQuery,
+    selectedIds: value.carrier ? [value.carrier] : undefined,
   });
 
   const {
@@ -295,6 +296,9 @@ export function AssignmentForm({
     resourceType: "DRIVER",
     carrierId: value.carrier,
     query: driverQuery,
+    // The driver feed backs both the primary and the second-driver dropdown,
+    // so pin whichever of the two is currently selected.
+    selectedIds: [value.driver, value.secondDriver].filter(Boolean),
     enabled: Boolean(value.carrier),
   });
 
@@ -308,6 +312,7 @@ export function AssignmentForm({
     resourceType: "TRUCK",
     carrierId: value.carrier,
     query: truckQuery,
+    selectedIds: value.truck ? [value.truck] : undefined,
     enabled: Boolean(value.carrier),
   });
 
@@ -321,6 +326,7 @@ export function AssignmentForm({
     resourceType: "TRAILER",
     carrierId: value.carrier,
     query: trailerQuery,
+    selectedIds: value.trailer ? [value.trailer] : undefined,
     enabled: Boolean(value.carrier && value.hasTrailer),
   });
 

@@ -2468,6 +2468,7 @@
     "internal": "Internal start",
     "external": "External start",
     "urgency": "Urgency",
+    "serviceCategory": "Service category",
     "today": "Today",
     "yesterday": "Yesterday",
     "trip": "Trip",

@@ -1930,6 +1930,29 @@ export function useServiceTypes() {
   };
 }
 
+/**
+ * Resolve a service-type code (e.g. "ST001") to its display name.
+ *
+ * Unlike {@link useServiceTypes} this does not drop inactive types, so a task
+ * referencing a now-retired category still renders its label. Backed by the
+ * same SWR cache key, so it adds no extra requests when used alongside it.
+ */
+export function useServiceCategoryName(code: string | null | undefined): {
+  name: string | undefined;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useSWR<ServiceType[], FetcherError>(
+    "/app/api/service-types",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  const name = useMemo(() => {
+    if (!code) return undefined;
+    return (data ?? []).find((t) => t.code === code)?.name;
+  }, [data, code]);
+  return { name, isLoading };
+}
+
 export async function updateServiceCategory(
   taskId: string,
   serviceTypeCode: string

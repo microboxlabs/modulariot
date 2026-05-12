@@ -7,6 +7,7 @@ import { tr } from "@/features/i18n/tr.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
 import { Tooltip } from "flowbite-react";
+import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 export default function KanbanCard({
   task,
@@ -25,6 +26,12 @@ export default function KanbanCard({
     cursor = "!cursor-wait";
   }
 
+  // The service category badge replaces the "F" (faena) indicator when set.
+  // While the category catalog is still loading the badge renders nothing, so
+  // we suppress the "F" fallback whenever a category code is present at all.
+  const hasServiceCategory = Boolean(task.mintral_serviceCategory);
+  const showFaenaBadge = !hasServiceCategory && task.executionType === "F";
+
   return (
     <div
       key={task.id}
@@ -37,11 +44,19 @@ export default function KanbanCard({
     >
       <div className="absolute inset-0 bg-gradient-to-r bg-black/10 dark:bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-1000 ease-out pointer-events-none" />
       <div className="relative z-10">
-        {task.executionType === "F" && !compactKanbanView && (
+        {!compactKanbanView && (hasServiceCategory || showFaenaBadge) && (
           <div className="relative">
-            <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-white rounded-full -top-2 -end-2 dark:border-gray-900">
-              F
-            </div>
+            {hasServiceCategory ? (
+              <ServiceCategoryBadge
+                code={task.mintral_serviceCategory}
+                variant="solid"
+                className="absolute -top-2 -end-2 h-6 min-w-6 text-xs"
+              />
+            ) : (
+              <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-white rounded-full -top-2 -end-2 dark:border-gray-900">
+                F
+              </div>
+            )}
           </div>
         )}
         <div className="flex items-center justify-between">
@@ -61,10 +76,18 @@ export default function KanbanCard({
                     >
                       {task.name}
                     </strong>
-                    {task.executionType === "F" && (
-                      <span className="inline-flex items-center justify-center w-5 h-5 ms-2 text-xs font-semibold text-white bg-red-500 rounded-full">
-                        F
-                      </span>
+                    {hasServiceCategory ? (
+                      <ServiceCategoryBadge
+                        code={task.mintral_serviceCategory}
+                        variant="solid"
+                        className="ms-2 h-5 min-w-5 text-xs border-0"
+                      />
+                    ) : (
+                      showFaenaBadge && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 ms-2 text-xs font-semibold text-white bg-red-500 rounded-full">
+                          F
+                        </span>
+                      )
                     )}
                   </div>
                 </div>

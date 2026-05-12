@@ -1,0 +1,167 @@
+# Self-hosted Langfuse v3 + OTel Collector for miot-harness local dev (plan 13 §B1).
+#
+# Bring up:    ./bootstrap.sh
+# Manual:      docker compose up -d
+# Tear down:   docker compose down            (keeps volumes)
+#              docker compose down -v         (drops volumes — full reset)
+#
+# Reference: https://langfuse.com/self-hosting (v3 split: web + worker +
+# postgres + clickhouse + redis + minio for blob storage).
+#
+# Networking: services talk over the `observability` bridge network.
+# Only the OTel Collector + Langfuse web are exposed on the host.
+
+name: miot-harness-observability
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: miot-obs-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [observability]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: miot-obs-clickhouse
+    restart: unless-stopped
+    user: "101:101"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    networks: [observability]
+
+  redis:
+    image: redis:7-alpine
+    container_name: miot-obs-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: ["redis-server", "--requirepass", "myredissecret", "--maxmemory-policy", "noeviction"]
+    networks: [observability]
+
+  minio:
+    image: minio/minio
+    container_name: miot-obs-minio
+    restart: unless-stopped
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: miniouser
+      MINIO_ROOT_PASSWORD: miniosecret
+    volumes:
+      - minio-data:/data
+    networks: [observability]
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: miot-obs-langfuse-web
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_started }
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: please-change-this-in-prod
+      SALT: please-also-change-this
+      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_INIT_ORG_ID: miot-harness-local
+      LANGFUSE_INIT_ORG_NAME: ModularIoT (local dev)
+      LANGFUSE_INIT_PROJECT_ID: miot-harness-local
+      LANGFUSE_INIT_PROJECT_NAME: miot-harness-local
+      LANGFUSE_INIT_USER_EMAIL: dev@modulariot.local
+      LANGFUSE_INIT_USER_NAME: Local Dev
+      LANGFUSE_INIT_USER_PASSWORD: please-change-this
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: myredissecret
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: miniouser
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+    networks: [observability]
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: miot-obs-langfuse-worker
+    restart: unless-stopped
+    depends_on:
+      langfuse-web: { condition: service_started }
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      SALT: please-also-change-this
+      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: myredissecret
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: miniouser
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+    networks: [observability]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    container_name: miot-obs-otel-collector
+    restart: unless-stopped
+    depends_on:
+      langfuse-web: { condition: service_started }
+    command: ["--config=/etc/otelcol/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC (harness -> collector)
+      - "4318:4318"   # OTLP HTTP (debug)
+      - "8888:8888"   # collector self-metrics
+    networks: [observability]
+
+volumes:
+  postgres-data:
+  clickhouse-data:
+  clickhouse-logs:
+  minio-data:
+
+networks:
+  observability:
+    name: miot-obs

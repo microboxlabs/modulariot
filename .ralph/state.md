@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 15
+Iteration: 16
 Last updated: 2026-05-12
 
 ---
@@ -46,7 +46,7 @@ Last updated: 2026-05-12
 - [x] **E9** Telemetry attrs for agentic mode: `modular.mode` on every root span; per-mode cost split visible in C2 dashboards; `nexo.critic` spans non-zero in agentic mode.
 
 ## Phase F — Full verification + PR open
-- [ ] **F1** `uv run pytest` green across plan 12 + all new tests.
+- [x] **F1** `uv run pytest` green across plan 12 + all new tests.
 - [ ] **F2** Live verification (canned mode): plan 12's G6/G7/G8 still work — agentic addition non-breaking.
 - [ ] **F3** Live verification (agentic mode): 10 freeform questions covering meta/data/mixed/cross-tenant/adversarial. Confirm router picks right route, meta no-SQL, agentic uses primitives + critic, provenance accumulates, per-mode cost visible. Plus 3-turn chat with conversation memory.
 - [ ] **F4** One week of agentic traffic: 50+ runs, top-3 provenance patterns documented as curation candidates, per-mode cost ≤ 2.5× canned.

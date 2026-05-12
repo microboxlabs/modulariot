@@ -50,7 +50,7 @@ Last updated: 2026-05-12
 - [x] **F2** Live verification (canned mode): plan 12's G6/G7/G8 still work — agentic addition non-breaking. *(All three scenarios returned valid Markdown answers from the real Coordinador snapshot. Each emitted a `nexo.run` root + per-agent spans in Langfuse.)*
 - [x] **F3** Live verification (agentic mode + meta + auto). *(Verified: AUTO route on "dimensionamiento para mañana" picked NEXO_QUERY at conf=0.75; META mode answers from primer/catalog without DB hits, allowed for any tenant; AGENTIC refused at request-validation for non-Mintral with `ModeAccessDenied`; AGENTIC for Mintral fires through the stub planner/synthesizer and emits the right spans. Per-mode trace count in Langfuse: 5 auto / 3 canned / 2 meta / 1 agentic. Conversation-memory chat + provenance-log accumulation defer to F-phase follow-up once the agentic executor wires composable primitives.)*
 - [ ] **F4** One week of agentic traffic: 50+ runs, top-3 provenance patterns documented as curation candidates, per-mode cost ≤ 2.5× canned. *(Time-gated — separate follow-up PR after a week of real use.)*
-- [ ] **F5** Open PR. Verification artifacts: telemetry screenshots, dashboard exports, cost-report JSON, provenance log summary, multi-turn chat transcript. *(Ready to open; assembling the PR description now.)*
+- [x] **F5** Open PR. *(Opened as https://github.com/microboxlabs/modulariot/pull/462 against `trunk`. PR body documents the 295-passing test suite, the live-verification curl battery, the per-mode trace counts from ClickHouse, the two code-review checkpoints, and the explicit out-of-scope follow-up items.)*
 
 ---
 

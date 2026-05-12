@@ -48,39 +48,33 @@ done
 echo
 echo "ok: langfuse-web healthy at ${LANGFUSE_URL}"
 
-echo "==> resolving project keys"
-# Langfuse v3 returns a single { publicKey, secretKey } pair per project
-# via the /api/public/projects/{id}/api-keys endpoint, gated by HTTP Basic
-# auth (the org owner credentials we set via LANGFUSE_INIT_USER_*).
-KEYS_PAYLOAD="$(
-  curl -fsS \
-    -u "${LANGFUSE_USER}:${LANGFUSE_PASS}" \
-    -H 'Content-Type: application/json' \
-    -X POST "${LANGFUSE_URL}/api/public/projects/miot-harness-local/api-keys" \
-    -d '{"note":"miot-harness bootstrap key"}' \
-    2>/dev/null || true
+echo "==> reading project keys from running Postgres (set via LANGFUSE_INIT_PROJECT_*_KEY)"
+# Langfuse v3 mints the initial API key pair from `LANGFUSE_INIT_PROJECT_*_KEY`
+# envs during the org/project bootstrap. The keys are deterministic given the
+# env values, so this command always prints the same pair until you rotate.
+KEY_ROW="$(
+  docker compose exec -T postgres psql -U postgres -d postgres -t -A -F'|' \
+    -c "SELECT public_key, display_secret_key FROM api_keys WHERE project_id = 'miot-harness-local' ORDER BY created_at LIMIT 1;" 2>/dev/null || true
 )"
 
-if [[ -z "$KEYS_PAYLOAD" || "$KEYS_PAYLOAD" == "null" ]]; then
-  cat <<'EOF' >&2
-WARN: could not auto-provision API keys.
-  Visit ${LANGFUSE_URL} → log in as the dev user → Project Settings → API Keys.
-  Create a new key pair and paste the values into miot-harness/.env:
+PUBLIC_KEY="${KEY_ROW%%|*}"
+DISPLAY_SECRET="${KEY_ROW##*|}"
 
-    MIOT_HARNESS_LANGFUSE_PUBLIC_KEY=pk-lf-...
-    MIOT_HARNESS_LANGFUSE_SECRET_KEY=sk-lf-...
+if [[ -z "$PUBLIC_KEY" || -z "$DISPLAY_SECRET" ]]; then
+  cat <<EOF >&2
+WARN: could not read keys from Postgres. Either Langfuse didn't auto-bootstrap
+  the project (check \`docker compose logs langfuse-web\`) or you rotated the
+  init envs without nuking the volumes. Recover via:
+
+    docker compose down -v && docker compose up -d
+
 EOF
-  exit 0
+  exit 1
 fi
 
-PUBLIC_KEY="$(printf '%s' "$KEYS_PAYLOAD" | python3 -c "import sys,json;print(json.load(sys.stdin).get('publicKey',''))")"
-SECRET_KEY="$(printf '%s' "$KEYS_PAYLOAD" | python3 -c "import sys,json;print(json.load(sys.stdin).get('secretKey',''))")"
-
-if [[ -z "$PUBLIC_KEY" || -z "$SECRET_KEY" ]]; then
-  echo "WARN: bootstrap API responded but did not return both keys; check Langfuse UI." >&2
-  echo "$KEYS_PAYLOAD" >&2
-  exit 0
-fi
+# The full secret key only exists in the env vars and (hashed) in Postgres.
+# We surface the env value directly so the operator gets the working secret.
+SECRET_KEY="$(grep LANGFUSE_INIT_PROJECT_SECRET_KEY docker-compose.yml | head -1 | awk '{print $2}')"
 
 cat <<EOF
 

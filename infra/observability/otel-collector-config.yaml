@@ -34,12 +34,13 @@ exporters:
   # service URL is in-network because we share the docker network.
   otlphttp/langfuse:
     endpoint: http://langfuse-web:3000/api/public/otel
-    # Auth headers are populated by bootstrap.sh once a project key is
-    # provisioned. The values below are intentionally blank — bootstrap.sh
-    # rewrites this file in place (or sets them via env-var substitution
-    # if you'd rather wire LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY).
+    # Basic auth = base64(public_key:secret_key) for the Langfuse project
+    # auto-created by `LANGFUSE_INIT_PROJECT_{PUBLIC,SECRET}_KEY` in
+    # docker-compose.yml. Rotate by regenerating the env-var pair and
+    # re-encoding via:
+    #   printf 'pk-lf-...:sk-lf-...' | base64
     headers:
-      Authorization: "Basic UExBQ0VIT0xERVI6UExBQ0VIT0xERVI="  # set by bootstrap.sh
+      Authorization: "Basic cGstbGYtZDU3YzdlZDE1Y2Q1OTA0MTczNmVkYmNmYzY3OWU0OGU6c2stbGYtMGU5MTQwNGJmMGM5N2RmNTg4MmQwNDU2ZGNmMTVkYTk="
   # Optional second exporter — uncomment when adding a backup backend
   # (e.g. Jaeger, Honeycomb) so you can fan out without re-instrumenting.
   # debug:

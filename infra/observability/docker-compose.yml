@@ -36,11 +36,17 @@ services:
     container_name: miot-obs-clickhouse
     restart: unless-stopped
     user: "101:101"
+    # `127.0.0.1` (not `localhost`) — Docker on macOS doesn't route IPv6
+    # inside containers, and ClickHouse only manages to bind 0.0.0.0:8123
+    # (IPv4); wget would otherwise resolve `localhost` → `::1` and fail.
+    # `start_period` covers ClickHouse's slow first-boot (migrations) so
+    # we don't mark unhealthy before it's had a chance to come up.
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 30s
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: clickhouse
@@ -91,12 +97,22 @@ services:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: please-change-this-in-prod
       SALT: please-also-change-this
-      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      # Generated locally via `openssl rand -hex 32`. This is a LOCAL DEV
+      # value committed only because the stack is single-tenant and runs
+      # on the developer's machine. Rotate before sharing the host.
+      ENCRYPTION_KEY: 6262bc78a08368073ec03f5ac3605146da6b53cd45303cb492ff051674d1aac4
       TELEMETRY_ENABLED: "false"
       LANGFUSE_INIT_ORG_ID: miot-harness-local
       LANGFUSE_INIT_ORG_NAME: ModularIoT (local dev)
       LANGFUSE_INIT_PROJECT_ID: miot-harness-local
       LANGFUSE_INIT_PROJECT_NAME: miot-harness-local
+      # Deterministic API keys for the auto-created project so the harness
+      # `.env` can hard-code them and re-runs are reproducible. These are
+      # LOCAL-DEV-ONLY values committed alongside the stack — never use
+      # them outside a developer machine. Rotate by generating new pairs
+      # via `openssl rand -hex 16` and `docker compose down -v` + up.
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-d57c7ed15cd59041736edbcfc679e48e
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-0e91404bf0c97df5882d0456dcf15da9
       LANGFUSE_INIT_USER_EMAIL: dev@modulariot.local
       LANGFUSE_INIT_USER_NAME: Local Dev
       LANGFUSE_INIT_USER_PASSWORD: please-change-this
@@ -104,6 +120,10 @@ services:
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse
       CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      # Single-node ClickHouse — Langfuse's migrations default to
+      # `ReplicatedMergeTree ON CLUSTER default` which needs ZooKeeper.
+      # Disabling cluster mode makes them use plain MergeTree.
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_AUTH: myredissecret
@@ -124,12 +144,16 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
       SALT: please-also-change-this
-      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      # Generated locally via `openssl rand -hex 32`. This is a LOCAL DEV
+      # value committed only because the stack is single-tenant and runs
+      # on the developer's machine. Rotate before sharing the host.
+      ENCRYPTION_KEY: 6262bc78a08368073ec03f5ac3605146da6b53cd45303cb492ff051674d1aac4
       TELEMETRY_ENABLED: "false"
       CLICKHOUSE_URL: http://clickhouse:8123
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse
       CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_AUTH: myredissecret

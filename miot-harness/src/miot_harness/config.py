@@ -44,6 +44,14 @@ class HarnessSettings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     request_id_header: str = "x-request-id"
 
+    # OTel + Traceloop / Langfuse (Phase A telemetry foundation)
+    otel_enabled: bool = False
+    otel_endpoint: str = "http://localhost:4317"
+    otel_service_name: str = "miot-harness"
+    otel_environment: str = "local"
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+
     # Multi-agent model assignment (per plan 12 §"Cost-control rules")
     nexo_supervisor_mode: Literal["rule", "llm"] = "rule"
     nexo_filter_expert_model: str = "claude-haiku-4-5"

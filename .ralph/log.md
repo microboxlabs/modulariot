@@ -30,7 +30,15 @@ Append-only. One entry per iteration. Format:
 
 - Task: A3 wire telemetry callbacks into Nexo graph nodes + supervisor root span
 - Status: completed
-- Commit: <pending>
+- Commit: 2e5fa252
 - Notes: Added `_instrument(model, agent_name, ctx)` helper in `runtime/nexo_graph.py` that returns `model.with_config(callbacks=[NexoTelemetryCallback(...)])`. Wired through every LLM-bearing node wrapper (filter_expert, domain_analyst, synthesizer, critic, summarizer) using `ctx.run_id`/`ctx.tenant_id` from `HarnessContext`. In `runtime/supervisor.py`, wrapped `nexo_graph.ainvoke(...)` in `agent_span("run", run_id, tenant_id)` so a `nexo.run` root span lives over the graph invocation. Tests: 2 new (`tests/observability/test_graph_wiring.py`) — per-agent spans carry the expected `modular.{agent,run_id,tenant_id}` and the root `nexo.run` span carries `gen_ai.operation.name`. Full suite: 177 passed, 1 skipped, 0 failed.
+
+## Iteration 4 — 2026-05-12
+
+- Task: A5 add OTel + Langfuse settings to HarnessSettings
+- Status: completed
+- Commit: <pending>
+- Notes: A5 done out of document order — A4 (Traceloop init in lifespan) consumes these, so settings come first. Added `otel_enabled: bool = False`, `otel_endpoint = "http://localhost:4317"`, `otel_service_name = "miot-harness"`, `otel_environment = "local"`, `langfuse_public_key: str | None = None`, `langfuse_secret_key: str | None = None` under existing `env_prefix="MIOT_HARNESS_"`. Telemetry stays off by default — the FastAPI lifespan no-ops when `otel_enabled=False`. Tests: 4 new in `test_config.py` for defaults + env overrides. Full suite: 181 passed, 1 skipped, 0 failed.
+
 
 

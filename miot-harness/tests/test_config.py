@@ -72,3 +72,44 @@ def test_supervisor_mode_validates_literal(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_NEXO_SUPERVISOR_MODE", "bogus")
     with pytest.raises(ValidationError):
         HarnessSettings()
+
+
+def test_otel_settings_have_safe_defaults():
+    """Telemetry stays off unless explicitly enabled — `local` env, no exporter."""
+
+    settings = HarnessSettings()
+
+    assert settings.otel_enabled is False
+    assert settings.otel_endpoint == "http://localhost:4317"
+    assert settings.otel_service_name == "miot-harness"
+    assert settings.otel_environment == "local"
+
+
+def test_otel_settings_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_ENDPOINT", "http://collector:4317")
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_SERVICE_NAME", "miot-harness-prod")
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_ENVIRONMENT", "prod")
+
+    settings = HarnessSettings()
+
+    assert settings.otel_enabled is True
+    assert settings.otel_endpoint == "http://collector:4317"
+    assert settings.otel_service_name == "miot-harness-prod"
+    assert settings.otel_environment == "prod"
+
+
+def test_langfuse_keys_default_to_none():
+    settings = HarnessSettings()
+    assert settings.langfuse_public_key is None
+    assert settings.langfuse_secret_key is None
+
+
+def test_langfuse_keys_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_PUBLIC_KEY", "pk-lf-test")
+    monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_SECRET_KEY", "sk-lf-test")
+
+    settings = HarnessSettings()
+
+    assert settings.langfuse_public_key == "pk-lf-test"
+    assert settings.langfuse_secret_key == "sk-lf-test"

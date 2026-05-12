@@ -111,8 +111,16 @@ Append-only. One entry per iteration. Format:
 
 - Task: F1 pytest green verification (offline-doable F task)
 - Status: completed
-- Commit: state.md update only — F1 is a verification gate, no source change
+- Commit: 302a61e8
 - Notes: `uv run pytest` reports **275 passed, 1 skipped, 0 failed, 0 errors**. Plan 12's 151-test baseline preserved (no regressions); 124 new tests across observability/, runtime/, agents/, integrations/nexo/ for Phase A + Phase E. F2 (canned-mode live verification), F3 (agentic-mode live verification), F4 (one week of agentic traffic), F5 (PR open with verification artifacts) require operator preconditions per `.ralph/blockers.md` (Docker daemon for Langfuse stack, SSH tunnel to coordinador-prod, ANTHROPIC_API_KEY). Until those land the loop must BLOCKER stop. Phase E review checkpoint next.
+
+## Iteration 17 — 2026-05-12
+
+- Task: Phase E code review + cheap followups + supervisor-wire-up blocker note
+- Status: completed (loop stopping with BLOCKER)
+- Commit: <pending>
+- Notes: Dispatched `superpowers:requesting-code-review` for the Phase E surface (E1 router/resolver, E2 meta, E4 provenance, E5 conversation, E6 agentic_graph, E7 tenancy, E8/E9 mode telemetry — E3 was reviewed earlier). 0 Critical, 7 Important, 5 Minor. Applied cheap fixes here: (#4) `.env.example` gained 3 new sections for MIOT_HARNESS_INTENT_ROUTER_{MODEL,CONFIDENCE_THRESHOLD} and MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD; (#2) `agentic_graph.py` docstring rewritten to be honest about which nodes are wired vs which are deferred; (#3) `_ = provenance_log` clarified with intent comment. Big remaining Important #1 — supervisor doesn't yet consume `resolve_mode` / `LLMIntentRouter` / `InMemoryConversationStore` / `build_agentic_graph` / `meta_agent_node` — written up as a new OPEN entry in `.ralph/blockers.md` with concrete step-list for the F-phase wire-up. The F-phase tasks (F2-F5) are all gated on operator preconditions (Docker daemon, SSH tunnel, ANTHROPIC_API_KEY) per blockers.md. Output BLOCKER and STOP — every remaining task in document order requires either operator preconditions or the supervisor wire-up that depends on them. Full suite: 275 passed, 1 skipped.
+
 
 - Notes: E8 was implicitly completed via TDD during E1-E7 — all seven test files the plan lists exist: `test_intent_router.py` (11 tests), `test_mode_resolver.py` (6), `test_meta_agent.py` (4), `test_primitives.py` (47), `test_provenance.py` (7), `test_conversation.py` (7), `test_agentic_graph.py` (4), `test_tenancy_gate.py` (7). E9: added `mode: RunMode = "auto"` to `HarnessContext` (propagated from `UserRequest.to_context()`). Supervisor's `agent_span("run", ...)` now passes `mode=ctx.mode` so the root `nexo.run` carries `modular.mode`. `nexo_graph._instrument(...)` forwards `ctx.mode` to `NexoTelemetryCallback`, so every per-agent `nexo.<agent>` span carries the same attribute — enabling C2 per-mode cost split when Phase B/C land. Tests: 2 new in `tests/observability/test_mode_telemetry.py` (root span carries `modular.mode='agentic'`; per-agent callback spans carry `modular.mode='canned'` after running the real graph). C2 dashboards and `nexo.critic` non-zero are infra-dependent (Phase B+C blocked) — the attr surface is wired and verified. Full suite: 275 passed, 1 skipped, 0 failed.
 

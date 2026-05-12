@@ -2,20 +2,19 @@
 exploration of Coordinador data via the composable primitives.
 
 Differences from the plan-execute graph:
-- Planner runs on Sonnet (configurable). It can emit *multiple* steps
-  including composable primitives (`nexo_select`, `nexo_grep`, etc.).
 - Turn cap is 12 (vs 8) — exploration is the whole point.
 - Critic is ON by default. Composable primitives have more freedom, so
   the critic seat catches hallucinated joins or out-of-bounds reads.
 - `tenancy_gate_node` refuses non-Mintral tenants BEFORE any LLM call.
 
-Nodes: tenancy_gate, planner, executor, freshness_judge, domain_analyst,
-critic, synthesizer, summarizer.
-
-The planner's actual "decide curated vs composable" logic needs a real
-LLM to be useful (FakeListChatModel test fixtures cover the wiring,
-not the decision quality). E2/E8/F3 cover the behavioral validation
-against live models.
+Nodes wired in this iteration: ``tenancy_gate``, ``planner`` (stub —
+turn counter only), ``synthesizer``, ``critic`` (stub — pass-through),
+``summarizer`` (stub — no-op). The plan's executor, freshness_judge,
+and domain_analyst nodes are NOT yet built here — they require the
+planner Sonnet decision + composable-primitive invocation, which lands
+under the F-phase wire-up once the supervisor consumes this graph (see
+plan 13's "Files to modify · supervisor.py" entry). F3 covers the
+behavioral validation against live models.
 """
 
 from __future__ import annotations
@@ -115,9 +114,12 @@ def build_agentic_graph(
     graph.add_edge("critic", "summarizer")
     graph.add_edge("summarizer", END)
 
-    # provenance_log is captured here so the executor (when implemented)
-    # can write a row per primitive invocation. Kept on the graph
-    # closure rather than in state so it's not serialized into snapshots.
+    # provenance_log is captured for the future executor node so it can
+    # write `(question, sql, plan_cost, rows_returned, ...)` per
+    # primitive invocation. Kept on the graph closure (not in state) so
+    # it's not serialized into snapshots. Currently unused — the stub
+    # planner doesn't call any primitives. The TODO is wiring it through
+    # the executor in the F-phase supervisor integration.
     _ = provenance_log
 
     return graph.compile()

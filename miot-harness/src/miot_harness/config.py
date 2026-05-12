@@ -47,6 +47,12 @@ class HarnessSettings(BaseSettings):
     intent_router_model: str = "claude-haiku-4-5"
     intent_router_confidence_threshold: float = 0.7
 
+    # Composable Nexo primitives (E3). EXPLAIN total cost > this → refuse.
+    # PostgreSQL plan-cost units. Default 10000 is roughly "10s of seq scans
+    # on a million-row table" — generous enough for analyst exploration,
+    # tight enough to refuse an unindexed cross-join.
+    nexo_explain_cost_threshold: float = 10000.0
+
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     request_id_header: str = "x-request-id"

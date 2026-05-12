@@ -26,6 +26,7 @@ dependencies = [
   "opentelemetry-instrumentation-fastapi>=0.48b0",
   "pydantic>=2.10",
   "pydantic-settings>=2.6",
+  "sqlglot>=25.0",
   "traceloop-sdk>=0.33",
   "uvicorn[standard]>=0.30",
 ]

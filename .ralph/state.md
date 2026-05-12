@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 9
+Iteration: 10
 Last updated: 2026-05-12
 
 ---
@@ -37,7 +37,7 @@ Last updated: 2026-05-12
 ## Phase E — Agentic Search (loosen the harness)
 - [x] **E1** LLM intent router + mode selection. New `runtime/intent_router.py` + `runtime/mode_resolver.py`. `RunRequest.mode: Literal["auto","canned","meta","agentic"] = "auto"`. Confidence threshold + keyword fallback. Tests: 30-prompt confusion matrix + 4 mode-bypass tests.
 - [x] **E2** Meta-question agent. New `agents/meta_agent.py` (Haiku tier). Answers schema/primer questions from cached introspection + primer; no SQL.
-- [ ] **E3** Composable DB primitives (PR #2 redemption): `nexo_describe`, `nexo_select`, `nexo_grep`, `nexo_explain`. sqlglot AST gate + EXPLAIN cost gate + allowlist (`nexo.dx_*` + `fn_dx_*`). Tests must pass before moving on.
+- [x] **E3** Composable DB primitives (PR #2 redemption): `nexo_describe`, `nexo_select`, `nexo_grep`, `nexo_explain`. sqlglot AST gate + EXPLAIN cost gate + allowlist (`nexo.dx_*` + `fn_dx_*`). Tests must pass before moving on.
 - [ ] **E4** Provenance log: `observability/provenance.py` writes `(question, sql, plan_cost, rows_returned, refreshed_at, run_id, tenant_id)` to `evals/provenance/YYYY-MM-DD.jsonl`. `scripts/provenance-curate.py` surfaces candidates.
 - [ ] **E5** Conversational memory: `runtime/conversation.py` with `ConversationStore` interface; in-memory v1 dict. `conversation_id` in request; summarize at >10 turns. `HarnessRunRecord` gains `conversation_id`.
 - [ ] **E6** New `runtime/agentic_graph.py` — LangGraph `StateGraph[AgenticState]`. Nodes: tenant_gate, planner (Sonnet), executor, freshness_judge, domain_analyst, critic (ON by default), synthesizer, summarizer. Turn cap 12.

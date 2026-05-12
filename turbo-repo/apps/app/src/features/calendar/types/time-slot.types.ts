@@ -14,6 +14,10 @@ export interface TimeSlot {
   endTimestamp?: string; // For daily-override: ISO 8601 format
   quota?: number; // Used when kind="window"
   color?: TimeWindowColor; // Optional visual color
+  slotDurationMinutes?: number; // Server-managed shift cadence in minutes
+  slotGenerationMode?: "auto" | "manual"; // "auto" (derived) or "manual" (admin-set duration); ignored for blocks
+  totalSlots?: number; // Derived from the API when present
+  bookableSlots?: number; // Derived from the API when present; the rest, up to totalSlots, are OVERFLOW
 }
 
 /**

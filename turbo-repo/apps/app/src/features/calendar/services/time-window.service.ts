@@ -25,6 +25,11 @@ export const TimeWindowResponseSchema = z.object({
   // Defaulted server-side to WINDOW; older deployments that haven't shipped
   // the discriminator yet are tolerated via the default.
   kind: z.enum(["WINDOW", "BLOCK"]).default("WINDOW"),
+  // Defaulted to AUTO so pre-v0.5.0 backends (no slotGenerationMode) keep working.
+  slotGenerationMode: z.enum(["AUTO", "MANUAL"]).default("AUTO"),
+  // Derived counts; optional so older backends that don't return them don't break the parse.
+  totalSlots: z.number().int().nonnegative().optional(),
+  bookableSlots: z.number().int().nonnegative().optional(),
 });
 
 type ValidatedTimeWindowResponse = z.infer<typeof TimeWindowResponseSchema>;
@@ -85,6 +90,8 @@ export function apiToLocalTimeWindow(
 
   const color = (response.color as TimeWindowColor | undefined) ?? "emerald";
   const localKind = response.kind === "BLOCK" ? "block" : "window";
+  const slotGenerationMode =
+    response.slotGenerationMode === "MANUAL" ? "manual" : "auto";
 
   if (isDailyOverride) {
     const startTs = `${response.validFrom}T${response.startHour.toString().padStart(2, "0")}:00:00`;
@@ -99,6 +106,9 @@ export function apiToLocalTimeWindow(
       quota: response.capacity,
       color,
       slotDurationMinutes: response.slotDurationMinutes,
+      slotGenerationMode,
+      totalSlots: response.totalSlots,
+      bookableSlots: response.bookableSlots,
     };
   }
 
@@ -118,6 +128,9 @@ export function apiToLocalTimeWindow(
     quota: response.capacity,
     color,
     slotDurationMinutes: response.slotDurationMinutes,
+    slotGenerationMode,
+    totalSlots: response.totalSlots,
+    bookableSlots: response.bookableSlots,
   };
 }
 
@@ -136,6 +149,22 @@ export function localToApiTimeWindow(
   // Blocks have no quota — the backend ignores capacity for BLOCK rows but
   // requires a non-negative number; send 0 explicitly.
   const capacity = slot.kind === "block" ? 0 : slot.quota ?? 1;
+  // Blocks ignore slot-generation settings server-side; for WINDOWs send the mode
+  // (default "auto" → "AUTO") and, only in manual mode, the admin-set duration.
+  const generationFields: Pick<
+    TimeWindowRequest,
+    "slotGenerationMode" | "slotDurationMinutes"
+  > =
+    apiKind === "BLOCK"
+      ? {}
+      : {
+          slotGenerationMode:
+            slot.slotGenerationMode === "manual" ? "MANUAL" : "AUTO",
+          ...(slot.slotGenerationMode === "manual" &&
+          slot.slotDurationMinutes != null
+            ? { slotDurationMinutes: slot.slotDurationMinutes }
+            : {}),
+        };
 
   if (slot.type === "daily-override") {
     const start = slot.startTimestamp ? dayjs(slot.startTimestamp) : dayjs();
@@ -157,6 +186,7 @@ export function localToApiTimeWindow(
       active: true,
       color: slot.color,
       kind: apiKind,
+      ...generationFields,
     };
   }
 
@@ -175,6 +205,7 @@ export function localToApiTimeWindow(
       active: true,
       color: slot.color,
       kind: apiKind,
+      ...generationFields,
     };
   }
 
@@ -193,5 +224,6 @@ export function localToApiTimeWindow(
     active: true,
     color: slot.color,
     kind: apiKind,
+    ...generationFields,
   };
 }

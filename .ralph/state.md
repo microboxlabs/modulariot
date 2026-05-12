@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 19
+Iteration: 20
 Last updated: 2026-05-12
 
 ---
@@ -44,6 +44,7 @@ Last updated: 2026-05-12
 - [x] **E7** Refactor `tenant_gate_node` → `tenancy_gate_node`. Behavior matrix: refuse NEXO_QUERY/NEXO_AGENTIC for non-Mintral; allow NEXO_META; emit audit attr.
 - [x] **E8** Tests: intent_router, meta_agent, primitives (safety + functional), provenance, conversation, agentic_graph, tenancy_gate.
 - [x] **E9** Telemetry attrs for agentic mode: `modular.mode` on every root span; per-mode cost split visible in C2 dashboards; `nexo.critic` spans non-zero in agentic mode.
+- [x] **E10** Langfuse first-class trace fields. Emit `langfuse.user.id` / `langfuse.session.id` / `langfuse.tags` / `langfuse.environment` on root + per-agent spans so Langfuse UI's filter sidebar (User ID / Session ID / Tags) is populated for per-client cost rollups. *(`HarnessContext.conversation_id` added; `agent_span` + `NexoTelemetryCallback` extended with `user_id`/`session_id`/`tags`/`environment` kwargs; `HarnessSupervisor._root_span_kwargs(ctx, route)` centralizes the mapping across all three dispatch paths; `_instrument(...)` threads ctx.user_id + ctx.conversation_id or ctx.thread_id + a per-agent tag list. Live-verified — ClickHouse `traces` table for `nexo.run` rows post-curl shows `user_id='odtorres'`, `session_id='odtorres-debug-N'`, `tags=['agent:filter_expert','agent:synthesizer','mode:auto','route:nexo_query','tenant:mintral']`, `environment='local'`. 4 new unit tests in `tests/observability/test_langfuse_attribution.py`.)*
 
 ## Phase F — Full verification + PR open
 - [x] **F1** `uv run pytest` green across plan 12 + all new tests.

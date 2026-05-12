@@ -53,17 +53,26 @@ def _instrument(model: BaseChatModel, agent_name: str, ctx: HarnessContext) -> A
     """Wrap a chat model with a per-agent telemetry callback for this run.
 
     The callback emits one ``nexo.<agent>`` span per LLM call with full
-    GenAI semconv attribution (tokens, cache split, cost) and the
-    ``modular.{agent, run_id, tenant_id, mode}`` attrs Langfuse groups by.
+    GenAI semconv attribution (tokens, cache split, cost), the internal
+    ``modular.*`` attrs we group by, AND the ``langfuse.*`` attrs the
+    Langfuse UI promotes to first-class filter columns (E10).
+
     Returns a `Runnable` proxy which is interface-compatible with
     `BaseChatModel.ainvoke` — the agent nodes only call that surface.
     """
 
+    # `session_id` falls back to thread_id when no conversation_id is
+    # set so one-shot requests still group under a session key.
+    session_id = ctx.conversation_id or ctx.thread_id
+    tags = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}", f"agent:{agent_name}"]
     cb = NexoTelemetryCallback(
         agent_name=agent_name,
         run_id=ctx.run_id,
         tenant_id=ctx.tenant_id,
         mode=ctx.mode,
+        user_id=ctx.user_id,
+        session_id=session_id,
+        tags=tags,
     )
     return model.with_config(callbacks=[cb])
 

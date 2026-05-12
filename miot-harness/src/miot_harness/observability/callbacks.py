@@ -4,10 +4,16 @@ Bound to each LangGraph node in ``runtime/nexo_graph.py`` (A3) via the
 ``callbacks`` field of ``RunnableConfig``. One callback instance per node
 invocation; the instance tracks per-run-id span handles so concurrent LLM
 calls under the same node do not cross-talk.
+
+Emits Langfuse first-class fields (plan 13 §E10) alongside the OTel GenAI
+semconv attrs so the Langfuse UI's filter sidebar (User ID / Session ID
+/ Tags) is populated for per-client cost rollups.
 """
 
 from __future__ import annotations
 
+import json
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -101,11 +107,19 @@ class NexoTelemetryCallback(BaseCallbackHandler):
         run_id: str,
         tenant_id: str | None = None,
         mode: str | None = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        tags: Sequence[str] | None = None,
+        environment: str | None = None,
     ) -> None:
         self._agent_name = agent_name
         self._run_id = run_id
         self._tenant_id = tenant_id
         self._mode = mode
+        self._user_id = user_id
+        self._session_id = session_id
+        self._tags = list(tags) if tags else None
+        self._environment = environment
         self._tracer = trace.get_tracer(_TRACER_NAME)
         self._open_spans: dict[UUID, _CallState] = {}
 
@@ -133,6 +147,16 @@ class NexoTelemetryCallback(BaseCallbackHandler):
             span.set_attribute("modular.tenant_id", self._tenant_id)
         if self._mode is not None:
             span.set_attribute("modular.mode", self._mode)
+        # Langfuse first-class fields (E10) — promoted from OTel attrs to
+        # filter columns in the Tracing UI for per-client cost rollups.
+        if self._user_id is not None:
+            span.set_attribute("langfuse.user.id", self._user_id)
+        if self._session_id is not None:
+            span.set_attribute("langfuse.session.id", self._session_id)
+        if self._environment is not None:
+            span.set_attribute("langfuse.environment", self._environment)
+        if self._tags:
+            span.set_attribute("langfuse.tags", json.dumps(self._tags))
         self._open_spans[run_id] = _CallState(span=span, model=model)
 
     def on_llm_end(

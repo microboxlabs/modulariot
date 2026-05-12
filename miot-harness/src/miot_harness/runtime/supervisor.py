@@ -122,11 +122,11 @@ class HarnessSupervisor:
 
         try:
             if route.route == HarnessRoute.NEXO_QUERY:
-                await self._run_nexo(request, ctx, record, progress)
+                await self._run_nexo(request, ctx, record, progress, route.route)
             elif route.route == HarnessRoute.NEXO_META:
-                await self._run_nexo_meta(request, ctx, record, progress)
+                await self._run_nexo_meta(request, ctx, record, progress, route.route)
             elif route.route == HarnessRoute.NEXO_AGENTIC:
-                await self._run_nexo_agentic(request, ctx, record, progress)
+                await self._run_nexo_agentic(request, ctx, record, progress, route.route)
             elif route.route == HarnessRoute.STORYTELLING_RUN:
                 await self._run_storytelling(ctx, record, progress)
             # DIRECT / OTHER: nothing to do; client renders.
@@ -158,6 +158,28 @@ class HarnessSupervisor:
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self.run_store.save(record)
         return record
+
+    def _root_span_kwargs(
+        self, ctx: HarnessContext, route: HarnessRoute | None
+    ) -> dict[str, Any]:
+        """Common kwargs for `agent_span("run", ...)` across all dispatch paths.
+
+        Centralizes the Langfuse first-class field mapping (E10) so every
+        route's root span carries `user_id`, `session_id`, and `tags`
+        identically. `tags` includes the resolved route when known.
+        """
+
+        tags: list[str] = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}"]
+        if route is not None:
+            tags.append(f"route:{route.value}")
+        return {
+            "run_id": ctx.run_id,
+            "tenant_id": ctx.tenant_id,
+            "mode": ctx.mode,
+            "user_id": ctx.user_id,
+            "session_id": ctx.conversation_id or ctx.thread_id,
+            "tags": tags,
+        }
 
     async def _resolve_route(self, request: UserRequest) -> RouteResult:
         """Use the LLM router when available; else the keyword router.
@@ -199,6 +221,7 @@ class HarnessSupervisor:
         ctx: HarnessContext,
         record: HarnessRunRecord,
         progress: Any,
+        route: HarnessRoute | None = None,
     ) -> None:
         if self.nexo_graph is None:
             answer = (
@@ -222,12 +245,7 @@ class HarnessSupervisor:
             "evidence": [],
             "turn_count": 0,
         }
-        with agent_span(
-            "run",
-            run_id=ctx.run_id,
-            tenant_id=ctx.tenant_id,
-            mode=ctx.mode,
-        ):
+        with agent_span("run", **self._root_span_kwargs(ctx, route)):
             final_state = await self.nexo_graph.ainvoke(initial_state)
 
         # Drain the graph's _events channel into the run record in order
@@ -251,6 +269,7 @@ class HarnessSupervisor:
         ctx: HarnessContext,
         record: HarnessRunRecord,
         progress: Any,
+        route: HarnessRoute | None = None,
     ) -> None:
         if self.agentic_graph is None:
             answer = (
@@ -274,12 +293,7 @@ class HarnessSupervisor:
             "evidence": [],
             "turn_count": 0,
         }
-        with agent_span(
-            "run",
-            run_id=ctx.run_id,
-            tenant_id=ctx.tenant_id,
-            mode=ctx.mode,
-        ):
+        with agent_span("run", **self._root_span_kwargs(ctx, route)):
             final_state = await self.agentic_graph.ainvoke(initial_state)
 
         for evt in final_state.get("_events") or []:
@@ -292,6 +306,7 @@ class HarnessSupervisor:
         ctx: HarnessContext,
         record: HarnessRunRecord,
         progress: Any,
+        route: HarnessRoute | None = None,
     ) -> None:
         if self.meta_model is None:
             answer = (
@@ -301,12 +316,7 @@ class HarnessSupervisor:
             record.answer = answer
             return
 
-        with agent_span(
-            "run",
-            run_id=ctx.run_id,
-            tenant_id=ctx.tenant_id,
-            mode=ctx.mode,
-        ):
+        with agent_span("run", **self._root_span_kwargs(ctx, route)):
             delta = await meta_agent_node(
                 {"user_message": request.message},
                 model=self.meta_model,

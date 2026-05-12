@@ -21,6 +21,9 @@ class HarnessContext(BaseModel):
     # Phase E (plan 13): the mode the caller requested. Set from
     # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
     mode: RunMode = "auto"
+    # Phase E10 (plan 13): the multi-turn conversation id, if any.
+    # Used as the Langfuse `session_id` (falls back to `thread_id`).
+    conversation_id: str | None = None
 
 
 class UserRequest(BaseModel):
@@ -39,4 +42,5 @@ class UserRequest(BaseModel):
             user_id=self.user_id,
             route_context=self.route_context,
             mode=self.mode,
+            conversation_id=self.conversation_id,
         )

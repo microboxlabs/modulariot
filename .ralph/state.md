@@ -4,14 +4,14 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 1
+Iteration: 2
 Last updated: 2026-05-12
 
 ---
 
 ## Phase A — Telemetry instrumentation foundation
 - [x] **A1** Add deps to `miot-harness/pyproject.toml`: `opentelemetry-{api,sdk,exporter-otlp}`, `opentelemetry-instrumentation-fastapi`, `traceloop-sdk`. Dev: `pytest-opentelemetry`. Run `uv sync`; verify no version conflicts.
-- [ ] **A2** Create `miot-harness/src/miot_harness/observability/` package: `otel.py` (TracerProvider + Collector exporter), `pricing.py` (versioned per-model table), `callbacks.py` (NexoTelemetryCallback emitting `gen_ai.*` attrs), `spans.py` (`agent_span(name, run_id, tenant_id)` context manager).
+- [x] **A2** Create `miot-harness/src/miot_harness/observability/` package: `otel.py` (TracerProvider + Collector exporter), `pricing.py` (versioned per-model table), `callbacks.py` (NexoTelemetryCallback emitting `gen_ai.*` attrs), `spans.py` (`agent_span(name, run_id, tenant_id)` context manager).
 - [ ] **A3** Wire callbacks into LangGraph nodes in `runtime/nexo_graph.py`. Each node receives `RunnableConfig` with `NexoTelemetryCallback(agent_name)`. Root `nexo.run` span opens at graph entry; `run_id` propagates through state.
 - [ ] **A4** Auto-instrument provider SDKs: `Traceloop.init(...)` called from `api/server.py` lifespan. LLM calls auto-emit `gen_ai.*` child spans nested under agent spans.
 - [ ] **A5** Settings: add `MIOT_HARNESS_OTEL_{ENABLED,ENDPOINT,SERVICE_NAME,ENVIRONMENT}` and `MIOT_HARNESS_LANGFUSE_{PUBLIC_KEY,SECRET_KEY}` to `config.py`.

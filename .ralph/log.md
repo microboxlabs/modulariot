@@ -44,8 +44,16 @@ Append-only. One entry per iteration. Format:
 
 - Task: A4 wire Traceloop.init + configure_tracing into FastAPI lifespan
 - Status: completed
-- Commit: <pending>
+- Commit: 3c6c92bb
 - Notes: In `api/server.py` lifespan, call `configure_tracing(enabled=settings.otel_enabled, ...)` BEFORE the Nexo boot path. When it returns a provider (otel_enabled=true), follow with `Traceloop.init(app_name=service_name, api_endpoint=endpoint, disable_batch=False, telemetry_enabled=False)` so Anthropic/OpenAI SDK calls auto-emit `gen_ai.*` child spans against the same global TracerProvider the per-agent `NexoTelemetryCallback` uses. `app.state.tracer_provider` holds the provider for /health introspection. `shutdown_tracing` runs in BOTH lifespan finally branches (the early Nexo-disabled return path AND the normal path) so the batch exporter always flushes. Tests: 2 new in `tests/observability/test_lifespan_init.py` — mocks `configure_tracing`/`Traceloop`/`shutdown_tracing` and asserts the off-path skips Traceloop while the on-path forwards the settings to both. Full suite: 183 passed, 1 skipped, 0 failed.
+
+## Iteration 6 — 2026-05-12
+
+- Task: A6 LangGraph parallel-branch propagation gotcha test
+- Status: completed
+- Commit: <pending>
+- Notes: A6's other two test files (test_callbacks.py, test_pricing.py) were written under A2 as part of TDD on the source files. A6 adds the missing piece: `tests/observability/test_propagation.py` — a synthetic 3-node graph `planner → (branch_a ∥ branch_b) → joiner` with LangGraph fan-out where each parallel branch instantiates its own `NexoTelemetryCallback`. Asserts that even under parallel execution every emitted `nexo.*` span carries the right `modular.{agent,run_id,tenant_id}` (the explicit attrs Langfuse regroups by when OTel context propagation breaks across LangGraph branches). Second test: 20 concurrent callbacks via `asyncio.gather` confirm per-`run_id` span-dict isolation. Phase A is now [x] across A1-A6; next checkpoint = `superpowers:requesting-code-review`. Full suite: 185 passed, 1 skipped, 0 failed.
+
 
 
 

@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 5
+Iteration: 6
 Last updated: 2026-05-12
 
 ---
@@ -15,7 +15,7 @@ Last updated: 2026-05-12
 - [x] **A3** Wire callbacks into LangGraph nodes in `runtime/nexo_graph.py`. Each node receives `RunnableConfig` with `NexoTelemetryCallback(agent_name)`. Root `nexo.run` span opens at graph entry; `run_id` propagates through state.
 - [x] **A4** Auto-instrument provider SDKs: `Traceloop.init(...)` called from `api/server.py` lifespan. LLM calls auto-emit `gen_ai.*` child spans nested under agent spans.
 - [x] **A5** Settings: add `MIOT_HARNESS_OTEL_{ENABLED,ENDPOINT,SERVICE_NAME,ENVIRONMENT}` and `MIOT_HARNESS_LANGFUSE_{PUBLIC_KEY,SECRET_KEY}` to `config.py`.
-- [ ] **A6** Tests: `test_callbacks.py` (span emission), `test_pricing.py` (cost math), `test_propagation.py` (the LangGraph gotcha test — 3-node fake graph, assert run_id hierarchy + per-agent attribution).
+- [x] **A6** Tests: `test_callbacks.py` (span emission), `test_pricing.py` (cost math), `test_propagation.py` (the LangGraph gotcha test — 3-node fake graph, assert run_id hierarchy + per-agent attribution).
 
 ## Phase B — Backend deployment (Langfuse stack)
 - [ ] **B1** Create `infra/observability/docker-compose.yml` with `postgres:16`, `clickhouse:24`, `langfuse-web:3`, `langfuse-worker:3`, `otel-collector:0.95`. Volumes persisted. Starting point: Langfuse's official compose + Collector sidecar.

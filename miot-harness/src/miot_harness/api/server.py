@@ -6,12 +6,14 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.integrations.nexo.boot import load_nexo_tools
 from miot_harness.integrations.nexo.credentials import load_nexo_credentials
 from miot_harness.integrations.nexo.pool import create_nexo_pool
+from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.nexo_graph import build_nexo_graph
@@ -31,6 +33,31 @@ def _make_lifespan(
         app.state.nexo_registered = []
         app.state.nexo_snapshot_age_minutes = None
 
+        # Telemetry: configure_tracing installs the global TracerProvider so
+        # NexoTelemetryCallback's spans (per-agent) and Traceloop's
+        # auto-instrumented child spans (per LLM SDK call) flow to the same
+        # collector. No-op when MIOT_HARNESS_OTEL_ENABLED is false.
+        tracer_provider = configure_tracing(
+            enabled=settings.otel_enabled,
+            service_name=settings.otel_service_name,
+            endpoint=settings.otel_endpoint,
+            environment=settings.otel_environment,
+        )
+        if tracer_provider is not None:
+            Traceloop.init(
+                app_name=settings.otel_service_name,
+                api_endpoint=settings.otel_endpoint,
+                disable_batch=False,
+                telemetry_enabled=False,  # do not phone home; we self-host
+            )
+            logger.info(
+                "OTel: tracing enabled (service=%s, env=%s, endpoint=%s)",
+                settings.otel_service_name,
+                settings.otel_environment,
+                settings.otel_endpoint,
+            )
+        app.state.tracer_provider = tracer_provider
+
         if settings.nexo_dsn is None and settings.nexo_db_scripts_root is None:
             logger.info(
                 "Nexo: disabled (neither MIOT_HARNESS_NEXO_DSN nor "
@@ -39,7 +66,10 @@ def _make_lifespan(
             try:
                 yield
             finally:
-                pass
+                try:
+                    shutdown_tracing(tracer_provider)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("OTel: shutdown_tracing raised %s", exc)
             return
 
         pool = None
@@ -113,6 +143,10 @@ def _make_lifespan(
                     await pool.close()
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Nexo: pool close raised %s", exc)
+            try:
+                shutdown_tracing(tracer_provider)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("OTel: shutdown_tracing raised %s", exc)
 
     return lifespan
 

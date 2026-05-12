@@ -44,6 +44,8 @@ from miot_harness.observability.callbacks import NexoTelemetryCallback
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoState
+from miot_harness.runtime.router import HarnessRoute
+from miot_harness.runtime.tenancy import tenancy_gate_decision
 from miot_harness.tools.registry import ToolRegistry
 
 
@@ -77,12 +79,17 @@ def _make_event_buffer() -> tuple[list[HarnessEvent], Any]:
 
 
 async def _tenant_gate_node(state: dict[str, Any], *, settings: HarnessSettings) -> dict[str, Any]:
+    """Defense-in-depth gate: the mode resolver should have already gated this,
+    but the graph entry re-checks so a future direct-graph caller can't slip
+    past with a non-Mintral tenant.
+    """
     ctx: HarnessContext = state["ctx"]
-    if ctx.tenant_id != settings.nexo_tenant_lock:
+    decision = tenancy_gate_decision(
+        ctx=ctx, route=HarnessRoute.NEXO_QUERY, settings=settings
+    )
+    if not decision.allowed:
         # Skip every LLM call; supervisor sees `answer` set and ends.
-        return {
-            "answer": "Coordinador is Mintral-only. I can't answer for other tenants.",
-        }
+        return {"answer": decision.refusal_message}
     return {}
 
 

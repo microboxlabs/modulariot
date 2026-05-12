@@ -4,7 +4,7 @@ Source of truth: `.cursor/plans/ai-first/13-post-nexo-roadmap.md` (frozen 2026-0
 Branch: `feat/harness-phase-13-telemetry-agentic`.
 Worktree: `.claude/worktrees/harness-phase-13/`.
 
-Iteration: 13
+Iteration: 14
 Last updated: 2026-05-12
 
 ---
@@ -40,8 +40,8 @@ Last updated: 2026-05-12
 - [x] **E3** Composable DB primitives (PR #2 redemption): `nexo_describe`, `nexo_select`, `nexo_grep`, `nexo_explain`. sqlglot AST gate + EXPLAIN cost gate + allowlist (`nexo.dx_*` + `fn_dx_*`). Tests must pass before moving on.
 - [x] **E4** Provenance log: `observability/provenance.py` writes `(question, sql, plan_cost, rows_returned, refreshed_at, run_id, tenant_id)` to `evals/provenance/YYYY-MM-DD.jsonl`. `scripts/provenance-curate.py` surfaces candidates.
 - [x] **E5** Conversational memory: `runtime/conversation.py` with `ConversationStore` interface; in-memory v1 dict. `conversation_id` in request; summarize at >10 turns. `HarnessRunRecord` gains `conversation_id`.
-- [ ] **E6** New `runtime/agentic_graph.py` — LangGraph `StateGraph[AgenticState]`. Nodes: tenant_gate, planner (Sonnet), executor, freshness_judge, domain_analyst, critic (ON by default), synthesizer, summarizer. Turn cap 12.
-- [ ] **E7** Refactor `tenant_gate_node` → `tenancy_gate_node`. Behavior matrix: refuse NEXO_QUERY/NEXO_AGENTIC for non-Mintral; allow NEXO_META; emit audit attr.
+- [x] **E6** New `runtime/agentic_graph.py` — LangGraph `StateGraph[AgenticState]`. Nodes: tenant_gate, planner (Sonnet), executor, freshness_judge, domain_analyst, critic (ON by default), synthesizer, summarizer. Turn cap 12.
+- [x] **E7** Refactor `tenant_gate_node` → `tenancy_gate_node`. Behavior matrix: refuse NEXO_QUERY/NEXO_AGENTIC for non-Mintral; allow NEXO_META; emit audit attr.
 - [ ] **E8** Tests: intent_router, meta_agent, primitives (safety + functional), provenance, conversation, agentic_graph, tenancy_gate.
 - [ ] **E9** Telemetry attrs for agentic mode: `modular.mode` on every root span; per-mode cost split visible in C2 dashboards; `nexo.critic` spans non-zero in agentic mode.
 

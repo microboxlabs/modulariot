@@ -25,6 +25,7 @@ import {
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
   createBooking,
+  updateBooking,
   cancelBooking,
   listBookings,
   updateServiceCategory,
@@ -772,9 +773,24 @@ async function persistPlannedBooking({
   }
 
   try {
-    const booking = await createBooking(
-      buildBookingRequest(calendarId, service, slot)
-    );
+    const bookingRequest = buildBookingRequest(calendarId, service, slot);
+    const booking = await createBooking(bookingRequest);
+
+    // Re-confirming a service in the same slot (e.g. "Asignar" on an
+    // already-planned service) hits the bookings POST 409 path, which resolves
+    // to the *existing* booking without applying the new resource.data — and so
+    // `booking.id === oldBookingId`. Push the payload onto it explicitly so the
+    // change (e.g. the assignment tuple) survives a refresh, and skip the
+    // old-booking cancel below since it would delete the booking we just kept.
+    const reusedExistingBooking =
+      oldBookingId !== undefined && booking.id === oldBookingId;
+    if (reusedExistingBooking) {
+      // On failure the pre-existing booking is left intact (with stale data);
+      // rethrow so the outer catch rolls back the optimistic UI. We never
+      // cancel it here — it is the service's current plan.
+      await updateBooking(booking.id, { resource: bookingRequest.resource });
+    }
+
     await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
       await advanceWorkflowTask(taskAdvance.taskId, taskAdvance.transitionId);
@@ -786,7 +802,7 @@ async function persistPlannedBooking({
       return next;
     });
 
-    if (oldBookingId) {
+    if (oldBookingId && !reusedExistingBooking) {
       await cancelBookingWithWarning(
         oldBookingId,
         "Failed to cancel old booking:"

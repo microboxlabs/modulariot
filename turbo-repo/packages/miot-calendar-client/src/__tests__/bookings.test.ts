@@ -4,6 +4,7 @@ import type {
   BookingRequest,
   BookingResponse,
   BookingListResponse,
+  BookingUpdateRequest,
 } from "../types.js";
 import { createMockFetch } from "./test-utils.js";
 
@@ -118,6 +119,37 @@ describe("bookings", () => {
 
       const headers = call.init.headers as Record<string, string>;
       expect(headers["X-User-Id"]).toBeUndefined();
+    });
+  });
+
+  describe("update", () => {
+    const updateRequest: BookingUpdateRequest = {
+      resource: {
+        id: "r-1",
+        type: "room",
+        label: "Room A (assigned)",
+        data: { assignedCarrier: "c-1" },
+      },
+    };
+
+    it("sends PUT to bookings/:id with body", async () => {
+      const { fn, call } = createMockFetch(sampleBooking);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      await client.bookings.update("b-1", updateRequest);
+
+      expect(call.init.method).toBe("PUT");
+      expect(call.url).toBe(`${BASE_URL}${BOOKINGS_PATH}/b-1`);
+      expect(call.init.body).toBe(JSON.stringify(updateRequest));
+    });
+
+    it("returns the updated booking", async () => {
+      const { fn } = createMockFetch(sampleBooking);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const result = await client.bookings.update("b-1", updateRequest);
+
+      expect(result).toEqual(sampleBooking);
     });
   });
 

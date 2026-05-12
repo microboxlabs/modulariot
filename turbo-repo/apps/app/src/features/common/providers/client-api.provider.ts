@@ -54,6 +54,7 @@ import type {
   TimeWindowResponse,
   TimeWindowRequest,
   BookingRequest,
+  BookingUpdateRequest,
   BookingResponse,
   BookingListResponse,
   SlotResponse,
@@ -1776,6 +1777,28 @@ export async function advanceWorkflowTask(
         : (err.error?.message ?? "Failed to advance workflow task");
     throw new Error(message);
   }
+}
+
+/**
+ * Update an existing booking's resource payload in place (same slot). Used to
+ * push a changed payload — e.g. the assignment tuple — onto a booking that
+ * already exists, since the bookings POST resolves a same-slot conflict by
+ * returning the existing booking without applying the new data.
+ */
+export async function updateBooking(
+  bookingId: string,
+  body: BookingUpdateRequest
+): Promise<BookingResponse> {
+  const response = await fetch(`/app/api/calendar/bookings/${bookingId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to update booking");
+  }
+  return response.json();
 }
 
 /**

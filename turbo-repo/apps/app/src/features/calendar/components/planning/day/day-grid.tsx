@@ -6,11 +6,7 @@ import "dayjs/locale/es";
 import "dayjs/locale/en";
 import { twMerge } from "tailwind-merge";
 import type { DayInfo } from "../planning-day-view.types";
-import {
-  isTimeWindow,
-  type PlannedService,
-  type TimeWindow,
-} from "../planning-selection-context";
+import type { PlannedService } from "../planning-selection-context";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import {
   computeSlotState,
@@ -99,26 +95,8 @@ export default function DayGrid({
     isSlotBlocked,
     configuredTimeSlots,
     plannedServices,
+    isShiftWindowFull,
   } = planningGrid;
-
-  // Lookup TW config by id + a per-shift "is this window at its booking capacity for the day?"
-  // check derived from the planned services. When true, no shift in that window accepts a new
-  // booking (the empty ones render as muted "spare" slots). `getRemainingQuota` clamps at 0 and
-  // already excludes the service being reassigned.
-  const timeWindowById = useMemo(() => {
-    const map = new Map<string, TimeWindow>();
-    for (const tw of configuredTimeSlots) {
-      if (isTimeWindow(tw)) map.set(tw.id, tw);
-    }
-    return map;
-  }, [configuredTimeSlots]);
-  const isShiftWindowFull = useCallback(
-    (shift: PositionedShift) => {
-      const tw = timeWindowById.get(shift.twId);
-      return tw ? getRemainingQuota(tw, shift.date) <= 0 : false;
-    },
-    [timeWindowById, getRemainingQuota]
-  );
 
   const dayInfo = useMemo(
     () => getDayInfo(currentDate, lang),

@@ -14,11 +14,7 @@ import type {
   WeekDay,
 } from "./planning-week-view.types";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
-import {
-  isTimeWindow,
-  type PlannedService,
-  type TimeWindow,
-} from "./planning-selection-context";
+import type { PlannedService } from "./planning-selection-context";
 import {
   computeSlotState,
   getSlotCellClassName,
@@ -111,27 +107,8 @@ export default function PlanningWeekView({
     isSlotBlocked,
     configuredTimeSlots,
     plannedServices,
+    isShiftWindowFull,
   } = planningGrid;
-
-  // Lookup TW config by id, plus a per-shift "is this window at its booking capacity for the day?"
-  // check derived from the planned services. When true, no shift in that window accepts a new
-  // booking (the empty ones render as muted "spare" slots, since the grid intentionally has more
-  // slots than the window can hold). `getRemainingQuota` clamps at 0 and already excludes the
-  // service being reassigned.
-  const timeWindowById = useMemo(() => {
-    const map = new Map<string, TimeWindow>();
-    for (const tw of configuredTimeSlots) {
-      if (isTimeWindow(tw)) map.set(tw.id, tw);
-    }
-    return map;
-  }, [configuredTimeSlots]);
-  const isShiftWindowFull = useCallback(
-    (shift: PositionedShift) => {
-      const tw = timeWindowById.get(shift.twId);
-      return tw ? getRemainingQuota(tw, shift.date) <= 0 : false;
-    },
-    [timeWindowById, getRemainingQuota]
-  );
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {

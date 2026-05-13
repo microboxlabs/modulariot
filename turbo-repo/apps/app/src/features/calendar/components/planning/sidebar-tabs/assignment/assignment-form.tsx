@@ -36,68 +36,14 @@ export interface DriverOption {
   faltasDescanso: number;
 }
 
-const REMOLQUE_OPTIONS: TrailerOption[] = [
-  {
-    id: "r1",
-    plate: "AABB11",
-    tipo: "FURG",
-    estado: "disponible",
-    gpsIntegrado: true,
-    estadoGps: "online",
-    capacidadKg: 25000,
-    ultimoMantenimiento: "2026-02-15",
-    kilometraje: 85000,
-    problemasReportados: 0,
-  },
-  {
-    id: "r2",
-    plate: "CCDD22",
-    tipo: "CB40",
-    estado: "ocupado",
-    gpsIntegrado: true,
-    estadoGps: "offline",
-    capacidadKg: 30000,
-    ultimoMantenimiento: "2026-01-20",
-    kilometraje: 120000,
-    problemasReportados: 2,
-  },
-  {
-    id: "r3",
-    plate: "EEFF33",
-    tipo: "R28T",
-    estado: "disponible",
-    gpsIntegrado: false,
-    estadoGps: "offline",
-    capacidadKg: 20000,
-    ultimoMantenimiento: "2026-03-01",
-    kilometraje: 45000,
-    problemasReportados: 0,
-  },
-  {
-    id: "r4",
-    plate: "GGHH44",
-    tipo: "SIDE",
-    estado: "ocupado",
-    gpsIntegrado: true,
-    estadoGps: "online",
-    capacidadKg: 18000,
-    ultimoMantenimiento: "2026-02-28",
-    kilometraje: 67000,
-    problemasReportados: 1,
-  },
-  {
-    id: "r5",
-    plate: "IIJJ55",
-    tipo: "SIL",
-    estado: "disponible",
-    gpsIntegrado: true,
-    estadoGps: "online",
-    capacidadKg: 35000,
-    ultimoMantenimiento: "2026-03-10",
-    kilometraje: 92000,
-    problemasReportados: 0,
-  },
-];
+/**
+ * Default `tipo` for trailers fetched from `ams.fn_rd_accredited_resources`.
+ * The upstream row has no trailer-type field today; until it does, every row
+ * is mapped to `"REM"` (generic remolque) — the dropdown still renders, the
+ * i18n key resolves, and a follow-up can replace this once the backend
+ * surfaces the real type.
+ */
+const TRAILER_TIPO_FALLBACK = "REM" as const;
 
 interface TruckMapDisplayProps {
   readonly truck: TruckOption;
@@ -267,6 +213,33 @@ function truckRowToOption(row: AccreditedResource): TruckOption {
 }
 
 /**
+ * Map an `ams.fn_rd_accredited_resources` TRAILER row onto the existing
+ * `TrailerOption` shape. Mirrors `truckRowToOption`: `estado` rides on
+ * `is_acredited`, GPS defaults to "no signal", and `problemasReportados`
+ * surfaces lost-signal counts from the symptoms bag. The numeric fleet
+ * fields (`capacidadKg`, `kilometraje`) and `ultimoMantenimiento` are not
+ * carried by the upstream function, so they default to placeholder values
+ * until the backend is extended. `tipo` falls back to `REM` for the same
+ * reason — see `TRAILER_TIPO_FALLBACK`.
+ */
+function trailerRowToOption(row: AccreditedResource): TrailerOption {
+  const plate = row.identifier ?? "";
+  const symptoms = row.symptoms ?? {};
+  return {
+    id: row.resource_id,
+    plate,
+    tipo: TRAILER_TIPO_FALLBACK,
+    estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
+    gpsIntegrado: false,
+    estadoGps: "offline",
+    capacidadKg: 0,
+    ultimoMantenimiento: "-",
+    kilometraje: 0,
+    problemasReportados: symptoms[SYMPTOM_LOST_SIGNAL] ?? 0,
+  };
+}
+
+/**
  * Map an `ams.fn_rd_accredited_resources` DRIVER row onto the existing
  * `DriverOption` shape. The upstream row carries `trip_count`, `last_trip`
  * (ISO timestamp) and a free-form `symptoms` JSON keyed by symptom name;
@@ -299,6 +272,7 @@ export function AssignmentForm({
   const [carrierQuery, setCarrierQuery] = useState("");
   const [driverQuery, setDriverQuery] = useState("");
   const [truckQuery, setTruckQuery] = useState("");
+  const [trailerQuery, setTrailerQuery] = useState("");
 
   const {
     resources: accreditedCarriers,
@@ -309,6 +283,7 @@ export function AssignmentForm({
     delegacion: mintralDelegacionOrigen,
     resourceType: "CARRIER",
     query: carrierQuery,
+    selectedIds: value.carrier ? [value.carrier] : undefined,
   });
 
   const {
@@ -321,6 +296,9 @@ export function AssignmentForm({
     resourceType: "DRIVER",
     carrierId: value.carrier,
     query: driverQuery,
+    // The driver feed backs both the primary and the second-driver dropdown,
+    // so pin whichever of the two is currently selected.
+    selectedIds: [value.driver, value.secondDriver].filter(Boolean),
     enabled: Boolean(value.carrier),
   });
 
@@ -334,7 +312,22 @@ export function AssignmentForm({
     resourceType: "TRUCK",
     carrierId: value.carrier,
     query: truckQuery,
+    selectedIds: value.truck ? [value.truck] : undefined,
     enabled: Boolean(value.carrier),
+  });
+
+  const {
+    resources: accreditedTrailers,
+    loadMore: loadMoreTrailers,
+    isLoadingMore: isLoadingMoreTrailers,
+  } = useAccreditedResources({
+    rutMandante: mintralClientRut,
+    delegacion: mintralDelegacionOrigen,
+    resourceType: "TRAILER",
+    carrierId: value.carrier,
+    query: trailerQuery,
+    selectedIds: value.trailer ? [value.trailer] : undefined,
+    enabled: Boolean(value.carrier && value.hasTrailer),
   });
 
   const carrierOptions = useMemo(
@@ -352,6 +345,11 @@ export function AssignmentForm({
     [accreditedTrucks]
   );
 
+  const trailerOptions = useMemo(
+    () => accreditedTrailers.map(trailerRowToOption),
+    [accreditedTrailers]
+  );
+
   const selectedCamion = truckOptions.find((c) => c.id === value.truck);
 
   const handleChange = (
@@ -360,15 +358,17 @@ export function AssignmentForm({
   ) => {
     const updated = { ...value, [field]: fieldValue };
 
-    // Drivers/trucks are scoped to the selected carrier — clear those slots
-    // when the carrier changes so a stale (carrier, child) pair can't silently
-    // survive. `trailer` uses the same rule for symmetry.
+    // Drivers/trucks/trailers are scoped to the selected carrier — clear
+    // those slots when the carrier changes so a stale (carrier, child) pair
+    // can't silently survive.
     if (field === "carrier" && fieldValue !== value.carrier) {
       updated.driver = "";
       updated.secondDriver = "";
       updated.truck = "";
+      updated.trailer = "";
       setDriverQuery("");
       setTruckQuery("");
+      setTrailerQuery("");
     }
 
     // When changing driver, clear secondDriver if it matches the new value
@@ -387,9 +387,10 @@ export function AssignmentForm({
       updated.secondDriver = "";
     }
 
-    // When disabling trailer section, clear the selection
+    // When disabling trailer section, clear the selection and search.
     if (field === "hasTrailer" && fieldValue === false) {
       updated.trailer = "";
+      setTrailerQuery("");
     }
 
     onChange(updated);
@@ -505,7 +506,7 @@ export function AssignmentForm({
       {value.hasTrailer && (
         <TrailerSearchDropdown
           label={tr("pages.planning.sidebar.assignment.trailer", dict)}
-          trailers={REMOLQUE_OPTIONS}
+          trailers={trailerOptions}
           selectedTrailerId={value.trailer}
           onSelect={(v: string) => handleChange("trailer", v)}
           placeholder={tr(
@@ -513,6 +514,10 @@ export function AssignmentForm({
             dict
           )}
           dict={dict}
+          disabled={!value.carrier}
+          onQueryChange={setTrailerQuery}
+          onReachEnd={loadMoreTrailers}
+          isLoadingMore={isLoadingMoreTrailers}
         />
       )}
     </div>

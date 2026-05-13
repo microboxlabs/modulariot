@@ -125,41 +125,28 @@ export function getStaticPlanningData(): KanbanBoard[] {
 
 export function toShippingKanban(
   tasks: FastTasksResponse | FinishedWorkflowsResponse,
-  index: Record<string, KanbanBoard>
+  index: Record<string, KanbanBoard>,
+  ordered?: KanbanBoardTask[]
 ): Record<string, KanbanBoard> {
+  const collect = (
+    task: { persistentState?: PersistentState } & Record<string, unknown>
+  ) => {
+    const taskFormKey =
+      task.persistentState?.endStateName ?? (task.taskFormKey as string);
+    const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
+    index[boardKey] = index[boardKey] || {
+      id: boardKey,
+      title: boardKey,
+      tasks: [],
+    };
+    const kanbanTask = toKanbanBoardTask(task);
+    index[boardKey].tasks.push(kanbanTask);
+    if (ordered) ordered.push(kanbanTask);
+  };
   if ("tasks" in tasks) {
-    tasks.tasks.forEach(
-      (
-        task: { persistentState?: PersistentState } & Record<string, unknown>
-      ) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const taskFormKey =
-          task.persistentState?.endStateName ?? (task.taskFormKey as string);
-        const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
-        index[boardKey] = index[boardKey] || {
-          id: boardKey,
-          title: boardKey,
-          tasks: [],
-        };
-        index[boardKey].tasks.push(toKanbanBoardTask(task));
-      }
-    );
+    tasks.tasks.forEach(collect);
   } else {
-    tasks.workflows.forEach(
-      (
-        task: { persistentState?: PersistentState } & Record<string, unknown>
-      ) => {
-        const taskFormKey =
-          task.persistentState?.endStateName ?? (task.taskFormKey as string);
-        const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
-        index[boardKey] = index[boardKey] || {
-          id: boardKey,
-          title: boardKey,
-          tasks: [],
-        };
-        index[boardKey].tasks.push(toKanbanBoardTask(task));
-      }
-    );
+    tasks.workflows.forEach(collect);
   }
   return index;
 }

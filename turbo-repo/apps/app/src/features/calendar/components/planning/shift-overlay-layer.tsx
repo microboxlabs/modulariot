@@ -7,6 +7,7 @@ import type {
   TimeWindowColor,
 } from "./planning-selection-context";
 import type { PositionedShift } from "./shift-layout";
+import { OVERFLOW_STRIPE_CLASS } from "./planning-slot-utils";
 import { PlannedServiceChip } from "./planned-service-chip";
 import type {
   I18nDictionary,
@@ -57,10 +58,14 @@ export function ShiftOverlayLayer({
         const c = SHIFT_COLOR_CLASSES[s.twColor] ?? SHIFT_COLOR_CLASSES.emerald;
         const services = getServicesForShift?.(s) ?? [];
         const isFull = services.length >= s.capacity;
+        // OVERFLOW: rectangle generated beyond the MANUAL window's bookable quota — rendered for
+        // visibility (grey hatch) but not bookable; no "add" affordance, never selectable.
+        const isOverflow = !s.assignable;
         // Past-day shifts are read-only: cannot be planned or assigned.
         // Chips inside them stay clickable for view/inspection only.
-        const canAdd = !s.isPastDay && !isFull && Boolean(onShiftClick);
-        const selected = isShiftSelected?.(s) ?? false;
+        const canAdd =
+          !s.isPastDay && !isFull && !isOverflow && Boolean(onShiftClick);
+        const selected = !isOverflow && (isShiftSelected?.(s) ?? false);
         const colWidth = 100 / s.columnCount;
         const colLeft = colWidth * s.columnIndex;
         const positionStyle = {
@@ -71,11 +76,14 @@ export function ShiftOverlayLayer({
         } satisfies React.CSSProperties;
         const className = twMerge(
           "absolute rounded-md border border-dashed",
-          c.border,
-          c.tint,
+          !isOverflow && c.border,
+          !isOverflow && c.tint,
           canAdd && "transition-colors",
           canAdd && c.hover,
-          isFull && "border-solid",
+          isFull && !isOverflow && "border-solid",
+          // OVERFLOW overlays: neutral-grey hatch + solid grey border + muted, no hover.
+          isOverflow &&
+            `border-solid border-gray-400/60 dark:border-gray-600/60 opacity-60 ${OVERFLOW_STRIPE_CLASS}`,
           // Past-day overlays are visually muted and use a non-dashed
           // grey border so they don't read as "click me to plan".
           s.isPastDay &&
@@ -83,10 +91,12 @@ export function ShiftOverlayLayer({
           selected && `border-solid ring-2 ${c.selectedRing}`
         );
         const labelHM = formatHM(s.slotHour, s.slotMinutes);
-        const title = `${labelHM} – ${formatHM(
-          Math.floor(s.endsAtMin / 60),
-          s.endsAtMin % 60
-        )} (${s.durationMinutes}m) — ${services.length}/${s.capacity}`;
+        const title = isOverflow
+          ? "Beyond window capacity — not assignable"
+          : `${labelHM} – ${formatHM(
+              Math.floor(s.endsAtMin / 60),
+              s.endsAtMin % 60
+            )} (${s.durationMinutes}m) — ${services.length}/${s.capacity}`;
 
         return (
           <div
@@ -115,7 +125,7 @@ export function ShiftOverlayLayer({
               <span
                 className={twMerge(
                   "absolute top-0.5 left-1.5 text-[10px] font-medium leading-none pointer-events-none",
-                  c.label
+                  isOverflow ? "text-gray-400 dark:text-gray-500" : c.label
                 )}
               >
                 {labelHM}

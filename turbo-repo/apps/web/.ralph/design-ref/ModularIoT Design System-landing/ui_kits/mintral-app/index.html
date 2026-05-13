@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mintral — Shipping Kanban</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: #F9FAFB; font-family: Inter, sans-serif; overflow: hidden; }
+  @keyframes mintral-pulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(225,29,72,0); }
+    50% { box-shadow: 0 0 12px rgba(225,29,72,0.7); }
+  }
+  .mintral-alert-pulse { animation: mintral-pulse 1s ease-in-out infinite; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="atoms.jsx"></script>
+<script type="text/babel" src="Sidebar.jsx"></script>
+<script type="text/babel" src="Topbar.jsx"></script>
+<script type="text/babel" src="TripCard.jsx"></script>
+<script type="text/babel" src="KanbanBoard.jsx"></script>
+<script type="text/babel" src="Drawer.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+function App() {
+  const [active, setActive] = useState("shipping");
+  const [trip, setTrip] = useState(null);
+
+  return (
+    <div data-screen-label="Mintral — Shipping Kanban" style={{ display: "flex", height: "100vh" }}>
+      <Sidebar active={active} onNavigate={setActive}/>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <Topbar crumbs={["My tasks", "Shipping", "Kanban"]} count={12}/>
+        <KanbanBoard onOpen={setTrip}/>
+      </main>
+      <Drawer trip={trip} onClose={() => setTrip(null)}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

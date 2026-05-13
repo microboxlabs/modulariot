@@ -1,0 +1,10 @@
+{
+  "thread_id": "demo-thread",
+  "tenant_id": "demo-tenant",
+  "user_id": "demo-user",
+  "route_context": {
+    "surface": "ask-miot-sidebar",
+    "page": "/dashboard"
+  },
+  "message": "Tell me the story of delivery compliance this month and suggest one dashboard widget."
+}

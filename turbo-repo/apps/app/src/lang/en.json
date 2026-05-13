@@ -232,14 +232,6 @@
         "title": "Plan Trip",
         "assignmentTitle": "Assign Trip",
         "servicesList": "Today's Services",
-        "taskStage": {
-          "label": "Status",
-          "planService": "Plan Service",
-          "assignDriver": "Assign Driver",
-          "presentDriver": "Present Driver",
-          "prepareService": "Control Service",
-          "missionControl": "Start Trip"
-        },
         "noServiceSelected": "Select a service from the calendar to assign driver and vehicle",
         "selectServiceHint": "Select a service to assign driver and vehicle",
         "searchPlaceholder": "Search by client, id, origin, destination, loading place, permanence, trip type...",
@@ -326,6 +318,14 @@
           "noSlotsAvailable": "No slots available at this time",
           "planningTab": "Planning",
           "assignmentTab": "Assignment"
+        },
+        "taskStage": {
+          "label": "Stage",
+          "planService": "Plan service",
+          "assignDriver": "Assign driver",
+          "presentDriver": "Present driver",
+          "prepareService": "Prepare service",
+          "missionControl": "Mission control"
         },
         "contextMenu": {
           "service": "Service",
@@ -1099,29 +1099,7 @@
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",
-        "dataSources": "Data Sources",
-        "organizations": "Organizations"
-      },
-      "organizations": {
-        "title": "Organizations",
-        "description": "Review your organization memberships, their enabled modules, and the users assigned to each one.",
-        "listTitle": "My organizations",
-        "empty": "No organizations available",
-        "loading": "Loading…",
-        "loadError": "Failed to load data from the backend",
-        "noSelection": "Select an organization to see its details",
-        "parentAccount": "Parent account",
-        "membersTitle": "Members",
-        "membersDescription": "Users who belong to this organization's group.",
-        "membersEmpty": "No members found",
-        "modulesTitle": "Enabled modules",
-        "modulesDescription": "Product modules this organization has access to.",
-        "modulesEmpty": "No modules enabled for this organization",
-        "moduleNames": {
-          "FLEET_MANAGEMENT": "Fleet management",
-          "DASHBOARDS": "Dashboards",
-          "COLLABORATORS_MANAGEMENT": "Collaborators"
-        }
+        "dataSources": "Data Sources"
       },
       "symptoms": {
         "config": {
@@ -1208,7 +1186,6 @@
       "settingsNav": {
         "title": "Settings",
         "general": "General",
-        "organizations": "Organizations",
         "dataSources": "Data Sources"
       }
     },
@@ -1353,8 +1330,6 @@
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
-        "organizations": "Organizations",
-        "dataSources": "Data Sources",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
@@ -1405,6 +1380,13 @@
           "noWindows": "No windows defined",
           "windowPlaceholder": "Window {index}",
           "availableQuotas": "Available quotas",
+          "generationMode": "Slot generation",
+          "modeAuto": "Auto",
+          "modeManual": "Manual",
+          "slotDurationLabel": "Slot duration (minutes)",
+          "slotsHint": "{total} slots fit · {bookable} assignable · {unassignable} unassignable",
+          "capacityExceedsSlots": "Capacity exceeds available slots — only {bookable} assignable",
+          "leftoverMinutes": "Last {minutes} min of the window are unused",
           "deleteWindow": "Delete window",
           "weekly": "Weekly",
           "dailyException": "Day exception",
@@ -1457,18 +1439,6 @@
           "save": "Save",
           "saveSuccess": "Loading docks updated",
           "saveError": "Failed to update loading docks"
-        },
-        "taskFilter": {
-          "title": "Task filter",
-          "description": "Constrain the planning sidebar to trips with a specific origin and/or destination.",
-          "originLabel": "Origin code",
-          "destinationLabel": "Destination code",
-          "originPlaceholder": "SCL",
-          "destinationPlaceholder": "ANF",
-          "hint": "Leave a field empty to skip that constraint. Both fields applied together require trips to match both.",
-          "save": "Save",
-          "saveSuccess": "Task filter updated",
-          "saveError": "Failed to update task filter"
         }
       }
     },
@@ -1616,6 +1586,8 @@
       "dynamicValuesHint": "Use {code} syntax for dynamic values",
       "defineVariablesHint": "Define variables accessible via {code}",
       "selectIcon": "Select icon",
+      "searchIcons": "Search icons…",
+      "noIconsFound": "No icons found",
       "titlePlaceholder": "Card title or {{data_provider.title}}",
       "valuePlaceholder": "e.g., {{data_provider.value}}%",
       "descriptorPlaceholder": "Description or {{data_provider.descriptor}}",
@@ -1644,7 +1616,6 @@
       "sortableColumns": "Sortable columns",
       "rowColorRules": "Row Background Colors",
       "badgeColorRules": "Badge Colors",
-      "colorRules": "Color Rules",
       "addRule": "Add rule",
       "value": "value",
       "operatorEquals": "=",
@@ -1690,6 +1661,9 @@
       "introspect": "Introspect",
       "httpMethod": "HTTP Method",
       "parameters": "Parameters",
+      "parametersHintIntro": "Use this syntax in the value field to reference a dashboard filter:",
+      "parametersHintExamples": "Examples:",
+      "deleteParameter": "Delete parameter",
       "addParameter": "Add parameter",
       "totalItems": "{count} items",
       "totalItemsSingular": "{count} item",
@@ -1741,9 +1715,11 @@
         "buttonLabelPlaceholder": "Import data",
         "endpoint": "Import Endpoint",
         "defaultEnv": "Default (env)",
-        "defaultStrategy": "Default duplicate strategy",
         "acceptedFileTypes": "Accepted File Types",
-        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt, .xlsx, .xls, .xlsm, .ods)."
+        "acceptedFileTypesHint": "Comma-separated extensions. Leave empty to accept the defaults (.csv, .tsv, .txt).",
+        "cacheKey": "Cache key",
+        "cacheKeyPlaceholder": "Optional",
+        "cacheKeyHint": "LocalStorage namespace for the row-status cache. Leave empty for an auto-generated one."
       },
       "filterBarTitle": "Filter Bar",
       "filterBarDescription": "Configure dashboard filter parameters",
@@ -1826,6 +1802,10 @@
       "invalidGeoJson": "Invalid GeoJSON. Must be a FeatureCollection.",
       "apiUrl": "API URL",
       "sseUrl": "SSE URL",
+      "refreshInterval": "Refresh interval (s)",
+      "dataPreview": "Data Preview",
+      "previewLoading": "Loading...",
+      "ssePreviewUnavailable": "SSE preview not available — data streams in real-time.",
       "defaultStyles": "Default Styles",
       "pointStyle": "Point Style",
       "pointStyleCircle": "Circle",
@@ -1848,9 +1828,15 @@
       "geometryPath": "Path",
       "geometryPolygon": "Polygon",
       "unnamedOrigin": "Unnamed origin",
+      "deleteOrigin": "Delete origin",
       "originNamePlaceholder": "Origin name…",
       "noDataOrigins": "No data origins yet. Add one below.",
       "addOrigin": "Add origin",
+      "transformWkb": "Transform WKB positions",
+      "geometryField": "Geometry field",
+      "latField": "Latitude field",
+      "lngField": "Longitude field",
+      "responsePath": "Response path",
       "dataType": "Data Type",
       "columnFilter": "Filter",
       "columnFilterClear": "Clear filter",
@@ -1993,50 +1979,20 @@
       "batchImport": {
         "defaultTitle": "Import data",
         "title": "Import data",
-        "subtitle": "Paste or upload a CSV / TSV / Excel file. Headers in the first row become the record keys.",
+        "subtitle": "Paste or upload a CSV / TSV. Headers in the first row become the record keys.",
         "configureHint": "Configure an endpoint in settings",
+        "loadSample": "Load sample",
         "loadFile": "Load file…",
         "pasteHint": "Paste tab-separated or comma-separated content (copy from Excel works):",
         "headerError": {
           "empty": "The file is empty.",
-          "no_headers": "The first row has no valid headers.",
-          "duplicate_mapping": "Two columns are mapped to the same target name. Rename one of them to continue.",
-          "parse_failed": "Couldn't read this spreadsheet file. It may be corrupted, password-protected, or in an unsupported format."
+          "no_headers": "The first row has no valid headers."
         },
         "statusCol": "Status",
         "total": "Total",
-        "parsing": "Parsing…",
-        "validating": "Validating…",
-        "validationError": "Re-validation failed",
-        "renamed": "renamed",
-        "was": "was",
-        "renameColumn": "Click to rename this column",
-        "editColumnOriginal": "Click to edit. Original: {original}",
-        "schemaTitle": "Expected fields",
-        "schemaMissing": "{missing} of {total} required missing",
-        "schemaAllMapped": "all {total} required mapped",
-        "schemaColName": "name",
-        "schemaColType": "type",
-        "schemaColConstraints": "constraints",
-        "schemaFieldPresent": "present",
-        "schemaFieldMissing": "missing",
-        "required": "required",
-        "optional": "optional",
+        "duplicates": "Duplicates:",
         "retryFailed": "Retry failed ({count})",
-        "download": "Download CSV",
-        "downloadHint": "Download the current grid (with renamed columns) as CSV",
-        "reset": "Reset",
-        "clearAll": "Clear all",
-        "clearAllHint": "Clear everything (file, paste, renames, statuses) and start over",
-        "preview": "Preview payload",
-        "previewing": "Building…",
-        "previewHint": "Show the exact body that will be sent to PostgREST for the first row (includes audit metadata).",
-        "previewTitle": "Submission preview",
-        "previewClose": "Close preview",
-        "previewRowLabel": "Row {number}",
-        "previewEmpty": "No rows to preview.",
-        "previewBodyTitle": "Body sent to PostgREST",
-        "previewMetaTitle": "Audit metadata (configured)",
+        "clearCache": "Clear cache",
         "importing": "Importing…",
         "importN": "Import {count} rows",
         "status": {
@@ -2046,11 +2002,6 @@
           "updated": "Updated",
           "skipped": "Skipped",
           "failed": "Failed"
-        },
-        "strategy": {
-          "upsert": "Update (upsert)",
-          "skip": "Skip",
-          "create": "Create only (fail if exists)"
         },
         "validation": {
           "required": "Required",
@@ -2072,11 +2023,16 @@
             "lower": "Lower case",
             "abs": "Absolute value",
             "round": "Round",
-            "fixed": "Fixed decimals"
+            "fixed": "Fixed decimals",
+            "dateOnly": "Date only",
+            "startOfDay": "Start of day",
+            "toUTC": "To UTC"
           },
           "argLabel": {
             "fixed": "Number of decimals (0–20)"
-          }
+          },
+          "displayFormat": "Display format (visual only)",
+          "displayFormatHint": "dayjs tokens, e.g. DD/MM HH:mm. Does not change the value sent to the server."
         }
       }
     },
@@ -2512,6 +2468,7 @@
     "internal": "Internal start",
     "external": "External start",
     "urgency": "Urgency",
+    "serviceCategory": "Service category",
     "today": "Today",
     "yesterday": "Yesterday",
     "trip": "Trip",
@@ -2951,8 +2908,6 @@
       "descriptionLabel": "Description",
       "timezoneLabel": "Timezone",
       "groupLabel": "Group",
-      "filterOriginLabel": "Origin filter (optional)",
-      "filterDestinationLabel": "Destination filter (optional)",
       "activeLabel": "Active",
       "submit": "Create Calendar",
       "group": {
@@ -3505,9 +3460,6 @@
     "breadcrumb": {
       "collaboratorsManagement": "Collaborators Management"
     }
-  },
-  "orgSwitcher": {
-    "changeOrgFailed": "Could not change organization"
   },
   "ext_tasks": {
     "processing": "Processing your request...",

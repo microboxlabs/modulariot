@@ -1,6 +1,24 @@
 // --- Enum ---
 
-export type SlotStatus = "OPEN" | "FULL" | "CLOSED";
+/**
+ * - `OPEN` — bookable.
+ * - `FULL` — at capacity.
+ * - `CLOSED` — blocked (BLOCK time window).
+ * - `OVERFLOW` — generated beyond the time window's bookable quota (MANUAL slot generation):
+ *   rendered in the planner but carries zero capacity and bookings against it are rejected.
+ */
+export type SlotStatus = "OPEN" | "FULL" | "CLOSED" | "OVERFLOW";
+
+/**
+ * How a time window's slot duration is determined.
+ *
+ * - `AUTO` — derived from the capacity model (`ceil(capacity / parallelism)` slots; duration =
+ *   windowMinutes / numberOfSlots); every generated slot is bookable.
+ * - `MANUAL` — `slotDurationMinutes` is admin-set; the window is filled with
+ *   `floor(windowMinutes / slotDurationMinutes)` slots, of which the first `ceil(capacity / parallelism)`
+ *   are bookable and the rest are `OVERFLOW`.
+ */
+export type SlotGenerationMode = "AUTO" | "MANUAL";
 
 // --- Shared data types ---
 
@@ -23,6 +41,10 @@ export interface BookingRequest {
   calendarId: string;
   resource: ResourceData;
   slot: SlotData;
+}
+
+export interface BookingUpdateRequest {
+  resource: ResourceData;
 }
 
 export interface BookingResponse {
@@ -116,6 +138,14 @@ export interface TimeWindowRequest {
   color?: string;
   /** Defaults to `WINDOW` server-side when omitted. */
   kind?: TimeWindowKind;
+  /** Defaults to `MANUAL` server-side when omitted. Ignored for `BLOCK` windows. */
+  slotGenerationMode?: SlotGenerationMode;
+  /**
+   * Slot length in minutes. Required only when `slotGenerationMode` is `MANUAL` on a `WINDOW`; if
+   * omitted there it is seeded server-side from the capacity model. Ignored for `AUTO` and `BLOCK`.
+   * Must be between 5 and the window length in minutes.
+   */
+  slotDurationMinutes?: number;
 }
 
 export interface TimeWindowResponse {
@@ -124,6 +154,7 @@ export interface TimeWindowResponse {
   name: string;
   startHour: number;
   endHour: number;
+  /** Admin-set when `slotGenerationMode` is `MANUAL`; derived from the capacity model otherwise. */
   slotDurationMinutes: number;
   capacity: number;
   daysOfWeek: string;
@@ -132,6 +163,11 @@ export interface TimeWindowResponse {
   active: boolean;
   color?: string;
   kind: TimeWindowKind;
+  slotGenerationMode: SlotGenerationMode;
+  /** Total slots generated across the window (`floor(windowMinutes / slotDurationMinutes)` in MANUAL mode; 0 for BLOCK). */
+  totalSlots: number;
+  /** How many of the generated slots are bookable (`OPEN`); the remainder, up to `totalSlots`, are `OVERFLOW`. */
+  bookableSlots: number;
   createdAt: string;
   updatedAt: string;
 }

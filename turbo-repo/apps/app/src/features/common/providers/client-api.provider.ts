@@ -54,6 +54,7 @@ import type {
   TimeWindowResponse,
   TimeWindowRequest,
   BookingRequest,
+  BookingUpdateRequest,
   BookingResponse,
   BookingListResponse,
   SlotResponse,
@@ -1798,6 +1799,28 @@ export async function advanceWorkflowTask(
 }
 
 /**
+ * Update an existing booking's resource payload in place (same slot). Used to
+ * push a changed payload — e.g. the assignment tuple — onto a booking that
+ * already exists, since the bookings POST resolves a same-slot conflict by
+ * returning the existing booking without applying the new data.
+ */
+export async function updateBooking(
+  bookingId: string,
+  body: BookingUpdateRequest
+): Promise<BookingResponse> {
+  const response = await fetch(`/app/api/calendar/bookings/${bookingId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to update booking");
+  }
+  return response.json();
+}
+
+/**
  * Cancel an existing booking by ID.
  */
 export async function cancelBooking(bookingId: string): Promise<void> {
@@ -1807,6 +1830,47 @@ export async function cancelBooking(bookingId: string): Promise<void> {
   if (!response.ok && response.status !== 204) {
     const err = await response.json();
     throw new Error(err.error ?? "Failed to cancel booking");
+  }
+}
+
+/** Stage values accepted by the coordinator's calendar binding webscript. */
+export type CalendarBindingStage =
+  | "planned"
+  | "assigned"
+  | "unassigned"
+  | "none";
+
+/**
+ * Tell the coordinator that a (service, calendar) binding changed. Used
+ * for ops fired from the client *after* a separate API call (cancel,
+ * calendar-change, unassign) — the bookings POST flow handles its own
+ * binding update inline.
+ *
+ * Tuple fields are only honoured by the coordinator when stage="assigned".
+ */
+export async function notifyCalendarBinding(payload: {
+  numero_servicio: string;
+  calendar_id: string;
+  stage: CalendarBindingStage;
+  tipo_servicio?: string;
+  carrier_id?: string;
+  driver_id?: string;
+  driver2_id?: string | null;
+  truck_id?: string;
+  trailer_id?: string | null;
+}): Promise<void> {
+  const response = await fetch("/app/api/calendar/binding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const message =
+      typeof err.error === "string"
+        ? err.error
+        : "Calendar binding update failed";
+    throw new Error(message);
   }
 }
 
@@ -1883,6 +1947,29 @@ export function useServiceTypes() {
     error,
     isLoading,
   };
+}
+
+/**
+ * Resolve a service-type code (e.g. "ST001") to its display name.
+ *
+ * Unlike {@link useServiceTypes} this does not drop inactive types, so a task
+ * referencing a now-retired category still renders its label. Backed by the
+ * same SWR cache key, so it adds no extra requests when used alongside it.
+ */
+export function useServiceCategoryName(code: string | null | undefined): {
+  name: string | undefined;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useSWR<ServiceType[], FetcherError>(
+    "/app/api/service-types",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  const name = useMemo(() => {
+    if (!code) return undefined;
+    return (data ?? []).find((t) => t.code === code)?.name;
+  }, [data, code]);
+  return { name, isLoading };
 }
 
 export async function updateServiceCategory(

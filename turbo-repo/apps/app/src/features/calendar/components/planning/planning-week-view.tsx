@@ -106,6 +106,7 @@ export default function PlanningWeekView({
     getRemainingQuota,
     isSlotBlocked,
     configuredTimeSlots,
+    andenesCount,
     plannedServices,
   } = planningGrid;
 
@@ -133,6 +134,9 @@ export default function PlanningWeekView({
 
   const handleShiftClick = useCallback(
     (shift: PositionedShift) => {
+      // Overflow rectangles (beyond a MANUAL window's bookable quota) aren't bookable —
+      // the overlay already hides the "add" affordance for them; this is belt-and-suspenders.
+      if (!shift.assignable) return;
       handleSelectSlot({
         date: shift.date,
         hour: shift.slotHour,
@@ -207,11 +211,12 @@ export default function PlanningWeekView({
           rowOffsets: baselineRowOffsets,
           columnIndex: i,
           columnCount: weekDays.length,
+          parallelism: andenesCount,
         })
       );
     }
     return out;
-  }, [configuredTimeSlots, weekDays, startHour, baselineRowOffsets]);
+  }, [configuredTimeSlots, andenesCount, weekDays, startHour, baselineRowOffsets]);
 
   const { rowHeights, rowOffsets } = useMemo(
     () =>
@@ -239,11 +244,12 @@ export default function PlanningWeekView({
           rowOffsets,
           columnIndex: i,
           columnCount: weekDays.length,
+          parallelism: andenesCount,
         })
       );
     }
     return out;
-  }, [configuredTimeSlots, weekDays, startHour, rowOffsets]);
+  }, [configuredTimeSlots, andenesCount, weekDays, startHour, rowOffsets]);
 
   // Header band height in px (h-16 = 4rem = 64px) and time-axis column width.
   const HEADER_HEIGHT_PX = 64;

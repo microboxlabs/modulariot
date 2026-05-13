@@ -34,6 +34,9 @@ const sampleTimeWindow: TimeWindowResponse = {
   validFrom: "2025-01-01",
   active: true,
   kind: "WINDOW",
+  slotGenerationMode: "MANUAL",
+  totalSlots: 8,
+  bookableSlots: 5,
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: "2025-01-01T00:00:00Z",
 };
@@ -209,6 +212,8 @@ describe("calendars", () => {
         ...sampleTimeWindow,
         capacity: 0,
         kind: "BLOCK",
+        totalSlots: 0,
+        bookableSlots: 0,
       };
       const { fn, call } = createMockFetch(blockResponse);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });

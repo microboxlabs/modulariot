@@ -12,6 +12,15 @@ export type KanbanBoard = {
 export type KanbanBoardTaskResponse = {
   total: number;
   data: Record<string, KanbanBoard>;
+  /**
+   * Flat task list in the order the backend returned them, before being
+   * binned by `taskFormKey` into `data`. Populated when the proxy issues a
+   * single combined backend call (e.g. the calendar planner sidebar). The
+   * board-binned `data` map loses the cross-board order via
+   * `Object.values(...)` iteration, so consumers that rely on the global
+   * sort (calendarPlanningPriority preset) should prefer this list.
+   */
+  orderedTasks?: KanbanBoardTask[];
 };
 
 export type Task = {

@@ -25,12 +25,22 @@ interface HeaderCellProps {
   /** RPC schema type for the *effective* column name, used to filter the
    *  transforms picker to ones that make sense for the column's type. */
   expectedType?: string;
+  /** RPC schema format ("date", "date-time", …) for the effective column.
+   *  Drives whether the popover surfaces the date-scoped transform kinds and
+   *  the per-column display-format input. */
+  expectedFormat?: string;
   /** Transforms currently applied to this column (post-rename name). */
   transforms: readonly TransformStep[];
+  /** Per-column display-only date format (dayjs tokens). Empty string when
+   *  unset. Only meaningful when `expectedFormat` is "date" / "date-time". */
+  dateDisplayFormat: string;
   /** Commit a rename. Pass the original back to untangle the mapping. */
   onRename: (original: string, target: string) => void;
   /** Replace the transforms list for this column (mapped name). */
   onTransformsChange: (target: string, steps: TransformStep[]) => void;
+  /** Set or clear (pass empty string) the display-only format for this
+   *  column. Display formats do not modify the value sent to the server. */
+  onDateDisplayFormatChange: (target: string, value: string) => void;
   dictionary: I18nRecord;
 }
 
@@ -46,9 +56,12 @@ export const HeaderCell = memo(function HeaderCell({
   displayName,
   expectedNames,
   expectedType,
+  expectedFormat,
   transforms,
+  dateDisplayFormat,
   onRename,
   onTransformsChange,
+  onDateDisplayFormatChange,
   dictionary,
 }: Readonly<HeaderCellProps>) {
   const [editing, setEditing] = useState(false);
@@ -191,8 +204,13 @@ export const HeaderCell = memo(function HeaderCell({
         <TransformsPopover
           target={displayName}
           expectedType={expectedType}
+          expectedFormat={expectedFormat}
           steps={transforms}
+          dateDisplayFormat={dateDisplayFormat}
           onChange={(steps) => onTransformsChange(displayName, steps)}
+          onDateDisplayFormatChange={(value) =>
+            onDateDisplayFormatChange(displayName, value)
+          }
           onClose={() => setShowTransforms(false)}
           dictionary={dictionary}
         />

@@ -224,4 +224,18 @@ export function usePlannerContext(): PlannerContextValue {
   return context;
 }
 
+const FALLBACK: PlannerContextValue = {
+  results: new Map(),
+  definitions: [],
+  schemas: new Map(),
+};
+
+/**
+ * Like `usePlannerContext` but returns a fallback value instead of throwing
+ * when rendered outside a `PlannerProvider` (e.g. in the geographic-view).
+ */
+export function useOptionalPlannerContext(): PlannerContextValue {
+  return useContext(PlannerContext) ?? FALLBACK;
+}
+
 export { EMPTY_RESULT };

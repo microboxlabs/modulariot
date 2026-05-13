@@ -11,7 +11,6 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
-  getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
 } from "./planning-selection-context";
@@ -111,8 +110,12 @@ function extractMintralIncidents(
     .map((incident) => [incident[0], incident[1]] as [string, string]);
 }
 
-function toPercent(value: number | null | undefined): number {
-  if (value == null) return 0;
+function toPercent(value: number | null | undefined): number | null {
+  // Preserve "no data" semantics — null/undefined upstream means the metric
+  // hasn't been measured, which is distinct from a measured 0%. Rendering
+  // and the backend sort agree on this via the calendarPlanningPriority
+  // preset (ecm-coordinator #238).
+  if (value == null) return null;
   return Math.round(value <= 1 ? value * 100 : value);
 }
 
@@ -132,6 +135,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje,
+    mintral_serviceKind: task.serviceKind || undefined,
     ocupacion: 100 * (task.mintral_loadMaxUtilization ?? 0),
     loadMaxUtilization:
       task.mintral_loadMaxUtilization == null
@@ -269,6 +273,11 @@ export function PlanningSidebarClient({
       params.push(`calendarId=${calendarId}`);
     }
 
+    // Server-side sort preset (ecm-coordinator #238): C309 urgency first,
+    // then mintral_deliveryComplianceRate ASC. Resolves the pagination
+    // correctness gap of the previous client-side sort.
+    params.push("orderBy=mintral_calendarPlanningPriority");
+
     return params.join("&");
   }, [searchTags, calendarId]);
 
@@ -303,8 +312,22 @@ export function PlanningSidebarClient({
   // service should resolve it via context's `getLiveTask`, which reads the
   // freshly fetched workflow index by `mintral_serviceCode` and is stable
   // across stage advances.
+  //
+  // Prefer `orderedTasks` when the proxy provides it: the planner relies on
+  // the calendarPlanningPriority preset's GLOBAL sort across stages, which
+  // is lost by `Object.values(data)` (board-binned). The proxy emits
+  // orderedTasks only on the single-call calendarId path; older consumers
+  // and the fanout paths still get the board-binned `data`.
   const apiServices = useMemo(() => {
-    if (!myTasksData?.data) return [];
+    if (!myTasksData) return [];
+
+    if (myTasksData.orderedTasks && myTasksData.orderedTasks.length > 0) {
+      return myTasksData.orderedTasks.map((task) =>
+        transformTaskToService(task)
+      );
+    }
+
+    if (!myTasksData.data) return [];
 
     const services: SelectedService[] = [];
     for (const board of Object.values(myTasksData.data)) {
@@ -385,20 +408,11 @@ export function PlanningSidebarClient({
     []
   );
 
-  // Sort services by urgency/status priority:
-  // 1. Urgent (red-orange)
-  // 2. Error/Delayed (red) - 0% compliance
-  // 3. Warning (yellow) - partial compliance
-  // 4. Success/On time (green) - 100% compliance
+  // Sort order is applied server-side via the calendarPlanningPriority preset
+  // (ecm-coordinator #238). This memo only handles the client-side filters that
+  // don't have API params (lugarCarguio, permanencia, tipoViaje) and the legacy
+  // search-by-match-type fallback; the original order from the API is preserved.
   const sortedServices = useMemo(() => {
-    const getStatusPriority = (service: SelectedService): number => {
-      if (service.incidencias.includes("urgencia")) return 0; // Urgent first
-      const status = getLeadTimeStatus(service.leadTime);
-      if (status === "error") return 1;
-      if (status === "warning") return 2;
-      return 3; // success last
-    };
-
     let services = [...allServices];
 
     // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
@@ -453,7 +467,7 @@ export function PlanningSidebarClient({
       }
     }
 
-    return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
+    return services;
   }, [
     filteredServiceId,
     filterMatchType,

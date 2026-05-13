@@ -683,8 +683,13 @@
       },
       "SlotStatus" : {
         "type" : "string",
-        "enum" : [ "OPEN", "FULL", "CLOSED" ],
-        "description" : "Status of a booking slot"
+        "enum" : [ "OPEN", "FULL", "CLOSED", "OVERFLOW" ],
+        "description" : "Status of a booking slot. OVERFLOW = generated beyond the time window's bookable quota (MANUAL slot generation): rendered but not bookable."
+      },
+      "SlotGenerationMode" : {
+        "type" : "string",
+        "enum" : [ "AUTO", "MANUAL" ],
+        "description" : "Slot generation mode for a time window. AUTO derives slot duration from the capacity model; MANUAL uses an admin-set slotDurationMinutes."
       },
       "TimeWindowRequest" : {
         "type" : "object",
@@ -753,6 +758,18 @@
             "$ref" : "#/components/schemas/TimeWindowKind",
             "description" : "Whether this time window is bookable capacity (WINDOW) or a non-bookable closure (BLOCK)",
             "default" : "WINDOW"
+          },
+          "slotGenerationMode" : {
+            "$ref" : "#/components/schemas/SlotGenerationMode",
+            "description" : "AUTO derives slot duration from capacity/parallelism; MANUAL uses slotDurationMinutes. Ignored for BLOCK windows.",
+            "default" : "MANUAL"
+          },
+          "slotDurationMinutes" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 10 ],
+            "description" : "Slot length in minutes. Required only when slotGenerationMode = MANUAL on a WINDOW; if omitted there it is seeded from the capacity model. Ignored for AUTO and BLOCK. Must be between 5 and the window length in minutes.",
+            "minimum" : 5
           }
         }
       },
@@ -763,7 +780,7 @@
       },
       "TimeWindowResponse" : {
         "type" : "object",
-        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacity", "daysOfWeek", "validFrom", "active", "kind", "createdAt", "updatedAt" ],
+        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacity", "daysOfWeek", "validFrom", "active", "kind", "slotGenerationMode", "totalSlots", "bookableSlots", "createdAt", "updatedAt" ],
         "description" : "Time window data returned by the API",
         "properties" : {
           "id" : {
@@ -800,8 +817,8 @@
           "slotDurationMinutes" : {
             "type" : "integer",
             "format" : "int32",
-            "examples" : [ 60 ],
-            "description" : "Duration of each slot in minutes (derived from capacity model)",
+            "examples" : [ 10 ],
+            "description" : "Duration of each slot in minutes (admin-set when slotGenerationMode = MANUAL, derived from the capacity model otherwise)",
             "minimum" : 1
           },
           "capacity" : {
@@ -838,6 +855,24 @@
           "kind" : {
             "$ref" : "#/components/schemas/TimeWindowKind",
             "description" : "Whether this time window is bookable capacity (WINDOW) or a non-bookable closure (BLOCK)"
+          },
+          "slotGenerationMode" : {
+            "$ref" : "#/components/schemas/SlotGenerationMode",
+            "description" : "AUTO (slot duration derived from capacity/parallelism) or MANUAL (admin-set slot duration)"
+          },
+          "totalSlots" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 24 ],
+            "description" : "Total number of slots generated across the window (floor(windowMinutes / slotDurationMinutes) in MANUAL mode; 0 for BLOCK windows)",
+            "minimum" : 0
+          },
+          "bookableSlots" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 20 ],
+            "description" : "How many of the generated slots are bookable (OPEN); the remainder, up to totalSlots, are OVERFLOW",
+            "minimum" : 0
           },
           "createdAt" : {
             "$ref" : "#/components/schemas/ZonedDateTime",
@@ -2212,7 +2247,7 @@
   },
   "info" : {
     "title" : "MIOT Calendar API",
-    "version" : "0.4.0",
+    "version" : "0.5.0",
     "description" : "Calendar booking microservice for resource scheduling. Provides calendar management, time window configuration, slot generation, and booking operations.",
     "contact" : {
       "name" : "MicroBoxLabs",

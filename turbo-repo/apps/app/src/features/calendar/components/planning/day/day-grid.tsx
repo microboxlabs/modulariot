@@ -94,6 +94,7 @@ export default function DayGrid({
     getRemainingQuota,
     isSlotBlocked,
     configuredTimeSlots,
+    andenesCount,
     plannedServices,
   } = planningGrid;
 
@@ -109,6 +110,9 @@ export default function DayGrid({
 
   const handleShiftClick = useCallback(
     (shift: PositionedShift) => {
+      // Overflow rectangles (beyond a MANUAL window's bookable quota) aren't bookable —
+      // the overlay already hides the "add" affordance for them; this is belt-and-suspenders.
+      if (!shift.assignable) return;
       handleSelectSlot({
         date: shift.date,
         hour: shift.slotHour,
@@ -170,8 +174,9 @@ export default function DayGrid({
         date: currentDate,
         startHour,
         rowOffsets: baselineRowOffsets,
+        parallelism: andenesCount,
       }),
-    [configuredTimeSlots, currentDate, startHour, baselineRowOffsets]
+    [configuredTimeSlots, andenesCount, currentDate, startHour, baselineRowOffsets]
   );
   const { rowHeights, rowOffsets } = useMemo(
     () =>
@@ -191,8 +196,9 @@ export default function DayGrid({
         date: currentDate,
         startHour,
         rowOffsets,
+        parallelism: andenesCount,
       }),
-    [configuredTimeSlots, currentDate, startHour, rowOffsets]
+    [configuredTimeSlots, andenesCount, currentDate, startHour, rowOffsets]
   );
 
   // Header band (sticky day/time-axis row) height in px — the time-slot grid

@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.fp { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:#fff; border:1px solid #D1D5DB; border-radius:8px; font-family:Inter; font-size:13px; color:#111928; cursor:pointer; }
+.fp.active { background:#EBF5FF; border-color:#1C64F2; color:#1A56DB; font-weight:500; }
+.fp .x { color:#6B7280; font-size:14px; }
+.fp .ct { background:#1C64F2; color:#fff; font-size:10px; padding:1px 6px; border-radius:999px; font-weight:500; }
+</style></head>
+<body>
+<div class="card">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <span style="font-size:12px;color:#6B7280;font-weight:500;margin-right:4px;">Filtros:</span>
+    <span class="fp active">Faena <span class="ct">3</span> <span class="x">×</span></span>
+    <span class="fp active">Estado: En curso <span class="x">×</span></span>
+    <span class="fp active">Conductor: J. Pérez <span class="x">×</span></span>
+    <span class="fp">+ Agregar</span>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:8px;">
+    <div style="flex:1;display:flex;align-items:center;gap:10px;padding:0 14px;height:42px;background:#fff;border:1px solid #D1D5DB;border-radius:8px;">
+      <svg width="18" height="18" fill="none" stroke="#6B7280" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input style="flex:1;border:none;outline:none;font-family:Inter;font-size:14px;color:#111928;" placeholder="Buscar viaje, placa o conductor…">
+      <span style="font-family:monospace;font-size:11px;color:#9CA3AF;background:#F3F4F6;padding:2px 6px;border-radius:4px;">⌘K</span>
+    </div>
+  </div>
+</div>
+</body></html>

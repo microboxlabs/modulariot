@@ -90,6 +90,13 @@ interface TrailerSearchDropdownProps {
   readonly placeholder?: string;
   readonly disabled?: boolean;
   readonly dict: I18nRecord;
+  readonly labelRightElement?: React.ReactNode;
+  /** Server-mode: forward debounced search query to the data source. */
+  readonly onQueryChange?: (query: string) => void;
+  /** Server-mode: fetch the next page when the list scrolls near the bottom. */
+  readonly onReachEnd?: () => void;
+  /** Server-mode: show a trailing "loading more" hint during pagination. */
+  readonly isLoadingMore?: boolean;
 }
 
 // ============================================================================
@@ -297,6 +304,10 @@ export function TrailerSearchDropdown({
   placeholder,
   disabled = false,
   dict,
+  labelRightElement,
+  onQueryChange,
+  onReachEnd,
+  isLoadingMore,
 }: TrailerSearchDropdownProps) {
   return (
     <BaseSearchDropdown<TrailerOption, TrailerMatchType>
@@ -307,6 +318,7 @@ export function TrailerSearchDropdown({
       placeholder={placeholder}
       disabled={disabled}
       dict={dict}
+      labelRightElement={labelRightElement}
       fields={TRAILER_FIELDS}
       translations={{
         search: "pages.planning.sidebar.assignment.searchTrailer",
@@ -315,6 +327,9 @@ export function TrailerSearchDropdown({
       renderCard={(props) => <TrailerCard {...props} />}
       renderSelectedButton={renderSelectedTrailerButton}
       canSelect={(trailer) => trailer.estado === "disponible"}
+      onQueryChange={onQueryChange}
+      onReachEnd={onReachEnd}
+      isLoadingMore={isLoadingMore}
     />
   );
 }

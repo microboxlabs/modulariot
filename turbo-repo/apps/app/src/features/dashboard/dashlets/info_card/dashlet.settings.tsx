@@ -4,12 +4,8 @@ import { useRef, useState } from "react";
 import { Label, ToggleSwitch } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, InfoCardIcon } from "./dashlet";
-import { ICON_OPTIONS } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
-import {
-  IconPickerDropdown,
-  type IconOption,
-} from "@/features/common/components/icon-picker-dropdown";
+import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
 import { HbTextField, HbTextareaField } from "../common/settings-fields";
 import { useDataProvider } from "../common/use-data-provider";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
@@ -29,15 +25,6 @@ import {
   useValueColorSettings,
   ValueColorRulesEditor,
 } from "./value-color-rules";
-
-/** Convert ICON_OPTIONS to IconPickerDropdown format */
-const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(
-  (opt) => ({
-    value: opt.id,
-    label: opt.label,
-    icon: opt.component,
-  })
-);
 
 const DEFAULT_DATA_ENTRIES = [
   { key: "title", value: "Example Title" },
@@ -292,10 +279,11 @@ export function DashletSettings({
           </Label>
           <div className="flex items-center gap-2">
             <IconPickerDropdown
-              options={ICON_PICKER_OPTIONS}
               value={icon}
-              onChange={setIcon}
+              onChange={(v) => setIcon(v as InfoCardIcon)}
               title={tr("dashboard.settings.selectIcon", dictionary)}
+              searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
+              emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}
             />
             <AdvancedColorPicker
               value={iconColor}

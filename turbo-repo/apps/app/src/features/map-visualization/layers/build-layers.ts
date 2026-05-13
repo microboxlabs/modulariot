@@ -49,6 +49,7 @@ export function buildDataProviderLayers(
   defaults?: MapDataProviderDefaults,
   selectedPath?: { layerId: string; featureIndex: number } | null
 ): LayersList {
+  if (!data?.features) return [];
   const points = data.features.filter(isPointFeature) as Feature<
     Point,
     MapFeatureProperties
@@ -240,7 +241,7 @@ export function buildNamedMapLayers(
   const result: LayersList = [];
 
   for (const { layer, data } of entries) {
-    if (!data) continue;
+    if (!data?.features) continue;
 
     const s = layer.style ?? {};
     const defaults: MapDataProviderDefaults = {
@@ -273,6 +274,7 @@ function buildLayerGroup(
   zoom: number,
   selectedPath?: { layerId: string; featureIndex: number } | null
 ): LayersList {
+  if (!data?.features) return [];
   if (layer.geometryType === "Point") {
     const points = data.features.filter(isPointFeature) as Feature<
       Point,

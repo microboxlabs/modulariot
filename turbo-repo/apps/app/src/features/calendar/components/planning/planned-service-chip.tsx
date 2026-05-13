@@ -5,6 +5,7 @@ import { IoPerson, IoPeople } from "react-icons/io5";
 import type { PlannedService } from "./planning-selection-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 /**
  * Get the CSS classes for a planned service chip based on urgencia status
@@ -123,10 +124,17 @@ export function PlannedServiceChip({
         <span className="font-bold truncate text-left">
           {plannedService.service.id}
         </span>
-        <div className="flex items-center gap-0.5 text-[10px] font-normal opacity-80 truncate">
-          <span className="truncate">{origen}</span>
-          <span className="shrink-0">→</span>
-          <span className="truncate">{destino}</span>
+        <div className="flex items-center gap-1 text-[10px] font-normal">
+          <span className="flex items-center gap-0.5 min-w-0 flex-1 opacity-80">
+            <span className="truncate">{origen}</span>
+            <span className="shrink-0">→</span>
+            <span className="truncate">{destino}</span>
+          </span>
+          <ServiceCategoryBadge
+            code={plannedService.service.serviceCategory}
+            variant="ghost"
+            className="shrink-0 px-1 text-[9px] font-semibold leading-none"
+          />
         </div>
       </div>
       {/* Right: Driver icon centered vertically */}

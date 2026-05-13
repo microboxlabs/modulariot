@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.b { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-family:Inter; font-size:11px; font-weight:500; }
+.b .dot { width:6px; height:6px; border-radius:50%; }
+.b.success { background:#DEF7EC; color:#046C4E; }
+.b.success .dot { background:#0E9F6E; }
+.b.pending { background:#FEF3C7; color:#D97706; }
+.b.pending .dot { background:#F59E0B; }
+.b.danger  { background:#FFE4E6; color:#BE123C; }
+.b.danger .dot { background:#E11D48; }
+.b.info    { background:#E1EFFE; color:#1A56DB; }
+.b.info .dot { background:#1C64F2; }
+.b.neutral { background:#F3F4F6; color:#374151; }
+.b.neutral .dot { background:#6B7280; }
+.b.solid-warn { background:#FFB017; color:#262626; }
+.b.solid-danger { background:#E11D48; color:#fff; }
+</style></head>
+<body>
+<div class="card">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    <span class="b success"><span class="dot"></span>Aprobada</span>
+    <span class="b pending"><span class="dot"></span>Pendiente</span>
+    <span class="b danger"><span class="dot"></span>Rechazada</span>
+    <span class="b info"><span class="dot"></span>En curso</span>
+    <span class="b neutral"><span class="dot"></span>Anulado</span>
+    <span class="b solid-warn">Requiere Overlord</span>
+    <span class="b solid-danger">Código negro</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+    <span class="b success">Autorizado</span>
+    <span class="b success">Firma Sovos</span>
+    <span class="b info">ETA 14:32</span>
+    <span class="b pending">Sin coordinación</span>
+    <span class="b neutral">Histórico</span>
+    <span class="b info">GPS activo</span>
+  </div>
+  <div style="margin-top:12px;font-size:11px;color:var(--fg-3);font-family:monospace;">pill · bg-tint-100 · fg-600/700 · 3 × 10 px · 11 px medium</div>
+</div>
+</body></html>

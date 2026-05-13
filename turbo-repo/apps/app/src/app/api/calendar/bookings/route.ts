@@ -6,7 +6,12 @@ import {
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  endTask,
+  notifyCalendarBinding,
+  type CalendarBindingPayload,
+  type CalendarBindingStage,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { Session } from "next-auth";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
@@ -176,6 +181,92 @@ async function runTaskAdvance(
   }
 }
 
+/**
+ * Build the calendar-binding payload from the booking request. Returns null
+ * when the booking isn't planner-driven (no `mintral_serviceCode` /
+ * `mintral_serviceKind` on the resource data).
+ *
+ * `stage` is selected by the planner UI's actual gate, not the dropdown
+ * defaults: carrier+driver+truck all set → `assigned`; otherwise → `planned`.
+ * Mirrors `planning-sidebar-form.tsx`'s "Asignar" button enable rule.
+ */
+function extractCalendarBindingPayload(
+  body: AppBookingRequest
+): CalendarBindingPayload | null {
+  const data = body.resource?.data;
+  if (!data || typeof data !== "object") return null;
+
+  const numeroServicio = readString(data, "mintral_serviceCode");
+  if (!numeroServicio) return null;
+
+  const carrierId = readString(data, "assignedCarrier");
+  const driverId = readString(data, "assignedDriver");
+  const truckId = readString(data, "assignedTruck");
+  const isAssignment = Boolean(carrierId && driverId && truckId);
+
+  const stage: CalendarBindingStage = isAssignment ? "assigned" : "planned";
+  const payload: CalendarBindingPayload = {
+    numero_servicio: numeroServicio,
+    calendar_id: body.calendarId,
+    stage,
+  };
+
+  if (isAssignment) {
+    const serviceKindRaw = readString(data, "mintral_serviceKind");
+    // Webscript requires tipo_servicio for assigned. Without it, fall back
+    // to a planned-stage call so the booking still records the calendar
+    // binding without trying to push an incomplete Alerce request.
+    if (!serviceKindRaw) {
+      return { ...payload, stage: "planned" };
+    }
+    payload.tipo_servicio = serviceKindRaw.toUpperCase();
+    payload.carrier_id = carrierId;
+    payload.driver_id = driverId;
+    payload.truck_id = truckId;
+    payload.driver2_id = readString(data, "assignedDriver2") || null;
+    payload.trailer_id = readString(data, "assignedTrailer") || null;
+  }
+
+  return payload;
+}
+
+function readString(data: Record<string, unknown>, key: string): string {
+  const value = data[key];
+  return typeof value === "string" ? value : "";
+}
+
+async function runCalendarBinding(
+  session: Session,
+  payload: CalendarBindingPayload
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  try {
+    const result = await notifyCalendarBinding(session, payload);
+    logger.info(
+      {
+        numeroServicio: payload.numero_servicio,
+        calendarId: payload.calendar_id,
+        stage: payload.stage,
+        status: result.status,
+      },
+      "Calendar binding call completed"
+    );
+    return { ok: true };
+  } catch (error) {
+    logger.error(
+      {
+        err: error,
+        numeroServicio: payload.numero_servicio,
+        calendarId: payload.calendar_id,
+        stage: payload.stage,
+      },
+      "Failed to call calendar binding"
+    );
+    const message =
+      error instanceof Error ? error.message : "Failed to update calendar binding";
+    return { ok: false, status: 502, message };
+  }
+}
+
 export async function POST(request: Request) {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
@@ -190,6 +281,44 @@ export async function POST(request: Request) {
 
   const resolved = await resolveBooking(client, body);
   if ("error" in resolved) return resolved.error;
+
+  // Tell the coordinator about this calendar binding *before* the workflow
+  // advance. The coordinator dispatches based on stage:
+  //   - planned (no full tuple)  → record the binding, no Alerce.
+  //   - assigned (full tuple)    → resolve UUIDs → push to Alerce → record.
+  // A failure on stage=assigned is hard: the binding webscript leaves
+  // process variables untouched on Alerce 4xx/5xx, we cancel the
+  // just-created booking, and the user can retry. Failures on stage=planned
+  // are also hard: an unbacked booking would drift from the trip's
+  // process state, so we cancel and surface the error.
+  // Bookings with no `mintral_serviceCode` (non-planner-driven) skip the
+  // call entirely.
+  const bindingPayload = extractCalendarBindingPayload(body);
+  if (bindingPayload) {
+    const bindingResult = await runCalendarBinding(
+      authResult.session,
+      bindingPayload
+    );
+    if (!bindingResult.ok) {
+      let compensated: boolean | undefined;
+      if (resolved.created) {
+        const compensation = await compensateBooking(
+          client,
+          resolved.booking.id,
+          bindingResult.message
+        );
+        compensated = compensation.compensated;
+      }
+      return NextResponse.json(
+        {
+          error: bindingResult.message,
+          calendarBindingFailed: true,
+          bookingCompensated: compensated,
+        },
+        { status: bindingResult.status }
+      );
+    }
+  }
 
   if (!body.taskAdvance) {
     return NextResponse.json(resolved.booking, { status: resolved.status });

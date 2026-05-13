@@ -11,4 +11,7 @@ export const TimeWindowRequestSchema = z.object({
   active: z.boolean().optional(),
   color: z.string().optional(),
   kind: z.enum(["WINDOW", "BLOCK"]).optional(),
+  slotGenerationMode: z.enum(["AUTO", "MANUAL"]).optional(),
+  // Lower bound only; the window-length upper bound is enforced server-side.
+  slotDurationMinutes: z.number().int().min(5).optional(),
 });

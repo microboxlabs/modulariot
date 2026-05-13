@@ -5,6 +5,7 @@ export type {
   ResourceData,
   SlotData,
   BookingRequest,
+  BookingUpdateRequest,
   BookingResponse,
   BookingListResponse,
   CalendarGroupRequest,

@@ -2,10 +2,7 @@
 
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { BatchImporterApi } from "./engine/api";
-import type {
-  DuplicateStrategy,
-  IntrospectedParam,
-} from "./engine/types";
+import type { IntrospectedParam } from "./engine/types";
 import type { TransformStep } from "./engine/transforms";
 import {
   BatchImporterView,
@@ -19,7 +16,6 @@ interface Props {
   onClose: () => void;
   api: BatchImporterApi;
   title: string;
-  defaultStrategy?: DuplicateStrategy;
   acceptedFileTypes?: string;
   dictionary: I18nRecord;
   /** RPC parameter schema — for the schema panel UI. */
@@ -30,6 +26,10 @@ interface Props {
   initialTransforms?: Record<string, TransformStep[]>;
   /** Bubble transform changes back to the dashlet for persistence. */
   onTransformsChange?: (next: Record<string, TransformStep[]>) => void;
+  /** Persisted display-only date formats from the dashlet's widget config. */
+  initialDateDisplayFormats?: Record<string, string>;
+  /** Bubble display-format changes back to the dashlet for persistence. */
+  onDateDisplayFormatsChange?: (next: Record<string, string>) => void;
 }
 
 export function BatchImporterModal({
@@ -37,21 +37,23 @@ export function BatchImporterModal({
   onClose,
   api,
   title,
-  defaultStrategy,
   acceptedFileTypes,
   dictionary,
   params,
   filenameBase,
   initialTransforms,
   onTransformsChange,
+  initialDateDisplayFormats,
+  onDateDisplayFormatsChange,
 }: Readonly<Props>) {
   const state = useBatchImporter({
     api,
-    defaultStrategy,
     params,
     filenameBase,
     initialTransforms,
     onTransformsChange,
+    initialDateDisplayFormats,
+    onDateDisplayFormatsChange,
   });
 
   const submitLabel = state.importing

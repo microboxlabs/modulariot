@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.field { display:flex; flex-direction:column; gap:6px; flex:1; }
+.label { font-size:13px; font-weight:500; color:#111928; text-transform:none; letter-spacing:0; }
+.input { height:42px; padding:0 14px; background:#F9FAFB; border:1px solid #D1D5DB; border-radius:8px; font-family:Inter; font-size:14px; color:#111928; outline:none; }
+.input:focus { border-color:#1C64F2; box-shadow:0 0 0 3px rgba(28,100,242,0.2); background:#fff; }
+.input.err { border-color:#E11D48; }
+.err-msg { font-size:12px; color:#BE123C; }
+.hint { font-size:12px; color:#6B7280; }
+</style></head>
+<body>
+<div class="card">
+  <div style="display:flex;gap:16px;">
+    <div class="field">
+      <label class="label">Email</label>
+      <input class="input" value="operador@mintral.cl">
+    </div>
+    <div class="field">
+      <label class="label">Team identifier</label>
+      <input class="input" placeholder="your-team-name">
+      <span class="hint">Used for SAML SSO login.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:16px;">
+    <div class="field">
+      <label class="label">Password</label>
+      <input class="input err" type="password" value="••••••">
+      <span class="err-msg">Access denied. Please verify your credentials.</span>
+    </div>
+    <div class="field">
+      <label class="label">N° viaje</label>
+      <input class="input" placeholder="0000-0000" disabled style="opacity:.6;">
+    </div>
+  </div>
+</div>
+</body></html>

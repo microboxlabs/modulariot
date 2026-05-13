@@ -1,14 +1,23 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+
 /** Per-column value transforms applied between parse and validate. Steps run
  *  in array order; non-numeric input flowing through a numeric step is passed
  *  through unchanged so the validator (not the transform) surfaces the type
- *  mismatch as a clear "Expected number, received nan" error. */
+ *  mismatch as a clear "Expected number, received nan" error. The same
+ *  pass-through rule applies to date steps fed an unparseable value. */
 export type TransformKind =
   | "trim"
   | "upper"
   | "lower"
   | "abs"
   | "round"
-  | "fixed";
+  | "fixed"
+  | "dateOnly"
+  | "startOfDay"
+  | "toUTC";
 
 export interface TransformStep {
   kind: TransformKind;
@@ -16,7 +25,7 @@ export interface TransformStep {
   arg?: string;
 }
 
-export type TransformScope = "string" | "number";
+export type TransformScope = "string" | "number" | "date";
 
 interface TransformMeta {
   scope: TransformScope;
@@ -30,11 +39,23 @@ export const TRANSFORM_REGISTRY: Record<TransformKind, TransformMeta> = {
   abs: { scope: "number", takesArg: false },
   round: { scope: "number", takesArg: false },
   fixed: { scope: "number", takesArg: true },
+  dateOnly: { scope: "date", takesArg: false },
+  startOfDay: { scope: "date", takesArg: false },
+  toUTC: { scope: "date", takesArg: false },
 };
 
-export function transformsForType(type: string | undefined): TransformKind[] {
-  const wanted: TransformScope =
-    type === "number" || type === "integer" ? "number" : "string";
+export function transformsForType(
+  type: string | undefined,
+  format?: string,
+): TransformKind[] {
+  let wanted: TransformScope;
+  if (format === "date" || format === "date-time") {
+    wanted = "date";
+  } else if (type === "number" || type === "integer") {
+    wanted = "number";
+  } else {
+    wanted = "string";
+  }
   return (Object.keys(TRANSFORM_REGISTRY) as TransformKind[]).filter(
     (k) => TRANSFORM_REGISTRY[k].scope === wanted,
   );
@@ -62,6 +83,18 @@ function applyOne(value: string, step: TransformStep): string {
       const raw = Number(step.arg);
       const dec = Number.isFinite(raw) ? Math.max(0, Math.min(20, Math.trunc(raw))) : 2;
       return n.toFixed(dec);
+    }
+    case "dateOnly": {
+      const d = dayjs(value);
+      return d.isValid() ? d.format("YYYY-MM-DD") : value;
+    }
+    case "startOfDay": {
+      const d = dayjs(value);
+      return d.isValid() ? d.startOf("day").toISOString() : value;
+    }
+    case "toUTC": {
+      const d = dayjs(value);
+      return d.isValid() ? d.utc().toISOString() : value;
     }
     default:
       return value;

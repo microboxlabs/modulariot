@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MIOT — AI Copilot</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: #F9FAFB; font-family: Inter, sans-serif; overflow: hidden; color: #111928; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  .st-dark *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/echarts@5.5.1/dist/echarts.min.js"></script>
+
+<script type="text/babel" src="atoms.jsx"></script>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="Storytelling.jsx"></script>
+<script type="text/babel" src="ChatSidebar.jsx"></script>
+<script type="text/babel" src="Palette.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function App() {
+  const [route, setRoute] = useState("dashboard");   // dashboard | story | other
+  const [chatOpen, setChatOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [chatSeed, setChatSeed] = useState("");
+  const [builtWidget, setBuiltWidget] = useState(null);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(v => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  function handleNavigate(id) {
+    if (id === "story") setRoute("story");
+    else if (id === "dashboard") setRoute("dashboard");
+    else setRoute("other");
+  }
+
+  function expandPaletteToChat(q) {
+    setPaletteOpen(false);
+    setChatSeed(q);
+    setChatOpen(true);
+  }
+
+  function handleBuildWidget(payload) {
+    setRoute("dashboard");
+    setBuiltWidget(payload);
+  }
+  function handleOpenStory() {
+    setRoute("story");
+  }
+
+  const screenLabel = route === "story" ? "MIOT — Storytelling workspace" : route === "dashboard" ? "MIOT — Operations dashboard" : "MIOT — " + route;
+
+  return (
+    <div data-screen-label={screenLabel} className={route === "story" ? "st-dark" : ""} style={{ display: "flex", height: "100vh" }}>
+      <MIOTSidebar active={route} onNavigate={handleNavigate}
+        chatOpen={chatOpen} onToggleChat={() => setChatOpen(v => !v)}/>
+
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {route !== "story" && (
+          <MIOTTopbar
+            crumbs={route === "dashboard" ? ["Dashboards", "Operations overview"] : ["Coming soon"]}
+            onOpenPalette={() => setPaletteOpen(true)}
+            right={<MButton variant="ghost" size="sm" icon={MIco.bell}>{""}</MButton>}/>
+        )}
+        {route === "dashboard" && <Dashboard chatBuiltWidget={builtWidget}/>}
+        {route === "story" && <Storytelling onOpenChat={() => { setChatSeed(""); setChatOpen(true); }}/>}
+        {route === "other" && (
+          <div style={{ padding: 80, textAlign: "center", color: "#6B7280" }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#111928", marginBottom: 4 }}>Section placeholder</div>
+            <div style={{ fontSize: 13 }}>Use the sidebar to go back to Dashboards or Storytelling.</div>
+          </div>
+        )}
+      </main>
+
+      <ChatSidebar open={chatOpen} onClose={() => setChatOpen(false)}
+        initialQuery={chatSeed}
+        onBuildWidget={handleBuildWidget}
+        onOpenStory={handleOpenStory}/>
+
+      {paletteOpen && (
+        <Palette onClose={() => setPaletteOpen(false)}
+          onExpandToChat={expandPaletteToChat}
+          onNavigate={handleNavigate}/>
+      )}
+
+      {/* Floating invoker when chat is closed */}
+      {!chatOpen && !paletteOpen && (
+        <button onClick={() => setPaletteOpen(true)} style={{
+          position: "fixed", bottom: 22, right: 22, zIndex: 50,
+          display: "inline-flex", alignItems: "center", gap: 10,
+          padding: "11px 16px", borderRadius: 999,
+          background: "linear-gradient(135deg, #111928 0%, #232529 100%)",
+          color: "#fff", border: "none", fontFamily: "Inter", fontSize: 12.5, fontWeight: 500,
+          boxShadow: "0 10px 30px -6px rgba(0,0,0,.35)", cursor: "pointer",
+        }}>
+          <span style={{ color: "#F1B300" }}>{MIco.sparkle}</span>
+          Ask MIOT
+          <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 10.5, background: "rgba(255,255,255,.15)", padding: "2px 6px", borderRadius: 4 }}>⌘K</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

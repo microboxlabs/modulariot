@@ -1,0 +1,130 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .eyebrow { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-3); margin:0 0 8px; }
+  .sub { font-size:12px; color:var(--fg-3); margin:2px 0 14px; line-height:1.5; }
+  .ramp { display:grid; grid-template-columns:repeat(11, 1fr); border:1px solid var(--border-subtle); border-radius:8px; overflow:hidden; }
+  .step { height:56px; display:flex; flex-direction:column; justify-content:flex-end; padding:6px 7px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10px; line-height:1.2; }
+  .step b { display:block; font-family:Inter,system-ui,sans-serif; font-weight:600; font-size:10px; letter-spacing:.02em; opacity:.85; }
+  .section { margin-top:20px; }
+  .section:first-of-type { margin-top:0; }
+  .cond { display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; }
+  .cond .chip { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 6px; border:1px solid var(--border-subtle); border-radius:8px; background:#fff; }
+  .cond .chip img { width:36px; height:36px; }
+  .cond .chip .lbl { font-size:11px; color:var(--fg-2); text-align:center; line-height:1.25; }
+  .cond .chip .hex { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10px; color:var(--fg-3); }
+  .rule { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-top:14px; }
+  .rule .r { padding:10px 12px; border:1px solid var(--border-subtle); border-radius:8px; background:var(--bg-2); }
+  .rule .r .t { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--fg-3); margin-bottom:4px; }
+  .rule .r .v { font-size:13px; color:var(--fg-1); line-height:1.4; }
+  .rule .r .v code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; background:#fff; padding:1px 5px; border-radius:4px; border:1px solid var(--border-subtle); }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:999px; vertical-align:-1px; margin-right:6px; border:1px solid rgba(0,0,0,.1); }
+</style>
+</head>
+<body>
+<div class="card" style="background:#fff; display:flex; flex-direction:column; gap:4px;">
+
+  <!-- SMALT (primary blue) -->
+  <div class="section">
+    <p class="eyebrow">Smalt · primary action blue</p>
+    <p class="sub">Tailwind-style blue ramp declared in <i>Guía de estilos</i>. Used for CTAs, focus rings, selected states, links. 600/700 are the product defaults.</p>
+    <div class="ramp">
+      <div class="step" style="background:#EBF7FF;color:#062665;"><b>50</b>#EBF7FF</div>
+      <div class="step" style="background:#D1EEFF;color:#062665;"><b>100</b>#D1EEFF</div>
+      <div class="step" style="background:#AEE2FF;color:#062665;"><b>200</b>#AEE2FF</div>
+      <div class="step" style="background:#76D2FF;color:#062665;"><b>300</b>#76D2FF</div>
+      <div class="step" style="background:#35B7FF;color:#062665;"><b>400</b>#35B7FF</div>
+      <div class="step" style="background:#0790FF;color:#fff;"><b>500</b>#0790FF</div>
+      <div class="step" style="background:#006AFF;color:#fff;"><b>600</b>#006AFF</div>
+      <div class="step" style="background:#0051FF;color:#fff;"><b>700</b>#0051FF</div>
+      <div class="step" style="background:#0043D7;color:#fff;"><b>800</b>#0043D7</div>
+      <div class="step" style="background:#003DA5;color:#fff;"><b>900</b>#003DA5</div>
+      <div class="step" style="background:#062665;color:#fff;"><b>950</b>#062665</div>
+    </div>
+  </div>
+
+  <!-- NEVADA (neutrals) -->
+  <div class="section">
+    <p class="eyebrow">Nevada · neutrals</p>
+    <p class="sub">Surfaces, borders, text, disabled states. The entire product is built on this ramp — most UI is Nevada + a single Smalt accent.</p>
+    <div class="ramp">
+      <div class="step" style="background:#F4F5F7;color:#232529;"><b>50</b>#F4F5F7</div>
+      <div class="step" style="background:#E4E8E9;color:#232529;"><b>100</b>#E4E8E9</div>
+      <div class="step" style="background:#CCD1D5;color:#232529;"><b>200</b>#CCD1D5</div>
+      <div class="step" style="background:#A8B1B8;color:#232529;"><b>300</b>#A8B1B8</div>
+      <div class="step" style="background:#7D8A93;color:#fff;"><b>400</b>#7D8A93</div>
+      <div class="step" style="background:#5B6770;color:#fff;"><b>500</b>#5B6770</div>
+      <div class="step" style="background:#545E66;color:#fff;"><b>600</b>#545E66</div>
+      <div class="step" style="background:#484F56;color:#fff;"><b>700</b>#484F56</div>
+      <div class="step" style="background:#40454A;color:#fff;"><b>800</b>#40454A</div>
+      <div class="step" style="background:#383B41;color:#fff;"><b>900</b>#383B41</div>
+      <div class="step" style="background:#232529;color:#fff;"><b>950</b>#232529</div>
+    </div>
+  </div>
+
+  <!-- SELECTIVE YELLOW + BLAZE ORANGE -->
+  <div class="section">
+    <p class="eyebrow">Selective Yellow · error / attention</p>
+    <p class="sub">The <em>only</em> status accent used across the product. OK is neutral Nevada gray; warnings are neutral Nevada; <strong>errors and must-act moments are yellow/orange</strong>. This keeps the eye on one thing at a time.</p>
+    <div class="ramp">
+      <div class="step" style="background:#FFFDE7;color:#441F04;"><b>50</b>#FFFDE7</div>
+      <div class="step" style="background:#FFFAC1;color:#441F04;"><b>100</b>#FFFAC1</div>
+      <div class="step" style="background:#FFF186;color:#441F04;"><b>200</b>#FFF186</div>
+      <div class="step" style="background:#FFE141;color:#441F04;"><b>300</b>#FFE141</div>
+      <div class="step" style="background:#FFCE0D;color:#441F04;"><b>400</b>#FFCE0D</div>
+      <div class="step" style="background:#F1B300;color:#441F04;"><b>500</b>#F1B300</div>
+      <div class="step" style="background:#D18900;color:#fff;"><b>600</b>#D18900</div>
+      <div class="step" style="background:#A66102;color:#fff;"><b>700</b>#A66102</div>
+      <div class="step" style="background:#894B0A;color:#fff;"><b>800</b>#894B0A</div>
+      <div class="step" style="background:#743E0F;color:#fff;"><b>900</b>#743E0F</div>
+      <div class="step" style="background:#441F04;color:#fff;"><b>950</b>#441F04</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="eyebrow">Blaze Orange · escalated error</p>
+    <p class="sub">Used sparingly as a deeper, hotter shade for the most urgent destructive action or critical alert. Never combined with yellow in the same surface.</p>
+    <div class="ramp">
+      <div class="step" style="background:#FFF6ED;color:#451005;"><b>50</b>#FFF6ED</div>
+      <div class="step" style="background:#FFEBD4;color:#451005;"><b>100</b>#FFEBD4</div>
+      <div class="step" style="background:#FFD3A8;color:#451005;"><b>200</b>#FFD3A8</div>
+      <div class="step" style="background:#FFB470;color:#451005;"><b>300</b>#FFB470</div>
+      <div class="step" style="background:#FF8837;color:#451005;"><b>400</b>#FF8837</div>
+      <div class="step" style="background:#FF6A14;color:#fff;"><b>500</b>#FF6A14</div>
+      <div class="step" style="background:#F04C06;color:#fff;"><b>600</b>#F04C06</div>
+      <div class="step" style="background:#C73707;color:#fff;"><b>700</b>#C73707</div>
+      <div class="step" style="background:#9E2C0E;color:#fff;"><b>800</b>#9E2C0E</div>
+      <div class="step" style="background:#7F270F;color:#fff;"><b>900</b>#7F270F</div>
+      <div class="step" style="background:#451005;color:#fff;"><b>950</b>#451005</div>
+    </div>
+  </div>
+
+  <!-- USAGE RULES -->
+  <div class="section">
+    <p class="eyebrow">Semantic usage</p>
+    <div class="rule">
+      <div class="r"><div class="t"><span class="dot" style="background:#545E66"></span>OK / success</div><div class="v">Neutral <code>Nevada 600</code> icon. No green. Success is quiet.</div></div>
+      <div class="r"><div class="t"><span class="dot" style="background:#545E66"></span>Warning</div><div class="v">Neutral <code>Nevada 600</code> icon, same visual weight as OK. Do not reach for yellow.</div></div>
+      <div class="r"><div class="t"><span class="dot" style="background:#D18900"></span>Error</div><div class="v"><code>Selective Yellow 600</code>. The one thing that pulls the eye.</div></div>
+      <div class="r"><div class="t"><span class="dot" style="background:#C73707"></span>Critical</div><div class="v"><code>Blaze Orange 700</code>. Destructive action, código&nbsp;negro, escalation.</div></div>
+    </div>
+    <p class="sub" style="margin-top:12px;">Rule of thumb: <strong>one action at a time</strong>. Color is reserved for the single thing the operator should do next. Everything else — status, metadata, success — is Nevada gray.</p>
+  </div>
+
+  <!-- CONTROL TOWER EXCEPTION -->
+  <div class="section">
+    <p class="eyebrow">Control Tower · condition palette (exception)</p>
+    <p class="sub">Control Tower is the one surface that uses a multi-color semantic palette, because operators must scan many simultaneous conditions at a glance. Colors extracted from <code>assets/icons/conditions/*.svg</code>.</p>
+    <div class="cond">
+      <div class="chip"><img src="../assets/icons/conditions/estable.svg"><div class="lbl">Estable</div><div class="hex">#1C64F2</div></div>
+      <div class="chip"><img src="../assets/icons/conditions/en-observacion.svg"><div class="lbl">En observación</div><div class="hex">#E11D48 outline</div></div>
+      <div class="chip"><img src="../assets/icons/conditions/en-tratamiento.svg"><div class="lbl">En tratamiento</div><div class="hex">#F59E0B</div></div>
+      <div class="chip"><img src="../assets/icons/conditions/en-remision.svg"><div class="lbl">En remisión</div><div class="hex">#16BDCA</div></div>
+      <div class="chip"><img src="../assets/icons/conditions/comprometida.svg"><div class="lbl">Comprometida</div><div class="hex">#FDA4AF</div></div>
+      <div class="chip"><img src="../assets/icons/conditions/alerta-critica.svg"><div class="lbl">Alerta crítica</div><div class="hex">#E11D48</div></div>
+      <div class="chip"><img src="../assets/icons/conditions/codigo-negro.svg"><div class="lbl">Código negro</div><div class="hex">#000000</div></div>
+    </div>
+  </div>
+
+</div>
+</body></html>

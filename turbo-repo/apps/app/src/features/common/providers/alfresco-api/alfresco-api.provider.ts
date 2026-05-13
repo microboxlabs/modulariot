@@ -169,7 +169,7 @@ export async function getUserTasks(
 
 export async function getUnbookedTasks(
   session: Session,
-  definitionKey: string,
+  definitionKey: string | string[],
   options: {
     from?: number;
     size?: number;
@@ -177,22 +177,39 @@ export async function getUnbookedTasks(
   } = {},
   calendarId: string
 ): Promise<FastTasksResponse> {
-  const { from = 0, size = 100, filter = undefined } = options;
+  const { from = 0, size = 100, filter: baseFilter = undefined } = options;
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/unbooked`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  // When called with multiple keys, push them onto filter.definitionKeys so the
+  // backend can issue a single IN-clause query and apply ORDER BY globally —
+  // see ecm-coordinator #238. The singular form is preserved for back-compat.
+  let body: Record<string, unknown>;
+  if (Array.isArray(definitionKey)) {
+    const keys = definitionKey.filter((k) => k.length > 0);
+    body = {
+      from,
+      size,
+      filter: { ...baseFilter, definitionKeys: keys },
+      calendarId,
+    };
+  } else {
+    body = {
+      from,
+      size,
+      definitionKey: definitionKey.length === 0 ? undefined : definitionKey,
+      filter: baseFilter,
+      calendarId,
+    };
+  }
+
   const result = await fetcher(url, {
     method: "POST",
     headers: {
       ...headers,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      size,
-      definitionKey: definitionKey.length == 0 ? undefined : definitionKey,
-      filter,
-      calendarId,
-    }),
+    body: JSON.stringify(body),
   });
 
   return result as FastTasksResponse;
@@ -233,6 +250,68 @@ export async function endTask(
     headers,
   });
   return result as EndTaskResponse;
+}
+
+/**
+ * Wire payload for the calendar binding webscript. Fields use snake_case
+ * to match the coordinator request model verbatim.
+ *
+ * Always required: `numero_servicio`, `calendar_id`, `stage`.
+ * Required only when `stage="assigned"`: `tipo_servicio`, `carrier_id`,
+ * `driver_id`, `truck_id`. `driver2_id` / `trailer_id` are optional.
+ * Tuple fields are ignored on non-assigned stages.
+ */
+export type CalendarBindingStage =
+  | "planned"
+  | "assigned"
+  | "unassigned"
+  | "none";
+
+export interface CalendarBindingPayload {
+  numero_servicio: string;
+  calendar_id: string;
+  stage: CalendarBindingStage;
+  tipo_servicio?: string;
+  carrier_id?: string;
+  driver_id?: string;
+  driver2_id?: string | null;
+  truck_id?: string;
+  trailer_id?: string | null;
+}
+
+export interface CalendarBindingResponse {
+  status: "applied" | "synced" | "already_synced";
+  numero_servicio: string;
+  calendar_id: string;
+  stage: CalendarBindingStage;
+  alerce?: { code?: string; message?: string };
+}
+
+/**
+ * Notify the coordinator of a calendar binding change. Single entry point
+ * for all five UI ops (Plan / Unplan / Assign / Unassign / Calendar-change);
+ * the coordinator dispatches based on `stage` and, on `stage="assigned"`,
+ * resolves UUIDs to RUTs/plates and pushes to Alerce
+ * ModificacionRecursoServicios.
+ *
+ * A non-2xx is meaningful — the caller treats stage=assigned failures as
+ * hard rollbacks (cancel the just-created booking).
+ */
+export async function notifyCalendarBinding(
+  session: Session,
+  payload: CalendarBindingPayload
+): Promise<CalendarBindingResponse> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/calendar/binding`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  return result as CalendarBindingResponse;
 }
 
 function uploadNodeFormData(request: UploadNodeRequest): FormData {

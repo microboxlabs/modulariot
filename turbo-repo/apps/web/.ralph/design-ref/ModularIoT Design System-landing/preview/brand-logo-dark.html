@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .row { display:flex; align-items:stretch; gap:0; border:1px solid #1F2A37; border-radius:8px; overflow:hidden; background:#111928; }
+  .slot { flex:1; display:flex; align-items:center; justify-content:center; padding:28px 24px; min-height:140px; }
+  .slot + .slot { border-left:1px solid #1F2A37; }
+  .caption { font-size:11px; color:#9CA3AF; letter-spacing:.04em; text-transform:uppercase; margin-top:10px; }
+  .stack { display:flex; flex-direction:column; align-items:center; }
+  .eyebrow { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9CA3AF; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="card flush" style="background:#0B1220; border-color:#1F2A37; padding:24px; display:flex; flex-direction:column; gap:24px;">
+
+  <div>
+    <div class="eyebrow">Platform · ModularIoT</div>
+    <div class="row">
+      <div class="slot">
+        <div class="stack" style="gap:8px; align-items:center; text-align:center;">
+          <div style="width:220px; height:64px; border:1px dashed #374151; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#6B7280; font-size:11px; letter-spacing:.04em; text-transform:uppercase;">Awaiting asset</div>
+          <div class="caption" style="color:#9CA3AF;">logo.svg · knocked-out white (TBD)</div>
+        </div>
+      </div>
+      <div class="slot">
+        <div class="stack">
+          <img src="../assets/logo2.svg" alt="ModularIoT mark" style="height:96px;">
+          <div class="caption">logo2.svg · mark on dark</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="eyebrow">Tenant example · Mintral (whitelabel)</div>
+    <div class="row">
+      <div class="slot">
+        <div class="stack">
+          <img src="../assets/logo-mintral-dark.png" alt="Mintral" style="height:64px;">
+          <div class="caption">logo-mintral-dark.png · tenant skin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body></html>

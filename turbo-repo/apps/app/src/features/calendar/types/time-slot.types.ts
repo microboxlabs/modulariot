@@ -1,26 +1,14 @@
 import type { TimeWindowColor } from "../components/planning/planning-selection-context";
 
 /**
- * Unified time slot - one interface for both windows and blocks
- * Maps directly to a single database table
+ * Re-export the canonical TimeSlot/TimeWindow/TimeBlock from the planning-selection context so there
+ * is a single source of truth — the two definitions can't drift apart (and aren't flagged as duplicate code).
  */
-export interface TimeSlot {
-  id: string;
-  name: string;
-  kind: "window" | "block"; // Discriminant
-  type: "weekly" | "daily-override"; // Pattern type
-  weeklyPattern?: string; // For weekly: "W1-4 1-5 0900-1700"
-  startTimestamp?: string; // For daily-override: ISO 8601 format
-  endTimestamp?: string; // For daily-override: ISO 8601 format
-  quota?: number; // Used when kind="window"
-  color?: TimeWindowColor; // Optional visual color
-}
-
-/**
- * Type aliases for backward compatibility
- */
-export type TimeWindow = TimeSlot & { kind: "window"; quota: number };
-export type TimeBlock = TimeSlot & { kind: "block" };
+export type {
+  TimeSlot,
+  TimeWindow,
+  TimeBlock,
+} from "../components/planning/planning-selection-context";
 
 /**
  * Request/Response types for API operations

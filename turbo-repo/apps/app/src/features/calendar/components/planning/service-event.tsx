@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "flowbite-react";
-import { HiExclamation, HiCheck, HiX } from "react-icons/hi";
+import { HiExclamation, HiCheck, HiX, HiMinus } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -15,6 +15,7 @@ import { categorizeIncidencias } from "./incidencias.types";
 import { formatPercent } from "./planning-format";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 // Set Spanish locale for dayjs
 dayjs.locale("es");
@@ -26,14 +27,15 @@ export interface ServiceEventProps {
 }
 
 /**
- * Get the icon and styles for lead time based on compliance percentage
- * 100% → ✓ CheckMark (success)
- * > 0% and < 100% → ⚠ Warning
- * 0% → ✗ Error
+ * Get the icon and styles for lead time based on compliance percentage.
+ *  unknown (null) → — Minus (no data — distinct from 0%)
+ *  100% → ✓ CheckMark (success)
+ *  > 0% and < 100% → ⚠ Warning
+ *  0% → ✗ Error
  */
 function getLeadTimeStyles(leadTime: LeadTimeData): {
   text: string;
-  icon: typeof HiCheck | typeof HiExclamation | typeof HiX;
+  icon: typeof HiCheck | typeof HiExclamation | typeof HiX | typeof HiMinus;
 } {
   const status = getLeadTimeStatus(leadTime);
   switch (status) {
@@ -51,6 +53,11 @@ function getLeadTimeStyles(leadTime: LeadTimeData): {
       return {
         text: "text-yellow-400 dark:text-yellow-300",
         icon: HiX,
+      };
+    case "unknown":
+      return {
+        text: "text-gray-400 dark:text-gray-500",
+        icon: HiMinus,
       };
   }
 }
@@ -145,8 +152,15 @@ export function ServiceEvent({ service, dict, className }: ServiceEventProps) {
         </h4>
 
         {/* Flags row */}
-        {hasFlags && (
+        {(hasFlags || service.serviceCategory) && (
           <div className="flex flex-wrap items-center gap-1 pointer-events-auto">
+            {/* Service category - shown alongside incidencia flags */}
+            <ServiceCategoryBadge
+              code={service.serviceCategory}
+              variant="soft"
+              className="px-2 py-0.5 text-xs cursor-help"
+            />
+
             {/* Primary incidencias - always visible */}
             {primary.map(({ key, config }) => {
               const tooltip =
@@ -219,7 +233,9 @@ export function ServiceEvent({ service, dict, className }: ServiceEventProps) {
               className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
             />
             <span className={twMerge("font-medium", leadTimeStyles.text)}>
-              {service.leadTime.lineasoc_pctn_cumplimiento}%
+              {service.leadTime.lineasoc_pctn_cumplimiento == null
+                ? "—"
+                : `${service.leadTime.lineasoc_pctn_cumplimiento}%`}
             </span>
           </div>
 

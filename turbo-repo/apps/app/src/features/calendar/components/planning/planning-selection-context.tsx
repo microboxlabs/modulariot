@@ -172,8 +172,9 @@ export interface TimeSlot {
   // when absent (older TWs / pre-v0.5.0 backend).
   slotGenerationMode?: "auto" | "manual";
   // Derived counts from the API (when present): total slots the window generates
-  // (`totalSlots`) and how many are bookable (`bookableSlots`); the rest, up to
-  // `totalSlots`, are OVERFLOW. Recompute locally when absent.
+  // (`totalSlots`) and how many can hold bookings (`bookableSlots` — now always equal
+  // to `totalSlots`; the window's `quota` caps the day's total bookings separately).
+  // Recompute locally when absent.
   totalSlots?: number;
   bookableSlots?: number;
 }

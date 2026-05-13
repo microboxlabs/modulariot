@@ -4,9 +4,12 @@ import { useCallback, useMemo } from "react";
 import dayjs from "dayjs";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import {
+  isTimeWindow,
   usePlanningSelection,
   type PlannedService,
+  type TimeWindow,
 } from "./planning-selection-context";
+import type { PositionedShift } from "./shift-layout";
 import { useServiceActions } from "./use-service-actions";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
 
@@ -120,6 +123,25 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     [plannedServices]
   );
 
+  // Lookup TW config by id + a per-shift "is this window at its booking capacity for the day?"
+  // check derived from the planned services. When true, no shift in that window accepts a new
+  // booking (the empty ones render as muted "spare" slots in the overlay). `getRemainingQuota`
+  // clamps at 0 and already excludes the service being reassigned.
+  const timeWindowById = useMemo(() => {
+    const map = new Map<string, TimeWindow>();
+    for (const tw of configuredTimeSlots) {
+      if (isTimeWindow(tw)) map.set(tw.id, tw);
+    }
+    return map;
+  }, [configuredTimeSlots]);
+  const isShiftWindowFull = useCallback(
+    (shift: PositionedShift) => {
+      const tw = timeWindowById.get(shift.twId);
+      return tw ? getRemainingQuota(tw, shift.date) <= 0 : false;
+    },
+    [timeWindowById, getRemainingQuota]
+  );
+
   return {
     // Permission
     canPlan,
@@ -137,8 +159,12 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     // that need to know the real shift cadence per time window).
     configuredTimeSlots,
 
-    // Calendar parallelism (andenes count) — used to mark MANUAL-window overflow shifts.
+    // Calendar parallelism (andenes count).
     andenesCount,
+
+    // Per-shift "is the parent window at its day-capacity?" gate used by the overlay layer to
+    // mark empty rectangles in a full window as muted "spare" slots (no add affordance).
+    isShiftWindowFull,
 
     // Planned services
     plannedServices,

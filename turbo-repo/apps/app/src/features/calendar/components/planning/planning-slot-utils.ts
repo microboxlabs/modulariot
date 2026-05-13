@@ -9,11 +9,12 @@ export const BLOCKED_STRIPE_CLASS =
   "[background:repeating-linear-gradient(45deg,rgb(254,242,242),rgb(254,242,242)_4px,rgba(239,68,68,0.2)_4px,rgba(239,68,68,0.2)_8px)] dark:[background:repeating-linear-gradient(45deg,rgb(55,48,48),rgb(55,48,48)_4px,rgba(239,68,68,0.3)_4px,rgba(239,68,68,0.3)_8px)]";
 
 /**
- * Neutral-grey diagonal hatch for slots generated beyond a MANUAL window's bookable quota
- * ("OVERFLOW"). Distinct from {@link BLOCKED_STRIPE_CLASS} (red = blocked/closed): grey reads as
- * "this time exists but the window's quota is used up — not assignable".
+ * Neutral-grey diagonal hatch for empty shift rectangles whose time window has reached its booking
+ * capacity for the day (a "spare" slot — the grid has more slots than the window can hold). Distinct
+ * from {@link BLOCKED_STRIPE_CLASS} (red = blocked/closed): grey reads as "this time exists but the
+ * window's quota is used up — not assignable".
  */
-export const OVERFLOW_STRIPE_CLASS =
+export const SPARE_SLOT_STRIPE_CLASS =
   "[background:repeating-linear-gradient(45deg,rgb(243,244,246),rgb(243,244,246)_4px,rgba(156,163,175,0.3)_4px,rgba(156,163,175,0.3)_8px)] dark:[background:repeating-linear-gradient(45deg,rgb(31,41,55),rgb(31,41,55)_4px,rgba(107,114,128,0.35)_4px,rgba(107,114,128,0.35)_8px)]";
 
 export interface SlotState {

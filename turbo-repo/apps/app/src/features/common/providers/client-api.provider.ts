@@ -904,6 +904,25 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
   });
 }
 
+export async function renameBentoFile(
+  nodeId: string,
+  name: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher("/app/api/bento/rename", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, name }),
+  });
+}
+
+export async function deleteBentoMultimedia(
+  nodeId: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher(`/app/api/bento/delete?nodeId=${encodeURIComponent(nodeId)}`, {
+    method: "DELETE",
+  });
+}
+
 export async function putBentoMultimedia(
   nodeId: string,
   file: File

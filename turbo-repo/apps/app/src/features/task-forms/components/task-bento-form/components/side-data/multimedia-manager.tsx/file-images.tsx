@@ -11,6 +11,7 @@ import {
   useGetNodeContents,
   useOptimisticFileUpload,
   putBentoMultimedia,
+  deleteBentoMultimedia,
 } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -379,6 +380,29 @@ export default function FileImages({
     [allMediaItems, dictionary, mutate, mutateContents, globalMutate]
   );
 
+  const handleDeleteMedia = useCallback(
+    async (index: number) => {
+      const item = allMediaItems[index];
+      if (!item?.file?.entry?.id) return;
+      const nodeId = item.file.entry.id;
+      const deletePromise = deleteBentoMultimedia(nodeId);
+      toast.promise(deletePromise, {
+        loading: "Deleting file...",
+        success: "File deleted",
+        error: "Failed to delete file",
+      });
+      try {
+        await deletePromise;
+        await mutate();
+        await mutateContents();
+        if (allMediaItems.length <= 1) closeViewer();
+      } catch {
+        // error toast already shown
+      }
+    },
+    [allMediaItems, mutate, mutateContents, closeViewer]
+  );
+
   if (!packageId) return null;
 
   if (
@@ -404,6 +428,8 @@ export default function FileImages({
           draftDecisions={draftDecisions}
           onStatusChange={handleStatusChange}
           onEdit={(i) => setEditImageIndex(i)}
+          onDelete={handleDeleteMedia}
+          onRename={async () => { await mutate(); await mutateContents(); }}
           dictionary={dictionary}
         />
         <ReplaceImageModal

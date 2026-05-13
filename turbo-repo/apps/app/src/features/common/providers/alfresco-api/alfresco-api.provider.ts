@@ -389,6 +389,59 @@ export async function updateNodeContent(
   }
 }
 
+export async function updateNodeName(
+  session: Session,
+  nodeId: string,
+  name: string
+): Promise<boolean> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!result.ok) {
+      logError(
+        new Error(`Rename node failed with HTTP error: ${result.status} ${result.statusText}`)
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Rename node failed with exception"
+    );
+    return false;
+  }
+}
+
+export async function deleteNode(
+  session: Session,
+  nodeId: string
+): Promise<boolean> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, { method: "DELETE", headers });
+    if (!result.ok) {
+      logError(
+        new Error(`Delete node failed with HTTP error: ${result.status} ${result.statusText}`)
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Delete node failed with exception"
+    );
+    return false;
+  }
+}
+
 export async function getChildrenNodes(
   session: Session,
   nodeId: string,

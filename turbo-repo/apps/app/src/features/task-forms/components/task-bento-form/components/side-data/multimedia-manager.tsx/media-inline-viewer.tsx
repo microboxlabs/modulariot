@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Dropdown, DropdownItem } from "flowbite-react";
+import { Button, Dropdown, DropdownItem, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import {
   HiChevronDown,
@@ -23,6 +23,7 @@ import { formatDateString } from "@/features/common/components/formatted-date/fo
 import { AlfrescoFileEntry } from "./image.types";
 import { ReviewStatus } from "./media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
+import { renameBentoFile } from "@/features/common/providers/client-api.provider";
 import { toast } from "sonner";
 import { HiPrinter } from "react-icons/hi";
 
@@ -43,6 +44,8 @@ export default function MediaInlineViewer({
   draftDecisions,
   onStatusChange,
   onEdit,
+  onDelete,
+  onRename,
   dictionary,
 }: {
   items: MediaViewerItem[];
@@ -52,6 +55,8 @@ export default function MediaInlineViewer({
   draftDecisions?: Map<string, ReviewStatus>;
   onStatusChange?: (id: string, status: ReviewStatus) => void;
   onEdit?: (index: number) => void;
+  onDelete?: (index: number) => void;
+  onRename?: () => void;
   dictionary: I18nRecord;
 }) {
   const [currentIndex, setCurrentIndex] = useState(
@@ -59,6 +64,7 @@ export default function MediaInlineViewer({
   );
   const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
   const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -207,9 +213,30 @@ export default function MediaInlineViewer({
               type="text"
               value={editedName}
               onChange={(e) => setEditedName(e.target.value)}
-              onBlur={() => setIsEditingName(false)}
+              onBlur={() => {
+                const trimmed = editedName.trim();
+                const original = current.file.entry.name;
+                if (trimmed && trimmed !== original && id) {
+                  const renamePromise = renameBentoFile(id, trimmed);
+                  toast.promise(renamePromise, {
+                    loading: "Renaming...",
+                    success: "File renamed",
+                    error: "Failed to rename file",
+                  });
+                  renamePromise.then(() => onRename?.()).catch(() => {
+                    setEditedName(original);
+                  });
+                } else {
+                  setEditedName(original);
+                }
+                setIsEditingName(false);
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === "Escape") setIsEditingName(false);
+                if (e.key === "Enter") nameInputRef.current?.blur();
+                if (e.key === "Escape") {
+                  setEditedName(current.file.entry.name);
+                  setIsEditingName(false);
+                }
               }}
               className="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-48 max-w-full"
             />
@@ -318,13 +345,16 @@ export default function MediaInlineViewer({
               <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </button>
           )}
-          <button
-            type="button"
-            title="Delete"
-            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
-          >
-            <HiTrash className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors" />
-          </button>
+          {onDelete && (
+            <button
+              type="button"
+              title="Delete"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
+            >
+              <HiTrash className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors" />
+            </button>
+          )}
 
           <div className="w-px h-5 bg-gray-200 dark:bg-gray-600 mx-0.5" />
 
@@ -367,12 +397,6 @@ export default function MediaInlineViewer({
                     label: "Reject",
                     icon: <HiXMark className="w-4 h-4" />,
                     onClick: () => handleDecision("rejected"),
-                    isActive: draft === "rejected",
-                  },
-                  {
-                    label: "Test",
-                    icon: <HiPrinter className="w-4 h-4" />,
-                    onClick: () => console.log("Test action"),
                     isActive: draft === "rejected",
                   },
                 ]}
@@ -458,6 +482,62 @@ export default function MediaInlineViewer({
           </SidebarSection>
         </div>
       </div>
+      {/* Delete confirmation modal */}
+      <Modal
+        dismissible
+        show={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        size="md"
+        theme={{
+          content: {
+            base: "relative w-full p-4 md:h-auto",
+            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
+          },
+          header: {
+            base: "flex items-center justify-between rounded-t border-b pt-5 px-5 pb-0 dark:border-gray-600",
+            title: "text-base font-semibold text-gray-900 dark:text-white",
+            close: { base: "hidden" },
+          },
+          body: {
+            base: "flex-1 overflow-auto px-5 pb-5",
+          },
+        }}
+      >
+        <ModalHeader className="border-none">
+          <div className="flex flex-col">
+            <span className="text-base font-semibold">Delete file</span>
+            <span className="text-sm text-gray-500 mt-1 font-normal">
+              This will move the file to the trashcan. It can be recovered from there if needed.
+            </span>
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
+                {current.file.entry.name}
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                color="alternative"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="blue"
+                onClick={() => {
+                  setIsDeleteConfirmOpen(false);
+                  onDelete?.(currentIndex);
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </ModalBody>
+      </Modal>
     </div>
   );
 }

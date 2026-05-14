@@ -78,6 +78,11 @@ def _parse_decision(raw: str) -> _RouterDecision | None:
         payload = json.loads(text)
     except json.JSONDecodeError:
         return None
+    # Guard against the LLM returning a bare string / list / number instead
+    # of a JSON object — `.get(...)` on those types raises AttributeError
+    # and would crash the route call before the keyword fallback runs.
+    if not isinstance(payload, dict):
+        return None
     route_name = str(payload.get("route", "")).upper()
     route = _ROUTE_BY_NAME.get(route_name)
     if route is None:

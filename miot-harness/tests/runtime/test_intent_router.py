@@ -145,3 +145,31 @@ async def test_invalid_route_name_falls_back_to_keyword() -> None:
     )
     result = await router.route("Mintral status")  # mintral keyword
     assert result.route is HarnessRoute.NEXO_QUERY
+
+
+@pytest.mark.parametrize(
+    "raw_response",
+    [
+        '"hello"',     # bare string — json.loads ok but not a dict
+        "42",          # bare number
+        "true",        # bare bool
+        "null",        # bare null
+        '["NEXO_QUERY", 0.9]',  # array, not an object
+    ],
+)
+@pytest.mark.asyncio
+async def test_non_dict_json_falls_back_to_keyword(raw_response: str) -> None:
+    """`_parse_decision` must not crash on valid JSON that isn't a dict.
+
+    Without an `isinstance(payload, dict)` guard, `payload.get(...)` raises
+    AttributeError on the strings / numbers / lists above, escaping the
+    `json.JSONDecodeError` try/except and crashing the route call.
+    """
+
+    model = FakeListChatModel(responses=[raw_response])
+    router = LLMIntentRouter(
+        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+    )
+    # "Mintral status" has the `mintral` keyword so the fallback returns NEXO_QUERY.
+    result = await router.route("Mintral status")
+    assert result.route is HarnessRoute.NEXO_QUERY

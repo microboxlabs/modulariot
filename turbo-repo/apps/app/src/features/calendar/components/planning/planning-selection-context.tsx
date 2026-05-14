@@ -25,7 +25,7 @@ import {
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
   createBooking,
-  updateBooking,
+  moveBooking,
   cancelBooking,
   listBookings,
   updateServiceCategory,
@@ -36,7 +36,11 @@ import type { BookingTaskAdvance } from "@/features/common/providers/client-api.
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
-import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
+import type {
+  BookingRequest,
+  BookingResponse,
+  MoveBookingRequest,
+} from "@microboxlabs/miot-calendar-client";
 import {
   asTaskStageFromColumn,
   getNextTransition,
@@ -735,32 +739,48 @@ interface PersistPlannedBookingParams {
   refreshSlots: () => void;
 }
 
+function buildResource(service: SelectedService, slot: SelectedSlot) {
+  return {
+    id: service.id,
+    type: "service",
+    label: service.cliente,
+    data: {
+      ...service,
+      ...(slot.anden === undefined ? {} : { _anden: slot.anden }),
+    },
+  };
+}
+
 function buildBookingRequest(
   calendarId: string,
   service: SelectedService,
-  slot: SelectedSlot,
-  oldBookingId: string | undefined
+  slot: SelectedSlot
 ): BookingRequest {
   return {
     calendarId,
-    resource: {
-      id: service.id,
-      type: "service",
-      label: service.cliente,
-      data: {
-        ...service,
-        ...(slot.anden === undefined ? {} : { _anden: slot.anden }),
-      },
-    },
+    resource: buildResource(service, slot),
     slot: {
       date: dayjs(slot.date).format("YYYY-MM-DD"),
       hour: slot.hour,
       minutes: slot.minutes,
     },
-    // During reassignment the server runs the window-capacity check before the old
-    // booking is cancelled, so without this exclude any in-window move would be
-    // rejected (the moved booking would be counted twice).
-    ...(oldBookingId ? { excludeBookingId: oldBookingId } : {}),
+  };
+}
+
+// Move payload for an existing booking — slot + a fresh resource snapshot so
+// any planner-side overrides (serviceCategory, assignment tuple, _anden, …)
+// land in `cld_bookings.resource_data` as part of the same write.
+function buildMoveRequest(
+  service: SelectedService,
+  slot: SelectedSlot
+): MoveBookingRequest {
+  return {
+    slot: {
+      date: dayjs(slot.date).format("YYYY-MM-DD"),
+      hour: slot.hour,
+      minutes: slot.minutes,
+    },
+    resource: buildResource(service, slot),
   };
 }
 
@@ -795,23 +815,17 @@ async function persistPlannedBooking({
   }
 
   try {
-    const bookingRequest = buildBookingRequest(calendarId, service, slot, oldBookingId);
-    const booking = await createBooking(bookingRequest);
-
-    // Re-confirming a service in the same slot (e.g. "Asignar" on an
-    // already-planned service) hits the bookings POST 409 path, which resolves
-    // to the *existing* booking without applying the new resource.data — and so
-    // `booking.id === oldBookingId`. Push the payload onto it explicitly so the
-    // change (e.g. the assignment tuple) survives a refresh, and skip the
-    // old-booking cancel below since it would delete the booking we just kept.
-    const reusedExistingBooking =
-      oldBookingId !== undefined && booking.id === oldBookingId;
-    if (reusedExistingBooking) {
-      // On failure the pre-existing booking is left intact (with stale data);
-      // rethrow so the outer catch rolls back the optimistic UI. We never
-      // cancel it here — it is the service's current plan.
-      await updateBooking(booking.id, { resource: bookingRequest.resource });
-    }
+    // Existing booking → atomic in-place move via POST /bookings/{id}/move.
+    // The booking id is preserved; a same-slot call collapses to a
+    // payload-only update on the server. This subsumes both the planner's
+    // "Reasignar" flow (different slot) and the "Asignar" flow on an
+    // already-planned service (same slot, refreshed assignment tuple).
+    //
+    // No follow-up cancel is needed — the row is re-pointed in place, not
+    // create-then-delete. The bookingIds map keeps the same id.
+    const booking: BookingResponse = oldBookingId
+      ? await moveBooking(oldBookingId, buildMoveRequest(service, slot))
+      : await createBooking(buildBookingRequest(calendarId, service, slot));
 
     await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
@@ -824,17 +838,10 @@ async function persistPlannedBooking({
       return next;
     });
 
-    if (oldBookingId && !reusedExistingBooking) {
-      await cancelBookingWithWarning(
-        oldBookingId,
-        "Failed to cancel old booking:"
-      );
-    }
-
     refreshSlots();
     setBookingVersion((v) => v + 1);
   } catch (err) {
-    console.warn("Failed to create booking:", err);
+    console.warn("Failed to persist booking:", err);
     rollbackPlannedService(
       setPlannedServices,
       service.id,

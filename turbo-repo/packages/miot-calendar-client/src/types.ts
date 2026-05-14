@@ -41,17 +41,26 @@ export interface BookingRequest {
   calendarId: string;
   resource: ResourceData;
   slot: SlotData;
-  /**
-   * Existing booking id to exclude from the window-capacity count. Used during
-   * reassignment: the new booking is created before the old one is cancelled,
-   * so the validator would otherwise count the moved booking twice and reject
-   * any window-internal move into a full window.
-   */
-  excludeBookingId?: string;
 }
 
 export interface BookingUpdateRequest {
   resource: ResourceData;
+}
+
+/**
+ * Move an existing booking to a different slot in the same calendar (and
+ * optionally refresh its resource payload) as a single transactional call.
+ * The booking id is preserved; no row is created or deleted. A same-slot
+ * request collapses to a payload-only update.
+ */
+export interface MoveBookingRequest {
+  slot: SlotData;
+  /**
+   * Optional resource payload. When provided, `resource.id` must match the
+   * booking's current resource id (a booking can't be repointed to a
+   * different resource).
+   */
+  resource?: ResourceData;
 }
 
 export interface BookingResponse {

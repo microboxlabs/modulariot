@@ -5,6 +5,7 @@ import type {
   BookingResponse,
   BookingListResponse,
   BookingUpdateRequest,
+  MoveBookingRequest,
 } from "../types.js";
 import { createMockFetch } from "./test-utils.js";
 
@@ -111,19 +112,6 @@ describe("bookings", () => {
       expect(headers["X-User-Id"]).toBe("user-42");
     });
 
-    it("forwards excludeBookingId in the request body when set", async () => {
-      const { fn, call } = createMockFetch(sampleBooking);
-      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
-
-      const reassignRequest: BookingRequest = {
-        ...bookingRequest,
-        excludeBookingId: "old-booking-id",
-      };
-      await client.bookings.create(reassignRequest);
-
-      expect(call.init.body).toBe(JSON.stringify(reassignRequest));
-    });
-
     it("does not send X-User-Id when userId is not provided", async () => {
       const { fn, call } = createMockFetch(sampleBooking);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
@@ -161,6 +149,45 @@ describe("bookings", () => {
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       const result = await client.bookings.update("b-1", updateRequest);
+
+      expect(result).toEqual(sampleBooking);
+    });
+  });
+
+  describe("move", () => {
+    const moveRequest: MoveBookingRequest = {
+      slot: { date: "2025-06-01", hour: 11, minutes: 0 },
+    };
+
+    it("sends POST to bookings/:id/move with body", async () => {
+      const { fn, call } = createMockFetch(sampleBooking);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      await client.bookings.move("b-1", moveRequest);
+
+      expect(call.init.method).toBe("POST");
+      expect(call.url).toBe(`${BASE_URL}${BOOKINGS_PATH}/b-1/move`);
+      expect(call.init.body).toBe(JSON.stringify(moveRequest));
+    });
+
+    it("forwards an optional resource payload", async () => {
+      const { fn, call } = createMockFetch(sampleBooking);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const withResource: MoveBookingRequest = {
+        slot: { date: "2025-06-01", hour: 11, minutes: 0 },
+        resource: { id: "r-1", type: "room", label: "Room A (moved)" },
+      };
+      await client.bookings.move("b-1", withResource);
+
+      expect(call.init.body).toBe(JSON.stringify(withResource));
+    });
+
+    it("returns the moved booking", async () => {
+      const { fn } = createMockFetch(sampleBooking);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const result = await client.bookings.move("b-1", moveRequest);
 
       expect(result).toEqual(sampleBooking);
     });

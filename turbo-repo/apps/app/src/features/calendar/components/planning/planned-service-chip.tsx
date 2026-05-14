@@ -53,6 +53,12 @@ export function getDriverCount(service: PlannedService["service"]): 0 | 1 | 2 {
 interface PlannedServiceChipProps {
   readonly plannedService: PlannedService;
   readonly isBeingReassigned?: boolean;
+  /**
+   * Visual-only "this chip is selected" mark, set by right-clicking the
+   * chip. Renders a static corner ring (same color family as the reassign
+   * ring, no pulse) and is independent of slot/sidebar selection.
+   */
+  readonly isSelected?: boolean;
   readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
   /** Optional left-click handler — opens the sidebar in view/read-only mode. */
   readonly onClick?: (ps: PlannedService) => void;
@@ -68,6 +74,7 @@ interface PlannedServiceChipProps {
 export function PlannedServiceChip({
   plannedService,
   isBeingReassigned = false,
+  isSelected = false,
   onContextMenu,
   onClick,
   className,
@@ -115,6 +122,11 @@ export function PlannedServiceChip({
         getPlannedServiceChipClassName(hasUrgencia),
         isBeingReassigned &&
           "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
+        // Reassign takes visual precedence: only apply the right-click
+        // highlight when the chip isn't already pulsing for reassignment.
+        !isBeingReassigned &&
+          isSelected &&
+          "ring-2 ring-amber-500 ring-offset-1",
         className
       )}
       title={`${plannedService.service.id} - ${tr("pages.planning.sidebar.contextMenu.chipTitle", dict)}`}

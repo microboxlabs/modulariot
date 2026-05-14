@@ -81,9 +81,10 @@ export function buildPlanningGridShellProps(params: {
       isShiftSelected,
       getServicesForShift,
       isWindowFull,
-      onChipClick: pg.viewPlannedService,
+      onChipClick: pg.selectChipSlot,
       onChipContextMenu: pg.handleContextMenu,
       reassigningServiceId: pg.reassigningService?.service.service.id,
+      isChipSelected: pg.isChipSelected,
       dict,
     },
     gridOverlays: {

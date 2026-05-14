@@ -113,6 +113,95 @@ abstracts the backend.
 | Collector OOMs | Burst from a load test | Raise `memory_limiter.limit_percentage` in `otel-collector-config.yaml`, then restart. |
 | `/api/public/health` 503 | Redis or MinIO not ready | `docker compose ps` shows which container failed; `docker compose logs <name>`. |
 
+## Per-tenant cost rollups
+
+Every trace the harness emits carries `langfuse.user.id` (from
+`UserRequest.user_id`), `langfuse.session.id` (from
+`UserRequest.conversation_id`, falling back to `thread_id`), and
+`langfuse.tags` (a list including `tenant:<id>`, `mode:<m>`,
+`agent:<n>`, `route:<r>`). Langfuse promotes those to first-class
+filter columns, so per-client cost rollups don't depend on metadata
+spelunking.
+
+Three ways to get a cost number per tenant:
+
+### 1. Langfuse UI (interactive)
+
+1. http://localhost:3000 → Project menu → **Tracing**.
+2. Filters sidebar → **Tags** → click `tenant:mintral` (or whichever).
+3. Top-right time window → choose your billing period.
+4. The `Total Cost` column header shows the sum across the filtered
+   rows. Add `User ID` to the visible columns for an audit trail.
+
+### 2. Cost-report CLI
+
+```bash
+MIOT_HARNESS_LANGFUSE_PUBLIC_KEY=pk-lf-…  MIOT_HARNESS_LANGFUSE_SECRET_KEY=sk-lf-… \
+  uv run python -m miot_harness.observability.report --since 7d --by tenant
+```
+
+Output (sample):
+
+```
+  #  TENANT                COST_USD       INPUT      OUTPUT      N
+  1  mintral               0.087412           0           0     17
+  2  acme                  0.004210           0           0      3
+```
+
+Token columns are 0 at trace level (Langfuse v3 only stores token
+counts on observations, not on the trace row). Switch to `--by mode`
+or `--by agent` for the same cost dollar grouped differently. Use
+`--format json` for machine-readable output.
+
+### 3. ClickHouse direct query (power users / billing exports)
+
+Langfuse v3 stores `total_cost` per **observation** (one LLM call),
+not per trace. The per-tenant tag lives on the **trace** row. So the
+billing query joins the two:
+
+```bash
+docker exec miot-obs-clickhouse clickhouse-client \
+  --user clickhouse --password clickhouse \
+  --query "
+SELECT
+  arrayJoin(t.tags) AS tag,
+  count(DISTINCT t.id) AS n_traces,
+  round(sum(o.total_cost), 6) AS cost_usd
+FROM traces t
+JOIN observations o ON o.trace_id = t.id AND o.project_id = t.project_id
+WHERE t.project_id = 'miot-harness-local'
+  AND startsWith(tag, 'tenant:')
+  AND t.timestamp >= now() - INTERVAL 7 DAY
+GROUP BY tag
+ORDER BY cost_usd DESC
+FORMAT PrettyCompact;"
+```
+
+Sample output (from a freshly populated stack):
+
+```
+   ┌─tag────────────┬─n_traces─┬─cost_usd─┐
+1. │ tenant:mintral │        4 │ 0.078648 │
+2. │ tenant:gama    │        1 │ 0.008334 │
+   └────────────────┴──────────┴──────────┘
+```
+
+### 4. Dashboard (build once, view forever)
+
+See `dashboards/per-tenant-cost.md` for a 2-minute UI build procedure
+that creates a persistent **Per-tenant cost** widget on a dashboard.
+A committed JSON export would be ideal but Langfuse v3 doesn't yet
+expose a stable dashboard-import endpoint; the markdown file
+documents the click-by-click build until they do.
+
+### Privacy posture (reminder)
+
+This stack is single-tenant, self-hosted, internal-use only. Multiple
+client tenants ride inside one Langfuse project by design — the
+`tenant:` tag separates their cost but their messages live in the
+same database. For SaaS multi-tenancy, plan 14 isolates each tenant
+into its own Langfuse project.
+
 ## What this is *not*
 
 - **Not prod-grade.** Default passwords; no TLS; no auth on the

@@ -57,6 +57,7 @@ import type {
   BookingUpdateRequest,
   BookingResponse,
   BookingListResponse,
+  MoveBookingRequest,
   SlotResponse,
   SlotListResponse,
 } from "@microboxlabs/miot-calendar-client";
@@ -1797,6 +1798,32 @@ export async function updateBooking(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error ?? "Failed to update booking");
+  }
+  return response.json();
+}
+
+/**
+ * Atomically reassign a booking. The server re-points the booking row at the
+ * new slot (and optionally refreshes its resource payload) in one transaction
+ * — the booking id is preserved, no row is created or deleted. A same-slot
+ * call collapses to a payload-only update, which is why the planner can route
+ * both "Reasignar" and "Asignar"-on-already-planned through here.
+ */
+export async function moveBooking(
+  bookingId: string,
+  body: MoveBookingRequest
+): Promise<BookingResponse> {
+  const response = await fetch(
+    `/app/api/calendar/bookings/${bookingId}/move`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to move booking");
   }
   return response.json();
 }

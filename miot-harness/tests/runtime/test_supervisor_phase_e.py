@@ -265,3 +265,131 @@ async def test_backward_compatibility_when_llm_router_not_provided(tmp_path: Any
     )
     nexo_graph.ainvoke.assert_awaited_once()
     assert record.answer == "via keyword"
+
+
+# --- Conversation memory hydration (E5 read-half) ---
+
+
+@pytest.mark.asyncio
+async def test_supervisor_hydrates_prior_messages_into_nexo_graph_state(
+    tmp_path: Any,
+) -> None:
+    """Two `/runs` calls with the same `conversation_id`: turn-2's graph
+    receives `initial_state["prior_messages"]` carrying turn-1's user
+    + assistant messages.
+
+    The read-half of `ConversationStore`. Without it, multi-turn chats
+    silently lose context — the agent on turn 2 has no idea what
+    "tell me more about that" refers to.
+    """
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    store = InMemoryConversationStore()
+    nexo_graph = AsyncMock()
+    nexo_graph.ainvoke = AsyncMock(
+        return_value={"answer": "first-turn answer", "_events": []}
+    )
+    supervisor = _build_supervisor(
+        tmp_path,
+        nexo_graph=nexo_graph,
+        llm_router=_scripted_llm_router("NEXO_QUERY"),
+        conversation_store=store,
+    )
+
+    # Turn 1: nothing in the store yet → prior_messages should be empty.
+    await supervisor.run(
+        UserRequest(
+            message="estado del coordinador",
+            tenant_id="mintral",
+            conversation_id="conv-hydrate-1",
+        )
+    )
+    turn1_state = nexo_graph.ainvoke.call_args[0][0]
+    assert turn1_state.get("prior_messages") == []
+
+    # Turn 2: the store now has turn-1's append → prior_messages must
+    # carry [HumanMessage("estado del coordinador"), AIMessage("first-turn answer")].
+    nexo_graph.ainvoke.reset_mock()
+    nexo_graph.ainvoke = AsyncMock(
+        return_value={"answer": "second-turn answer", "_events": []}
+    )
+    supervisor.nexo_graph = nexo_graph
+    # New scripted LLM router response so the second run's "auto" mode
+    # still classifies as NEXO_QUERY.
+    supervisor.llm_router = _scripted_llm_router("NEXO_QUERY")
+    await supervisor.run(
+        UserRequest(
+            message="tell me more about that",
+            tenant_id="mintral",
+            conversation_id="conv-hydrate-1",
+        )
+    )
+    turn2_state = nexo_graph.ainvoke.call_args[0][0]
+    prior = turn2_state.get("prior_messages")
+    assert prior is not None and len(prior) == 2
+    assert isinstance(prior[0], HumanMessage)
+    assert prior[0].content == "estado del coordinador"
+    assert isinstance(prior[1], AIMessage)
+    assert prior[1].content == "first-turn answer"
+
+
+@pytest.mark.asyncio
+async def test_meta_agent_sees_prior_turn_via_history(tmp_path: Any) -> None:
+    """A meta-mode follow-up has access to the previous turn's messages
+    via the supervisor's hydration + `meta_agent_node(..., prior_messages=)`
+    kwarg. Captures the messages list passed to `meta_model.ainvoke` and
+    asserts turn-1's HumanMessage content is present in turn-2's prompt.
+    """
+
+    from langchain_core.messages import HumanMessage
+
+    captured_messages: list[list[Any]] = []
+
+    class _RecordingMetaModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured_messages.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    store = InMemoryConversationStore()
+    meta_model = _RecordingMetaModel(
+        responses=["primer-answer-turn-1", "primer-answer-turn-2"]
+    )
+    supervisor = _build_supervisor(
+        tmp_path,
+        llm_router=_scripted_llm_router("DIRECT"),
+        meta_model=meta_model,
+        conversation_store=store,
+    )
+
+    # Turn 1
+    await supervisor.run(
+        UserRequest(
+            message="what data is available?",
+            tenant_id="gama",
+            user_id="alice",
+            mode="meta",
+            conversation_id="conv-meta-1",
+        )
+    )
+    # Turn 2 — follow-up that should see turn 1 in its prompt
+    await supervisor.run(
+        UserRequest(
+            message="and where does it come from?",
+            tenant_id="gama",
+            user_id="alice",
+            mode="meta",
+            conversation_id="conv-meta-1",
+        )
+    )
+
+    assert len(captured_messages) == 2
+    # Turn-1 prompt is exactly [System, Human(turn1)] — no prior turns yet.
+    turn1_human = [m for m in captured_messages[0] if isinstance(m, HumanMessage)]
+    assert [m.content for m in turn1_human] == ["what data is available?"]
+
+    # Turn-2 prompt must include both turn-1's HumanMessage (hydrated)
+    # and turn-2's HumanMessage (current question).
+    turn2_human = [m for m in captured_messages[1] if isinstance(m, HumanMessage)]
+    assert "what data is available?" in [m.content for m in turn2_human]
+    assert "and where does it come from?" in [m.content for m in turn2_human]

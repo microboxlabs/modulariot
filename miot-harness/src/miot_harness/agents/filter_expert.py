@@ -27,7 +27,7 @@ import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
 from miot_harness.runtime.context import HarnessContext
@@ -107,17 +107,22 @@ async def filter_expert_node(
     registry: ToolRegistry,
     model: BaseChatModel,
 ) -> dict[str, Any]:
-    """LangGraph node: returns a state delta dict."""
+    """LangGraph node: returns a state delta dict.
+
+    When `state["prior_messages"]` is populated (multi-turn chat with a
+    `conversation_id`), the prior turns are spliced between the system
+    prompt and the current user message so references like "tell me more
+    about that" can be resolved against context (plan 13 §E5 hydration).
+    """
     catalog = build_tool_catalog(registry)
     system = _FILTER_EXPERT_SYSTEM_TEMPLATE.format(catalog=catalog)
 
     user_message = state.get("user_message", "")
-    response = await model.ainvoke(
-        [
-            SystemMessage(content=system),
-            HumanMessage(content=user_message),
-        ]
-    )
+    prior_messages = state.get("prior_messages") or []
+    messages: list[BaseMessage] = [SystemMessage(content=system)]
+    messages.extend(prior_messages)
+    messages.append(HumanMessage(content=user_message))
+    response = await model.ainvoke(messages)
 
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):

@@ -63,7 +63,14 @@ def build_agentic_graph(
         # planner (live LLM call) constructs a plan with curated tools
         # and/or composable primitives. Tests assert wiring; F3 covers
         # behavior with a real model.
+        #
+        # `prior_messages` is hydrated by the supervisor (E5) — the
+        # eventual live planner will splice it between its system prompt
+        # and the current user message, matching the filter_expert /
+        # synthesizer pattern. Reading it from state here sets up the
+        # seam; the stub doesn't invoke a model yet.
         snapshot = cast(dict[str, Any], state)
+        _prior_messages = snapshot.get("prior_messages") or []  # noqa: F841
         turn_count = int(snapshot.get("turn_count", 0) or 0)
         if turn_count >= _AGENTIC_TURN_CAP:
             return {"failure": "agentic turn cap exceeded"}

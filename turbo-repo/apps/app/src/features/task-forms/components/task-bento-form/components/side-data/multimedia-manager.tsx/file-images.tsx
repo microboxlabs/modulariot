@@ -387,9 +387,9 @@ export default function FileImages({
       const nodeId = item.file.entry.id;
       const deletePromise = deleteBentoMultimedia(nodeId);
       toast.promise(deletePromise, {
-        loading: "Deleting file...",
-        success: "File deleted",
-        error: "Failed to delete file",
+        loading: tr("bento.multimedia.delete_loading", dictionary),
+        success: tr("bento.multimedia.delete_success", dictionary),
+        error: tr("bento.multimedia.delete_error", dictionary),
       });
       try {
         await deletePromise;
@@ -430,6 +430,7 @@ export default function FileImages({
           onEdit={(i) => setEditImageIndex(i)}
           onDelete={handleDeleteMedia}
           onRename={async () => { await mutate(); await mutateContents(); }}
+          currentTaskServiceCode={task?.mintral_serviceCode}
           dictionary={dictionary}
         />
         <ReplaceImageModal
@@ -533,7 +534,7 @@ export default function FileImages({
             {/* Shared header */}
             <div className="flex items-center gap-2.5 p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide shrink-0">
-                Multimedia
+                {tr("bento.multimedia.title", dictionary)}
                 <span className="ml-1.5 font-medium text-gray-400 dark:text-gray-500 normal-case tracking-normal">
                   ({reviewSummary.approved}/{allIds.length})
                 </span>
@@ -550,7 +551,7 @@ export default function FileImages({
                       : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
-                  Approved
+                  {tr("bento.multimedia.tab_approved", dictionary)}
                 </button>
                 <button
                   type="button"
@@ -561,7 +562,7 @@ export default function FileImages({
                       : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
                 >
-                  Review
+                  {tr("bento.multimedia.tab_review", dictionary)}
                   {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || draftDecisions.size > 0) && (
                     <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
                   )}
@@ -575,7 +576,7 @@ export default function FileImages({
                   className="p-2 py-1! h-7 text-xs! gap-1"
                 >
                   <MdOutlineFileUpload className="w-3.5 h-3.5 mr-1" />
-                  Upload
+                  {tr("bento.multimedia.btn_upload", dictionary)}
                 </Button>
                 <Button
                   color="alternative"
@@ -584,11 +585,11 @@ export default function FileImages({
                   className="p-2 py-1! h-7 text-xs! gap-1"
                 >
                   <HiArrowDownTray className="w-3.5 h-3.5" />
-                  Download
+                  {tr("bento.multimedia.btn_download", dictionary)}
                 </Button>
                 <div className="flex items-center self-center px-1">
                   <Checkbox
-                    title="Select all"
+                    title={tr("bento.multimedia.select_all", dictionary)}
                     checked={allSelected}
                     ref={(el) => {
                       if (el) el.indeterminate = someSelected;
@@ -610,7 +611,7 @@ export default function FileImages({
                 filteredCount={filteredImages.length}
                 isExpanded={isImagesExpanded}
                 onToggleExpanded={() => setIsImagesExpanded((p) => !p)}
-                checkboxTitle="Select all images"
+                checkboxTitle={tr("bento.multimedia.select_all_images", dictionary)}
                 allItemIds={images.map((img) => img.file.entry.id)}
                 selectedIds={selectedIds}
                 setSelectedIds={setSelectedIds}
@@ -639,7 +640,7 @@ export default function FileImages({
                 filteredCount={filteredDocuments.length}
                 isExpanded={isDocumentsExpanded}
                 onToggleExpanded={() => setIsDocumentsExpanded((p) => !p)}
-                checkboxTitle="Select all documents"
+                checkboxTitle={tr("bento.multimedia.select_all_docs", dictionary)}
                 allItemIds={documents.map((doc: { file: AlfrescoFileEntry }) => doc.file.entry.id)}
                 selectedIds={selectedIds}
                 setSelectedIds={setSelectedIds}
@@ -671,15 +672,15 @@ export default function FileImages({
                 <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                    {effectiveSummary.approved} approved
+                    {effectiveSummary.approved} {tr("bento.multimedia.count_approved", dictionary)}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                    {effectiveSummary.rejected} rejected
+                    {effectiveSummary.rejected} {tr("bento.multimedia.count_rejected", dictionary)}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                    {effectiveSummary.pending} pending
+                    {effectiveSummary.pending} {tr("bento.multimedia.count_pending", dictionary)}
                   </span>
                 </div>
                 <button
@@ -688,7 +689,7 @@ export default function FileImages({
                   disabled={draftDecisions.size === 0}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  Commit review
+                  {tr("bento.multimedia.btn_commit_review", dictionary)}
                 </button>
               </div>
             )}
@@ -717,9 +718,9 @@ export default function FileImages({
       >
         <ModalHeader className="border-none">
           <div className="flex flex-col">
-            <span className="text-base font-semibold">Submit review</span>
+            <span className="text-base font-semibold">{tr("bento.multimedia.commit_title", dictionary)}</span>
             <span className="text-sm text-gray-500 mt-1 font-normal">
-              This action will apply the following decisions
+              {tr("bento.multimedia.commit_desc", dictionary)}
             </span>
           </div>
         </ModalHeader>
@@ -729,20 +730,20 @@ export default function FileImages({
               <div className="flex items-center gap-3 p-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                 <HiCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
                 <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                  {draftSummary.approved} {draftSummary.approved === 1 ? "file" : "files"} will be approved
+                  {draftSummary.approved} {tr(draftSummary.approved === 1 ? "bento.multimedia.commit_approve_one" : "bento.multimedia.commit_approve_many", dictionary)}
                 </span>
               </div>
               <div className="flex items-center gap-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                 <HiXMark className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
                 <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                  {draftSummary.rejected} {draftSummary.rejected === 1 ? "file" : "files"} will be rejected
+                  {draftSummary.rejected} {tr(draftSummary.rejected === 1 ? "bento.multimedia.commit_reject_one" : "bento.multimedia.commit_reject_many", dictionary)}
                 </span>
               </div>
               {draftSummary.undecided > 0 && (
                 <div className="flex items-center gap-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                   <HiExclamationTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                    {draftSummary.undecided} {draftSummary.undecided === 1 ? "file" : "files"} without a decision — will not be changed
+                    {draftSummary.undecided} {tr(draftSummary.undecided === 1 ? "bento.multimedia.commit_undecided_one" : "bento.multimedia.commit_undecided_many", dictionary)}
                   </span>
                 </div>
               )}
@@ -771,10 +772,10 @@ export default function FileImages({
                   }
                   setDraftDecisions(new Map());
                   setIsCommitModalOpen(false);
-                  toast.success("Review submitted successfully");
+                  toast.success(tr("bento.multimedia.commit_success", dictionary));
                 }}
               >
-                Confirm
+                {tr("bento.multimedia.btn_confirm", dictionary)}
               </Button>
             </div>
           </div>

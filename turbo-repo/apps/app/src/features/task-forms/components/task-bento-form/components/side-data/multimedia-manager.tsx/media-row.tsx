@@ -8,14 +8,15 @@ import { FaRegFilePdf } from "react-icons/fa";
 import { HiPencilSquare } from "react-icons/hi2";
 import { getCategories } from "./clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
 
-const STATUS_CONFIG: Record<ReviewStatus, { dotCls: string; textCls: string; label: string }> = {
-  pending:  { dotCls: "bg-amber-500", textCls: "text-amber-600 dark:text-amber-400", label: "Pending" },
-  approved: { dotCls: "bg-green-500", textCls: "text-green-600 dark:text-green-400", label: "Approved" },
-  rejected: { dotCls: "bg-red-500",   textCls: "text-red-600 dark:text-red-400",     label: "Rejected" },
+const STATUS_CONFIG: Record<ReviewStatus, { dotCls: string; textCls: string }> = {
+  pending:  { dotCls: "bg-amber-500", textCls: "text-amber-600 dark:text-amber-400" },
+  approved: { dotCls: "bg-green-500", textCls: "text-green-600 dark:text-green-400" },
+  rejected: { dotCls: "bg-red-500",   textCls: "text-red-600 dark:text-red-400" },
 };
 
 export default function MediaRow({
@@ -65,14 +66,15 @@ export default function MediaRow({
   const modifiedAt = file.entry.modifiedAt ? formatDateString(file.entry.modifiedAt) : null;
   const secondaryParts = [
     version ? `v${version}` : null,
-    lastEditor ? `By ${lastEditor}` : null,
-    modifiedAt ? `Updated: ${modifiedAt}` : null,
+    lastEditor ? `${tr("bento.multimedia.row_by", dictionary)} ${lastEditor}` : null,
+    modifiedAt ? `${tr("bento.multimedia.row_updated", dictionary)}: ${modifiedAt}` : null,
   ].filter(Boolean);
 
   const statusCfg = STATUS_CONFIG[status];
+  const statusLabel = tr(`bento.multimedia.status_${status}`, dictionary);
   const statusChangeLine =
     statusSetAt && status !== "pending"
-      ? [statusCfg.label, `on ${formatDateString(statusSetAt.toISOString())}`, statusSetBy ? `by ${statusSetBy}` : null].filter(Boolean).join(" ")
+      ? [statusLabel, `${tr("bento.multimedia.row_on", dictionary)} ${formatDateString(statusSetAt.toISOString())}`, statusSetBy ? `${tr("bento.multimedia.row_by_lower", dictionary)} ${statusSetBy}` : null].filter(Boolean).join(" ")
       : null;
 
   return (
@@ -124,7 +126,7 @@ export default function MediaRow({
             )}
             {!hideStatusDot && (
               <span
-                title={statusCfg.label}
+                title={statusLabel}
                 className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotCls}`}
               />
             )}

@@ -16,14 +16,17 @@ import {
   HiEnvelope,
   HiArrowTopRightOnSquare,
   HiTrash,
+  HiArrowsRightLeft,
 } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { getCategories } from "./clasification-form";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { AlfrescoFileEntry } from "./image.types";
 import { ReviewStatus } from "./media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
-import { renameBentoFile } from "@/features/common/providers/client-api.provider";
+import { renameBentoFile, useSearchTasks } from "@/features/common/providers/client-api.provider";
+import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { toast } from "sonner";
 import { HiPrinter } from "react-icons/hi";
 
@@ -46,6 +49,7 @@ export default function MediaInlineViewer({
   onEdit,
   onDelete,
   onRename,
+  currentTaskServiceCode,
   dictionary,
 }: {
   items: MediaViewerItem[];
@@ -57,6 +61,7 @@ export default function MediaInlineViewer({
   onEdit?: (index: number) => void;
   onDelete?: (index: number) => void;
   onRename?: () => void;
+  currentTaskServiceCode?: string;
   dictionary: I18nRecord;
 }) {
   const [currentIndex, setCurrentIndex] = useState(
@@ -65,6 +70,7 @@ export default function MediaInlineViewer({
   const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
   const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +177,7 @@ export default function MediaInlineViewer({
 
   const shareCopyLink = async () => {
     await navigator.clipboard.writeText(fullUrl);
-    toast.success("Link copied to clipboard");
+    toast.success(tr("bento.multimedia.viewer_link_copied", dictionary));
     setShareOpen(false);
   };
 
@@ -190,7 +196,7 @@ export default function MediaInlineViewer({
   const handleDownload = () => {
     if (!id) return;
     const url = `/app/api/bento/content?nodeId=${id}`;
-    downloadImage(url, dictionary).catch(() => {});
+    downloadImage(url, dictionary, current.file.entry.name).catch(() => {});
   };
 
   const imageUrl =
@@ -219,9 +225,9 @@ export default function MediaInlineViewer({
                 if (trimmed && trimmed !== original && id) {
                   const renamePromise = renameBentoFile(id, trimmed);
                   toast.promise(renamePromise, {
-                    loading: "Renaming...",
-                    success: "File renamed",
-                    error: "Failed to rename file",
+                    loading: tr("bento.multimedia.rename_loading", dictionary),
+                    success: tr("bento.multimedia.rename_success", dictionary),
+                    error: tr("bento.multimedia.rename_error", dictionary),
                   });
                   renamePromise.then(() => onRename?.()).catch(() => {
                     setEditedName(original);
@@ -242,7 +248,7 @@ export default function MediaInlineViewer({
             />
           ) : (
             <span
-              title="Click to rename"
+              title={tr("bento.multimedia.viewer_click_rename", dictionary)}
               onClick={() => setIsEditingName(true)}
               className="text-sm font-medium text-gray-900 dark:text-white truncate cursor-text hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
@@ -273,7 +279,7 @@ export default function MediaInlineViewer({
                   : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
             }`}
           >
-            {status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending"}
+            {tr(`bento.multimedia.status_${status}`, dictionary)}
           </span>
           {id && draftDecisions?.has(id) && (
             <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium border ${
@@ -281,7 +287,7 @@ export default function MediaInlineViewer({
                 ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
                 : "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
             }`}>
-              → {draftDecisions.get(id) === "approved" ? "Approve" : "Reject"}
+              → {tr(draftDecisions.get(id) === "approved" ? "bento.multimedia.draft_will_approve" : "bento.multimedia.draft_will_reject", dictionary)}
             </span>
           )}
         </div>
@@ -292,7 +298,7 @@ export default function MediaInlineViewer({
           <div ref={shareRef} className="relative">
             <button
               type="button"
-              title="Share"
+              title={tr("bento.multimedia.viewer_share", dictionary)}
               onClick={() => setShareOpen((p) => !p)}
               className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
@@ -303,33 +309,33 @@ export default function MediaInlineViewer({
                 <button
                   type="button"
                   onClick={shareCopyLink}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                 >
                   <HiLink className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  Copy link
+                  {tr("bento.multimedia.viewer_copy_link", dictionary)}
                 </button>
                 <button
                   type="button"
                   onClick={shareByEmail}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                 >
                   <HiEnvelope className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  Share via email
+                  {tr("bento.multimedia.viewer_share_email", dictionary)}
                 </button>
                 <button
                   type="button"
                   onClick={shareOpenTab}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                  className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                 >
                   <HiArrowTopRightOnSquare className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  Open in new tab
+                  {tr("bento.multimedia.viewer_open_new_tab", dictionary)}
                 </button>
               </div>
             )}
           </div>
           <button
             type="button"
-            title="Download"
+            title={tr("bento.multimedia.viewer_download", dictionary)}
             onClick={handleDownload}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
           >
@@ -338,17 +344,25 @@ export default function MediaInlineViewer({
           {onEdit && (
             <button
               type="button"
-              title="Replace file"
+              title={tr("bento.multimedia.viewer_replace", dictionary)}
               onClick={() => onEdit(currentIndex)}
               className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
               <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </button>
           )}
+          <button
+            type="button"
+            title={tr("bento.multimedia.viewer_move", dictionary)}
+            onClick={() => setIsMoveModalOpen(true)}
+            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+          >
+            <HiArrowsRightLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          </button>
           {onDelete && (
             <button
               type="button"
-              title="Delete"
+              title={tr("bento.multimedia.viewer_delete", dictionary)}
               onClick={() => setIsDeleteConfirmOpen(true)}
               className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
             >
@@ -364,7 +378,7 @@ export default function MediaInlineViewer({
             disabled={currentIndex === 0}
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label="Previous"
+            aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
           >
             <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
@@ -376,7 +390,7 @@ export default function MediaInlineViewer({
             disabled={currentIndex === items.length - 1}
             onClick={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label="Next"
+            aria-label={tr("bento.multimedia.viewer_next", dictionary)}
           >
             <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
@@ -387,14 +401,14 @@ export default function MediaInlineViewer({
             return (
               <ReviewSplitButton
                 primary={{
-                  label: "Approve",
+                  label: tr("bento.multimedia.btn_approve", dictionary),
                   icon: <HiCheck className="w-4 h-4" />,
                   onClick: () => handleDecision("approved"),
                   isActive: draft === "approved",
                 }}
                 secondaryActions={[
                   {
-                    label: "Reject",
+                    label: tr("bento.multimedia.btn_reject", dictionary),
                     icon: <HiXMark className="w-4 h-4" />,
                     onClick: () => handleDecision("rejected"),
                     isActive: draft === "rejected",
@@ -409,7 +423,7 @@ export default function MediaInlineViewer({
             type="button"
             onClick={onClose}
             className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 ml-1 cursor-pointer"
-            aria-label="Close viewer"
+            aria-label={tr("bento.multimedia.viewer_close", dictionary)}
           >
             <HiXMark className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
@@ -431,7 +445,7 @@ export default function MediaInlineViewer({
             (isDocLoading ? (
               <div className="flex flex-col items-center gap-3 text-gray-500 dark:text-gray-400">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm">Loading document...</span>
+                <span className="text-sm">{tr("bento.multimedia.viewer_loading_doc", dictionary)}</span>
               </div>
             ) : docUrl ? (
               <iframe
@@ -441,7 +455,7 @@ export default function MediaInlineViewer({
               />
             ) : (
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Unable to load document
+                {tr("bento.multimedia.viewer_load_error", dictionary)}
               </span>
             ))}
         </div>
@@ -451,37 +465,46 @@ export default function MediaInlineViewer({
           className="shrink-0 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto flex flex-col"
           style={{ width: "33.333%" }}
         >
-          <SidebarSection title="Properties" defaultExpanded>
+          <SidebarSection title={tr("bento.multimedia.sidebar_properties", dictionary)} defaultExpanded>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <MetaRow label="Name" value={current.file.entry.name} />
-              {categoryLabel && <MetaRow label="Category" value={categoryLabel} />}
+              <MetaRow label={tr("bento.multimedia.sidebar_prop_name", dictionary)} value={current.file.entry.name} />
+              {categoryLabel && <MetaRow label={tr("bento.multimedia.sidebar_prop_category", dictionary)} value={categoryLabel} />}
               {current.file.entry.properties["cm:versionLabel"] && (
-                <MetaRow label="Version" value={`v${current.file.entry.properties["cm:versionLabel"]}`} />
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_version", dictionary)} value={`v${current.file.entry.properties["cm:versionLabel"]}`} />
               )}
-              <MetaRow label="Type" value={current.file.entry.content.mimeTypeName ?? current.file.entry.content.mimeType} />
-              <MetaRow label="Size" value={formatBytes(current.file.entry.content.sizeInBytes)} />
+              <MetaRow label={tr("bento.multimedia.sidebar_prop_type", dictionary)} value={current.file.entry.content.mimeTypeName ?? current.file.entry.content.mimeType} />
+              <MetaRow label={tr("bento.multimedia.sidebar_prop_size", dictionary)} value={formatBytes(current.file.entry.content.sizeInBytes)} />
               {current.file.entry.modifiedAt && (
-                <MetaRow label="Modified" value={formatDateString(current.file.entry.modifiedAt)} />
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_modified", dictionary)} value={formatDateString(current.file.entry.modifiedAt)} />
               )}
               {current.file.entry.modifiedByUser?.displayName && (
-                <MetaRow label="Modified by" value={current.file.entry.modifiedByUser.displayName} />
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_modified_by", dictionary)} value={current.file.entry.modifiedByUser.displayName} />
               )}
               {current.file.entry.createdAt && (
-                <MetaRow label="Created" value={formatDateString(current.file.entry.createdAt)} />
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_created", dictionary)} value={formatDateString(current.file.entry.createdAt)} />
               )}
               {current.file.entry.createdByUser?.displayName && (
-                <MetaRow label="Author" value={current.file.entry.createdByUser.displayName} />
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_author", dictionary)} value={current.file.entry.createdByUser.displayName} />
               )}
             </dl>
           </SidebarSection>
-          <SidebarSection title="Permits">
-            <PermitsSection />
+          <SidebarSection title={tr("bento.multimedia.sidebar_permits", dictionary)}>
+            <PermitsSection dictionary={dictionary} />
           </SidebarSection>
-          <SidebarSection title="Observations">
-            <ObservationsSection />
+          <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)}>
+            <ObservationsSection dictionary={dictionary} />
           </SidebarSection>
         </div>
       </div>
+      {/* Move to task modal */}
+      <MoveToTaskModal
+        show={isMoveModalOpen}
+        onClose={() => setIsMoveModalOpen(false)}
+        fileName={current.file.entry.name}
+        currentTaskServiceCode={currentTaskServiceCode}
+        dictionary={dictionary}
+      />
+
       {/* Delete confirmation modal */}
       <Modal
         dismissible
@@ -505,9 +528,9 @@ export default function MediaInlineViewer({
       >
         <ModalHeader className="border-none">
           <div className="flex flex-col">
-            <span className="text-base font-semibold">Delete file</span>
+            <span className="text-base font-semibold">{tr("bento.multimedia.delete_modal_title", dictionary)}</span>
             <span className="text-sm text-gray-500 mt-1 font-normal">
-              This will move the file to the trashcan. It can be recovered from there if needed.
+              {tr("bento.multimedia.delete_modal_desc", dictionary)}
             </span>
           </div>
         </ModalHeader>
@@ -523,7 +546,7 @@ export default function MediaInlineViewer({
                 color="alternative"
                 onClick={() => setIsDeleteConfirmOpen(false)}
               >
-                Cancel
+                {tr("bento.multimedia.btn_cancel", dictionary)}
               </Button>
               <Button
                 color="blue"
@@ -532,7 +555,7 @@ export default function MediaInlineViewer({
                   onDelete?.(currentIndex);
                 }}
               >
-                Delete
+                {tr("bento.multimedia.btn_delete", dictionary)}
               </Button>
             </div>
           </div>
@@ -592,19 +615,11 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 // ─── Permits section ─────────────────────────────────────────────────────────
 
-const MOCK_PERMITS: PermitEntry[] = [
-  { id: "user-1", displayName: "Alice Martínez", level: "edit" },
-  { id: "user-2", displayName: "Bob Chen", level: "read" },
-  { id: "user-3", displayName: "Carlos Rodríguez", level: "read" },
-];
-
-function PermitsSection() {
+function PermitsSection({ dictionary }: { dictionary: I18nRecord }) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<{ id: string; displayName: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [permits, setPermits] = useState<Map<string, PermitEntry>>(
-    () => new Map(MOCK_PERMITS.map((p) => [p.id, p]))
-  );
+  const [permits, setPermits] = useState<Map<string, PermitEntry>>(new Map());
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -657,7 +672,7 @@ function PermitsSection() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search users…"
+          placeholder={tr("bento.multimedia.sidebar_permits_search", dictionary)}
           className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 pr-7 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500"
         />
         {isSearching ? (
@@ -668,7 +683,7 @@ function PermitsSection() {
       </div>
 
       {search.length > 0 && search.length < 3 && (
-        <p className="text-xs text-gray-400 dark:text-gray-500">Type at least 3 characters</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">{tr("bento.multimedia.sidebar_permits_min_chars", dictionary)}</p>
       )}
 
       {/* Search results dropdown */}
@@ -683,7 +698,7 @@ function PermitsSection() {
                 </div>
                 <span className="text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">{user.displayName}</span>
                 {isAdded ? (
-                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">Added</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{tr("bento.multimedia.sidebar_permits_added", dictionary)}</span>
                 ) : (
                   <button
                     type="button"
@@ -705,7 +720,7 @@ function PermitsSection() {
         {/* Card header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
           <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            Assigned
+            {tr("bento.multimedia.sidebar_permits_assigned", dictionary)}
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
             {assignedList.length}
@@ -727,13 +742,13 @@ function PermitsSection() {
 
                 {/* Permission dropdown */}
                 <Dropdown
-                  label={level === "edit" ? "Edit" : "Read"}
+                  label={level === "edit" ? tr("bento.multimedia.sidebar_permits_lvl_edit", dictionary) : tr("bento.multimedia.sidebar_permits_lvl_read", dictionary)}
                   size="xs"
                   color="light"
                   className="shrink-0"
                 >
-                  <DropdownItem onClick={() => changeLevel(uid, "read")}>Read</DropdownItem>
-                  <DropdownItem onClick={() => changeLevel(uid, "edit")}>Edit</DropdownItem>
+                  <DropdownItem onClick={() => changeLevel(uid, "read")}>{tr("bento.multimedia.sidebar_permits_lvl_read", dictionary)}</DropdownItem>
+                  <DropdownItem onClick={() => changeLevel(uid, "edit")}>{tr("bento.multimedia.sidebar_permits_lvl_edit", dictionary)}</DropdownItem>
                 </Dropdown>
 
                 {/* Remove */}
@@ -748,7 +763,7 @@ function PermitsSection() {
             ))
           ) : (
             <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-3">
-              No permissions assigned yet
+              {tr("bento.multimedia.sidebar_permits_none", dictionary)}
             </p>
           )}
         </div>
@@ -797,7 +812,7 @@ type ObservationEntry = {
 
 const MOCK_OBSERVATIONS: ObservationEntry[] = [];
 
-function ObservationsSection() {
+function ObservationsSection({ dictionary }: { dictionary: I18nRecord }) {
   const [observations, setObservations] = useState<ObservationEntry[]>(MOCK_OBSERVATIONS);
   const [isAdding, setIsAdding] = useState(false);
   const [newType, setNewType] = useState<ObservationType>("value_not_visible");
@@ -823,7 +838,7 @@ function ObservationsSection() {
       {/* Observation list card */}
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Observations</span>
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{tr("bento.multimedia.sidebar_observations", dictionary)}</span>
           <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">{observations.length}</span>
         </div>
         <div className="flex flex-col max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/60">
@@ -832,7 +847,7 @@ function ObservationsSection() {
               <div key={obs.id} className="flex items-start gap-2 px-3 py-2.5 hover:bg-white dark:hover:bg-gray-800/60 transition-colors group/obs">
                 <div className="flex flex-col flex-1 min-w-0 gap-0.5">
                   <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
-                    {OBSERVATION_LABELS[obs.type]}
+                    {tr(`bento.multimedia.obs_${obs.type}`, dictionary)}
                   </span>
                   <p className="text-xs text-gray-500 dark:text-gray-400 wrap-break-word">{obs.description}</p>
                   <span className="text-xs text-gray-300 dark:text-gray-600 mt-0.5">
@@ -849,7 +864,7 @@ function ObservationsSection() {
               </div>
             ))
           ) : (
-            <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-3">No observations yet</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-3">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
           )}
         </div>
       </div>
@@ -864,7 +879,7 @@ function ObservationsSection() {
             className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 cursor-pointer"
           >
             {(Object.keys(OBSERVATION_LABELS) as ObservationType[]).map((key) => (
-              <option key={key} value={key}>{OBSERVATION_LABELS[key]}</option>
+              <option key={key} value={key}>{tr(`bento.multimedia.obs_${key}`, dictionary)}</option>
             ))}
           </select>
 
@@ -872,7 +887,7 @@ function ObservationsSection() {
           <textarea
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
-            placeholder="Describe what should be fixed…"
+            placeholder={tr("bento.multimedia.sidebar_obs_placeholder", dictionary)}
             rows={3}
             className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 resize-none"
           />
@@ -884,7 +899,7 @@ function ObservationsSection() {
               onClick={() => { setIsAdding(false); setNewDescription(""); }}
               className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
-              Cancel
+              {tr("bento.multimedia.sidebar_obs_cancel", dictionary)}
             </button>
             <button
               type="button"
@@ -892,7 +907,7 @@ function ObservationsSection() {
               disabled={!newDescription.trim()}
               className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
-              Add
+              {tr("bento.multimedia.sidebar_obs_add_btn", dictionary)}
             </button>
           </div>
         </div>
@@ -902,7 +917,7 @@ function ObservationsSection() {
           onClick={() => setIsAdding(true)}
           className="w-full text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 border border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 rounded-lg py-2 transition-colors cursor-pointer"
         >
-          + New observation
+          {tr("bento.multimedia.sidebar_obs_add", dictionary)}
         </button>
       )}
     </div>
@@ -1006,5 +1021,158 @@ function ReviewSplitButton({
         {primary.label}
       </Button>
     </div>
+  );
+}
+
+// ─── Move to task modal ───────────────────────────────────────────────────────
+
+function MoveToTaskModal({
+  show,
+  onClose,
+  fileName,
+  currentTaskServiceCode,
+  dictionary,
+}: {
+  show: boolean;
+  onClose: () => void;
+  fileName: string;
+  currentTaskServiceCode?: string;
+  dictionary: I18nRecord;
+}) {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedTask, setSelectedTask] = useState<KanbanBoardTask | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (show) {
+      setSearch("");
+      setDebouncedSearch("");
+      setSelectedTask(null);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [show]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, isLoading } = useSearchTasks(debouncedSearch.length >= 2 ? debouncedSearch : null);
+
+  const tasks: KanbanBoardTask[] = data
+    ? Object.values(data.data).flatMap((board) => board.tasks)
+    : [];
+
+  const handleMove = () => {
+    if (!selectedTask) return;
+    toast.success(`"${fileName}" ${tr("bento.multimedia.move_success", dictionary)} ${selectedTask.name}`);
+    onClose();
+  };
+
+  return (
+    <Modal
+      dismissible
+      show={show}
+      onClose={onClose}
+      size="lg"
+      theme={{
+        content: {
+          base: "relative w-full p-4 md:h-auto",
+          inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
+        },
+        header: {
+          base: "flex items-center justify-between rounded-t border-b pt-5 px-5 pb-0 dark:border-gray-600",
+          title: "text-base font-semibold text-gray-900 dark:text-white",
+          close: { base: "hidden" },
+        },
+        body: {
+          base: "flex-1 overflow-auto px-5 pb-5",
+        },
+      }}
+    >
+      <ModalHeader className="border-none">
+        <div className="flex flex-col">
+          <span className="text-base font-semibold">{tr("bento.multimedia.move_modal_title", dictionary)}</span>
+          <span className="text-sm text-gray-500 mt-1 font-normal">
+            {tr("bento.multimedia.move_modal_desc", dictionary)}
+          </span>
+        </div>
+      </ModalHeader>
+      <ModalBody>
+        <div className="flex flex-col gap-3">
+          {/* Search input */}
+          <div className="relative">
+            <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tr("bento.multimedia.move_search_placeholder", dictionary)}
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500"
+            />
+            {isLoading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            )}
+          </div>
+
+          {/* Results list */}
+          <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
+            {debouncedSearch.length < 2 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-6">
+                {tr("bento.multimedia.move_search_hint", dictionary)}
+              </p>
+            ) : !isLoading && tasks.length === 0 ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-6">
+                {tr("bento.multimedia.move_no_results", dictionary)}
+              </p>
+            ) : (
+              tasks.map((task) => {
+                const isCurrent = !!currentTaskServiceCode && (
+                  task.mintral_serviceCode === currentTaskServiceCode ||
+                  task.name === currentTaskServiceCode ||
+                  task.name.startsWith(currentTaskServiceCode + "-") ||
+                  task.name.startsWith(currentTaskServiceCode + " ")
+                );
+                const isSelected = selectedTask?.id === task.id;
+                return (
+                  <button
+                    key={task.id}
+                    type="button"
+                    disabled={isCurrent}
+                    onClick={() => !isCurrent && setSelectedTask(isSelected ? null : task)}
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-left transition-colors ${
+                      isCurrent
+                        ? "border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 opacity-50 cursor-not-allowed"
+                        : isSelected
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 cursor-pointer"
+                          : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+                      {task.name}
+                    </span>
+                    {isCurrent
+                      ? <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 whitespace-nowrap">{tr("bento.multimedia.move_file_here", dictionary)}</span>
+                      : isSelected && <HiCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    }
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button color="alternative" onClick={onClose}>
+              {tr("bento.multimedia.btn_cancel", dictionary)}
+            </Button>
+            <Button color="blue" disabled={!selectedTask} onClick={handleMove}>
+              {tr("bento.multimedia.btn_move", dictionary)}
+            </Button>
+          </div>
+        </div>
+      </ModalBody>
+    </Modal>
   );
 }

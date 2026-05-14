@@ -73,6 +73,7 @@ concern (plan 15+).
 Volumes used:
 - `postgres-data` (Langfuse traces metadata)
 - `clickhouse-data` + `clickhouse-logs` (Langfuse analytics)
+- `redis-data` (Langfuse ingestion queue / cache; appendonly enabled)
 - `minio-data` (event payloads / blob storage)
 
 To snapshot for migration:

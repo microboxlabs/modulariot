@@ -65,7 +65,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    command: ["redis-server", "--requirepass", "myredissecret", "--maxmemory-policy", "noeviction"]
+    # `appendonly yes` + a persistent volume keeps Langfuse's ingestion-queue
+    # state across container restarts. Without it, in-flight events between
+    # the OTel Collector → langfuse-worker hop are lost on `docker compose
+    # restart`.
+    command: ["redis-server", "--requirepass", "myredissecret", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
     networks: [observability]
 
   minio:
@@ -184,6 +190,7 @@ volumes:
   postgres-data:
   clickhouse-data:
   clickhouse-logs:
+  redis-data:
   minio-data:
 
 networks:

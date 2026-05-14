@@ -100,16 +100,13 @@ def build_agentic_graph(
             return END
         return "planner"
 
-    def route_from_planner(state: NexoState) -> str:
-        snapshot = cast(dict[str, Any], state)
-        if snapshot.get("failure"):
-            return "synthesizer"  # synth surfaces the failure as an answer
-        return "synthesizer"  # stub: skip executor for now; tests assert wiring
-
     graph.add_conditional_edges("tenancy_gate", route_from_gate, {"planner": "planner", END: END})
-    graph.add_conditional_edges(
-        "planner", route_from_planner, {"synthesizer": "synthesizer"}
-    )
+    # Planner currently always falls through to synthesizer (failure path
+    # uses the same edge so the synthesizer can surface the failure as an
+    # answer). When the F-phase wire-up adds executor / freshness_judge /
+    # domain_analyst nodes, swap this back to a `route_from_planner`
+    # conditional edge with an expanded dict.
+    graph.add_edge("planner", "synthesizer")
     graph.add_edge("synthesizer", "critic")
     graph.add_edge("critic", "summarizer")
     graph.add_edge("summarizer", END)

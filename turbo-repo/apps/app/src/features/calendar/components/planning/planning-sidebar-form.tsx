@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import dayjs from "dayjs";
-import { Badge, Button } from "flowbite-react";
+import { Badge, Button, Spinner } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -61,6 +61,7 @@ function PlanningTabContent({
   canConfirm,
   reassigningService,
   isReadOnlyView,
+  isSubmitting,
 }: {
   dict: I18nRecord;
   selectedService: SelectedService & { slot?: string };
@@ -80,6 +81,7 @@ function PlanningTabContent({
   canConfirm: boolean;
   reassigningService: unknown;
   isReadOnlyView: boolean;
+  isSubmitting: boolean;
 }) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
@@ -175,8 +177,9 @@ function PlanningTabContent({
             type="submit"
             color="blue"
             className="flex-1"
-            disabled={!canConfirm}
+            disabled={!canConfirm || isSubmitting}
           >
+            {isSubmitting && <Spinner size="sm" className="mr-2" />}
             {reassigningService
               ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
               : tr("pages.planning.sidebar.form.confirm", dict)}
@@ -273,6 +276,7 @@ export function PlanningSidebarForm({
   const [assignmentData, setAssignmentData] = useState<AssignmentFormData>(() =>
     assignmentDataFromService(selectedService)
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Re-hydrate the assignment form when the user reopens the sidebar for a
   // different planned service — otherwise a stale (carrier, driver) pair from
@@ -446,6 +450,7 @@ export function PlanningSidebarForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     // Build the final slot with the chosen time and andén
     let finalSlot: SelectedSlot | undefined;
@@ -468,6 +473,7 @@ export function PlanningSidebarForm({
     }
     const finalOverrides: Partial<SelectedService> | undefined =
       Object.keys(serviceOverrides).length > 0 ? serviceOverrides : undefined;
+    setIsSubmitting(true);
     try {
       const result = await confirmService(finalSlot, finalOverrides);
       if (wasReassigning || result) {
@@ -488,6 +494,8 @@ export function PlanningSidebarForm({
           ? err.message
           : tr("pages.planning.sidebar.notifications.assignError", dict);
       ShowNotification({ type: "error", message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -503,11 +511,12 @@ export function PlanningSidebarForm({
    * new booking, and cancels the previous one atomically.
    */
   const handleAssign = async () => {
-    if (!assigningService) {
+    if (!assigningService || isSubmitting) {
       return;
     }
 
     const overrides = assignmentOverrides(assignmentData);
+    setIsSubmitting(true);
     try {
       await confirmService(
         undefined,
@@ -527,6 +536,8 @@ export function PlanningSidebarForm({
           ? err.message
           : tr("pages.planning.sidebar.notifications.assignError", dict);
       ShowNotification({ type: "error", message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -891,6 +902,7 @@ export function PlanningSidebarForm({
             canConfirm={canConfirm}
             reassigningService={reassigningService}
             isReadOnlyView={isReadOnlyView}
+            isSubmitting={isSubmitting}
           />
         )}
         {activeTab === "assignment" && canAssign && (
@@ -916,9 +928,11 @@ export function PlanningSidebarForm({
                     !assigningService ||
                     !assignmentData.carrier ||
                     !assignmentData.driver ||
-                    !assignmentData.truck
+                    !assignmentData.truck ||
+                    isSubmitting
                   }
                 >
+                  {isSubmitting && <Spinner size="sm" className="mr-2" />}
                   {tr("pages.planning.sidebar.form.assign", dict)}
                 </Button>
               </div>

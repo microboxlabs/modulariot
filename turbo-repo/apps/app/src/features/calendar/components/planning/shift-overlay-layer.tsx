@@ -13,6 +13,7 @@ import type {
   I18nDictionary,
   I18nRecord,
 } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 interface Props {
   readonly shifts: readonly PositionedShift[];
@@ -33,6 +34,8 @@ interface Props {
     ps: PlannedService
   ) => void;
   readonly reassigningServiceId?: string;
+  /** Predicate driving the chip's right-click highlight ring. */
+  readonly isChipSelected?: (serviceId: string) => boolean;
   readonly dict: I18nDictionary | I18nRecord;
 }
 
@@ -57,6 +60,7 @@ export function ShiftOverlayLayer({
   onChipClick,
   onChipContextMenu,
   reassigningServiceId,
+  isChipSelected,
   dict,
 }: Props) {
   return (
@@ -102,7 +106,7 @@ export function ShiftOverlayLayer({
         );
         const labelHM = formatHM(s.slotHour, s.slotMinutes);
         const title = windowFull
-          ? "Window is at capacity for this day — not assignable"
+          ? tr("pages.planning.grid.windowFullTooltip", dict)
           : `${labelHM} – ${formatHM(
               Math.floor(s.endsAtMin / 60),
               s.endsAtMin % 60
@@ -156,6 +160,7 @@ export function ShiftOverlayLayer({
                     key={ps.service.id}
                     plannedService={ps}
                     isBeingReassigned={reassigningServiceId === ps.service.id}
+                    isSelected={isChipSelected?.(ps.service.id) ?? false}
                     onContextMenu={onChipContextMenu ?? noop}
                     onClick={onChipClick}
                     className="w-full"

@@ -53,7 +53,10 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     startAssignment,
     reassigningService,
     updateServiceAssignment,
-    viewPlannedService,
+    selectChipSlot,
+    selectChipResource,
+    isChipSelected,
+    clearChipSelection,
     andenesCount,
   } = usePlanningSelection();
 
@@ -79,6 +82,26 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     startReassignment,
     startAssignment,
   });
+
+  // Right-click on a chip highlights it (corner ring) AND opens the context
+  // menu. The highlight is purely visual — `selectChipResource` does not
+  // touch slot/service selection, so the sidebar stays as-is.
+  const handleChipContextMenu = useCallback(
+    (e: React.MouseEvent, plannedService: PlannedService) => {
+      selectChipResource(plannedService);
+      serviceActions.handleContextMenu(e, plannedService);
+    },
+    [selectChipResource, serviceActions]
+  );
+
+  // The chip highlight lives alongside the context menu — closing the menu
+  // (outside click, Escape, or picking an action) drops the highlight too.
+  // Actions that transition into reassign/assign mode pick up their own
+  // visual treatment from there, so there's no flash of "nothing selected".
+  const handleCloseChipContextMenu = useCallback(() => {
+    serviceActions.handleCloseContextMenu();
+    clearChipSelection();
+  }, [serviceActions, clearChipSelection]);
 
   const timeSlots = useMemo(
     () => generateTimeSlots(startHour, endHour),
@@ -178,11 +201,18 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     // Reassignment
     reassigningService,
 
-    // View-only inspection of a planned service (left-click on chip)
-    viewPlannedService,
+    // Left-click on a chip: select only the slot (clears any prior service).
+    selectChipSlot,
 
-    // Service actions (context menu, delete modals)
+    // Predicate the chip uses to render its right-click highlight ring.
+    isChipSelected,
+
+    // Service actions (context menu, delete modals). Spread first, then
+    // override the open/close handlers with the wrapped versions that also
+    // manage the chip's right-click highlight.
     ...serviceActions,
+    handleContextMenu: handleChipContextMenu,
+    handleCloseContextMenu: handleCloseChipContextMenu,
   };
 }
 

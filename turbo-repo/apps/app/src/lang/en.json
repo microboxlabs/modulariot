@@ -163,6 +163,9 @@
         "shipping": "Planning",
         "finished": "Finished"
       },
+      "grid": {
+        "windowFullTooltip": "Window is at capacity for this day — not assignable"
+      },
       "taskCounter": {
         "activeCount": "{count} visibles"
       },

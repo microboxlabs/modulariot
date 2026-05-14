@@ -163,6 +163,9 @@
         "shipping": "Planificación",
         "finished": "Finalizados"
       },
+      "grid": {
+        "windowFullTooltip": "La ventana alcanzó su capacidad para este día — no es asignable"
+      },
       "taskCounter": {
         "activeCount": "{count} visibles"
       },

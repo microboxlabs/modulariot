@@ -1836,7 +1836,7 @@
       "noDataOrigins": "No data origins yet. Add one below.",
       "addOrigin": "Add origin",
       "transformWkb": "Transform WKB positions",
-      "geometryField": "Geometry field",
+      "geometryField": "Geometry field name",
       "latField": "Latitude field",
       "lngField": "Longitude field",
       "responsePath": "Response path",

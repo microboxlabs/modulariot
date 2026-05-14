@@ -1861,7 +1861,7 @@
       "noDataOrigins": "No hay orígenes de datos aún. Agrega uno abajo.",
       "addOrigin": "Agregar origen",
       "transformWkb": "Transformar posiciones WKB",
-      "geometryField": "Campo de geometría",
+      "geometryField": "Nombre del campo de geometría",
       "latField": "Campo de latitud",
       "lngField": "Campo de longitud",
       "responsePath": "Ruta de respuesta",

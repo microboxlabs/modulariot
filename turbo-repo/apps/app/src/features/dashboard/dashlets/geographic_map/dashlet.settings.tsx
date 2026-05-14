@@ -1338,6 +1338,22 @@ function LayerStyleCard({
           </div>
         )}
 
+        {hasDataProvider && (
+          <div className="flex items-center justify-between">
+            <Label
+              htmlFor={`geo-wkb-${item.id}`}
+              className="text-sm text-gray-700 dark:text-gray-300"
+            >
+              {tr("dashboard.settings.transformWkb", dictionary)}
+            </Label>
+            <ToggleSwitch
+              id={`geo-wkb-${item.id}`}
+              checked={item.transformWkb}
+              onChange={(v) => set("transformWkb", v)}
+            />
+          </div>
+        )}
+
         {hasDataProvider && item.transformWkb && (
           <SettingsTextField
             id={`geo-geomfield-${item.id}`}
@@ -1363,22 +1379,6 @@ function LayerStyleCard({
               value={item.lngField}
               onChange={(v) => set("lngField", v)}
               placeholder="lng"
-            />
-          </div>
-        )}
-
-        {hasDataProvider && (
-          <div className="flex items-center justify-between">
-            <Label
-              htmlFor={`geo-wkb-${item.id}`}
-              className="text-sm text-gray-700 dark:text-gray-300"
-            >
-              {tr("dashboard.settings.transformWkb", dictionary)}
-            </Label>
-            <ToggleSwitch
-              id={`geo-wkb-${item.id}`}
-              checked={item.transformWkb}
-              onChange={(v) => set("transformWkb", v)}
             />
           </div>
         )}

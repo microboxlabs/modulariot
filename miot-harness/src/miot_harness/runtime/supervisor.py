@@ -23,6 +23,7 @@ import logging
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 
 from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
@@ -33,6 +34,7 @@ from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.conversation import (
     ConversationStore,
     ConversationTurn,
+    to_messages,
 )
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.intent_router import LLMIntentRouter
@@ -61,6 +63,7 @@ class HarnessSupervisor:
         meta_primer: str = "",
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
+        conversation_turn_cap: int = 10,
         tenant_lock: str = "mintral",
     ) -> None:
         self.router = router
@@ -74,6 +77,7 @@ class HarnessSupervisor:
         self.meta_primer = meta_primer
         self.meta_catalog: list[MetaAgentCatalogEntry] = meta_catalog or []
         self.conversation_store = conversation_store
+        self.conversation_turn_cap = conversation_turn_cap
         self.tenant_lock = tenant_lock
 
     async def run(self, request: UserRequest) -> HarnessRunRecord:
@@ -121,13 +125,24 @@ class HarnessSupervisor:
             )
         )
 
+        # Hydrate prior turns from `ConversationStore` so LLM-bearing agents
+        # actually carry context across `/runs` calls (plan 13 §E5). Empty
+        # list when no store, no conversation_id, or no prior history.
+        prior_messages = self._hydrate_history(request)
+
         try:
             if route.route == HarnessRoute.NEXO_QUERY:
-                await self._run_nexo(request, ctx, record, progress, route.route)
+                await self._run_nexo(
+                    request, ctx, record, progress, route.route, prior_messages
+                )
             elif route.route == HarnessRoute.NEXO_META:
-                await self._run_nexo_meta(request, ctx, record, progress, route.route)
+                await self._run_nexo_meta(
+                    request, ctx, record, progress, route.route, prior_messages
+                )
             elif route.route == HarnessRoute.NEXO_AGENTIC:
-                await self._run_nexo_agentic(request, ctx, record, progress, route.route)
+                await self._run_nexo_agentic(
+                    request, ctx, record, progress, route.route, prior_messages
+                )
             elif route.route == HarnessRoute.STORYTELLING_RUN:
                 await self._run_storytelling(ctx, record, progress)
             # DIRECT / OTHER: nothing to do; client renders.
@@ -159,6 +174,28 @@ class HarnessSupervisor:
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self.run_store.save(record)
         return record
+
+    def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
+        """Read prior turns from `ConversationStore` and project them to
+        LangChain messages capped at `conversation_turn_cap`.
+
+        Returns an empty list when:
+        - no `conversation_store` injected (Plan 12 deploys),
+        - request has no `conversation_id`,
+        - the store has no prior history for that id (first turn of a chat).
+
+        This is the read-half of the `ConversationStore` contract — the
+        write-half (append after each run) already lives at the bottom of
+        `run()`. Together they make multi-turn chats actually accumulate
+        context across `/runs` calls.
+        """
+
+        if self.conversation_store is None or not request.conversation_id:
+            return []
+        history = self.conversation_store.get(request.conversation_id)
+        if history is None:
+            return []
+        return to_messages(history, last_n=self.conversation_turn_cap)
 
     def _root_span_kwargs(
         self, ctx: HarnessContext, route: HarnessRoute | None
@@ -223,6 +260,7 @@ class HarnessSupervisor:
         record: HarnessRunRecord,
         progress: Any,
         route: HarnessRoute | None = None,
+        prior_messages: list[BaseMessage] | None = None,
     ) -> None:
         if self.nexo_graph is None:
             answer = (
@@ -245,6 +283,7 @@ class HarnessSupervisor:
             "ctx": ctx,
             "evidence": [],
             "turn_count": 0,
+            "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
             final_state = await self.nexo_graph.ainvoke(initial_state)
@@ -271,6 +310,7 @@ class HarnessSupervisor:
         record: HarnessRunRecord,
         progress: Any,
         route: HarnessRoute | None = None,
+        prior_messages: list[BaseMessage] | None = None,
     ) -> None:
         if self.agentic_graph is None:
             answer = (
@@ -293,6 +333,7 @@ class HarnessSupervisor:
             "ctx": ctx,
             "evidence": [],
             "turn_count": 0,
+            "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
             final_state = await self.agentic_graph.ainvoke(initial_state)
@@ -308,6 +349,7 @@ class HarnessSupervisor:
         record: HarnessRunRecord,
         progress: Any,
         route: HarnessRoute | None = None,
+        prior_messages: list[BaseMessage] | None = None,
     ) -> None:
         if self.meta_model is None:
             answer = (
@@ -332,6 +374,7 @@ class HarnessSupervisor:
                 model=instrumented_meta_model,
                 primer=self.meta_primer,
                 catalog=self.meta_catalog,
+                prior_messages=prior_messages or [],
             )
         record.answer = delta.get("answer") or "(no answer produced by meta agent)"
         progress(

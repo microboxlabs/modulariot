@@ -29,8 +29,12 @@ const MoveBodySchema = z.object({
     })
     .optional(),
 });
+type MoveBody = z.infer<typeof MoveBodySchema>;
 
 type CalendarClient = ReturnType<typeof createMiotCalendarClient>;
+type Result<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: NextResponse };
 
 /**
  * Reverse-move compensation: re-issue a move using the pre-move snapshot so
@@ -58,6 +62,86 @@ async function compensateMove(
   }
 }
 
+async function parseMoveBody(request: Request): Promise<Result<MoveBody>> {
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      ),
+    };
+  }
+  const parsed = MoveBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: NextResponse.json(
+        { error: "slot { date, hour, minutes } is required" },
+        { status: 400 }
+      ),
+    };
+  }
+  return { ok: true, value: parsed.data };
+}
+
+/**
+ * Snapshot the pre-move state so we can reverse the move if the downstream
+ * calendar-binding call fails. The booking id is stable across a move so
+ * this is just one extra GET, not a wholly different write.
+ */
+async function snapshotBooking(
+  client: CalendarClient,
+  bookingId: string
+): Promise<Result<BookingResponse>> {
+  try {
+    return { ok: true, value: await client.bookings.get(bookingId) };
+  } catch (error) {
+    const status = error instanceof MiotCalendarApiError ? error.status : 500;
+    if (status === 404) {
+      return {
+        ok: false,
+        error: NextResponse.json(
+          { error: "Booking not found" },
+          { status: 404 }
+        ),
+      };
+    }
+    logger.error({ err: error, bookingId }, "Failed to load booking for move");
+    return {
+      ok: false,
+      error: NextResponse.json(
+        { error: "Failed to load booking" },
+        { status }
+      ),
+    };
+  }
+}
+
+async function executeMove(
+  client: CalendarClient,
+  bookingId: string,
+  body: MoveBody
+): Promise<Result<BookingResponse>> {
+  try {
+    return { ok: true, value: await client.bookings.move(bookingId, body) };
+  } catch (error) {
+    const status = error instanceof MiotCalendarApiError ? error.status : 500;
+    const message =
+      error instanceof MiotCalendarApiError
+        ? error.message
+        : "Failed to move booking";
+    logger.error({ err: error, bookingId }, "Failed to move booking");
+    return {
+      ok: false,
+      error: NextResponse.json({ error: message }, { status }),
+    };
+  }
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
@@ -67,23 +151,8 @@ export async function POST(
 
   const { bookingId } = await params;
 
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 }
-    );
-  }
-
-  const parsed = MoveBodySchema.safeParse(rawBody);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "slot { date, hour, minutes } is required" },
-      { status: 400 }
-    );
-  }
+  const body = await parseMoveBody(request);
+  if (!body.ok) return body.error;
 
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
@@ -92,44 +161,12 @@ export async function POST(
     },
   });
 
-  // Snapshot the pre-move state so we can reverse the move if the downstream
-  // calendar-binding call fails. The booking id is stable across a move so
-  // this is just one extra GET, not a wholly different write.
-  let original: BookingResponse;
-  try {
-    original = await client.bookings.get(bookingId);
-  } catch (error) {
-    const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    if (status === 404) {
-      return NextResponse.json(
-        { error: "Booking not found" },
-        { status: 404 }
-      );
-    }
-    logger.error({ err: error, bookingId }, "Failed to load booking for move");
-    return NextResponse.json(
-      { error: "Failed to load booking" },
-      { status }
-    );
-  }
+  const snapshot = await snapshotBooking(client, bookingId);
+  if (!snapshot.ok) return snapshot.error;
 
-  // Run the move.
-  let moved: BookingResponse;
-  try {
-    moved = await client.bookings.move(bookingId, parsed.data);
-  } catch (error) {
-    const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error, bookingId }, "Failed to move booking");
-    return NextResponse.json(
-      {
-        error:
-          error instanceof MiotCalendarApiError
-            ? error.message
-            : "Failed to move booking",
-      },
-      { status }
-    );
-  }
+  const move = await executeMove(client, bookingId, body.value);
+  if (!move.ok) return move.error;
+  const moved = move.value;
 
   // Notify the coordinator about the (possibly refreshed) calendar binding.
   // Stage is derived from `resource.data` exactly like the create path — the
@@ -140,28 +177,26 @@ export async function POST(
     calendarId: moved.calendarId,
     resource: { data: moved.resource.data },
   });
-  if (bindingPayload) {
-    const bindingResult = await runCalendarBinding(
-      authResult.session,
-      bindingPayload
-    );
-    if (!bindingResult.ok) {
-      const compensation = await compensateMove(
-        client,
-        bookingId,
-        original,
-        bindingResult.message
-      );
-      return NextResponse.json(
-        {
-          error: bindingResult.message,
-          calendarBindingFailed: true,
-          bookingCompensated: compensation.compensated,
-        },
-        { status: bindingResult.status }
-      );
-    }
-  }
+  if (!bindingPayload) return NextResponse.json(moved);
 
-  return NextResponse.json(moved);
+  const bindingResult = await runCalendarBinding(
+    authResult.session,
+    bindingPayload
+  );
+  if (bindingResult.ok) return NextResponse.json(moved);
+
+  const compensation = await compensateMove(
+    client,
+    bookingId,
+    snapshot.value,
+    bindingResult.message
+  );
+  return NextResponse.json(
+    {
+      error: bindingResult.message,
+      calendarBindingFailed: true,
+      bookingCompensated: compensation.compensated,
+    },
+    { status: bindingResult.status }
+  );
 }

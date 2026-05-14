@@ -34,13 +34,13 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { BookingTaskAdvance } from "@/features/common/providers/client-api.provider";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
-import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
-import { z } from "zod";
 import type {
   BookingRequest,
   BookingResponse,
   MoveBookingRequest,
+  SlotResponse,
 } from "@microboxlabs/miot-calendar-client";
+import { z } from "zod";
 import {
   asTaskStageFromColumn,
   getNextTransition,

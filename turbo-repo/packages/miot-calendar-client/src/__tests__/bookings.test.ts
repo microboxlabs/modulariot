@@ -111,6 +111,19 @@ describe("bookings", () => {
       expect(headers["X-User-Id"]).toBe("user-42");
     });
 
+    it("forwards excludeBookingId in the request body when set", async () => {
+      const { fn, call } = createMockFetch(sampleBooking);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const reassignRequest: BookingRequest = {
+        ...bookingRequest,
+        excludeBookingId: "old-booking-id",
+      };
+      await client.bookings.create(reassignRequest);
+
+      expect(call.init.body).toBe(JSON.stringify(reassignRequest));
+    });
+
     it("does not send X-User-Id when userId is not provided", async () => {
       const { fn, call } = createMockFetch(sampleBooking);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });

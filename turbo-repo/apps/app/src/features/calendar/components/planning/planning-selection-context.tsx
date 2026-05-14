@@ -738,7 +738,8 @@ interface PersistPlannedBookingParams {
 function buildBookingRequest(
   calendarId: string,
   service: SelectedService,
-  slot: SelectedSlot
+  slot: SelectedSlot,
+  oldBookingId: string | undefined
 ): BookingRequest {
   return {
     calendarId,
@@ -756,6 +757,10 @@ function buildBookingRequest(
       hour: slot.hour,
       minutes: slot.minutes,
     },
+    // During reassignment the server runs the window-capacity check before the old
+    // booking is cancelled, so without this exclude any in-window move would be
+    // rejected (the moved booking would be counted twice).
+    ...(oldBookingId ? { excludeBookingId: oldBookingId } : {}),
   };
 }
 
@@ -790,7 +795,7 @@ async function persistPlannedBooking({
   }
 
   try {
-    const bookingRequest = buildBookingRequest(calendarId, service, slot);
+    const bookingRequest = buildBookingRequest(calendarId, service, slot, oldBookingId);
     const booking = await createBooking(bookingRequest);
 
     // Re-confirming a service in the same slot (e.g. "Asignar" on an

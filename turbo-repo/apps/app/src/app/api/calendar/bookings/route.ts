@@ -37,6 +37,12 @@ type AppBookingRequest = {
   };
   slot: BookingSlot;
   /**
+   * Existing booking id to exclude from the window-capacity count. Set during
+   * reassignment so the validator doesn't double-count the booking being moved
+   * (the cancel of the old booking runs after the new one is created).
+   */
+  excludeBookingId?: string;
+  /**
    * Optional Alfresco workflow advance to run as part of the same operation.
    * Booking is written first; if the task transition fails, the booking
    * created in this request is canceled (compensation). When the booking

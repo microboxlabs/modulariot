@@ -76,6 +76,12 @@ _MUTATION_NODES = (
     exp.TruncateTable,
     exp.Merge,
     exp.Copy,
+    # Row-locking syntax (`SELECT … FOR UPDATE`, `FOR SHARE`, `FOR KEY SHARE`,
+    # incl. `NOWAIT` / `SKIP LOCKED`). Read-shaped at the AST level but
+    # acquires row-level locks — against `nexo.dx_*` snapshots this can block
+    # the refresh job; against Citus it can escalate. The read-only DB role
+    # would refuse it at runtime, but gate it here for defense in depth.
+    exp.Lock,
 )
 
 

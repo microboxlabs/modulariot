@@ -195,6 +195,29 @@ def test_validator_rejects_merge_and_copy(sql: str) -> None:
         validate_select_sql(sql)
 
 
+# --- Row-locking syntax (post-review bypass class) ---
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT * FROM nexo.dx_servicios FOR UPDATE",
+        "SELECT * FROM nexo.dx_servicios FOR UPDATE NOWAIT",
+        "SELECT * FROM nexo.dx_servicios FOR UPDATE SKIP LOCKED",
+        "SELECT * FROM nexo.dx_servicios FOR SHARE",
+        "SELECT * FROM nexo.dx_servicios FOR KEY SHARE",
+    ],
+)
+def test_validator_rejects_row_locking(sql: str) -> None:
+    """`SELECT … FOR UPDATE / FOR SHARE` is read-shaped at the AST level but
+    acquires row locks — against `nexo.dx_*` snapshots it can block the
+    refresh job. The DB role is read-only at runtime, but defense-in-depth
+    rejects it at the gate."""
+
+    with pytest.raises(MutationRejected):
+        validate_select_sql(sql)
+
+
 # --------------------- Functional (mocked pool) ---------------------
 
 

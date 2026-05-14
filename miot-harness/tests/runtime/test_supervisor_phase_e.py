@@ -111,9 +111,19 @@ async def test_explicit_meta_mode_calls_meta_agent(tmp_path: Any) -> None:
 async def test_meta_mode_per_agent_span_carries_tenant_tag(
     tmp_path: Any, memory_exporter: Any
 ) -> None:
-    """NEXO_META observation-level attribution: the inner LLM call must carry
-    the same `modular.agent`/`langfuse.tags` attrs as canned/agentic paths,
-    so per-tenant cost rollups don't miss meta-route observations.
+    """NEXO_META observation-level attribution: the harness-emitted
+    per-agent ``nexo.meta_agent`` span carries the same
+    ``modular.{agent, tenant_id, mode}`` + ``langfuse.tags`` attrs as
+    canned/agentic paths.
+
+    Scope: covers the harness-side wrap (the per-agent span emitted by
+    ``NexoTelemetryCallback`` when ``_run_nexo_meta`` calls
+    ``instrument_model(self.meta_model, "meta_agent", ctx)``). It does
+    NOT exercise Traceloop's auto-instrumented ``anthropic.chat`` child
+    observation — ``FakeListChatModel`` doesn't trigger the Anthropic
+    SDK instrumentor. The Traceloop child-observation path was verified
+    live via ClickHouse query (PR #470 description), confirming the
+    inner observation row carries the same tenant tag after the wrap.
     """
 
     import json as _json

@@ -26,7 +26,7 @@ from miot_harness.runtime.conversation import (
     InMemoryConversationStore,
 )
 from miot_harness.runtime.intent_router import LLMIntentRouter
-from miot_harness.runtime.router import HarnessRoute, IntentRouter
+from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule
@@ -105,6 +105,49 @@ async def test_explicit_meta_mode_calls_meta_agent(tmp_path: Any) -> None:
         UserRequest(message="what data?", tenant_id="any-tenant", mode="meta")
     )
     assert "fn_dx_centro_control" in (record.answer or "")
+
+
+@pytest.mark.asyncio
+async def test_meta_mode_per_agent_span_carries_tenant_tag(
+    tmp_path: Any, memory_exporter: Any
+) -> None:
+    """NEXO_META observation-level attribution: the inner LLM call must carry
+    the same `modular.agent`/`langfuse.tags` attrs as canned/agentic paths,
+    so per-tenant cost rollups don't miss meta-route observations.
+    """
+
+    import json as _json
+
+    meta_model = FakeListChatModel(responses=["primer answer"])
+    supervisor = _build_supervisor(
+        tmp_path,
+        llm_router=_scripted_llm_router("DIRECT"),
+        meta_model=meta_model,
+    )
+    await supervisor.run(
+        UserRequest(
+            message="what data?",
+            tenant_id="acme-corp",
+            user_id="alice",
+            mode="meta",
+        )
+    )
+
+    nexo_spans = [
+        s
+        for s in memory_exporter.get_finished_spans()
+        if s.attributes and s.attributes.get("modular.agent") == "meta_agent"
+    ]
+    assert nexo_spans, "meta_agent per-agent span not emitted"
+    attrs = dict(nexo_spans[0].attributes or {})
+    assert attrs["modular.agent"] == "meta_agent"
+    assert attrs["modular.tenant_id"] == "acme-corp"
+    assert attrs["modular.mode"] == "meta"
+    assert attrs["langfuse.user.id"] == "alice"
+    tags = _json.loads(attrs["langfuse.tags"])
+    assert "tenant:acme-corp" in tags
+    assert "mode:meta" in tags
+    assert "agent:meta_agent" in tags
 
 
 @pytest.mark.asyncio

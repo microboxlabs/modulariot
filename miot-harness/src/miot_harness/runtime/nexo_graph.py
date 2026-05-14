@@ -49,7 +49,9 @@ from miot_harness.runtime.tenancy import tenancy_gate_decision
 from miot_harness.tools.registry import ToolRegistry
 
 
-def _instrument(model: BaseChatModel, agent_name: str, ctx: HarnessContext) -> Any:
+def instrument_model(
+    model: BaseChatModel, agent_name: str, ctx: HarnessContext
+) -> Any:
     """Wrap a chat model with a per-agent telemetry callback for this run.
 
     The callback emits one ``nexo.<agent>`` span per LLM call with full
@@ -137,7 +139,7 @@ def build_nexo_graph(
         return await filter_expert_node(
             cast(dict[str, Any], state),
             registry=registry,
-            model=_instrument(models["filter_expert"], "filter_expert", ctx),
+            model=instrument_model(models["filter_expert"], "filter_expert", ctx),
         )
 
     async def _data_fetcher(state: NexoState) -> dict[str, Any]:
@@ -161,7 +163,7 @@ def build_nexo_graph(
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         return await domain_analyst_node(
             cast(dict[str, Any], state),
-            model=_instrument(models["domain_analyst"], "domain_analyst", ctx),
+            model=instrument_model(models["domain_analyst"], "domain_analyst", ctx),
         )
 
     async def _synthesizer(state: NexoState) -> dict[str, Any]:
@@ -169,7 +171,7 @@ def build_nexo_graph(
         buf, progress = _make_event_buffer()
         delta = await synthesizer_node(
             cast(dict[str, Any], state),
-            model=_instrument(models["synthesizer"], "synthesizer", ctx),
+            model=instrument_model(models["synthesizer"], "synthesizer", ctx),
             progress=progress,
             settings=settings,
         )
@@ -180,14 +182,14 @@ def build_nexo_graph(
         return await critic_node(
             cast(dict[str, Any], state),
             settings=settings,
-            model=_instrument(models["critic"], "critic", ctx),
+            model=instrument_model(models["critic"], "critic", ctx),
         )
 
     async def _summarizer(state: NexoState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         return await summarizer_node(
             cast(dict[str, Any], state),
-            model=_instrument(models["summarizer"], "summarizer", ctx),
+            model=instrument_model(models["summarizer"], "summarizer", ctx),
         )
 
     async def _tenant_gate(state: NexoState) -> dict[str, Any]:

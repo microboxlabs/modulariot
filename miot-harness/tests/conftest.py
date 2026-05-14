@@ -19,10 +19,59 @@ deterministically on CI and on a populated dev box.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 
 import pytest
+from opentelemetry import trace
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from miot_harness.config import HarnessSettings
+
+_HARNESS_SPAN_PREFIXES = (
+    "nexo.",
+    # Traceloop / OpenLLMetry auto-instrumentation emits spans like
+    # `anthropic.chat`, `openai.chat`, `gen_ai.completion`.
+    "gen_ai.",
+    "anthropic.",
+    "openai.",
+)
+
+
+class _HarnessSpanExporter(InMemorySpanExporter):
+    """In-memory exporter that drops pytest-opentelemetry's per-test spans.
+
+    pytest-opentelemetry attaches a TracerProvider that emits one span per
+    test item / fixture / runtest call. We keep only spans produced by the
+    harness (`nexo.*`) and by the auto-instrumented LLM SDKs.
+    """
+
+    def export(self, spans: tuple[ReadableSpan, ...]) -> SpanExportResult:  # type: ignore[override]
+        filtered = tuple(s for s in spans if s.name.startswith(_HARNESS_SPAN_PREFIXES))
+        return super().export(filtered)
+
+
+@pytest.fixture(scope="session")
+def _session_exporter() -> Iterator[InMemorySpanExporter]:
+    provider = trace.get_tracer_provider()
+    if not isinstance(provider, TracerProvider):  # pragma: no cover
+        raise RuntimeError(
+            f"Expected an SDK TracerProvider, got {type(provider).__name__}; "
+            "telemetry tests cannot capture spans."
+        )
+    exporter = _HarnessSpanExporter()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    yield exporter
+
+
+@pytest.fixture()
+def memory_exporter(_session_exporter: InMemorySpanExporter) -> Iterator[InMemorySpanExporter]:
+    """Cleared between tests; available to every test file in the suite."""
+
+    _session_exporter.clear()
+    yield _session_exporter
+    _session_exporter.clear()
 
 
 @pytest.fixture(autouse=True)

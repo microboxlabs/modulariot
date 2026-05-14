@@ -37,6 +37,7 @@ from miot_harness.runtime.conversation import (
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.mode_resolver import ModeAccessDenied, resolve_mode
+from miot_harness.runtime.nexo_graph import instrument_model
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
 from miot_harness.storytelling.module import StorytellingModule
@@ -316,10 +317,19 @@ class HarnessSupervisor:
             record.answer = answer
             return
 
+        # Wrap meta_model with the per-agent telemetry callback so the
+        # `anthropic.chat` observation Traceloop auto-emits carries the
+        # same `modular.{agent,tenant_id,mode}` + `langfuse.tags` attrs
+        # as the canned/agentic paths. Without this, meta-route inner
+        # LLM-call cost slips through tenant rollups at observation
+        # granularity (the root trace carries them, but the child
+        # observation doesn't).
+        instrumented_meta_model = instrument_model(self.meta_model, "meta_agent", ctx)
+
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
             delta = await meta_agent_node(
                 {"user_message": request.message},
-                model=self.meta_model,
+                model=instrumented_meta_model,
                 primer=self.meta_primer,
                 catalog=self.meta_catalog,
             )

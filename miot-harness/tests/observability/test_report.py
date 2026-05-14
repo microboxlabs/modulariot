@@ -188,14 +188,30 @@ def test_project_langfuse_trace_handles_null_total_cost() -> None:
     assert attrs["gen_ai.usage.cost_usd"] == 0.0
 
 
-def test_project_langfuse_trace_picks_first_agent_tag() -> None:
-    """A trace with multiple `agent:` tags projects the first one."""
+def test_project_langfuse_trace_marks_multi_agent_with_sentinel() -> None:
+    """A trace with multiple `agent:` tags projects `(multi)` so the
+    aggregator bucket is visibly distinct from any single-agent bucket.
+
+    Previously this projected the first `agent:` tag and silently dropped
+    the rest, undercounting per-agent rollups for canned-mode runs that
+    fire 3+ agents. The sentinel makes the multi-agent case
+    operator-visible: billing dashboards see a `(multi)` bucket and know
+    to drill down via the observations endpoint.
+    """
 
     row = _langfuse_trace_fixture(
         tags=["agent:filter_expert", "agent:synthesizer", "tenant:mintral"]
     )
     attrs = _project_langfuse_trace(row)["attributes"]
-    assert attrs["modular.agent"] == "filter_expert"
+    assert attrs["modular.agent"] == "(multi)"
+
+
+def test_project_langfuse_trace_single_agent_uses_real_name() -> None:
+    """Single `agent:` tag still projects the real agent name (not the sentinel)."""
+
+    row = _langfuse_trace_fixture(tags=["agent:meta_agent", "tenant:gama", "mode:meta"])
+    attrs = _project_langfuse_trace(row)["attributes"]
+    assert attrs["modular.agent"] == "meta_agent"
 
 
 def _mock_langfuse_transport(pages: list[dict[str, object]]) -> httpx.MockTransport:

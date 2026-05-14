@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import base64
 import json
-import os
 import re
 from collections import defaultdict
 from collections.abc import Iterable
@@ -132,6 +131,9 @@ def _load_fixture(path: Path) -> list[dict[str, Any]]:
 _TAG_PREFIXES = ("tenant:", "mode:", "agent:", "route:")
 
 
+_MULTI_AGENT_SENTINEL = "(multi)"
+
+
 def _project_langfuse_trace(trace: dict[str, Any]) -> dict[str, Any]:
     """Convert a Langfuse v3 trace row into the shape `aggregate_cost` expects.
 
@@ -142,6 +144,17 @@ def _project_langfuse_trace(trace: dict[str, Any]) -> dict[str, Any]:
     totals live on observations (not trace-level in Langfuse v3); we
     project 0 here — cost rollups don't need them, and an
     observation-level fetcher is a follow-up.
+
+    **Multi-agent traces:** a canned-mode run fires multiple agents
+    (filter_expert + synthesizer + maybe critic) so the trace's `tags`
+    list contains multiple `agent:<name>` entries. For `--by tenant` /
+    `--by mode` this doesn't matter (those keys are single-valued). For
+    `--by agent` we set ``modular.agent = "(multi)"`` so the bucket is
+    visibly distinct from any single-agent run — billing operators see
+    "this trace touched multiple agents; drill down via the observations
+    endpoint" rather than silently undercounting the other agents. Full
+    per-observation attribution lands when the observations-endpoint
+    fetcher ships.
     """
 
     attrs: dict[str, Any] = {
@@ -149,6 +162,7 @@ def _project_langfuse_trace(trace: dict[str, Any]) -> dict[str, Any]:
         "gen_ai.usage.input_tokens": 0,
         "gen_ai.usage.output_tokens": 0,
     }
+    agent_names: list[str] = []
     for tag in trace.get("tags") or []:
         if not isinstance(tag, str):
             continue
@@ -157,11 +171,11 @@ def _project_langfuse_trace(trace: dict[str, Any]) -> dict[str, Any]:
         elif tag.startswith("mode:"):
             attrs["modular.mode"] = tag[len("mode:") :]
         elif tag.startswith("agent:"):
-            # A trace may carry multiple `agent:` tags (one per agent
-            # that fired). For `--by agent` at trace level we use the
-            # first; full per-agent attribution needs the observations
-            # endpoint, which is a follow-up.
-            attrs.setdefault("modular.agent", tag[len("agent:") :])
+            agent_names.append(tag[len("agent:") :])
+    if len(agent_names) == 1:
+        attrs["modular.agent"] = agent_names[0]
+    elif len(agent_names) > 1:
+        attrs["modular.agent"] = _MULTI_AGENT_SENTINEL
     return {"attributes": attrs}
 
 
@@ -222,21 +236,28 @@ def fetch_traces_window(
 
 
 def _live_traces(since: timedelta) -> list[dict[str, Any]]:
-    """Operator-facing wrapper: pull creds from env, fetch, project."""
+    """Operator-facing wrapper: pull config from HarnessSettings, fetch, project.
 
-    host = os.environ.get("MIOT_HARNESS_LANGFUSE_HOST", "http://localhost:3000")
-    public_key = os.environ.get("MIOT_HARNESS_LANGFUSE_PUBLIC_KEY")
-    secret_key = os.environ.get("MIOT_HARNESS_LANGFUSE_SECRET_KEY")
-    if not public_key or not secret_key:
+    Read through ``get_settings()`` rather than direct ``os.environ`` so the
+    pydantic-settings layer applies (`.env` file resolution, type validation,
+    `MIOT_HARNESS_` prefix, the documented `langfuse_host` default). Keeping
+    a single source of truth for these values avoids the dead-default trap
+    where `HarnessSettings.langfuse_host` and a hardcoded fallback drift.
+    """
+
+    from miot_harness.config import get_settings
+
+    settings = get_settings()
+    if not settings.langfuse_public_key or not settings.langfuse_secret_key:
         raise RuntimeError(
             "live Langfuse fetch needs MIOT_HARNESS_LANGFUSE_PUBLIC_KEY and "
             "MIOT_HARNESS_LANGFUSE_SECRET_KEY in the environment (run "
             "`./infra/observability/bootstrap.sh` to mint them)"
         )
     raw = fetch_traces_window(
-        host=host,
-        public_key=public_key,
-        secret_key=secret_key,
+        host=settings.langfuse_host,
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
         since=since,
     )
     return [_project_langfuse_trace(t) for t in raw]

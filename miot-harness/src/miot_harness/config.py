@@ -64,6 +64,10 @@ class HarnessSettings(BaseSettings):
     otel_environment: str = "local"
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
+    # Where the cost-report CLI fetches traces from (also used by future
+    # ops tooling). Default points at the local docker-compose stack; in
+    # prod this becomes the deployed Langfuse URL.
+    langfuse_host: str = "http://localhost:3000"
 
     # Multi-agent model assignment (per plan 12 §"Cost-control rules")
     nexo_supervisor_mode: Literal["rule", "llm"] = "rule"

@@ -113,3 +113,14 @@ def test_langfuse_keys_read_from_env(monkeypatch):
 
     assert settings.langfuse_public_key == "pk-lf-test"
     assert settings.langfuse_secret_key == "sk-lf-test"
+
+
+def test_langfuse_host_default_points_at_local_stack():
+    settings = HarnessSettings()
+    assert settings.langfuse_host == "http://localhost:3000"
+
+
+def test_langfuse_host_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_HOST", "https://langfuse.internal.modulariot.dev")
+    settings = HarnessSettings()
+    assert settings.langfuse_host == "https://langfuse.internal.modulariot.dev"

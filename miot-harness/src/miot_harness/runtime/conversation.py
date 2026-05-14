@@ -19,7 +19,10 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
+_DEFAULT_HYDRATE_LAST_N = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,3 +87,29 @@ class InMemoryConversationStore:
             return False
         history.summary = await summarizer(history)
         return True
+
+
+def to_messages(
+    history: ConversationHistory,
+    *,
+    last_n: int = _DEFAULT_HYDRATE_LAST_N,
+) -> list[BaseMessage]:
+    """Project the most recent ``last_n`` turns into a LangChain message list.
+
+    Used by the supervisor to hydrate `NexoState.prior_messages` before graph
+    dispatch. Each `ConversationTurn(user_message, assistant_answer)` expands
+    to a `[HumanMessage, AIMessage]` pair, in chronological order. Older
+    turns are silently dropped — the hard cap keeps token cost predictable.
+
+    Returns an empty list when the history has no turns. The supervisor's
+    docstring promises "multi-turn chats accumulate context across `/runs`
+    calls" — this function is the half of that contract that was missing in
+    E5.
+    """
+
+    recent = history.turns[-last_n:] if last_n > 0 else []
+    msgs: list[BaseMessage] = []
+    for turn in recent:
+        msgs.append(HumanMessage(content=turn.user_message))
+        msgs.append(AIMessage(content=turn.assistant_answer))
+    return msgs

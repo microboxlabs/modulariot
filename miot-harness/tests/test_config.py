@@ -124,3 +124,14 @@ def test_langfuse_host_read_from_env(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_HOST", "https://langfuse.internal.modulariot.dev")
     settings = HarnessSettings()
     assert settings.langfuse_host == "https://langfuse.internal.modulariot.dev"
+
+
+def test_conversation_turn_cap_default_is_ten():
+    settings = HarnessSettings()
+    assert settings.conversation_turn_cap == 10
+
+
+def test_conversation_turn_cap_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TURN_CAP", "25")
+    settings = HarnessSettings()
+    assert settings.conversation_turn_cap == 25

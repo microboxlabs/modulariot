@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 
 from miot_harness.runtime.conversation import (
     ConversationHistory,
     ConversationTurn,
     InMemoryConversationStore,
+    to_messages,
 )
 
 
@@ -103,3 +105,53 @@ def test_conversation_id_round_trips_across_two_runs() -> None:
     history = store.get("conv-Z")
     assert history is not None
     assert [t.user_message for t in history.turns] == ["q1", "q2"]
+
+
+# --- to_messages hydration helper ---
+
+
+def test_to_messages_empty_history_returns_empty_list() -> None:
+    history = ConversationHistory(conversation_id="empty")
+    assert to_messages(history) == []
+
+
+def test_to_messages_alternates_human_then_ai() -> None:
+    """Each turn becomes a HumanMessage followed by an AIMessage, in order."""
+
+    history = ConversationHistory(
+        conversation_id="conv",
+        turns=[
+            ConversationTurn(user_message="q1", assistant_answer="a1"),
+            ConversationTurn(user_message="q2", assistant_answer="a2"),
+        ],
+    )
+    msgs = to_messages(history)
+    assert [type(m) for m in msgs] == [HumanMessage, AIMessage, HumanMessage, AIMessage]
+    assert [m.content for m in msgs] == ["q1", "a1", "q2", "a2"]
+
+
+def test_to_messages_caps_at_last_n_most_recent_turns() -> None:
+    """When the conversation is longer than `last_n`, only the most recent
+    `last_n` turns are projected (older turns silently dropped)."""
+
+    history = ConversationHistory(
+        conversation_id="long",
+        turns=[
+            ConversationTurn(user_message=f"q{i}", assistant_answer=f"a{i}")
+            for i in range(15)
+        ],
+    )
+    msgs = to_messages(history, last_n=3)
+    assert len(msgs) == 6  # 3 turns × 2 messages each
+    # The 3 most-recent turns are q12/a12, q13/a13, q14/a14 (0-indexed).
+    assert [m.content for m in msgs] == ["q12", "a12", "q13", "a13", "q14", "a14"]
+
+
+def test_to_messages_last_n_zero_returns_empty() -> None:
+    """A 0 cap means 'no history'; the helper returns an empty list."""
+
+    history = ConversationHistory(
+        conversation_id="any",
+        turns=[ConversationTurn(user_message="q", assistant_answer="a")],
+    )
+    assert to_messages(history, last_n=0) == []

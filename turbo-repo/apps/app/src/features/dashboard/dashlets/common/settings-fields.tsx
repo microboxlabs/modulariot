@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Label, TextInput, Textarea, Select } from "flowbite-react";
+import { Label, TextInput, Textarea, Select, Tooltip } from "flowbite-react";
+import { HiQuestionMarkCircle } from "react-icons/hi2";
+import Markdown from "react-markdown";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
@@ -429,6 +431,8 @@ interface HbTextFieldProps {
   placeholder?: string;
   /** Column keys for Handlebars autocomplete (e.g. ["total", "status"]) */
   schemaSuggestions?: string[];
+  /** Markdown string shown in a ? tooltip next to the label */
+  tooltip?: string;
 }
 
 /**
@@ -443,12 +447,40 @@ export function HbTextField({
   onChange,
   placeholder,
   schemaSuggestions,
+  tooltip,
 }: Readonly<HbTextFieldProps>) {
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {label}
-      </Label>
+      <div className="mb-1 flex items-center gap-1">
+        <Label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </Label>
+        {tooltip && (
+          <Tooltip
+            content={
+              <div className="max-w-64 text-left text-xs">
+                <Markdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                    em: ({ children }) => <em className="italic opacity-80">{children}</em>,
+                    code: ({ children }) => (
+                      <code className="rounded bg-white/20 px-1 py-0.5 font-mono">
+                        {children}
+                      </code>
+                    ),
+                  }}
+                >
+                  {tooltip}
+                </Markdown>
+              </div>
+            }
+            placement="top"
+          >
+            <HiQuestionMarkCircle className="h-3.5 w-3.5 cursor-help text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300" />
+          </Tooltip>
+        )}
+      </div>
       <HbAutoInput
         id={id}
         value={value}

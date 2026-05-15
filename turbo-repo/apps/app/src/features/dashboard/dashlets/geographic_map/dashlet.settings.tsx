@@ -23,6 +23,7 @@ import {
   SettingsNumberField,
   HbInlineInput,
   HbTextareaField,
+  HbTextField,
 } from "../common/settings-fields";
 import { DeleteItemButton } from "../common/delete-item-button";
 import { useActiveProviders } from "../common/use-active-providers";
@@ -1355,41 +1356,45 @@ function LayerStyleCard({
         )}
 
         {hasDataProvider && item.transformWkb && (
-          <SettingsTextField
+          <HbTextField
             id={`geo-geomfield-${item.id}`}
             label={tr("dashboard.settings.geometryField", dictionary)}
             value={item.geometryField}
             onChange={(v) => set("geometryField", v)}
             placeholder="location"
+            tooltip={tr("dashboard.settings.geometryFieldTooltip", dictionary)}
           />
         )}
 
         {hasDataProvider && !item.transformWkb && (
           <div className="grid grid-cols-2 gap-2">
-            <SettingsTextField
+            <HbTextField
               id={`geo-latfield-${item.id}`}
               label={tr("dashboard.settings.latField", dictionary)}
               value={item.latField}
               onChange={(v) => set("latField", v)}
               placeholder="lat"
+              tooltip={tr("dashboard.settings.latFieldTooltip", dictionary)}
             />
-            <SettingsTextField
+            <HbTextField
               id={`geo-lngfield-${item.id}`}
               label={tr("dashboard.settings.lngField", dictionary)}
               value={item.lngField}
               onChange={(v) => set("lngField", v)}
               placeholder="lng"
+              tooltip={tr("dashboard.settings.lngFieldTooltip", dictionary)}
             />
           </div>
         )}
 
         {hasDataProvider && (
-          <SettingsTextField
+          <HbTextField
             id={`geo-responsepath-${item.id}`}
             label={tr("dashboard.settings.responsePath", dictionary)}
             value={item.responsePath}
             onChange={(v) => set("responsePath", v)}
             placeholder="data.results"
+            tooltip={tr("dashboard.settings.responsePathTooltip", dictionary)}
           />
         )}
       </div>

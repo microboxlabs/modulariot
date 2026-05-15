@@ -37,3 +37,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dead-code cleanup scaffolding (knip iteration)
+DEADCODE-PLAN.md
+.knip-initial-report.txt
+.knip-pass-*.txt

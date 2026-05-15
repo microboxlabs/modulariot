@@ -3,7 +3,6 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
-  type ColorRule,
   type ColorRuleItem,
   type ColorRulesConfig,
 } from "../common/color-rule-setter";

@@ -2,7 +2,6 @@
 
 import {
   type ColorRule,
-  type ColorRuleItem,
   type ColorRulesConfig,
 } from "../common/color-rule-setter";
 import { createValueColorRulesUtils, textIconTargets } from "../common/value-color-rules-factory";

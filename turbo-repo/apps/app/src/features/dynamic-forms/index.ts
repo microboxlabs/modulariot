@@ -60,7 +60,6 @@ export type { DynamicFormState } from "./hooks";
 // Components
 export {
   DynamicFormField,
-  CustomFormField,
   DisplayField,
   LiveFormField,
 } from "./components";

@@ -37,9 +37,6 @@ export {
 export { DashletSettings as ContainerSettings } from "./dashlet.settings";
 export { dashletMeta as containerMeta } from "./dashlet.meta";
 
-/** @deprecated Use dashletDefinition instead */
-export const containerDefinition = dashletDefinition;
-
 // ============================================================================
 // TYPE EXPORTS
 // ============================================================================

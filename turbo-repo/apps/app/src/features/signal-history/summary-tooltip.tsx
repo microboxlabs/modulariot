@@ -5,7 +5,7 @@ import { HistoricSignal } from "./types/historic-signal.type";
 import { useEffect, useState, memo } from "react";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
-import FormattedDate from "../common/components/formatted-date";
+import { FormattedDate } from "../common/components/formatted-date";
 import { handleDownloadCsv } from "./utils/download-csv";
 import PulseDetailView from "./pulse-detail-view";
 

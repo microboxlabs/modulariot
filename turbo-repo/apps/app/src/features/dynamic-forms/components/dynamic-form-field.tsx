@@ -283,10 +283,3 @@ export function DynamicFormField({
     </div>
   );
 }
-
-// ============================================
-// Legacy export for backward compatibility
-// ============================================
-
-/** @deprecated Use DynamicFormField instead */
-export const CustomFormField = DynamicFormField;

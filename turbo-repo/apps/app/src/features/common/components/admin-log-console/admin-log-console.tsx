@@ -306,5 +306,3 @@ export function AdminLogConsole({ className = "" }: AdminLogConsoleProps) {
     </div>
   );
 }
-
-export default AdminLogConsole;

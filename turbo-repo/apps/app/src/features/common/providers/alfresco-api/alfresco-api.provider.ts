@@ -36,6 +36,8 @@ import type {
   MessageTemplatesResponse,
   StatisticsMode,
   StatisticsTasksResponse,
+  LegacyPeopleSearchResponse,
+  LegacyGroupSearchResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import type { FetcherError } from "../fetcher.types";
@@ -1987,9 +1989,7 @@ export async function searchPeople(
   });
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/people?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = await fetcher<
-    import("./alfresco-api.types").LegacyPeopleSearchResponse
-  >(url, {
+  const result = await fetcher<LegacyPeopleSearchResponse>(url, {
     method: "GET",
     headers,
   });
@@ -2031,9 +2031,7 @@ export async function searchGroups(
   });
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/groups?${params.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = await fetcher<
-    import("./alfresco-api.types").LegacyGroupSearchResponse
-  >(url, {
+  const result = await fetcher<LegacyGroupSearchResponse>(url, {
     method: "GET",
     headers,
   });

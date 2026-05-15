@@ -1,8 +1,3 @@
-export type TasksResponse = {
-  data: Task[];
-  paging: Paging;
-};
-
 export type FastTasksResponse = {
   tasks: { persistentState?: PersistentState } & Record<string, unknown>[];
   total: number;
@@ -138,15 +133,6 @@ export type StatisticsMode =
 export interface StatisticsTasksResponse {
   totals: Record<string, number>;
 }
-
-export type TotalCount = {
-  startevent1: number; //(Start): wfship:startEvent
-  transportValidation: number; //(Validar Conductor / Transporte): wfship:transportValidationTask
-  missionControlTripInit: number; //(Torre de Control: Iniciar Viaje): wfship:missionControlTripInitTask
-  overlordTripInit: number; //(Overlord: Iniciar viaje (Confirmación)): wfship:overlordTripInitTask
-  sovosDigitalSignature: number; //(Firma Digital Carta de Porte): wfship:sovosDigitalSignature
-  tripOutsideInitiated: number; //(Iniciado Sin Coordinación): wfship:tripOutsideInitiatedTask
-};
 
 export type AlfrescoErrorResponse = {
   code: string;
@@ -492,15 +478,6 @@ export type AlfrescoNodePermissions = {
   settable?: string[];
 };
 
-export type NodePermissionsResponse = {
-  entry: {
-    id: string;
-    name: string;
-    nodeType: string;
-    permissions?: AlfrescoNodePermissions;
-  };
-};
-
 export type NodePermissionsUpdate = {
   isInheritanceEnabled?: boolean;
   locallySet?: AlfrescoPermissionEntry[];
@@ -512,29 +489,20 @@ export type AuthoritySuggestion = {
   kind: "user" | "group";
 };
 
-export type PeopleSearchResponse = {
-  list: {
-    entries: Array<{
-      entry: {
-        id: string;
-        firstName?: string;
-        lastName?: string;
-        displayName?: string;
-        email?: string;
-      };
-    }>;
-  };
-};
-
-export type GroupSearchResponse = {
-  list: {
-    entries: Array<{
-      entry: {
-        id: string;
-        displayName?: string;
-      };
-    }>;
-  };
+/**
+ * Response of Alfresco's legacy people-search webscript, used by Share's
+ * people picker: `GET /alfresco/s/api/people?filter=term`.
+ * Filters against firstName, lastName, userName, email.
+ */
+export type LegacyPeopleSearchResponse = {
+  people: Array<{
+    userName: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    jobtitle?: string;
+    organization?: string;
+  }>;
 };
 
 /**
@@ -558,18 +526,3 @@ export type LegacyGroupSearchResponse = {
   };
 };
 
-/**
- * Response of Alfresco's legacy people-search webscript, used by Share's
- * people picker: `GET /alfresco/s/api/people?filter=term`.
- * Filters against firstName, lastName, userName, email.
- */
-export type LegacyPeopleSearchResponse = {
-  people: Array<{
-    userName: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    jobtitle?: string;
-    organization?: string;
-  }>;
-};

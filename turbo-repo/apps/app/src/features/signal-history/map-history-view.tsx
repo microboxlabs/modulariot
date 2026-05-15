@@ -5,7 +5,7 @@ import { ChevronLeft } from "flowbite-react-icons/outline";
 import SignalsHistory from "./main-content";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
-import FormattedDate from "../common/components/formatted-date";
+import { FormattedDate } from "../common/components/formatted-date";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 

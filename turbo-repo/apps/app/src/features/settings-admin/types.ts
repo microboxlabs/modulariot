@@ -12,12 +12,6 @@ export interface OrgSummary {
   isParent: boolean;
 }
 
-export interface ActiveOrg extends OrgSummary {
-  role: string;
-  /** Open set — backend may add modules we don't yet know about. */
-  modules: string[];
-}
-
 export interface OrgMember {
   id: string;
   email: string;

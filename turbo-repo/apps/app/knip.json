@@ -2,35 +2,32 @@
     "$schema": "https://unpkg.com/knip@5/schema.json",
     "entry": [
         "src/app/**/*.{js,ts,jsx,tsx}",
-        "src/middleware.{js,ts}",
+        "src/proxy.ts",
+        "src/**/*.test.{js,ts,jsx,tsx}",
         "next.config.{js,mjs,ts}",
         "tailwind.config.{js,ts}",
-        "postcss.config.{js,ts}"
+        "postcss.config.{js,ts}",
+        "vitest.config.{js,ts}"
     ],
     "project": [
         "src/**/*.{js,ts,jsx,tsx}"
     ],
     "ignore": [
-        "src/**/*.test.{js,ts,jsx,tsx}",
-        "src/**/*.spec.{js,ts,jsx,tsx}",
         "**/*.d.ts",
         "public/autentia/**",
         "src/releases/**/*.mdx"
     ],
     "ignoreDependencies": [
-        "eslint",
         "@types/*",
-        "prettier",
-        "tailwindcss",
-        "autoprefixer",
-        "postcss"
+        "autoprefixer"
     ],
     "ignoreExportsUsedInFile": true,
     "workspaces": {
         ".": {
             "entry": [
                 "src/app/**/*.{js,ts,jsx,tsx}",
-                "src/middleware.{js,ts}"
+                "src/proxy.ts",
+                "src/**/*.test.{js,ts,jsx,tsx}"
             ]
         }
     }

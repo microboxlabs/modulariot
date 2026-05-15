@@ -29,17 +29,6 @@ export function isValidCoordinate(coords: any): boolean {
   );
 }
 
-export interface PulseLayerProps {
-  zoom: number;
-  selectedPulse?: any[];
-  showStops?: boolean;
-  data?: { features: any[] };
-  displayPosition?: number;
-  displayRange?: { startDate: Date; endDate: Date };
-  getPosition?: (d: any) => [number, number];
-  [key: string]: any; // Allow additional props
-}
-
 export abstract class BasePulsePinLayer extends CompositeLayer<any> {
   protected getCommonLayerProps() {
     const transitions = {

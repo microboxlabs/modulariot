@@ -17,9 +17,6 @@ export type ValueColorTarget = "text" | "bg" | "icon";
 /** A single value color rule for stat_icon */
 export type ValueColorRule = ColorRule<ValueColorTarget, string>;
 
-/** Rule with stable ID for list rendering */
-export type ValueColorRuleItem = ColorRuleItem<ValueColorTarget, string>;
-
 /** Configuration stored in DashletConfig */
 export type ValueColorRulesConfig = ColorRulesConfig<ValueColorTarget, string>;
 

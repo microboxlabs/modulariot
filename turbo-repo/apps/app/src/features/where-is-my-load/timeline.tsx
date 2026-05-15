@@ -18,7 +18,7 @@ import { HiExclamationCircle } from "react-icons/hi";
 import type { InformationBadge } from "@/features/common/components/custom-card/custom-card";
 import ModalTooltip from "@/features/shipping/components/modal-tooltip";
 import GenericComponent from "./components/state-components/generic";
-import FormattedDate from "../common/components/formatted-date";
+import { FormattedDate } from "../common/components/formatted-date";
 import { fromString } from "../common/services/days.service";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {

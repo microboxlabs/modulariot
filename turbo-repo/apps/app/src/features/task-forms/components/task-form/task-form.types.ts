@@ -5,15 +5,6 @@ import {
 import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import type { Session } from "next-auth";
 
-export type TaskFormProps = {
-  task: TaskResponse;
-  lang: string;
-  msg?: I18nDictionary;
-  ticket?: string;
-  user?: string;
-  userGroups: string[];
-};
-
 export interface ExtendedTaskResponse
   extends Partial<TaskResponse & HistoricalWorkflow> {
   mintral_serviceType: string;

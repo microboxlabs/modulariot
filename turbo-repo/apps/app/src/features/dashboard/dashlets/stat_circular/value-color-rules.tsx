@@ -20,9 +20,6 @@ import {
 /** What the rule applies to (ring only for this dashlet) */
 export type RingColorTarget = "ring";
 
-/** A single ring color rule */
-export type RingColorRule = ColorRule<RingColorTarget, string>;
-
 /** Rule with stable ID for list rendering */
 export type RingColorRuleItem = ColorRuleItem<RingColorTarget, string>;
 

@@ -26,9 +26,6 @@ export type CompareField = "previousValue" | "target";
 /** A single value color rule for stat_detailed */
 export type ValueColorRule = ColorRule<ValueColorTarget, CompareField>;
 
-/** Rule with stable ID for list rendering */
-export type ValueColorRuleItem = ColorRuleItem<ValueColorTarget, CompareField>;
-
 /** Configuration stored in DashletConfig */
 export type ValueColorRulesConfig = ColorRulesConfig<
   ValueColorTarget,

@@ -91,5 +91,4 @@ export const UpdateDataSourceSchema = z.object({
   tokenRequestFormat: z.enum(["form", "json"]).optional(),
 });
 
-export type CreateDataSourceInput = z.infer<typeof CreateDataSourceSchema>;
 export type UpdateDataSourceInput = z.infer<typeof UpdateDataSourceSchema>;

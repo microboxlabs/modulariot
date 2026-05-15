@@ -85,5 +85,4 @@ export class AuthToken {
     return this.token;
   }
 }
-export default AuthToken;
 export type { AuthTokenConfig };

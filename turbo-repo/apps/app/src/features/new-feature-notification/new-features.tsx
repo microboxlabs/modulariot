@@ -3,7 +3,6 @@ import SidebarSlider from "./slider-components/sidebar-slider";
 
 export enum typeDescriptor {
   Slidable, // It has multiple "Slides" of information
-  Dismissable, // It just has a button of "Dismiss" and the user can manualle mark it so it does not appear again
   Selectable, // It has the posibility to "Accept" or "Decline" the new feature and it will appear only once unless the user declines the feature
 }
 

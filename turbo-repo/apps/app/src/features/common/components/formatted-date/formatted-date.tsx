@@ -175,5 +175,3 @@ export const FormattedTimeOnly: React.FC<Omit<FormattedDateProps, "format">> = (
 export const FormattedRelative: React.FC<Omit<FormattedDateProps, "format">> = (
   props
 ) => <FormattedDate {...props} format="relative" />;
-
-export default FormattedDate;

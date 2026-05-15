@@ -56,12 +56,6 @@ export interface Collaborator {
   alerts?: CollaboratorAlert[];
 }
 
-export type CollaboratorStatus =
-  | "active"
-  | "at-risk"
-  | "outstanding"
-  | "inactive";
-
 export function getPerformanceStatus(
   score: number
 ): CollaboratorPerformanceStatus {

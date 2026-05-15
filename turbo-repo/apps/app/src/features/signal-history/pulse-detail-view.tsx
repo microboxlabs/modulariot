@@ -1,7 +1,7 @@
 import { HistoricSignal } from "./types/historic-signal.type";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
-import FormattedDate from "../common/components/formatted-date";
+import { FormattedDate } from "../common/components/formatted-date";
 import { memo } from "react";
 
 type PulseDetailViewProps = {

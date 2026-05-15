@@ -13,10 +13,6 @@ export type MessagesType = {
   messages: (path: string, params?: Record<string, string>) => string;
 };
 
-export type MessageTypeClientSide = {
-  messages: Record<string, string>;
-};
-
 export type ParamsWithLang<P = Record<string, unknown>> = Readonly<{
   params: Promise<
     {

@@ -1843,7 +1843,7 @@
       "lngField": "Longitude field",
       "lngFieldTooltip": "Name of the field in your data that holds the longitude (east-west position) of each point — a number between −180 and 180.\n\n**Example:** if your data has `{ \"lat\": 40.71, \"lng\": -74.00 }`, type `lng`.\n\n*Also accepts `{{variable}}` for dynamic values.*",
       "responsePath": "Response path",
-      "responsePathTooltip": "Dot-separated path to the list of map points inside the response. Leave empty if the list is at the root.\n\n**Example:** if your data is `{ \"data\": { \"results\": [...] } }`, type `data.results`.\n\n*Also accepts `{{variable}}` for dynamic values.*",
+      "responsePathTooltip": "If your data list is wrapped inside a container in the response, type the name of that container here.\n\n**Example:** if the response is `{ \"example\": [ ... ] }`, type `example`.\n\nIf it is nested inside multiple levels, separate them with dots: `level1.level2`.\n\nLeave empty if the response is directly the array.",
       "dataType": "Data Type",
       "columnFilter": "Filter",
       "columnFilterClear": "Clear filter",

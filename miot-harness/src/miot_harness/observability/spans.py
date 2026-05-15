@@ -48,7 +48,7 @@ def agent_span(
     """
 
     tracer = trace.get_tracer(_TRACER_NAME)
-    attributes: dict[str, object] = {
+    attributes: dict[str, str] = {
         "gen_ai.operation.name": f"nexo.{name}",
         "modular.run_id": run_id,
     }

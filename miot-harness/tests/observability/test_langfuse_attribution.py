@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 from uuid import uuid4
 
-import pytest
 from langchain_core.messages import HumanMessage
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
@@ -70,8 +69,8 @@ def test_agent_span_omits_langfuse_attrs_when_unset(
 def test_callback_emits_langfuse_attrs_on_llm_call(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    from langchain_core.outputs import ChatGeneration, LLMResult
     from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, LLMResult
 
     cb = NexoTelemetryCallback(
         agent_name="filter_expert",
@@ -128,8 +127,8 @@ def test_callback_omits_langfuse_attrs_when_not_provided(
 ) -> None:
     """Backward-compat: existing call sites without the E10 args still work."""
 
-    from langchain_core.outputs import ChatGeneration, LLMResult
     from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, LLMResult
 
     cb = NexoTelemetryCallback(
         agent_name="critic", run_id="run_old", tenant_id="mintral"

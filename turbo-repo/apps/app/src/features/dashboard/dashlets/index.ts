@@ -5,7 +5,7 @@
  * retrieve dashlet definitions, filter by category, and validate nesting rules.
  *
  * TO ADD A NEW DASHLET:
- * 1. Copy _template folder to your-dashlet-name
+ * 1. Copy an existing dashlet folder (e.g. info_card/) to your-dashlet-name
  * 2. Update dashlet.meta.ts (set id to folder name)
  * 3. Import { dashletDefinition as yourDashletDefinition } below
  * 4. Add yourDashletDefinition to DASHLET_DEFINITIONS array

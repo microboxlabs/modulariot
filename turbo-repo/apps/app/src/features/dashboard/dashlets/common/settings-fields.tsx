@@ -419,6 +419,16 @@ function HbAutoInput({
   );
 }
 
+// Stable markdown component overrides for the tooltip — defined outside
+// HbTextField so React never treats them as new references on each render.
+const MD_P = ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => <p className="mb-2 last:mb-0">{children}</p>;
+const MD_STRONG = ({ children }: React.HTMLAttributes<HTMLElement>) => <strong className="font-semibold">{children}</strong>;
+const MD_EM = ({ children }: React.HTMLAttributes<HTMLElement>) => <em className="italic opacity-80">{children}</em>;
+const MD_CODE = ({ children }: React.HTMLAttributes<HTMLElement>) => (
+  <code className="rounded bg-white/20 px-1 py-0.5 font-mono">{children}</code>
+);
+const MARKDOWN_COMPONENTS = { p: MD_P, strong: MD_STRONG, em: MD_EM, code: MD_CODE };
+
 // ============================================================================
 // HbTextField — Handlebars-aware TextInput with label
 // ============================================================================
@@ -459,18 +469,7 @@ export function HbTextField({
           <Tooltip
             content={
               <div className="max-w-64 text-left text-xs">
-                <Markdown
-                  components={{
-                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                    em: ({ children }) => <em className="italic opacity-80">{children}</em>,
-                    code: ({ children }) => (
-                      <code className="rounded bg-white/20 px-1 py-0.5 font-mono">
-                        {children}
-                      </code>
-                    ),
-                  }}
-                >
+                <Markdown components={MARKDOWN_COMPONENTS}>
                   {tooltip}
                 </Markdown>
               </div>

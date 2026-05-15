@@ -137,7 +137,7 @@ async def test_agentic_synthesizer_includes_prior_messages_in_llm_call() -> None
     bug Step 4 of PER_TENANT_BILLING_TEST.md surfaced.
     """
 
-    from langchain_core.messages import AIMessage, HumanMessage
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
     captured: list[list[Any]] = []
 
@@ -170,12 +170,15 @@ async def test_agentic_synthesizer_includes_prior_messages_in_llm_call() -> None
 
     assert captured, "synthesizer model was not invoked"
     sent_msgs = captured[0]
-    # The first messages in the prompt must be the prior turn's
-    # HumanMessage + AIMessage, BEFORE the current user message.
-    assert isinstance(sent_msgs[0], HumanMessage)
-    assert sent_msgs[0].content == "¿estado del coordinador hoy?"
-    assert isinstance(sent_msgs[1], AIMessage)
-    assert sent_msgs[1].content.startswith("## Estado")
+    # System prompt first — load-bearing for stub state (otherwise the
+    # LLM treats prior turn data as hallucinated by itself).
+    assert isinstance(sent_msgs[0], SystemMessage)
+    assert "agentic synthesizer" in sent_msgs[0].content.lower()
+    # Prior turn next, BEFORE the current user message.
+    assert isinstance(sent_msgs[1], HumanMessage)
+    assert sent_msgs[1].content == "¿estado del coordinador hoy?"
+    assert isinstance(sent_msgs[2], AIMessage)
+    assert sent_msgs[2].content.startswith("## Estado")
     # The last message is the current turn's user input.
     assert isinstance(sent_msgs[-1], HumanMessage)
     assert sent_msgs[-1].content == "tell me more about that"
@@ -186,7 +189,7 @@ async def test_agentic_synthesizer_handles_empty_prior_messages() -> None:
     """When state has no prior_messages (first turn or no conversation_id),
     the synthesizer falls back cleanly to a single-message prompt."""
 
-    from langchain_core.messages import HumanMessage
+    from langchain_core.messages import HumanMessage, SystemMessage
 
     captured: list[list[Any]] = []
 
@@ -212,6 +215,8 @@ async def test_agentic_synthesizer_handles_empty_prior_messages() -> None:
         }
     )
     sent_msgs = captured[0]
-    assert len(sent_msgs) == 1
-    assert isinstance(sent_msgs[0], HumanMessage)
-    assert sent_msgs[0].content == "first message"
+    # SystemMessage + current user HumanMessage. No prior turns.
+    assert len(sent_msgs) == 2
+    assert isinstance(sent_msgs[0], SystemMessage)
+    assert isinstance(sent_msgs[1], HumanMessage)
+    assert sent_msgs[1].content == "first message"

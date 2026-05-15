@@ -26,7 +26,7 @@ from miot_harness.runtime.conversation import (
     InMemoryConversationStore,
 )
 from miot_harness.runtime.intent_router import LLMIntentRouter
-from miot_harness.runtime.router import HarnessRoute, IntentRouter
+from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule

@@ -16,7 +16,6 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-
 _HARNESS_SPAN_PREFIXES = (
     "nexo.",
     # Reserved for Phase B: Traceloop / OpenLLMetry auto-instrumentation

@@ -121,7 +121,11 @@ def _load_fixture(path: Path) -> list[dict[str, Any]]:
 
 
 def _render_text(rows: list[CostRow], by: GroupBy) -> str:
-    lines = [f"{'#':>3}  {by.upper():<20}  {'COST_USD':>10}  {'INPUT':>10}  {'OUTPUT':>10}  {'N':>5}"]
+    header = (
+        f"{'#':>3}  {by.upper():<20}  {'COST_USD':>10}  "
+        f"{'INPUT':>10}  {'OUTPUT':>10}  {'N':>5}"
+    )
+    lines = [header]
     for i, row in enumerate(rows, 1):
         lines.append(
             f"{i:>3}  {row.key[:20]:<20}  {row.cost_usd:>10}  {row.input_tokens:>10}  "

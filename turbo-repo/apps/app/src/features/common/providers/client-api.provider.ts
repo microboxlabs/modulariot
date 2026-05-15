@@ -916,6 +916,17 @@ export async function renameBentoFile(
   });
 }
 
+export async function updateBentoCategory(
+  nodeId: string,
+  category: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher("/app/api/bento/properties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, properties: { "mintral:contentType": category } }),
+  });
+}
+
 export async function deleteBentoMultimedia(
   nodeId: string
 ): Promise<{ success: boolean; message: string }> {

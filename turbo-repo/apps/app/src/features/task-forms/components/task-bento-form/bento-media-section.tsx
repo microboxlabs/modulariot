@@ -45,13 +45,10 @@ export default function BentoMediaSection({
         </div>
       </div>
 
-      {/* FileImages — expands to fill geographic space */}
+      {/* FileImages — fills remaining space; on < lg the geographic is hidden so this becomes full width */}
       <div
-        className="overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
-        style={{
-          width: isMediaExpanded ? "100%" : "33.333%",
-          minWidth: 0,
-        }}
+        className="flex-1 overflow-hidden rounded-lg border scroll-p-6 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
+        style={{ minWidth: 0 }}
       >
         <FileImages
           task={task}

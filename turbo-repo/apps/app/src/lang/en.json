@@ -2669,6 +2669,7 @@
     "transportNumberCode": "Transport Number",
     "patente": "License Plate",
     "supplierPrveCodigo": "Carrier Code",
+    "clientRut": "Client RUT",
     "driverContactInfo": "Contact information",
     "email": "Email",
     "status": "Status",

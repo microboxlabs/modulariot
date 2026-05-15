@@ -124,3 +124,94 @@ def test_agentic_graph_topology_has_required_nodes() -> None:
     required = {"tenancy_gate", "planner", "synthesizer", "critic", "summarizer"}
     missing = required - nodes
     assert not missing, f"agentic_graph missing nodes: {missing}"
+
+
+@pytest.mark.asyncio
+async def test_agentic_synthesizer_includes_prior_messages_in_llm_call() -> None:
+    """The agentic synthesizer stub must splice `state["prior_messages"]`
+    into its `model.ainvoke` call so multi-turn AGENTIC chats actually
+    carry context.
+
+    Without this, the LLM sees only the current `user_message` and
+    replies "I don't have context for 'that'" on any follow-up — the
+    bug Step 4 of PER_TENANT_BILLING_TEST.md surfaced.
+    """
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    models = _models(plan_response="{}", synthesizer_text="ok")
+    models["synthesizer"] = _RecordingModel(responses=["synth answer"])
+
+    settings = HarnessSettings()
+    graph = build_agentic_graph(
+        settings=settings, models=models, provenance_log=None
+    )
+
+    prior = [
+        HumanMessage(content="¿estado del coordinador hoy?"),
+        AIMessage(content="## Estado: 1822 críticos, 46 ETA en riesgo, …"),
+    ]
+    await graph.ainvoke(
+        {
+            "user_message": "tell me more about that",
+            "ctx": _ctx(),
+            "evidence": [],
+            "turn_count": 0,
+            "prior_messages": prior,
+        }
+    )
+
+    assert captured, "synthesizer model was not invoked"
+    sent_msgs = captured[0]
+    # The first messages in the prompt must be the prior turn's
+    # HumanMessage + AIMessage, BEFORE the current user message.
+    assert isinstance(sent_msgs[0], HumanMessage)
+    assert sent_msgs[0].content == "¿estado del coordinador hoy?"
+    assert isinstance(sent_msgs[1], AIMessage)
+    assert sent_msgs[1].content.startswith("## Estado")
+    # The last message is the current turn's user input.
+    assert isinstance(sent_msgs[-1], HumanMessage)
+    assert sent_msgs[-1].content == "tell me more about that"
+
+
+@pytest.mark.asyncio
+async def test_agentic_synthesizer_handles_empty_prior_messages() -> None:
+    """When state has no prior_messages (first turn or no conversation_id),
+    the synthesizer falls back cleanly to a single-message prompt."""
+
+    from langchain_core.messages import HumanMessage
+
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    models = _models(plan_response="{}", synthesizer_text="ok")
+    models["synthesizer"] = _RecordingModel(responses=["first-turn"])
+
+    settings = HarnessSettings()
+    graph = build_agentic_graph(
+        settings=settings, models=models, provenance_log=None
+    )
+    await graph.ainvoke(
+        {
+            "user_message": "first message",
+            "ctx": _ctx(),
+            "evidence": [],
+            "turn_count": 0,
+            # prior_messages intentionally omitted
+        }
+    )
+    sent_msgs = captured[0]
+    assert len(sent_msgs) == 1
+    assert isinstance(sent_msgs[0], HumanMessage)
+    assert sent_msgs[0].content == "first message"

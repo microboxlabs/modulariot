@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 
 from miot_harness.config import HarnessSettings
@@ -77,12 +78,19 @@ def build_agentic_graph(
         return {"turn_count": turn_count + 1}
 
     async def synthesizer(state: NexoState) -> dict[str, Any]:
-        # Fire the synthesizer model and return its content as the answer.
+        # Fire the synthesizer model. Includes `prior_messages` so multi-turn
+        # agentic chats can reference earlier turns (E5 hydration) — without
+        # this, the LLM sees only the current user message and responds
+        # "I don't have context for 'that'" on any follow-up.
         snapshot = cast(dict[str, Any], state)
         if snapshot.get("failure"):
             return {"answer": "(no answer — see failure)"}
         model = models["synthesizer"]
-        response = await model.ainvoke([{"role": "user", "content": snapshot.get("user_message", "")}])
+
+        prior_messages = snapshot.get("prior_messages") or []
+        messages: list[BaseMessage] = list(prior_messages)
+        messages.append(HumanMessage(content=snapshot.get("user_message", "")))
+        response = await model.ainvoke(messages)
         text = response.content if hasattr(response, "content") else str(response)
         return {"answer": text if isinstance(text, str) else str(text)}
 

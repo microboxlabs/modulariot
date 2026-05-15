@@ -126,12 +126,12 @@ def test_langfuse_host_read_from_env(monkeypatch):
     assert settings.langfuse_host == "https://langfuse.internal.modulariot.dev"
 
 
-def test_conversation_turn_cap_default_is_ten():
+def test_conversation_token_budget_default_is_24k():
     settings = HarnessSettings()
-    assert settings.conversation_turn_cap == 10
+    assert settings.conversation_token_budget == 24_000
 
 
-def test_conversation_turn_cap_read_from_env(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TURN_CAP", "25")
+def test_conversation_token_budget_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET", "8000")
     settings = HarnessSettings()
-    assert settings.conversation_turn_cap == 25
+    assert settings.conversation_token_budget == 8_000

@@ -149,7 +149,7 @@ export default function TripData({
     },
     {
       icon: <FaTruck className="w-4 h-4" />,
-      label: (msg!.cards as I18nRecord).supplierPrveCodigo as string,
+      label: (msg!.cards as I18nRecord).supplierPrveCodigo,
       value: task.mintral_supplierPrveCodigo ?? "-",
     },
   ];

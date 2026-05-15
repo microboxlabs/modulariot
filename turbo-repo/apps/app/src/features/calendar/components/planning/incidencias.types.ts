@@ -13,8 +13,15 @@ export interface IncidenciaConfig {
 }
 
 /**
- * Dictionary with optional overrides - unlisted incidencias use defaults
- * Only add entries when special styling or primary visibility is required
+ * Dictionary with optional overrides - unlisted incidencias use defaults.
+ * Priorities mirror the backend `mintral_calendarPlanningPriority` tier
+ * hierarchy in ecm-coordinator MintralModel.INCIDENT_TIER_BY_CODE so per-card
+ * badge stacking matches the sidebar's global list order.
+ *
+ *   tier 1 (priority 1): C309
+ *   tier 2 (priority 2): C307, C314, C319, C320, C326, C329
+ *   tier 3 (priority 3): C308
+ *   tier 4 (default 999): everything else
  */
 export const INCIDENCIA_DICTIONARY: Record<string, IncidenciaConfig> = {
   urgencia: {
@@ -29,7 +36,15 @@ export const INCIDENCIA_DICTIONARY: Record<string, IncidenciaConfig> = {
     priority: 2,
     visibility: "primary",
   },
-  // c4, c5, c7, etc. not listed = use defaults (gray, secondary, priority 999)
+  // Tier-2 codes — primary visibility, default color (gray) until a design
+  // refresh adds an orange palette token.
+  C314: { priority: 2, visibility: "primary" },
+  C319: { priority: 2, visibility: "primary" },
+  C320: { priority: 2, visibility: "primary" },
+  C326: { priority: 2, visibility: "primary" },
+  C329: { priority: 2, visibility: "primary" },
+  // Tier-3 code — primary visibility, default color.
+  C308: { priority: 3, visibility: "primary" },
 };
 
 /**

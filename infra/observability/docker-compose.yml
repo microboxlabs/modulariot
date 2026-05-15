@@ -61,7 +61,7 @@ services:
     container_name: miot-obs-redis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "myredissecret", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10

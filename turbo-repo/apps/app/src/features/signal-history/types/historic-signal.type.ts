@@ -12,16 +12,6 @@ export type HistoricSignal = {
   longitude: number;
 };
 
-export type HistoricTrip = {
-  id: number;
-  trip_id: string | null;
-  route: string | null;
-  departure: string | null;
-  arrival: string | null;
-  from?: [number, number];
-  to?: [number, number];
-};
-
 export type HistoricTimeline = {
   // conditions_agg: [{…}]
   conditions_agg: ConditionsAgg[];
@@ -41,24 +31,3 @@ export type HistoricTimeline = {
   trip_start?: string;
 };
 
-export type ResumedTimeline = {
-  trip_id?: string;
-
-  trip_start?: string;
-  trip_end?: string;
-
-  trip_origin?: string;
-  trip_origin_coordinates?: string;
-
-  trip_destination?: string;
-  trip_destination_coordinates?: string;
-
-  timeline_elements: HistoricTimeline[];
-};
-
-export type RouteState = {
-  selectedRoute: { from: string | undefined; to: string | undefined } | null;
-  setSelectedRoute: (
-    route: { from: string | undefined; to: string | undefined } | null
-  ) => void;
-};

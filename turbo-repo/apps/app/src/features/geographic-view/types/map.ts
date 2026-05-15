@@ -69,22 +69,6 @@ export interface MapPosition {
   speed_limit_condition: number | null;
 }
 
-export interface PulsePropsInfo {
-  properties: {
-    icu_code: number;
-    assetid: string;
-    latitude: number;
-    longitude: number;
-    speed: number;
-    timestamp: string;
-    speed_limit: number;
-  };
-  geometry: {
-    type: string;
-    coordinates: [number, number];
-  };
-}
-
 export interface PulseProps {
   properties: {
     id: number;
@@ -154,10 +138,6 @@ export interface MapPositionProperties {
     movement_status: string | null;
     cluster: boolean;
   };
-}
-
-export interface MapResponse {
-  data: MapPosition[];
 }
 
 export interface MapSensor {

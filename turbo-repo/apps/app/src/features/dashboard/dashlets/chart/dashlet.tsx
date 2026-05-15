@@ -127,7 +127,9 @@ function filterRowsByDateRange(
   if (!days) return rows;
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   return rows.filter((r) => {
-    const ts = new Date(r[xAxisColumn]).getTime();
+    const v = r[xAxisColumn];
+    if (!v) return false;
+    const ts = new Date(v).getTime();
     return !Number.isNaN(ts) && ts >= cutoff;
   });
 }
@@ -196,15 +198,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const rows = config.dataMode === "static" ? (config.rows ?? []) : fetchedRows;
 
   const isDateAxis = config.chartType === "line" && !!config.xAxisDateFormat && config.xAxisDateFormat !== "none";
-  const [activeDateRange, setActiveDateRange] = useState<DateRange>("all");
+  const [activeDateRange, setActiveDateRange] = useState<DateRange>(config.defaultDateRange ?? "all");
   const filteredRows = useMemo(
     () => isDateAxis ? filterRowsByDateRange(rows, config.xAxisColumn, activeDateRange) : rows,
     [rows, isDateAxis, config.xAxisColumn, activeDateRange]
   );
   const effectiveDateFormat = useMemo((): XAxisDateFormat => {
     if (!isDateAxis) return "none";
-    return "day";
-  }, [isDateAxis]);
+    return config.xAxisDateFormat ?? "day";
+  }, [isDateAxis, config.xAxisDateFormat]);
 
   // Build template context from first row + active filters (Pattern B)
   const { activeFilters } = useDashboardFilters();

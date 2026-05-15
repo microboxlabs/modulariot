@@ -194,6 +194,9 @@ function buildCartesianOption(
     };
   }
 
+  const xLabelBottom = config.xAxisLabel ? 24 : 8;
+  const gridBottom = config.showLegend ? 48 : xLabelBottom;
+
   return {
     color: colors,
     tooltip: buildTooltip(config, rows, darkMode, "axis"),
@@ -206,7 +209,7 @@ function buildCartesianOption(
       left: 8,
       right: 8,
       top: config.yAxisLabel ? 36 : 16,
-      bottom: config.showLegend ? 48 : config.xAxisLabel ? 24 : 8,
+      bottom: gridBottom,
       containLabel: true,
     },
     xAxis,

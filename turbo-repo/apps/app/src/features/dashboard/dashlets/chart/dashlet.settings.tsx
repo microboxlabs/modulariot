@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Label, Select, ToggleSwitch, Button } from "flowbite-react";
 import { HiXMark } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig, ChartType, SeriesConfig, XAxisDateFormat, DateRange } from "./dashlet";
+import type { DashletConfig, ChartType, SeriesConfig, XAxisDateFormat } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
@@ -308,7 +308,7 @@ export function DashletSettings({
       stacked,
       horizontal,
       showBarLabels,
-      xAxisDateFormat: xAxisDateFormat !== "none" ? xAxisDateFormat : undefined,
+      xAxisDateFormat: xAxisDateFormat === "none" ? undefined : xAxisDateFormat,
       tooltipTemplate: tooltipTemplate || undefined,
       ...colorRules.buildSavePayload(),
       dataMode,

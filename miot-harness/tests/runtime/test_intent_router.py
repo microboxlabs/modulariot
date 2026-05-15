@@ -36,11 +36,21 @@ _FIXTURES: tuple[tuple[str, str, float, HarnessRoute], ...] = (
     # NEXO_AGENTIC — 5 prompts
     ("show me services where delta_eta_horas > 6", "NEXO_AGENTIC", 0.90, HarnessRoute.NEXO_AGENTIC),
     ("tell me more about that", "NEXO_AGENTIC", 0.75, HarnessRoute.NEXO_AGENTIC),
-    ("filter by region=norte and order by ETA desc", "NEXO_AGENTIC", 0.81, HarnessRoute.NEXO_AGENTIC),
+    (
+        "filter by region=norte and order by ETA desc",
+        "NEXO_AGENTIC",
+        0.81,
+        HarnessRoute.NEXO_AGENTIC,
+    ),
     ("any rows with refreshed_at older than 4h?", "NEXO_AGENTIC", 0.79, HarnessRoute.NEXO_AGENTIC),
     ("explora la tabla dx_servicios", "NEXO_AGENTIC", 0.77, HarnessRoute.NEXO_AGENTIC),
     # STORYTELLING_RUN — 5 prompts
-    ("draft a story about today's incident", "STORYTELLING_RUN", 0.92, HarnessRoute.STORYTELLING_RUN),
+    (
+        "draft a story about today's incident",
+        "STORYTELLING_RUN",
+        0.92,
+        HarnessRoute.STORYTELLING_RUN,
+    ),
     ("write a dashboard widget summary", "STORYTELLING_RUN", 0.85, HarnessRoute.STORYTELLING_RUN),
     ("compose a status update narrative", "STORYTELLING_RUN", 0.83, HarnessRoute.STORYTELLING_RUN),
     ("scríbenos un relato de la jornada", "STORYTELLING_RUN", 0.80, HarnessRoute.STORYTELLING_RUN),

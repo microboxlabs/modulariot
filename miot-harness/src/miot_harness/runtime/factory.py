@@ -19,8 +19,8 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
     Nexo-disabled deploys keep working.
 
     `conversation_store` is always-on because it's pure memory.
-    `conversation_turn_cap` reads from settings so operators can tune
-    multi-turn memory depth via `MIOT_HARNESS_CONVERSATION_TURN_CAP`.
+    `conversation_token_budget` reads from settings so operators can tune
+    multi-turn memory depth via `MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET`.
     """
 
     settings = get_settings()
@@ -30,5 +30,5 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
         stories=StorytellingModule(),
         run_store=JsonRunStore(workspace_dir),
         conversation_store=InMemoryConversationStore(),
-        conversation_turn_cap=settings.conversation_turn_cap,
+        conversation_token_budget=settings.conversation_token_budget,
     )

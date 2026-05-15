@@ -130,28 +130,11 @@ def test_to_messages_alternates_human_then_ai() -> None:
     assert [m.content for m in msgs] == ["q1", "a1", "q2", "a2"]
 
 
-def test_to_messages_caps_at_last_n_most_recent_turns() -> None:
-    """When the conversation is longer than `last_n`, only the most recent
-    `last_n` turns are projected (older turns silently dropped)."""
-
-    history = ConversationHistory(
-        conversation_id="long",
-        turns=[
-            ConversationTurn(user_message=f"q{i}", assistant_answer=f"a{i}")
-            for i in range(15)
-        ],
-    )
-    msgs = to_messages(history, last_n=3)
-    assert len(msgs) == 6  # 3 turns × 2 messages each
-    # The 3 most-recent turns are q12/a12, q13/a13, q14/a14 (0-indexed).
-    assert [m.content for m in msgs] == ["q12", "a12", "q13", "a13", "q14", "a14"]
-
-
-def test_to_messages_last_n_zero_returns_empty() -> None:
-    """A 0 cap means 'no history'; the helper returns an empty list."""
+def test_to_messages_zero_budget_returns_empty() -> None:
+    """A 0 budget means 'no history'; the helper returns an empty list."""
 
     history = ConversationHistory(
         conversation_id="any",
         turns=[ConversationTurn(user_message="q", assistant_answer="a")],
     )
-    assert to_messages(history, last_n=0) == []
+    assert to_messages(history, max_tokens=0) == []

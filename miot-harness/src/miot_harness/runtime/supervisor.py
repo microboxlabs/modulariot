@@ -63,7 +63,7 @@ class HarnessSupervisor:
         meta_primer: str = "",
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
-        conversation_turn_cap: int = 10,
+        conversation_token_budget: int = 24_000,
         tenant_lock: str = "mintral",
     ) -> None:
         self.router = router
@@ -77,7 +77,7 @@ class HarnessSupervisor:
         self.meta_primer = meta_primer
         self.meta_catalog: list[MetaAgentCatalogEntry] = meta_catalog or []
         self.conversation_store = conversation_store
-        self.conversation_turn_cap = conversation_turn_cap
+        self.conversation_token_budget = conversation_token_budget
         self.tenant_lock = tenant_lock
 
     async def run(self, request: UserRequest) -> HarnessRunRecord:
@@ -176,8 +176,8 @@ class HarnessSupervisor:
         return record
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
-        """Read prior turns from `ConversationStore` and project them to
-        LangChain messages capped at `conversation_turn_cap`.
+        """Read prior turns from `ConversationStore` and trim them to fit the
+        `conversation_token_budget` (via `trim_messages`).
 
         Returns an empty list when:
         - no `conversation_store` injected (Plan 12 deploys),
@@ -187,7 +187,9 @@ class HarnessSupervisor:
         This is the read-half of the `ConversationStore` contract — the
         write-half (append after each run) already lives at the bottom of
         `run()`. Together they make multi-turn chats actually accumulate
-        context across `/runs` calls.
+        context across `/runs` calls. The token budget is the right knob
+        (not turn count) because our synthesizer's long Markdown answers
+        make per-turn cost wildly variable.
         """
 
         if self.conversation_store is None or not request.conversation_id:
@@ -195,7 +197,7 @@ class HarnessSupervisor:
         history = self.conversation_store.get(request.conversation_id)
         if history is None:
             return []
-        return to_messages(history, last_n=self.conversation_turn_cap)
+        return to_messages(history, max_tokens=self.conversation_token_budget)
 
     def _root_span_kwargs(
         self, ctx: HarnessContext, route: HarnessRoute | None

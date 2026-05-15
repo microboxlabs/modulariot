@@ -147,6 +147,11 @@ export default function TripData({
       label: (msg!.cards as I18nRecord).supplierId as string,
       value: task.mintral_supplierId ?? "-",
     },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: msg.cards.supplierPrveCodigo,
+      value: task.mintral_supplierPrveCodigo ?? "-",
+    },
   ];
 
   // All elements whose data can variate a lot (to long texts) will be here

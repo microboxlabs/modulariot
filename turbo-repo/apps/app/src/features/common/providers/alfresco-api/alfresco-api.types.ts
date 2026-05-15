@@ -62,29 +62,6 @@ export type TaskResponse = {
   takenBy?: string;
 };
 
-export type WorkflowInstance = {
-  id: string;
-  url: string;
-  name: string;
-  title: string;
-  description: string;
-  isActive: boolean;
-  startDate: string;
-  priority: number;
-  dueDate?: string;
-  endDate?: string;
-  context: Record<string, unknown>;
-  package: string;
-  initiator: Initiator;
-  definitionUrl: string;
-};
-
-export type Initiator = {
-  userName: string;
-  firstName: string;
-  lastName: string;
-};
-
 export type EndTaskResponse = {
   id: string;
   transition: string;

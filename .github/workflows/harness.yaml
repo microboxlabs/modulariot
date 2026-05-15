@@ -225,6 +225,48 @@ jobs:
           provenance: true
           sbom: true
 
+      # `docker/build-push-action`'s `provenance: true / sbom: true` embed
+      # attestations into the OCI manifest only. The deploy-eval script uses
+      # `gh attestation verify --owner` which queries the GitHub attestation
+      # API; for that lookup to resolve, the attestation has to be registered
+      # via the `actions/attest-*` family. We do BOTH (OCI manifest + GitHub
+      # API) so verification works against either source.
+      - name: Skip attestation push on fork PRs
+        id: attest-gate
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "should-attest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should-attest=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate SBOM (SPDX JSON)
+        if: steps.attest-gate.outputs.should-attest == 'true'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Attest build provenance (GH attestation API)
+        if: steps.attest-gate.outputs.should-attest == 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM (GH attestation API)
+        if: steps.attest-gate.outputs.should-attest == 'true'
+        uses: actions/attest-sbom@v2
+        with:
+          subject-name: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+
       - name: Image summary
         run: |
           {

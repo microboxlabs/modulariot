@@ -379,11 +379,16 @@ async def nexo_explain(
         rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {safe_inner}")
 
     # asyncpg returns rows; PostgreSQL EXPLAIN JSON returns a single row with
-    # a `QUERY PLAN` array whose first element is `{"Plan": {...}}`.
+    # a `QUERY PLAN` array whose first element is `{"Plan": {...}}`. Use
+    # subscript access so we work uniformly across asyncpg.Record (not a dict
+    # subclass) and plain-dict fixtures.
     if not rows:
         raise UnsupportedConstruct("EXPLAIN returned no rows")
     row = rows[0]
-    payload = row.get("QUERY PLAN") if isinstance(row, dict) else None
+    try:
+        payload = row["QUERY PLAN"]
+    except (KeyError, TypeError, IndexError) as exc:
+        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN") from exc
     if not payload:
         raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN")
     plan = payload[0].get("Plan", {})

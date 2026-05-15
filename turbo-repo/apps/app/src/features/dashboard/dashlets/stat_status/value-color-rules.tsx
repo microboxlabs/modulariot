@@ -17,9 +17,6 @@ export type ValueColorTarget = "border" | "icon" | "text";
 /** A single value color rule for stat_status */
 export type ValueColorRule = ColorRule<ValueColorTarget, string>;
 
-/** Rule with stable ID for list rendering */
-export type ValueColorRuleItem = ColorRuleItem<ValueColorTarget, string>;
-
 /** Configuration stored in DashletConfig */
 export type ValueColorRulesConfig = ColorRulesConfig<ValueColorTarget, string>;
 

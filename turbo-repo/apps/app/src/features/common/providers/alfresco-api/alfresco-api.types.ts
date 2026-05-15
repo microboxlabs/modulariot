@@ -62,35 +62,6 @@ export type TaskResponse = {
   takenBy?: string;
 };
 
-export type Task = {
-  id: string;
-  url: string;
-  name: string;
-  title: string;
-  description: string;
-  state: string;
-  path: string;
-  isPooled: boolean;
-  isEditable: boolean;
-  isReassignable: boolean;
-  isClaimable: boolean;
-  isReleasable: boolean;
-  outcome: string;
-  owner: string;
-  creator: string;
-  properties: Record<string, unknown>;
-  propertiesLabes: Record<string, string>;
-  workflowInstance: WorkflowInstance;
-};
-
-export type Paging = {
-  maxItems: number;
-  skipCount: number;
-  totalItems: number;
-  totalItemsRangeEnd: number;
-  confidence: string;
-};
-
 export type WorkflowInstance = {
   id: string;
   url: string;

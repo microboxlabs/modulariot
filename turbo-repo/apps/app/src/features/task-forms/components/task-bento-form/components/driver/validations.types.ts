@@ -8,11 +8,6 @@ export interface ValidationItem {
   description?: string;
 }
 
-export interface ValidationsInfoProps {
-  task: any;
-  msg: any;
-}
-
 // Types for the actual validation response structure
 export interface ValidationData {
   description: string;

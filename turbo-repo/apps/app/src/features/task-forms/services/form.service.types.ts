@@ -8,8 +8,6 @@ export type TaskNextActionState = {
   error?: string;
 };
 
-export type ShippingCoordinatorProcess = "shippingCoordinatorProcess";
-
 export type MissionControlValidationOutcome =
   | "Iniciado Normal"
   | "Iniciado Con Reparos"
@@ -75,8 +73,6 @@ export type GPSValidityType = "ok" | "warning" | "error";
 /* ------------------------------------------------------------- */
 /* Shipping Coordinator Process V2 */
 /* ------------------------------------------------------------- */
-
-export type ShippingCoordinatorProcessV2 = "shipping_coordination";
 
 export type ShippingCoordinatorProcessFormsV2 =
   | "wfship2:assignDriverTask"
@@ -168,8 +164,6 @@ export type ShippingCoordinatorProcessTaskV2 =
 /* ------------------------------------------------------------- */
 /* Delivery Process */
 /* ------------------------------------------------------------- */
-
-export type DeliveryProcess = "delivery_coordination";
 
 export type DeliveryProcessForms =
   | "wfship2:confirmDeliveryTask"

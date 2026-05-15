@@ -2668,6 +2668,7 @@
     "tripInformation": "Trip Information",
     "transportNumberCode": "Transport Number",
     "patente": "License Plate",
+    "supplierPrveCodigo": "Carrier Code",
     "driverContactInfo": "Contact information",
     "email": "Email",
     "status": "Status",

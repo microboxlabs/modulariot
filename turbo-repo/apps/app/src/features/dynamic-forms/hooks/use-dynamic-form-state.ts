@@ -119,8 +119,3 @@ export function useDynamicFormState(
 // Legacy export for backward compatibility
 // ============================================
 
-/** @deprecated Use useDynamicFormState instead */
-export const useCustomFormState = useDynamicFormState;
-
-/** @deprecated Use DynamicFormState instead */
-export type CustomFormState = DynamicFormState;

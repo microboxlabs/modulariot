@@ -103,17 +103,3 @@ export type DynamicFormConfig = {
  */
 export type DynamicFormValues = Record<string, string | boolean | number>;
 
-/**
- * Props for live field data fetcher
- */
-export type LiveFieldFetcherProps = {
-  dataKey: string;
-  dependencies: Record<string, unknown>;
-};
-
-/**
- * Type for live field data fetcher function
- */
-export type LiveFieldFetcher = (
-  props: LiveFieldFetcherProps
-) => Promise<string | null>;

@@ -39,12 +39,6 @@ interface VehicleDetailAccordionProps {
 
 export type SectionStatus = "ok" | "warning" | "critical";
 
-export interface VehicleDetailData {
-  general: {
-    health: number;
-  };
-}
-
 // Status calculation helpers
 
 /**

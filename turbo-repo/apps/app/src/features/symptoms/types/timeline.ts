@@ -33,15 +33,3 @@ export interface DescriptionTimelineElement {
   message: string;
 }
 
-export interface TimelineItem {
-  start: string;
-  end: string;
-  icu_condition: string;
-  description: string;
-  type: string;
-  assigned_to: string;
-  icu_code: string | null;
-  is_symptom: number | null;
-  symptom_id: number | null;
-  evidences: string[] | null;
-}

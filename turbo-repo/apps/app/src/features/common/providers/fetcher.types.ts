@@ -40,5 +40,3 @@ export const FetcherErrorCode = {
   
 } as const;
 
-export type FetcherErrorCodeType =
-  (typeof FetcherErrorCode)[keyof typeof FetcherErrorCode];

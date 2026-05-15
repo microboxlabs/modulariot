@@ -435,9 +435,6 @@ export const logManagementAPI = {
   ) => logManager.registerHandler(id, name, level, parent),
 };
 
-// Export types for better TypeScript support
-export type Logger = typeof logger;
-
 // Helper type for log management interfaces
 export interface LogHandlerInfo {
   id: string;

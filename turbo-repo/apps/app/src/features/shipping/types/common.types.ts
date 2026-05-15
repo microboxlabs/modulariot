@@ -94,10 +94,6 @@ export type KanbanPageData = {
   // tasks: any;
 };
 
-export type GeographicViewPageData = {
-  lang: string;
-};
-
 type dictionary_components = {
   base: I18nRecord;
   general: I18nRecord;

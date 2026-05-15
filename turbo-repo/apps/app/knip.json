@@ -4,7 +4,6 @@
         "src/app/**/*.{js,ts,jsx,tsx}",
         "src/proxy.ts",
         "src/**/*.test.{js,ts,jsx,tsx}",
-        "src/**/*.spec.{js,ts,jsx,tsx}",
         "next.config.{js,mjs,ts}",
         "tailwind.config.{js,ts}",
         "postcss.config.{js,ts}",
@@ -28,8 +27,7 @@
             "entry": [
                 "src/app/**/*.{js,ts,jsx,tsx}",
                 "src/proxy.ts",
-                "src/**/*.test.{js,ts,jsx,tsx}",
-                "src/**/*.spec.{js,ts,jsx,tsx}"
+                "src/**/*.test.{js,ts,jsx,tsx}"
             ]
         }
     }

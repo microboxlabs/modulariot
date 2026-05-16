@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Label, Select, ToggleSwitch, Button } from "flowbite-react";
 import { HiXMark } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig, ChartType, SeriesConfig } from "./dashlet";
+import type { DashletConfig, ChartType, SeriesConfig, XAxisDateFormat } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
@@ -22,6 +22,7 @@ import { PgrestDataTab } from "../common/pgrest-data-tab";
 import { useActiveProviders } from "../common/use-active-providers";
 import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
+import { useChartColorSettings, ChartColorRulesEditor } from "./value-color-rules";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
@@ -93,6 +94,13 @@ export function DashletSettings({
   );
   const [smooth, setSmooth] = useState(config.smooth ?? false);
   const [stacked, setStacked] = useState(config.stacked ?? false);
+  const [horizontal, setHorizontal] = useState(config.horizontal ?? false);
+  const [showBarLabels, setShowBarLabels] = useState(config.showBarLabels ?? false);
+  const [xAxisDateFormat, setXAxisDateFormat] = useState<XAxisDateFormat>(
+    config.xAxisDateFormat ?? "none"
+  );
+
+  const colorRules = useChartColorSettings({ valueColorRules: config.valueColorRules });
   const [tooltipTemplate, setTooltipTemplate] = useState(
     config.tooltipTemplate ?? ""
   );
@@ -252,7 +260,11 @@ export function DashletSettings({
     customColors,
     smooth,
     stacked,
+    horizontal,
+    showBarLabels,
+    xAxisDateFormat,
     tooltipTemplate,
+    colorRulesJson: JSON.stringify(colorRules.rules),
     dataMode,
     rowsJson,
     pgFn: pg.pgrestFunctionName,
@@ -294,7 +306,11 @@ export function DashletSettings({
       customColors,
       smooth,
       stacked,
+      horizontal,
+      showBarLabels,
+      xAxisDateFormat: xAxisDateFormat === "none" ? undefined : xAxisDateFormat,
       tooltipTemplate: tooltipTemplate || undefined,
+      ...colorRules.buildSavePayload(),
       dataMode,
       rows: parsedRows,
       pgrestFunctionName: pg.pgrestFunctionName,
@@ -477,6 +493,48 @@ export function DashletSettings({
           <ToggleSwitch checked={stacked} onChange={setStacked} />
         </div>
       )}
+
+      {chartType === "bar" && (
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">
+            {tr("dashboard.settings.horizontalBars", dictionary)}
+          </Label>
+          <ToggleSwitch checked={horizontal} onChange={setHorizontal} />
+        </div>
+      )}
+
+      {chartType === "bar" && (
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">
+            {tr("dashboard.settings.showBarLabels", dictionary)}
+          </Label>
+          <ToggleSwitch checked={showBarLabels} onChange={setShowBarLabels} />
+        </div>
+      )}
+
+      {chartType === "line" && (
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">
+            {tr("dashboard.settings.xAxisIsDate", dictionary)}
+          </Label>
+          <ToggleSwitch
+            checked={xAxisDateFormat !== "none"}
+            onChange={(v) => setXAxisDateFormat(v ? "month" : "none")}
+          />
+        </div>
+      )}
+
+
+
+      {/* Color rules */}
+      <ChartColorRulesEditor
+        rules={colorRules.rules}
+        dictionary={dictionary}
+        onAdd={colorRules.addRule}
+        onRemove={colorRules.removeRule}
+        onUpdate={colorRules.updateRule}
+        onToggleTarget={colorRules.toggleTarget}
+      />
 
       {/* Custom tooltip template */}
       <HbTextareaField

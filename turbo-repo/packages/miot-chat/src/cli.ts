@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
+import { registerAskCommand } from "./commands/ask.js";
 import { resolveConfig, type CliFlags } from "./config.js";
 import { createHarnessClient } from "./harness/client.js";
 import { runRepl } from "./repl/loop.js";
@@ -37,6 +38,8 @@ program
     const code = await runRepl({ config, client });
     process.exit(code);
   });
+
+registerAskCommand(program);
 
 program.parseAsync().catch((err: unknown) => {
   process.stderr.write(

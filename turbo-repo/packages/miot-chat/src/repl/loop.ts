@@ -19,10 +19,10 @@ import {
   type ColorOptions,
 } from "../output.js";
 import {
-  clearStatus,
   initialState,
   renderAuthoritativeAnswer,
   renderEvent,
+  renderRunFailure,
   type RenderState,
 } from "./renderer.js";
 import { writeLastConversation } from "./conversation.js";
@@ -226,6 +226,7 @@ async function runOneTurn(
   const { run_id } = await client.createRun(req, { signal: ctx.signal });
   let state: RenderState = initialState(ctx.color);
   let terminal: "completed" | "failed" | null = null;
+  let failureMessage = "";
   const seenEvents: HarnessEvent[] = [];
 
   for await (const event of client.streamRun(run_id, { signal: ctx.signal })) {
@@ -239,6 +240,7 @@ async function runOneTurn(
     }
     if (event.type === "run.failed") {
       terminal = "failed";
+      failureMessage = event.message;
       break;
     }
   }
@@ -250,15 +252,15 @@ async function runOneTurn(
     } catch {
       record = null;
     }
-    const cleared = clearStatus(state);
-    if (cleared.output.length > 0) ctx.stdout.write(cleared.output);
-    const finalRender = renderAuthoritativeAnswer(cleared.state, record?.answer ?? null);
+    const finalRender = renderAuthoritativeAnswer(state, record?.answer ?? null);
     ctx.stdout.write(finalRender.output);
     session.transcript.push({ prompt, runId: run_id, record });
     return;
   }
 
   if (terminal === "failed") {
+    const failureRender = renderRunFailure(state, failureMessage);
+    ctx.stdout.write(failureRender.output);
     session.transcript.push({ prompt, runId: run_id, record: null });
     return;
   }

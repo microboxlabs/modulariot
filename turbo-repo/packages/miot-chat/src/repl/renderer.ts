@@ -1,4 +1,26 @@
-import { bold, CLEAR_LINE, dim, red, yellow, type ColorOptions } from "../output.js";
+import {
+  bold,
+  CLEAR_LINE,
+  dim,
+  red,
+  useColor,
+  yellow,
+  type ColorOptions,
+} from "../output.js";
+// re-export ANSI helpers — kept for tests + downstream consumers.
+export { CLEAR_LINE };
+
+function statusPrefix(state: { hasStatusLine: boolean; color: ColorOptions }): string {
+  if (!state.hasStatusLine) return "";
+  return useColor(state.color) ? CLEAR_LINE : "\n";
+}
+
+function statusSuffix(color: ColorOptions): string {
+  // In a non-TTY (or NO_COLOR) shell, status lines need explicit newlines
+  // because we can't overwrite. In a TTY, the next event's CLEAR_LINE
+  // prefix handles the overwrite, so we leave the cursor on the line.
+  return useColor(color) ? "" : "\n";
+}
 import {
   TERMINAL_EVENT_TYPES,
   type HarnessEvent,
@@ -35,16 +57,8 @@ export function renderEvent(
       };
 
     case "run.completed":
-      return {
-        state: { ...state, hasStatusLine: false },
-        output: finalAnswerOutput(state),
-      };
-
     case "run.failed":
-      return {
-        state: { ...state, hasStatusLine: false },
-        output: errorOutput(state, event.message || "run failed"),
-      };
+      return clearStatus(state);
 
     default: {
       if (TERMINAL_EVENT_TYPES.has(event.type)) {
@@ -52,11 +66,15 @@ export function renderEvent(
       }
       const summary = statusFor(event);
       if (summary === null) return { state, output: "" };
-      const clearPrefix = state.hasStatusLine ? CLEAR_LINE : "";
+      const prefix = statusPrefix(state);
       const line = colorize(event.type, summary, state.color);
+      const suffix = statusSuffix(state.color);
       return {
-        state: { ...state, hasStatusLine: true },
-        output: `${clearPrefix}${line}`,
+        state: {
+          ...state,
+          hasStatusLine: useColor(state.color) ? true : false,
+        },
+        output: `${prefix}${line}${suffix}`,
       };
     }
   }
@@ -64,14 +82,14 @@ export function renderEvent(
 
 export function clearStatus(state: RenderState): RenderResult {
   if (!state.hasStatusLine) return { state, output: "" };
-  return { state: { ...state, hasStatusLine: false }, output: CLEAR_LINE };
+  return { state: { ...state, hasStatusLine: false }, output: statusPrefix(state) };
 }
 
 export function renderAuthoritativeAnswer(
   state: RenderState,
   answer: string | null,
 ): RenderResult {
-  const prefix = state.hasStatusLine ? CLEAR_LINE : "";
+  const prefix = statusPrefix(state);
   const text = answer ?? state.pendingAnswer ?? "(no answer recorded)";
   return {
     state: { ...state, hasStatusLine: false, pendingAnswer: text },
@@ -79,15 +97,15 @@ export function renderAuthoritativeAnswer(
   };
 }
 
-function finalAnswerOutput(state: RenderState): string {
-  const prefix = state.hasStatusLine ? CLEAR_LINE : "";
-  const text = state.pendingAnswer ?? "(no answer recorded)";
-  return `${prefix}${bold(text, state.color)}\n`;
-}
-
-function errorOutput(state: RenderState, message: string): string {
-  const prefix = state.hasStatusLine ? CLEAR_LINE : "";
-  return `${prefix}${red(`error: ${message}`, state.color)}\n`;
+export function renderRunFailure(
+  state: RenderState,
+  message: string,
+): RenderResult {
+  const prefix = statusPrefix(state);
+  return {
+    state: { ...state, hasStatusLine: false },
+    output: `${prefix}${red(`error: ${message || "run failed"}`, state.color)}\n`,
+  };
 }
 
 function extractAnswerText(event: HarnessEvent): string | null {

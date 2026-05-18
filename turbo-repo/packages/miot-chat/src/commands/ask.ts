@@ -10,10 +10,10 @@ import {
 } from "../harness/types.js";
 import { dim, red, type ColorOptions } from "../output.js";
 import {
-  clearStatus,
   initialState,
   renderAuthoritativeAnswer,
   renderEvent,
+  renderRunFailure,
   type RenderState,
 } from "../repl/renderer.js";
 
@@ -53,6 +53,7 @@ export async function runAsk(opts: AskOptions): Promise<number> {
 
   let state: RenderState = initialState(color);
   let terminal: "completed" | "failed" | null = null;
+  let failureMessage = "";
   let runId = "";
   const events: HarnessEvent[] = [];
 
@@ -70,6 +71,7 @@ export async function runAsk(opts: AskOptions): Promise<number> {
       }
       if (event.type === "run.failed") {
         terminal = "failed";
+        failureMessage = event.message;
         break;
       }
     }
@@ -87,14 +89,14 @@ export async function runAsk(opts: AskOptions): Promise<number> {
     } catch {
       // Fall back to whatever we cached from the stream.
     }
-    const cleared = clearStatus(state);
-    if (cleared.output.length > 0) stdout.write(cleared.output);
-    const finalRender = renderAuthoritativeAnswer(cleared.state, answer);
+    const finalRender = renderAuthoritativeAnswer(state, answer);
     stdout.write(finalRender.output);
     return 0;
   }
 
   if (terminal === "failed") {
+    const failureRender = renderRunFailure(state, failureMessage);
+    stdout.write(failureRender.output);
     return 1;
   }
 

@@ -4,6 +4,7 @@ import {
   initialState,
   renderAuthoritativeAnswer,
   renderEvent,
+  renderRunFailure,
   type RenderState,
 } from "../repl/renderer.js";
 import { stripAnsi } from "../output.js";
@@ -82,28 +83,38 @@ describe("renderEvent — answer.completed caches without printing", () => {
 });
 
 describe("renderEvent — terminal events", () => {
-  it("run.completed prints the cached answer in bold and clears status", () => {
-    const { outputs } = feed(initialState(), [
+  it("run.completed clears the status line and writes no answer text (caller renders it)", () => {
+    const { outputs, state } = feed(initialState(), [
       evt("run.started"),
       evt("answer.completed", { data: { text: "the answer" } }),
       evt("run.completed"),
     ]);
-    expect(outputs[2]?.startsWith("\r\x1b[K")).toBe(true);
-    expect(stripAnsi(outputs[2] ?? "")).toBe("the answer\n");
+    // run.completed's output is just the CLEAR_LINE prefix.
+    expect(outputs[2]).toBe("\r\x1b[K");
+    expect(state.hasStatusLine).toBe(false);
+    expect(state.pendingAnswer).toBe("the answer");
   });
 
-  it("run.completed without answer.completed prints a placeholder", () => {
+  it("run.completed with no status line up is a no-op", () => {
     const { outputs } = feed(initialState(), [evt("run.completed")]);
-    expect(stripAnsi(outputs[0] ?? "")).toBe("(no answer recorded)\n");
+    expect(outputs[0]).toBe("");
   });
 
-  it("run.failed prints a red dim error and clears the status line", () => {
-    const { outputs } = feed(initialState(), [
+  it("run.failed only clears the status line — renderRunFailure paints the message", () => {
+    const { outputs, state } = feed(initialState(), [
       evt("run.started"),
       evt("run.failed", { message: "denied: mode access" }),
     ]);
-    expect(outputs[1]?.startsWith("\r\x1b[K")).toBe(true);
-    expect(stripAnsi(outputs[1] ?? "")).toBe("error: denied: mode access\n");
+    expect(outputs[1]).toBe("\r\x1b[K");
+    expect(state.hasStatusLine).toBe(false);
+
+    const final = renderRunFailure(state, "denied: mode access");
+    expect(stripAnsi(final.output)).toBe("error: denied: mode access\n");
+  });
+
+  it("renderRunFailure falls back to 'run failed' on empty message", () => {
+    const r = renderRunFailure(initialState(), "");
+    expect(stripAnsi(r.output)).toBe("error: run failed\n");
   });
 });
 
@@ -123,10 +134,21 @@ describe("clearStatus / renderAuthoritativeAnswer helpers", () => {
 });
 
 describe("renderer — NO_COLOR mode", () => {
-  it("produces no ANSI codes when color is disabled", () => {
+  it("produces no ANSI codes and emits one newline-terminated line per status event", () => {
+    const state = initialState({ noColor: true });
+    const r1 = renderEvent(state, evt("run.started"));
+    expect(r1.output).toBe("starting…\n");
+    expect(r1.state.hasStatusLine).toBe(false);
+
+    const r2 = renderEvent(r1.state, evt("route.selected", { data: { route: "NEXO_QUERY" } }));
+    expect(r2.output).toBe("route: NEXO_QUERY\n");
+    expect(r2.output.includes("\x1b[")).toBe(false);
+  });
+
+  it("renderAuthoritativeAnswer drops ANSI when color is disabled", () => {
     const state = initialState({ noColor: true });
     const r = renderEvent(state, evt("run.started"));
-    expect(r.output).toBe("starting…");
-    expect(r.output.includes("\x1b[")).toBe(false);
+    const final = renderAuthoritativeAnswer(r.state, "hi");
+    expect(final.output).toBe("hi\n");
   });
 });

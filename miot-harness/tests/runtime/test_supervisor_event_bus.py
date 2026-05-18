@@ -255,3 +255,92 @@ async def test_supervisor_honors_run_id_override(tmp_path: Any) -> None:
     # And every event on the record carries the same run_id — supervisor
     # uses the override end-to-end.
     assert all(e.run_id == "run_pre_minted_abc" for e in record.events)
+
+
+# --- Debounced checkpoint (Phase A step 6) ---
+
+
+@pytest.mark.asyncio
+async def test_supervisor_checkpoints_during_long_run(tmp_path: Any) -> None:
+    """When event_bus is present, the supervisor checkpoints
+    run_store.save() every `checkpoint_every_n_events` events so SSE
+    reconnects find a recent on-disk snapshot. Without this, mid-flight
+    reconnects can only replay an empty record (no save until terminal).
+    """
+
+    saves: list[int] = []
+
+    class CountingStore(JsonRunStore):
+        def save(self, record: HarnessEvent) -> None:  # type: ignore[override]
+            saves.append(len(record.events))
+            super().save(record)
+
+    graph_events = [
+        HarnessEvent(run_id="x", type="agent.turn", message=f"m{i}")
+        for i in range(5)
+    ]
+    nexo_graph = AsyncMock()
+    nexo_graph.ainvoke = AsyncMock(
+        return_value={"answer": "ok", "_events": graph_events}
+    )
+    sup = HarnessSupervisor(
+        router=IntentRouter(),
+        tools=ToolRegistry(),
+        stories=StorytellingModule(),
+        run_store=CountingStore(tmp_path),
+        nexo_graph=nexo_graph,
+        llm_router=_scripted_router("NEXO_QUERY"),
+        event_bus=RunEventBus(),
+        checkpoint_every_n_events=2,
+        tenant_lock="mintral",
+    )
+
+    await sup.run(UserRequest(message="q", tenant_id="mintral"))
+
+    # With checkpoint_every_n=2, _emit fires saves on every even-numbered
+    # event count. Plus the final explicit save in run(). We assert at
+    # least 2 saves total — proves mid-flight checkpointing happened.
+    assert len(saves) > 1, (
+        f"expected mid-flight checkpoint saves, got only {len(saves)}: {saves}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_supervisor_skips_checkpoint_when_no_event_bus(tmp_path: Any) -> None:
+    """Eval / demo-CLI path: no event_bus → no mid-flight checkpoint
+    writes. Only the final terminal save happens.
+    """
+
+    saves: list[int] = []
+
+    class CountingStore(JsonRunStore):
+        def save(self, record: HarnessEvent) -> None:  # type: ignore[override]
+            saves.append(len(record.events))
+            super().save(record)
+
+    graph_events = [
+        HarnessEvent(run_id="x", type="agent.turn", message=f"m{i}")
+        for i in range(5)
+    ]
+    nexo_graph = AsyncMock()
+    nexo_graph.ainvoke = AsyncMock(
+        return_value={"answer": "ok", "_events": graph_events}
+    )
+    sup = HarnessSupervisor(
+        router=IntentRouter(),
+        tools=ToolRegistry(),
+        stories=StorytellingModule(),
+        run_store=CountingStore(tmp_path),
+        nexo_graph=nexo_graph,
+        llm_router=_scripted_router("NEXO_QUERY"),
+        event_bus=None,  # eval path
+        checkpoint_every_n_events=2,
+        tenant_lock="mintral",
+    )
+
+    await sup.run(UserRequest(message="q", tenant_id="mintral"))
+
+    # Exactly one save: the final terminal save inside run().
+    assert len(saves) == 1, (
+        f"expected exactly one terminal save when no bus, got {saves}"
+    )

@@ -67,6 +67,7 @@ class HarnessSupervisor:
         conversation_token_budget: int = 24_000,
         tenant_lock: str = "mintral",
         event_bus: RunEventBus | None = None,
+        checkpoint_every_n_events: int = 10,
     ) -> None:
         self.router = router
         self.tools = tools
@@ -82,6 +83,7 @@ class HarnessSupervisor:
         self.conversation_token_budget = conversation_token_budget
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
+        self.checkpoint_every_n_events = checkpoint_every_n_events
 
     async def run(
         self,
@@ -209,6 +211,16 @@ class HarnessSupervisor:
         record.events.append(event)
         if self.event_bus is not None:
             self.event_bus.publish(record.run_id, event)
+            # Periodic mid-flight checkpoint so SSE reconnects find a
+            # recent on-disk snapshot. Skipped when no bus is wired
+            # (eval / demo-CLI path) to avoid extra writes that the
+            # caller never reads back. The terminal save inside run()
+            # always fires regardless.
+            if (
+                self.checkpoint_every_n_events > 0
+                and len(record.events) % self.checkpoint_every_n_events == 0
+            ):
+                self.run_store.save(record)
 
     def _close_bus(self, run_id: str) -> None:
         """Tell the event bus this run is done. No-op when no bus is

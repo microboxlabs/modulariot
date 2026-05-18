@@ -24,6 +24,13 @@ export interface CarrierOption {
   id: string;
   name: string;
   rut: string;
+  /**
+   * Upstream `prve_codigo` from `ams.fn_rd_accredited_resources.external_id`.
+   * Carried alongside `id` (the resource UUID) so downstream payloads (Alerce
+   * `proveedor` via the calendar binding) can use the upstream code without a
+   * second lookup. `null` when the upstream row has no code on file.
+   */
+  externalId: string | null;
   estado: "habilitado" | "no habilitado";
 }
 

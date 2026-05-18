@@ -8,10 +8,8 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { Session } from "next-auth";
-import {
-  extractCalendarBindingPayload,
-  runCalendarBinding,
-} from "./binding-helpers";
+import { extractCalendarBindingPayload } from "./binding-extractor";
+import { runCalendarBinding } from "./binding-helpers";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 

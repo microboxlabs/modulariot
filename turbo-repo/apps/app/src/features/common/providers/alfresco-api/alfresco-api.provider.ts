@@ -277,6 +277,15 @@ export interface CalendarBindingPayload {
   driver2_id?: string | null;
   truck_id?: string;
   trailer_id?: string | null;
+  /**
+   * Carrier's upstream `prve_codigo` captured at assignment time from the
+   * accredited-resources select. Sent on `stage="assigned"` only. The
+   * coordinator uses it as Alerce `proveedor` directly (replacing the
+   * PR #250 service-sync Activiti-variable lookup). `null` is the
+   * documented soft-fail signal — backend logs a warning and pushes the
+   * request anyway, matching the existing null-proveedor policy.
+   */
+  carrier_external_id?: string | null;
 }
 
 export interface CalendarBindingResponse {

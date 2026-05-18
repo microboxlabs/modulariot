@@ -64,6 +64,12 @@ export type RemolqueTipo =
 export interface TrailerOption {
   id: string;
   plate: string;
+  /**
+   * Upstream `remo_matricula` from `ams.fn_rd_accredited_resources.external_id`.
+   * Equal to `plate` for trailers today; carried for symmetry with the other
+   * Option types.
+   */
+  externalId: string | null;
   tipo: RemolqueTipo;
   estado: "disponible" | "ocupado";
   gpsIntegrado: boolean;

@@ -29,6 +29,12 @@ export interface DriverOption {
   id: string;
   name: string;
   rut: string;
+  /**
+   * Upstream `cond_codigo` from `ams.fn_rd_accredited_resources.external_id`.
+   * Populated for symmetry with `CarrierOption`; not yet routed downstream
+   * (driver Alerce contract — `conductor` field — still expects RUT today).
+   */
+  externalId: string | null;
   estado: "habilitado" | "no habilitado";
   viajesPrevios: number;
   ultimoViaje: string;
@@ -113,6 +119,14 @@ function TruckMapDisplay({ truck }: TruckMapDisplayProps) {
 
 export interface AssignmentFormData {
   carrier: string;
+  /**
+   * Carrier's upstream `prve_codigo` from
+   * `AccreditedResource.external_id`, captured alongside the UUID on every
+   * carrier change. Travels up to `assignmentOverrides` so the booking
+   * carries `assignedCarrierExternalId`. `null` when the selected carrier
+   * has no upstream code on file, or when no carrier is selected.
+   */
+  carrierExternalId: string | null;
   driver: string;
   secondDriver: string;
   hasSecondDriver: boolean;
@@ -180,6 +194,7 @@ function carrierRowToOption(row: AccreditedResource): CarrierOption {
     id: row.resource_id,
     name: row.resource_name ?? rut,
     rut,
+    externalId: row.external_id,
     estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
   };
 }
@@ -198,6 +213,7 @@ function truckRowToOption(row: AccreditedResource): TruckOption {
   return {
     id: row.resource_id,
     plate,
+    externalId: row.external_id,
     marca: row.resource_name ?? "",
     tipo: "truck",
     estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
@@ -228,6 +244,7 @@ function trailerRowToOption(row: AccreditedResource): TrailerOption {
   return {
     id: row.resource_id,
     plate,
+    externalId: row.external_id,
     tipo: TRAILER_TIPO_FALLBACK,
     estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
     gpsIntegrado: false,
@@ -253,6 +270,7 @@ function driverRowToOption(row: AccreditedResource): DriverOption {
     id: row.resource_id,
     name: row.resource_name ?? rut,
     rut,
+    externalId: row.external_id,
     estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
     viajesPrevios: row.trip_count ?? 0,
     ultimoViaje: formatLastTrip(row.last_trip),
@@ -360,7 +378,9 @@ export function AssignmentForm({
 
     // Drivers/trucks/trailers are scoped to the selected carrier — clear
     // those slots when the carrier changes so a stale (carrier, child) pair
-    // can't silently survive.
+    // can't silently survive. Refresh `carrierExternalId` from the matching
+    // row (or null when the new value is empty / row not yet in the page) so
+    // the upstream prve_codigo travels with the UUID.
     if (field === "carrier" && fieldValue !== value.carrier) {
       updated.driver = "";
       updated.secondDriver = "";
@@ -369,6 +389,11 @@ export function AssignmentForm({
       setDriverQuery("");
       setTruckQuery("");
       setTrailerQuery("");
+      updated.carrierExternalId =
+        typeof fieldValue === "string" && fieldValue.length > 0
+          ? accreditedCarriers.find((row) => row.resource_id === fieldValue)
+              ?.external_id ?? null
+          : null;
     }
 
     // When changing driver, clear secondDriver if it matches the new value

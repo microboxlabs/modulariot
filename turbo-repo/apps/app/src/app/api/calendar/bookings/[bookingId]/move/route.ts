@@ -7,10 +7,8 @@ import { requireAuth } from "../../../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
-import {
-  extractCalendarBindingPayload,
-  runCalendarBinding,
-} from "../../binding-helpers";
+import { extractCalendarBindingPayload } from "../../binding-extractor";
+import { runCalendarBinding } from "../../binding-helpers";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 

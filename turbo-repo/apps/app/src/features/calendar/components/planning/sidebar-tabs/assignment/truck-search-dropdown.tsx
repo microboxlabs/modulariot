@@ -31,6 +31,12 @@ import {
 export interface TruckOption {
   id: string;
   plate: string;
+  /**
+   * Upstream `cami_matricula` from `ams.fn_rd_accredited_resources.external_id`.
+   * Equal to `plate` for trucks today; carried for symmetry with the other
+   * Option types and to keep the downstream payload uniform.
+   */
+  externalId: string | null;
   marca: string;
   tipo: "truck" | "furgon" | "trucketa";
   estado: "disponible" | "ocupado";

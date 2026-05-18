@@ -201,7 +201,14 @@ function assignmentOverrides(
   data: AssignmentFormData
 ): Partial<SelectedService> {
   const out: Partial<SelectedService> = {};
-  if (data.carrier) out.assignedCarrier = data.carrier;
+  if (data.carrier) {
+    out.assignedCarrier = data.carrier;
+    // Carry the upstream prve_codigo alongside the UUID so the binding
+    // extractor can ship `carrier_external_id` for Alerce `proveedor`.
+    // `null` is a real value (carrier with no upstream code on file) and
+    // must be preserved — don't gate this on truthiness.
+    out.assignedCarrierExternalId = data.carrierExternalId;
+  }
   if (data.driver) out.assignedDriver = data.driver;
   if (data.hasSecondDriver && data.secondDriver) {
     out.assignedDriver2 = data.secondDriver;
@@ -225,6 +232,10 @@ function assignmentDataFromService(
 ): AssignmentFormData {
   return {
     carrier: service?.assignedCarrier ?? "",
+    // Survive reopen: the persisted prve_codigo flows back even when the
+    // carrier row falls off the current accredited-resources page or the
+    // carrier has been deactivated upstream since the prior confirm.
+    carrierExternalId: service?.assignedCarrierExternalId ?? null,
     driver: service?.assignedDriver ?? "",
     secondDriver: service?.assignedDriver2 ?? "",
     hasSecondDriver: Boolean(service?.assignedDriver2),

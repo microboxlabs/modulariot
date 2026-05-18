@@ -2,6 +2,7 @@ from pathlib import Path
 
 from miot_harness.config import get_settings
 from miot_harness.runtime.conversation import InMemoryConversationStore
+from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
@@ -31,4 +32,8 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
         run_store=JsonRunStore(workspace_dir),
         conversation_store=InMemoryConversationStore(),
         conversation_token_budget=settings.conversation_token_budget,
+        # Always-on event bus: zero cost when no subscribers (publish
+        # iterates an empty list). The SSE endpoint reads this bus to
+        # stream live events while a run is in-flight.
+        event_bus=RunEventBus(),
     )

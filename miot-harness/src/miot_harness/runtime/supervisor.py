@@ -83,8 +83,18 @@ class HarnessSupervisor:
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
 
-    async def run(self, request: UserRequest) -> HarnessRunRecord:
+    async def run(
+        self,
+        request: UserRequest,
+        *,
+        run_id_override: str | None = None,
+    ) -> HarnessRunRecord:
         ctx = request.to_context()
+        if run_id_override is not None:
+            # The SSE endpoint pre-mints a run_id so it can return it
+            # immediately and the caller can subscribe to
+            # /runs/{id}/stream before any events are emitted.
+            ctx = ctx.model_copy(update={"run_id": run_id_override})
         record = HarnessRunRecord(
             run_id=ctx.run_id,
             status="running",

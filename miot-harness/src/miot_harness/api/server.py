@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
 
@@ -19,6 +22,7 @@ from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.nexo_graph import build_nexo_graph
@@ -38,6 +42,13 @@ def _make_lifespan(
         app.state.nexo_pool = None
         app.state.nexo_registered = []
         app.state.nexo_snapshot_age_minutes = None
+        # Streaming state: harness ref for endpoint access (tests inject
+        # controlled graphs by mutating this), event bus the SSE handler
+        # subscribes to, and the in-flight task table the stream uses to
+        # decide whether to keep listening or treat the run as final.
+        app.state.harness = harness
+        app.state.event_bus = harness.event_bus
+        app.state.in_flight = {}
 
         # Telemetry: configure_tracing installs the global TracerProvider so
         # NexoTelemetryCallback's spans (per-agent) and Traceloop's
@@ -218,10 +229,127 @@ def create_app() -> FastAPI:
 
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(request: UserRequest) -> HarnessRunRecord:
-        return await harness.run(request)
+        # Read harness from app.state so tests that inject a controlled
+        # graph (via app.state.harness.nexo_graph = ...) see their patch.
+        return await app.state.harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
     async def get_run(run_id: str) -> HarnessRunRecord:
-        return harness.run_store.load(run_id)
+        return app.state.harness.run_store.load(run_id)
+
+    @app.post("/runs:start", status_code=202)
+    async def start_run(request: UserRequest) -> dict[str, str]:
+        run_id = f"run_{uuid4().hex}"
+        task = asyncio.create_task(
+            app.state.harness.run(request, run_id_override=run_id)
+        )
+        app.state.in_flight[run_id] = task
+
+        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
+            app.state.in_flight.pop(run_id, None)
+
+        task.add_done_callback(_cleanup)
+        return {"run_id": run_id}
+
+    @app.get("/runs/{run_id}/stream")
+    async def stream_run(run_id: str, request: Request) -> StreamingResponse:
+        last_event_id = request.headers.get("Last-Event-ID")
+        return StreamingResponse(
+            _sse_iterator(app, run_id, last_event_id),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                # Disable any upstream proxy buffering (nginx, etc.) so
+                # events reach the client as they're produced.
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     return app
+
+
+def _format_sse_event(evt: HarnessEvent) -> bytes:
+    return (
+        f"id: {evt.id}\n"
+        f"event: {evt.type}\n"
+        f"data: {evt.model_dump_json()}\n\n"
+    ).encode()
+
+
+def _format_sse_error(run_id: str, error: str) -> bytes:
+    payload = f'{{"error": "{error}", "run_id": "{run_id}"}}'
+    return f"event: error\ndata: {payload}\n\n".encode()
+
+
+async def _sse_iterator(
+    app: FastAPI, run_id: str, last_event_id: str | None
+) -> AsyncIterator[bytes]:
+    """Replay persisted events past `Last-Event-ID`, then drain live
+    events from the bus until the run terminates.
+
+    The bus is subscribed BEFORE the disk replay so events emitted
+    between replay and subscribe don't get lost; the seq filter
+    (`> last_seq`) dedupes any overlap.
+    """
+
+    harness: HarnessSupervisor = app.state.harness
+    event_bus = app.state.event_bus
+    in_flight: dict[str, asyncio.Task[HarnessRunRecord]] = app.state.in_flight
+
+    last_seq = -1
+
+    # Resolve Last-Event-ID → seq via the persisted record (if any).
+    if last_event_id:
+        try:
+            record = harness.run_store.load(run_id)
+            for evt in record.events:
+                if evt.id == last_event_id:
+                    last_seq = evt.seq
+                    break
+        except FileNotFoundError:
+            pass
+
+    # Subscribe BEFORE replay so we don't miss events that fire between
+    # the disk read and the subscribe call.
+    bus_iter = event_bus.subscribe(run_id) if event_bus is not None else None
+
+    # Replay every persisted event past the cursor.
+    record_existed = False
+    try:
+        record = harness.run_store.load(run_id)
+        record_existed = True
+        for evt in record.events:
+            if evt.seq > last_seq:
+                yield _format_sse_event(evt)
+                last_seq = evt.seq
+    except FileNotFoundError:
+        pass
+
+    # If neither the record exists nor the run is in-flight, this is an
+    # unknown run_id — emit an error and close.
+    if not record_existed and run_id not in in_flight:
+        yield _format_sse_error(run_id, "unknown_run_id")
+        if bus_iter is not None:
+            await bus_iter.aclose()
+        return
+
+    # If the run is terminal (record on disk, not in-flight), there's
+    # nothing more coming on the bus — close and return. This also
+    # covers the cross-process resume case where a fresh app instance
+    # reads a previously-persisted run: the new RunEventBus has no
+    # `_closed` entry for this run_id, so subscribe wouldn't queue the
+    # sentinel and the async-for below would block forever.
+    if run_id not in in_flight:
+        if bus_iter is not None:
+            await bus_iter.aclose()
+        return
+
+    # Drain live events. If close fires between this check and the
+    # first __anext__ (race: run terminates inline), RunEventBus's
+    # `_closed` tracking queues the sentinel on our subscribe and the
+    # iterator ends immediately.
+    if bus_iter is not None:
+        async for evt in bus_iter:
+            if evt.seq > last_seq:
+                yield _format_sse_event(evt)
+                last_seq = evt.seq

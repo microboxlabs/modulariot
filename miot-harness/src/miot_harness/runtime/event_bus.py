@@ -40,6 +40,11 @@ class RunEventBus:
 
     def __init__(self, maxsize: int = DEFAULT_MAXSIZE) -> None:
         self._subscribers: dict[str, list[asyncio.Queue[object]]] = {}
+        # Run-ids whose `close` has fired. Used to short-circuit a late
+        # `subscribe` (race: SSE handler attaches after the supervisor
+        # finishes _close_bus but before in-flight cleanup runs). Purged
+        # in `_consume`'s finally when the last subscriber detaches.
+        self._closed: set[str] = set()
         self._maxsize = maxsize
 
     def publish(self, run_id: str, event: HarnessEvent) -> None:
@@ -47,6 +52,7 @@ class RunEventBus:
             self._put_drop_oldest(queue, event)
 
     def close(self, run_id: str) -> None:
+        self._closed.add(run_id)
         # Snapshot before iterating: subscribers' finally-blocks mutate
         # the list when their iterator ends.
         for queue in list(self._subscribers.get(run_id, ())):
@@ -58,6 +64,10 @@ class RunEventBus:
         # when the consumer reaches its first `__anext__`.
         queue: asyncio.Queue[object] = asyncio.Queue(maxsize=self._maxsize)
         self._subscribers.setdefault(run_id, []).append(queue)
+        # If close already fired, queue the sentinel immediately so the
+        # consumer's first __anext__ terminates instead of hanging.
+        if run_id in self._closed:
+            self._put_drop_oldest(queue, _CLOSE)
         return self._consume(run_id, queue)
 
     async def _consume(
@@ -79,6 +89,9 @@ class RunEventBus:
                 queues.remove(queue)
                 if not queues:
                     self._subscribers.pop(run_id, None)
+                    # Drop the terminal marker when nobody is listening
+                    # anymore — keeps `_closed` bounded.
+                    self._closed.discard(run_id)
 
     def _put_drop_oldest(self, queue: asyncio.Queue[object], item: object) -> None:
         try:

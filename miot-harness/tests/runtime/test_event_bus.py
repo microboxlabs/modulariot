@@ -202,6 +202,33 @@ async def test_subscriber_detaches_on_early_exit() -> None:
 
 
 @pytest.mark.asyncio
+async def test_late_subscribe_after_close_ends_immediately() -> None:
+    """Race: SSE handler subscribes after the supervisor finishes
+    `_close_bus` but before in-flight cleanup runs. The bus must hand
+    the late subscriber an iterator that ends immediately so the
+    handler doesn't hang.
+    """
+
+    bus = RunEventBus()
+    bus.close("run_late")  # close fires before any subscriber attaches
+
+    received: list[HarnessEvent] = []
+
+    async def consumer() -> None:
+        async for evt in bus.subscribe("run_late"):
+            received.append(evt)
+
+    task = asyncio.create_task(consumer())
+    await asyncio.wait_for(task, timeout=1.0)
+
+    assert received == []
+    # And the closed marker is purged once the late subscriber detached,
+    # so a fresh run reusing the same id (unlikely, but defensive) would
+    # behave normally.
+    assert "run_late" not in bus._closed  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
 async def test_close_unknown_run_id_is_safe() -> None:
     """close() for a run_id with no subscribers must not raise — the
     supervisor calls close unconditionally on terminal events.

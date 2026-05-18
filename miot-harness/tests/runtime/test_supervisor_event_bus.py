@@ -230,3 +230,28 @@ async def test_supervisor_without_bus_behaves_unchanged(tmp_path: Any) -> None:
     record = await sup.run(UserRequest(message="q", tenant_id="mintral"))
     assert record.status == "completed"
     assert record.answer == "ok"
+
+
+@pytest.mark.asyncio
+async def test_supervisor_honors_run_id_override(tmp_path: Any) -> None:
+    """The SSE endpoint pre-mints a run_id before dispatching the run as
+    a background task so it can return `{run_id}` immediately and the
+    caller can subscribe to /runs/{id}/stream before the run produces
+    any events. `run_id_override` is the seam.
+    """
+
+    nexo_graph = AsyncMock()
+    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    sup = _supervisor(
+        tmp_path,
+        nexo_graph=nexo_graph,
+        llm_router=_scripted_router("NEXO_QUERY"),
+    )
+    record = await sup.run(
+        UserRequest(message="q", tenant_id="mintral"),
+        run_id_override="run_pre_minted_abc",
+    )
+    assert record.run_id == "run_pre_minted_abc"
+    # And every event on the record carries the same run_id — supervisor
+    # uses the override end-to-end.
+    assert all(e.run_id == "run_pre_minted_abc" for e in record.events)

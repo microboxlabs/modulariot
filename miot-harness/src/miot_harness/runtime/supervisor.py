@@ -89,13 +89,7 @@ class HarnessSupervisor:
         )
 
         def progress(event: HarnessEvent) -> None:
-            # Stamp a monotonic seq on every event the moment it lands on
-            # the record. Graph-emitted events arrive with the default
-            # `seq=0` (graphs don't know record state); rewriting here is
-            # the single source of truth for ordering. This is what the
-            # SSE stream's Last-Event-ID replay leans on.
-            event.seq = len(record.events)
-            record.events.append(event)
+            self._emit(record, event)
 
         progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
 
@@ -180,6 +174,22 @@ class HarnessSupervisor:
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self.run_store.save(record)
         return record
+
+    def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
+        """Single funnel for landing a `HarnessEvent` on a run record.
+
+        Stamps a monotonic `seq` on the event the moment it lands. Graph-
+        emitted events arrive with the default `seq=0` (graphs don't know
+        record state); rewriting here keeps the supervisor as the single
+        source of truth for run-wide ordering — what the SSE stream's
+        `Last-Event-ID` replay leans on.
+
+        Future hooks (event-bus publish, debounced run_store checkpoint)
+        will live in this funnel too.
+        """
+
+        event.seq = len(record.events)
+        record.events.append(event)
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the
@@ -298,8 +308,7 @@ class HarnessSupervisor:
 
         # Drain the graph's _events channel into the run record in order
         for evt in final_state.get("_events") or []:
-            evt.seq = len(record.events)
-            record.events.append(evt)
+            self._emit(record, evt)
 
         answer = final_state.get("answer")
         if answer:
@@ -348,8 +357,7 @@ class HarnessSupervisor:
             final_state = await self.agentic_graph.ainvoke(initial_state)
 
         for evt in final_state.get("_events") or []:
-            evt.seq = len(record.events)
-            record.events.append(evt)
+            self._emit(record, evt)
         record.answer = final_state.get("answer") or "(no answer produced by agentic graph)"
 
     async def _run_nexo_meta(

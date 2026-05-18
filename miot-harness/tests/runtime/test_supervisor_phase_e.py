@@ -470,3 +470,28 @@ async def test_seq_monotonic_across_agentic_path(tmp_path: Any) -> None:
     assert seqs == list(range(len(seqs))), (
         f"expected contiguous seq from 0, got {seqs}"
     )
+
+
+# --- _emit helper extraction (Phase A step 2) ---
+
+
+def test_emit_stamps_seq_and_appends_to_record(tmp_path: Any) -> None:
+    """`HarnessSupervisor._emit(record, event)` is the single funnel
+    responsible for stamping seq + appending to record.events. Direct
+    unit-test of the helper so future refactors of the funnel are caught
+    independently of the full `run()` integration tests.
+    """
+
+    from miot_harness.runtime.events import HarnessEvent
+    from miot_harness.runtime.run_store import HarnessRunRecord
+
+    supervisor = _build_supervisor(tmp_path)
+    record = HarnessRunRecord(run_id="run_x", status="running")
+    e1 = HarnessEvent(run_id="run_x", type="run.started", message="hi")
+    e2 = HarnessEvent(run_id="run_x", type="route.selected", message="r")
+
+    supervisor._emit(record, e1)
+    supervisor._emit(record, e2)
+
+    assert [e.seq for e in record.events] == [0, 1]
+    assert record.events == [e1, e2]

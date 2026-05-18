@@ -247,7 +247,6 @@ async def test_stream_receives_live_events_during_in_flight(
 
             # Start streaming concurrently with the in-flight run
             async def consume() -> list[dict[str, Any]]:
-                records: list[dict[str, Any]] = []
                 async with client.stream(
                     "GET", f"/runs/{run_id}/stream"
                 ) as resp:

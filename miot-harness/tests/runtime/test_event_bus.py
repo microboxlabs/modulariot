@@ -17,7 +17,6 @@ These tests pin the contract the supervisor will rely on in A4 and the
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 import pytest
 

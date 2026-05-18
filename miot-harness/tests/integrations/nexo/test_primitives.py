@@ -19,8 +19,8 @@ import pytest
 from miot_harness.integrations.nexo.primitives import (
     AllowlistViolation,
     CostGateViolation,
-    MutationRejected,
     MultiStatementRejected,
+    MutationRejected,
     UnsupportedConstruct,
     nexo_describe,
     nexo_explain,
@@ -28,7 +28,6 @@ from miot_harness.integrations.nexo.primitives import (
     nexo_select,
     validate_select_sql,
 )
-
 
 # --------------------- Safety gate (no DB) ---------------------
 

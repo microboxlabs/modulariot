@@ -3,12 +3,14 @@
 Four read-only primitives the agentic graph can call when the curated
 `fn_dx_*` catalog doesn't cover a question:
 
-| Tool             | Shape                                               | Safety                                               |
-|------------------|-----------------------------------------------------|------------------------------------------------------|
-| ``nexo_describe`` | ``pg_catalog`` introspection → columns + types     | Allowlist `nexo.*`; read-only                        |
-| ``nexo_select``   | Parameterised SELECT with optional WHERE/ORDER/LIM | sqlglot AST + allowlist + bounded LIMIT (default 100, cap 5000) |
-| ``nexo_grep``     | Sugar for SELECT ... WHERE col ILIKE pattern        | Same gate as nexo_select + single-column constraint  |
-| ``nexo_explain``  | ``EXPLAIN (FORMAT JSON)``                           | Refuses if total cost > env-tunable threshold        |
+- ``nexo_describe`` — ``pg_catalog`` introspection → columns + types.
+  Safety: allowlist ``nexo.*``; read-only.
+- ``nexo_select`` — parameterised SELECT with optional WHERE/ORDER/LIMIT.
+  Safety: sqlglot AST + allowlist + bounded LIMIT (default 100, cap 5000).
+- ``nexo_grep`` — sugar for ``SELECT ... WHERE col ILIKE pattern``.
+  Safety: same gate as ``nexo_select`` plus single-column constraint.
+- ``nexo_explain`` — ``EXPLAIN (FORMAT JSON)``.
+  Safety: refuses if total cost exceeds an env-tunable threshold.
 
 The **safety gate** (``validate_select_sql``) is the high-risk surface:
 it runs every composable query through sqlglot's AST parser BEFORE the
@@ -28,7 +30,6 @@ from typing import Any
 
 import sqlglot
 from sqlglot import exp
-
 
 # ----------------------------------------------------------------------
 # Safety gate
@@ -116,7 +117,7 @@ _SAFE_FUNCTIONS: frozenset[str] = frozenset(
         "date_trunc", "datetrunc", "timestamp_trunc", "timestamptrunc",
         "date_part", "datepart", "extract", "age",
         "to_timestamp", "to_date", "totimestamp", "todate",
-        "to_char", "time_to_str", "timetostr",
+        "time_to_str", "timetostr",
         "make_date", "make_timestamp", "makedate", "maketimestamp",
         "justify_interval", "justify_hours", "justify_days",
         # conversion / null-handling

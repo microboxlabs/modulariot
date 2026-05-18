@@ -36,6 +36,7 @@ from miot_harness.runtime.conversation import (
     ConversationTurn,
     to_messages,
 )
+from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.mode_resolver import ModeAccessDenied, resolve_mode
@@ -65,6 +66,7 @@ class HarnessSupervisor:
         conversation_store: ConversationStore | None = None,
         conversation_token_budget: int = 24_000,
         tenant_lock: str = "mintral",
+        event_bus: RunEventBus | None = None,
     ) -> None:
         self.router = router
         self.tools = tools
@@ -79,6 +81,7 @@ class HarnessSupervisor:
         self.conversation_store = conversation_store
         self.conversation_token_budget = conversation_token_budget
         self.tenant_lock = tenant_lock
+        self.event_bus = event_bus
 
     async def run(self, request: UserRequest) -> HarnessRunRecord:
         ctx = request.to_context()
@@ -114,6 +117,7 @@ class HarnessSupervisor:
                 )
             )
             self.run_store.save(record)
+            self._close_bus(ctx.run_id)
             return record
 
         progress(
@@ -158,6 +162,7 @@ class HarnessSupervisor:
                 )
             )
             self.run_store.save(record)
+            self._close_bus(ctx.run_id)
             return record
 
         # Persist the turn so the next call in this conversation sees it.
@@ -173,6 +178,7 @@ class HarnessSupervisor:
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self.run_store.save(record)
+        self._close_bus(ctx.run_id)
         return record
 
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
@@ -184,12 +190,25 @@ class HarnessSupervisor:
         source of truth for run-wide ordering — what the SSE stream's
         `Last-Event-ID` replay leans on.
 
-        Future hooks (event-bus publish, debounced run_store checkpoint)
-        will live in this funnel too.
+        When an `event_bus` is injected, the event is also published to
+        every live subscriber for this run. The debounced run_store
+        checkpoint (A6) will hang off this funnel too.
         """
 
         event.seq = len(record.events)
         record.events.append(event)
+        if self.event_bus is not None:
+            self.event_bus.publish(record.run_id, event)
+
+    def _close_bus(self, run_id: str) -> None:
+        """Tell the event bus this run is done. No-op when no bus is
+        injected. Called at every terminal point in `run()` so SSE
+        subscribers' iterators always end — even on mode refusal and
+        graph exceptions.
+        """
+
+        if self.event_bus is not None:
+            self.event_bus.close(run_id)
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the

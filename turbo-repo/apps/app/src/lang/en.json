@@ -293,6 +293,7 @@
           "cancelReassignment": "Cancel",
           "confirmReassignment": "Reassign",
           "readOnlyBanner": "Past service — read-only",
+          "viewerBanner": "Read-only mode — no permission to modify the plan",
           "loadUtilization": "Load Utilization",
           "constraint": "Constraint",
           "maxUtilization": "Total",
@@ -341,7 +342,9 @@
           "delete": "Delete",
           "deleteConfirmTitle": "Confirm deletion",
           "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
-          "cancelReassignment": "Cancel reassignment"
+          "cancelReassignment": "Cancel reassignment",
+          "previewAsViewer": "Open service (Read-only)",
+          "exitPreview": "Exit preview"
         },
         "notifications": {
           "reassigned": "Service reassigned successfully",

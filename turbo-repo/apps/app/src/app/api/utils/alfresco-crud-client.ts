@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
-import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  prepareAlfrescoAuth,
+  getGroupsForPerson,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { logger } from "@/lib/logger";
 
 const ALFRESCO_API_URL = process.env.ECM_API_URL || "";
@@ -59,6 +62,56 @@ export async function requireAuth(): Promise<AuthResult> {
   }
 
   return { authenticated: true, session };
+}
+
+/**
+ * Result of an authorize-by-group check
+ */
+type AnyGroupResult =
+  | { authorized: true; session: Session; userGroups: string[] }
+  | { authorized: false; response: NextResponse };
+
+/**
+ * Authenticate, fetch the caller's Alfresco groups, and authorize if at
+ * least one group matches `allowedGroups`. Layered on top of `requireAuth`:
+ * the 401 path is identical, plus a 403 when authenticated but missing
+ * every allowed group. Use this on any mutating API route that should
+ * reject pure GROUP_CALENDAR_VIEWER (or other read-only) users.
+ *
+ * The membership lookup runs every request — there is no in-memory cache
+ * here. That matches the pattern in `task/unclaim/route.ts` and keeps the
+ * helper free of cross-request state; if Alfresco group lookups ever
+ * become a hot path, fold caching into `getGroupsForPerson` itself.
+ */
+export async function requireAnyGroup(
+  allowedGroups: readonly string[]
+): Promise<AnyGroupResult> {
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) {
+    return { authorized: false, response: authResult.response };
+  }
+
+  const userGroups = await getGroupsForPerson(authResult.session);
+  const hasAccess = userGroups.some((g) => allowedGroups.includes(g));
+  if (!hasAccess) {
+    logger.warn(
+      { userEmail: authResult.session.user?.email, allowedGroups },
+      "Forbidden: caller lacks every required group"
+    );
+    return {
+      authorized: false,
+      response: NextResponse.json(
+        { error: "Forbidden: missing required group" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return {
+    authorized: true,
+    session: authResult.session,
+    userGroups,
+  };
 }
 
 /**

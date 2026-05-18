@@ -7,7 +7,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
@@ -253,6 +253,16 @@ def create_app() -> FastAPI:
 
     @app.get("/runs/{run_id}/stream")
     async def stream_run(run_id: str, request: Request) -> StreamingResponse:
+        # `event_bus` is the live channel for in-flight runs; without it
+        # _sse_iterator can only ship the disk record and would close the
+        # stream silently, which the client can't distinguish from a real
+        # terminal run. Fail fast with 501 so the misconfiguration is
+        # explicit rather than masquerading as an empty completed run.
+        if app.state.event_bus is None:
+            raise HTTPException(
+                status_code=501,
+                detail="SSE streaming is not configured on this harness instance.",
+            )
         last_event_id = request.headers.get("Last-Event-ID")
         return StreamingResponse(
             _sse_iterator(app, run_id, last_event_id),

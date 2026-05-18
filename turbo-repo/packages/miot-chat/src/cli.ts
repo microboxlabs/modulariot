@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { registerAskCommand } from "./commands/ask.js";
+import { registerResumeCommand } from "./commands/resume.js";
+import { registerRunsCommand } from "./commands/runs.js";
 import { resolveConfig, type CliFlags } from "./config.js";
 import { createHarnessClient } from "./harness/client.js";
 import { runRepl } from "./repl/loop.js";
@@ -40,6 +42,8 @@ program
   });
 
 registerAskCommand(program);
+registerResumeCommand(program);
+registerRunsCommand(program);
 
 program.parseAsync().catch((err: unknown) => {
   process.stderr.write(

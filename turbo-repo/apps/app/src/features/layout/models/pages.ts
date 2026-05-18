@@ -33,7 +33,18 @@ export const pages: SidebarItem[] = [
       },
     ],
     totals: {},
-    requiredGroups: ["GROUP_ASSIGNMENT", "GROUP_PLANNING"],
+    // Three-way role split for the calendar feature (OR-evaluated):
+    //  - GROUP_PLANNING        → slot/time changes, reassign, delete planning
+    //  - GROUP_ASSIGNMENT      → carrier/driver/truck/trailer assignment
+    //  - GROUP_CALENDAR_VIEWER → inspect-only; right-click a chip to open
+    //    the sidebar in read-only mode. UI gating in
+    //    features/calendar/components/planning + the matching backend gate
+    //    in api/calendar/bookings/* enforce that viewers never mutate.
+    requiredGroups: [
+      "GROUP_ASSIGNMENT",
+      "GROUP_PLANNING",
+      "GROUP_CALENDAR_VIEWER",
+    ],
   },
   {
     icon: ClipboardIcon,

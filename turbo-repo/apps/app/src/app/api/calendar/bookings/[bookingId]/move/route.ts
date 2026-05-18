@@ -3,7 +3,7 @@ import {
   MiotCalendarApiError,
   type BookingResponse,
 } from "@microboxlabs/miot-calendar-client";
-import { requireAuth } from "../../../../utils/alfresco-crud-client";
+import { requireAnyGroup } from "../../../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
@@ -13,6 +13,12 @@ import {
 } from "../../binding-helpers";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
+
+// Same gate as the create/cancel routes — see ../../route.ts.
+const BOOKING_MUTATION_GROUPS = [
+  "GROUP_PLANNING",
+  "GROUP_ASSIGNMENT",
+] as const;
 
 const MoveBodySchema = z.object({
   slot: z.object({
@@ -146,8 +152,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return authResult.response;
+  const authResult = await requireAnyGroup(BOOKING_MUTATION_GROUPS);
+  if (!authResult.authorized) return authResult.response;
 
   const { bookingId } = await params;
 

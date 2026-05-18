@@ -293,6 +293,7 @@
           "cancelReassignment": "Cancelar",
           "confirmReassignment": "Reasignar",
           "readOnlyBanner": "Servicio pasado — solo lectura",
+          "viewerBanner": "Modo solo lectura — sin permisos para modificar el plan",
           "loadUtilization": "Utilización de carga",
           "constraint": "Restricción",
           "maxUtilization": "Total",
@@ -341,7 +342,9 @@
           "delete": "Eliminar",
           "deleteConfirmTitle": "Confirmar eliminación",
           "deleteConfirmMessage": "¿Está seguro de eliminar la asignación del servicio {serviceId}?",
-          "cancelReassignment": "Cancelar reasignación"
+          "cancelReassignment": "Cancelar reasignación",
+          "previewAsViewer": "Abrir servicio (Solo Lectura)",
+          "exitPreview": "Salir de previsualización"
         },
         "notifications": {
           "reassigned": "Servicio reasignado exitosamente",

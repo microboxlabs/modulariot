@@ -1,5 +1,8 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
+import { resolveConfig, type CliFlags } from "./config.js";
+import { createHarnessClient } from "./harness/client.js";
+import { runRepl } from "./repl/loop.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -23,6 +26,21 @@ program
   .option(
     "--profile <name>",
     "Named profile from ~/.miot-chat/config.json (or MIOT_CHAT_PROFILE env)",
-  );
+  )
+  .action(async () => {
+    const flags = program.opts<CliFlags>();
+    const config = resolveConfig({ flags });
+    const client = createHarnessClient({
+      baseUrl: config.baseUrl,
+      token: config.token,
+    });
+    const code = await runRepl({ config, client });
+    process.exit(code);
+  });
 
-program.parse();
+program.parseAsync().catch((err: unknown) => {
+  process.stderr.write(
+    `${err instanceof Error ? err.message : String(err)}\n`,
+  );
+  process.exit(1);
+});

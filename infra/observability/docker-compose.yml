@@ -61,7 +61,10 @@ services:
     container_name: miot-obs-redis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # `requirepass` (see `command:` below) makes an unauthenticated `ping`
+      # fail with NOAUTH. Pass the password via REDISCLI_AUTH instead of
+      # `-a <pw>` so it doesn't appear in `ps` output inside the container.
+      test: ["CMD-SHELL", "REDISCLI_AUTH=myredissecret redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10

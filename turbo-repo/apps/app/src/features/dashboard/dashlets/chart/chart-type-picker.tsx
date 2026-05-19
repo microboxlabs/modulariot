@@ -11,7 +11,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 // SVG chart type icons
 // ============================================================================
 
-function LineIcon({ className }: { className?: string }) {
+function LineIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <polyline points="3,17 7,10 12,14 17,6 21,9" />
@@ -19,7 +19,7 @@ function LineIcon({ className }: { className?: string }) {
   );
 }
 
-function BarIcon({ className }: { className?: string }) {
+function BarIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
       <rect x="3" y="13" width="4" height="8" rx="1" />
@@ -29,7 +29,7 @@ function BarIcon({ className }: { className?: string }) {
   );
 }
 
-function PieIcon({ className }: { className?: string }) {
+function PieIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
       <path d="M12 2a10 10 0 1 0 10 10H12V2z" opacity="0.55" />
@@ -38,7 +38,7 @@ function PieIcon({ className }: { className?: string }) {
   );
 }
 
-function GaugeIcon({ className }: { className?: string }) {
+function GaugeIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className}>
       <path d="M5 18A8 8 0 0 1 19 18" />
@@ -48,7 +48,7 @@ function GaugeIcon({ className }: { className?: string }) {
   );
 }
 
-function ScatterIcon({ className }: { className?: string }) {
+function ScatterIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
       <circle cx="5"  cy="17" r="2" />
@@ -61,7 +61,7 @@ function ScatterIcon({ className }: { className?: string }) {
   );
 }
 
-export const CHART_ICON: Record<ChartType, (p: { className?: string }) => React.ReactElement> = {
+export const CHART_ICON: Record<ChartType, (p: Readonly<{ className?: string }>) => React.ReactElement> = {
   line:    LineIcon,
   bar:     BarIcon,
   pie:     PieIcon,

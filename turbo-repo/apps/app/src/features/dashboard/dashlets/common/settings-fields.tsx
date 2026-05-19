@@ -594,9 +594,11 @@ export function HbTextareaField({
 
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
-        {label}
-      </Label>
+      {label && (
+        <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+          {label}
+        </Label>
+      )}
       <Textarea
         id={id}
         value={value}

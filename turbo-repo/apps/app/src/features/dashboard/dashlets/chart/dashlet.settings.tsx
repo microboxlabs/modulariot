@@ -79,7 +79,7 @@ export function DashletSettings({
   const [tooltipTemplate, setTooltipTemplate] = useState(config.tooltipTemplate ?? "");
 
   // Data state
-  const [dataMode, setDataMode] = useState<SimpleDataMode>((config.dataMode as SimpleDataMode) ?? "static");
+  const [dataMode, setDataMode] = useState<SimpleDataMode>(config.dataMode ?? "static");
   const [dataSourceId, setDataSourceId] = useState<string>(config.dataSourceId ?? "");
   const [plannerVariableName, setPlannerVariableName] = useState(config.plannerVariableName ?? "");
   const [rowsJson, setRowsJson] = useState(JSON.stringify(config.rows ?? [], null, 2));
@@ -149,7 +149,10 @@ export function DashletSettings({
 
   const handleChartTypeChange = (type: ChartType) => {
     setChartType(type);
-    if (isSingleSeries(type) && series.length > 1) setSeries([series[0]]);
+    if (isSingleSeries(type) && series.length > 1) {
+      setSeries([series[0]]);
+      setCustomColors((prev) => (prev.length > 1 ? [prev[0]] : prev));
+    }
   };
 
   const updateSeries = (id: string, patch: Partial<SeriesConfig>) =>

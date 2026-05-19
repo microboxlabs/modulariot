@@ -1,16 +1,43 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type {
   HarnessEvent,
   HarnessRunRecord,
   UserRequest,
 } from "@microboxlabs/miot-harness-client";
 import { initialSession, reduce } from "./session/reducer.js";
+import { defaultMiotChatHome } from "./persistence/paths.js";
 import type {
   ReducerContext,
   SessionAction,
   SessionMetaInit,
   SessionState,
 } from "./session/types.js";
+
+const DEBUG_ENV = "MIOT_CHAT_TUI_DEBUG";
+
+function debugEnabled(): boolean {
+  return process.env[DEBUG_ENV] === "1";
+}
+
+function debugLogPath(): string {
+  return `${defaultMiotChatHome()}/last-run.log`;
+}
+
+function debugLog(line: Record<string, unknown>): void {
+  if (!debugEnabled()) return;
+  try {
+    const path = debugLogPath();
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(
+      path,
+      `${JSON.stringify({ ts: new Date().toISOString(), ...line })}\n`,
+    );
+  } catch {
+    // Swallow log errors — debugging shouldn't break the TUI.
+  }
+}
 
 export interface HarnessClientLike {
   runs: {
@@ -62,6 +89,7 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
       const trimmed = prompt.trim();
       if (trimmed.length === 0) return;
 
+      debugLog({ event: "submit", prompt, meta });
       dispatch({ kind: "BEGIN_TURN", prompt });
 
       const controller = new AbortController();
@@ -80,7 +108,12 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
           { signal: controller.signal },
         );
         runId = created.run_id;
+        debugLog({ event: "create.ok", runId });
       } catch (err) {
+        debugLog({
+          event: "create.err",
+          message: err instanceof Error ? err.message : String(err),
+        });
         dispatch({
           kind: "END_TURN",
           failureMessage: err instanceof Error ? err.message : String(err),
@@ -92,6 +125,14 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
         for await (const event of opts.client.runs.stream(runId, {
           signal: controller.signal,
         })) {
+          debugLog({
+            event: "stream.event",
+            runId,
+            type: event.type,
+            seq: event.seq,
+            message: event.message,
+            data: event.data,
+          });
           dispatch({ kind: "STREAM_EVENT", event, runId });
           if (
             event.type === "run.completed" ||
@@ -100,7 +141,13 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
             break;
           }
         }
+        debugLog({ event: "stream.end", runId });
       } catch (err) {
+        debugLog({
+          event: "stream.err",
+          runId,
+          message: err instanceof Error ? err.message : String(err),
+        });
         dispatch({
           kind: "END_TURN",
           failureMessage: err instanceof Error ? err.message : String(err),
@@ -120,9 +167,16 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
         timedOut = true;
         recordController.abort();
       }, RECORD_TIMEOUT_MS);
+      debugLog({ event: "get.start", runId });
       try {
         const record = await opts.client.runs.get(runId, {
           signal: recordController.signal,
+        });
+        debugLog({
+          event: "get.ok",
+          runId,
+          answerLength: record.answer?.length ?? null,
+          status: record.status,
         });
         dispatch({ kind: "END_TURN", record });
       } catch (err) {
@@ -136,6 +190,7 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
           : err instanceof Error
             ? err.message
             : String(err);
+        debugLog({ event: "get.err", runId, timedOut, message: detail });
         dispatch({ kind: "END_TURN", failureMessage: detail });
       } finally {
         clearTimeout(timer);

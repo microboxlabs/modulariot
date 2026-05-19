@@ -186,6 +186,78 @@ describe("<App /> smoke", () => {
     },
   );
 
+  it(
+    "matches the live harness flow with a tool round-trip (alertas-hoy case)",
+    { timeout: 15000 },
+    async () => {
+      // Matches the screenshot the user reported:
+      //   route.selected nexo_query
+      //   plan.created
+      //   tool.started "Starting coordinador_eta_riesgo_hoy"
+      //   tool.completed "Completed coordinador_eta_riesgo_hoy"
+      //   answer.completed { message: "...", data: { length: N } } (no text)
+      //   run.completed
+      // runs.get returns the real markdown answer.
+      const ctx = deterministicCtx();
+      const events: HarnessEvent[] = [
+        evt("run.started"),
+        evt("route.selected", { data: { route: "nexo_query" } }),
+        evt("plan.created", { message: "Initial plan created by filter_expert" }),
+        evt("tool.started", {
+          data: { name: "Starting coordinador_eta_riesgo_hoy" },
+        }),
+        evt("tool.completed", {
+          message: "Completed coordinador_eta_riesgo_hoy",
+          data: { name: "Completed coordinador_eta_riesgo_hoy" },
+        }),
+        evt("answer.completed", {
+          message: "Synthesized final answer",
+          data: { length: 1234 },
+        }),
+        evt("run.completed"),
+      ];
+      const ANSWER = "ALERTS_PARA_HOY_REAL_BODY";
+      const record: HarnessRunRecord = {
+        run_id: "r-alertas",
+        status: "completed",
+        events,
+        artifacts: [],
+        answer: ANSWER,
+        conversation_id: "c1",
+      };
+      const client = {
+        runs: {
+          create: vi.fn(async () => ({ run_id: "r-alertas" })),
+          stream: async function* (): AsyncGenerator<HarnessEvent> {
+            for (const e of events) {
+              yield e;
+              await new Promise((r) => setTimeout(r, 5));
+            }
+          },
+          get: vi.fn(async () => record),
+        },
+      };
+      const { stdin, lastFrame } = render(
+        <App
+          config={mkConfig()}
+          client={client}
+          home="/tmp/miot-app-alertas"
+          {...ctx}
+        />,
+      );
+      await new Promise((r) => setTimeout(r, 50));
+      stdin.write("cuales son las alertas para hoy?");
+      await new Promise((r) => setTimeout(r, 50));
+      stdin.write("\r");
+      await waitForFrame(lastFrame, ANSWER);
+      const frame = lastFrame() ?? "";
+      // The single collapsed tool row, no duplicate.
+      expect(frame).toContain("coordinador_eta_riesgo_hoy");
+      // Should not be stuck on the "Synthesized final answer" marker.
+      expect(frame).not.toContain("Synthesized final answer");
+    },
+  );
+
   it("renders the header with tenant/user/conv chips", async () => {
     const ctx = deterministicCtx();
     const client = {

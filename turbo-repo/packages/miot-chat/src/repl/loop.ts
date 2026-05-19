@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { createInterface, type Interface as ReadlineInterface } from "node:readline";
 import type { ResolvedConfig } from "../config.js";
-import type { HarnessClient } from "../harness/client.js";
 import {
-  HarnessRunError,
+  MiotHarnessApiError,
   type HarnessEvent,
   type HarnessRunRecord,
+  type MiotHarnessClient,
   type RunMode,
   type UserRequest,
-} from "../harness/types.js";
+} from "@microboxlabs/miot-harness-client";
 import {
   CLEAR_LINE,
   bold,
@@ -30,7 +30,7 @@ import { AGENTIC_TENANT_LOCK, parseSlash, type SlashState } from "./slash.js";
 
 export interface RunReplOptions {
   config: ResolvedConfig;
-  client: HarnessClient;
+  client: MiotHarnessClient;
   conversationId?: string;
   stdin?: NodeJS.ReadableStream;
   stdout?: NodeJS.WritableStream;
@@ -185,7 +185,7 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
       } catch (e) {
         if ((e as { name?: string }).name === "AbortError") {
           // SIGINT already wrote the aborted notice
-        } else if (e instanceof HarnessRunError) {
+        } else if (e instanceof MiotHarnessApiError) {
           stderr.write(`${red(`error: ${e.message}`, color)}\n`);
           exitCode = 1;
         } else {
@@ -212,7 +212,7 @@ interface TurnContext {
 async function runOneTurn(
   prompt: string,
   session: SessionState,
-  client: HarnessClient,
+  client: MiotHarnessClient,
   ctx: TurnContext,
 ): Promise<void> {
   const req: UserRequest = {
@@ -223,13 +223,13 @@ async function runOneTurn(
     conversation_id: session.conversationId,
   };
 
-  const { run_id } = await client.createRun(req, { signal: ctx.signal });
+  const { run_id } = await client.runs.create(req, { signal: ctx.signal });
   let state: RenderState = initialState(ctx.color);
   let terminal: "completed" | "failed" | null = null;
   let failureMessage = "";
   const seenEvents: HarnessEvent[] = [];
 
-  for await (const event of client.streamRun(run_id, { signal: ctx.signal })) {
+  for await (const event of client.runs.stream(run_id, { signal: ctx.signal })) {
     seenEvents.push(event);
     const r = renderEvent(state, event);
     state = r.state;
@@ -248,7 +248,7 @@ async function runOneTurn(
   if (terminal === "completed") {
     let record: HarnessRunRecord | null = null;
     try {
-      record = await client.getRun(run_id);
+      record = await client.runs.get(run_id);
     } catch {
       record = null;
     }

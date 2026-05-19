@@ -25,7 +25,7 @@ import {
   TERMINAL_EVENT_TYPES,
   type HarnessEvent,
   type HarnessEventType,
-} from "../harness/types.js";
+} from "@microboxlabs/miot-harness-client";
 
 export interface RenderState {
   pendingAnswer: string | null;

@@ -4,7 +4,7 @@ import { registerAskCommand } from "./commands/ask.js";
 import { registerResumeCommand } from "./commands/resume.js";
 import { registerRunsCommand } from "./commands/runs.js";
 import { resolveConfig, type CliFlags } from "./config.js";
-import { createHarnessClient } from "./harness/client.js";
+import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import { runRepl } from "./repl/loop.js";
 
 const require = createRequire(import.meta.url);
@@ -33,7 +33,7 @@ program
   .action(async () => {
     const flags = program.opts<CliFlags>();
     const config = resolveConfig({ flags });
-    const client = createHarnessClient({
+    const client = createMiotHarnessClient({
       baseUrl: config.baseUrl,
       token: config.token,
     });

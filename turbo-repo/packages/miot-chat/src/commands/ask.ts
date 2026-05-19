@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { Command } from "commander";
 import type { ResolvedConfig, CliFlags } from "../config.js";
 import { resolveConfig } from "../config.js";
-import { createHarnessClient } from "../harness/client.js";
 import {
-  HarnessRunError,
+  MiotHarnessApiError,
+  createMiotHarnessClient,
   type HarnessEvent,
   type UserRequest,
-} from "../harness/types.js";
+} from "@microboxlabs/miot-harness-client";
 import { dim, red, type ColorOptions } from "../output.js";
 import {
   initialState,
@@ -34,7 +34,7 @@ export async function runAsk(opts: AskOptions): Promise<number> {
     isTTY: "isTTY" in stdout ? (stdout as { isTTY?: boolean }).isTTY : false,
   };
 
-  const client = createHarnessClient({
+  const client = createMiotHarnessClient({
     baseUrl: opts.config.baseUrl,
     token: opts.config.token,
   });
@@ -58,9 +58,9 @@ export async function runAsk(opts: AskOptions): Promise<number> {
   const events: HarnessEvent[] = [];
 
   try {
-    const { run_id } = await client.createRun(req);
+    const { run_id } = await client.runs.create(req);
     runId = run_id;
-    for await (const event of client.streamRun(run_id)) {
+    for await (const event of client.runs.stream(run_id)) {
       events.push(event);
       const r = renderEvent(state, event);
       state = r.state;
@@ -78,13 +78,13 @@ export async function runAsk(opts: AskOptions): Promise<number> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     stderr.write(`${red(`error: ${msg}`, color)}\n`);
-    return e instanceof HarnessRunError ? 1 : 2;
+    return e instanceof MiotHarnessApiError ? 1 : 2;
   }
 
   if (terminal === "completed") {
     let answer: string | null = state.pendingAnswer;
     try {
-      const record = await client.getRun(runId);
+      const record = await client.runs.get(runId);
       answer = record.answer;
     } catch {
       // Fall back to whatever we cached from the stream.

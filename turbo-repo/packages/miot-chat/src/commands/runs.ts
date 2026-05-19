@@ -1,7 +1,9 @@
 import type { Command } from "commander";
 import { resolveConfig, type CliFlags } from "../config.js";
-import { createHarnessClient } from "../harness/client.js";
-import { HarnessRunError } from "../harness/types.js";
+import {
+  MiotHarnessApiError,
+  createMiotHarnessClient,
+} from "@microboxlabs/miot-harness-client";
 import { dim, red, type ColorOptions } from "../output.js";
 import {
   clearStatus,
@@ -23,13 +25,13 @@ export function registerRunsCommand(program: Command): void {
         isTTY: process.stdout.isTTY,
       };
 
-      const client = createHarnessClient({
+      const client = createMiotHarnessClient({
         baseUrl: config.baseUrl,
         token: config.token,
       });
 
       try {
-        const record = await client.getRun(runId);
+        const record = await client.runs.get(runId);
         process.stdout.write(
           `${dim(`run ${runId} — status: ${record.status} — events: ${record.events.length}`, color)}\n`,
         );
@@ -48,7 +50,7 @@ export function registerRunsCommand(program: Command): void {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         process.stderr.write(`${red(`error: ${msg}`, color)}\n`);
-        process.exit(e instanceof HarnessRunError ? 1 : 2);
+        process.exit(e instanceof MiotHarnessApiError ? 1 : 2);
       }
     });
 }

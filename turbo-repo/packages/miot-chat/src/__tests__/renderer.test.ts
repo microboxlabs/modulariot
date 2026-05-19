@@ -8,7 +8,7 @@ import {
   type RenderState,
 } from "../repl/renderer.js";
 import { stripAnsi } from "../output.js";
-import type { HarnessEvent, HarnessEventType } from "../harness/types.js";
+import type { HarnessEvent, HarnessEventType } from "@microboxlabs/miot-harness-client";
 
 function evt(
   type: HarnessEventType,

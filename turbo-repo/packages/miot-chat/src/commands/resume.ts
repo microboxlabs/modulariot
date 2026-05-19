@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { resolveConfig, type CliFlags } from "../config.js";
-import { createHarnessClient } from "../harness/client.js";
+import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import { dim, red, type ColorOptions } from "../output.js";
 import { readLastConversation } from "../repl/conversation.js";
 import { runRepl } from "../repl/loop.js";
@@ -30,7 +30,7 @@ export function registerResumeCommand(program: Command): void {
         `${dim(`resuming conversation: ${conversationId}`, color)}\n`,
       );
 
-      const client = createHarnessClient({
+      const client = createMiotHarnessClient({
         baseUrl: config.baseUrl,
         token: config.token,
       });

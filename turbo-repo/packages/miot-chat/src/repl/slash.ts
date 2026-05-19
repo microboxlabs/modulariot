@@ -1,4 +1,4 @@
-import type { RunMode } from "../harness/types.js";
+import type { RunMode } from "@microboxlabs/miot-harness-client";
 
 export const AGENTIC_TENANT_LOCK = "mintral";
 

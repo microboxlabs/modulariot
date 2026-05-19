@@ -102,3 +102,5 @@ export function createMiotHarnessClient(config: ClientConfig) {
     runs: createRunsApi(ctx),
   };
 }
+
+export type MiotHarnessClient = ReturnType<typeof createMiotHarnessClient>;

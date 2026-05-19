@@ -406,7 +406,7 @@ describe("session reducer — STREAM_EVENT answer.completed", () => {
     });
   });
 
-  it("answer.completed falls back to data.answer then message", () => {
+  it("answer.completed falls back to data.answer when data.text is missing", () => {
     const { ctx, state } = mkSession();
     const a = reduce(
       state,
@@ -421,17 +421,36 @@ describe("session reducer — STREAM_EVENT answer.completed", () => {
       kind: "assistant",
       text: "from-answer",
     });
+  });
 
-    const b = reduce(
-      a,
+  it("answer.completed with only event.message does NOT clobber existing text", () => {
+    // Regression: prior versions used event.message as a third
+    // fallback. The harness emits "Synthesized final answer" as a
+    // status marker on answer.completed and we'd render that as the
+    // assistant body. Now we keep the previously-streamed text and
+    // wait for END_TURN to fill from the run record.
+    const { ctx, state } = mkSession();
+    const a = reduce(
+      state,
       {
         kind: "STREAM_EVENT",
-        event: evt("answer.completed", { message: "from-message" }),
+        event: evt("answer.completed", { data: { text: "real chunk" } }),
         runId: "r1",
       },
       ctx,
     );
-    expect(b.transcript[0]).toMatchObject({ text: "from-message" });
+    const b = reduce(
+      a,
+      {
+        kind: "STREAM_EVENT",
+        event: evt("answer.completed", {
+          message: "Synthesized final answer",
+        }),
+        runId: "r1",
+      },
+      ctx,
+    );
+    expect(b.transcript[0]).toMatchObject({ text: "real chunk" });
   });
 });
 

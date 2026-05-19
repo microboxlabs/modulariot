@@ -171,23 +171,106 @@ describe("transcript projector — answer.completed precedence", () => {
     expect(s.transcript[0]).toMatchObject({ text: "fallback" });
   });
 
-  it("falls back to data.answer then to message", () => {
+  it("creates a streaming placeholder when answer.completed has only event.message (no data.text/answer)", () => {
+    const ctx = mkCtx();
+    const next = applyHarnessEvent(
+      emptySlice(),
+      evt("answer.completed", { message: "Synthesized final answer" }),
+      "r1",
+      ctx,
+    );
+    // Should NOT use event.message as the assistant body — it's a
+    // status marker. Keep the placeholder empty until END_TURN fills
+    // it from the run record.
+    expect(next.currentAssistantItemId).not.toBeNull();
+    expect(next.transcript[0]).toMatchObject({
+      kind: "assistant",
+      text: "",
+      status: "streaming",
+    });
+  });
+
+  it("answer.completed with empty body does not clobber an existing text", () => {
     const ctx = mkCtx();
     let s = applyHarnessEvent(
+      emptySlice(),
+      evt("answer.completed", { data: { text: "partial" } }),
+      "r1",
+      ctx,
+    );
+    s = applyHarnessEvent(
+      s,
+      evt("answer.completed", { message: "status marker" }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(1);
+    expect(s.transcript[0]).toMatchObject({ text: "partial" });
+  });
+
+  it("falls back to data.answer when data.text is missing", () => {
+    const ctx = mkCtx();
+    const s = applyHarnessEvent(
       emptySlice(),
       evt("answer.completed", { data: { answer: "from-answer" } }),
       "r1",
       ctx,
     );
     expect(s.transcript[0]).toMatchObject({ text: "from-answer" });
+  });
+});
 
-    s = applyHarnessEvent(
-      s,
-      evt("answer.completed", { message: "from-message" }),
+describe("transcript projector — tool name normalization", () => {
+  it("strips 'Starting <name>' / 'Completed <name>' so paired events collapse", () => {
+    const ctx = mkCtx();
+    let s = applyHarnessEvent(
+      emptySlice(),
+      evt("tool.started", {
+        data: { name: "Starting coordinador_eta_riesgo_hoy" },
+      }),
       "r1",
       ctx,
     );
-    expect(s.transcript[0]).toMatchObject({ text: "from-message" });
+    s = applyHarnessEvent(
+      s,
+      evt("tool.completed", {
+        data: { name: "Completed coordinador_eta_riesgo_hoy" },
+      }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(1);
+    expect(s.transcript[0]).toMatchObject({
+      kind: "tool",
+      name: "coordinador_eta_riesgo_hoy",
+      status: "ok",
+    });
+  });
+
+  it("normalizes Failed prefix the same way", () => {
+    const ctx = mkCtx();
+    let s = applyHarnessEvent(
+      emptySlice(),
+      evt("tool.started", { data: { name: "Running x" } }),
+      "r1",
+      ctx,
+    );
+    s = applyHarnessEvent(
+      s,
+      evt("tool.failed", {
+        data: { name: "Failed x" },
+        message: "boom",
+      }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(1);
+    expect(s.transcript[0]).toMatchObject({
+      kind: "tool",
+      name: "x",
+      status: "failed",
+      message: "boom",
+    });
   });
 });
 

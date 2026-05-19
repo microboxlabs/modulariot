@@ -22,7 +22,10 @@ export interface HarnessClientLike {
       runId: string,
       opts?: { signal?: AbortSignal; lastEventId?: string },
     ) => AsyncIterable<HarnessEvent>;
-    get: (runId: string) => Promise<HarnessRunRecord>;
+    get: (
+      runId: string,
+      opts?: { signal?: AbortSignal },
+    ) => Promise<HarnessRunRecord>;
   };
 }
 
@@ -105,11 +108,26 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
         return;
       }
 
+      // After the stream ends we fetch the canonical run record so
+      // END_TURN can flip the assistant item with the authoritative
+      // answer text. The harness's GET /runs/{id} has been observed
+      // hanging for some flows; guard with a bounded timeout so the
+      // assistant turn always exits "streaming" within a few seconds.
+      const recordController = new AbortController();
+      const RECORD_TIMEOUT_MS = 8_000;
+      const timer = setTimeout(
+        () => recordController.abort(),
+        RECORD_TIMEOUT_MS,
+      );
       try {
-        const record = await opts.client.runs.get(runId);
+        const record = await opts.client.runs.get(runId, {
+          signal: recordController.signal,
+        });
         dispatch({ kind: "END_TURN", record });
       } catch {
         dispatch({ kind: "END_TURN" });
+      } finally {
+        clearTimeout(timer);
       }
     },
     [opts.client],

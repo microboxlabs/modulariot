@@ -135,13 +135,23 @@ function appendItem(
   return { ...slice, transcript: [...slice.transcript, item] };
 }
 
-function extractAnswerText(event: HarnessEvent): string {
+/**
+ * Pull the renderable assistant text from an answer.completed event.
+ *
+ * Returns null when neither data.text nor data.answer carries a payload.
+ * The harness sometimes emits answer.completed with only an event.message
+ * status marker (e.g. "Synthesized final answer"); rendering that as the
+ * assistant body confuses users. Letting it return null keeps the
+ * existing transcript item untouched until END_TURN fills it from the
+ * authoritative HarnessRunRecord.answer.
+ */
+function extractAnswerText(event: HarnessEvent): string | null {
   const data = event.data;
   if (typeof data?.text === "string" && data.text.length > 0) return data.text;
   if (typeof data?.answer === "string" && data.answer.length > 0) {
     return data.answer;
   }
-  return event.message;
+  return null;
 }
 
 function upsertAssistantItem(
@@ -153,6 +163,7 @@ function upsertAssistantItem(
   const text = extractAnswerText(event);
   const existingId = slice.currentAssistantItemId;
   if (existingId) {
+    if (text === null) return slice;
     return {
       ...slice,
       transcript: slice.transcript.map((item) =>
@@ -167,7 +178,7 @@ function upsertAssistantItem(
     kind: "assistant",
     id,
     runId,
-    text,
+    text: text ?? "",
     status: "streaming",
     ts: ctx.now(),
   };
@@ -178,10 +189,25 @@ function upsertAssistantItem(
   };
 }
 
+const TOOL_VERB_PREFIX_RE =
+  /^(Starting|Started|Completed|Finished|Failed|Running|Executing)\s+/i;
+
+/**
+ * Strip status-verb prefixes some harness routes emit on tool events
+ * (e.g. data.name = "Starting foo" / "Completed foo"). Without this,
+ * tool.completed never matches the running tool.started item and the
+ * row doesn't collapse.
+ */
+function normalizeToolName(raw: string): string {
+  return raw.replace(TOOL_VERB_PREFIX_RE, "").trim();
+}
+
 function extractToolName(event: HarnessEvent): string {
-  return typeof event.data.name === "string" && event.data.name.length > 0
-    ? event.data.name
-    : event.message;
+  const raw =
+    typeof event.data.name === "string" && event.data.name.length > 0
+      ? event.data.name
+      : event.message;
+  return normalizeToolName(raw);
 }
 
 function appendToolItem(

@@ -1,3 +1,13 @@
+// Legacy line-based REPL.
+//
+// This module survives the D13 cutover because src/cli.ts still routes
+// piped-stdin (non-TTY) and MIOT_CHAT_NO_TUI=1 callers here. The new
+// Ink TUI in src/tui/ owns the interactive path; this file is the
+// minimal renderer-backed fallback for scripts and pipelines.
+//
+// Planned future work (not gated on D14): re-implement headless mode
+// on top of useSession + the projector, then delete this module along
+// with src/repl/slash.ts and src/__tests__/slash.test.ts.
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { createInterface, type Interface as ReadlineInterface } from "node:readline";

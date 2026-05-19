@@ -27,10 +27,19 @@ TENANT="${2:-mintral}"
 USER_ID="${3:-demo-user}"
 CONV_ID="${CONV_ID:-conv-diag-$(date +%s)}"
 
-AUTH=()
+# macOS ships an old bash where `"${EMPTY_ARR[@]}"` under `set -u` is an
+# unbound-variable error. Build a plain --header line instead.
+AUTH_HEADER=""
 if [[ -n "${TOKEN:-}" ]]; then
-  AUTH=(-H "Authorization: Bearer ${TOKEN}")
+  AUTH_HEADER="Authorization: Bearer ${TOKEN}"
 fi
+curl_auth() {
+  if [[ -n "$AUTH_HEADER" ]]; then
+    curl -H "$AUTH_HEADER" "$@"
+  else
+    curl "$@"
+  fi
+}
 
 trap 'echo "--- aborted ---" >&2' INT
 
@@ -44,9 +53,8 @@ echo
 t0=$(date +%s)
 
 echo "=== step 1 — POST /runs:start ==="
-RESP=$(curl -sS -X POST "${BASE_URL}/runs:start" \
+RESP=$(curl_auth -sS -X POST "${BASE_URL}/runs:start" \
   -H 'Content-Type: application/json' \
-  "${AUTH[@]}" \
   -d "$(jq -nc \
     --arg msg "$PROMPT" \
     --arg tenant "$TENANT" \
@@ -65,17 +73,15 @@ echo
 echo "=== step 2 — GET /runs/{id}/stream (SSE, until terminal event) ==="
 # Stream events; print event/seq/type and stop at run.completed / run.failed.
 # We give it a generous 30s ceiling so a runaway stream doesn't hang forever.
-curl -sS -N --max-time 30 "${BASE_URL}/runs/${RUN_ID}/stream" "${AUTH[@]}" \
-  | awk -v t0="$t0" '
+curl_auth -sS -N --max-time 30 "${BASE_URL}/runs/${RUN_ID}/stream" \
+  | awk '
     /^event: / { ev = substr($0, 8) }
-    /^data: { / {
-      # extract seq and type from the data JSON via a coarse regex
+    /^data: \{/ {
       data = substr($0, 7)
       seq = "?"; type = "?"
-      if (match(data, /"seq":[0-9]+/))  seq  = substr(data, RSTART+6, RLENGTH-6)
-      if (match(data, /"type":"[^"]+"/))type = substr(data, RSTART+8, RLENGTH-9)
-      elapsed = systime() - t0
-      printf "+%ds  seq=%-3s type=%-20s event=%s\n", elapsed, seq, type, ev
+      if (match(data, /"seq":[0-9]+/))   seq  = substr(data, RSTART+6, RLENGTH-6)
+      if (match(data, /"type":"[^"]+"/)) type = substr(data, RSTART+8, RLENGTH-9)
+      printf "seq=%-3s type=%-20s event=%s\n", seq, type, ev
       fflush()
       if (type == "run.completed" || type == "run.failed") exit 0
     }
@@ -85,7 +91,7 @@ echo
 
 echo "=== step 3 — GET /runs/{id} (final record) ==="
 echo "+${SECONDS}s  fetching record..."
-RECORD=$(curl -sS --max-time 10 "${BASE_URL}/runs/${RUN_ID}" "${AUTH[@]}")
+RECORD=$(curl_auth -sS --max-time 10 "${BASE_URL}/runs/${RUN_ID}")
 echo "+${SECONDS}s  record received"
 
 STATUS=$(jq -r '.status // empty' <<<"$RECORD")

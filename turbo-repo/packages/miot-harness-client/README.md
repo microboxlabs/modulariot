@@ -2,6 +2,46 @@
 
 A zero-runtime-dep, typed HTTP + SSE client for the [`miot-harness`](../../../miot-harness) streaming API. Sibling of [`@microboxlabs/miot-calendar-client`](../miot-calendar-client) — same conventions, same tooling, different backend.
 
+## Role in the ecosystem
+
+This package is the **one** place where the harness HTTP + SSE contract is described in TypeScript. Every consumer — terminal, web, future tools — imports from here so they share the same types, the same error class, and the same wire-format guarantees.
+
+```
+          miot-harness backend (FastAPI)
+          REST  POST /runs:start
+          SSE   GET  /runs/{id}/stream
+          REST  GET  /runs/{id}
+                     ▲
+                     │  HTTP + SSE (fetch)
+       ┌──────────────────────────────────┐
+       │   @microboxlabs/                  │  zero runtime deps
+       │   miot-harness-client             │  dual ESM (.mjs) + CJS (.cjs)
+       │   (typed, hand-written, this pkg) │  shared by every consumer
+       └──────────────────────────────────┘
+                ▲             ▲              ▲
+                │             │              │
+   ┌──────────────────┐  ┌─────────────┐  ┌──────────────────┐
+   │ @microboxlabs/   │  │ @microboxlabs/│  │  turbo-repo/    │
+   │ miot-chat        │  │ miot-cli     │  │  apps/app       │
+   │ live SSE REPL    │  │ scripting    │  │  (future)       │
+   │ + slash commands │  │ create / get │  │  Next.js admin  │
+   └──────────────────┘  └─────────────┘  └──────────────────┘
+```
+
+| Consumer | Role | Status |
+|---|---|---|
+| [`@microboxlabs/miot-chat`](../miot-chat) | Interactive Copilot-style REPL — owns the live SSE UX, slash commands, conversation memory. | ✅ Consumes this library |
+| [`@microboxlabs/miot-cli`](../miot-cli) | Operator CLI — `miot harness create` / `miot harness runs get` for scripting; no live streaming UX. | ✅ Consumes this library |
+| `turbo-repo/apps/app` | Next.js admin — can consume from server-side API routes the same way it consumes [`@microboxlabs/miot-calendar-client`](../miot-calendar-client). | 🔜 Future |
+
+### Why a separate library (and not a folder inside `miot-chat`)
+
+- **Single source of truth.** Anytime the backend contract evolves, exactly one TypeScript surface needs to change. Admins, CLIs, agents, and future automation cannot drift apart on event shapes or error codes.
+- **Two surfaces, one engine.** The interactive REPL and the scriptable `miot harness …` subcommands share validation, error class, and request plumbing — a bug fixed inside this library is fixed everywhere at once.
+- **Independent release cadence.** Bump the CLI without touching the library, or ship a new library version and let consumers adopt it on their own schedule.
+
+This is the same shape that [`@microboxlabs/miot-calendar-client`](../miot-calendar-client) has with `miot-cli` + `apps/app` — applied to the harness's streaming surface.
+
 ## Install
 
 Workspace consumers reference it as `"@microboxlabs/miot-harness-client": "*"`. After publish:
@@ -90,14 +130,6 @@ class MiotHarnessApiError extends Error {
 - Unparseable SSE payload → `code = unparseable_event` or `unparseable_error`.
 
 `Error.message` is derived from `body.message ?? body.error ?? body.detail` so harness, FastAPI, and plain-text errors all surface a useful string.
-
-## Consumers
-
-| Package | Role | Status |
-|---|---|---|
-| [`@microboxlabs/miot-chat`](../miot-chat) | Interactive Copilot-style REPL — owns the live SSE UX, slash commands, conversation memory. | ✅ Consumes this library |
-| [`@microboxlabs/miot-cli`](../miot-cli) | Operator CLI — `miot harness create` / `miot harness runs get` for scripting, no streaming UX. | ✅ Consumes this library |
-| `turbo-repo/apps/app` | Next.js admin — can consume from server-side API routes the same way it consumes [`@microboxlabs/miot-calendar-client`](../miot-calendar-client) (see `src/app/api/utils/`). | 🔜 Future |
 
 ## Develop
 

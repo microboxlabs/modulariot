@@ -81,7 +81,8 @@ npm run check-types
 
 ## Design notes
 
-- Only runtime dep: `commander`. `fetch`, `ReadableStream`, `readline`, `crypto.randomUUID` are native on Node ≥20.
-- SSE parsing is a pure async-iterator over `ReadableStream<Uint8Array>` — survives chunk-boundary splits and multi-line `data:` fields, surfaces the harness `event: error` frame as a thrown `HarnessRunError`.
+- Runtime deps: `commander` for arg parsing and [`@microboxlabs/miot-harness-client`](../miot-harness-client) for the HTTP + SSE work. `readline`, `crypto.randomUUID`, `fetch`, and `ReadableStream` are native on Node ≥20.
+- HTTP + SSE live in the sibling library — this package owns the **interactive UX layer** (REPL, slash commands, ANSI/TTY rendering, conversation persistence). The same library powers the non-streaming `miot harness create` / `miot harness runs get` subcommands in [`miot-cli`](../miot-cli).
+- The library's SSE parser surfaces the harness `event: error` frame as a thrown `MiotHarnessApiError`, which the REPL catches and renders red without dropping the prompt.
 - Renderer is pure: `(state, event) → {state, output}`. The REPL/ask layers are responsible for I/O and the final-answer line; the renderer only paints transient status updates.
 - Terminal signal is `run.completed` / `run.failed`, not `answer.completed` (which the supervisor can emit more than once when a mode is denied and a fallback runs).

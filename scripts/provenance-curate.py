@@ -54,7 +54,13 @@ def _load_window(root: Path, since: datetime, until: datetime) -> list[dict[str,
             day = datetime.fromisoformat(path.stem).replace(tzinfo=UTC)
         except ValueError:
             continue
-        if not (since <= day <= until):
+        # Files are named per calendar day (`YYYY-MM-DD.jsonl`) so `day` is
+        # always at 00:00 UTC. Comparing full datetimes to `since`/`until`
+        # (which carry the script's run-time hh:mm:ss) would silently drop
+        # the boundary day unless invocation lands at midnight UTC. Compare
+        # on `.date()` so any file whose calendar date falls in the window
+        # is included.
+        if not (since.date() <= day.date() <= until.date()):
             continue
         for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()

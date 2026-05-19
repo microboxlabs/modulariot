@@ -1,18 +1,13 @@
 import { Box, Text } from "ink";
 import { isAgenticTenantMismatch } from "../session/agentic.js";
 import type { SessionMeta } from "../session/types.js";
+import { Spinner } from "../transcript/Spinner.js";
 
 export interface HeaderProps {
   meta: SessionMeta;
   streaming: boolean;
   pendingApprovals: number;
 }
-
-// One frame of a braille spinner. The Header is a stateless component; the
-// animation is driven by the parent re-rendering, so picking a single glyph
-// here is fine — `<Spinner />` (T07) provides the animated version for the
-// transcript.
-const SPINNER_GLYPH = "◐";
 
 const SEPARATOR = " · ";
 
@@ -41,7 +36,7 @@ export function Header(props: HeaderProps): React.ReactElement {
     );
   }
   if (streaming) {
-    chips.push(<Text key="spinner" color="cyan">{SPINNER_GLYPH}</Text>);
+    chips.push(<Spinner key="spinner" color="cyan" />);
   }
 
   return (

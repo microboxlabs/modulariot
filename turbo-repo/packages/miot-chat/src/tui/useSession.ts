@@ -115,17 +115,28 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
       // assistant turn always exits "streaming" within a few seconds.
       const recordController = new AbortController();
       const RECORD_TIMEOUT_MS = 8_000;
-      const timer = setTimeout(
-        () => recordController.abort(),
-        RECORD_TIMEOUT_MS,
-      );
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        recordController.abort();
+      }, RECORD_TIMEOUT_MS);
       try {
         const record = await opts.client.runs.get(runId, {
           signal: recordController.signal,
         });
         dispatch({ kind: "END_TURN", record });
-      } catch {
-        dispatch({ kind: "END_TURN" });
+      } catch (err) {
+        // Surface a clear, visible failure rather than silently flipping
+        // the assistant to an empty "complete" row. The reducer's
+        // failureMessage branch flips status to "failed" (red) AND
+        // appends a "error: ..." system item, so the user can tell at
+        // a glance that the run finished but the answer never landed.
+        const detail = timedOut
+          ? `run record fetch timed out after ${RECORD_TIMEOUT_MS}ms — check that GET /runs/${runId} returns promptly`
+          : err instanceof Error
+            ? err.message
+            : String(err);
+        dispatch({ kind: "END_TURN", failureMessage: detail });
       } finally {
         clearTimeout(timer);
       }

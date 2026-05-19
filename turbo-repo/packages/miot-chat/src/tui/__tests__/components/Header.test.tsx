@@ -41,13 +41,13 @@ describe("<Header />", () => {
     const { lastFrame } = render(<Header meta={meta()} streaming={true} pendingApprovals={0} />);
     const frame = lastFrame() ?? "";
     // The header includes the spinner *and* a "streaming" or running label.
-    expect(frame).toMatch(/[⠁⠉⠙⠸⠼⠴⠦⠧⠇⠏◐◓◑◒]/);
+    expect(frame).toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/);
   });
 
   it("does not render the spinner when idle", () => {
     const { lastFrame } = render(<Header meta={meta()} streaming={false} pendingApprovals={0} />);
     const frame = lastFrame() ?? "";
-    expect(frame).not.toMatch(/[⠁⠉⠙⠸⠼⠴⠦⠧⠇⠏◐◓◑◒]/);
+    expect(frame).not.toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/);
   });
 
   it("flags an agentic + non-mintral combo as warn", () => {

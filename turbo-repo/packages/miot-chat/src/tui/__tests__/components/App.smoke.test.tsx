@@ -128,6 +128,64 @@ describe("<App /> smoke", () => {
     expect(client.runs.create).not.toHaveBeenCalled();
   });
 
+  it(
+    "renders the final record.answer when answer.completed has no data.text (nexo_meta case)",
+    { timeout: 15000 },
+    async () => {
+      // Reproduces the user-reported flow: harness emits
+      // answer.completed with empty data + a 'Meta agent answered'
+      // status message, then run.completed. runs.get returns the
+      // full record with the real answer. The assistant turn should
+      // end up at status="complete" showing record.answer.
+      const ctx = deterministicCtx();
+      const events: HarnessEvent[] = [
+        evt("run.started"),
+        evt("route.selected", { data: { route: "nexo_meta" } }),
+        evt("answer.completed", {
+          message: "Meta agent answered",
+          data: { length: 42 },
+        }),
+        evt("run.completed"),
+      ];
+      const record: HarnessRunRecord = {
+        run_id: "r-nexo",
+        status: "completed",
+        events,
+        artifacts: [],
+        answer: "REAL_ANSWER_FROM_GET",
+        conversation_id: "c1",
+      };
+      const client = {
+        runs: {
+          create: vi.fn(async () => ({ run_id: "r-nexo" })),
+          stream: async function* (): AsyncGenerator<HarnessEvent> {
+            for (const e of events) {
+              yield e;
+              await new Promise((r) => setTimeout(r, 5));
+            }
+          },
+          get: vi.fn(async () => record),
+        },
+      };
+      const { stdin, lastFrame } = render(
+        <App
+          config={mkConfig()}
+          client={client}
+          home="/tmp/miot-app-nexo"
+          {...ctx}
+        />,
+      );
+      await new Promise((r) => setTimeout(r, 50));
+      stdin.write("Cuales son las funciones del esquema nexo?");
+      await new Promise((r) => setTimeout(r, 50));
+      stdin.write("\r");
+      await waitForFrame(lastFrame, "REAL_ANSWER_FROM_GET");
+      // The status-marker should NOT appear as the assistant body.
+      const frame = lastFrame() ?? "";
+      expect(frame).not.toContain("Meta agent answered");
+    },
+  );
+
   it("renders the header with tenant/user/conv chips", async () => {
     const ctx = deterministicCtx();
     const client = {

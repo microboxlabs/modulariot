@@ -269,6 +269,11 @@ jobs:
         run: bash miot-harness/evals/deploy/05-pulls-from-ghcr.sh "$DIGEST"
 
       - name: Verify provenance + SBOM attestations
+        env:
+          # `gh attestation verify` calls the GitHub API; without GH_TOKEN it
+          # exits with "set the GH_TOKEN environment variable" and the script
+          # surfaces it as a (misleading) FAIL "no attestation verifies".
+          GH_TOKEN: ${{ github.token }}
         run: bash miot-harness/evals/deploy/07-attestations-present.sh "$DIGEST"
 
       - name: Pull from Docker Hub (mirror, non-PR only)

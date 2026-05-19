@@ -20,12 +20,18 @@ export interface ClientContext {
   request(method: string, path: string, options?: RequestOptions): Promise<Response>;
 }
 
+function trimTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 0x2f /* '/' */) end--;
+  return end === s.length ? s : s.slice(0, end);
+}
+
 function buildUrl(
   baseUrl: string,
   path: string,
   query?: Record<string, string | number | boolean | undefined>,
 ): string {
-  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const normalizedBase = trimTrailingSlashes(baseUrl);
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const url = new URL(`${normalizedBase}${normalizedPath}`);
   if (query) {

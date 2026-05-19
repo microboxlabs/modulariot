@@ -187,9 +187,20 @@ async def test_subscriber_detaches_on_early_exit() -> None:
     bus = RunEventBus()
 
     async def consumer_then_break() -> None:
-        async for evt in bus.subscribe("run_e"):
-            assert evt.message == "one"
-            break  # exit the generator's finally block fires
+        # Mirror the production consumer pattern (_sse_iterator's early
+        # returns call `await bus_iter.aclose()`). Closing explicitly
+        # detaches the queue deterministically — otherwise we'd be
+        # relying on asyncio's asyncgen-finalizer hook firing between
+        # `wait_for` returning and the test's sync assert below, and
+        # Python 3.12 schedules that hook later than 3.11 did, leaving
+        # the queue still in `_subscribers` when the assert runs.
+        gen = bus.subscribe("run_e")
+        try:
+            async for evt in gen:
+                assert evt.message == "one"
+                break
+        finally:
+            await gen.aclose()
 
     task = asyncio.create_task(consumer_then_break())
     await asyncio.sleep(0)

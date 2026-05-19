@@ -1,4 +1,4 @@
-import { Box, Static, Text } from "ink";
+import { Box, Text } from "ink";
 import { AssistantTurn } from "./AssistantTurn.js";
 import { ToolCall } from "./ToolCall.js";
 import { UserTurn } from "./UserTurn.js";
@@ -9,46 +9,34 @@ export interface TranscriptProps {
   isStreaming: boolean;
 }
 
+/**
+ * Render the full transcript on every state change.
+ *
+ * Earlier versions split items into Ink's <Static> (committed turns) +
+ * a live <Box> (the in-flight turn) so completed turns scrolled into
+ * terminal scrollback. The trade-off bit us: when an item migrates
+ * from live → static AND its status flips in the same render,
+ * real-terminal Ink doesn't reliably clear the live region's prior
+ * paint, so a "… miot" line printed during streaming stayed on screen
+ * even after END_TURN flipped the item to "complete". ink-testing-
+ * library captures both regions as one frame and didn't catch it.
+ *
+ * Trade-off accepted: every state change re-paints every item. For
+ * typical sessions (≤20 turns visible) the reconciliation cost is
+ * negligible. Long-running sessions lose true scrollback; users can
+ * still scroll the terminal manually.
+ *
+ * `isStreaming` is kept in the prop signature for the Header / spinner
+ * gating but is no longer needed here.
+ */
 export function Transcript(props: TranscriptProps): React.ReactElement {
-  const { items, isStreaming } = props;
-  const { committed, live } = splitTurns(items, isStreaming);
-
   return (
     <Box flexDirection="column">
-      <Static items={committed}>
-        {(item): React.ReactElement => (
-          <TranscriptItemView key={item.id} item={item} />
-        )}
-      </Static>
-      <Box flexDirection="column">
-        {live.map((item) => (
-          <TranscriptItemView key={item.id} item={item} />
-        ))}
-      </Box>
+      {props.items.map((item) => (
+        <TranscriptItemView key={item.id} item={item} />
+      ))}
     </Box>
   );
-}
-
-function splitTurns(
-  items: TranscriptItem[],
-  isStreaming: boolean,
-): { committed: TranscriptItem[]; live: TranscriptItem[] } {
-  if (!isStreaming) {
-    return { committed: items, live: [] };
-  }
-  // The "live tail" is the current turn: the most recent user item and
-  // every item after it. Older turns are committed.
-  for (let i = items.length - 1; i >= 0; i -= 1) {
-    const item = items[i];
-    if (item && item.kind === "user") {
-      return {
-        committed: items.slice(0, i),
-        live: items.slice(i),
-      };
-    }
-  }
-  // No user turn yet — everything is live.
-  return { committed: [], live: items };
 }
 
 function TranscriptItemView(props: {

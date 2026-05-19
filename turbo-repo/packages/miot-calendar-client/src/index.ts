@@ -8,6 +8,7 @@ export type {
   BookingUpdateRequest,
   BookingResponse,
   BookingListResponse,
+  MoveBookingRequest,
   CalendarGroupRequest,
   CalendarGroupResponse,
   CalendarFilter,

@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@modulariot/ui": "*",
-    "next": "^16.1.4",
+    "next": "^16.2.6",
     "nextra": "^4.6.1",
     "nextra-theme-docs": "^4.6.1",
     "react": "^19.2.3",
@@ -25,7 +25,7 @@
     "@types/react": "19.2.10",
     "@types/react-dom": "19.2.3",
     "eslint": "^9.29.0",
-    "eslint-config-next": "16.1.4",
+    "eslint-config-next": "16.2.6",
     "pagefind": "^1.4.0",
     "turbo": "^2.5.4",
     "typescript": "5.8.2"

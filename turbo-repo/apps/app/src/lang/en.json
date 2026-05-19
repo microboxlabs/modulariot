@@ -163,6 +163,9 @@
         "shipping": "Planning",
         "finished": "Finished"
       },
+      "grid": {
+        "windowFullTooltip": "Window is at capacity for this day — not assignable"
+      },
       "taskCounter": {
         "activeCount": "{count} visibles"
       },
@@ -290,6 +293,7 @@
           "cancelReassignment": "Cancel",
           "confirmReassignment": "Reassign",
           "readOnlyBanner": "Past service — read-only",
+          "viewerBanner": "Read-only mode — no permission to modify the plan",
           "loadUtilization": "Load Utilization",
           "constraint": "Constraint",
           "maxUtilization": "Total",
@@ -338,7 +342,9 @@
           "delete": "Delete",
           "deleteConfirmTitle": "Confirm deletion",
           "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
-          "cancelReassignment": "Cancel reassignment"
+          "cancelReassignment": "Cancel reassignment",
+          "previewAsViewer": "Open service (Read-only)",
+          "exitPreview": "Exit preview"
         },
         "notifications": {
           "reassigned": "Service reassigned successfully",
@@ -1384,8 +1390,8 @@
           "modeAuto": "Auto",
           "modeManual": "Manual",
           "slotDurationLabel": "Slot duration (minutes)",
-          "slotsHint": "{total} slots fit · {bookable} assignable · {unassignable} unassignable",
-          "capacityExceedsSlots": "Capacity exceeds available slots — only {bookable} assignable",
+          "slotsHint": "{total} slots fit · up to {max} bookings",
+          "capacityExceedsSlots": "Quota exceeds the slot grid — only {max} bookings fit; add more slots or lower the quota",
           "leftoverMinutes": "Last {minutes} min of the window are unused",
           "deleteWindow": "Delete window",
           "weekly": "Weekly",
@@ -1640,6 +1646,7 @@
       "targetBg": "BG",
       "targetBorder": "Border",
       "targetIcon": "Icon",
+      "targetItem": "Item",
       "compareModeValue": "Value",
       "compareModeField": "Field",
       "compareFieldPrevious": "Previous",
@@ -1787,6 +1794,14 @@
       "seriesColors": "Series Colors",
       "smooth": "Smooth Lines",
       "stacked": "Stacked",
+      "horizontalBars": "Horizontal Bars",
+      "showBarLabels": "Show Value Labels",
+      "xAxisIsDate": "X-Axis is a Date",
+      "xAxisDateDisplayFormat": "Date Display Format",
+      "xAxisDateFormatDay": "Daily",
+      "xAxisDateFormatMonth": "Monthly",
+      "xAxisDateFormatYear": "Yearly",
+      "defaultDateRange": "Default Date Range",
       "duplicate": "Duplicate",
       "mapSettings": "Map Settings",
       "showFilters": "Show Filters",
@@ -1833,10 +1848,14 @@
       "noDataOrigins": "No data origins yet. Add one below.",
       "addOrigin": "Add origin",
       "transformWkb": "Transform WKB positions",
-      "geometryField": "Geometry field",
+      "geometryField": "Geometry field name",
+      "geometryFieldTooltip": "Name of the field inside each array item that holds the WKB position value.\n\nRequires **Response path** to point to the array first. Once set, use `{{data.field}}` to access the field on each item.\n\n**Example:** with *Response path* = `data` and this field = `{{data.location}}`, it will read `location` from each item in the array.",
       "latField": "Latitude field",
+      "latFieldTooltip": "Name of the field in your data that holds the latitude (north-south position) of each point — a number between −90 and 90.\n\n**Example:** if your data has `{ \"lat\": 40.71, \"lng\": -74.00 }`, type `lat`.\n\n*Also accepts `{{variable}}` for dynamic values.*",
       "lngField": "Longitude field",
+      "lngFieldTooltip": "Name of the field in your data that holds the longitude (east-west position) of each point — a number between −180 and 180.\n\n**Example:** if your data has `{ \"lat\": 40.71, \"lng\": -74.00 }`, type `lng`.\n\n*Also accepts `{{variable}}` for dynamic values.*",
       "responsePath": "Response path",
+      "responsePathTooltip": "If your data list is wrapped inside a container in the response, type the name of that container here.\n\n**Example:** if the response is `{ \"example\": [ ... ] }`, type `example`.\n\nIf it is nested inside multiple levels, separate them with dots: `level1.level2`.\n\nLeave empty if the response is directly the array.",
       "dataType": "Data Type",
       "columnFilter": "Filter",
       "columnFilterClear": "Clear filter",
@@ -1959,7 +1978,13 @@
         "noColumnsDetected": "No columns detected",
         "selectPlaceholder": "Select...",
         "labelPlaceholder": "Label",
-        "seriesNumber": "Series {n}"
+        "seriesNumber": "Series {n}",
+        "rangeAll": "All",
+        "range7d": "7D",
+        "range30d": "30D",
+        "range90d": "3M",
+        "range180d": "6M",
+        "range1y": "1Y"
       },
       "data_list": {
         "name": "Data List",
@@ -2770,6 +2795,8 @@
     "tripInformation": "Trip Information",
     "transportNumberCode": "Transport Number",
     "patente": "License Plate",
+    "supplierPrveCodigo": "Carrier Code",
+    "clientRut": "Client RUT",
     "driverContactInfo": "Contact information",
     "email": "Email",
     "status": "Status",

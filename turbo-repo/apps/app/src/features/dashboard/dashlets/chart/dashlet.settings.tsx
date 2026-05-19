@@ -83,10 +83,11 @@ export function DashletSettings({
   const [dataSourceId, setDataSourceId] = useState<string>(config.dataSourceId ?? "");
   const [plannerVariableName, setPlannerVariableName] = useState(config.plannerVariableName ?? "");
   const [rowsJson, setRowsJson] = useState(JSON.stringify(config.rows ?? [], null, 2));
+  const [rowsError, setRowsError] = useState<string | null>(null);
 
   const [detectedColumns, setDetectedColumns] = useState<string[]>(() => {
     const rows = config.rows;
-    if (rows?.length > 0) return Object.keys(rows[0]);
+    if (rows?.length > 0) return Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
     return [];
   });
 
@@ -132,13 +133,15 @@ export function DashletSettings({
     setRowsJson(val);
     try {
       const parsed = JSON.parse(val);
-      if (!Array.isArray(parsed)) return;
+      if (!Array.isArray(parsed)) { setRowsError(tr("dashboard.settings.mustBeJsonArray", dictionary)); return; }
       const isObjectArray = parsed.every(
         (item) => item !== null && typeof item === "object" && !Array.isArray(item)
       );
-      reconcileColumns(isObjectArray && parsed.length > 0 ? Object.keys(parsed[0]) : []);
+      if (!isObjectArray) { setRowsError(tr("dashboard.settings.mustBeJsonArray", dictionary)); return; }
+      setRowsError(null);
+      reconcileColumns(parsed.length > 0 ? Array.from(new Set(parsed.flatMap((r: Record<string, unknown>) => Object.keys(r)))) : []);
     } catch {
-      // ignore parse errors during editing
+      setRowsError(tr("dashboard.settings.invalidJson", dictionary));
     }
   };
 
@@ -182,15 +185,16 @@ export function DashletSettings({
   const handleSave = () => {
     let parsedRows = config.rows ?? [];
     if (dataMode === "static") {
+      if (rowsError) return;
       try {
         const parsed = JSON.parse(rowsJson);
-        if (!Array.isArray(parsed)) return;
+        if (!Array.isArray(parsed)) { setRowsError(tr("dashboard.settings.mustBeJsonArray", dictionary)); return; }
         const isObjectArray = parsed.every(
           (item) => item !== null && typeof item === "object" && !Array.isArray(item)
         );
-        if (!isObjectArray) return;
+        if (!isObjectArray) { setRowsError(tr("dashboard.settings.mustBeJsonArray", dictionary)); return; }
         parsedRows = parsed;
-      } catch { return; }
+      } catch { setRowsError(tr("dashboard.settings.invalidJson", dictionary)); return; }
     }
     onSave({
       title, chartType, xAxisColumn,
@@ -426,13 +430,18 @@ export function DashletSettings({
         activeProviders={activeProviders}
       />
       {dataMode === "static" && (
-        <SettingsTextareaField
-          id="ch-rows-json"
-          label={tr("dashboard.settings.rowsJsonArray", dictionary)}
-          value={rowsJson}
-          onChange={handleRowsJsonChange}
-          rows={6}
-        />
+        <>
+          <SettingsTextareaField
+            id="ch-rows-json"
+            label={tr("dashboard.settings.rowsJsonArray", dictionary)}
+            value={rowsJson}
+            onChange={handleRowsJsonChange}
+            rows={6}
+          />
+          {rowsError && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">{rowsError}</p>
+          )}
+        </>
       )}
     </>
   );

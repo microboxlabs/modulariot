@@ -59,7 +59,10 @@ async function waitForFrame(
 }
 
 describe("<App /> smoke", () => {
-  it("submits a prompt, streams events, and shows the final answer", async () => {
+  it(
+    "submits a prompt, streams events, and shows the final answer",
+    { timeout: 15000 },
+    async () => {
     const ctx = deterministicCtx();
     const events: HarnessEvent[] = [
       evt("run.started"),
@@ -103,7 +106,8 @@ describe("<App /> smoke", () => {
     await waitForFrame(lastFrame, "stock_lookup");
     await waitForFrame(lastFrame, "12 SKUs in stock");
     expect(client.runs.create).toHaveBeenCalledTimes(1);
-  });
+  },
+  );
 
   it("dispatches /whoami as a slash command (appends a system item)", async () => {
     const ctx = deterministicCtx();

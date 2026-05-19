@@ -6,6 +6,26 @@ import { registerRunsCommand } from "./commands/runs.js";
 import { resolveConfig, type CliFlags } from "./config.js";
 import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import { runRepl } from "./repl/loop.js";
+import { runTui } from "./tui/runTui.js";
+
+/**
+ * Decide whether to mount the Ink TUI or fall back to the line-based
+ * REPL. Exported so tests can exercise the boundary without spawning a
+ * subprocess.
+ *
+ * The TUI requires BOTH stdin and stdout to be TTYs; piping either way
+ * (`echo ... | miot-chat`, `miot-chat > out.txt`) drops to headless.
+ * MIOT_CHAT_NO_TUI=1 is the explicit override for CI / scripts that
+ * happen to run inside a pty.
+ */
+export function shouldUseTui(
+  env: NodeJS.ProcessEnv,
+  stdin: { isTTY?: boolean },
+  stdout: { isTTY?: boolean },
+): boolean {
+  if (env.MIOT_CHAT_NO_TUI === "1") return false;
+  return Boolean(stdin.isTTY && stdout.isTTY);
+}
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -37,6 +57,11 @@ program
       baseUrl: config.baseUrl,
       token: config.token,
     });
+    if (shouldUseTui(process.env, process.stdin, process.stdout)) {
+      const handle = runTui({ config, client });
+      await handle.waitUntilExit();
+      process.exit(0);
+    }
     const code = await runRepl({ config, client });
     process.exit(code);
   });

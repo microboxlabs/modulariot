@@ -48,11 +48,17 @@ export function reduce(
         text: action.prompt,
         ts: ctx.now(),
       };
+      // Prime currentRunId with a pending sentinel so isStreaming flips
+      // true immediately on submit. The header spinner appears the
+      // instant the user hits Enter, not only after run.started lands
+      // from the SSE stream. The projector's run.started branch
+      // replaces this sentinel with the real run_id.
       return {
         ...state,
         transcript: [...state.transcript, item],
         lastSubmittedPrompt: action.prompt,
         currentAssistantItemId: null,
+        currentRunId: `pending:${ctx.uuid()}`,
       };
     }
 

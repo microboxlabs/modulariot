@@ -123,10 +123,13 @@ function ChainRow(props: {
   children: React.ReactNode;
 }): React.ReactElement {
   if (props.isActive) {
+    // Bright cyan + bold so the active step pops visually. Dim
+    // neighbors aren't enough contrast on their own — the spinner is
+    // small and the user shouldn't have to hunt for it.
     return (
       <Box flexDirection="row">
         <Spinner color="cyan" />
-        <Text dimColor>
+        <Text color="cyan" bold>
           {" "}
           {props.prefix} {props.children}
         </Text>

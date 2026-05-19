@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { Spinner } from "./Spinner.js";
 import type { TranscriptItem } from "../session/types.js";
 
 export interface AssistantTurnProps {
@@ -15,14 +16,22 @@ export function AssistantTurn(
       : status === "complete"
         ? "green"
         : "white";
-  const marker =
-    status === "failed" ? "✗ " : status === "complete" ? "✓ " : "… ";
 
   return (
     <Box flexDirection="row" marginTop={1}>
-      <Text color={color} bold>
-        {marker}miot{" "}
-      </Text>
+      {status === "streaming" ? (
+        <>
+          <Spinner color="cyan" />
+          <Text color={color} bold>
+            {" "}
+            miot{" "}
+          </Text>
+        </>
+      ) : (
+        <Text color={color} bold>
+          {status === "failed" ? "✗ " : "✓ "}miot{" "}
+        </Text>
+      )}
       <Text color={color}>{text}</Text>
     </Box>
   );

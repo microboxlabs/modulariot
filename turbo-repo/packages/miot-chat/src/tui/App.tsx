@@ -17,7 +17,13 @@ import {
 import { ThemeProvider } from "./theme/ThemeProvider.js";
 import { loadUserTheme } from "./theme/loadUserTheme.js";
 import { BUILTIN_THEMES } from "./theme/themes.js";
-import { isStreaming, pendingApprovalCount } from "./session/selectors.js";
+import {
+  approxTokenCount,
+  contextPercent,
+  isStreaming,
+  pendingApprovalCount,
+  turnCount,
+} from "./session/selectors.js";
 import { isApprovalsUiEnabled } from "./session/approvals.js";
 import { useSession, type HarnessClientLike } from "./useSession.js";
 import { parseSlash } from "./slash/parse.js";
@@ -190,11 +196,6 @@ function AppInner(
 
   return (
     <Box flexDirection="column">
-      <Header
-        meta={session.state.meta}
-        streaming={isStreaming(session.state)}
-        pendingApprovals={pendingApprovalCount(session.state)}
-      />
       {props.themeWarning ? (
         <Box paddingX={1}>
           <SystemNote text={`theme: ${props.themeWarning}`} />
@@ -260,6 +261,14 @@ function AppInner(
           onCancel={closeModal}
         />
       ) : null}
+      <Header
+        meta={session.state.meta}
+        streaming={isStreaming(session.state)}
+        pendingApprovals={pendingApprovalCount(session.state)}
+        turns={turnCount(session.state)}
+        approxTokens={approxTokenCount(session.state)}
+        contextPercent={contextPercent(session.state)}
+      />
       <Editor onSubmit={handleSubmit} isFocused={editorActive} />
     </Box>
   );

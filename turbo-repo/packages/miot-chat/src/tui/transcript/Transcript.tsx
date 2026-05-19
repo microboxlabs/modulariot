@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import { AssistantTurn } from "./AssistantTurn.js";
+import { Spinner } from "./Spinner.js";
 import { ToolCall } from "./ToolCall.js";
 import { UserTurn } from "./UserTurn.js";
 import type { TranscriptItem } from "../session/types.js";
@@ -30,19 +31,54 @@ export interface TranscriptProps {
  * gating but is no longer needed here.
  */
 export function Transcript(props: TranscriptProps): React.ReactElement {
+  // When a run is in flight, the most recent "chain" item (route /
+  // plan / agent / artifact / freshness) gets a spinner instead of
+  // the static "·" prefix to signal "this is the step the harness is
+  // working on right now". Tool items already self-animate via
+  // status=running; assistant items animate via status=streaming.
+  const activeChainIdx = props.isStreaming
+    ? findActiveChainIndex(props.items)
+    : -1;
+
   return (
     <Box flexDirection="column">
-      {props.items.map((item) => (
-        <TranscriptItemView key={item.id} item={item} />
+      {props.items.map((item, i) => (
+        <TranscriptItemView
+          key={item.id}
+          item={item}
+          isActive={i === activeChainIdx}
+        />
       ))}
     </Box>
   );
 }
 
+function findActiveChainIndex(items: TranscriptItem[]): number {
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const item = items[i];
+    if (!item) continue;
+    if (
+      item.kind === "route" ||
+      item.kind === "plan" ||
+      item.kind === "agent" ||
+      item.kind === "artifact" ||
+      item.kind === "freshness"
+    ) {
+      return i;
+    }
+    // A user item or a finalized assistant item ends the chain — no
+    // active chain anchor needed.
+    if (item.kind === "user") return -1;
+    if (item.kind === "assistant") return -1;
+  }
+  return -1;
+}
+
 function TranscriptItemView(props: {
   item: TranscriptItem;
+  isActive: boolean;
 }): React.ReactElement {
-  const { item } = props;
+  const { item, isActive } = props;
   switch (item.kind) {
     case "user":
       return <UserTurn item={item} />;
@@ -51,26 +87,52 @@ function TranscriptItemView(props: {
     case "tool":
       return <ToolCall item={item} />;
     case "route":
-      return <DimText prefix="route:">{item.route}</DimText>;
-    case "agent":
-      return <DimText prefix="agent:">{item.agent}</DimText>;
-    case "plan":
-      return <DimText prefix="plan:">{item.message}</DimText>;
-    case "freshness":
       return (
-        <Text color="yellow">⚠ {item.message}</Text>
+        <ChainRow prefix="route:" isActive={isActive}>
+          {item.route}
+        </ChainRow>
       );
+    case "agent":
+      return (
+        <ChainRow prefix="agent:" isActive={isActive}>
+          {item.agent}
+        </ChainRow>
+      );
+    case "plan":
+      return (
+        <ChainRow prefix="plan:" isActive={isActive}>
+          {item.message}
+        </ChainRow>
+      );
+    case "freshness":
+      return <Text color="yellow">⚠ {item.message}</Text>;
     case "artifact":
-      return <DimText prefix="artifact:">{item.artifactKind}</DimText>;
+      return (
+        <ChainRow prefix="artifact:" isActive={isActive}>
+          {item.artifactKind}
+        </ChainRow>
+      );
     case "system":
       return <Text dimColor>{item.text}</Text>;
   }
 }
 
-function DimText(props: {
+function ChainRow(props: {
   prefix: string;
+  isActive: boolean;
   children: React.ReactNode;
 }): React.ReactElement {
+  if (props.isActive) {
+    return (
+      <Box flexDirection="row">
+        <Spinner color="cyan" />
+        <Text dimColor>
+          {" "}
+          {props.prefix} {props.children}
+        </Text>
+      </Box>
+    );
+  }
   return (
     <Text dimColor>
       · {props.prefix} {props.children}

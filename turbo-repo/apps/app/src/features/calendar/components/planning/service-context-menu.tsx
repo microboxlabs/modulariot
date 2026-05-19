@@ -183,7 +183,8 @@ export function ServiceContextMenu({
   // right-click a second time after the URL flip to inspect the chip.
   const handleTogglePreview = () => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
-    if (forceViewer) {
+    const wasForcingViewer = forceViewer;
+    if (wasForcingViewer) {
       params.delete("as");
     } else {
       params.set("as", "viewer");
@@ -192,7 +193,14 @@ export function ServiceContextMenu({
       }
     }
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    const url = query ? `${pathname}?${query}` : pathname;
+    // Replace on exit so Back doesn't bounce the user back into preview;
+    // push on entry so Back is a natural escape hatch out of preview.
+    if (wasForcingViewer) {
+      router.replace(url);
+    } else {
+      router.push(url);
+    }
     onClose();
   };
 

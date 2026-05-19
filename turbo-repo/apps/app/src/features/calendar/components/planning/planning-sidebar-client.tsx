@@ -486,12 +486,13 @@ export function PlanningSidebarClient({
   // Strip the `?as=viewer` override (used by planners previewing the
   // viewer experience) without touching any other URL params. The page
   // re-renders in full-edit mode, mirroring the existing chip-menu
-  // "Salir de previsualización" action.
+  // "Salir de previsualización" action. Uses `replace` so the browser
+  // Back button doesn't bounce the user back into preview.
   const exitViewerPreview = useCallback(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("as");
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    router.replace(query ? `${pathname}?${query}` : pathname);
   }, [router, pathname, searchParams]);
 
   const handleSubmit = () => {

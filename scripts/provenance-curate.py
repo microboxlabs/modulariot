@@ -93,7 +93,15 @@ def curate(entries: list[dict[str, Any]], *, top: int = 10) -> dict[str, Any]:
         by_table[table.lower()] += 1
         by_tenant_table.add((e.get("tenant_id", "?"), table.lower()))
 
-        cost = float(e.get("plan_cost") or 0.0)
+        # Provenance jsonl can carry malformed `plan_cost` values (string
+        # that won't parse, dict, list, etc.) when an upstream emitter is
+        # buggy or the schema drifts. Coerce defensively so a single bad
+        # line never aborts the whole curate run.
+        raw_cost = e.get("plan_cost")
+        try:
+            cost = float(raw_cost) if raw_cost is not None else 0.0
+        except (TypeError, ValueError):
+            cost = 0.0
         cost_outliers.append({"cost": cost, "sql": sql, "question": e.get("question", "")})
 
     cost_outliers.sort(key=lambda r: r["cost"], reverse=True)

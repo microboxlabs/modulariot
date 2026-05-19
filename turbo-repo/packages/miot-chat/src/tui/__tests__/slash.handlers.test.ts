@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SlashRegistry } from "../slash/registry.js";
 import { clearCommand } from "../slash/handlers/clear.js";
 import { exitCommand } from "../slash/handlers/exit.js";
 import { helpCommand } from "../slash/handlers/help.js";
+import { modeCommand } from "../slash/handlers/mode.js";
 import { resetCommand } from "../slash/handlers/reset.js";
+import { saveCommand } from "../slash/handlers/save.js";
+import { tenantCommand } from "../slash/handlers/tenant.js";
+import { initialSession } from "../session/reducer.js";
+import type { ReducerContext, SessionState } from "../session/types.js";
 
 function mkCtx(registry: SlashRegistry): Record<string, unknown> {
   let n = 0;
@@ -76,5 +81,103 @@ describe("/help", () => {
       expect(r.output.id).toBe("id-1");
       expect(r.output.ts).toBe("2026-01-01T00:00:00Z");
     }
+  });
+});
+
+function mkSession(): SessionState {
+  const ctx: ReducerContext = {
+    now: () => "2026-01-01T00:00:00Z",
+    uuid: () => "conv-id",
+  };
+  return initialSession(
+    {
+      tenantId: "demo-tenant",
+      userId: "demo-user",
+      mode: "auto",
+      baseUrl: "http://localhost:8000",
+    },
+    ctx,
+  );
+}
+
+describe("/mode", () => {
+  it("dispatches SET_MODE for a valid choice", async () => {
+    const r = await modeCommand.handle(["agentic"], mkCtx(new SlashRegistry()));
+    expect(r).toEqual({ dispatch: { kind: "SET_MODE", mode: "agentic" } });
+  });
+
+  it("returns an error for unknown mode", async () => {
+    const r = await modeCommand.handle(["wat"], mkCtx(new SlashRegistry()));
+    expect(r.error).toContain("unknown mode");
+  });
+
+  it("returns usage when called with no args", async () => {
+    const r = await modeCommand.handle([], mkCtx(new SlashRegistry()));
+    expect(r.error).toContain("usage:");
+  });
+});
+
+describe("/tenant", () => {
+  it("dispatches SET_TENANT", async () => {
+    const r = await tenantCommand.handle(["mintral"], mkCtx(new SlashRegistry()));
+    expect(r).toEqual({ dispatch: { kind: "SET_TENANT", tenant: "mintral" } });
+  });
+
+  it("returns usage when called with no args", async () => {
+    const r = await tenantCommand.handle([], mkCtx(new SlashRegistry()));
+    expect(r.error).toContain("usage:");
+  });
+});
+
+describe("/save", () => {
+  it("writes the transcript JSON to the given path and emits a system item", async () => {
+    const writeFile = vi.fn();
+    const session = mkSession();
+    const ctx = {
+      ...mkCtx(new SlashRegistry()),
+      session,
+      writeFile,
+    };
+    const r = await saveCommand.handle(["/tmp/x.json"], ctx);
+    expect(writeFile).toHaveBeenCalledTimes(1);
+    expect(writeFile.mock.calls[0]?.[0]).toBe("/tmp/x.json");
+    const body = writeFile.mock.calls[0]?.[1] as string;
+    const parsed = JSON.parse(body);
+    expect(parsed.conversation_id).toBe(session.meta.conversationId);
+    expect(parsed.transcript).toEqual([]);
+    expect(r.output?.kind).toBe("system");
+    if (r.output?.kind === "system") {
+      expect(r.output.text).toContain("/tmp/x.json");
+    }
+  });
+
+  it("returns usage when called with no path", async () => {
+    const session = mkSession();
+    const ctx = {
+      ...mkCtx(new SlashRegistry()),
+      session,
+      writeFile: vi.fn(),
+    };
+    const r = await saveCommand.handle([], ctx);
+    expect(r.error).toContain("usage:");
+  });
+
+  it("surfaces write errors via SlashResult.error", async () => {
+    const writeFile = vi.fn(() => {
+      throw new Error("EACCES");
+    });
+    const session = mkSession();
+    const ctx = {
+      ...mkCtx(new SlashRegistry()),
+      session,
+      writeFile,
+    };
+    const r = await saveCommand.handle(["/tmp/x.json"], ctx);
+    expect(r.error).toContain("EACCES");
+  });
+
+  it("errors when session/now/uuid aren't bound on context", async () => {
+    const r = await saveCommand.handle(["/tmp/x.json"], {});
+    expect(r.error).toContain("not bound");
   });
 });

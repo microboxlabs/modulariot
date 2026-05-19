@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { Command } from "commander";
 import { registerAuthCommand } from "./commands/auth/index.js";
 import { registerCalendarCommand } from "./commands/calendar/index.js";
+import { registerChatCommand } from "./commands/chat/index.js";
 import { registerConnectionsCommand } from "./commands/connections/index.js";
 import { registerHarnessCommand } from "./commands/harness/index.js";
 
@@ -22,6 +23,7 @@ program
 
 registerAuthCommand(program);
 registerCalendarCommand(program);
+registerChatCommand(program);
 registerConnectionsCommand(program);
 registerHarnessCommand(program);
 

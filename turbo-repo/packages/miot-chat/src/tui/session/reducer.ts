@@ -1,4 +1,4 @@
-import type { HarnessEvent } from "@microboxlabs/miot-harness-client";
+import { applyHarnessEvent } from "../transcript/project.js";
 import { isAgenticTenantMismatch } from "./agentic.js";
 import type {
   PendingApproval,
@@ -6,7 +6,6 @@ import type {
   SessionAction,
   SessionMetaInit,
   SessionState,
-  ToolStatus,
   TranscriptItem,
 } from "./types.js";
 
@@ -57,8 +56,26 @@ export function reduce(
       };
     }
 
-    case "STREAM_EVENT":
-      return applyStreamEvent(state, action.event, action.runId, ctx);
+    case "STREAM_EVENT": {
+      const slice = applyHarnessEvent(
+        {
+          transcript: state.transcript,
+          currentAssistantItemId: state.currentAssistantItemId,
+          pendingApprovals: state.pendingApprovals,
+          currentRunId: state.currentRunId,
+        },
+        action.event,
+        action.runId,
+        ctx,
+      );
+      return {
+        ...state,
+        transcript: slice.transcript,
+        currentAssistantItemId: slice.currentAssistantItemId,
+        pendingApprovals: slice.pendingApprovals,
+        currentRunId: slice.currentRunId,
+      };
+    }
 
     case "END_TURN":
       return applyEndTurn(state, action.record, action.failureMessage, ctx);
@@ -136,218 +153,6 @@ export function reduce(
         ],
       };
   }
-}
-
-function applyStreamEvent(
-  state: SessionState,
-  event: HarnessEvent,
-  runId: string,
-  ctx: ReducerContext,
-): SessionState {
-  const ts = ctx.now();
-
-  switch (event.type) {
-    case "run.started":
-      return { ...state, currentRunId: runId };
-
-    case "run.completed":
-    case "run.failed":
-      // No transcript mutation; END_TURN orchestrates the final state.
-      return state;
-
-    case "answer.completed":
-      return upsertAssistantItem(state, event, runId, ctx);
-
-    case "tool.started":
-      return appendToolItem(state, event, "running", ts, ctx);
-
-    case "tool.completed":
-      return flipOrAppendTool(state, event, "ok", ts, ctx);
-
-    case "tool.failed":
-      return flipOrAppendTool(state, event, "failed", ts, ctx);
-
-    case "approval.requested": {
-      const message = event.message || "approval needed";
-      const systemItem: TranscriptItem = {
-        kind: "system",
-        id: ctx.uuid(),
-        text: `approval requested: ${message}`,
-        ts,
-      };
-      const approval: PendingApproval = {
-        id: event.id,
-        runId,
-        message: event.message,
-        data: event.data,
-        ts,
-      };
-      return {
-        ...state,
-        transcript: [...state.transcript, systemItem],
-        pendingApprovals: [...state.pendingApprovals, approval],
-      };
-    }
-
-    case "route.selected": {
-      const route =
-        typeof event.data.route === "string" && event.data.route.length > 0
-          ? event.data.route
-          : event.message;
-      if (!route) return state;
-      const item: TranscriptItem = {
-        kind: "route",
-        id: ctx.uuid(),
-        route,
-        ts,
-      };
-      return { ...state, transcript: [...state.transcript, item] };
-    }
-
-    case "agent.turn": {
-      const agent =
-        typeof event.data.agent === "string" && event.data.agent.length > 0
-          ? event.data.agent
-          : event.message;
-      if (!agent) return state;
-      const item: TranscriptItem = {
-        kind: "agent",
-        id: ctx.uuid(),
-        agent,
-        ts,
-      };
-      return { ...state, transcript: [...state.transcript, item] };
-    }
-
-    case "plan.created": {
-      const item: TranscriptItem = {
-        kind: "plan",
-        id: ctx.uuid(),
-        message: event.message || "plan ready",
-        ts,
-      };
-      return { ...state, transcript: [...state.transcript, item] };
-    }
-
-    case "freshness.warning": {
-      const item: TranscriptItem = {
-        kind: "freshness",
-        id: ctx.uuid(),
-        message: event.message || "stale data",
-        ts,
-      };
-      return { ...state, transcript: [...state.transcript, item] };
-    }
-
-    case "artifact.created": {
-      const artifactKind =
-        typeof event.data.kind === "string" && event.data.kind.length > 0
-          ? event.data.kind
-          : "artifact";
-      const item: TranscriptItem = {
-        kind: "artifact",
-        id: ctx.uuid(),
-        artifactKind,
-        ts,
-      };
-      return { ...state, transcript: [...state.transcript, item] };
-    }
-  }
-}
-
-function extractAnswerText(event: HarnessEvent): string {
-  const data = event.data;
-  if (typeof data?.text === "string" && data.text.length > 0) return data.text;
-  if (typeof data?.answer === "string" && data.answer.length > 0) {
-    return data.answer;
-  }
-  return event.message;
-}
-
-function upsertAssistantItem(
-  state: SessionState,
-  event: HarnessEvent,
-  runId: string,
-  ctx: ReducerContext,
-): SessionState {
-  const text = extractAnswerText(event);
-  const existingId = state.currentAssistantItemId;
-  if (existingId) {
-    return {
-      ...state,
-      transcript: state.transcript.map((item) =>
-        item.kind === "assistant" && item.id === existingId
-          ? { ...item, text, status: "streaming" }
-          : item,
-      ),
-    };
-  }
-  const id = ctx.uuid();
-  const item: TranscriptItem = {
-    kind: "assistant",
-    id,
-    runId,
-    text,
-    status: "streaming",
-    ts: ctx.now(),
-  };
-  return {
-    ...state,
-    currentAssistantItemId: id,
-    transcript: [...state.transcript, item],
-  };
-}
-
-function extractToolName(event: HarnessEvent): string {
-  return typeof event.data.name === "string" && event.data.name.length > 0
-    ? event.data.name
-    : event.message;
-}
-
-function appendToolItem(
-  state: SessionState,
-  event: HarnessEvent,
-  status: ToolStatus,
-  ts: string,
-  ctx: ReducerContext,
-): SessionState {
-  const name = extractToolName(event);
-  const item: TranscriptItem = {
-    kind: "tool",
-    id: ctx.uuid(),
-    name,
-    status,
-    message: event.message.length > 0 ? event.message : null,
-    ts,
-  };
-  return { ...state, transcript: [...state.transcript, item] };
-}
-
-function flipOrAppendTool(
-  state: SessionState,
-  event: HarnessEvent,
-  status: ToolStatus,
-  ts: string,
-  ctx: ReducerContext,
-): SessionState {
-  const name = extractToolName(event);
-  for (let i = state.transcript.length - 1; i >= 0; i -= 1) {
-    const item = state.transcript[i];
-    if (
-      item &&
-      item.kind === "tool" &&
-      item.status === "running" &&
-      item.name === name
-    ) {
-      const message =
-        event.message.length > 0 ? event.message : item.message;
-      const updated: TranscriptItem = { ...item, status, message };
-      const next = state.transcript.slice();
-      next[i] = updated;
-      return { ...state, transcript: next };
-    }
-  }
-  return appendToolItem(state, event, status, ts, ctx);
 }
 
 function applyEndTurn(

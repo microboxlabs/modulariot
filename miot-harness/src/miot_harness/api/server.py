@@ -231,11 +231,14 @@ def create_app() -> FastAPI:
     async def create_run(request: UserRequest) -> HarnessRunRecord:
         # Read harness from app.state so tests that inject a controlled
         # graph (via app.state.harness.nexo_graph = ...) see their patch.
-        return await app.state.harness.run(request)
+        # Explicit annotation narrows `app.state` (Any) for mypy.
+        harness: HarnessSupervisor = app.state.harness
+        return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
     async def get_run(run_id: str) -> HarnessRunRecord:
-        return app.state.harness.run_store.load(run_id)
+        harness: HarnessSupervisor = app.state.harness
+        return harness.run_store.load(run_id)
 
     @app.post("/runs:start", status_code=202)
     async def start_run(request: UserRequest) -> dict[str, str]:

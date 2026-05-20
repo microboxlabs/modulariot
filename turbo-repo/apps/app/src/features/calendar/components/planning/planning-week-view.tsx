@@ -106,8 +106,8 @@ export default function PlanningWeekView({
     getRemainingQuota,
     isSlotBlocked,
     configuredTimeSlots,
-    andenesCount,
     plannedServices,
+    isShiftWindowFull,
   } = planningGrid;
 
   // Read date from URL, fallback to prop or today
@@ -134,9 +134,9 @@ export default function PlanningWeekView({
 
   const handleShiftClick = useCallback(
     (shift: PositionedShift) => {
-      // Overflow rectangles (beyond a MANUAL window's bookable quota) aren't bookable —
-      // the overlay already hides the "add" affordance for them; this is belt-and-suspenders.
-      if (!shift.assignable) return;
+      // The window is at its booking capacity for the day — the overlay already hides the "add"
+      // affordance for these; this is belt-and-suspenders.
+      if (isShiftWindowFull(shift)) return;
       handleSelectSlot({
         date: shift.date,
         hour: shift.slotHour,
@@ -144,7 +144,7 @@ export default function PlanningWeekView({
         dayIndex: shift.columnIndex,
       });
     },
-    [handleSelectSlot]
+    [handleSelectSlot, isShiftWindowFull]
   );
 
   const isShiftSelected = useCallback(
@@ -211,12 +211,11 @@ export default function PlanningWeekView({
           rowOffsets: baselineRowOffsets,
           columnIndex: i,
           columnCount: weekDays.length,
-          parallelism: andenesCount,
         })
       );
     }
     return out;
-  }, [configuredTimeSlots, andenesCount, weekDays, startHour, baselineRowOffsets]);
+  }, [configuredTimeSlots, weekDays, startHour, baselineRowOffsets]);
 
   const { rowHeights, rowOffsets } = useMemo(
     () =>
@@ -244,12 +243,11 @@ export default function PlanningWeekView({
           rowOffsets,
           columnIndex: i,
           columnCount: weekDays.length,
-          parallelism: andenesCount,
         })
       );
     }
     return out;
-  }, [configuredTimeSlots, andenesCount, weekDays, startHour, rowOffsets]);
+  }, [configuredTimeSlots, weekDays, startHour, rowOffsets]);
 
   // Header band height in px (h-16 = 4rem = 64px) and time-axis column width.
   const HEADER_HEIGHT_PX = 64;
@@ -261,6 +259,7 @@ export default function PlanningWeekView({
     onShiftClick: handleShiftClick,
     isShiftSelected,
     getServicesForShift,
+    isWindowFull: isShiftWindowFull,
     dict,
   });
 

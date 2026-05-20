@@ -94,8 +94,8 @@ export default function DayGrid({
     getRemainingQuota,
     isSlotBlocked,
     configuredTimeSlots,
-    andenesCount,
     plannedServices,
+    isShiftWindowFull,
   } = planningGrid;
 
   const dayInfo = useMemo(
@@ -110,16 +110,16 @@ export default function DayGrid({
 
   const handleShiftClick = useCallback(
     (shift: PositionedShift) => {
-      // Overflow rectangles (beyond a MANUAL window's bookable quota) aren't bookable —
-      // the overlay already hides the "add" affordance for them; this is belt-and-suspenders.
-      if (!shift.assignable) return;
+      // The window is at its booking capacity for the day — the overlay already hides the "add"
+      // affordance for these; this is belt-and-suspenders.
+      if (isShiftWindowFull(shift)) return;
       handleSelectSlot({
         date: shift.date,
         hour: shift.slotHour,
         minutes: shift.slotMinutes,
       });
     },
-    [handleSelectSlot]
+    [handleSelectSlot, isShiftWindowFull]
   );
 
   const isShiftSelected = useCallback(
@@ -174,9 +174,8 @@ export default function DayGrid({
         date: currentDate,
         startHour,
         rowOffsets: baselineRowOffsets,
-        parallelism: andenesCount,
       }),
-    [configuredTimeSlots, andenesCount, currentDate, startHour, baselineRowOffsets]
+    [configuredTimeSlots, currentDate, startHour, baselineRowOffsets]
   );
   const { rowHeights, rowOffsets } = useMemo(
     () =>
@@ -196,9 +195,8 @@ export default function DayGrid({
         date: currentDate,
         startHour,
         rowOffsets,
-        parallelism: andenesCount,
       }),
-    [configuredTimeSlots, andenesCount, currentDate, startHour, rowOffsets]
+    [configuredTimeSlots, currentDate, startHour, rowOffsets]
   );
 
   // Header band (sticky day/time-axis row) height in px — the time-slot grid
@@ -213,6 +211,7 @@ export default function DayGrid({
     onShiftClick: handleShiftClick,
     isShiftSelected,
     getServicesForShift,
+    isWindowFull: isShiftWindowFull,
     dict,
   });
 

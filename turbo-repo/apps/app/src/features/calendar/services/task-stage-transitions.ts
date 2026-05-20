@@ -43,6 +43,24 @@ export function getUnplanTransition(
 }
 
 /**
+ * Workflow transition fired when the planner removes a driver/transport
+ * assignment ("Eliminar Asignación"). Assigning advances the task
+ * `planService → assignDriver` via "Asignar Conductor/Transporte", so the
+ * only stage that can be unassigned is `assignDriver`; the BPMN's
+ * "Planificar Servicio" outcome steps it back to `planService`. Returning
+ * undefined for any other stage means the task is left untouched.
+ */
+const UNASSIGN_TRANSITIONS: Partial<Record<TaskStage, string>> = {
+  assignDriver: "Planificar Servicio",
+};
+
+export function getUnassignTransition(
+  stage: TaskStage | undefined
+): string | undefined {
+  return stage ? UNASSIGN_TRANSITIONS[stage] : undefined;
+}
+
+/**
  * Kanban column keys that the planning calendar cares about. The kanban
  * board API returns tasks grouped by these keys, which double as our
  * `TaskStage` identifiers everywhere in the planning UI.

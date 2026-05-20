@@ -53,12 +53,17 @@ export function sortColorRules<T extends SortableRule>(rules: T[]): T[] {
   return [...rules].sort((a, b) => {
     const aVal = Number(a.value) || 0;
     const bVal = Number(b.value) || 0;
-    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
-      return bVal - aVal;
-    }
-    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
-      return aVal - bVal;
-    }
+    const aIsGreater = isGreaterOperator(a.operator);
+    const bIsGreater = isGreaterOperator(b.operator);
+    const aIsLess = isLessOperator(a.operator);
+    const bIsLess = isLessOperator(b.operator);
+    if (aIsGreater && bIsGreater) return bVal - aVal;
+    if (aIsLess && bIsLess) return aVal - bVal;
+    // Mixed types: greater-than before less-than to avoid non-transitive comparator
+    // issues where an intervening less-than rule blocks the sort from comparing two
+    // greater-than rules against each other (e.g. [>10, <=10, >35] stays unsorted).
+    if (aIsGreater && bIsLess) return -1;
+    if (aIsLess && bIsGreater) return 1;
     return 0;
   });
 }
@@ -71,12 +76,14 @@ export function sortColorRulesWithFields<T extends ComparableRule>(
   return [...rules].sort((a, b) => {
     const aVal = Number(getCompareValue(a, fieldValues)) || 0;
     const bVal = Number(getCompareValue(b, fieldValues)) || 0;
-    if (isGreaterOperator(a.operator) && isGreaterOperator(b.operator)) {
-      return bVal - aVal;
-    }
-    if (isLessOperator(a.operator) && isLessOperator(b.operator)) {
-      return aVal - bVal;
-    }
+    const aIsGreater = isGreaterOperator(a.operator);
+    const bIsGreater = isGreaterOperator(b.operator);
+    const aIsLess = isLessOperator(a.operator);
+    const bIsLess = isLessOperator(b.operator);
+    if (aIsGreater && bIsGreater) return bVal - aVal;
+    if (aIsLess && bIsLess) return aVal - bVal;
+    if (aIsGreater && bIsLess) return -1;
+    if (aIsLess && bIsGreater) return 1;
     return 0;
   });
 }

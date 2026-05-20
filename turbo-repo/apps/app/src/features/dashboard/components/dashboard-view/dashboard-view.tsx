@@ -213,8 +213,8 @@ export function DashboardView() {
 
     const updateScale = (width: number) => {
       if (!gridRef.current || !clipRef.current) return;
-      const scale = width > 0 ? width / DESIGN_WIDTH : 1;
-      gridRef.current.style.transform = `scale(${scale})`;
+      const nextScale = width > 0 ? width / DESIGN_WIDTH : 1;
+      gridRef.current.style.transform = `scale(${nextScale})`;
       clipRef.current.style.width = `${width}px`;
     };
 
@@ -390,9 +390,30 @@ export function DashboardView() {
                 style={{
                   width: DESIGN_WIDTH,
                   transformOrigin: "top left",
+                  position: "relative",
                 }}
                 ref={gridRef}
               >
+                {/* Grid cell overlay — only visible in edit mode */}
+                {editMode && (() => {
+                  const colW = (DESIGN_WIDTH - 16 * (GRID_COLS - 1)) / GRID_COLS;
+                  const colP = colW + 16;
+                  const rowH = 55;
+                  const rowP = 71;
+                  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='rgba(55,65,81,0.25)'/></svg>`;
+                  return (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
+                        backgroundSize: `${colP}px ${rowP}px`,
+                        backgroundRepeat: "repeat",
+                        zIndex: 0,
+                      }}
+                    />
+                  );
+                })()}
                 <GridLayout
                   className="dashboard-root-grid w-full"
                   layout={layout}
@@ -422,26 +443,27 @@ export function DashboardView() {
                     </div>
                   ))}
                 </GridLayout>
-
-                {/* Add new widget button */}
-                {editMode && (
-                  <div className="flex justify-center">
-                    <Button
-                      color="light"
-                      onClick={() => setIsAddModalOpen(true)}
-                    >
-                      <HiPlus className="mr-2 h-4 w-4" />
-                      {tr("dashboard.addWidget", dictionary)}
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
+
           ) : (
             <DashboardPlaceholder
               isLoaded={isLoaded}
               onAdd={canEdit ? () => setIsAddModalOpen(true) : undefined}
             />
+          )}
+
+          {/* Add new widget button — outside the scaled grid */}
+          {hasWidgets && editMode && (
+            <div className="flex justify-center pt-4">
+              <Button
+                color="light"
+                onClick={() => setIsAddModalOpen(true)}
+              >
+                <HiPlus className="mr-2 h-4 w-4" />
+                {tr("dashboard.addWidget", dictionary)}
+              </Button>
+            </div>
           )}
         </div>
       </div>

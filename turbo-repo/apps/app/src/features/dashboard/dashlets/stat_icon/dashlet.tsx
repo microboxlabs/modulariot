@@ -216,7 +216,7 @@ function buildKpiStatProps(input: KpiStatPropsInput) {
  * Stat Card - Configurable KPI display with multiple visual styles
  * Supports: default, gradient colors, minimal, bordered layouts
  */
-export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+export function Dashlet({ widget, editMode }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
@@ -317,7 +317,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // Render based on expandable and goTo settings
   return renderStatCard(
     expandable,
-    hasGoToLink,
+    hasGoToLink && !editMode,
     goToUrl,
     kpiProps,
     interactiveClasses

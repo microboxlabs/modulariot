@@ -2,6 +2,8 @@
 
 A Copilot-style agentic chat CLI for the `miot-harness` SSE streaming API. Lives at `turbo-repo/packages/miot-chat`.
 
+> Also reachable as `miot chat` from [`@microboxlabs/miot-cli`](../miot-cli) — the standalone bin and the `miot` subcommand share the same `runMiotChat()` library entry, so flag names, env vars, config files, and behavior are identical between the two.
+
 ## Install
 
 Inside the monorepo it's available as a workspace package. To use the built binary directly:
@@ -12,7 +14,7 @@ npm run build
 node ./dist/cli.js --help
 ```
 
-When published, `npm i -g @microboxlabs/miot-chat` installs the `miot-chat` bin.
+When published, `npm i -g @microboxlabs/miot-chat` installs the `miot-chat` bin. If you already have `@microboxlabs/miot-cli` installed, `miot chat` works without a second install.
 
 ## Quick start
 

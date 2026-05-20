@@ -275,9 +275,11 @@ async function runOneTurn(
     return;
   }
 
-  ctx.stderr.write(
-    `${red("stream ended without a terminal event", ctx.color)}\n`,
-  );
+  // The SSE stream ended without ever emitting run.completed or
+  // run.failed. Treat this as an error and let the caller's catch
+  // surface it + flip exitCode to 1 via the existing "unexpected:"
+  // branch. Throwing keeps runOneTurn's Promise<void> signature.
+  throw new Error("stream ended without a terminal event");
 }
 
 function slashStateOf(s: SessionState): SlashState {

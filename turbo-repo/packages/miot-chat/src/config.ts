@@ -162,17 +162,28 @@ function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
   };
 }
 
-function normalizeTheme(theme: unknown): ThemeConfig | undefined {
+// "Loose" view of a theme field as it arrives from JSON.parse. The
+// declared MiotChatConfig.theme is ThemeConfig, but hand-edited
+// config.json can put anything in there — tokens may not be strings,
+// name may be a number, etc. ParsedTheme documents the boundary so
+// the function signature isn't a blanket `unknown`.
+type ParsedTheme =
+  | string
+  | { name?: unknown; tokens?: unknown }
+  | null;
+
+function normalizeTheme(
+  theme: ParsedTheme | undefined,
+): ThemeConfig | undefined {
   if (theme === undefined || theme === null) return undefined;
   if (typeof theme === "string") return theme;
   if (typeof theme === "object") {
-    const obj = theme as { name?: unknown; tokens?: unknown };
     const out: { name?: string; tokens?: Record<string, string> } = {};
-    if (typeof obj.name === "string") out.name = obj.name;
-    if (obj.tokens && typeof obj.tokens === "object") {
+    if (typeof theme.name === "string") out.name = theme.name;
+    if (theme.tokens && typeof theme.tokens === "object") {
       const tokens: Record<string, string> = {};
       for (const [k, v] of Object.entries(
-        obj.tokens as Record<string, unknown>,
+        theme.tokens as Record<string, unknown>,
       )) {
         if (typeof v === "string") tokens[k] = v;
       }

@@ -40,9 +40,30 @@ class HarnessSettings(BaseSettings):
     nexo_max_turns: int = 8
     nexo_critic_enabled: bool = False
 
+    # Phase E (plan 13): LLM intent router. Default model is Haiku tier
+    # for cost — the router is invoked on every "auto" request. Below
+    # the confidence threshold we fall back to the keyword router so
+    # we never silently misroute when the LLM is uncertain.
+    intent_router_model: str = "claude-haiku-4-5"
+    intent_router_confidence_threshold: float = 0.7
+
+    # Composable Nexo primitives (E3). EXPLAIN total cost > this → refuse.
+    # PostgreSQL plan-cost units. Default 10000 is roughly "10s of seq scans
+    # on a million-row table" — generous enough for analyst exploration,
+    # tight enough to refuse an unindexed cross-join.
+    nexo_explain_cost_threshold: float = 10000.0
+
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     request_id_header: str = "x-request-id"
+
+    # OTel + Traceloop / Langfuse (Phase A telemetry foundation)
+    otel_enabled: bool = False
+    otel_endpoint: str = "http://localhost:4317"
+    otel_service_name: str = "miot-harness"
+    otel_environment: str = "local"
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
 
     # Multi-agent model assignment (per plan 12 §"Cost-control rules")
     nexo_supervisor_mode: Literal["rule", "llm"] = "rule"

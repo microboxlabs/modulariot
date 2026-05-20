@@ -39,32 +39,37 @@ fi
 
 REF="oci://$REGISTRY@$DIGEST"
 
-# Smoke test that any attestation verifies first — clearer error
-# distinction than failing inside a predicate-specific call.
-if ! gh attestation verify "$REF" --owner "$OWNER" --format=json >/tmp/${ID}.json 2>/tmp/${ID}.err; then
-  echo "FAIL $ID — no attestation verifies for $REF (owner=$OWNER)"
+# `gh attestation verify` filters by `--predicate-type` (default:
+# https://slsa.dev/provenance/v1). A single call only ever returns one
+# predicate, so we must verify provenance and SBOM independently.
+# SBOM predicate types: SPDX -> https://spdx.dev/Document,
+# CycloneDX -> https://cyclonedx.org/bom. We try SPDX first (what
+# `anchore/sbom-action` + `actions/attest-sbom` emit by default with
+# `format: spdx-json`), then fall back to CycloneDX.
+
+if ! gh attestation verify "$REF" --owner "$OWNER" \
+    --predicate-type "https://slsa.dev/provenance/v1" \
+    --format=json >/tmp/${ID}-prov.json 2>/tmp/${ID}-prov.err; then
+  echo "FAIL $ID — SLSA provenance attestation does not verify for $REF (owner=$OWNER)"
   echo "--- stderr ---" >&2
-  tail -n 20 /tmp/${ID}.err >&2 || true
+  tail -n 20 /tmp/${ID}-prov.err >&2 || true
   exit 1
 fi
 
-# Parse predicate types out of the JSON. Different gh versions emit
-# different shapes; we look at all string values containing
-# 'predicateType' to be liberal.
-PREDICATES=$(grep -oE '"predicateType"[[:space:]]*:[[:space:]]*"[^"]+"' /tmp/${ID}.json | sed 's/.*"\([^"]\+\)"$/\1/' | sort -u)
+SBOM_OK=0
+for PT in "https://spdx.dev/Document" "https://cyclonedx.org/bom"; do
+  if gh attestation verify "$REF" --owner "$OWNER" \
+      --predicate-type "$PT" \
+      --format=json >/tmp/${ID}-sbom.json 2>/tmp/${ID}-sbom.err; then
+    SBOM_OK=1
+    break
+  fi
+done
 
-HAS_PROVENANCE=$(echo "$PREDICATES" | grep -i 'provenance' || true)
-HAS_SBOM=$(echo "$PREDICATES" | grep -iE 'spdx|cyclonedx|sbom' || true)
-
-if [[ -z "$HAS_PROVENANCE" ]]; then
-  echo "FAIL $ID — no SLSA provenance predicate in attestations"
-  echo "    predicate types found: ${PREDICATES:-<none>}" >&2
-  exit 1
-fi
-
-if [[ -z "$HAS_SBOM" ]]; then
-  echo "FAIL $ID — no SBOM predicate (SPDX/CycloneDX) in attestations"
-  echo "    predicate types found: ${PREDICATES:-<none>}" >&2
+if [[ "$SBOM_OK" -ne 1 ]]; then
+  echo "FAIL $ID — no SBOM attestation (SPDX or CycloneDX) verifies for $REF (owner=$OWNER)"
+  echo "--- stderr ---" >&2
+  tail -n 20 /tmp/${ID}-sbom.err >&2 || true
   exit 1
 fi
 

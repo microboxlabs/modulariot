@@ -6,15 +6,23 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.integrations.nexo.boot import load_nexo_tools
 from miot_harness.integrations.nexo.credentials import load_nexo_credentials
 from miot_harness.integrations.nexo.pool import create_nexo_pool
+from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
+from miot_harness.observability.otel import configure_tracing, shutdown_tracing
+from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.factory import build_harness
+from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.nexo_graph import build_nexo_graph
+from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
 
@@ -31,6 +39,34 @@ def _make_lifespan(
         app.state.nexo_registered = []
         app.state.nexo_snapshot_age_minutes = None
 
+        # Telemetry: configure_tracing installs the global TracerProvider so
+        # NexoTelemetryCallback's spans (per-agent) and Traceloop's
+        # auto-instrumented child spans (per LLM SDK call) flow to the same
+        # collector. No-op when MIOT_HARNESS_OTEL_ENABLED is false.
+        tracer_provider = configure_tracing(
+            enabled=settings.otel_enabled,
+            service_name=settings.otel_service_name,
+            endpoint=settings.otel_endpoint,
+            environment=settings.otel_environment,
+        )
+        if tracer_provider is not None:
+            Traceloop.init(
+                app_name=settings.otel_service_name,
+                api_endpoint=settings.otel_endpoint,
+                disable_batch=False,
+                telemetry_enabled=False,  # do not phone home; we self-host
+            )
+            # HTTP request spans parent the per-run `nexo.run` span so the
+            # full request → graph → LLM tree shows up in Langfuse.
+            FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+            logger.info(
+                "OTel: tracing enabled (service=%s, env=%s, endpoint=%s)",
+                settings.otel_service_name,
+                settings.otel_environment,
+                settings.otel_endpoint,
+            )
+        app.state.tracer_provider = tracer_provider
+
         if settings.nexo_dsn is None and settings.nexo_db_scripts_root is None:
             logger.info(
                 "Nexo: disabled (neither MIOT_HARNESS_NEXO_DSN nor "
@@ -39,7 +75,10 @@ def _make_lifespan(
             try:
                 yield
             finally:
-                pass
+                try:
+                    shutdown_tracing(tracer_provider)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("OTel: shutdown_tracing raised %s", exc)
             return
 
         pool = None
@@ -82,7 +121,42 @@ def _make_lifespan(
                     harness.nexo_graph = build_nexo_graph(
                         registry=harness.tools, settings=settings, models=models
                     )
-                    logger.info("Nexo: conversational graph wired")
+
+                    # Phase E wiring: tenant_lock + agentic_graph + meta
+                    # agent + LLM intent router. All optional on the
+                    # supervisor — falling back to keyword routing if any
+                    # of these aren't injected.
+                    harness.tenant_lock = settings.nexo_tenant_lock
+                    harness.agentic_graph = build_agentic_graph(
+                        settings=settings,
+                        models={
+                            **models,
+                            # Agentic graph uses the analyst model as its
+                            # planner; same model pool, same callbacks.
+                            "planner": get_chat_model(settings.nexo_analyst_model),
+                        },
+                        provenance_log=None,  # wired in F-phase when executor lands
+                    )
+                    harness.meta_model = get_chat_model(settings.intent_router_model)
+                    harness.meta_primer = COORDINADOR_PRIMER
+                    harness.meta_catalog = [
+                        MetaAgentCatalogEntry(
+                            name=name,
+                            layer="L*",
+                            title=name,
+                            body=f"Auto-registered curated function `{name}`.",
+                        )
+                        for name in result.registered
+                    ]
+                    harness.llm_router = LLMIntentRouter(
+                        get_chat_model(settings.intent_router_model),
+                        confidence_threshold=settings.intent_router_confidence_threshold,
+                        keyword_fallback=IntentRouter(),
+                    )
+                    logger.info(
+                        "Nexo: Phase E wired (LLM router=%s, agentic_graph, meta_agent)",
+                        settings.intent_router_model,
+                    )
                 except Exception as exc:  # noqa: BLE001
                     logger.critical(
                         "Nexo: failed to build chat models / graph (%s); "
@@ -113,6 +187,10 @@ def _make_lifespan(
                     await pool.close()
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Nexo: pool close raised %s", exc)
+            try:
+                shutdown_tracing(tracer_provider)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("OTel: shutdown_tracing raised %s", exc)
 
     return lifespan
 

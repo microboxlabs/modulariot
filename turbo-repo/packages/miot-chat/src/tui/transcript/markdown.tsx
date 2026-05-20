@@ -49,17 +49,22 @@ function BlockToken(props: {
 
     case "blockquote": {
       const bq = token as Tokens.Blockquote;
+      // BlockToken can return <Box> nodes (code/list). Ink's <Text>
+      // cannot contain <Box> children, so render token children
+      // directly under the parent Box. Only the plain-text fallback
+      // (no parsed inner tokens) stays inside <Text dimColor>.
+      if (bq.tokens && bq.tokens.length > 0) {
+        return (
+          <Box paddingLeft={2} flexDirection="column">
+            {bq.tokens.map((t, i) => (
+              <BlockToken key={i} token={t} theme={theme} />
+            ))}
+          </Box>
+        );
+      }
       return (
         <Box paddingLeft={2}>
-          <Text dimColor>
-            {bq.tokens && bq.tokens.length > 0 ? (
-              bq.tokens.map((t, i) => (
-                <BlockToken key={i} token={t} theme={theme} />
-              ))
-            ) : (
-              bq.text
-            )}
-          </Text>
+          <Text dimColor>{bq.text}</Text>
         </Box>
       );
     }

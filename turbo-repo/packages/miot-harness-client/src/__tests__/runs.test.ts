@@ -8,7 +8,7 @@ describe("runs.create", () => {
     const { fn, call } = createMockFetch({ run_id: "run_abc" });
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     const result = await client.runs.create({
       message: "hello",
@@ -37,7 +37,7 @@ describe("runs.get", () => {
     const { fn, call } = createMockFetch(record);
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     const got = await client.runs.get("run id");
     expect(got).toEqual(record);
@@ -54,7 +54,7 @@ describe("runs.stream", () => {
     const { fn, call } = createMockSseFetch(body);
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
 
     const events = [];
@@ -71,7 +71,7 @@ describe("runs.stream", () => {
     const { fn, call } = createMockSseFetch("");
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     for await (const e of client.runs.stream("run_abc", { lastEventId: "evt_42" })) {
       void e;
@@ -86,7 +86,7 @@ describe("runs.stream", () => {
     const { fn } = createMockSseFetch(body);
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     let caught: unknown;
     try {
@@ -111,7 +111,7 @@ describe("runs.stream", () => {
       }) as unknown as Response;
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     let caught: unknown;
     try {

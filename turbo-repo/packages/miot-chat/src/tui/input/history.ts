@@ -66,24 +66,42 @@ export function navDown(
 }
 
 export function loadHistorySync(filePath: string): HistoryStore {
-  if (!existsSync(filePath)) return initialHistory();
-  const raw = readFileSync(filePath, "utf8");
-  const lines = raw
-    .split(/\r?\n/)
-    .map((l) => l)
-    .filter((l) => l.trim().length > 0);
-  const trimmed =
-    lines.length > HISTORY_CAP ? lines.slice(lines.length - HISTORY_CAP) : lines;
-  return { entries: trimmed, cursor: -1 };
+  // History is a UX convenience (up-arrow recall). Disk failures —
+  // TOCTOU race between existsSync and readFileSync, permission flip,
+  // path now points to a directory — degrade silently to an empty
+  // in-memory history instead of taking down the TUI.
+  try {
+    if (!existsSync(filePath)) return initialHistory();
+    const raw = readFileSync(filePath, "utf8");
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l)
+      .filter((l) => l.trim().length > 0);
+    const trimmed =
+      lines.length > HISTORY_CAP
+        ? lines.slice(lines.length - HISTORY_CAP)
+        : lines;
+    return { entries: trimmed, cursor: -1 };
+  } catch {
+    return initialHistory();
+  }
 }
 
 export function saveHistorySync(filePath: string, store: HistoryStore): void {
-  const body = store.entries.join("\n") + (store.entries.length > 0 ? "\n" : "");
-  writeFileSync(filePath, body, { mode: 0o600 });
-  // writeFileSync only applies the mode flag when the file is newly created;
-  // explicitly re-chmod existing files so secrets in stale history can't be
-  // read by other local users.
-  if (process.platform !== "win32") {
-    chmodSync(filePath, 0o600);
+  // Same trade-off as loadHistorySync: persistence is a nicety. If
+  // we can't write (EACCES, ENOSPC, parent dir deleted, chmod of a
+  // vanished file), skip and keep the in-memory store usable.
+  try {
+    const body =
+      store.entries.join("\n") + (store.entries.length > 0 ? "\n" : "");
+    writeFileSync(filePath, body, { mode: 0o600 });
+    // writeFileSync only applies the mode flag when the file is newly
+    // created; explicitly re-chmod existing files so secrets in stale
+    // history can't be read by other local users.
+    if (process.platform !== "win32") {
+      chmodSync(filePath, 0o600);
+    }
+  } catch {
+    // Silently fall back to in-memory history.
   }
 }

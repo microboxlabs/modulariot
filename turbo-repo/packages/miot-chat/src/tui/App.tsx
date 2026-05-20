@@ -149,14 +149,27 @@ function AppInner(
         home,
         client: props.client,
       };
-      const result = await cmd.handle(parsed.args, slashCtx);
-      if (result.error) appendSystem(result.error);
-      if (result.dispatch) session.dispatch(result.dispatch);
-      if (result.output) {
-        setExtraItems((prev) => [...prev, result.output as TranscriptItem]);
+      // Wrap the dispatch so a throwing handler (e.g. /save hitting
+      // an EPERM, /export writing to a read-only path) surfaces in
+      // the transcript instead of becoming an unhandled rejection
+      // when the caller does `void dispatchSlash(text)`. Catches both
+      // synchronous throws and Promise rejections via the await.
+      try {
+        const result = await cmd.handle(parsed.args, slashCtx);
+        if (result.error) appendSystem(result.error);
+        if (result.dispatch) session.dispatch(result.dispatch);
+        if (result.output) {
+          setExtraItems((prev) => [...prev, result.output as TranscriptItem]);
+        }
+        if (result.modal) setModalState({ spec: result.modal });
+        if (result.abort && props.onExit) props.onExit();
+      } catch (err) {
+        appendSystem(
+          `error in /${parsed.name}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
       }
-      if (result.modal) setModalState({ spec: result.modal });
-      if (result.abort && props.onExit) props.onExit();
     },
     [
       registry,

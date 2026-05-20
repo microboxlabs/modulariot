@@ -25,7 +25,7 @@ import {
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
   createBooking,
-  updateBooking,
+  moveBooking,
   cancelBooking,
   listBookings,
   updateServiceCategory,
@@ -34,9 +34,13 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { BookingTaskAdvance } from "@/features/common/providers/client-api.provider";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";
-import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
+import type {
+  BookingRequest,
+  BookingResponse,
+  MoveBookingRequest,
+  SlotResponse,
+} from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
-import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
 import {
   asTaskStageFromColumn,
   getNextTransition,
@@ -172,8 +176,9 @@ export interface TimeSlot {
   // when absent (older TWs / pre-v0.5.0 backend).
   slotGenerationMode?: "auto" | "manual";
   // Derived counts from the API (when present): total slots the window generates
-  // (`totalSlots`) and how many are bookable (`bookableSlots`); the rest, up to
-  // `totalSlots`, are OVERFLOW. Recompute locally when absent.
+  // (`totalSlots`) and how many can hold bookings (`bookableSlots` — now always equal
+  // to `totalSlots`; the window's `quota` caps the day's total bookings separately).
+  // Recompute locally when absent.
   totalSlots?: number;
   bookableSlots?: number;
 }
@@ -734,6 +739,18 @@ interface PersistPlannedBookingParams {
   refreshSlots: () => void;
 }
 
+function buildResource(service: SelectedService, slot: SelectedSlot) {
+  return {
+    id: service.id,
+    type: "service",
+    label: service.cliente,
+    data: {
+      ...service,
+      ...(slot.anden === undefined ? {} : { _anden: slot.anden }),
+    },
+  };
+}
+
 function buildBookingRequest(
   calendarId: string,
   service: SelectedService,
@@ -741,20 +758,29 @@ function buildBookingRequest(
 ): BookingRequest {
   return {
     calendarId,
-    resource: {
-      id: service.id,
-      type: "service",
-      label: service.cliente,
-      data: {
-        ...service,
-        ...(slot.anden === undefined ? {} : { _anden: slot.anden }),
-      },
-    },
+    resource: buildResource(service, slot),
     slot: {
       date: dayjs(slot.date).format("YYYY-MM-DD"),
       hour: slot.hour,
       minutes: slot.minutes,
     },
+  };
+}
+
+// Move payload for an existing booking — slot + a fresh resource snapshot so
+// any planner-side overrides (serviceCategory, assignment tuple, _anden, …)
+// land in `cld_bookings.resource_data` as part of the same write.
+function buildMoveRequest(
+  service: SelectedService,
+  slot: SelectedSlot
+): MoveBookingRequest {
+  return {
+    slot: {
+      date: dayjs(slot.date).format("YYYY-MM-DD"),
+      hour: slot.hour,
+      minutes: slot.minutes,
+    },
+    resource: buildResource(service, slot),
   };
 }
 
@@ -789,23 +815,17 @@ async function persistPlannedBooking({
   }
 
   try {
-    const bookingRequest = buildBookingRequest(calendarId, service, slot);
-    const booking = await createBooking(bookingRequest);
-
-    // Re-confirming a service in the same slot (e.g. "Asignar" on an
-    // already-planned service) hits the bookings POST 409 path, which resolves
-    // to the *existing* booking without applying the new resource.data — and so
-    // `booking.id === oldBookingId`. Push the payload onto it explicitly so the
-    // change (e.g. the assignment tuple) survives a refresh, and skip the
-    // old-booking cancel below since it would delete the booking we just kept.
-    const reusedExistingBooking =
-      oldBookingId !== undefined && booking.id === oldBookingId;
-    if (reusedExistingBooking) {
-      // On failure the pre-existing booking is left intact (with stale data);
-      // rethrow so the outer catch rolls back the optimistic UI. We never
-      // cancel it here — it is the service's current plan.
-      await updateBooking(booking.id, { resource: bookingRequest.resource });
-    }
+    // Existing booking → atomic in-place move via POST /bookings/{id}/move.
+    // The booking id is preserved; a same-slot call collapses to a
+    // payload-only update on the server. This subsumes both the planner's
+    // "Reasignar" flow (different slot) and the "Asignar" flow on an
+    // already-planned service (same slot, refreshed assignment tuple).
+    //
+    // No follow-up cancel is needed — the row is re-pointed in place, not
+    // create-then-delete. The bookingIds map keeps the same id.
+    const booking: BookingResponse = oldBookingId
+      ? await moveBooking(oldBookingId, buildMoveRequest(service, slot))
+      : await createBooking(buildBookingRequest(calendarId, service, slot));
 
     await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
@@ -818,17 +838,10 @@ async function persistPlannedBooking({
       return next;
     });
 
-    if (oldBookingId && !reusedExistingBooking) {
-      await cancelBookingWithWarning(
-        oldBookingId,
-        "Failed to cancel old booking:"
-      );
-    }
-
     refreshSlots();
     setBookingVersion((v) => v + 1);
   } catch (err) {
-    console.warn("Failed to create booking:", err);
+    console.warn("Failed to persist booking:", err);
     rollbackPlannedService(
       setPlannedServices,
       service.id,
@@ -898,11 +911,23 @@ interface PlanningSelectionContextType {
   /** Cancel assignment-only mode */
   cancelAssignment: () => void;
   /**
-   * Open the sidebar in view-only mode for an already-planned service. Sets
-   * the service and slot without entering reassign/assign mode — the form
-   * renders the existing values and suppresses its action buttons.
+   * Left-click on a chip: select only the chip's underlying slot, clearing
+   * any previously selected service. The sidebar opens in "add to slot" mode
+   * — identical to clicking the empty area of that slot. The existing
+   * planned service is left untouched and is *not* preselected; use the
+   * right-click context menu (selectChipResource) to interact with it.
    */
-  viewPlannedService: (plannedService: PlannedService) => void;
+  selectChipSlot: (plannedService: PlannedService) => void;
+  /**
+   * Right-click on a chip: highlight the chip itself without touching slot
+   * or service selection — the sidebar is NOT opened. Pairs with the chip
+   * context menu, which opens immediately after.
+   */
+  selectChipResource: (plannedService: PlannedService) => void;
+  /** True when the given service id is the chip currently highlighted via right-click. */
+  isChipSelected: (serviceId: string) => boolean;
+  /** Drop the chip highlight without touching slot/service selection. */
+  clearChipSelection: () => void;
   /**
    * Patch the assignment tuple (carrier/drivers/truck/trailer) on a planned
    * service. Any omitted field is left untouched; passing `undefined`
@@ -1041,6 +1066,13 @@ export function PlanningSelectionProvider({
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
     useState<SelectedService | null>(null);
+  // Visual-only "this chip is selected" mark set by right-clicking a chip.
+  // Deliberately separate from `selectedService` because right-click must
+  // not open the sidebar — only `selectedSlot`/`selectedService` toggle
+  // `isSidebarOpen`. Slot left-click and any sidebar close clears this.
+  const [selectedChipServiceId, setSelectedChipServiceId] = useState<
+    string | null
+  >(null);
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
   // Unified state: single array for all time slots
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
@@ -1715,6 +1747,7 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
     setReassigningService(null);
     setAssigningService(null);
+    setSelectedChipServiceId(null);
   }, []);
 
   const clearSelection = useCallback(() => {
@@ -1722,6 +1755,7 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
     setReassigningService(null);
     setAssigningService(null);
+    setSelectedChipServiceId(null);
   }, []);
 
   /**
@@ -1844,16 +1878,36 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
-  // Open the sidebar to inspect a planned service without entering an edit
-  // mode. Left-clicking a chip routes here; the form reads `selectedSlot` and
-  // `selectedService`, sees no reassign/assign mode, and (when the slot is
-  // past) renders with mutations disabled.
-  const viewPlannedService = useCallback((plannedService: PlannedService) => {
+  // Left-click on a chip: select only the underlying slot. Clears any
+  // previously selected service so the sidebar opens in "add to slot" mode,
+  // identical to clicking the empty portion of the slot — never carries the
+  // chip's service into the form. Also clears any chip highlight from a
+  // prior right-click so the two selection states stay mutually exclusive.
+  const selectChipSlot = useCallback((plannedService: PlannedService) => {
     setReassigningService(null);
     setAssigningService(null);
-    setSelectedService(plannedService.service);
+    setSelectedService(null);
+    setSelectedChipServiceId(null);
     setSelectedSlot(plannedService.slot);
   }, []);
+
+  // Right-click on a chip: highlight only the chip itself. Does NOT touch
+  // `selectedService`/`selectedSlot` (so the sidebar stays where it was)
+  // — the chip context menu opens immediately after via use-planning-grid.
+  // The highlight persists until a left-click clears it or the sidebar
+  // closes.
+  const selectChipResource = useCallback((plannedService: PlannedService) => {
+    setSelectedChipServiceId(plannedService.service.id);
+  }, []);
+
+  const clearChipSelection = useCallback(() => {
+    setSelectedChipServiceId(null);
+  }, []);
+
+  const isChipSelected = useCallback(
+    (serviceId: string) => selectedChipServiceId === serviceId,
+    [selectedChipServiceId]
+  );
 
   /**
    * Patch a planned service's assignment tuple client-side.
@@ -1929,7 +1983,10 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      viewPlannedService,
+      selectChipSlot,
+      selectChipResource,
+      isChipSelected,
+      clearChipSelection,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
@@ -1974,7 +2031,10 @@ export function PlanningSelectionProvider({
       cancelReassignment,
       startAssignment,
       cancelAssignment,
-      viewPlannedService,
+      selectChipSlot,
+      selectChipResource,
+      isChipSelected,
+      clearChipSelection,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,

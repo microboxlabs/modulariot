@@ -163,6 +163,9 @@
         "shipping": "Planificación",
         "finished": "Finalizados"
       },
+      "grid": {
+        "windowFullTooltip": "La ventana alcanzó su capacidad para este día — no es asignable"
+      },
       "taskCounter": {
         "activeCount": "{count} visibles"
       },
@@ -1409,8 +1412,8 @@
           "modeAuto": "Auto",
           "modeManual": "Manual",
           "slotDurationLabel": "Duración del slot (minutos)",
-          "slotsHint": "caben {total} slots · {bookable} asignables · {unassignable} no asignables",
-          "capacityExceedsSlots": "El cupo supera los slots disponibles — solo {bookable} asignables",
+          "slotsHint": "caben {total} slots · hasta {max} reservas",
+          "capacityExceedsSlots": "El cupo supera la grilla de slots — solo caben {max} reservas; agrega más slots o baja el cupo",
           "leftoverMinutes": "Los últimos {minutes} min de la ventana quedan sin usar",
           "deleteWindow": "Eliminar ventana",
           "weekly": "Semanal",
@@ -2498,6 +2501,7 @@
     "internal": "Inicio Interno",
     "external": "Inicio Externo",
     "urgency": "Urgente",
+    "serviceCategory": "Categoría de servicio",
     "today": "Hoy",
     "yesterday": "Ayer",
     "trip": "Viaje",

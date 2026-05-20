@@ -57,6 +57,7 @@ import type {
   BookingUpdateRequest,
   BookingResponse,
   BookingListResponse,
+  MoveBookingRequest,
   SlotResponse,
   SlotListResponse,
 } from "@microboxlabs/miot-calendar-client";
@@ -1802,6 +1803,32 @@ export async function updateBooking(
 }
 
 /**
+ * Atomically reassign a booking. The server re-points the booking row at the
+ * new slot (and optionally refreshes its resource payload) in one transaction
+ * — the booking id is preserved, no row is created or deleted. A same-slot
+ * call collapses to a payload-only update, which is why the planner can route
+ * both "Reasignar" and "Asignar"-on-already-planned through here.
+ */
+export async function moveBooking(
+  bookingId: string,
+  body: MoveBookingRequest
+): Promise<BookingResponse> {
+  const response = await fetch(
+    `/app/api/calendar/bookings/${bookingId}/move`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error ?? "Failed to move booking");
+  }
+  return response.json();
+}
+
+/**
  * Cancel an existing booking by ID.
  */
 export async function cancelBooking(bookingId: string): Promise<void> {
@@ -1928,6 +1955,29 @@ export function useServiceTypes() {
     error,
     isLoading,
   };
+}
+
+/**
+ * Resolve a service-type code (e.g. "ST001") to its display name.
+ *
+ * Unlike {@link useServiceTypes} this does not drop inactive types, so a task
+ * referencing a now-retired category still renders its label. Backed by the
+ * same SWR cache key, so it adds no extra requests when used alongside it.
+ */
+export function useServiceCategoryName(code: string | null | undefined): {
+  name: string | undefined;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useSWR<ServiceType[], FetcherError>(
+    "/app/api/service-types",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  const name = useMemo(() => {
+    if (!code) return undefined;
+    return (data ?? []).find((t) => t.code === code)?.name;
+  }, [data, code]);
+  return { name, isLoading };
 }
 
 export async function updateServiceCategory(

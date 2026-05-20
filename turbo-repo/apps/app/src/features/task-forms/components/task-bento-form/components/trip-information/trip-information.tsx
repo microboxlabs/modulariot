@@ -4,8 +4,14 @@ import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripData from "./trip-data";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
-import { HiExclamationCircle, HiOutlineClock } from "react-icons/hi";
+import {
+  HiExclamationCircle,
+  HiOutlineClock,
+  HiOutlineTag,
+} from "react-icons/hi";
 import { logError } from "@/lib/logger";
+import { useServiceCategoryName } from "@/features/common/providers/client-api.provider";
+import { serviceCategoryInitials } from "@/features/common/utils/service-category";
 
 export default function TripInformation({
   task,
@@ -35,6 +41,12 @@ export default function TripInformation({
     originIsSitransValue = originIsSitrans === true ? "internal" : "external";
   }
 
+  const serviceCategoryCode = task.mintral_serviceCategory as
+    | string
+    | undefined;
+  const { name: serviceCategoryName } =
+    useServiceCategoryName(serviceCategoryCode);
+
   const badges: Array<{
     text: string;
     color:
@@ -47,6 +59,7 @@ export default function TripInformation({
       | "pink"
       | "indigo";
     icon: any;
+    title?: string;
   }> = [];
 
   if (originIsSitrans !== null && originIsSitrans !== undefined) {
@@ -57,6 +70,18 @@ export default function TripInformation({
       color: "gray" as const,
       icon: HiOutlineClock,
     });
+  }
+
+  if (serviceCategoryName) {
+    const initials = serviceCategoryInitials(serviceCategoryName);
+    if (initials) {
+      badges.push({
+        text: initials,
+        color: "indigo" as const,
+        icon: HiOutlineTag,
+        title: `${msg.bento.serviceCategory}: ${serviceCategoryName}`,
+      });
+    }
   }
 
   if (task.mintral_priorityCode === "UR") {

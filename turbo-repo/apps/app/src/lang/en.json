@@ -163,6 +163,9 @@
         "shipping": "Planning",
         "finished": "Finished"
       },
+      "grid": {
+        "windowFullTooltip": "Window is at capacity for this day — not assignable"
+      },
       "taskCounter": {
         "activeCount": "{count} visibles"
       },
@@ -1384,8 +1387,8 @@
           "modeAuto": "Auto",
           "modeManual": "Manual",
           "slotDurationLabel": "Slot duration (minutes)",
-          "slotsHint": "{total} slots fit · {bookable} assignable · {unassignable} unassignable",
-          "capacityExceedsSlots": "Capacity exceeds available slots — only {bookable} assignable",
+          "slotsHint": "{total} slots fit · up to {max} bookings",
+          "capacityExceedsSlots": "Quota exceeds the slot grid — only {max} bookings fit; add more slots or lower the quota",
           "leftoverMinutes": "Last {minutes} min of the window are unused",
           "deleteWindow": "Delete window",
           "weekly": "Weekly",
@@ -2468,6 +2471,7 @@
     "internal": "Internal start",
     "external": "External start",
     "urgency": "Urgency",
+    "serviceCategory": "Service category",
     "today": "Today",
     "yesterday": "Yesterday",
     "trip": "Trip",

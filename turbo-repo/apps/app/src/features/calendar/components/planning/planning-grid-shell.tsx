@@ -59,6 +59,7 @@ export function buildPlanningGridShellProps(params: {
   onShiftClick: (shift: PositionedShift) => void;
   isShiftSelected: (shift: PositionedShift) => boolean;
   getServicesForShift: (shift: PositionedShift) => readonly PlannedService[];
+  isWindowFull: (shift: PositionedShift) => boolean;
   dict: I18nDictionary;
 }): {
   shiftOverlay: ComponentProps<typeof ShiftOverlayLayer>;
@@ -70,6 +71,7 @@ export function buildPlanningGridShellProps(params: {
     onShiftClick,
     isShiftSelected,
     getServicesForShift,
+    isWindowFull,
     dict,
   } = params;
   return {
@@ -78,9 +80,11 @@ export function buildPlanningGridShellProps(params: {
       onShiftClick,
       isShiftSelected,
       getServicesForShift,
-      onChipClick: pg.viewPlannedService,
+      isWindowFull,
+      onChipClick: pg.selectChipSlot,
       onChipContextMenu: pg.handleContextMenu,
       reassigningServiceId: pg.reassigningService?.service.service.id,
+      isChipSelected: pg.isChipSelected,
       dict,
     },
     gridOverlays: {

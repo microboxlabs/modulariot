@@ -255,7 +255,9 @@ function AppInner(
           onCancel={closeModal}
         />
       ) : null}
-      {modalSpec?.kind === "approval" && isApprovalsUiEnabled() ? (
+      {modalSpec?.kind === "approval" &&
+      isApprovalsUiEnabled() &&
+      session.state.pendingApprovals.length > 0 ? (
         <ApprovalModal
           approval={session.state.pendingApprovals[0]!}
           onResolve={(decision, id): void => {

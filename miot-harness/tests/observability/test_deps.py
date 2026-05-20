@@ -11,7 +11,6 @@ import importlib
 
 import pytest
 
-
 PROD_MODULES = (
     "opentelemetry.trace",
     "opentelemetry.sdk.trace",

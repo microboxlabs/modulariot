@@ -16,7 +16,6 @@ from miot_harness.observability.pricing import (
 )
 
 
-
 def test_pricing_table_includes_runtime_models() -> None:
     """Every model the harness can dispatch must have an entry."""
 

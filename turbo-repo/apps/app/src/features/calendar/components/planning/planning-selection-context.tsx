@@ -26,6 +26,7 @@ import {
   deactivateCalendarTimeWindow,
   createBooking,
   moveBooking,
+  updateBooking,
   cancelBooking,
   listBookings,
   updateServiceCategory,
@@ -45,6 +46,7 @@ import {
   asTaskStageFromColumn,
   getNextTransition,
   getUnplanTransition,
+  getUnassignTransition,
 } from "@/features/calendar/services/task-stage-transitions";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
@@ -53,6 +55,7 @@ import {
   TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
 import { tr } from "@/features/i18n/tr.service";
+import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
 dayjs.extend(isoWeek);
@@ -904,6 +907,13 @@ interface PlanningSelectionContextType {
   getAvailableAndenes: (date: Date, hour: number, minutes: number) => number[];
   isSidebarOpen: boolean;
   removeService: (serviceId: string) => Promise<void>;
+  /**
+   * Clear the driver/transport assignment from a planned service: reverse
+   * the workflow task back to `planService`, drop the assignment tuple from
+   * the booking's `resource_data`, notify the coordinator (stage
+   * "unassigned") and clear the local assignment fields.
+   */
+  removeAssignment: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
   /** Start assignment-only mode - opens sidebar with only Asignación tab available */
@@ -924,6 +934,14 @@ interface PlanningSelectionContextType {
    * context menu, which opens immediately after.
    */
   selectChipResource: (plannedService: PlannedService) => void;
+  /**
+   * Open the sidebar populated with an existing chip's planning + assignment
+   * data for inspection. Used by the calendar viewer role (no plan/assign
+   * permissions): right-clicking a chip both pops the context menu and
+   * pre-fills the sidebar via this call, so the sidebar's read-only render
+   * has values to show. Clears reassign/assign mode and highlights the chip.
+   */
+  inspectPlannedService: (plannedService: PlannedService) => void;
   /** True when the given service id is the chip currently highlighted via right-click. */
   isChipSelected: (serviceId: string) => boolean;
   /** Drop the chip highlight without touching slot/service selection. */
@@ -1087,6 +1105,17 @@ export function PlanningSelectionProvider({
     null
   );
   const [bookingVersion, setBookingVersion] = useState(0);
+
+  // Last line of defense against viewer-role UI bypass. Every booking
+  // mutation (create / move / cancel) must come from a user with at least
+  // one of the two mutating groups — checked again at the persist boundary
+  // inside `confirmService` and `removeService`. UI gating is the primary
+  // control; this guard catches stale handlers and future contributors
+  // wiring a button without the matching permission check. The `?as=viewer`
+  // override also collapses canPlan/canAssign to false, so a planner
+  // previewing viewer mode is treated as a viewer here too.
+  const { canPlan, canAssign, isLoadingPermissions } = useCalendarViewMode();
+  const canMutateBookings = !isLoadingPermissions && (canPlan || canAssign);
 
   // Load calendar parallelism from the backend
   const { calendars } = useCalendars();
@@ -1639,6 +1668,14 @@ export function PlanningSelectionProvider({
       finalSlot?: SelectedSlot,
       serviceOverrides?: Partial<SelectedService>
     ): Promise<boolean> => {
+      // Persist-boundary permission guard. UI surfaces are gated upstream
+      // for viewers — a successful call here implies a UI-bypass bug, so
+      // throw rather than silently no-op.
+      if (!canMutateBookings) {
+        throw new Error(
+          "confirmService: caller lacks GROUP_PLANNING and GROUP_ASSIGNMENT"
+        );
+      }
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
@@ -1733,6 +1770,7 @@ export function PlanningSelectionProvider({
       bookingIds,
       refreshSlots,
       getLiveTask,
+      canMutateBookings,
     ]
   );
 
@@ -1763,6 +1801,12 @@ export function PlanningSelectionProvider({
    */
   const removeService = useCallback(
     async (serviceId: string) => {
+      // Persist-boundary permission guard — see confirmService for context.
+      if (!canMutateBookings) {
+        throw new Error(
+          "removeService: caller lacks GROUP_PLANNING and GROUP_ASSIGNMENT"
+        );
+      }
       // Move the workflow task back toward planService BEFORE cancelling the
       // booking. Resolve the live task by `mintral_serviceCode` against the
       // kanban index — never trust a stored taskId, because Alfresco mints a
@@ -1815,7 +1859,87 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask, calendarId]
+    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
+  );
+
+  /**
+   * Remove the driver/transport assignment from a planned service. The
+   * inverse of the "Asignar" arm of `confirmService`: it reverses the
+   * workflow task, drops the assignment tuple from the booking, and tells
+   * the coordinator to revert the service to its planned activity state.
+   */
+  const removeAssignment = useCallback(
+    async (serviceId: string) => {
+      // Persist-boundary permission guard — see confirmService for context.
+      if (!canMutateBookings) {
+        throw new Error(
+          "removeAssignment: caller lacks GROUP_PLANNING and GROUP_ASSIGNMENT"
+        );
+      }
+
+      const planned = plannedServices.find((p) => p.service.id === serviceId);
+      if (!planned) return;
+
+      // Reverse the workflow task BEFORE touching the booking. Assigning
+      // advanced the task `planService → assignDriver`; this steps it back.
+      // Resolve the live task by `mintral_serviceCode` against the kanban —
+      // never a stored taskId. A failed transition aborts the whole op so
+      // the assignment stays visible and the user can retry, mirroring
+      // `removeService`.
+      const liveTask = getLiveTask(planned.service.mintral_serviceCode);
+      if (liveTask) {
+        const transition = getUnassignTransition(liveTask.stage);
+        if (transition) {
+          await advanceWorkflowTask(liveTask.taskId, transition);
+        }
+      }
+
+      // Drop the assignment tuple from `cld_bookings.resource_data` so
+      // reopening the sidebar starts clean. Uses the plain booking PUT —
+      // not `moveBooking` — because the move route would re-derive the
+      // binding stage as "planned"; the explicit "unassigned" call below
+      // is the stage the coordinator dispatches on.
+      const clearedService: SelectedService = {
+        ...planned.service,
+        assignedCarrier: undefined,
+        assignedDriver: undefined,
+        assignedDriver2: undefined,
+        assignedTruck: undefined,
+        assignedTrailer: undefined,
+      };
+      const bookingId = bookingIds.get(serviceId);
+      if (bookingId) {
+        await updateBooking(bookingId, {
+          resource: buildResource(clearedService, planned.slot),
+        });
+      }
+
+      // Tell the coordinator the service is back to its planned state.
+      // Best-effort: a failure leaves a stale binding the next planner
+      // action on this calendar overwrites — don't block the user-visible
+      // removal on it.
+      const numeroServicio = planned.service.mintral_serviceCode;
+      if (numeroServicio && calendarId) {
+        await notifyCalendarBinding({
+          numero_servicio: numeroServicio,
+          calendar_id: calendarId,
+          stage: "unassigned",
+        }).catch((err) =>
+          console.warn("Failed to notify calendar binding (unassigned):", err)
+        );
+      }
+
+      // Clear the assignment tuple locally for immediate feedback.
+      setPlannedServices((prev) =>
+        prev.map((p) =>
+          p.service.id === serviceId
+            ? { ...p, service: clearedService }
+            : p
+        )
+      );
+      setBookingVersion((v) => v + 1);
+    },
+    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
   );
 
   /**
@@ -1900,6 +2024,22 @@ export function PlanningSelectionProvider({
     setSelectedChipServiceId(plannedService.service.id);
   }, []);
 
+  // Viewer-only inspection entry point. Mirrors `startAssignment` in that it
+  // pre-fills both slot and service so the sidebar has data to render, but
+  // does not enter assign/reassign mode — the sidebar's read-only path
+  // suppresses every mutation surface. Wired from `use-planning-grid` when
+  // the caller has `GROUP_CALENDAR_VIEWER` and neither plan nor assign.
+  const inspectPlannedService = useCallback(
+    (plannedService: PlannedService) => {
+      setReassigningService(null);
+      setAssigningService(null);
+      setSelectedChipServiceId(plannedService.service.id);
+      setSelectedService(plannedService.service);
+      setSelectedSlot(plannedService.slot);
+    },
+    []
+  );
+
   const clearChipSelection = useCallback(() => {
     setSelectedChipServiceId(null);
   }, []);
@@ -1979,12 +2119,14 @@ export function PlanningSelectionProvider({
       getAvailableAndenes,
       isSidebarOpen,
       removeService,
+      removeAssignment,
       startReassignment,
       cancelReassignment,
       startAssignment,
       cancelAssignment,
       selectChipSlot,
       selectChipResource,
+      inspectPlannedService,
       isChipSelected,
       clearChipSelection,
       updateServiceAssignment,
@@ -2027,12 +2169,14 @@ export function PlanningSelectionProvider({
       getAvailableAndenes,
       isSidebarOpen,
       removeService,
+      removeAssignment,
       startReassignment,
       cancelReassignment,
       startAssignment,
       cancelAssignment,
       selectChipSlot,
       selectChipResource,
+      inspectPlannedService,
       isChipSelected,
       clearChipSelection,
       updateServiceAssignment,

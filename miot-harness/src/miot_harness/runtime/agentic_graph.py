@@ -75,7 +75,8 @@ def build_agentic_graph(
         if snapshot.get("failure"):
             return {"answer": "(no answer — see failure)"}
         model = models["synthesizer"]
-        response = await model.ainvoke([{"role": "user", "content": snapshot.get("user_message", "")}])
+        prompt = [{"role": "user", "content": snapshot.get("user_message", "")}]
+        response = await model.ainvoke(prompt)
         text = response.content if hasattr(response, "content") else str(response)
         return {"answer": text if isinstance(text, str) else str(text)}
 

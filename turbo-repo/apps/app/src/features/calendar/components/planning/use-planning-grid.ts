@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from "react";
 import dayjs from "dayjs";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import {
   isTimeWindow,
   usePlanningSelection,
@@ -11,6 +10,7 @@ import {
 } from "./planning-selection-context";
 import type { PositionedShift } from "./shift-layout";
 import { useServiceActions } from "./use-service-actions";
+import { useCalendarViewMode } from "./use-calendar-view-mode";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
 
 // ============================================================================
@@ -36,9 +36,10 @@ interface SlotIdentifier {
 export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   const { startHour = 8, endHour = 22 } = options;
 
-  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
-  // Fail-closed: block interactions until permission check completes
-  const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
+  // Effective view-mode for the calendar — already honors the
+  // `?as=viewer` URL override for users with GROUP_CALENDAR_VIEWER.
+  // Fail-closed: every flag is false while permissions load.
+  const { canPlan, canAssign, canView, isViewerOnly } = useCalendarViewMode();
 
   const {
     selectedSlot,
@@ -49,31 +50,17 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     getRemainingQuota,
     isSlotBlocked,
     removeService,
+    removeAssignment,
     startReassignment,
     startAssignment,
     reassigningService,
-    updateServiceAssignment,
     selectChipSlot,
     selectChipResource,
+    inspectPlannedService,
     isChipSelected,
     clearChipSelection,
     andenesCount,
   } = usePlanningSelection();
-
-  // Clear every assignment slot on the planned service — carrier, drivers,
-  // truck and trailer — so reopening the sidebar for this entry starts clean.
-  const removeAssignment = useCallback(
-    async (serviceId: string) => {
-      updateServiceAssignment(serviceId, {
-        assignedCarrier: undefined,
-        assignedDriver: undefined,
-        assignedDriver2: undefined,
-        assignedTruck: undefined,
-        assignedTrailer: undefined,
-      });
-    },
-    [updateServiceAssignment]
-  );
 
   // Use shared hook for context menu and delete modal
   const serviceActions = useServiceActions({
@@ -85,13 +72,29 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
 
   // Right-click on a chip highlights it (corner ring) AND opens the context
   // menu. The highlight is purely visual — `selectChipResource` does not
-  // touch slot/service selection, so the sidebar stays as-is.
+  // touch slot/service selection, so the sidebar stays as-is. For pure
+  // viewers (GROUP_CALENDAR_VIEWER only) we also call `inspectPlannedService`
+  // because right-click is their sole entry to the sidebar; for planners
+  // the sidebar opens via the menu's "Abrir servicio (Solo Lectura)"
+  // action instead, which flips the URL and inspects in one step.
   const handleChipContextMenu = useCallback(
     (e: React.MouseEvent, plannedService: PlannedService) => {
       selectChipResource(plannedService);
+      if (isViewerOnly) {
+        inspectPlannedService(plannedService);
+      }
       serviceActions.handleContextMenu(e, plannedService);
     },
-    [selectChipResource, serviceActions]
+    [selectChipResource, inspectPlannedService, isViewerOnly, serviceActions]
+  );
+
+  // Left-click on a chip opens the sidebar in "add to slot" mode for users
+  // who can plan. Viewers have nothing actionable there — chip data is
+  // already reachable via right-click — so the handler is dropped entirely,
+  // which also flips the chip's cursor to `cursor-context-menu`.
+  const handleChipClick = useMemo(
+    () => (isViewerOnly ? undefined : selectChipSlot),
+    [isViewerOnly, selectChipSlot]
   );
 
   // The chip highlight lives alongside the context menu — closing the menu
@@ -168,6 +171,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   return {
     // Permission
     canPlan,
+    canAssign,
+    canView,
+    isViewerOnly,
 
     // Slot selection
     selectedSlot,
@@ -202,7 +208,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     reassigningService,
 
     // Left-click on a chip: select only the slot (clears any prior service).
-    selectChipSlot,
+    // Viewer-only callers receive `undefined`, dropping the chip's onClick so
+    // left-click becomes a no-op and the cursor switches to context-menu.
+    selectChipSlot: handleChipClick,
 
     // Predicate the chip uses to render its right-click highlight ring.
     isChipSelected,

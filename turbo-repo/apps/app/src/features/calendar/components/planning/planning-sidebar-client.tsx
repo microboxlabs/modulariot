@@ -6,6 +6,7 @@ import "dayjs/locale/es";
 import "dayjs/locale/en";
 import { HiArrowLeft, HiX, HiSwitchHorizontal } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -18,6 +19,7 @@ import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
+import { useCalendarViewMode } from "./use-calendar-view-mode";
 import {
   useCalendars,
   useMyTasks,
@@ -476,16 +478,42 @@ export function PlanningSidebarClient({
     allServices,
   ]);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { forceViewer } = useCalendarViewMode();
+
+  // Strip the `?as=viewer` override (used by planners previewing the
+  // viewer experience) without touching any other URL params. The page
+  // re-renders in full-edit mode, mirroring the existing chip-menu
+  // "Salir de previsualización" action.
+  const exitViewerPreview = useCallback(() => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.delete("as");
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }, [router, pathname, searchParams]);
+
   const handleSubmit = () => {
     closeSidebar();
   };
 
   const handleBack = () => {
+    // In viewer-preview mode the only way out today is the chip-menu
+    // toggle. Make the sidebar's back button exit preview too, so the
+    // close affordance feels symmetric to assign/reassign mode where
+    // the header X cancels the special mode.
+    if (forceViewer) {
+      exitViewerPreview();
+    }
     clearService(); // Go back to services list, keep sidebar open
     // Keep filters and tags when going back - user can still see filtered results
   };
 
   const handleCancel = () => {
+    if (forceViewer) {
+      exitViewerPreview();
+    }
     closeSidebar(); // Close the entire sidebar
   };
 
@@ -597,10 +625,14 @@ export function PlanningSidebarClient({
       }
     : stateSnapshotRef.current;
 
-  // Determine which header button to show based on current mode
+  // Determine which header button to show based on current mode. Viewer-
+  // preview mode is treated as a "special mode" alongside reassign/assign:
+  // the header surfaces an X that exits the mode (strips `?as=viewer`),
+  // mirroring how Cancelar exits assignment/reassignment.
   const isInSpecialMode =
     displayState.reassigningService !== null ||
-    displayState.assigningService !== null;
+    displayState.assigningService !== null ||
+    forceViewer;
   const showCloseButton = !displayState.isFormActive || isInSpecialMode;
 
   const headerButton = showCloseButton ? (

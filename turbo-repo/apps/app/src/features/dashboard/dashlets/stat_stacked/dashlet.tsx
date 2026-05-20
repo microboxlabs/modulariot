@@ -123,6 +123,14 @@ function useEChartsGlobalOut() {
     }
   }, []);
 
+  // appendToBody:true pins the tooltip to a fixed body position — scrolling
+  // doesn't move the mouse relative to the chart so globalout never fires.
+  // Capture-phase scroll catches any scrollable ancestor, not just window.
+  useEffect(() => {
+    window.addEventListener("scroll", handleGlobalOut, true);
+    return () => window.removeEventListener("scroll", handleGlobalOut, true);
+  }, [handleGlobalOut]);
+
   return { chartRef, handleGlobalOut };
 }
 

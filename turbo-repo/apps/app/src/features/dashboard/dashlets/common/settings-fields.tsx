@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Label, TextInput, Textarea, Select, Tooltip } from "flowbite-react";
-import { HiQuestionMarkCircle } from "react-icons/hi2";
+import { useMemo, useState } from "react";
+import { Label, TextInput, Textarea, Select, Tooltip, ToggleSwitch, Button } from "flowbite-react";
+import { HiQuestionMarkCircle, HiChevronDown } from "react-icons/hi2";
 import Markdown from "react-markdown";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -39,7 +39,7 @@ export function SettingsTextField({
 }: Readonly<SettingsTextFieldProps>) {
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-sm">
+      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
         {label}
       </Label>
       <TextInput
@@ -95,7 +95,7 @@ export function SettingsNumberField({
 
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-sm">
+      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
         {label}
       </Label>
       <TextInput
@@ -144,7 +144,7 @@ export function SettingsTextareaField({
 }: Readonly<SettingsTextareaFieldProps>) {
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-sm">
+      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
         {label}
       </Label>
       <Textarea
@@ -153,7 +153,7 @@ export function SettingsTextareaField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="text-sm"
+        className="text-xs font-normal text-gray-500 dark:text-gray-400"
       />
     </div>
   );
@@ -193,7 +193,7 @@ export function SettingsSelectField({
 }: Readonly<SettingsSelectFieldProps>) {
   return (
     <div className="w-full">
-      <Label htmlFor={id} className="mb-1 block text-sm">
+      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
         {label}
       </Label>
       <Select
@@ -273,7 +273,7 @@ export function SettingsPickerItem({
 }: Readonly<SettingsPickerItemProps>) {
   return (
     <div className="flex items-center gap-1.5">
-      <Label className="text-sm">{label}</Label>
+      <Label className="text-xs font-normal text-gray-500 dark:text-gray-400">{label}</Label>
       {children}
     </div>
   );
@@ -462,7 +462,7 @@ export function HbTextField({
   return (
     <div>
       <div className="mb-1 flex items-center gap-1">
-        <Label htmlFor={id} className="text-sm font-medium">
+        <Label htmlFor={id} className="text-xs font-normal text-gray-500 dark:text-gray-400">
           {label}
         </Label>
         {tooltip && (
@@ -572,7 +572,7 @@ export function HbInlineInput(props: Readonly<HbInlineInputProps>) {
 
 interface HbTextareaFieldProps {
   id: string;
-  label: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -594,18 +594,88 @@ export function HbTextareaField({
 
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {label}
-      </Label>
+      {label && (
+        <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+          {label}
+        </Label>
+      )}
       <Textarea
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="text-sm"
+        className="text-xs font-normal text-gray-500 dark:text-gray-400"
         color={getFlowbiteColor(status)}
       />
+    </div>
+  );
+}
+
+// ============================================================================
+// ExpandableSection — collapsible card for grouping settings
+// ============================================================================
+
+interface ExpandableSectionProps {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}
+
+/**
+ * Collapsible card section for grouping related settings fields.
+ * Used by dashlet settings panels to organise options into logical groups.
+ */
+export function ExpandableSection({
+  title,
+  children,
+  defaultOpen = true,
+}: Readonly<ExpandableSectionProps>) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-600">
+      <Button
+        type="button"
+        color="light"
+        size="sm"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full border-0 ring-0 focus:ring-0 flex justify-between ${open ? "rounded-t-lg rounded-b-none" : "rounded-lg"}`}
+      >
+        {title}
+        <HiChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </Button>
+      {open && (
+        <div className="space-y-2 px-3 pb-3 pt-1">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// SettingsToggleRow — label + toggle switch in a single row
+// ============================================================================
+
+interface SettingsToggleRowProps {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}
+
+/**
+ * Single-row setting with a text label on the left and a toggle switch on the right.
+ * Use for boolean options inside settings panels.
+ */
+export function SettingsToggleRow({
+  label,
+  checked,
+  onChange,
+}: Readonly<SettingsToggleRowProps>) {
+  return (
+    <div className="flex items-center gap-2">
+      <ToggleSwitch checked={checked} onChange={onChange} sizing="sm" />
+      <Label className="text-xs font-normal text-gray-500 dark:text-gray-400">{label}</Label>
     </div>
   );
 }

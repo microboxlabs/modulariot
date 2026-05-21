@@ -66,5 +66,6 @@ class ProvenanceLog:
             "tenant_id": entry.tenant_id,
         }
         with path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(payload, ensure_ascii=False))
-            fh.write("\n")
+            # Single write so concurrent appends from other processes
+            # can't slip a record between the JSON body and its newline.
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")

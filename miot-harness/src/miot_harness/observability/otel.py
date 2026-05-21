@@ -9,6 +9,7 @@ exporter flushes.
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlparse
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -62,8 +63,11 @@ def configure_tracing(
         }
     )
     provider = TracerProvider(resource=resource)
+    # Disable TLS only for plaintext endpoints (http://, bare host:port).
+    # `https://` endpoints get TLS automatically — never hardcode insecure.
+    insecure = urlparse(endpoint).scheme != "https"
     provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, insecure=True))
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, insecure=insecure))
     )
     trace.set_tracer_provider(provider)
     return provider

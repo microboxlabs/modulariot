@@ -86,10 +86,13 @@ async def test_summarize_if_needed_fires_above_threshold() -> None:
     assert fired is True
     assert len(calls) == 1
 
-    # After summarization the history retains the summary + recent turns.
+    # After summarization the history holds the summary and the prior
+    # turns are compacted away (they live in `summary` now). Subsequent
+    # `append()` calls rebuild a fresh tail.
     summarized = store.get(cid)
     assert summarized is not None
     assert summarized.summary == "summary of the first 11 turns"
+    assert summarized.turns == []
 
 
 def test_conversation_id_round_trips_across_two_runs() -> None:

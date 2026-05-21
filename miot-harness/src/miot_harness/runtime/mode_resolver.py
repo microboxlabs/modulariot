@@ -2,9 +2,12 @@
 
 When `request.mode == "auto"` the LLM intent router decides. When it's
 one of `canned` / `meta` / `agentic`, we skip the router entirely and
-dispatch directly. Validation rejects `mode="agentic"` for non-Mintral
-tenants at request-validation time so unauthorized callers never reach
-an LLM or graph node.
+dispatch directly. Validation rejects data-touching modes (`canned`,
+`agentic`) for non-Mintral tenants at request-validation time so
+unauthorized callers never reach an LLM, graph node, or a tool call
+that would emit billable telemetry. `meta` is allowed for any tenant
+(non-confidential schema/primer info per the plan's tenant-gate
+decision).
 """
 
 from __future__ import annotations
@@ -41,9 +44,13 @@ async def resolve_mode(
     if request.mode == "auto":
         return await llm_router.route(request.message)
 
-    if request.mode == "agentic" and request.tenant_id != tenant_lock:
+    # Both data-touching modes gated up-front. `tool_factory` enforces
+    # the same lock at execution time, but rejecting here avoids
+    # spinning up the graph (and its billable LLM / span emissions) for
+    # a request that will be denied anyway.
+    if request.mode in ("agentic", "canned") and request.tenant_id != tenant_lock:
         raise ModeAccessDenied(
-            f"mode='agentic' is {tenant_lock}-only; tenant={request.tenant_id!r}"
+            f"mode={request.mode!r} is {tenant_lock}-only; tenant={request.tenant_id!r}"
         )
 
     route = _EXPLICIT_MODE_ROUTES[request.mode]

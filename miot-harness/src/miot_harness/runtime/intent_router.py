@@ -117,19 +117,38 @@ class LLMIntentRouter:
         self._fallback = keyword_fallback or IntentRouter()
 
     async def route(self, message: str) -> RouteResult:
-        response = await self._model.ainvoke(
-            [
-                SystemMessage(content=_SYSTEM_PROMPT),
-                HumanMessage(content=message),
-            ]
-        )
+        try:
+            response = await self._model.ainvoke(
+                [
+                    SystemMessage(content=_SYSTEM_PROMPT),
+                    HumanMessage(content=message),
+                ]
+            )
+        except Exception as exc:  # noqa: BLE001 — fallback on ANY model failure
+            # Any failure (timeout, provider error, network) trips the
+            # deterministic keyword fallback rather than failing the run.
+            # Log the exception class only — exception messages may include
+            # request payloads that contain the user's message.
+            logger.warning(
+                "LLMIntentRouter: model invocation failed (%s); falling back",
+                type(exc).__name__,
+            )
+            return self._fallback.route(message)
+
         raw = response.content if hasattr(response, "content") else str(response)
         if not isinstance(raw, str):
             raw = str(raw)
 
         decision = _parse_decision(raw)
         if decision is None:
-            logger.warning("LLMIntentRouter: unparseable response %r; falling back", raw[:120])
+            # Don't log raw content: a misbehaving LLM frequently echoes
+            # parts of the user's message, which may carry tenant
+            # identifiers, PII, or business data that doesn't belong in
+            # operator-visible logs. Length is sufficient for triage.
+            logger.warning(
+                "LLMIntentRouter: unparseable response (length=%d); falling back",
+                len(raw),
+            )
             return self._fallback.route(message)
 
         if decision.confidence < self._threshold:

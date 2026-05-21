@@ -69,6 +69,23 @@ async def test_explicit_agentic_mode_rejected_for_non_mintral_tenant() -> None:
 
 
 @pytest.mark.asyncio
+async def test_explicit_canned_mode_rejected_for_non_mintral_tenant() -> None:
+    """`canned` is data-touching just like `agentic` — the tenant lock
+    must reject it at request-validation time so an off-lock caller can't
+    even reach the graph (where the tool-level lock would deny anyway,
+    but only after billable LLM + span emissions have already fired).
+    """
+
+    request = UserRequest(message="status", tenant_id="ams-other", mode="canned")
+    with pytest.raises(ModeAccessDenied):
+        await resolve_mode(
+            request,
+            llm_router=_llm_router_that_must_not_be_called(),
+            tenant_lock="mintral",
+        )
+
+
+@pytest.mark.asyncio
 async def test_auto_mode_delegates_to_llm_router() -> None:
     model = FakeListChatModel(
         responses=[json.dumps({"route": "NEXO_AGENTIC", "confidence": 0.95})]

@@ -1,15 +1,15 @@
 {
-  "name": "@microboxlabs/miot-cli",
-  "version": "0.3.0",
+  "name": "@microboxlabs/miot-chat",
+  "version": "0.1.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/microboxlabs/modulariot",
-    "directory": "packages/miot-cli"
+    "directory": "packages/miot-chat"
   },
   "type": "module",
   "bin": {
-    "miot": "./dist/cli.js"
+    "miot-chat": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -26,8 +26,6 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@microboxlabs/miot-calendar-client": "*",
-    "@microboxlabs/miot-connection-client": "*",
     "@microboxlabs/miot-harness-client": "*",
     "commander": "^14.0.0"
   },

@@ -16,7 +16,6 @@ from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.integrations.nexo.boot import load_nexo_tools
-from miot_harness.integrations.nexo.credentials import load_nexo_credentials
 from miot_harness.integrations.nexo.pool import create_nexo_pool
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
@@ -78,11 +77,8 @@ def _make_lifespan(
             )
         app.state.tracer_provider = tracer_provider
 
-        if settings.nexo_dsn is None and settings.nexo_db_scripts_root is None:
-            logger.info(
-                "Nexo: disabled (neither MIOT_HARNESS_NEXO_DSN nor "
-                "MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT is set)"
-            )
+        if settings.nexo_dsn is None:
+            logger.info("Nexo: disabled (MIOT_HARNESS_NEXO_DSN is not set)")
             try:
                 yield
             finally:
@@ -94,31 +90,15 @@ def _make_lifespan(
 
         pool = None
         try:
-            if settings.nexo_dsn is not None:
-                logger.info(
-                    "Nexo: using MIOT_HARNESS_NEXO_DSN (db-scripts file lookup bypassed)"
-                )
-                pool = await create_nexo_pool(dsn=settings.nexo_dsn)
-            else:
-                # Guarded above: when nexo_dsn is None, db_scripts_root is
-                # not None (otherwise the early-return would have fired).
-                assert settings.nexo_db_scripts_root is not None
-                creds = load_nexo_credentials(
-                    db_scripts_root=settings.nexo_db_scripts_root,
-                    alias=settings.nexo_db_alias,
-                )
-                pool = await create_nexo_pool(creds)
+            logger.info("Nexo: connecting via MIOT_HARNESS_NEXO_DSN")
+            pool = await create_nexo_pool(settings.nexo_dsn)
             result = await load_nexo_tools(harness.tools, settings=settings, pool=pool)
             app.state.nexo_enabled = result.enabled
             app.state.nexo_registered = list(result.registered)
             app.state.nexo_snapshot_age_minutes = result.snapshot_age_minutes
             if result.enabled:
                 app.state.nexo_pool = pool
-                logger.info(
-                    "Nexo: %d tools registered (alias=%s)",
-                    len(result.registered),
-                    settings.nexo_db_alias,
-                )
+                logger.info("Nexo: %d tools registered", len(result.registered))
                 # Build the conversational graph and inject into the
                 # supervisor. Per-agent models come from settings.
                 try:

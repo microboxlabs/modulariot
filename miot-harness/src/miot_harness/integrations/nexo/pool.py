@@ -30,40 +30,31 @@ from typing import Any
 
 import asyncpg
 
-from miot_harness.integrations.nexo.credentials import NexoCredentials
-
 NEXO_SERVER_SETTINGS: dict[str, str] = {}
 
 
 async def create_nexo_pool(
-    creds: NexoCredentials | None = None,
+    dsn: str,
     *,
-    dsn: str | None = None,
     min_size: int = 1,
     max_size: int = 4,
     **extra: Any,
 ) -> asyncpg.Pool:
     """Create an asyncpg.Pool for Nexo, PgBouncer-safe.
 
-    Two ways to source the DSN:
-
-    - `creds`: a `NexoCredentials` parsed from a `db-scripts/.env` file
-      (developer-laptop default).
-    - `dsn`: a raw DSN string (containerized deploy default —
-      `MIOT_HARNESS_NEXO_DSN` is mounted as a single secret).
-
-    `dsn` wins if both are passed. At least one must be provided.
+    `dsn` is a standard Postgres connection string
+    (`postgresql://user:password@host:port/database`), sourced from the
+    `MIOT_HARNESS_NEXO_DSN` setting.
 
     Does NOT pass `server_settings` (PgBouncer rejects unknown startup
     parameters in transaction-pooling mode). Read-only enforcement is
     applied per-transaction via `conn.transaction(readonly=True)` at
     each call site.
     """
-    resolved = dsn if dsn is not None else (creds.dsn if creds is not None else None)
-    if resolved is None:
-        raise ValueError("create_nexo_pool requires either `creds` or `dsn`")
+    if not dsn:
+        raise ValueError("create_nexo_pool requires a non-empty `dsn`")
     return await asyncpg.create_pool(
-        dsn=resolved,
+        dsn=dsn,
         min_size=min_size,
         max_size=max_size,
         **extra,

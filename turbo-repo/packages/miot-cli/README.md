@@ -183,6 +183,43 @@ miot connections operations list <connectionId>
 miot connections operations create <connectionId> --name <name> --method <method> --path <path> [--request-schema-json <json>] [--response-schema-json <json>] [--test-operation]
 ```
 
+### Chat (interactive harness TUI)
+
+`miot chat` opens an Ink-based interactive TUI against a running [`miot-harness`](../miot-harness-client). Equivalent to running the standalone [`miot-chat`](../miot-chat) bin — the CLI re-exports it as a subcommand so users don't have to install two binaries.
+
+```bash
+miot chat [--tenant <id>] [--user <id>] [--mode <auto|canned|meta|agentic>] [--profile <name>] [--harness-base-url <url>] [--harness-token <token>]
+```
+
+The flags mirror the standalone bin. Config + env precedence: CLI flag > `MIOT_CHAT_*` env > `~/.miot-chat/config.json` profile > defaults. Force the headless line-REPL fallback (no Ink) with `MIOT_CHAT_NO_TUI=1`; useful for CI or piped stdin (`echo "ping" | miot chat`).
+
+What you get inside the TUI: multi-line editor with cursor / paste / history, persistent status bar (tenant · user · conv · mode · ctx-tokens · turns · streaming spinner), live event chain with an animated indicator on the active step, markdown rendering for final answers, theme support, session persistence at `~/.miot-chat/sessions/<conv-id>.json`, and 15 slash commands (`/help`, `/context`, `/whoami`, `/mode`, `/tenant`, `/user`, `/theme`, `/resume`, `/runs`, `/export`, `/save`, `/clear`, `/reset`, `/approve`, `/exit`). See the [miot-chat README](../miot-chat) for the full slash table.
+
+### Harness (scriptable run verbs)
+
+Low-level RPC surface over the harness's `/runs` endpoints. Use this for scripts, CI smoke tests, ad-hoc API probing, or wiring the harness into another non-interactive tool. No streaming, no UI — `harness create` is fire-and-forget; pair it with `harness runs get` to fetch the final record.
+
+```bash
+miot harness [--harness-base-url <url>] [--harness-token <token>] <subcommand>
+```
+
+```bash
+# Dispatch a run and capture the run_id
+miot harness create "what's in stock?" --tenant mintral [--user <id>] [--mode auto|canned|meta|agentic] [--conversation <id>] [--thread <id>]
+
+# Fetch a completed run record (events + artifacts + answer)
+miot harness runs get <run_id>
+```
+
+`harness create` prints `{ "run_id": "..." }` and exits; the run continues server-side. `runs get` returns the full `HarnessRunRecord` JSON, including the canonical `answer` once the run completes. Suitable for:
+
+```bash
+RUN_ID=$(miot harness create "list stock SKUs" --tenant mintral | jq -r .run_id)
+miot harness runs get "$RUN_ID" | jq -r .answer
+```
+
+If you want streaming + multi-turn state instead, use `miot chat`. The two commands share the same `@microboxlabs/miot-harness-client` underneath; they differ only in what they compose on top of it.
+
 ## License
 
 See [LICENSE](./LICENSE).

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createMiotHarnessClient } from "../client.js";
-import { MiotHarnessApiError } from "../errors.js";
 import { createMockFetch } from "./test-utils.js";
 
 describe("createMiotHarnessClient — request building", () => {
@@ -8,7 +7,7 @@ describe("createMiotHarnessClient — request building", () => {
     const { fn, call } = createMockFetch({ run_id: "run_abc" });
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local///",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     await client.runs.create({ message: "hi" });
     expect(call.url).toBe("http://harness.local/runs:start");
@@ -20,7 +19,7 @@ describe("createMiotHarnessClient — request building", () => {
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
       token: "tok-123",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     await client.runs.create({ message: "x" });
     const headers = call.init.headers as Record<string, string>;
@@ -33,7 +32,7 @@ describe("createMiotHarnessClient — request building", () => {
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
       headers: { "X-Trace": "global" },
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     await client.runs.get("run_abc");
     const headers = call.init.headers as Record<string, string>;
@@ -45,7 +44,7 @@ describe("createMiotHarnessClient — request building", () => {
     const { fn, call } = createMockFetch({ run_id: "x" });
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
     const ctrl = new AbortController();
     await client.runs.create({ message: "x" }, { signal: ctrl.signal });
@@ -58,23 +57,21 @@ describe("createMiotHarnessClient — error handling", () => {
     const { fn } = createMockFetch({ detail: "boom" }, 500);
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
-    let caught: unknown;
-    try {
-      await client.runs.create({ message: "x" });
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeInstanceOf(MiotHarnessApiError);
-    const err = caught as MiotHarnessApiError;
-    expect(err.code).toBe("http_500");
-    expect(err.status).toBe(500);
-    expect(err.message).toBe("boom");
+    // MiotHarnessApiError sets `name = "MiotHarnessApiError"`, so the
+    // name match below is structurally equivalent to a
+    // toBeInstanceOf(MiotHarnessApiError) check.
+    await expect(client.runs.create({ message: "x" })).rejects.toMatchObject({
+      name: "MiotHarnessApiError",
+      code: "http_500",
+      status: 500,
+      message: "boom",
+    });
   });
 
   it("falls back to text body when JSON parse fails", async () => {
-    const fn = async (): Promise<Response> =>
+    const fn: typeof globalThis.fetch = async () =>
       ({
         ok: false,
         status: 502,
@@ -85,16 +82,12 @@ describe("createMiotHarnessClient — error handling", () => {
       }) as unknown as Response;
     const client = createMiotHarnessClient({
       baseUrl: "http://harness.local",
-      fetch: fn as unknown as typeof globalThis.fetch,
+      fetch: fn,
     });
-    let caught: unknown;
-    try {
-      await client.runs.get("run_zzz");
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeInstanceOf(MiotHarnessApiError);
-    expect((caught as MiotHarnessApiError).message).toBe("gateway");
-    expect((caught as MiotHarnessApiError).status).toBe(502);
+    await expect(client.runs.get("run_zzz")).rejects.toMatchObject({
+      name: "MiotHarnessApiError",
+      message: "gateway",
+      status: 502,
+    });
   });
 });

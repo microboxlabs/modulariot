@@ -1,3 +1,9 @@
+// Legacy slash parser. The TUI uses src/tui/slash/ instead — registry +
+// parser + per-command handlers. This module is kept for the headless
+// REPL in src/repl/loop.ts and is retired alongside it.
+//
+// AGENTIC_TENANT_LOCK was migrated to src/tui/session/agentic.ts in D2;
+// callers in the new path should import from there, not here.
 import type { RunMode } from "@microboxlabs/miot-harness-client";
 
 export const AGENTIC_TENANT_LOCK = "mintral";

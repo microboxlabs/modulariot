@@ -23,9 +23,13 @@ export function createRunsApi(ctx: ClientContext) {
       });
     },
 
-    get(id: string): Promise<HarnessRunRecord> {
+    get(
+      id: string,
+      opts?: { signal?: AbortSignal },
+    ): Promise<HarnessRunRecord> {
       return ctx.fetcher("GET", `${BASE}/${encodeURIComponent(id)}`, {
         headers: { Accept: "application/json" },
+        signal: opts?.signal,
       });
     },
 

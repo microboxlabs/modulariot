@@ -5,7 +5,11 @@ import { registerResumeCommand } from "./commands/resume.js";
 import { registerRunsCommand } from "./commands/runs.js";
 import { resolveConfig, type CliFlags } from "./config.js";
 import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
-import { runRepl } from "./repl/loop.js";
+import { runMiotChat, shouldUseTui } from "./runMiotChat.js";
+
+// Re-export so existing consumers (incl. cli.fork.test.ts) keep
+// working without an import-path update.
+export { shouldUseTui };
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -37,7 +41,7 @@ program
       baseUrl: config.baseUrl,
       token: config.token,
     });
-    const code = await runRepl({ config, client });
+    const code = await runMiotChat({ config, client });
     process.exit(code);
   });
 

@@ -11,9 +11,17 @@ export interface MiotChatProfile {
   mode?: RunMode;
 }
 
+// Theme value persisted in config.json. The TUI's loadUserTheme() in
+// src/tui/theme/loadUserTheme.ts is the runtime resolver; this is just
+// the storage shape.
+export type ThemeConfig =
+  | string
+  | { name?: string; tokens?: Record<string, string> };
+
 export interface MiotChatConfig {
   defaultProfile: string;
   profiles: Record<string, MiotChatProfile>;
+  theme?: ThemeConfig;
 }
 
 export interface ResolvedConfig {
@@ -23,6 +31,7 @@ export interface ResolvedConfig {
   userId: string;
   mode: RunMode;
   profileName: string;
+  theme: ThemeConfig | null;
 }
 
 export interface CliFlags {
@@ -111,7 +120,15 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     VALID_MODES.has(modeRaw as RunMode) ? modeRaw : "auto"
   ) as RunMode;
 
-  return { baseUrl, token, tenantId, userId, mode, profileName };
+  return {
+    baseUrl,
+    token,
+    tenantId,
+    userId,
+    mode,
+    profileName,
+    theme: cfg.theme ?? null,
+  };
 }
 
 function cloneDefault(): MiotChatConfig {
@@ -141,5 +158,38 @@ function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
         ? parsed.defaultProfile
         : Object.keys(profiles)[0]!,
     profiles,
+    theme: normalizeTheme(parsed.theme),
   };
+}
+
+// "Loose" view of a theme field as it arrives from JSON.parse. The
+// declared MiotChatConfig.theme is ThemeConfig, but hand-edited
+// config.json can put anything in there — tokens may not be strings,
+// name may be a number, etc. ParsedTheme documents the boundary so
+// the function signature isn't a blanket `unknown`.
+type ParsedTheme =
+  | string
+  | { name?: unknown; tokens?: unknown }
+  | null;
+
+function normalizeTheme(
+  theme: ParsedTheme | undefined,
+): ThemeConfig | undefined {
+  if (theme === undefined || theme === null) return undefined;
+  if (typeof theme === "string") return theme;
+  if (typeof theme === "object") {
+    const out: { name?: string; tokens?: Record<string, string> } = {};
+    if (typeof theme.name === "string") out.name = theme.name;
+    if (theme.tokens && typeof theme.tokens === "object") {
+      const tokens: Record<string, string> = {};
+      for (const [k, v] of Object.entries(
+        theme.tokens as Record<string, unknown>,
+      )) {
+        if (typeof v === "string") tokens[k] = v;
+      }
+      if (Object.keys(tokens).length > 0) out.tokens = tokens;
+    }
+    return out.name || out.tokens ? out : undefined;
+  }
+  return undefined;
 }

@@ -5,11 +5,10 @@ export interface MockCall {
 
 export function createMockFetch<T>(response: T, status = 200) {
   const call: MockCall = { url: "", init: {} as RequestInit };
-  const fn = async (
-    url: string | URL | Request,
-    init: RequestInit = {},
-  ): Promise<Response> => {
-    call.url = urlOf(url);
+  // Typed to match the global fetch signature so callers can pass `fn`
+  // straight into ClientConfig.fetch without an `as unknown as` cast.
+  const fn: typeof globalThis.fetch = async (input, init = {}) => {
+    call.url = urlOf(input);
     call.init = init;
     return {
       ok: status >= 200 && status < 300,
@@ -24,11 +23,8 @@ export function createMockFetch<T>(response: T, status = 200) {
 
 export function createMockSseFetch(body: string, status = 200) {
   const call: MockCall = { url: "", init: {} as RequestInit };
-  const fn = async (
-    url: string | URL | Request,
-    init: RequestInit = {},
-  ): Promise<Response> => {
-    call.url = urlOf(url);
+  const fn: typeof globalThis.fetch = async (input, init = {}) => {
+    call.url = urlOf(input);
     call.init = init;
     const enc = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({

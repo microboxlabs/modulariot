@@ -69,11 +69,31 @@ export async function* parseSSE(
     if (buffer.length > 0) {
       let line = buffer;
       if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (line === "") {
-        const frame = emit();
-        if (frame !== null) yield frame;
+      // Process any residual final line into the current frame state.
+      // Without this, a stream that closes without a trailing newline
+      // would drop the last frame on the floor.
+      if (line.length > 0 && !line.startsWith(":")) {
+        const colon = line.indexOf(":");
+        const field = colon === -1 ? line : line.slice(0, colon);
+        let val = colon === -1 ? "" : line.slice(colon + 1);
+        if (val.startsWith(" ")) val = val.slice(1);
+        if (field === "id") {
+          id = val;
+          hasField = true;
+        } else if (field === "event") {
+          event = val;
+          hasField = true;
+        } else if (field === "data") {
+          dataLines.push(val);
+          hasField = true;
+        }
       }
     }
+    // Flush any in-progress frame at EOF. Covers both "no trailing
+    // blank line" (state built up by the inner loop never emitted)
+    // and "residual line just folded in above".
+    const tail = emit();
+    if (tail !== null) yield tail;
   } finally {
     reader.releaseLock();
   }

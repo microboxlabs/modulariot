@@ -252,7 +252,7 @@ def _live_traces(since: timedelta) -> list[dict[str, Any]]:
         raise RuntimeError(
             "live Langfuse fetch needs MIOT_HARNESS_LANGFUSE_PUBLIC_KEY and "
             "MIOT_HARNESS_LANGFUSE_SECRET_KEY in the environment (run "
-            "`./infra/observability/bootstrap.sh` to mint them)"
+            "`./miot-harness/infra/observability/bootstrap.sh` to mint them)"
         )
     raw = fetch_traces_window(
         host=settings.langfuse_host,

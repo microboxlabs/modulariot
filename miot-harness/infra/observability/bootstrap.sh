@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bring up the local Langfuse + OTel Collector stack for miot-harness (plan 13 §B3).
 #
-# Run from `infra/observability/`. Idempotent: re-running checks state and
+# Run from `miot-harness/infra/observability/`. Idempotent: re-running checks state and
 # only does what's missing.
 #
 # Steps:

@@ -45,13 +45,18 @@ class HarnessSettings(BaseSettings):
     # the confidence threshold we fall back to the keyword router so
     # we never silently misroute when the LLM is uncertain.
     intent_router_model: str = "claude-haiku-4-5"
-    intent_router_confidence_threshold: float = 0.7
+    # Bounded to [0.0, 1.0]: the LLM router emits a probability in that
+    # range, so any threshold outside it either disables the LLM router
+    # entirely (>1) or disables the keyword fallback (<0). Either way
+    # produces silent misrouting, so reject at startup.
+    intent_router_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
 
     # Composable Nexo primitives (E3). EXPLAIN total cost > this → refuse.
     # PostgreSQL plan-cost units. Default 10000 is roughly "10s of seq scans
     # on a million-row table" — generous enough for analyst exploration,
-    # tight enough to refuse an unindexed cross-join.
-    nexo_explain_cost_threshold: float = 10000.0
+    # tight enough to refuse an unindexed cross-join. Must be strictly
+    # positive; 0 or negative would refuse every query.
+    nexo_explain_cost_threshold: float = Field(default=10000.0, gt=0.0)
 
     # Phase E5 hydration cap. When a `/runs` request carries
     # `conversation_id`, the supervisor reads prior turns from
@@ -62,8 +67,9 @@ class HarnessSettings(BaseSettings):
     # evidence + tools + current question + response. Fits ~5–7 long
     # Markdown synthesizer answers or ~30+ short turns. Turn-based
     # capping was rejected because our synthesizer's long Markdown
-    # outputs (3–5K tokens each) blow a uniform turn count.
-    conversation_token_budget: int = 24_000
+    # outputs (3–5K tokens each) blow a uniform turn count. Must be
+    # strictly positive; 0 or negative is meaningless as a budget.
+    conversation_token_budget: int = Field(default=24_000, gt=0)
 
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

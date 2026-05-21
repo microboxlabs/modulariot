@@ -61,7 +61,10 @@ services:
     container_name: miot-obs-redis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "myredissecret", "ping"]
+      # `requirepass` (see `command:` below) makes an unauthenticated `ping`
+      # fail with NOAUTH. Pass the password via REDISCLI_AUTH instead of
+      # `-a <pw>` so it doesn't appear in `ps` output inside the container.
+      test: ["CMD-SHELL", "REDISCLI_AUTH=myredissecret redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -187,6 +190,15 @@ services:
     depends_on:
       langfuse-web: { condition: service_started }
     command: ["--config=/etc/otelcol/otel-collector-config.yaml"]
+    # The collector config references `${env:LANGFUSE_OTEL_BASIC_AUTH}`
+    # as the Basic-auth credential for the Langfuse OTel exporter; pass
+    # it through here so it never lives in source. Generate locally with
+    # `printf 'pk-lf-...:sk-lf-...' | base64` and export the result in
+    # your shell or a non-committed .env file. The `:?` guard makes
+    # compose refuse to start the stack when the var is unset, instead
+    # of silently authenticating with an empty Authorization header.
+    environment:
+      LANGFUSE_OTEL_BASIC_AUTH: ${LANGFUSE_OTEL_BASIC_AUTH:?set LANGFUSE_OTEL_BASIC_AUTH to base64(pk-lf-...:sk-lf-...)}
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol/otel-collector-config.yaml:ro
     ports:

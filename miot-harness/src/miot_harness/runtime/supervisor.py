@@ -36,6 +36,7 @@ from miot_harness.runtime.conversation import (
     ConversationTurn,
     to_messages,
 )
+from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.mode_resolver import ModeAccessDenied, resolve_mode
@@ -65,6 +66,8 @@ class HarnessSupervisor:
         conversation_store: ConversationStore | None = None,
         conversation_token_budget: int = 24_000,
         tenant_lock: str = "mintral",
+        event_bus: RunEventBus | None = None,
+        checkpoint_every_n_events: int = 10,
     ) -> None:
         self.router = router
         self.tools = tools
@@ -79,9 +82,21 @@ class HarnessSupervisor:
         self.conversation_store = conversation_store
         self.conversation_token_budget = conversation_token_budget
         self.tenant_lock = tenant_lock
+        self.event_bus = event_bus
+        self.checkpoint_every_n_events = checkpoint_every_n_events
 
-    async def run(self, request: UserRequest) -> HarnessRunRecord:
+    async def run(
+        self,
+        request: UserRequest,
+        *,
+        run_id_override: str | None = None,
+    ) -> HarnessRunRecord:
         ctx = request.to_context()
+        if run_id_override is not None:
+            # The SSE endpoint pre-mints a run_id so it can return it
+            # immediately and the caller can subscribe to
+            # /runs/{id}/stream before any events are emitted.
+            ctx = ctx.model_copy(update={"run_id": run_id_override})
         record = HarnessRunRecord(
             run_id=ctx.run_id,
             status="running",
@@ -89,7 +104,7 @@ class HarnessSupervisor:
         )
 
         def progress(event: HarnessEvent) -> None:
-            record.events.append(event)
+            self._emit(record, event)
 
         progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
 
@@ -114,6 +129,7 @@ class HarnessSupervisor:
                 )
             )
             self.run_store.save(record)
+            self._close_bus(ctx.run_id)
             return record
 
         progress(
@@ -158,6 +174,7 @@ class HarnessSupervisor:
                 )
             )
             self.run_store.save(record)
+            self._close_bus(ctx.run_id)
             return record
 
         # Persist the turn so the next call in this conversation sees it.
@@ -173,7 +190,47 @@ class HarnessSupervisor:
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self.run_store.save(record)
+        self._close_bus(ctx.run_id)
         return record
+
+    def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
+        """Single funnel for landing a `HarnessEvent` on a run record.
+
+        Stamps a monotonic `seq` on the event the moment it lands. Graph-
+        emitted events arrive with the default `seq=0` (graphs don't know
+        record state); rewriting here keeps the supervisor as the single
+        source of truth for run-wide ordering — what the SSE stream's
+        `Last-Event-ID` replay leans on.
+
+        When an `event_bus` is injected, the event is also published to
+        every live subscriber for this run. The debounced run_store
+        checkpoint (A6) will hang off this funnel too.
+        """
+
+        event.seq = len(record.events)
+        record.events.append(event)
+        if self.event_bus is not None:
+            self.event_bus.publish(record.run_id, event)
+            # Periodic mid-flight checkpoint so SSE reconnects find a
+            # recent on-disk snapshot. Skipped when no bus is wired
+            # (eval / demo-CLI path) to avoid extra writes that the
+            # caller never reads back. The terminal save inside run()
+            # always fires regardless.
+            if (
+                self.checkpoint_every_n_events > 0
+                and len(record.events) % self.checkpoint_every_n_events == 0
+            ):
+                self.run_store.save(record)
+
+    def _close_bus(self, run_id: str) -> None:
+        """Tell the event bus this run is done. No-op when no bus is
+        injected. Called at every terminal point in `run()` so SSE
+        subscribers' iterators always end — even on mode refusal and
+        graph exceptions.
+        """
+
+        if self.event_bus is not None:
+            self.event_bus.close(run_id)
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the
@@ -292,7 +349,7 @@ class HarnessSupervisor:
 
         # Drain the graph's _events channel into the run record in order
         for evt in final_state.get("_events") or []:
-            record.events.append(evt)
+            self._emit(record, evt)
 
         answer = final_state.get("answer")
         if answer:
@@ -341,7 +398,7 @@ class HarnessSupervisor:
             final_state = await self.agentic_graph.ainvoke(initial_state)
 
         for evt in final_state.get("_events") or []:
-            record.events.append(evt)
+            self._emit(record, evt)
         record.answer = final_state.get("answer") or "(no answer produced by agentic graph)"
 
     async def _run_nexo_meta(

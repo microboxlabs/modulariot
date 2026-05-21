@@ -48,6 +48,11 @@ def agent_span(
     """
 
     tracer = trace.get_tracer(_TRACER_NAME)
+    # All values below are strings (run_id, tenant_id, mode, user_id,
+    # session_id, environment, and the JSON-encoded tags). OTel's
+    # start_as_current_span expects Mapping[str, AttributeValue] where
+    # AttributeValue is `str | bool | int | float | Sequence[...]` — a
+    # bare `object` value type is too loose for that contract.
     attributes: dict[str, str] = {
         "gen_ai.operation.name": f"nexo.{name}",
         "modular.run_id": run_id,

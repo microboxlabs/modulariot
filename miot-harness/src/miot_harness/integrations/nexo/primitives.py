@@ -4,14 +4,13 @@ Four read-only primitives the agentic graph can call when the curated
 `fn_dx_*` catalog doesn't cover a question:
 
 - ``nexo_describe`` — ``pg_catalog`` introspection → columns + types.
-  Allowlist ``nexo.*``; read-only.
-- ``nexo_select`` — parameterised SELECT with optional WHERE / ORDER /
-  LIMIT. sqlglot AST + allowlist + bounded LIMIT (default 100, cap
-  5000).
+  Safety: allowlist ``nexo.*``; read-only.
+- ``nexo_select`` — parameterised SELECT with optional WHERE/ORDER/LIMIT.
+  Safety: sqlglot AST + allowlist + bounded LIMIT (default 100, cap 5000).
 - ``nexo_grep`` — sugar for ``SELECT ... WHERE col ILIKE pattern``.
-  Same gate as ``nexo_select`` + single-column constraint.
-- ``nexo_explain`` — ``EXPLAIN (FORMAT JSON)``. Refuses if total cost
-  exceeds the env-tunable threshold.
+  Safety: same gate as ``nexo_select`` plus single-column constraint.
+- ``nexo_explain`` — ``EXPLAIN (FORMAT JSON)``.
+  Safety: refuses if total cost exceeds an env-tunable threshold.
 
 The **safety gate** (``validate_select_sql``) is the high-risk surface:
 it runs every composable query through sqlglot's AST parser BEFORE the

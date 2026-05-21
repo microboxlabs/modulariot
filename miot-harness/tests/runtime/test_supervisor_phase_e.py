@@ -393,3 +393,105 @@ async def test_meta_agent_sees_prior_turn_via_history(tmp_path: Any) -> None:
     turn2_human = [m for m in captured_messages[1] if isinstance(m, HumanMessage)]
     assert "what data is available?" in [m.content for m in turn2_human]
     assert "and where does it come from?" in [m.content for m in turn2_human]
+
+
+# --- Event seq monotonicity (Phase A step 1) ---
+
+
+@pytest.mark.asyncio
+async def test_run_record_events_have_contiguous_monotonic_seq(tmp_path: Any) -> None:
+    """Every event in `record.events` carries a monotonically-increasing
+    `seq` starting from 0, including events drained from the graph's
+    `_events` channel (which arrive with the default `seq=0`).
+
+    This is the ordering primitive the streaming-SSE endpoint will use
+    for `Last-Event-ID` replay — without contiguous seq, reconnecting
+    clients can't deterministically pick up after a known point.
+    """
+
+    from miot_harness.runtime.events import HarnessEvent
+
+    # Graph emits 3 events with default seq=0 — graphs don't know record state.
+    graph_events = [
+        HarnessEvent(run_id="ignored", type="plan.created", message="planned"),
+        HarnessEvent(run_id="ignored", type="agent.turn", message="planner"),
+        HarnessEvent(run_id="ignored", type="tool.completed", message="done"),
+    ]
+    nexo_graph = AsyncMock()
+    nexo_graph.ainvoke = AsyncMock(
+        return_value={"answer": "result", "_events": graph_events}
+    )
+    supervisor = _build_supervisor(
+        tmp_path,
+        nexo_graph=nexo_graph,
+        llm_router=_scripted_llm_router("NEXO_QUERY"),
+    )
+
+    record = await supervisor.run(
+        UserRequest(message="q", tenant_id="mintral")
+    )
+
+    seqs = [e.seq for e in record.events]
+    assert seqs == list(range(len(seqs))), (
+        f"expected contiguous seq from 0, got {seqs}"
+    )
+    # Sanity: at least run.started + route.selected + 3 graph events +
+    # run.completed = 6 events on the happy NEXO_QUERY path.
+    assert len(seqs) >= 6
+
+
+@pytest.mark.asyncio
+async def test_seq_monotonic_across_agentic_path(tmp_path: Any) -> None:
+    """Same contract on the NEXO_AGENTIC drain — events from the agentic
+    graph also get stamped with monotonic seq when appended.
+    """
+
+    from miot_harness.runtime.events import HarnessEvent
+
+    graph_events = [
+        HarnessEvent(run_id="ignored", type="agent.turn", message="explorer"),
+        HarnessEvent(run_id="ignored", type="tool.completed", message="probe"),
+    ]
+    agentic_graph = AsyncMock()
+    agentic_graph.ainvoke = AsyncMock(
+        return_value={"answer": "explored", "_events": graph_events}
+    )
+    supervisor = _build_supervisor(
+        tmp_path,
+        agentic_graph=agentic_graph,
+        llm_router=_scripted_llm_router("DIRECT"),
+    )
+
+    record = await supervisor.run(
+        UserRequest(message="explore", tenant_id="mintral", mode="agentic")
+    )
+
+    seqs = [e.seq for e in record.events]
+    assert seqs == list(range(len(seqs))), (
+        f"expected contiguous seq from 0, got {seqs}"
+    )
+
+
+# --- _emit helper extraction (Phase A step 2) ---
+
+
+def test_emit_stamps_seq_and_appends_to_record(tmp_path: Any) -> None:
+    """`HarnessSupervisor._emit(record, event)` is the single funnel
+    responsible for stamping seq + appending to record.events. Direct
+    unit-test of the helper so future refactors of the funnel are caught
+    independently of the full `run()` integration tests.
+    """
+
+    from miot_harness.runtime.events import HarnessEvent
+    from miot_harness.runtime.run_store import HarnessRunRecord
+
+    supervisor = _build_supervisor(tmp_path)
+    record = HarnessRunRecord(run_id="run_x", status="running")
+    e1 = HarnessEvent(run_id="run_x", type="run.started", message="hi")
+    e2 = HarnessEvent(run_id="run_x", type="route.selected", message="r")
+
+    supervisor._emit(record, e1)
+    supervisor._emit(record, e2)
+
+    assert [e.seq for e in record.events] == [0, 1]
+    assert record.events == [e1, e2]

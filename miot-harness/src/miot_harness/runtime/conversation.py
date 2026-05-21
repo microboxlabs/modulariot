@@ -19,7 +19,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, trim_messages
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    trim_messages,
+)
 
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
 # Token budget for the supervisor's hydration call. Sized against
@@ -89,6 +95,10 @@ class InMemoryConversationStore:
         if len(history.turns) <= self._summarize_at_turns:
             return False
         history.summary = await summarizer(history)
+        # Compact: the summary represents the prior turns; keeping them
+        # alongside would just grow memory and double-count context in
+        # `to_messages`. Subsequent `append()` calls rebuild a fresh tail.
+        history.turns.clear()
         return True
 
 
@@ -113,13 +123,24 @@ def to_messages(
     "200 tokens" or "50K tokens" for the same N. The budget is the actual
     constraint (context-window cost), so we trim against it directly.
 
-    Returns an empty list when the history has no turns OR ``max_tokens`` is
-    non-positive.
+    When ``history.summary`` is set (after `summarize_if_needed` fires), it
+    is prepended as a single `SystemMessage` so compacted older context
+    actually reaches the LLM. ``include_system=True`` anchors it past
+    `trim_messages` so the budget governs only the recent turn tail.
+
+    Returns an empty list when the history is fully empty (no summary, no
+    turns) OR ``max_tokens`` is non-positive.
     """
 
-    if max_tokens <= 0 or not history.turns:
+    if max_tokens <= 0:
+        return []
+    if not history.turns and not history.summary:
         return []
     msgs: list[BaseMessage] = []
+    if history.summary:
+        msgs.append(
+            SystemMessage(content=f"Earlier in this conversation: {history.summary}")
+        )
     for turn in history.turns:
         msgs.append(HumanMessage(content=turn.user_message))
         msgs.append(AIMessage(content=turn.assistant_answer))
@@ -128,7 +149,8 @@ def to_messages(
         max_tokens=max_tokens,
         token_counter="approximate",
         strategy="last",
-        # No `SystemMessage` in `msgs` — the caller's system prompt lives
-        # outside the hydration block and isn't subject to this budget.
-        include_system=False,
+        # Anchor any `SystemMessage` (the compacted summary, when present)
+        # so it survives trimming. The caller's own system prompt is added
+        # downstream and isn't subject to this budget.
+        include_system=True,
     )

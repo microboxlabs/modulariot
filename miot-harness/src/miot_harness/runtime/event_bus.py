@@ -13,6 +13,7 @@ thread-safe, but the harness only uses one loop.
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from collections.abc import AsyncIterator
 
 from miot_harness.runtime.events import HarnessEvent
@@ -37,22 +38,42 @@ class RunEventBus:
     """
 
     DEFAULT_MAXSIZE = 256
+    # Tombstone cap. Entries here are tiny strings; cap is large enough
+    # to cover any plausible in_flight-pop window even under burst load,
+    # small enough that a server processing millions of runs over its
+    # lifetime can't OOM from leaked tombstones for runs no client ever
+    # streamed.
+    DEFAULT_CLOSED_MAXSIZE = 1024
 
-    def __init__(self, maxsize: int = DEFAULT_MAXSIZE) -> None:
+    def __init__(
+        self,
+        maxsize: int = DEFAULT_MAXSIZE,
+        *,
+        closed_maxsize: int = DEFAULT_CLOSED_MAXSIZE,
+    ) -> None:
         self._subscribers: dict[str, list[asyncio.Queue[object]]] = {}
         # Run-ids whose `close` has fired. Used to short-circuit a late
         # `subscribe` (race: SSE handler attaches after the supervisor
         # finishes _close_bus but before in-flight cleanup runs). Purged
         # in `_consume`'s finally when the last subscriber detaches.
-        self._closed: set[str] = set()
+        # FIFO-bounded via `OrderedDict` so runs that never get streamed
+        # back can't leak indefinitely — oldest tombstone is evicted
+        # when the cap is hit.
+        self._closed: OrderedDict[str, None] = OrderedDict()
         self._maxsize = maxsize
+        self._closed_maxsize = closed_maxsize
 
     def publish(self, run_id: str, event: HarnessEvent) -> None:
         for queue in self._subscribers.get(run_id, ()):
             self._put_drop_oldest(queue, event)
 
     def close(self, run_id: str) -> None:
-        self._closed.add(run_id)
+        # Insert at the tail; if already present, refresh recency so a
+        # re-close doesn't get evicted ahead of older entries.
+        self._closed[run_id] = None
+        self._closed.move_to_end(run_id)
+        while len(self._closed) > self._closed_maxsize:
+            self._closed.popitem(last=False)
         # Snapshot before iterating: subscribers' finally-blocks mutate
         # the list when their iterator ends.
         for queue in list(self._subscribers.get(run_id, ())):
@@ -91,7 +112,7 @@ class RunEventBus:
                     self._subscribers.pop(run_id, None)
                     # Drop the terminal marker when nobody is listening
                     # anymore — keeps `_closed` bounded.
-                    self._closed.discard(run_id)
+                    self._closed.pop(run_id, None)
 
     def _put_drop_oldest(self, queue: asyncio.Queue[object], item: object) -> None:
         try:

@@ -22,7 +22,7 @@ import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
@@ -147,12 +147,15 @@ async def synthesizer_node(
     rendered = _render_evidence_for_synth(evidence)
     human = f"User question:\n{user_message}\n\nEvidence:\n{rendered}\n\nWrite the answer."
 
-    response = await model.ainvoke(
-        [
-            SystemMessage(content=system),
-            HumanMessage(content=human),
-        ]
-    )
+    # Prior turns (when conversation_id is set) sit between the system
+    # prompt and the current evidence-bearing human message so the
+    # synthesizer can reference earlier facts ("as we saw last turn …")
+    # per plan 13 §E5 hydration.
+    prior_messages = state.get("prior_messages") or []
+    messages: list[BaseMessage] = [SystemMessage(content=system)]
+    messages.extend(prior_messages)
+    messages.append(HumanMessage(content=human))
+    response = await model.ainvoke(messages)
     text = response.content if hasattr(response, "content") else str(response)
     if not isinstance(text, str):
         text = str(text)

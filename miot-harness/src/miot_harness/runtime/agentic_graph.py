@@ -22,9 +22,11 @@ from __future__ import annotations
 from typing import Any, cast
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.plan import NexoState
@@ -32,6 +34,33 @@ from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 
 _AGENTIC_TURN_CAP = 12
+
+# Stub-state synthesizer prompt. Until the F-phase executor is wired
+# (see module docstring), this node has no `evidence` to render — its
+# only context is the prior turns the supervisor hydrated into state.
+# Without a system message, the LLM has no idea where prior assistant
+# turns' data came from and defaults to "I must have hallucinated it"
+# apology mode. The primer + the "prior turns are authoritative" rule
+# below stops that.
+_AGENTIC_SYNTH_SYSTEM_TEMPLATE = """\
+You are the Coordinador agentic synthesizer for Mintral fleet operations.
+Answer the user's question in the same language they used. Be concise
+(≤200 words).
+
+{primer}
+
+Conversational rules:
+- Prior assistant turns in this conversation were produced by real
+  curated Coordinador tools. Treat their numbers, tables, and claims
+  as authoritative evidence — do NOT claim you fabricated them.
+- If the user asks for *new* data that would require running fresh
+  tools, acknowledge the request and suggest they rephrase as a direct
+  Coordinador question (the agentic data executor is not yet wired in
+  this build).
+- Do not invent rows, numbers, or service names that aren't in the
+  conversation.
+- Do not mention internal pipeline (planner, executor, etc.).
+"""
 
 
 def build_agentic_graph(
@@ -63,20 +92,36 @@ def build_agentic_graph(
         # planner (live LLM call) constructs a plan with curated tools
         # and/or composable primitives. Tests assert wiring; F3 covers
         # behavior with a real model.
+        #
+        # `prior_messages` is hydrated by the supervisor (E5) — the
+        # eventual live planner will splice it between its system prompt
+        # and the current user message, matching the filter_expert /
+        # synthesizer pattern. Reading it from state here sets up the
+        # seam; the stub doesn't invoke a model yet.
         snapshot = cast(dict[str, Any], state)
+        _prior_messages = snapshot.get("prior_messages") or []  # noqa: F841
         turn_count = int(snapshot.get("turn_count", 0) or 0)
         if turn_count >= _AGENTIC_TURN_CAP:
             return {"failure": "agentic turn cap exceeded"}
         return {"turn_count": turn_count + 1}
 
     async def synthesizer(state: NexoState) -> dict[str, Any]:
-        # Fire the synthesizer model and return its content as the answer.
+        # Fire the synthesizer model with: SystemMessage(primer + rules)
+        # + prior_messages (E5 hydration) + current user HumanMessage.
+        # The SystemMessage is load-bearing in stub state — without it,
+        # the LLM has no grounding for prior turn data and apologizes
+        # for "fabricating" real Coordinador output (see template above).
         snapshot = cast(dict[str, Any], state)
         if snapshot.get("failure"):
             return {"answer": "(no answer — see failure)"}
         model = models["synthesizer"]
-        prompt = [{"role": "user", "content": snapshot.get("user_message", "")}]
-        response = await model.ainvoke(prompt)
+
+        system = _AGENTIC_SYNTH_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
+        prior_messages = snapshot.get("prior_messages") or []
+        messages: list[BaseMessage] = [SystemMessage(content=system)]
+        messages.extend(prior_messages)
+        messages.append(HumanMessage(content=snapshot.get("user_message", "")))
+        response = await model.ainvoke(messages)
         text = response.content if hasattr(response, "content") else str(response)
         return {"answer": text if isinstance(text, str) else str(text)}
 

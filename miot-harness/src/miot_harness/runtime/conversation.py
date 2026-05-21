@@ -19,7 +19,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, trim_messages
+
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
+# Token budget for the supervisor's hydration call. Sized against
+# Haiku-4-5's 200K context window (the smallest model in our pool).
+# Higher = better multi-turn continuity at more tokens per request.
+_DEFAULT_TOKEN_BUDGET = 24_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,3 +90,45 @@ class InMemoryConversationStore:
             return False
         history.summary = await summarizer(history)
         return True
+
+
+def to_messages(
+    history: ConversationHistory,
+    *,
+    max_tokens: int = _DEFAULT_TOKEN_BUDGET,
+) -> list[BaseMessage]:
+    """Project history into a LangChain message list, trimmed to a token budget.
+
+    Used by the supervisor to hydrate `NexoState.prior_messages` before graph
+    dispatch. Each `ConversationTurn(user_message, assistant_answer)` expands
+    to a `[HumanMessage, AIMessage]` pair (chronological order); we then
+    delegate to `langchain_core.messages.trim_messages` with
+    ``token_counter="approximate"`` and ``strategy="last"`` so the most-recent
+    messages that fit under ``max_tokens`` are returned. Older context is
+    silently dropped — appropriate for chat memory, since recent context
+    dominates relevance.
+
+    Why token budget instead of last-N turns: our `synthesizer` produces
+    Markdown answers in the 3–5K-token range. A uniform last-N cap can mean
+    "200 tokens" or "50K tokens" for the same N. The budget is the actual
+    constraint (context-window cost), so we trim against it directly.
+
+    Returns an empty list when the history has no turns OR ``max_tokens`` is
+    non-positive.
+    """
+
+    if max_tokens <= 0 or not history.turns:
+        return []
+    msgs: list[BaseMessage] = []
+    for turn in history.turns:
+        msgs.append(HumanMessage(content=turn.user_message))
+        msgs.append(AIMessage(content=turn.assistant_answer))
+    return trim_messages(
+        msgs,
+        max_tokens=max_tokens,
+        token_counter="approximate",
+        strategy="last",
+        # No `SystemMessage` in `msgs` — the caller's system prompt lives
+        # outside the hydration block and isn't subject to this budget.
+        include_system=False,
+    )

@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 _META_SYSTEM_TEMPLATE = """You are the ModularIoT meta-question agent.
 
@@ -65,15 +65,22 @@ async def meta_agent_node(
     model: BaseChatModel,
     primer: str,
     catalog: list[MetaAgentCatalogEntry],
+    prior_messages: list[BaseMessage] | None = None,
 ) -> dict[str, Any]:
-    """LangGraph node: answer a meta question; return ``{"answer": str}`` delta."""
+    """LangGraph node: answer a meta question; return ``{"answer": str}`` delta.
+
+    When ``prior_messages`` is populated (multi-turn meta chat with a
+    `conversation_id`), the prior turns are spliced between the system
+    prompt and the current user message so meta follow-ups like
+    "you mentioned fn_dx_X earlier, what about Y?" resolve correctly
+    (plan 13 §E5 hydration).
+    """
 
     system = _META_SYSTEM_TEMPLATE.format(primer=primer, catalog=_format_catalog(catalog))
-    response = await model.ainvoke(
-        [
-            SystemMessage(content=system),
-            HumanMessage(content=state.get("user_message", "")),
-        ]
-    )
+    messages: list[BaseMessage] = [SystemMessage(content=system)]
+    if prior_messages:
+        messages.extend(prior_messages)
+    messages.append(HumanMessage(content=state.get("user_message", "")))
+    response = await model.ainvoke(messages)
     text = response.content if hasattr(response, "content") else str(response)
     return {"answer": text if isinstance(text, str) else str(text)}

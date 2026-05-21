@@ -124,3 +124,14 @@ def test_langfuse_host_read_from_env(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_HOST", "https://langfuse.internal.modulariot.dev")
     settings = HarnessSettings()
     assert settings.langfuse_host == "https://langfuse.internal.modulariot.dev"
+
+
+def test_conversation_token_budget_default_is_24k():
+    settings = HarnessSettings()
+    assert settings.conversation_token_budget == 24_000
+
+
+def test_conversation_token_budget_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET", "8000")
+    settings = HarnessSettings()
+    assert settings.conversation_token_budget == 8_000

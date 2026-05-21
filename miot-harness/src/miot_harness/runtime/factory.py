@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from miot_harness.config import get_settings
 from miot_harness.runtime.conversation import InMemoryConversationStore
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
@@ -18,12 +19,16 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
     Nexo-disabled deploys keep working.
 
     `conversation_store` is always-on because it's pure memory.
+    `conversation_token_budget` reads from settings so operators can tune
+    multi-turn memory depth via `MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET`.
     """
 
+    settings = get_settings()
     return HarnessSupervisor(
         router=IntentRouter(),
         tools=build_default_registry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(workspace_dir),
         conversation_store=InMemoryConversationStore(),
+        conversation_token_budget=settings.conversation_token_budget,
     )

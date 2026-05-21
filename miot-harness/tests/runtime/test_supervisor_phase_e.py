@@ -108,6 +108,59 @@ async def test_explicit_meta_mode_calls_meta_agent(tmp_path: Any) -> None:
 
 
 @pytest.mark.asyncio
+async def test_meta_mode_per_agent_span_carries_tenant_tag(
+    tmp_path: Any, memory_exporter: Any
+) -> None:
+    """NEXO_META observation-level attribution: the harness-emitted
+    per-agent ``nexo.meta_agent`` span carries the same
+    ``modular.{agent, tenant_id, mode}`` + ``langfuse.tags`` attrs as
+    canned/agentic paths.
+
+    Scope: covers the harness-side wrap (the per-agent span emitted by
+    ``NexoTelemetryCallback`` when ``_run_nexo_meta`` calls
+    ``instrument_model(self.meta_model, "meta_agent", ctx)``). It does
+    NOT exercise Traceloop's auto-instrumented ``anthropic.chat`` child
+    observation — ``FakeListChatModel`` doesn't trigger the Anthropic
+    SDK instrumentor. The Traceloop child-observation path was verified
+    live via ClickHouse query (PR #470 description), confirming the
+    inner observation row carries the same tenant tag after the wrap.
+    """
+
+    import json as _json
+
+    meta_model = FakeListChatModel(responses=["primer answer"])
+    supervisor = _build_supervisor(
+        tmp_path,
+        llm_router=_scripted_llm_router("DIRECT"),
+        meta_model=meta_model,
+    )
+    await supervisor.run(
+        UserRequest(
+            message="what data?",
+            tenant_id="acme-corp",
+            user_id="alice",
+            mode="meta",
+        )
+    )
+
+    nexo_spans = [
+        s
+        for s in memory_exporter.get_finished_spans()
+        if s.attributes and s.attributes.get("modular.agent") == "meta_agent"
+    ]
+    assert nexo_spans, "meta_agent per-agent span not emitted"
+    attrs = dict(nexo_spans[0].attributes or {})
+    assert attrs["modular.agent"] == "meta_agent"
+    assert attrs["modular.tenant_id"] == "acme-corp"
+    assert attrs["modular.mode"] == "meta"
+    assert attrs["langfuse.user.id"] == "alice"
+    tags = _json.loads(attrs["langfuse.tags"])
+    assert "tenant:acme-corp" in tags
+    assert "mode:meta" in tags
+    assert "agent:meta_agent" in tags
+
+
+@pytest.mark.asyncio
 async def test_explicit_agentic_mode_dispatches_to_agentic_graph(tmp_path: Any) -> None:
     agentic_graph = AsyncMock()
     agentic_graph.ainvoke = AsyncMock(

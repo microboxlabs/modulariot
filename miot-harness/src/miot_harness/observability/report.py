@@ -21,15 +21,18 @@ trace into the shape `aggregate_cost` expects, and renders the report.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal
+
+import httpx
 
 GroupBy = Literal["agent", "tenant", "mode"]
 
@@ -120,6 +123,146 @@ def _load_fixture(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+# ---------------------------------------------------------------------------
+# Live Langfuse fetcher
+# ---------------------------------------------------------------------------
+
+
+_TAG_PREFIXES = ("tenant:", "mode:", "agent:", "route:")
+
+
+_MULTI_AGENT_SENTINEL = "(multi)"
+
+
+def _project_langfuse_trace(trace: dict[str, Any]) -> dict[str, Any]:
+    """Convert a Langfuse v3 trace row into the shape `aggregate_cost` expects.
+
+    Langfuse stores `langfuse.tags` as a list of strings on the trace. We
+    extract the `tenant:` / `mode:` / `agent:` prefixes back into the
+    `modular.{tenant_id, mode, agent}` attribute namespace the aggregator
+    groups by. `gen_ai.usage.cost_usd` comes from `totalCost`. Token
+    totals live on observations (not trace-level in Langfuse v3); we
+    project 0 here — cost rollups don't need them, and an
+    observation-level fetcher is a follow-up.
+
+    **Multi-agent traces:** a canned-mode run fires multiple agents
+    (filter_expert + synthesizer + maybe critic) so the trace's `tags`
+    list contains multiple `agent:<name>` entries. For `--by tenant` /
+    `--by mode` this doesn't matter (those keys are single-valued). For
+    `--by agent` we set ``modular.agent = "(multi)"`` so the bucket is
+    visibly distinct from any single-agent run — billing operators see
+    "this trace touched multiple agents; drill down via the observations
+    endpoint" rather than silently undercounting the other agents. Full
+    per-observation attribution lands when the observations-endpoint
+    fetcher ships.
+    """
+
+    attrs: dict[str, Any] = {
+        "gen_ai.usage.cost_usd": float(trace.get("totalCost") or 0.0),
+        "gen_ai.usage.input_tokens": 0,
+        "gen_ai.usage.output_tokens": 0,
+    }
+    agent_names: list[str] = []
+    for tag in trace.get("tags") or []:
+        if not isinstance(tag, str):
+            continue
+        if tag.startswith("tenant:"):
+            attrs["modular.tenant_id"] = tag[len("tenant:") :]
+        elif tag.startswith("mode:"):
+            attrs["modular.mode"] = tag[len("mode:") :]
+        elif tag.startswith("agent:"):
+            agent_names.append(tag[len("agent:") :])
+    if len(agent_names) == 1:
+        attrs["modular.agent"] = agent_names[0]
+    elif len(agent_names) > 1:
+        attrs["modular.agent"] = _MULTI_AGENT_SENTINEL
+    return {"attributes": attrs}
+
+
+def fetch_traces_window(
+    *,
+    host: str,
+    public_key: str,
+    secret_key: str,
+    since: timedelta,
+    now: datetime | None = None,
+    page_size: int = 100,
+    client: httpx.Client | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch all Langfuse traces within ``[now - since, now]``, paginated.
+
+    Returns Langfuse's raw trace JSON rows (caller projects with
+    `_project_langfuse_trace`). Uses HTTP Basic Auth with the project's
+    public/secret key pair.
+
+    `client` is injectable for tests (pass an `httpx.Client` with a
+    `MockTransport`). In production callers omit it and we open a
+    short-lived client per call.
+    """
+
+    until = (now or datetime.now(UTC)).astimezone(UTC)
+    from_ts = (until - since).isoformat()
+    to_ts = until.isoformat()
+    auth = base64.b64encode(f"{public_key}:{secret_key}".encode()).decode()
+    url = f"{host.rstrip('/')}/api/public/traces"
+    params_base = {
+        "fromTimestamp": from_ts,
+        "toTimestamp": to_ts,
+        "limit": str(page_size),
+    }
+    headers = {"Authorization": f"Basic {auth}"}
+
+    owns_client = client is None
+    if client is None:
+        client = httpx.Client(timeout=30.0)
+    try:
+        traces: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            params = {**params_base, "page": str(page)}
+            response = client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+            traces.extend(payload.get("data") or [])
+            meta = payload.get("meta") or {}
+            total_pages = int(meta.get("totalPages") or 0)
+            if page >= total_pages or not payload.get("data"):
+                break
+            page += 1
+        return traces
+    finally:
+        if owns_client:
+            client.close()
+
+
+def _live_traces(since: timedelta) -> list[dict[str, Any]]:
+    """Operator-facing wrapper: pull config from HarnessSettings, fetch, project.
+
+    Read through ``get_settings()`` rather than direct ``os.environ`` so the
+    pydantic-settings layer applies (`.env` file resolution, type validation,
+    `MIOT_HARNESS_` prefix, the documented `langfuse_host` default). Keeping
+    a single source of truth for these values avoids the dead-default trap
+    where `HarnessSettings.langfuse_host` and a hardcoded fallback drift.
+    """
+
+    from miot_harness.config import get_settings
+
+    settings = get_settings()
+    if not settings.langfuse_public_key or not settings.langfuse_secret_key:
+        raise RuntimeError(
+            "live Langfuse fetch needs MIOT_HARNESS_LANGFUSE_PUBLIC_KEY and "
+            "MIOT_HARNESS_LANGFUSE_SECRET_KEY in the environment (run "
+            "`./infra/observability/bootstrap.sh` to mint them)"
+        )
+    raw = fetch_traces_window(
+        host=settings.langfuse_host,
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        since=since,
+    )
+    return [_project_langfuse_trace(t) for t in raw]
+
+
 def _render_text(rows: list[CostRow], by: GroupBy) -> str:
     header = (
         f"{'#':>3}  {by.upper():<20}  {'COST_USD':>10}  "
@@ -142,23 +285,23 @@ def main() -> int:  # pragma: no cover — CLI shim, exercised by integration ru
         "--fixture",
         type=Path,
         default=None,
-        help="JSONL file of trace projections (skips Langfuse fetch)",
+        help="JSONL file of trace projections (skips Langfuse fetch — useful for dry-run)",
     )
     parser.add_argument(
         "--format", choices=("text", "json"), default="text", help="output format"
     )
     args = parser.parse_args()
 
-    if args.fixture is None:
-        # Live Langfuse fetch deferred to F-phase wire-up; for now use a
-        # fixture or get a clear error so the operator knows what's needed.
-        parser.error(
-            "live Langfuse fetch is not wired yet; pass --fixture <path-to-jsonl> "
-            "or wait for F-phase integration"
-        )
+    since = parse_since(args.since)
 
-    parse_since(args.since)  # validate spec; window-filtering uses Langfuse query
-    traces = _load_fixture(args.fixture)
+    if args.fixture is not None:
+        traces = _load_fixture(args.fixture)
+    else:
+        try:
+            traces = _live_traces(since)
+        except RuntimeError as exc:
+            parser.error(str(exc))
+            return 2  # unreachable; argparse.error exits
     rows = aggregate_cost(traces, by=args.by)
 
     if args.format == "json":

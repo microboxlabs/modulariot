@@ -51,6 +51,15 @@ class RunEventBus:
         *,
         closed_maxsize: int = DEFAULT_CLOSED_MAXSIZE,
     ) -> None:
+        # `closed_maxsize <= 0` would either silently disable tombstones
+        # (= 0 evicts the entry the same call that inserts it, re-opening
+        # the late-subscribe race) or crash `close()` with KeyError
+        # (negative makes the eviction loop pop past empty). Tombstone
+        # retention is a correctness primitive — fail fast at construction.
+        if closed_maxsize <= 0:
+            raise ValueError(
+                f"closed_maxsize must be > 0, got {closed_maxsize!r}"
+            )
         self._subscribers: dict[str, list[asyncio.Queue[object]]] = {}
         # Run-ids whose `close` has fired. Used to short-circuit a late
         # `subscribe` (race: SSE handler attaches after the supervisor

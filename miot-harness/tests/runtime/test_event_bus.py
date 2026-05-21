@@ -249,3 +249,14 @@ async def test_close_unknown_run_id_is_safe() -> None:
     # And subscribe + close on the same run_id where close fires first
     # also lands without error.
     bus.close("never-subscribed")
+
+
+@pytest.mark.parametrize("invalid", [0, -1, -1024])
+def test_closed_maxsize_must_be_positive(invalid: int) -> None:
+    """`closed_maxsize <= 0` would either silently disable tombstones
+    (re-opening the late-subscribe race) or crash `close()` with
+    KeyError on the first call. Reject at construction.
+    """
+
+    with pytest.raises(ValueError, match="closed_maxsize"):
+        RunEventBus(closed_maxsize=invalid)

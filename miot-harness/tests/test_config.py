@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from pydantic import ValidationError
 
@@ -18,8 +16,7 @@ def _clear_settings_cache():
 def test_default_nexo_settings():
     settings = HarnessSettings()
 
-    assert settings.nexo_db_scripts_root is None
-    assert settings.nexo_db_alias == "coordinador-dev"
+    assert settings.nexo_dsn is None
     assert settings.nexo_tenant_lock == "mintral"
     assert settings.nexo_search_path == "nexo"
     assert settings.nexo_freshness_warn_minutes == 30
@@ -35,8 +32,9 @@ def test_default_nexo_settings():
 
 
 def test_nexo_settings_from_env(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", "/tmp/db-scripts")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_ALIAS", "coordinador-prod-harness")
+    monkeypatch.setenv(
+        "MIOT_HARNESS_NEXO_DSN", "postgresql://harness:secret@db:6432/citus"
+    )
     monkeypatch.setenv("MIOT_HARNESS_NEXO_TENANT_LOCK", "mintral")
     monkeypatch.setenv("MIOT_HARNESS_NEXO_FRESHNESS_WARN_MINUTES", "15")
     monkeypatch.setenv("MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES", "60")
@@ -47,8 +45,7 @@ def test_nexo_settings_from_env(monkeypatch):
 
     settings = HarnessSettings()
 
-    assert settings.nexo_db_scripts_root == Path("/tmp/db-scripts")
-    assert settings.nexo_db_alias == "coordinador-prod-harness"
+    assert settings.nexo_dsn == "postgresql://harness:secret@db:6432/citus"
     assert settings.nexo_tenant_lock == "mintral"
     assert settings.nexo_freshness_warn_minutes == 15
     assert settings.nexo_freshness_refuse_minutes == 60

@@ -22,13 +22,10 @@ class HarnessSettings(BaseSettings):
     default_user_id: str = "demo-user"
 
     # Nexo data integration (Coordinador / Mintral)
-    nexo_db_scripts_root: Path | None = None
-    nexo_db_alias: str = "coordinador-dev"
-    # Direct DSN override. When set, bypasses the
-    # `db_scripts_root + alias` file lookup so containerized deployments
-    # can mount a single secret instead of a full db-scripts directory.
-    # Precedence: nexo_dsn > db_scripts_root file. If neither is set,
-    # Nexo is disabled at boot.
+    # Standard Postgres connection string, e.g.
+    # `postgresql://user:password@host:port/database`. This is the sole
+    # source of Nexo DB credentials — when unset, Nexo is disabled at boot
+    # and the harness still serves non-Nexo runs with mocked tools.
     nexo_dsn: str | None = None
     # Surfaces in Postgres `pg_stat_activity.application_name` so DBAs
     # can attribute connections to the harness without log correlation.

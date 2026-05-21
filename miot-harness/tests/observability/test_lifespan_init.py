@@ -21,7 +21,7 @@ def _settings_cache() -> None:
 def test_lifespan_skips_telemetry_when_otel_disabled(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))
     monkeypatch.setenv("MIOT_HARNESS_OTEL_ENABLED", "false")
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
 
     with (
         patch("miot_harness.api.server.configure_tracing") as configure_mock,
@@ -46,7 +46,7 @@ def test_lifespan_inits_traceloop_when_otel_enabled(monkeypatch, tmp_path) -> No
     monkeypatch.setenv("MIOT_HARNESS_OTEL_ENDPOINT", "http://otel:4317")
     monkeypatch.setenv("MIOT_HARNESS_OTEL_SERVICE_NAME", "miot-harness-itest")
     monkeypatch.setenv("MIOT_HARNESS_OTEL_ENVIRONMENT", "itest")
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
 
     fake_provider = MagicMock(name="TracerProvider")
     with (

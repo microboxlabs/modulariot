@@ -17,8 +17,8 @@ def _settings_cache():
     get_settings.cache_clear()
 
 
-def test_app_boots_without_nexo_when_db_scripts_root_unset(monkeypatch, tmp_path):
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", raising=False)
+def test_app_boots_without_nexo_when_dsn_unset(monkeypatch, tmp_path):
+    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))
 
     app = create_app()
@@ -31,17 +31,10 @@ def test_app_boots_without_nexo_when_db_scripts_root_unset(monkeypatch, tmp_path
 
 
 def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", str(tmp_path))
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_ALIAS", "test-alias")
+    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
     # Provider keys required by the chat-model factory once Nexo enables
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-
-    # Fake .env on disk
-    (tmp_path / "databases" / "test-alias").mkdir(parents=True)
-    (tmp_path / "databases" / "test-alias" / ".env").write_text(
-        "PGHOST=localhost\nPGPORT=5432\nPGDATABASE=d\nPGUSER=u\nPGPASSWORD=p\n"
-    )
 
     fake_pool = MagicMock()
     fake_pool.close = AsyncMock()
@@ -71,13 +64,8 @@ def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):
 def test_app_boots_when_load_nexo_returns_disabled(monkeypatch, tmp_path):
     """ACL leak / stale snapshot — load_nexo_tools returns enabled=False
     with a reason. The app must still boot and the pool must close."""
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", str(tmp_path))
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_ALIAS", "test-alias")
+    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
-    (tmp_path / "databases" / "test-alias").mkdir(parents=True)
-    (tmp_path / "databases" / "test-alias" / ".env").write_text(
-        "PGHOST=localhost\nPGPORT=5432\nPGDATABASE=d\nPGUSER=u\nPGPASSWORD=p\n"
-    )
 
     fake_pool = MagicMock()
     fake_pool.close = AsyncMock()
@@ -100,13 +88,8 @@ def test_app_boots_when_load_nexo_returns_disabled(monkeypatch, tmp_path):
 
 def test_app_boots_when_pool_creation_raises(monkeypatch, tmp_path):
     """Tunnel down — asyncpg.create_pool raises. App still boots."""
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", str(tmp_path))
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_ALIAS", "test-alias")
+    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
-    (tmp_path / "databases" / "test-alias").mkdir(parents=True)
-    (tmp_path / "databases" / "test-alias" / ".env").write_text(
-        "PGHOST=localhost\nPGPORT=5432\nPGDATABASE=d\nPGUSER=u\nPGPASSWORD=p\n"
-    )
 
     with patch(
         "miot_harness.api.server.create_nexo_pool",

@@ -49,6 +49,9 @@ apps/app/.env.local.dev
 
 # Cursor IDE plans (local only)
 .cursor/plans/
+
+# Ralph loop session state (local only)
+.ralph/
 turbo-repo/apps/app/.env.storm
 quarkus-srv/miot-cli/src/main/resources/secret.jwk
 quarkus-srv/scripts/seed/.local/

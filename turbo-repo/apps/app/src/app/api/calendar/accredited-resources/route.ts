@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import {
+  decodeEwkbPoint,
   fetchAccreditedResources,
   invalidateAccreditedResourcesCache,
   type AccreditedResourceType,
@@ -23,7 +24,9 @@ const MAX_LIMIT = 200;
  *   ?rutMandante=<rut>
  *   &delegacion=<code>
  *   [&resourceType=DRIVER|TRUCK|TRAILER|CARRIER]
+ *   [&carrierId=<resource_id>]
  *   [&q=<search>]
+ *   [&ids=<resource_id>[,<resource_id>...]]  pin these rows onto page 0
  *   [&offset=<int>]  default 0
  *   [&limit=<int>]   default 50, max 200
  *   [&refresh=1]     bypass the in-memory cache
@@ -36,6 +39,13 @@ const MAX_LIMIT = 200;
  * `q` matches `resource_name` and `identifier` (case-insensitive substring).
  * The response always echoes the unfiltered total so the client can render
  * "X / Y" counters alongside the filtered page.
+ *
+ * `ids` lets the caller pin specific rows (typically the currently-selected
+ * carrier / driver / truck / trailer) so they stay resolvable for the combobox
+ * trigger even when `q`/pagination would otherwise hide them. Pinned rows are
+ * returned in a separate `pinned` array on the first page only (offset 0), are
+ * matched on exact `resource_id`, bypass the `q` filter, and are de-duped
+ * against the page slice.
  */
 export async function GET(request: Request) {
   const authResult = await requireAuth();
@@ -47,6 +57,13 @@ export async function GET(request: Request) {
   const resourceTypeRaw = searchParams.get("resourceType")?.trim().toUpperCase();
   const carrierId = searchParams.get("carrierId")?.trim() || undefined;
   const q = searchParams.get("q")?.trim() ?? "";
+  const idsRaw = searchParams.get("ids")?.trim();
+  const pinIds = idsRaw
+    ? idsRaw
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : [];
   const offsetRaw = searchParams.get("offset");
   const limitRaw = searchParams.get("limit");
   const refresh = searchParams.get("refresh") === "1";
@@ -96,8 +113,25 @@ export async function GET(request: Request) {
     const filtered = applyQuery(allRows, q);
     const page = filtered.slice(offset, offset + limit);
 
+    // Pin the requested rows (currently-selected resources) onto the first
+    // page so the client can always resolve the combobox's selected option,
+    // even when `q`/pagination would otherwise hide it. Matched on exact
+    // `resource_id` against the full (unfiltered) set and de-duped against the
+    // current page so a row never appears twice.
+    const pageIds = new Set(page.map((row) => row.resource_id));
+    const pinned: PgrestAccreditedResourceRow[] =
+      offset === 0 && pinIds.length > 0
+        ? pinIds
+            .map((id) => allRows.find((row) => row.resource_id === id))
+            .filter(
+              (row): row is PgrestAccreditedResourceRow =>
+                row != null && !pageIds.has(row.resource_id)
+            )
+        : [];
+
     return NextResponse.json({
-      data: page,
+      data: page.map(decodeTruckPosition),
+      pinned: pinned.map(decodeTruckPosition),
       total: allRows.length,
       filteredTotal: filtered.length,
       offset,
@@ -134,4 +168,25 @@ function applyQuery(
       name?.includes(needle) === true || identifier?.includes(needle) === true
     );
   });
+}
+
+/**
+ * Decode `row.location` (SRID-prefixed EWKB hex from
+ * `fn_rd_accredited_resources`) into `latitude`/`longitude` for TRUCK rows.
+ * Non-TRUCK rows, trucks without a position, and rows with malformed EWKB
+ * pass through unchanged — the client treats absent coordinates as "no
+ * pin". Heading is not in the upstream row today, so it defaults to 0.
+ */
+function decodeTruckPosition(
+  row: PgrestAccreditedResourceRow
+): PgrestAccreditedResourceRow {
+  if (row.resource_type !== "TRUCK") return row;
+  const point = decodeEwkbPoint(row.location);
+  if (!point) return row;
+  return {
+    ...row,
+    latitude: point.latitude,
+    longitude: point.longitude,
+    heading: 0,
+  };
 }

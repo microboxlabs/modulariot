@@ -29,6 +29,11 @@ dependencies = [
   "sqlglot>=25.0",
   "traceloop-sdk>=0.33",
   "uvicorn[standard]>=0.30",
+  # wrapt 2.x renamed wrap_function_wrapper's `module` kwarg to `target`;
+  # traceloop-sdk / opentelemetry-instrumentation-langchain 0.60.0 (latest)
+  # still pass `module=` → instrumentor fails to init. Remove once upstream
+  # ships a wrapt-2.x compatible release.
+  "wrapt<2",
 ]
 
 [project.scripts]

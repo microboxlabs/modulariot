@@ -1,0 +1,43 @@
+# Architecture
+
+The harness is organized as a supervisor that routes each request to a specialist agent or graph. The language model contributes planning and narration; the harness contributes structure, data access, and control.
+
+## Request Flow
+
+1. **Intent routing** — an incoming request is classified into one of a small set of routes. An LLM-based router handles the default `auto` mode; when its confidence is low, a deterministic keyword router decides instead, so a request is never silently misrouted.
+2. **Dispatch** — the supervisor sends the request down the matching route (see [Run Modes](/platform/ask-miot-harness/run-modes)).
+3. **Execution** — the route runs its agents, calls typed tools, and assembles an answer.
+4. **Response** — the answer is returned as a Storytelling artifact with references to its supporting evidence.
+
+## Specialist Agents
+
+A data-backed answer is produced by a small graph of focused agents:
+
+- **Filter Expert** — selects the single curated data function that best matches the question.
+- **Domain Analyst** — inspects the returned data, including how fresh the underlying snapshot is.
+- **Synthesizer** — writes the final narrative answer.
+- **Critic** — reviews the answer for correctness before it is returned. Optional, because it doubles model spend per run.
+- **Summarizer** — trims prior conversation turns so multi-turn context stays within a fixed token budget.
+
+Each agent can be assigned its own model tier — a cheap, high-throughput model for routing and summarizing, a stronger reasoning model for analysis and synthesis.
+
+## Data Tools
+
+The harness does not let the model write SQL freely. Instead, at startup it introspects the connected database and builds one typed tool per curated data function it finds. Every tool:
+
+- runs inside a read-only transaction,
+- is locked to a single tenant, and
+- is registered in a central tool registry the supervisor draws from.
+
+For free-form exploration, a separate set of composable primitives lets an agent describe, select, and explain queries within a safety gate that rejects mutations and refuses queries whose estimated cost is too high.
+
+## Control and Safety
+
+- **Tenant lock** — data tools are pinned to one tenant; confidential data routes refuse requests from other tenants.
+- **Read-only by default** — data access runs in read-only transactions; mutating actions require explicit approval.
+- **Fail-closed boot** — if the data integration cannot verify access control or data freshness at startup, it disables itself rather than serving unverified answers.
+- **Deep Agents adapter** — the LangChain Deep Agents integration sits behind an adapter, so the harness keeps its own tool, permission, and audit contracts.
+
+## Observability
+
+Every run can emit tracing spans tagged with the run mode and tenant. When telemetry is enabled, those spans flow to an observability backend, giving per-tenant and per-mode cost and latency breakdowns.

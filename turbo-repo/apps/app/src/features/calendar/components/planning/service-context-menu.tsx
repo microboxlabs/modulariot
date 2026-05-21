@@ -2,13 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { HiSwitchHorizontal, HiTrash, HiUserAdd } from "react-icons/hi";
+import { HiEye, HiSwitchHorizontal, HiTrash, HiUserAdd } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
-import type { PlannedService } from "./planning-selection-context";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  usePlanningSelection,
+  type PlannedService,
+} from "./planning-selection-context";
 import { Button } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useCalendarViewMode } from "./use-calendar-view-mode";
 
 export interface ContextMenuPosition {
   x: number;
@@ -78,14 +82,16 @@ export function ServiceContextMenu({
   dict,
 }: Readonly<ServiceContextMenuProps>) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
+  // Effective view-mode — already accounts for `?as=viewer` for users with
+  // GROUP_CALENDAR_VIEWER. Fail-closed: both flags are false while
+  // permissions load and while the override is active.
+  const { canPlan, canAssign, forceViewer, canTogglePreview } =
+    useCalendarViewMode();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { inspectPlannedService } = usePlanningSelection();
 
-  // Check if user has assignment permission to show assignment buttons
-  // Fail-closed: only show buttons when permissions are confirmed loaded
-  const canAssign =
-    !isLoadingPermissions && hasPermission(["GROUP_ASSIGNMENT"]);
-  // Check if user has planning permission to show replan/delete buttons
-  const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
   const canDeleteAssignment =
     plannedService !== null &&
     canAssign &&
@@ -93,12 +99,15 @@ export function ServiceContextMenu({
 
   // Estimated menu dimensions for initial position calculation
   // Height varies based on number of visible buttons
-  const MENU_WIDTH = 180;
+  const MENU_WIDTH = 200;
   const MENU_HEADER_HEIGHT = 32;
   const MENU_BUTTON_HEIGHT = 38;
   const MENU_PADDING = 8;
   const buttonCount =
-    (canAssign ? 1 : 0) + (canDeleteAssignment ? 1 : 0) + (canPlan ? 2 : 0);
+    (canAssign ? 1 : 0) +
+    (canDeleteAssignment ? 1 : 0) +
+    (canPlan ? 2 : 0) +
+    (canTogglePreview ? 1 : 0);
   const MENU_HEIGHT =
     MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
@@ -164,6 +173,29 @@ export function ServiceContextMenu({
     onClose();
   };
 
+  // Flip the `?as=viewer` URL param without losing any other params
+  // (`date`, `view`, `groupCode`, etc.). Push, don't replace, so back
+  // navigates out of the preview. Closes the menu so the click feels
+  // discrete; the page re-renders with the new mode on the next tick.
+  // When entering preview (not exiting), also populate the sidebar with
+  // the right-clicked chip's data so the read-only view has content to
+  // show on the same gesture — without this, the user would have to
+  // right-click a second time after the URL flip to inspect the chip.
+  const handleTogglePreview = () => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (forceViewer) {
+      params.delete("as");
+    } else {
+      params.set("as", "viewer");
+      if (plannedService) {
+        inspectPlannedService(plannedService);
+      }
+    }
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+    onClose();
+  };
+
   return createPortal(
     <div
       ref={menuRef}
@@ -190,7 +222,10 @@ export function ServiceContextMenu({
         </span>
       </div>
 
-      {/* Menu items */}
+      {/* Menu items. For a pure GROUP_CALENDAR_VIEWER, every gate below is
+          false and only the service-ID header above renders — intentional
+          confirmation that the chip was selected, paired with the sidebar
+          opening via inspectPlannedService in use-planning-grid. */}
       <div className="py-1">
         {canAssign && (
           <Button
@@ -240,6 +275,25 @@ export function ServiceContextMenu({
             <HiTrash className="w-4 h-4" />
             <span>
               {tr("pages.planning.sidebar.contextMenu.deletePlanning", dict)}
+            </span>
+          </Button>
+        )}
+
+        {canTogglePreview && (
+          <Button
+            color={"alternative"}
+            type="button"
+            onClick={handleTogglePreview}
+            className="border-0 rounded-none w-full justify-start gap-2 border-t border-gray-200 dark:border-gray-700"
+          >
+            <HiEye className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span>
+              {tr(
+                forceViewer
+                  ? "pages.planning.sidebar.contextMenu.exitPreview"
+                  : "pages.planning.sidebar.contextMenu.previewAsViewer",
+                dict
+              )}
             </span>
           </Button>
         )}

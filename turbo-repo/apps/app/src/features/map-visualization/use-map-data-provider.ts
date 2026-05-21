@@ -5,6 +5,7 @@ import type { MapDataProvider, MapLayer } from "./map-data-provider.types";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { buildPgrestFetch } from "@/features/dashboard/dashlets/common/pgrest-utils";
 import { resolveFilterParams } from "@/features/dashboard/dashlets/common/resolve-filter-params";
+import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import { useOptionalPlannerContext } from "@/features/dashboard/context/planner-context";
 import { useDashboardFilters } from "@/features/dashboard/context/dashboard-filters-context";
 
@@ -37,12 +38,15 @@ export function resolveUrlTemplate(
  */
 function wkbResponseToGeoJson(raw: unknown, geometryField = "location"): FeatureCollection {
   const records = Array.isArray(raw) ? raw : [raw];
+  const isTemplate = geometryField.includes("{{");
   return {
     type: "FeatureCollection",
     features: records
       .map((record) => {
         const r = record as Record<string, unknown>;
-        const location = r[geometryField];
+        const location = isTemplate
+          ? resolveHandlebarsField(geometryField, { data: r })
+          : r[geometryField];
         if (!location || typeof location !== "string") return null;
         try {
           const [lng, lat] = parseWKBPoint(location);

@@ -134,6 +134,11 @@ export default function TripData({
     },
     {
       icon: <FaTruck className="w-4 h-4" />,
+      label: msg.cards.clientRut,
+      value: task.mintral_clientRut ?? "-",
+    },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).transportNumberCode as string,
       value: (task.mintral_servicePrincipalNumber as string) ?? "-",
     },
@@ -146,6 +151,11 @@ export default function TripData({
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierId as string,
       value: task.mintral_supplierId ?? "-",
+    },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: msg.cards.supplierPrveCodigo,
+      value: task.mintral_supplierPrveCodigo ?? "-",
     },
   ];
 

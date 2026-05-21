@@ -116,7 +116,6 @@ export function GpsStatusColumn({
 interface VehicleCardButtonProps {
   readonly isHighlighted: boolean;
   readonly isSelected: boolean;
-  readonly isAvailable: boolean;
   readonly onClick: () => void;
   readonly onMouseEnter: () => void;
   readonly children: React.ReactNode;
@@ -125,7 +124,6 @@ interface VehicleCardButtonProps {
 export function VehicleCardButton({
   isHighlighted,
   isSelected,
-  isAvailable,
   onClick,
   onMouseEnter,
   children,
@@ -138,8 +136,7 @@ export function VehicleCardButton({
       className={twMerge(
         "w-full text-left p-3 transition-colors",
         isHighlighted && "bg-blue-50 dark:bg-blue-900/30",
-        isSelected && !isHighlighted && "bg-gray-50 dark:bg-gray-700/50",
-        !isAvailable && "opacity-60"
+        isSelected && !isHighlighted && "bg-gray-50 dark:bg-gray-700/50"
       )}
     >
       {children}

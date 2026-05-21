@@ -15,6 +15,7 @@ import { categorizeIncidencias } from "./incidencias.types";
 import { formatPercent } from "./planning-format";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 // Set Spanish locale for dayjs
 dayjs.locale("es");
@@ -151,8 +152,15 @@ export function ServiceEvent({ service, dict, className }: ServiceEventProps) {
         </h4>
 
         {/* Flags row */}
-        {hasFlags && (
+        {(hasFlags || service.serviceCategory) && (
           <div className="flex flex-wrap items-center gap-1 pointer-events-auto">
+            {/* Service category - shown alongside incidencia flags */}
+            <ServiceCategoryBadge
+              code={service.serviceCategory}
+              variant="soft"
+              className="px-2 py-0.5 text-xs cursor-help"
+            />
+
             {/* Primary incidencias - always visible */}
             {primary.map(({ key, config }) => {
               const tooltip =

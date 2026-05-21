@@ -181,7 +181,6 @@ function TrailerCard({
   onClick,
   onMouseEnter,
 }: CardRenderProps<TrailerOption>) {
-  const isAvailable = trailer.estado === "disponible";
   const isGpsIntegrado = trailer.gpsIntegrado;
   const isOnline = trailer.estadoGps === "online";
   const subtitle = tr(
@@ -193,7 +192,6 @@ function TrailerCard({
     <VehicleCardButton
       isHighlighted={isHighlighted}
       isSelected={isSelected}
-      isAvailable={isAvailable}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
     >

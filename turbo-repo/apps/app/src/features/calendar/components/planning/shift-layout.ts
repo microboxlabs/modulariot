@@ -93,11 +93,6 @@ export interface PositionedShift {
   twColor: TimeWindowColor;
   /** Slot capacity = parent TW's quota (max bookings the slot can hold). */
   capacity: number;
-  /**
-   * False for rectangles generated beyond the window's bookable quota (MANUAL mode):
-   * they're rendered for visibility but not bookable. Always true for AUTO windows.
-   */
-  assignable: boolean;
   /** The day this shift belongs to. */
   date: Date;
   /**
@@ -141,18 +136,15 @@ interface BuildShiftLayoutParams {
   columnIndex?: number;
   /** Total number of day columns in the parent grid. Defaults to 1. */
   columnCount?: number;
-  /**
-   * Calendar parallelism (andenes count). Used to decide how many of a MANUAL window's
-   * synthesized rectangles are bookable (`ceil(quota / parallelism)`); the rest are marked
-   * `assignable: false`. Defaults to 1.
-   */
-  parallelism?: number;
 }
 
 /**
  * Compute absolute-positioned shift rectangles from TW config for a given day.
- * Pure function — no DOM, no React. Synthesizes shifts at every
- * `slotDurationMinutes` step within each TW's active range on `date`.
+ * Pure function — no DOM, no React. Synthesizes one rectangle at every
+ * `slotDurationMinutes` step within each TW's active range on `date`; every
+ * rectangle is bookable. Whether a window has reached its booking capacity for
+ * the day is a runtime concern derived from the planned services, applied by
+ * the overlay layer — not encoded here.
  *
  * BLOCK windows are ignored — those are rendered by the existing block
  * styling on the underlying cells.
@@ -164,13 +156,11 @@ export function buildShiftLayout({
   rowOffsets,
   columnIndex = 0,
   columnCount = 1,
-  parallelism = 1,
 }: BuildShiftLayoutParams): PositionedShift[] {
   const day = dayjs(date);
   const isPastDay = day.isBefore(dayjs().startOf("day"), "day");
   const dayStartMin = startHour * 60;
   const out: PositionedShift[] = [];
-  const safeParallelism = Math.max(parallelism, 1);
 
   for (const tw of timeSlots) {
     if (!isTimeWindow(tw)) continue;
@@ -180,17 +170,6 @@ export function buildShiftLayout({
     const range = getTwRangeOnDate(tw, day);
     if (!range) continue;
 
-    // Total synthesized rectangles for this TW on this day, and how many are bookable.
-    // AUTO windows: all rectangles are bookable. MANUAL windows: only the first
-    // ceil(quota / parallelism) — the rest are OVERFLOW (rendered, not assignable).
-    const totalRectangles = Math.floor((range.endMin - range.startMin) / duration);
-    const bookableNeeded = Math.max(Math.ceil(tw.quota / safeParallelism), 1);
-    const bookableCount =
-      tw.slotGenerationMode === "manual"
-        ? Math.min(bookableNeeded, totalRectangles)
-        : totalRectangles;
-
-    let slotIndex = 0;
     for (let m = range.startMin; m + duration <= range.endMin; m += duration) {
       const slotHour = Math.floor(m / 60);
       const slotMinutes = m % 60;
@@ -203,7 +182,6 @@ export function buildShiftLayout({
         twName: tw.name,
         twColor: tw.color ?? "emerald",
         capacity: tw.quota,
-        assignable: slotIndex < bookableCount,
         date,
         isPastDay,
         slotHour,
@@ -216,7 +194,6 @@ export function buildShiftLayout({
         startsAtMin: m,
         endsAtMin: m + duration,
       });
-      slotIndex++;
     }
   }
 

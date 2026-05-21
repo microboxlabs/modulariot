@@ -327,3 +327,30 @@ async def test_nexo_explain_accepts_below_cost_threshold(fake_pool: Any) -> None
     )
     assert plan["total_cost"] == pytest.approx(42.5)
     assert plan["node_type"] == "Index Scan"
+
+
+@pytest.mark.asyncio
+async def test_nexo_explain_handles_record_like_rows(fake_pool: Any) -> None:
+    # asyncpg.Record supports subscript access but is NOT a dict subclass;
+    # this fixture mimics that contract so the fix at primitives.py is
+    # locked in against a future `isinstance(row, dict)` regression.
+    class RecordLike:
+        def __init__(self, mapping: dict[str, Any]) -> None:
+            self._mapping = mapping
+
+        def __getitem__(self, key: str) -> Any:
+            return self._mapping[key]
+
+    record_rows = [
+        RecordLike(
+            {"QUERY PLAN": [{"Plan": {"Total Cost": 12.0, "Node Type": "Bitmap Scan"}}]}
+        )
+    ]
+    fake_pool._conn.fetch = AsyncMock(return_value=record_rows)
+    plan = await nexo_explain(
+        pool=fake_pool,
+        query="SELECT * FROM nexo.dx_servicios WHERE id = 1",
+        cost_threshold=10_000.0,
+    )
+    assert plan["total_cost"] == pytest.approx(12.0)
+    assert plan["node_type"] == "Bitmap Scan"

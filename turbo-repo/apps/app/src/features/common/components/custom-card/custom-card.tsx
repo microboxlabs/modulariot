@@ -13,6 +13,8 @@ export interface InformationBadge {
     | "pink"
     | "indigo";
   icon?: FC<SVGProps<SVGSVGElement>>;
+  /** Optional native tooltip shown on hover (e.g. an abbreviation's full text). */
+  title?: string;
 }
 
 export default function CustomCard({
@@ -55,6 +57,7 @@ export default function CustomCard({
                     color={badge.color || "gray"}
                     icon={badge.icon}
                     size="sm"
+                    title={badge.title}
                   >
                     {badge.text}
                   </Badge>

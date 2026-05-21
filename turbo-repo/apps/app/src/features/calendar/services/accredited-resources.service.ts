@@ -20,14 +20,29 @@ export interface AccreditedResource {
   is_acredited: "ACREDITED" | "NOT ACREDITED";
   trip_count: number | null;
   last_trip: string | null;
+  /** GPS integration flag (TRUCK rows). Independent of whether a position is on file. */
+  integration: "INTEGRATED" | "NOT INTEGRATED" | null;
   symptoms: Record<string, number> | null;
   updated_at: string | null;
+  // Server-decoded last-known position for TRUCK rows (from row.location
+  // EWKB hex, decoded at the route boundary). Absent when no position is
+  // available or the row is not a TRUCK.
+  latitude?: number | null;
+  longitude?: number | null;
+  heading?: number | null;
 }
 
 export type AccreditedResourceType = AccreditedResource["resource_type"];
 
 interface AccreditedResourcesPage {
   data: AccreditedResource[];
+  /**
+   * Rows pinned by the server because the caller passed `selectedIds` — only
+   * populated on the first page. Carries the currently-selected option(s) so
+   * the combobox can render its label even when that row falls outside the
+   * filtered/paginated window. May overlap `data` across pages; deduped below.
+   */
+  pinned?: AccreditedResource[];
   total: number;
   filteredTotal: number;
   offset: number;
@@ -50,6 +65,13 @@ interface UseAccreditedResourcesOpts {
   carrierId?: string | null;
   /** Case-insensitive substring, matched against resource_name and identifier. */
   query?: string;
+  /**
+   * Resource ids to pin onto the result regardless of `query`/pagination —
+   * pass the currently-selected option id(s) so the combobox can always render
+   * its selected label even when that row is outside the filtered page. Falsy
+   * entries are ignored.
+   */
+  selectedIds?: readonly string[];
   pageSize?: number;
   /**
    * When false, the hook stays idle regardless of the other args. Use this to
@@ -76,11 +98,16 @@ export function useAccreditedResources(opts: UseAccreditedResourcesOpts) {
     resourceType,
     carrierId,
     query = "",
+    selectedIds,
     pageSize = DEFAULT_PAGE_SIZE,
     enabled = true,
   } = opts;
 
   const canFetch = Boolean(enabled && rutMandante && delegacion);
+
+  // Stable, comma-joined form of the pin set so it can sit in the SWR key and
+  // the `getKey` dependency list without churning on every render.
+  const idsParam = (selectedIds ?? []).filter(Boolean).join(",");
 
   const getKey = useCallback(
     (pageIndex: number, previousPage: AccreditedResourcesPage | null) => {
@@ -92,11 +119,21 @@ export function useAccreditedResources(opts: UseAccreditedResourcesOpts) {
       if (resourceType) params.set("resourceType", resourceType);
       if (carrierId) params.set("carrierId", carrierId);
       if (query) params.set("q", query);
+      if (idsParam) params.set("ids", idsParam);
       params.set("offset", String(pageIndex * pageSize));
       params.set("limit", String(pageSize));
       return `/app/api/calendar/accredited-resources?${params.toString()}`;
     },
-    [canFetch, rutMandante, delegacion, resourceType, carrierId, query, pageSize]
+    [
+      canFetch,
+      rutMandante,
+      delegacion,
+      resourceType,
+      carrierId,
+      query,
+      idsParam,
+      pageSize,
+    ]
   );
 
   const { data, error, size, setSize, isLoading, isValidating, mutate } =
@@ -106,10 +143,16 @@ export function useAccreditedResources(opts: UseAccreditedResourcesOpts) {
       errorRetryCount: 2,
     });
 
-  const resources = useMemo<AccreditedResource[]>(
-    () => (data ?? []).flatMap((page) => page.data),
-    [data]
-  );
+  const resources = useMemo<AccreditedResource[]>(() => {
+    const pages = data ?? [];
+    const rows = pages.flatMap((page) => page.data);
+    const pinned = pages[0]?.pinned ?? [];
+    if (pinned.length === 0) return rows;
+    // Pinned rows lead so the selected option is always present and stable;
+    // drop any later page-row that duplicates one of them.
+    const pinnedIds = new Set(pinned.map((r) => r.resource_id));
+    return [...pinned, ...rows.filter((r) => !pinnedIds.has(r.resource_id))];
+  }, [data]);
 
   const lastPage = data && data.length > 0 ? data.at(-1) : null;
   const hasMore = lastPage ? lastPage.hasMore : false;

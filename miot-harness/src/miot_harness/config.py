@@ -71,6 +71,18 @@ class HarnessSettings(BaseSettings):
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
 
+    # Phase E5 hydration cap. When a `/runs` request carries
+    # `conversation_id`, the supervisor reads prior turns from
+    # `ConversationStore` and trims them via `trim_messages(...,
+    # token_counter="approximate", strategy="last")` to fit this token
+    # budget. Sized against Haiku-4-5's 200K window (the smallest model
+    # we configure): 24K leaves 88% of the window for system prompt +
+    # evidence + tools + current question + response. Fits ~5–7 long
+    # Markdown synthesizer answers or ~30+ short turns. Turn-based
+    # capping was rejected because our synthesizer's long Markdown
+    # outputs (3–5K tokens each) blow a uniform turn count.
+    conversation_token_budget: int = 24_000
+
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     request_id_header: str = "x-request-id"

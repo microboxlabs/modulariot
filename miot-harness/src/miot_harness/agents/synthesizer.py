@@ -24,6 +24,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from miot_harness.agents.llm_streaming import stream_llm_with_thinking
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.runtime.context import HarnessContext
@@ -158,9 +159,15 @@ async def synthesizer_node(
 
     stream_enabled = bool(settings and settings.nexo_synthesizer_stream)
     if stream_enabled:
-        answer = await _stream_synthesis(
-            model=model, messages=messages, progress=progress, ctx=ctx
+        answer = await stream_llm_with_thinking(
+            model=model,
+            messages=messages,
+            progress=progress,
+            run_id=ctx.run_id,
+            agent_name="synthesizer",
         )
+        if not answer:
+            answer = "(sin respuesta)"
     else:
         response = await model.ainvoke(messages)
         text = response.content if hasattr(response, "content") else str(response)
@@ -170,108 +177,3 @@ async def synthesizer_node(
 
     _emit(progress, ctx.run_id, answer)
     return {"answer": answer}
-
-
-async def _stream_synthesis(
-    *,
-    model: BaseChatModel,
-    messages: list[BaseMessage],
-    progress: Progress,
-    ctx: HarnessContext,
-) -> str:
-    """Run the synthesizer as a streaming `astream_events` loop so SSE
-    clients see `thinking.delta` chunks in real time and a single
-    `thinking.completed` marker when the model finishes reasoning.
-
-    Walks `AIMessageChunk.content`:
-      - When `content` is a list of typed blocks (extended thinking on):
-        each block is `{type: "thinking", thinking: "..."}` or
-        `{type: "text", text: "..."}`. We emit a `thinking.delta` per
-        thinking block and accumulate text blocks into the final answer.
-      - When `content` is a plain string (thinking off): treat it as a
-        text delta — no thinking events are emitted.
-    """
-
-    thinking_parts: list[str] = []
-    text_parts: list[str] = []
-    thinking_index = 0
-    thinking_emitted = False
-
-    async for event in model.astream_events(messages, version="v2"):
-        kind = event.get("event")
-        if kind == "on_chat_model_stream":
-            chunk = (event.get("data") or {}).get("chunk")
-            if chunk is None:
-                continue
-            content = getattr(chunk, "content", None)
-            if isinstance(content, str):
-                if content:
-                    text_parts.append(content)
-                continue
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not isinstance(block, dict):
-                    continue
-                btype = block.get("type")
-                if btype == "thinking":
-                    delta = block.get("thinking") or ""
-                    if not delta:
-                        continue
-                    thinking_parts.append(delta)
-                    progress(
-                        HarnessEvent(
-                            run_id=ctx.run_id,
-                            type="thinking.delta",
-                            message="",
-                            data={
-                                "agent": "synthesizer",
-                                "delta": delta,
-                                "index": thinking_index,
-                            },
-                        )
-                    )
-                    thinking_index += 1
-                elif btype == "text":
-                    delta = block.get("text") or ""
-                    if delta:
-                        text_parts.append(delta)
-        elif kind == "on_chat_model_end" and thinking_parts and not thinking_emitted:
-            full_thinking = "".join(thinking_parts)
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="thinking.completed",
-                    message="Synthesizer thinking done",
-                    data={
-                        "agent": "synthesizer",
-                        "tokens": _thinking_token_estimate(event, full_thinking),
-                        "length": len(full_thinking),
-                    },
-                )
-            )
-            thinking_emitted = True
-
-    return "".join(text_parts).strip() or "(sin respuesta)"
-
-
-def _thinking_token_estimate(event: dict[str, Any], full_thinking: str) -> int:
-    """Best-effort token count for the thinking phase.
-
-    LangChain v2 stream events expose `usage_metadata` on the final
-    `on_chat_model_end` chunk. For Anthropic, the thinking-tokens line
-    item lives at `input_token_details.output_thinking` in some versions;
-    when unavailable, fall back to a rough char→token estimate.
-    """
-    try:
-        data = event.get("data") or {}
-        output = data.get("output")
-        usage = getattr(output, "usage_metadata", None) or {}
-        details = usage.get("output_token_details") or usage.get("input_token_details") or {}
-        thinking_tokens = details.get("thinking") or details.get("output_thinking")
-        if thinking_tokens is not None:
-            return int(thinking_tokens)
-    except Exception:
-        pass
-    # Conservative fallback: ~4 chars per token for English/Spanish.
-    return max(1, len(full_thinking) // 4)

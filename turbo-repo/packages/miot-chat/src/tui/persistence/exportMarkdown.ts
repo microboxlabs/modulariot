@@ -63,6 +63,8 @@ function renderItem(item: TranscriptItem): string[] {
       return [`> route: ${item.route}`];
     case "agent":
       return [`> agent: ${item.agent}`];
+    case "thinking":
+      return [`> _thinking (${item.agent}):_ ${item.text}`];
     case "plan":
       return [`> plan: ${item.message}`];
     case "freshness":

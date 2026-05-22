@@ -284,6 +284,7 @@ function AppInner(
         turns={turnCount(session.state)}
         approxTokens={approxTokenCount(session.state)}
         contextPercent={contextPercent(session.state)}
+        usageTotals={session.state.usageTotals}
       />
       <Editor onSubmit={handleSubmit} isFocused={editorActive} />
     </Box>

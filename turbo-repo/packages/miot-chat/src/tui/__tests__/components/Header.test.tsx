@@ -88,4 +88,46 @@ describe("<Header />", () => {
     );
     expect(lastFrame() ?? "").not.toContain("approvals=");
   });
+
+  it("renders a usage chip when usageTotals has any tokens", () => {
+    const { lastFrame } = render(
+      <Header
+        meta={meta()}
+        streaming={false}
+        pendingApprovals={0}
+        usageTotals={{
+          inputTokens: 1234,
+          outputTokens: 56,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+          costUsd: 0.0123,
+          lastAgent: "synthesizer",
+          lastCostUsd: 0.0123,
+        }}
+      />,
+    );
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("usage=1234→56");
+    expect(frame).toContain("$0.0123");
+  });
+
+  it("hides the usage chip when there are no tokens yet", () => {
+    const { lastFrame } = render(
+      <Header
+        meta={meta()}
+        streaming={false}
+        pendingApprovals={0}
+        usageTotals={{
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+          costUsd: 0,
+          lastAgent: null,
+          lastCostUsd: null,
+        }}
+      />,
+    );
+    expect(lastFrame() ?? "").not.toContain("usage=");
+  });
 });

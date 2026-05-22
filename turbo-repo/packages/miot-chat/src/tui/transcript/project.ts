@@ -3,13 +3,16 @@ import type {
   PendingApproval,
   TranscriptItem,
   ToolStatus,
+  UsageTotals,
 } from "../session/types.js";
 
 export interface TranscriptSlice {
   transcript: TranscriptItem[];
   currentAssistantItemId: string | null;
+  currentThinkingItemId: string | null;
   pendingApprovals: PendingApproval[];
   currentRunId: string | null;
+  usageTotals: UsageTotals;
 }
 
 export interface ProjectionContext {
@@ -105,13 +108,94 @@ export function applyHarnessEvent(
     }
 
     case "agent.completed":
-    case "thinking.delta":
-    case "thinking.completed":
-    case "usage.recorded":
-      // Surfaced inline by the REPL renderer; intentionally not
-      // projected into the persistent transcript so the user history
-      // stays focused on user-visible turns + tools.
+      // The agent.started row already carries the agent boundary; the
+      // duration is surfaced inline by the REPL renderer. Skipping the
+      // completed event here keeps the transcript compact (one row per
+      // node, not two).
       return slice;
+
+    case "thinking.delta": {
+      const delta =
+        typeof event.data.delta === "string" ? event.data.delta : "";
+      if (!delta) return slice;
+      const agent =
+        typeof event.data.agent === "string" ? event.data.agent : "synthesizer";
+      const existingId = slice.currentThinkingItemId;
+      if (existingId) {
+        return {
+          ...slice,
+          transcript: slice.transcript.map((item) =>
+            item.kind === "thinking" && item.id === existingId
+              ? { ...item, text: item.text + delta }
+              : item,
+          ),
+        };
+      }
+      const id = ctx.uuid();
+      const item: TranscriptItem = {
+        kind: "thinking",
+        id,
+        agent,
+        text: delta,
+        status: "streaming",
+        ts: ctx.now(),
+      };
+      return {
+        ...slice,
+        currentThinkingItemId: id,
+        transcript: [...slice.transcript, item],
+      };
+    }
+
+    case "thinking.completed": {
+      const existingId = slice.currentThinkingItemId;
+      if (!existingId) return slice;
+      return {
+        ...slice,
+        currentThinkingItemId: null,
+        transcript: slice.transcript.map((item) =>
+          item.kind === "thinking" && item.id === existingId
+            ? { ...item, status: "complete" as const }
+            : item,
+        ),
+      };
+    }
+
+    case "usage.recorded": {
+      const inT =
+        typeof event.data.input_tokens === "number"
+          ? event.data.input_tokens
+          : 0;
+      const outT =
+        typeof event.data.output_tokens === "number"
+          ? event.data.output_tokens
+          : 0;
+      const cacheR =
+        typeof event.data.cache_read_input_tokens === "number"
+          ? event.data.cache_read_input_tokens
+          : 0;
+      const cacheC =
+        typeof event.data.cache_creation_input_tokens === "number"
+          ? event.data.cache_creation_input_tokens
+          : 0;
+      const cost =
+        typeof event.data.cost_usd === "number" ? event.data.cost_usd : 0;
+      const agent =
+        typeof event.data.agent === "string" ? event.data.agent : null;
+      return {
+        ...slice,
+        usageTotals: {
+          inputTokens: slice.usageTotals.inputTokens + inT,
+          outputTokens: slice.usageTotals.outputTokens + outT,
+          cacheReadTokens: slice.usageTotals.cacheReadTokens + cacheR,
+          cacheCreationTokens: slice.usageTotals.cacheCreationTokens + cacheC,
+          costUsd: slice.usageTotals.costUsd + cost,
+          lastAgent: agent,
+          lastCostUsd:
+            typeof event.data.cost_usd === "number" ? event.data.cost_usd : null,
+        },
+      };
+    }
 
     case "plan.created":
       return appendItem(slice, {

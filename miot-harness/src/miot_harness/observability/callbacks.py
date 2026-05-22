@@ -29,6 +29,8 @@ from miot_harness.observability.pricing import (
     UnknownModelError,
     compute_cost,
 )
+from miot_harness.runtime.events import HarnessEvent
+from miot_harness.runtime.tool import Progress
 
 _TRACER_NAME = "miot_harness"
 
@@ -111,6 +113,7 @@ class NexoTelemetryCallback(BaseCallbackHandler):
         session_id: str | None = None,
         tags: Sequence[str] | None = None,
         environment: str | None = None,
+        progress: Progress | None = None,
     ) -> None:
         self._agent_name = agent_name
         self._run_id = run_id
@@ -122,6 +125,11 @@ class NexoTelemetryCallback(BaseCallbackHandler):
         self._environment = environment
         self._tracer = trace.get_tracer(_TRACER_NAME)
         self._open_spans: dict[UUID, _CallState] = {}
+        # Optional SSE event sink. When set, the callback also publishes
+        # a `usage.recorded` event per LLM call so curl/miot-chat clients
+        # see token counts in real time without waiting for the Langfuse
+        # span to settle.
+        self._progress = progress
 
     def on_chat_model_start(
         self,
@@ -184,13 +192,35 @@ class NexoTelemetryCallback(BaseCallbackHandler):
             state.span.set_attribute(
                 "gen_ai.usage.cache_creation.input_tokens", usage.cache_creation_input_tokens
             )
+        cost_usd: float | None = None
         if model and model in PRICING:
             try:
                 cost = compute_cost(model, usage)
-                state.span.set_attribute("gen_ai.usage.cost_usd", float(cost))
+                cost_usd = float(cost)
+                state.span.set_attribute("gen_ai.usage.cost_usd", cost_usd)
             except UnknownModelError:
-                pass
+                cost_usd = None
         state.span.end()
+
+        if self._progress is not None:
+            data: dict[str, Any] = {
+                "agent": self._agent_name,
+                "model": model or "",
+                "input_tokens": usage.input_tokens,
+                "output_tokens": usage.output_tokens,
+                "cache_read_input_tokens": usage.cache_read_input_tokens,
+                "cache_creation_input_tokens": usage.cache_creation_input_tokens,
+            }
+            if cost_usd is not None:
+                data["cost_usd"] = cost_usd
+            self._progress(
+                HarnessEvent(
+                    run_id=self._run_id,
+                    type="usage.recorded",
+                    message=f"LLM usage recorded for {self._agent_name}",
+                    data=data,
+                )
+            )
 
     def on_llm_error(
         self,

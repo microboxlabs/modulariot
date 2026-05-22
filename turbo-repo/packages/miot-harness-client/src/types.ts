@@ -65,8 +65,15 @@ export interface AgentCompletedData {
 export interface ToolStartedData {
   tool: string;
   input_keys: string[];
+  /**
+   * Present only when the run was created with `debug=true`. May be
+   * the raw dict, or — when the serialized payload exceeded the 2 KB
+   * SSE-frame cap — a truncated JSON string slice. Check `truncated`
+   * to disambiguate.
+   */
+  input?: unknown;
   /** Present only when the run was created with `debug=true`. */
-  input?: Record<string, unknown>;
+  truncated?: boolean;
 }
 
 export interface ToolCompletedData {

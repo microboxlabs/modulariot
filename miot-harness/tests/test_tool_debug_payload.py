@@ -83,6 +83,57 @@ def test_debug_started_event_includes_full_input() -> None:
     events = _events_for(_make_ctx(debug=True))
     started = [e for e in events if e.type == "tool.started"][0]
     assert started.data["input"] == {"p_window_hours": 3, "tenant_id": "demo"}
+    # Small inputs survive untruncated, but the flag is always present
+    # so SSE consumers don't have to special-case absence.
+    assert started.data["truncated"] is False
+
+
+def test_debug_started_event_caps_oversized_input_payload() -> None:
+    """A pathological input arg must not blow the SSE frame. The input
+    is capped at the same 2 KB byte ceiling used for outputs.
+    """
+    from pydantic import BaseModel
+
+    from miot_harness.runtime.permissions import PermissionResult
+    from miot_harness.runtime.tool import _DEBUG_OUTPUT_BYTES_CAP, HarnessTool
+
+    class _BigInp(BaseModel):
+        blob: str
+
+    class _Out(BaseModel):
+        ok: bool = True
+
+    async def _allow(_ctx, _i):
+        return PermissionResult(decision="allow", reason="")
+
+    async def _call(_ctx, _i, _p):
+        return _Out()
+
+    tool = HarnessTool(
+        name="big_input_tool",
+        description="d",
+        input_model=_BigInp,
+        output_model=_Out,
+        check_permission=_allow,
+        call=_call,
+    )
+
+    events: list[HarnessEvent] = []
+    import asyncio
+    asyncio.run(
+        tool.invoke(
+            _make_ctx(debug=True),
+            {"blob": "x" * (_DEBUG_OUTPUT_BYTES_CAP * 2)},
+            events.append,
+        )
+    )
+    started = [e for e in events if e.type == "tool.started"][0]
+    assert started.data["truncated"] is True
+    # The capped representation is a string slice (JSON-serialized),
+    # never larger than the byte ceiling.
+    capped = started.data["input"]
+    assert isinstance(capped, str)
+    assert len(capped.encode("utf-8")) <= _DEBUG_OUTPUT_BYTES_CAP
 
 
 def test_debug_completed_event_includes_truncated_output() -> None:

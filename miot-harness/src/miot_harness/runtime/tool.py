@@ -54,7 +54,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             )
         started_data: dict[str, Any] = {"tool": self.name, "input_keys": input_keys}
         if ctx.debug:
-            started_data["input"] = input_dump
+            started_data.update(_debug_input_payload(input_dump))
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -146,3 +146,24 @@ def _debug_output_payload(output: Any) -> dict[str, Any]:
             "truncated": True,
         }
     return {"output": capped, "truncated": truncated}
+
+
+def _debug_input_payload(input_dump: dict[str, Any]) -> dict[str, Any]:
+    """Return `{input, truncated}` for debug-mode tool.started events.
+
+    Same two-stage cap as `_debug_output_payload` so a pathological
+    arg (a 10 MB string, a huge list) can't blow the SSE frame and
+    the SSE consumer always sees a deterministically-sized payload.
+    """
+    capped, info = truncate_for_trace(input_dump)
+    truncated = bool(info.get("truncated", False))
+    try:
+        serialized = json.dumps(capped, default=str)
+    except Exception:
+        return {"input": None, "truncated": True}
+    if len(serialized.encode("utf-8")) > _DEBUG_OUTPUT_BYTES_CAP:
+        return {
+            "input": serialized[:_DEBUG_OUTPUT_BYTES_CAP],
+            "truncated": True,
+        }
+    return {"input": capped, "truncated": truncated}

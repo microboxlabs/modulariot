@@ -159,7 +159,10 @@ def build_agentic_graph(
     async def summarizer(state: NexoState) -> dict[str, Any]:
         return {}
 
-    graph.add_node("tenancy_gate", wrap_node_with_lifecycle("tenancy_gate", tenancy_gate, "agentic"))
+    graph.add_node(
+        "tenancy_gate",
+        wrap_node_with_lifecycle("tenancy_gate", tenancy_gate, "agentic"),
+    )
     graph.add_node("planner", wrap_node_with_lifecycle("planner", planner, "agentic"))
     graph.add_node("synthesizer", wrap_node_with_lifecycle("synthesizer", synthesizer, "agentic"))
     graph.add_node("critic", wrap_node_with_lifecycle("critic", critic, "agentic"))

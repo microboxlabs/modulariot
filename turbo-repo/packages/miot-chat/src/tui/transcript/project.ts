@@ -83,7 +83,14 @@ export function applyHarnessEvent(
       });
     }
 
-    case "agent.turn": {
+    case "agent.turn":
+    case "agent.started": {
+      // agent.turn is deprecated; agent.started replaces it. Both
+      // render as a single transcript "agent" row marking the
+      // graph-node boundary. agent.completed is intentionally
+      // dropped here — the transcript shouldn't double-row each
+      // agent. The REPL renderer surfaces the duration_ms inline
+      // for users who want it.
       const agent =
         typeof event.data.agent === "string" && event.data.agent.length > 0
           ? event.data.agent
@@ -96,6 +103,15 @@ export function applyHarnessEvent(
         ts: ctx.now(),
       });
     }
+
+    case "agent.completed":
+    case "thinking.delta":
+    case "thinking.completed":
+    case "usage.recorded":
+      // Surfaced inline by the REPL renderer; intentionally not
+      // projected into the persistent transcript so the user history
+      // stays focused on user-visible turns + tools.
+      return slice;
 
     case "plan.created":
       return appendItem(slice, {
@@ -203,10 +219,14 @@ function normalizeToolName(raw: string): string {
 }
 
 function extractToolName(event: HarnessEvent): string {
+  // The server emits `data.tool`; the legacy `data.name` path is kept
+  // as a fallback for older event records persisted on disk.
   const raw =
-    typeof event.data.name === "string" && event.data.name.length > 0
-      ? event.data.name
-      : event.message;
+    typeof event.data.tool === "string" && event.data.tool.length > 0
+      ? event.data.tool
+      : typeof event.data.name === "string" && event.data.name.length > 0
+        ? event.data.name
+        : event.message;
   return normalizeToolName(raw);
 }
 

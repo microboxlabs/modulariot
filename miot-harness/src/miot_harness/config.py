@@ -121,7 +121,13 @@ class HarnessSettings(BaseSettings):
         """Return True iff `tenant_id` is on the debug allow-list.
 
         Empty / unset allow-list denies every tenant — secure-by-default.
+        Whitespace is trimmed on both sides of the comparison so an
+        accidental leading/trailing space in the request body or env
+        var doesn't quietly produce a false-negative match.
         """
+        tenant_id = tenant_id.strip()
+        if not tenant_id:
+            return False
         raw = (self.allow_debug_tenants or "").strip()
         if not raw:
             return False

@@ -165,6 +165,13 @@ class HarnessSupervisor:
         except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
             logger.exception("HarnessSupervisor.run failed")
             record.status = "failed"
+            # Drain any agent-boundary events the lifecycle wrapper
+            # stashed on the exception (see runtime/node_lifecycle.py).
+            # These are emitted BEFORE run.failed so the SSE stream's
+            # ordering keeps agent.started / agent.completed inside the
+            # owning run's event sequence.
+            for ev in getattr(exc, "_harness_lifecycle_events", None) or []:
+                progress(ev)
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,

@@ -111,3 +111,32 @@ def test_lifecycle_propagates_exception() -> None:
     wrapped = wrap_node_with_lifecycle("planner", node, "agentic")
     with pytest.raises(RuntimeError, match="boom"):
         _run(wrapped, _make_state())
+
+
+def test_lifecycle_attaches_boundary_events_on_exception() -> None:
+    """When a node raises, both agent.started and a failure-flavored
+    agent.completed are stashed on the exception so the supervisor's
+    outer handler can drain them before run.failed.
+    """
+    async def node(_state: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("kaboom")
+
+    wrapped = wrap_node_with_lifecycle("filter_expert", node, "nexo")
+    with pytest.raises(RuntimeError, match="kaboom") as excinfo:
+        _run(wrapped, _make_state())
+
+    events = getattr(excinfo.value, "_harness_lifecycle_events", None)
+    assert events is not None and len(events) == 2
+    started, failed = events
+    assert started.type == "agent.started"
+    assert started.data == {
+        "agent": "filter_expert",
+        "graph": "nexo",
+        "turn": 2,
+    }
+    assert failed.type == "agent.completed"
+    assert failed.data["agent"] == "filter_expert"
+    assert failed.data["graph"] == "nexo"
+    assert failed.data["exit_reason"] == "failure"
+    assert failed.data["error"] == "kaboom"
+    assert isinstance(failed.data["duration_ms"], int)

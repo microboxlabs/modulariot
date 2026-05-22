@@ -226,6 +226,7 @@ def create_app() -> FastAPI:
         harness: HarnessSupervisor = app.state.harness
         if debug:
             request = request.model_copy(update={"debug": True})
+        _enforce_debug_allowlist(request, settings)
         return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
@@ -240,6 +241,7 @@ def create_app() -> FastAPI:
     ) -> dict[str, str]:
         if debug:
             request = request.model_copy(update={"debug": True})
+        _enforce_debug_allowlist(request, settings)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)
@@ -277,6 +279,27 @@ def create_app() -> FastAPI:
         )
 
     return app
+
+
+def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) -> None:
+    """Refuse debug=true for tenants that aren't on the allow-list.
+
+    Debug-flagged runs surface full tool inputs and truncated outputs over
+    the SSE stream. On coordinador-touching routes that exposes real
+    Mintral fleet data, so the gate is secure-by-default: with no
+    `MIOT_HARNESS_ALLOW_DEBUG_TENANTS` configured, no tenant can opt in.
+    """
+    if not request.debug:
+        return
+    if settings.debug_tenant_allowed(request.tenant_id):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            f"debug=true is not permitted for tenant {request.tenant_id!r}. "
+            "Add the tenant to MIOT_HARNESS_ALLOW_DEBUG_TENANTS to enable."
+        ),
+    )
 
 
 def _format_sse_event(evt: HarnessEvent) -> bytes:

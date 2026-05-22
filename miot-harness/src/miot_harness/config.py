@@ -108,6 +108,26 @@ class HarnessSettings(BaseSettings):
     # factory bumps max_tokens automatically.
     nexo_synthesizer_thinking_budget: int = Field(default=4096, ge=0)
 
+    # Tenants permitted to request `debug=true` runs. Debug runs surface
+    # full tool inputs and truncated tool outputs over SSE, which on a
+    # coordinador-touching path means real Mintral fleet data. None / empty
+    # (default) blocks debug for ALL tenants — debug requests get a 403.
+    # Comma-separated env var: `MIOT_HARNESS_ALLOW_DEBUG_TENANTS=mintral-dev,mintral-stg`.
+    # Kept as a raw string so pydantic-settings doesn't try to parse it
+    # as JSON; `debug_tenant_allowed()` below does the split.
+    allow_debug_tenants: str | None = None
+
+    def debug_tenant_allowed(self, tenant_id: str) -> bool:
+        """Return True iff `tenant_id` is on the debug allow-list.
+
+        Empty / unset allow-list denies every tenant — secure-by-default.
+        """
+        raw = (self.allow_debug_tenants or "").strip()
+        if not raw:
+            return False
+        allowed = {t.strip() for t in raw.split(",") if t.strip()}
+        return tenant_id in allowed
+
     # Provider API keys (unprefixed, standard provider env names)
     anthropic_api_key: str | None = Field(
         default=None,

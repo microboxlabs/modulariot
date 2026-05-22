@@ -7,7 +7,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
@@ -208,11 +208,16 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/runs", response_model=HarnessRunRecord)
-    async def create_run(request: UserRequest) -> HarnessRunRecord:
+    async def create_run(
+        request: UserRequest,
+        debug: bool = Query(False),
+    ) -> HarnessRunRecord:
         # Read harness from app.state so tests that inject a controlled
         # graph (via app.state.harness.nexo_graph = ...) see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
+        if debug:
+            request = request.model_copy(update={"debug": True})
         return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
@@ -221,7 +226,12 @@ def create_app() -> FastAPI:
         return harness.run_store.load(run_id)
 
     @app.post("/runs:start", status_code=202)
-    async def start_run(request: UserRequest) -> dict[str, str]:
+    async def start_run(
+        request: UserRequest,
+        debug: bool = Query(False),
+    ) -> dict[str, str]:
+        if debug:
+            request = request.model_copy(update={"debug": True})
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)

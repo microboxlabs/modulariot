@@ -56,6 +56,23 @@ def test_event_type_full_set_is_pinned():
     assert members == expected
 
 
+def test_event_types_json_matches_python_literal():
+    """The shared event_types.json mirrors the Python Literal so the
+    TypeScript client can validate against the same source. If you add
+    a literal in Python, you must also update event_types.json; both
+    sides fail loudly until they agree.
+    """
+    import json
+    from pathlib import Path
+
+    json_path = (
+        Path(__file__).resolve().parent.parent
+        / "src" / "miot_harness" / "runtime" / "event_types.json"
+    )
+    payload = json.loads(json_path.read_text())
+    assert set(payload["event_types"]) == set(get_args(HarnessEventType))
+
+
 def test_event_type_preserves_existing_literals():
     members = set(get_args(HarnessEventType))
     expected_existing = {

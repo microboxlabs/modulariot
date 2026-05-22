@@ -16,26 +16,37 @@ export interface UserRequest {
   debug?: boolean;
 }
 
-export type HarnessEventType =
-  | "run.started"
-  | "route.selected"
-  | "tool.started"
-  | "tool.completed"
-  | "tool.failed"
-  | "approval.requested"
-  | "artifact.created"
-  | "plan.created"
+/**
+ * Source-of-truth list of HarnessEventType literals. Mirrored from
+ * the Python `HarnessEventType` Literal in
+ * `miot-harness/src/miot_harness/runtime/events.py` and pinned to the
+ * shared `event_types.json` fixture by tests on both sides — if you
+ * add a literal here you must also add it to events.py and
+ * event_types.json or both test suites will fail.
+ */
+export const HARNESS_EVENT_TYPES = [
+  "run.started",
+  "route.selected",
+  "tool.started",
+  "tool.completed",
+  "tool.failed",
+  "approval.requested",
+  "artifact.created",
+  "plan.created",
   /** @deprecated superseded by agent.started / agent.completed. */
-  | "agent.turn"
-  | "agent.started"
-  | "agent.completed"
-  | "thinking.delta"
-  | "thinking.completed"
-  | "usage.recorded"
-  | "freshness.warning"
-  | "answer.completed"
-  | "run.completed"
-  | "run.failed";
+  "agent.turn",
+  "agent.started",
+  "agent.completed",
+  "thinking.delta",
+  "thinking.completed",
+  "usage.recorded",
+  "freshness.warning",
+  "answer.completed",
+  "run.completed",
+  "run.failed",
+] as const;
+
+export type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];
 
 export interface AgentStartedData {
   agent: string;

@@ -45,6 +45,7 @@ export async function runAsk(opts: AskOptions): Promise<number> {
     user_id: opts.config.userId,
     mode: opts.config.mode,
     conversation_id: opts.conversationId ?? randomUUID(),
+    ...(opts.config.debug ? { debug: true } : {}),
   };
 
   stdout.write(

@@ -21,6 +21,7 @@ export function initialSession(
       mode: init.mode,
       baseUrl: init.baseUrl,
       profileName: init.profileName ?? null,
+      debug: init.debug ?? false,
     },
     transcript: [],
     pendingApprovals: [],

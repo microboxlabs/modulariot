@@ -54,6 +54,7 @@ export interface SessionMeta {
   mode: RunMode;
   baseUrl: string;
   profileName: string | null;
+  debug: boolean;
 }
 
 export interface SessionState {
@@ -94,4 +95,5 @@ export interface SessionMetaInit {
   mode: RunMode;
   baseUrl: string;
   profileName?: string | null;
+  debug?: boolean;
 }

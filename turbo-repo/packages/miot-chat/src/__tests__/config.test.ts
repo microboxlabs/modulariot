@@ -155,4 +155,28 @@ describe("resolveConfig precedence", () => {
       expect(r.mode).toBe(m);
     }
   });
+
+  it("defaults debug to false; --debug flag wins over env", () => {
+    const off = resolveConfig({ configDir: dir, env: {} });
+    expect(off.debug).toBe(false);
+
+    const byFlag = resolveConfig({
+      configDir: dir,
+      env: {},
+      flags: { debug: true },
+    });
+    expect(byFlag.debug).toBe(true);
+
+    const byEnv = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_DEBUG: "1" },
+    });
+    expect(byEnv.debug).toBe(true);
+
+    const envOff = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_DEBUG: "0" },
+    });
+    expect(envOff.debug).toBe(false);
+  });
 });

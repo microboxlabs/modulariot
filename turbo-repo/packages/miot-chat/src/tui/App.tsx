@@ -92,6 +92,7 @@ function AppInner(
       mode: props.config.mode,
       baseUrl: props.config.baseUrl,
       profileName: props.config.profileName,
+      debug: props.config.debug,
     },
     ctx,
     client: props.client,

@@ -11,6 +11,7 @@ function meta(partial: Partial<SessionMeta> = {}): SessionMeta {
     mode: "auto",
     baseUrl: "http://localhost:8000",
     profileName: null,
+    debug: false,
     ...partial,
   };
 }

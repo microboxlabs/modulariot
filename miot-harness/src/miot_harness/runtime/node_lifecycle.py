@@ -46,29 +46,14 @@ def wrap_node_with_lifecycle(
             data={"agent": name, "graph": graph_label, "turn": turn},
         )
         start = monotonic()
-        try:
-            result = fn(state)
-            delta = await result if inspect.isawaitable(result) else result
-        except Exception as exc:
-            duration_ms = int((monotonic() - start) * 1000)
-            failed_event = HarnessEvent(
-                run_id=ctx.run_id,
-                type="agent.completed",
-                message=f"Failed {name}",
-                data={
-                    "agent": name,
-                    "graph": graph_label,
-                    "duration_ms": duration_ms,
-                    "exit_reason": "failure",
-                    "error": str(exc),
-                },
-            )
-            # No way to merge into a state delta because the node never
-            # returned one; we attach to the exception for the supervisor
-            # to drain if it wants, but LangGraph will see the raise and
-            # tear down the run. The run.failed event still carries the
-            # error text via the supervisor's failure path.
-            raise
+        # If the node raises, we let it propagate. We can't return a
+        # state delta with agent.completed{exit_reason="failure"} because
+        # LangGraph never sees the partial dict — the supervisor's
+        # outer except handler turns it into a run.failed event with
+        # the error text, which already gives SSE consumers the
+        # correlation they need on the agent boundary.
+        result = fn(state)
+        delta = await result if inspect.isawaitable(result) else result
         delta = delta or {}
         node_events = list(delta.get("_events") or [])
         duration_ms = int((monotonic() - start) * 1000)

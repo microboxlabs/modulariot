@@ -18,8 +18,6 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-logger = logging.getLogger(__name__)
-
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import LLMResult
@@ -34,6 +32,8 @@ from miot_harness.observability.pricing import (
 )
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.tool import Progress
+
+logger = logging.getLogger(__name__)
 
 _TRACER_NAME = "miot_harness"
 

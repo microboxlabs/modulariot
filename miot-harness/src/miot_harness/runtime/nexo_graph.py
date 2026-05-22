@@ -224,10 +224,19 @@ def build_nexo_graph(
         return await _tenant_gate_node(cast(dict[str, Any], state), settings=settings)
 
     graph.add_node("tenant_gate", wrap_node_with_lifecycle("tenant_gate", _tenant_gate, "nexo"))
-    graph.add_node("filter_expert", wrap_node_with_lifecycle("filter_expert", _filter_expert, "nexo"))
+    graph.add_node(
+        "filter_expert",
+        wrap_node_with_lifecycle("filter_expert", _filter_expert, "nexo"),
+    )
     graph.add_node("data_fetcher", wrap_node_with_lifecycle("data_fetcher", _data_fetcher, "nexo"))
-    graph.add_node("freshness_judge", wrap_node_with_lifecycle("freshness_judge", _freshness_judge, "nexo"))
-    graph.add_node("domain_analyst", wrap_node_with_lifecycle("domain_analyst", _domain_analyst, "nexo"))
+    graph.add_node(
+        "freshness_judge",
+        wrap_node_with_lifecycle("freshness_judge", _freshness_judge, "nexo"),
+    )
+    graph.add_node(
+        "domain_analyst",
+        wrap_node_with_lifecycle("domain_analyst", _domain_analyst, "nexo"),
+    )
     graph.add_node("synthesizer", wrap_node_with_lifecycle("synthesizer", _synthesizer, "nexo"))
     graph.add_node("critic", wrap_node_with_lifecycle("critic", _critic, "nexo"))
     graph.add_node("summarizer", wrap_node_with_lifecycle("summarizer", _summarizer, "nexo"))

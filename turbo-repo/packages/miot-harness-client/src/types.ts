@@ -8,6 +8,12 @@ export interface UserRequest {
   route_context?: Record<string, unknown>;
   mode?: RunMode;
   conversation_id?: string | null;
+  /**
+   * When true, the SSE stream carries full tool inputs and truncated
+   * tool outputs (~2 KB cap). Off by default. Coordinador outputs
+   * contain customer/fleet data — gate this behind auth in production.
+   */
+  debug?: boolean;
 }
 
 export type HarnessEventType =
@@ -19,11 +25,75 @@ export type HarnessEventType =
   | "approval.requested"
   | "artifact.created"
   | "plan.created"
+  /** @deprecated superseded by agent.started / agent.completed. */
   | "agent.turn"
+  | "agent.started"
+  | "agent.completed"
+  | "thinking.delta"
+  | "thinking.completed"
+  | "usage.recorded"
   | "freshness.warning"
   | "answer.completed"
   | "run.completed"
   | "run.failed";
+
+export interface AgentStartedData {
+  agent: string;
+  graph: "nexo" | "agentic";
+  turn: number;
+}
+
+export interface AgentCompletedData {
+  agent: string;
+  graph: "nexo" | "agentic" | string;
+  duration_ms: number;
+  exit_reason: "ok" | "failure" | "next_action";
+  error?: string;
+}
+
+export interface ToolStartedData {
+  tool: string;
+  input_keys: string[];
+  /** Present only when the run was created with `debug=true`. */
+  input?: Record<string, unknown>;
+}
+
+export interface ToolCompletedData {
+  tool: string;
+  result_shape: { type: string; length: number };
+  /** Present only when the run was created with `debug=true`. */
+  output?: unknown;
+  /** Present only when the run was created with `debug=true`. */
+  truncated?: boolean;
+  // Lifted metadata from the tool output (when present):
+  source?: string;
+  refreshed_at?: string;
+  layer?: string;
+  domain?: string[];
+  [key: string]: unknown;
+}
+
+export interface ThinkingDeltaData {
+  agent: "synthesizer";
+  delta: string;
+  index: number;
+}
+
+export interface ThinkingCompletedData {
+  agent: "synthesizer";
+  tokens: number;
+  length: number;
+}
+
+export interface UsageRecordedData {
+  agent: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+  cost_usd?: number;
+}
 
 export const TERMINAL_EVENT_TYPES = new Set<HarnessEventType>([
   "run.completed",

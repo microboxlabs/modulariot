@@ -43,6 +43,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.observability.callbacks import NexoTelemetryCallback
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
+from miot_harness.runtime.node_lifecycle import wrap_node_with_lifecycle
 from miot_harness.runtime.plan import NexoState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision

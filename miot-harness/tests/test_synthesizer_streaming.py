@@ -38,7 +38,9 @@ class _FakeStreamingModel:
     def __init__(self, events: list[dict[str, Any]]) -> None:
         self._events = events
 
-    async def astream_events(self, _messages, *, version: str = "v2") -> AsyncIterator[dict[str, Any]]:  # noqa: D401
+    async def astream_events(
+        self, _messages, *, version: str = "v2"
+    ) -> AsyncIterator[dict[str, Any]]:  # noqa: D401
         assert version == "v2"
         for evt in self._events:
             yield evt

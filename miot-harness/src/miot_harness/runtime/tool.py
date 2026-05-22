@@ -140,9 +140,16 @@ def _debug_output_payload(output: Any) -> dict[str, Any]:
         serialized = json.dumps(capped, default=str)
     except Exception:
         return {"output": None, "truncated": True}
-    if len(serialized.encode("utf-8")) > _DEBUG_OUTPUT_BYTES_CAP:
+    encoded = serialized.encode("utf-8")
+    if len(encoded) > _DEBUG_OUTPUT_BYTES_CAP:
+        # Slice on the byte buffer (not the str) so multibyte UTF-8
+        # characters can't push the wire payload past the cap.
+        # errors="ignore" drops any incomplete codepoint at the cut
+        # boundary so the decoded string is always valid UTF-8.
         return {
-            "output": serialized[:_DEBUG_OUTPUT_BYTES_CAP],
+            "output": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode(
+                "utf-8", errors="ignore"
+            ),
             "truncated": True,
         }
     return {"output": capped, "truncated": truncated}
@@ -161,9 +168,14 @@ def _debug_input_payload(input_dump: dict[str, Any]) -> dict[str, Any]:
         serialized = json.dumps(capped, default=str)
     except Exception:
         return {"input": None, "truncated": True}
-    if len(serialized.encode("utf-8")) > _DEBUG_OUTPUT_BYTES_CAP:
+    encoded = serialized.encode("utf-8")
+    if len(encoded) > _DEBUG_OUTPUT_BYTES_CAP:
+        # See _debug_output_payload — byte-slice + lossy decode so
+        # multibyte characters can't blow past the SSE frame cap.
         return {
-            "input": serialized[:_DEBUG_OUTPUT_BYTES_CAP],
+            "input": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode(
+                "utf-8", errors="ignore"
+            ),
             "truncated": True,
         }
     return {"input": capped, "truncated": truncated}

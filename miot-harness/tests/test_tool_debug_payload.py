@@ -88,6 +88,28 @@ def test_debug_started_event_includes_full_input() -> None:
     assert started.data["truncated"] is False
 
 
+def test_debug_truncation_is_byte_accurate_for_multibyte_utf8() -> None:
+    """Multibyte UTF-8 (emoji, CJK, accented chars) must not push the
+    capped payload past the SSE byte cap. The slice happens on the byte
+    buffer, not on the str, and errors='ignore' drops any incomplete
+    codepoint at the cut so the result is always valid UTF-8.
+    """
+    from miot_harness.runtime.tool import _DEBUG_OUTPUT_BYTES_CAP, _debug_output_payload
+
+    # 4-byte UTF-8 emoji repeated past the cap. A char-based slice
+    # would yield ~4× the byte budget.
+    payload = {"emoji_blob": "🚛" * _DEBUG_OUTPUT_BYTES_CAP}
+
+    out = _debug_output_payload(payload)
+    assert out["truncated"] is True
+    text = out["output"]
+    assert isinstance(text, str)
+    assert len(text.encode("utf-8")) <= _DEBUG_OUTPUT_BYTES_CAP
+    # And every char in the result is decodable — no UnicodeDecodeError
+    # mid-stream and no replacement char surprises from a torn codepoint.
+    text.encode("utf-8").decode("utf-8")
+
+
 def test_debug_started_event_caps_oversized_input_payload() -> None:
     """A pathological input arg must not blow the SSE frame. The input
     is capped at the same 2 KB byte ceiling used for outputs.

@@ -56,7 +56,7 @@ export interface AgentStartedData {
 
 export interface AgentCompletedData {
   agent: string;
-  graph: "nexo" | "agentic" | string;
+  graph: "nexo" | "agentic" | "meta";
   duration_ms: number;
   exit_reason: "ok" | "failure" | "next_action";
   error?: string;

@@ -1,7 +1,11 @@
 import type { EChartsOption } from "echarts";
-import type { ChartType, SeriesConfig } from "./dashlet";
+import type { ChartType, SeriesConfig, XAxisDateFormat } from "./dashlet";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { getColors, type ColorPalette } from "./chart-palettes";
+import type { ChartColorRule, ChartColorRulesConfig } from "./value-color-rules";
+import { normalizeChartColorRulesConfig } from "./value-color-rules";
+import { evaluateColorRulesGeneric } from "../common/color-rule-evaluation";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
 interface ChartOptionInput {
   chartType: ChartType;
@@ -14,7 +18,25 @@ interface ChartOptionInput {
   customColors: string[];
   smooth: boolean;
   stacked: boolean;
+  horizontal: boolean;
+  showBarLabels?: boolean;
+  xAxisDateFormat?: XAxisDateFormat;
+  valueColorRules?: ChartColorRulesConfig;
   tooltipTemplate?: string;
+}
+
+function formatDateLabel(val: string): string {
+  return formatDateString(val, "date", "es-CL", "America/Santiago", val);
+}
+
+function resolveRuleColor(
+  value: number,
+  rules: ChartColorRule[]
+): string | undefined {
+  if (rules.length === 0) return undefined;
+  const result = evaluateColorRulesGeneric(rules, String(value), ["item" as const]);
+  const hex = result["item"];
+  return hex ? `#${hex}` : undefined;
 }
 
 const DARK_TEXT = "#9ca3af";
@@ -84,11 +106,96 @@ function buildCartesianOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   colors: string[],
-  darkMode: boolean
+  darkMode: boolean,
+  containerWidth: number,
+  colorRules: ChartColorRule[]
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
   const axisNameStyle = { color: darkMode ? DARK_AXIS_NAME : LIGHT_AXIS_NAME, fontWeight: "bold" as const, fontSize: 13 };
+
+  const isHorizontalBar = config.chartType === "bar" && config.horizontal;
+  const useTimeAxis =
+    config.chartType === "line" &&
+    !!config.xAxisDateFormat &&
+    config.xAxisDateFormat !== "none";
+  const categoryData = useTimeAxis
+    ? rows.map((r) => formatDateLabel(r[config.xAxisColumn] ?? ""))
+    : rows.map((r) => r[config.xAxisColumn] ?? "");
+
+  const labelRotate = (() => {
+    if (isHorizontalBar || categoryData.length === 0 || containerWidth === 0) return 0;
+    const maxLabelPx = Math.max(...categoryData.map((s) => String(s).length)) * 7;
+    return maxLabelPx > containerWidth / categoryData.length ? 30 : 0;
+  })();
+
+  const categoryAxis = {
+    type: "category" as const,
+    data: categoryData,
+    axisLabel: isHorizontalBar
+      ? { color: textColor, overflow: "truncate" as const, width: 120 }
+      : { color: textColor, interval: 0, rotate: labelRotate, overflow: "truncate" as const, width: 120 },
+    axisLine: { lineStyle: { color: axisLineColor } },
+  };
+
+  const timeAxis = null;
+
+  const valueAxis = {
+    type: "value" as const,
+    nameTextStyle: axisNameStyle,
+    axisLabel: { color: textColor },
+    axisLine: { lineStyle: { color: axisLineColor } },
+    splitLine: { lineStyle: { color: axisLineColor } },
+  };
+
+  let xAxis: EChartsOption["xAxis"];
+  let yAxis: EChartsOption["yAxis"];
+
+  if (config.chartType === "scatter") {
+    xAxis = {
+      type: "value" as const,
+      name: config.xAxisLabel || undefined,
+      nameLocation: "center" as const,
+      nameGap: 25,
+      nameTextStyle: axisNameStyle,
+      axisLabel: { color: textColor },
+      axisLine: { lineStyle: { color: axisLineColor } },
+      splitLine: { lineStyle: { color: axisLineColor } },
+    };
+    yAxis = {
+      ...valueAxis,
+      name: config.yAxisLabel || undefined,
+    };
+  } else if (isHorizontalBar) {
+    xAxis = {
+      ...valueAxis,
+      name: config.xAxisLabel || undefined,
+      nameLocation: "center" as const,
+      nameGap: 30,
+    };
+    yAxis = {
+      ...categoryAxis,
+      name: config.yAxisLabel || undefined,
+      nameTextStyle: axisNameStyle,
+      inverse: true,
+    };
+  } else {
+    const baseXAxis = timeAxis ?? categoryAxis;
+    xAxis = {
+      ...baseXAxis,
+      name: config.xAxisLabel || undefined,
+      nameLocation: "center" as const,
+      nameGap: 50,
+      nameTextStyle: axisNameStyle,
+    };
+    yAxis = {
+      ...valueAxis,
+      name: config.yAxisLabel || undefined,
+    };
+  }
+
+  const xLabelBottom = config.xAxisLabel ? 24 : 8;
+  const gridBottom = config.showLegend ? 48 : xLabelBottom;
 
   return {
     color: colors,
@@ -101,59 +208,46 @@ function buildCartesianOption(
     grid: {
       left: 8,
       right: 8,
-      top: 36,
-      bottom: config.showLegend ? 48 : 24,
+      top: config.yAxisLabel ? 36 : 16,
+      bottom: gridBottom,
       containLabel: true,
     },
-    xAxis: config.chartType === "scatter"
-      ? {
-          type: "value" as const,
-          name: config.xAxisLabel || undefined,
-          nameLocation: "center" as const,
-          nameGap: 25,
-          nameTextStyle: axisNameStyle,
-          axisLabel: { color: textColor },
-          axisLine: { lineStyle: { color: axisLineColor } },
-          splitLine: { lineStyle: { color: axisLineColor } },
-        }
-      : {
-          type: "category" as const,
-          data: rows.map((r) => r[config.xAxisColumn] ?? ""),
-          name: config.xAxisLabel || undefined,
-          nameLocation: "center" as const,
-          nameGap: 25,
-          nameTextStyle: axisNameStyle,
-          axisLabel: { color: textColor },
-          axisLine: { lineStyle: { color: axisLineColor } },
-        },
-    yAxis: {
-      type: "value",
-      name: config.yAxisLabel || undefined,
-      nameTextStyle: axisNameStyle,
-      axisLabel: { color: textColor },
-      axisLine: { lineStyle: { color: axisLineColor } },
-      splitLine: { lineStyle: { color: axisLineColor } },
-    },
+    xAxis,
+    yAxis,
     series: config.series.map((s) => ({
       type: config.chartType as "line" | "bar" | "scatter",
       name: s.label,
       data: config.chartType === "scatter"
-        ? rows.reduce<number[][]>((acc, r, i) => {
-            const rawX = r[config.xAxisColumn];
-            const rawY = r[s.columnKey];
-            if (rawX == null || rawX === "" || rawY == null || rawY === "") return acc;
-            const x = Number.parseFloat(String(rawX));
-            const y = Number.parseFloat(String(rawY));
-            if (Number.isFinite(x) && Number.isFinite(y)) acc.push([x, y, i]);
-            return acc;
-          }, [])
+        ? rows.reduce<(number[] | { value: number[]; itemStyle: { color: string } })[]>(
+            (acc, r, i) => {
+              const rawX = r[config.xAxisColumn];
+              const rawY = r[s.columnKey];
+              if (rawX == null || rawX === "" || rawY == null || rawY === "") return acc;
+              const x = Number.parseFloat(String(rawX));
+              const y = Number.parseFloat(String(rawY));
+              if (!Number.isFinite(x) || !Number.isFinite(y)) return acc;
+              const color = resolveRuleColor(y, colorRules);
+              acc.push(color ? { value: [x, y, i], itemStyle: { color } } : [x, y, i]);
+              return acc;
+            },
+            []
+          )
         : rows.map((r) => {
             const v = Number.parseFloat(r[s.columnKey]);
-            return Number.isFinite(v) ? v : null;
+            if (!Number.isFinite(v)) return null;
+            const color = resolveRuleColor(v, colorRules);
+            return color ? { value: v, itemStyle: { color } } : v;
           }),
       smooth: config.chartType === "line" ? config.smooth : undefined,
       stack:
         config.stacked && config.chartType !== "scatter" ? "total" : undefined,
+      ...(config.chartType === "bar" && config.showBarLabels ? {
+        label: {
+          show: true,
+          position: isHorizontalBar ? "right" as const : "top" as const,
+          color: "inherit" as const,
+        },
+      } : {}),
       ...(s.color ? { itemStyle: { color: s.color } } : {}),
     })),
     dataZoom: [
@@ -167,19 +261,24 @@ function buildPieOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   colors: string[],
-  darkMode: boolean
+  darkMode: boolean,
+  colorRules: ChartColorRule[]
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const valueSeries = config.series[0];
   if (!valueSeries) return noDataOption(darkMode);
 
-  const data = rows.reduce<{ name: string; value: number }[]>((acc, r) => {
-    const v = Number.parseFloat(r[valueSeries.columnKey]);
-    if (Number.isFinite(v)) {
-      acc.push({ name: r[config.xAxisColumn] ?? "", value: v });
-    }
-    return acc;
-  }, []);
+  const data = rows.reduce<{ name: string; value: number; itemStyle?: { color: string } }[]>(
+    (acc, r) => {
+      const v = Number.parseFloat(r[valueSeries.columnKey]);
+      if (Number.isFinite(v)) {
+        const color = resolveRuleColor(v, colorRules);
+        acc.push({ name: r[config.xAxisColumn] ?? "", value: v, ...(color ? { itemStyle: { color } } : {}) });
+      }
+      return acc;
+    },
+    []
+  );
   if (data.length === 0) return noDataOption(darkMode);
 
   return {
@@ -206,7 +305,8 @@ function buildGaugeOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   colors: string[],
-  darkMode: boolean
+  darkMode: boolean,
+  colorRules: ChartColorRule[]
 ): EChartsOption {
   const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
   const valueSeries = config.series[0];
@@ -215,6 +315,7 @@ function buildGaugeOption(
   const raw = Number.parseFloat(rows[0]?.[valueSeries.columnKey] ?? "");
   if (!Number.isFinite(raw)) return noDataOption(darkMode);
   const value = raw;
+  const gaugeColor = resolveRuleColor(value, colorRules);
 
   return {
     color: colors,
@@ -230,6 +331,7 @@ function buildGaugeOption(
         },
         title: { color: textColor },
         axisLabel: { color: textColor },
+        ...(gaugeColor ? { itemStyle: { color: gaugeColor } } : {}),
       },
     ],
   };
@@ -239,22 +341,24 @@ export function buildEChartsOption(
   config: ChartOptionInput,
   rows: Record<string, string>[],
   darkMode = false,
-  noDataLabel?: string
+  noDataLabel?: string,
+  containerWidth = 0
 ): EChartsOption {
   if (rows.length === 0) return noDataOption(darkMode, noDataLabel);
 
   const colors = getColors(config.colorPalette, config.customColors);
+  const colorRules = normalizeChartColorRulesConfig(config.valueColorRules).rules;
 
   switch (config.chartType) {
     case "line":
     case "bar":
     case "scatter":
-      return buildCartesianOption(config, rows, colors, darkMode);
+      return buildCartesianOption(config, rows, colors, darkMode, containerWidth, colorRules);
     case "pie":
-      return buildPieOption(config, rows, colors, darkMode);
+      return buildPieOption(config, rows, colors, darkMode, colorRules);
     case "gauge":
-      return buildGaugeOption(config, rows, colors, darkMode);
+      return buildGaugeOption(config, rows, colors, darkMode, colorRules);
     default:
-      return buildCartesianOption(config, rows, colors, darkMode);
+      return buildCartesianOption(config, rows, colors, darkMode, containerWidth, colorRules);
   }
 }

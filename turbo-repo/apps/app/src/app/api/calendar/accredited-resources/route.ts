@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import {
+  decodeEwkbPoint,
   fetchAccreditedResources,
   invalidateAccreditedResourcesCache,
   type AccreditedResourceType,
@@ -129,8 +130,8 @@ export async function GET(request: Request) {
         : [];
 
     return NextResponse.json({
-      data: page,
-      pinned,
+      data: page.map(decodeTruckPosition),
+      pinned: pinned.map(decodeTruckPosition),
       total: allRows.length,
       filteredTotal: filtered.length,
       offset,
@@ -167,4 +168,25 @@ function applyQuery(
       name?.includes(needle) === true || identifier?.includes(needle) === true
     );
   });
+}
+
+/**
+ * Decode `row.location` (SRID-prefixed EWKB hex from
+ * `fn_rd_accredited_resources`) into `latitude`/`longitude` for TRUCK rows.
+ * Non-TRUCK rows, trucks without a position, and rows with malformed EWKB
+ * pass through unchanged — the client treats absent coordinates as "no
+ * pin". Heading is not in the upstream row today, so it defaults to 0.
+ */
+function decodeTruckPosition(
+  row: PgrestAccreditedResourceRow
+): PgrestAccreditedResourceRow {
+  if (row.resource_type !== "TRUCK") return row;
+  const point = decodeEwkbPoint(row.location);
+  if (!point) return row;
+  return {
+    ...row,
+    latitude: point.latitude,
+    longitude: point.longitude,
+    heading: 0,
+  };
 }

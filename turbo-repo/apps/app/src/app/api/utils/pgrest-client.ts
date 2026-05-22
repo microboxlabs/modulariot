@@ -503,8 +503,27 @@ export interface PgrestAccreditedResourceRow {
   is_acredited: "ACREDITED" | "NOT ACREDITED";
   trip_count: number | null;
   last_trip: string | null;
+  /**
+   * GPS integration flag from the upstream catalog (TRUCK rows only).
+   * `INTEGRATED` means the asset has telemetry plumbing wired up, regardless
+   * of whether a recent position is on file.
+   */
+  integration: "INTEGRATED" | "NOT INTEGRATED" | null;
+  /**
+   * Last-known position as EWKB hex (SRID-prefixed point, 4326) for TRUCK
+   * rows. Null when the asset has no position recorded. Decoded server-side
+   * by `decodeEwkbPoint`; the calendar route surfaces the resulting
+   * `latitude`/`longitude` to the client.
+   */
+  location: string | null;
   symptoms: Record<string, number> | null;
   updated_at: string | null;
+  // Server-decoded coordinates (TRUCK rows only) — derived from `location`
+  // at the route boundary so the client doesn't need a WKB decoder. Absent
+  // on non-TRUCK rows or when `location` is null/malformed.
+  latitude?: number | null;
+  longitude?: number | null;
+  heading?: number | null;
 }
 
 /**

@@ -1,0 +1,34 @@
+# Run Modes
+
+Every request runs in one of four modes. The mode selects which dispatch path the supervisor takes — not what the question is about.
+
+| Mode      | Route          | Reads data | LLM calls per run | Best for |
+|-----------|----------------|------------|-------------------|----------|
+| `auto`    | router-decided | depends    | depends           | Default — the intent router picks one of the modes below. |
+| `canned`  | curated query  | Yes        | Several           | "What does the data say right now?" |
+| `meta`    | metadata       | No         | One               | "What data exists, and how is it calculated?" |
+| `agentic` | exploration    | Yes        | Variable          | Free-form exploration across multiple queries. |
+
+`auto` is the default. The explicit modes bypass the intent router entirely, which is useful for operations (deterministic dispatch), testing (pin a route so a test does not drift), and cost control.
+
+## `auto`
+
+The intent router classifies the request and forwards it to one of the other modes. Most callers use `auto` and never set a mode explicitly.
+
+## `canned` — answer *from* the data
+
+Routes through the curated data graph: the filter expert picks one curated data function, the harness runs it, the analyst checks freshness, the synthesizer writes the answer, and the critic reviews it when enabled. This mode reads confidential operational data, so it is refused for tenants outside the configured tenant lock.
+
+Use it for "what is the current state?" questions.
+
+## `meta` — answer *about* the data
+
+Answers questions about the data catalog — what data exists, what a field means, how a metric is calculated — without running any query. Because it issues no SQL, "no data access" is a structural guarantee. It is the cheapest mode and is available to any tenant, since catalog information is not confidential.
+
+## `agentic` — explore the data
+
+Instead of being limited to one curated function, the planner can string together composable primitives — describe, select, grep, explain — within a safety gate that rejects mutations and refuses overly expensive queries. The critic is on by default here, because the agent has more freedom to compose queries. It reads confidential data, so it is subject to the same tenant lock as `canned`.
+
+## Cost Separation
+
+Each run is tagged with its mode, so cost and latency can be broken down per mode and per tenant. `meta` runs are roughly an order of magnitude cheaper than `canned` runs — useful when offering, for example, unlimited metadata questions alongside metered data queries.

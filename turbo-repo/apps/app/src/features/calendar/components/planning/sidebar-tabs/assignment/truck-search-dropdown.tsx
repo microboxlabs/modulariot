@@ -309,7 +309,6 @@ function TruckCard({
     <VehicleCardButton
       isHighlighted={isHighlighted}
       isSelected={isSelected}
-      isAvailable={isAvailable}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
     >

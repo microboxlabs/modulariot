@@ -20,9 +20,20 @@ dependencies = [
   "langchain-anthropic>=0.3",
   "langchain-openai>=0.3",
   "langgraph>=1.1",
+  "opentelemetry-api>=1.27",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-exporter-otlp>=1.27",
+  "opentelemetry-instrumentation-fastapi>=0.48b0",
   "pydantic>=2.10",
   "pydantic-settings>=2.6",
+  "sqlglot>=25.0",
+  "traceloop-sdk>=0.33",
   "uvicorn[standard]>=0.30",
+  # wrapt 2.x renamed wrap_function_wrapper's `module` kwarg to `target`;
+  # traceloop-sdk / opentelemetry-instrumentation-langchain 0.60.0 (latest)
+  # still pass `module=` → instrumentor fails to init. Remove once upstream
+  # ships a wrapt-2.x compatible release.
+  "wrapt<2",
 ]
 
 [project.scripts]
@@ -34,6 +45,7 @@ dev = [
   "mypy>=1.13",
   "pytest>=8.3",
   "pytest-asyncio>=0.25",
+  "pytest-opentelemetry>=0.5",
   "pytest-postgresql>=6.1",
   "ruff>=0.8",
 ]

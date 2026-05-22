@@ -107,7 +107,7 @@ function TruckMapDisplay({ truck }: TruckMapDisplayProps) {
     <div className="mt-2 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="h-48 w-full">
         <MapVisualization
-          mapStyle="streets"
+          mapStyle="satellite"
           layers={layers}
           mapRef={mapRef}
           onZoomChange={handleZoomChange}
@@ -201,15 +201,21 @@ function carrierRowToOption(row: AccreditedResource): CarrierOption {
 
 /**
  * Map an `ams.fn_rd_accredited_resources` TRUCK row onto the existing
- * `TruckOption` shape. The upstream function does not carry GPS/telemetry
- * fields, so `gpsIntegrado`, `estadoGps`, lat/lng and `heading` default to a
- * "no signal" baseline. `estado` piggybacks on `is_acredited` (ACREDITED →
- * `disponible`, NOT ACREDITED → `ocupado`) to reuse the existing UI badge
- * without introducing a parallel state flag.
+ * `TruckOption` shape. The upstream row carries `integration` (GPS plumbing
+ * flag) and `location` (EWKB hex of the last-known position); the route
+ * handler decodes the latter into `latitude`/`longitude` so the dropdown's
+ * map preview can drop a pin. `gpsIntegrado` is driven by `integration`
+ * (independent of whether a recent position is on file); `estadoGps`
+ * reflects coordinate availability — `online` only when we have something
+ * to plot. `estado` piggybacks on `is_acredited` (ACREDITED → `disponible`,
+ * NOT ACREDITED → `ocupado`) to reuse the existing UI badge.
  */
 function truckRowToOption(row: AccreditedResource): TruckOption {
   const plate = row.identifier ?? "";
   const symptoms = row.symptoms ?? {};
+  const latitude = row.latitude ?? null;
+  const longitude = row.longitude ?? null;
+  const hasPosition = latitude != null && longitude != null;
   return {
     id: row.resource_id,
     plate,
@@ -217,14 +223,14 @@ function truckRowToOption(row: AccreditedResource): TruckOption {
     marca: row.resource_name ?? "",
     tipo: "truck",
     estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
-    gpsIntegrado: false,
-    estadoGps: "offline",
+    gpsIntegrado: row.integration === "INTEGRATED",
+    estadoGps: hasPosition ? "online" : "offline",
     viajesPrevios: row.trip_count ?? 0,
     ultimoViaje: formatLastTrip(row.last_trip),
     perdidasSenal: symptoms[SYMPTOM_LOST_SIGNAL] ?? 0,
-    latitude: null,
-    longitude: null,
-    heading: 0,
+    latitude,
+    longitude,
+    heading: row.heading ?? 0,
   };
 }
 

@@ -27,8 +27,16 @@ export interface AccreditedResource {
   is_acredited: "ACREDITED" | "NOT ACREDITED";
   trip_count: number | null;
   last_trip: string | null;
+  /** GPS integration flag (TRUCK rows). Independent of whether a position is on file. */
+  integration: "INTEGRATED" | "NOT INTEGRATED" | null;
   symptoms: Record<string, number> | null;
   updated_at: string | null;
+  // Server-decoded last-known position for TRUCK rows (from row.location
+  // EWKB hex, decoded at the route boundary). Absent when no position is
+  // available or the row is not a TRUCK.
+  latitude?: number | null;
+  longitude?: number | null;
+  heading?: number | null;
 }
 
 export type AccreditedResourceType = AccreditedResource["resource_type"];

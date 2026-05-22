@@ -33,7 +33,6 @@ def _descriptor(name: str = "fn_dx_centro_control") -> FunctionDescriptor:
 
 def _settings(**overrides) -> HarnessSettings:
     base = {
-        "nexo_db_alias": "test-alias",
         "nexo_freshness_refuse_minutes": 240,
     }
     base.update(overrides)

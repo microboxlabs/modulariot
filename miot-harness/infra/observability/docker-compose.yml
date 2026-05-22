@@ -1,0 +1,219 @@
+# Self-hosted Langfuse v3 + OTel Collector for miot-harness local dev (plan 13 §B1).
+#
+# Bring up:    ./bootstrap.sh
+# Manual:      docker compose up -d
+# Tear down:   docker compose down            (keeps volumes)
+#              docker compose down -v         (drops volumes — full reset)
+#
+# Reference: https://langfuse.com/self-hosting (v3 split: web + worker +
+# postgres + clickhouse + redis + minio for blob storage).
+#
+# Networking: services talk over the `observability` bridge network.
+# Only the OTel Collector + Langfuse web are exposed on the host.
+
+name: miot-harness-observability
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: miot-obs-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [observability]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: miot-obs-clickhouse
+    restart: unless-stopped
+    user: "101:101"
+    # `127.0.0.1` (not `localhost`) — Docker on macOS doesn't route IPv6
+    # inside containers, and ClickHouse only manages to bind 0.0.0.0:8123
+    # (IPv4); wget would otherwise resolve `localhost` → `::1` and fail.
+    # `start_period` covers ClickHouse's slow first-boot (migrations) so
+    # we don't mark unhealthy before it's had a chance to come up.
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    networks: [observability]
+
+  redis:
+    image: redis:7-alpine
+    container_name: miot-obs-redis
+    restart: unless-stopped
+    healthcheck:
+      # `requirepass` (see `command:` below) makes an unauthenticated `ping`
+      # fail with NOAUTH. Pass the password via REDISCLI_AUTH instead of
+      # `-a <pw>` so it doesn't appear in `ps` output inside the container.
+      test: ["CMD-SHELL", "REDISCLI_AUTH=myredissecret redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # `appendonly yes` + a persistent volume keeps Langfuse's ingestion-queue
+    # state across container restarts. Without it, in-flight events between
+    # the OTel Collector → langfuse-worker hop are lost on `docker compose
+    # restart`.
+    command: ["redis-server", "--requirepass", "myredissecret", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks: [observability]
+
+  minio:
+    image: minio/minio
+    container_name: miot-obs-minio
+    restart: unless-stopped
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    # `/minio/health/live` is MinIO's documented liveness endpoint and `curl`
+    # is bundled in the official `minio/minio` image. `127.0.0.1` mirrors the
+    # IPv6-routing workaround used by the clickhouse healthcheck above.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    environment:
+      MINIO_ROOT_USER: miniouser
+      MINIO_ROOT_PASSWORD: miniosecret
+    volumes:
+      - minio-data:/data
+    networks: [observability]
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: miot-obs-langfuse-web
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: please-change-this-in-prod
+      SALT: please-also-change-this
+      # Generated locally via `openssl rand -hex 32`. This is a LOCAL DEV
+      # value committed only because the stack is single-tenant and runs
+      # on the developer's machine. Rotate before sharing the host.
+      ENCRYPTION_KEY: 6262bc78a08368073ec03f5ac3605146da6b53cd45303cb492ff051674d1aac4
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_INIT_ORG_ID: miot-harness-local
+      LANGFUSE_INIT_ORG_NAME: ModularIoT (local dev)
+      LANGFUSE_INIT_PROJECT_ID: miot-harness-local
+      LANGFUSE_INIT_PROJECT_NAME: miot-harness-local
+      # Deterministic API keys for the auto-created project so the harness
+      # `.env` can hard-code them and re-runs are reproducible. These are
+      # LOCAL-DEV-ONLY values committed alongside the stack — never use
+      # them outside a developer machine. Rotate by generating new pairs
+      # via `openssl rand -hex 16` and `docker compose down -v` + up.
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-d57c7ed15cd59041736edbcfc679e48e
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-0e91404bf0c97df5882d0456dcf15da9
+      LANGFUSE_INIT_USER_EMAIL: dev@modulariot.local
+      LANGFUSE_INIT_USER_NAME: Local Dev
+      LANGFUSE_INIT_USER_PASSWORD: please-change-this
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      # Single-node ClickHouse — Langfuse's migrations default to
+      # `ReplicatedMergeTree ON CLUSTER default` which needs ZooKeeper.
+      # Disabling cluster mode makes them use plain MergeTree.
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: myredissecret
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: miniouser
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+    networks: [observability]
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: miot-obs-langfuse-worker
+    restart: unless-stopped
+    depends_on:
+      langfuse-web: { condition: service_started }
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      SALT: please-also-change-this
+      # Generated locally via `openssl rand -hex 32`. This is a LOCAL DEV
+      # value committed only because the stack is single-tenant and runs
+      # on the developer's machine. Rotate before sharing the host.
+      ENCRYPTION_KEY: 6262bc78a08368073ec03f5ac3605146da6b53cd45303cb492ff051674d1aac4
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: myredissecret
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: miniouser
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+    networks: [observability]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    container_name: miot-obs-otel-collector
+    restart: unless-stopped
+    depends_on:
+      langfuse-web: { condition: service_started }
+    command: ["--config=/etc/otelcol/otel-collector-config.yaml"]
+    # The collector config references `${env:LANGFUSE_OTEL_BASIC_AUTH}`
+    # as the Basic-auth credential for the Langfuse OTel exporter; pass
+    # it through here so it never lives in source. Generate locally with
+    # `printf 'pk-lf-...:sk-lf-...' | base64` and export the result in
+    # your shell or a non-committed .env file. The `:?` guard makes
+    # compose refuse to start the stack when the var is unset, instead
+    # of silently authenticating with an empty Authorization header.
+    environment:
+      LANGFUSE_OTEL_BASIC_AUTH: ${LANGFUSE_OTEL_BASIC_AUTH:?set LANGFUSE_OTEL_BASIC_AUTH to base64(pk-lf-...:sk-lf-...)}
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC (harness -> collector)
+      - "4318:4318"   # OTLP HTTP (debug)
+      - "8888:8888"   # collector self-metrics
+    networks: [observability]
+
+volumes:
+  postgres-data:
+  clickhouse-data:
+  clickhouse-logs:
+  redis-data:
+  minio-data:
+
+networks:
+  observability:
+    name: miot-obs

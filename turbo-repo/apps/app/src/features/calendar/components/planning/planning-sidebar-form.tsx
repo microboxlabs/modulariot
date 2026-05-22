@@ -37,7 +37,7 @@ import {
   AssignmentForm,
   type AssignmentFormData,
 } from "./sidebar-tabs";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useCalendarViewMode } from "./use-calendar-view-mode";
 import {
   TabButtons,
   type TabItem,
@@ -314,24 +314,26 @@ export function PlanningSidebarForm({
     getOccupiedAndenes,
   } = usePlanningSelection();
 
-  const { hasPermission, isLoading: isLoadingPermissions } = usePermissions();
-  // Fail-closed: only enable tabs when permissions are confirmed loaded
-  const canAssign =
-    !isLoadingPermissions && hasPermission(["GROUP_ASSIGNMENT"]);
-  const canPlan = !isLoadingPermissions && hasPermission(["GROUP_PLANNING"]);
+  // Effective view-mode — already accounts for `?as=viewer` for users
+  // with GROUP_CALENDAR_VIEWER. Fail-closed during permission load.
+  const { canPlan, canAssign, isViewerOnly, isLoadingPermissions } =
+    useCalendarViewMode();
 
-  // View-only mode: the sidebar was opened by left-clicking a past-day chip
-  // without entering reassign/assign. Form controls stay visible so the
-  // existing values can be inspected, but every mutation path — inputs and
-  // action buttons — is suppressed. The right-click context menu on past
-  // chips is intentionally still available so users can Replanificar /
-  // Asignar / Eliminar for reconciliation; picking either reassign or assign
-  // sets `reassigningService` / `assigningService`, which drops the flag
-  // below and returns the form to edit mode.
+  // View-only mode: the sidebar was opened either by (a) left-clicking a
+  // past-day chip without entering reassign/assign, or (b) a pure
+  // GROUP_CALENDAR_VIEWER right-clicking a chip to inspect it. Form controls
+  // stay visible so the existing values can be inspected, but every mutation
+  // path — inputs and action buttons — is suppressed. For past-day slots the
+  // right-click context menu still exposes Replanificar / Asignar / Eliminar
+  // so planners can reconcile after the fact; picking either reassign or
+  // assign sets `reassigningService` / `assigningService`, which drops the
+  // flag below and returns the form to edit mode. Viewers never reach those
+  // entries because the menu hides them when canPlan/canAssign are false.
   const isReadOnlyView = useMemo(() => {
     if (!selectedSlot || reassigningService || assigningService) return false;
+    if (isViewerOnly) return true;
     return dayjs(selectedSlot.date).isBefore(dayjs().startOf("day"), "day");
-  }, [selectedSlot, reassigningService, assigningService]);
+  }, [selectedSlot, reassigningService, assigningService, isViewerOnly]);
 
   // Tab state management
   type TabType = "planificacion" | "assignment";
@@ -462,6 +464,10 @@ export function PlanningSidebarForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    // Defense against Enter-key submission while the form is in read-only
+    // mode. The visible submit button is already hidden by isReadOnlyView,
+    // but the <form> element can still receive a submit event from inputs.
+    if (isReadOnlyView) return;
 
     // Build the final slot with the chosen time and andén
     let finalSlot: SelectedSlot | undefined;
@@ -525,6 +531,7 @@ export function PlanningSidebarForm({
     if (!assigningService || isSubmitting) {
       return;
     }
+    if (isReadOnlyView) return;
 
     const overrides = assignmentOverrides(assignmentData);
     setIsSubmitting(true);
@@ -651,7 +658,12 @@ export function PlanningSidebarForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {isReadOnlyView && (
         <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-          {tr("pages.planning.sidebar.form.readOnlyBanner", dict)}
+          {tr(
+            isViewerOnly
+              ? "pages.planning.sidebar.form.viewerBanner"
+              : "pages.planning.sidebar.form.readOnlyBanner",
+            dict
+          )}
         </div>
       )}
       <fieldset
@@ -873,7 +885,12 @@ export function PlanningSidebarForm({
             </p>
           </FormSection>
         )}
-      {/* Custom Tabs */}
+      </fieldset>
+      {/* Custom Tabs. Kept outside the disabled fieldset so viewers can
+          still switch between Planificación and Asignación for inspection
+          — `<fieldset disabled>` would otherwise disable the tab buttons
+          themselves. The tab *content* is re-wrapped below in its own
+          disabled fieldset so the actual inputs remain non-mutating. */}
       <div className="flex flex-col gap-2">
         <TabButtons
           pill
@@ -883,13 +900,15 @@ export function PlanningSidebarForm({
                 id: "planificacion",
                 label: tr("pages.planning.sidebar.form.planningTab", dict),
                 icon: <HiCalendar />,
-                disabled: !canPlan,
+                // Viewers can still tab through to inspect each section's
+                // values; mutation surfaces are suppressed by isReadOnlyView.
+                disabled: !canPlan && !isReadOnlyView,
               },
               {
                 id: "assignment",
                 label: tr("pages.planning.sidebar.form.assignmentTab", dict),
                 icon: <HiUserAdd />,
-                disabled: !canAssign,
+                disabled: !canAssign && !isReadOnlyView,
               },
             ] as TabItem<TabType>[]
           }
@@ -897,8 +916,14 @@ export function PlanningSidebarForm({
           onTabChange={setActiveTab}
         />
 
-        {/* Tab Content */}
-        {activeTab === "planificacion" && canPlan && (
+        {/* Tab Content — wrapped in its own disabled fieldset so the
+            individual inputs/selects are non-mutating in read-only mode,
+            without freezing the tab switcher above. */}
+        <fieldset
+          disabled={isReadOnlyView}
+          className="flex flex-col gap-2 min-w-0 border-0 p-0 m-0"
+        >
+        {activeTab === "planificacion" && (canPlan || isReadOnlyView) && (
           <PlanningTabContent
             dict={dict}
             selectedService={selectedService}
@@ -916,7 +941,7 @@ export function PlanningSidebarForm({
             isSubmitting={isSubmitting}
           />
         )}
-        {activeTab === "assignment" && canAssign && (
+        {activeTab === "assignment" && (canAssign || isReadOnlyView) && (
           <>
             <AssignmentForm
               value={assignmentData}
@@ -950,8 +975,8 @@ export function PlanningSidebarForm({
             )}
           </>
         )}
+        </fieldset>
         </div>
-      </fieldset>
 
       {/* Actions */}
     </form>

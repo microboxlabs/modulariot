@@ -82,6 +82,36 @@ def test_callback_skips_usage_event_when_no_progress(
     # confirms the optional path doesn't regress.
 
 
+def test_callback_swallows_progress_sink_failure(
+    memory_exporter: InMemorySpanExporter,
+    caplog,
+) -> None:
+    """A buggy progress sink must NOT tear down the LLM call. The
+    callback should log the exception and keep going so observability
+    can never break the user-visible path.
+    """
+    import logging
+
+    def _exploding(_event: HarnessEvent) -> None:
+        raise RuntimeError("event bus is on fire")
+
+    cb = NexoTelemetryCallback(
+        agent_name="filter_expert",
+        run_id="run_boom",
+        progress=_exploding,
+    )
+    rid = uuid4()
+    cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
+    # Must not raise — the LLM call surfaces as completed even though
+    # the sink blew up.
+    with caplog.at_level(logging.ERROR, logger="miot_harness.observability.callbacks"):
+        cb.on_llm_end(_llm_result(), run_id=rid)
+    assert any(
+        "usage.recorded progress sink failed" in rec.message
+        for rec in caplog.records
+    )
+
+
 def test_callback_omits_cost_usd_when_model_unknown(
     memory_exporter: InMemorySpanExporter,
 ) -> None:

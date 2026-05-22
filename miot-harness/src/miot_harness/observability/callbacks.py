@@ -13,9 +13,12 @@ semconv attrs so the Langfuse UI's filter sidebar (User ID / Session ID
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import BaseMessage
@@ -213,14 +216,25 @@ class NexoTelemetryCallback(BaseCallbackHandler):
             }
             if cost_usd is not None:
                 data["cost_usd"] = cost_usd
-            self._progress(
-                HarnessEvent(
-                    run_id=self._run_id,
-                    type="usage.recorded",
-                    message=f"LLM usage recorded for {self._agent_name}",
-                    data=data,
+            # Fail open: the progress sink is an observability concern,
+            # so a buggy or saturated event bus must NOT bubble up and
+            # tear down the LLM call. Catch Exception (not BaseException)
+            # so KeyboardInterrupt / SystemExit still propagate.
+            try:
+                self._progress(
+                    HarnessEvent(
+                        run_id=self._run_id,
+                        type="usage.recorded",
+                        message=f"LLM usage recorded for {self._agent_name}",
+                        data=data,
+                    )
                 )
-            )
+            except Exception:
+                logger.exception(
+                    "usage.recorded progress sink failed for agent=%s run=%s",
+                    self._agent_name,
+                    self._run_id,
+                )
 
     def on_llm_error(
         self,

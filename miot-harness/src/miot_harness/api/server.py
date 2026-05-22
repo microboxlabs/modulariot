@@ -136,7 +136,10 @@ def _make_lifespan(
                         },
                         provenance_log=None,  # wired in F-phase when executor lands
                     )
-                    harness.meta_model = get_chat_model(settings.intent_router_model)
+                    harness.meta_model = get_chat_model(
+                        settings.intent_router_model,
+                        thinking_budget_tokens=synth_thinking_budget,
+                    )
                     harness.meta_primer = COORDINADOR_PRIMER
                     harness.meta_catalog = [
                         MetaAgentCatalogEntry(

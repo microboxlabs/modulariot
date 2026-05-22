@@ -178,5 +178,15 @@ describe("resolveConfig precedence", () => {
       env: { MIOT_CHAT_DEBUG: "0" },
     });
     expect(envOff.debug).toBe(false);
+
+    // Precedence: when BOTH a flag and a conflicting env are present,
+    // the flag wins (resolveConfig uses `flags.debug ?? env.…`). Pins
+    // the title's claim with the actual conflicting input.
+    const flagBeatsEnvOff = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_DEBUG: "0" },
+      flags: { debug: true },
+    });
+    expect(flagBeatsEnvOff.debug).toBe(true);
   });
 });

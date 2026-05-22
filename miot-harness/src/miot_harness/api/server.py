@@ -102,10 +102,18 @@ def _make_lifespan(
                 # Build the conversational graph and inject into the
                 # supervisor. Per-agent models come from settings.
                 try:
+                    synth_thinking_budget = (
+                        settings.nexo_synthesizer_thinking_budget
+                        if settings.nexo_synthesizer_stream
+                        else None
+                    )
                     models = {
                         "filter_expert": get_chat_model(settings.nexo_filter_expert_model),
                         "domain_analyst": get_chat_model(settings.nexo_analyst_model),
-                        "synthesizer": get_chat_model(settings.nexo_synthesizer_model),
+                        "synthesizer": get_chat_model(
+                            settings.nexo_synthesizer_model,
+                            thinking_budget_tokens=synth_thinking_budget,
+                        ),
                         "critic": get_chat_model(settings.nexo_critic_model),
                         "summarizer": get_chat_model(settings.nexo_summarizer_model),
                     }

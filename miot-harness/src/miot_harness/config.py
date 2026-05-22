@@ -92,6 +92,22 @@ class HarnessSettings(BaseSettings):
     nexo_critic_model: str = "claude-sonnet-4-6"
     nexo_summarizer_model: str = "claude-haiku-4-5"
 
+    # Synthesizer streaming (plan: SSE rich events). When enabled, the
+    # synthesizer's LLM call runs as a streaming `astream_events` loop
+    # and emits `thinking.delta` / `thinking.completed` SSE events so
+    # CLI clients see Claude's reasoning unfold in real time. Set to
+    # False (or `MIOT_HARNESS_NEXO_SYNTHESIZER_STREAM=0` at runtime)
+    # to fall back to the legacy `.ainvoke()` path with no thinking
+    # visibility — the production kill switch.
+    nexo_synthesizer_stream: bool = True
+    # Extended-thinking budget for the synthesizer. 0 disables thinking
+    # (the model still streams text). 4096 is a moderate default;
+    # increase up to ~16K for harder reasoning, but note the latency
+    # cost (8–15s extra at Sonnet 4.6 typical speed). Anthropic
+    # constraint: max_tokens must exceed budget_tokens — the chat-model
+    # factory bumps max_tokens automatically.
+    nexo_synthesizer_thinking_budget: int = Field(default=4096, ge=0)
+
     # Provider API keys (unprefixed, standard provider env names)
     anthropic_api_key: str | None = Field(
         default=None,

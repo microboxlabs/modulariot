@@ -106,9 +106,16 @@ async def stream_llm_with_thinking(
     return "".join(text_parts).strip()
 
 
-def _thinking_token_estimate(event: dict[str, Any], full_thinking: str) -> int:
+def _thinking_token_estimate(event: Any, full_thinking: str) -> int:
     """Pull thinking-token count from on_chat_model_end usage_metadata;
     fall back to a ~4-chars-per-token heuristic.
+
+    `event` is typed `Any` because langchain's `astream_events` yields
+    `StandardStreamEvent | CustomStreamEvent` (TypedDict union), which
+    doesn't structurally match `dict[str, Any]` to mypy. The body
+    treats it defensively (`.get`, `getattr`) under a try/except, so
+    any shape that doesn't expose the expected keys falls through to
+    the char-count fallback.
     """
     try:
         data = event.get("data") or {}

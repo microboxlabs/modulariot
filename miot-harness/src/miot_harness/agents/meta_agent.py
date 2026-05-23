@@ -107,5 +107,8 @@ async def meta_agent_node(
         return {"answer": text or "(no answer)"}
 
     response = await model.ainvoke(messages)
-    text = response.content if hasattr(response, "content") else str(response)
-    return {"answer": text if isinstance(text, str) else str(text)}
+    # New variable name (not `text`) so mypy doesn't try to assign
+    # response.content's `str | list[...]` shape into the `text: str`
+    # narrowed by the streaming branch above.
+    raw_content = response.content if hasattr(response, "content") else str(response)
+    return {"answer": raw_content if isinstance(raw_content, str) else str(raw_content)}

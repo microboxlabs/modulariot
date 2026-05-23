@@ -336,7 +336,9 @@ async def test_supervisor_hydrates_prior_messages_into_nexo_graph_state(
 
 @pytest.mark.asyncio
 async def test_meta_agent_sees_prior_turn_via_history(
-    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
 ) -> None:
     """A meta-mode follow-up has access to the previous turn's messages
     via the supervisor's hydration + `meta_agent_node(..., prior_messages=)`
@@ -353,6 +355,13 @@ async def test_meta_agent_sees_prior_turn_via_history(
     # FakeListChatModel doesn't surface to a simple ainvoke override.
     monkeypatch.setenv("MIOT_HARNESS_NEXO_SYNTHESIZER_STREAM", "0")
     get_settings.cache_clear()
+    # Re-clear after the test body so the cached settings (which still
+    # reflect MIOT_HARNESS_NEXO_SYNTHESIZER_STREAM=0) don't leak into
+    # the next test. monkeypatch reverts the env var on teardown but
+    # doesn't know about the lru_cache; without this finalizer the
+    # next get_settings() call would hand back the stale, stream=False
+    # settings even though the env is back to normal.
+    request.addfinalizer(get_settings.cache_clear)
 
     captured_messages: list[list[Any]] = []
 

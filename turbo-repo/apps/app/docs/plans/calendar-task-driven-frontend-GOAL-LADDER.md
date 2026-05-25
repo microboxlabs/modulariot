@@ -9,7 +9,7 @@ one `/goal` = one session. Branch: `based/517-task-driven-planner-frontend`.
 
 | Rung | Phase | Status |
 |------|-------------------------------------------|------|
-| P0   | Spike — variable propagation + flag source | todo |
+| P0   | Spike — variable propagation + flag source | in_progress |
 | P1   | Per-origin task-driven feature flag        | todo |
 | P2   | Plan / unplan task-driven behind the flag  | todo |
 | P3   | Assign / unassign task-driven (needs ecm#262) | todo |

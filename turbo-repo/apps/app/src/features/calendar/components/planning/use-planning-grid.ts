@@ -50,6 +50,7 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     getRemainingQuota,
     isSlotBlocked,
     removeService,
+    removeAssignment,
     updateServiceAssignment,
     startReassignment,
     startAssignment,

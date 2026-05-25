@@ -18,6 +18,9 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from miot_harness.agents.llm_streaming import stream_llm_with_thinking
+from miot_harness.runtime.tool import Progress
+
 _META_SYSTEM_TEMPLATE = """You are the ModularIoT meta-question agent.
 
 You answer questions about *what data is available* and *what each
@@ -66,6 +69,9 @@ async def meta_agent_node(
     primer: str,
     catalog: list[MetaAgentCatalogEntry],
     prior_messages: list[BaseMessage] | None = None,
+    progress: Progress | None = None,
+    stream: bool = False,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """LangGraph node: answer a meta question; return ``{"answer": str}`` delta.
 
@@ -74,6 +80,14 @@ async def meta_agent_node(
     prompt and the current user message so meta follow-ups like
     "you mentioned fn_dx_X earlier, what about Y?" resolve correctly
     (plan 13 §E5 hydration).
+
+    When ``stream`` is True (and ``progress`` + ``run_id`` are wired in),
+    the call runs as a streaming ``astream_events`` loop and emits
+    ``thinking.delta`` / ``thinking.completed`` events tagged with
+    ``agent="meta_agent"`` so SSE clients see Haiku's reasoning unfold.
+    Requires the underlying model to be constructed with
+    ``thinking_budget_tokens`` for thinking to actually appear; otherwise
+    only plain text streams (no thinking events).
     """
 
     system = _META_SYSTEM_TEMPLATE.format(primer=primer, catalog=_format_catalog(catalog))
@@ -81,6 +95,20 @@ async def meta_agent_node(
     if prior_messages:
         messages.extend(prior_messages)
     messages.append(HumanMessage(content=state.get("user_message", "")))
+
+    if stream and progress is not None and run_id is not None:
+        text = await stream_llm_with_thinking(
+            model=model,
+            messages=messages,
+            progress=progress,
+            run_id=run_id,
+            agent_name="meta_agent",
+        )
+        return {"answer": text or "(no answer)"}
+
     response = await model.ainvoke(messages)
-    text = response.content if hasattr(response, "content") else str(response)
-    return {"answer": text if isinstance(text, str) else str(text)}
+    # New variable name (not `text`) so mypy doesn't try to assign
+    # response.content's `str | list[...]` shape into the `text: str`
+    # narrowed by the streaming branch above.
+    raw_content = response.content if hasattr(response, "content") else str(response)
+    return {"answer": raw_content if isinstance(raw_content, str) else str(raw_content)}

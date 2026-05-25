@@ -1,12 +1,13 @@
 import { applyHarnessEvent } from "../transcript/project.js";
 import { isAgenticTenantMismatch } from "./agentic.js";
-import type {
-  PendingApproval,
-  ReducerContext,
-  SessionAction,
-  SessionMetaInit,
-  SessionState,
-  TranscriptItem,
+import {
+  ZERO_USAGE,
+  type PendingApproval,
+  type ReducerContext,
+  type SessionAction,
+  type SessionMetaInit,
+  type SessionState,
+  type TranscriptItem,
 } from "./types.js";
 
 export function initialSession(
@@ -21,12 +22,15 @@ export function initialSession(
       mode: init.mode,
       baseUrl: init.baseUrl,
       profileName: init.profileName ?? null,
+      debug: init.debug ?? false,
     },
     transcript: [],
     pendingApprovals: [],
     resolvedApprovals: [],
     currentRunId: null,
     currentAssistantItemId: null,
+    currentThinkingItemId: null,
+    usageTotals: { ...ZERO_USAGE },
     warnAgenticTenantMismatch: isAgenticTenantMismatch(
       init.mode,
       init.tenantId,
@@ -58,6 +62,7 @@ export function reduce(
         transcript: [...state.transcript, item],
         lastSubmittedPrompt: action.prompt,
         currentAssistantItemId: null,
+        currentThinkingItemId: null,
         currentRunId: `pending:${ctx.uuid()}`,
       };
     }
@@ -67,8 +72,10 @@ export function reduce(
         {
           transcript: state.transcript,
           currentAssistantItemId: state.currentAssistantItemId,
+          currentThinkingItemId: state.currentThinkingItemId,
           pendingApprovals: state.pendingApprovals,
           currentRunId: state.currentRunId,
+          usageTotals: state.usageTotals,
         },
         action.event,
         action.runId,
@@ -78,8 +85,10 @@ export function reduce(
         ...state,
         transcript: slice.transcript,
         currentAssistantItemId: slice.currentAssistantItemId,
+        currentThinkingItemId: slice.currentThinkingItemId,
         pendingApprovals: slice.pendingApprovals,
         currentRunId: slice.currentRunId,
+        usageTotals: slice.usageTotals,
       };
     }
 
@@ -120,6 +129,8 @@ export function reduce(
         resolvedApprovals: [],
         currentRunId: null,
         currentAssistantItemId: null,
+        currentThinkingItemId: null,
+        usageTotals: { ...ZERO_USAGE },
         lastSubmittedPrompt: null,
       };
 
@@ -128,6 +139,8 @@ export function reduce(
         ...state,
         transcript: [],
         currentAssistantItemId: null,
+        currentThinkingItemId: null,
+        usageTotals: { ...ZERO_USAGE },
       };
 
     case "LOAD_SESSION":
@@ -191,6 +204,7 @@ function applyEndTurn(
       transcript: [...transcript, systemItem],
       currentRunId: null,
       currentAssistantItemId: null,
+      currentThinkingItemId: null,
     };
   }
 
@@ -209,6 +223,7 @@ function applyEndTurn(
         transcript: [...state.transcript, item],
         currentRunId: null,
         currentAssistantItemId: null,
+        currentThinkingItemId: null,
       };
     }
     const placeholder: TranscriptItem = {
@@ -222,6 +237,7 @@ function applyEndTurn(
       transcript: [...state.transcript, placeholder],
       currentRunId: null,
       currentAssistantItemId: null,
+      currentThinkingItemId: null,
     };
   }
 
@@ -239,5 +255,6 @@ function applyEndTurn(
     transcript,
     currentRunId: null,
     currentAssistantItemId: null,
+    currentThinkingItemId: null,
   };
 }

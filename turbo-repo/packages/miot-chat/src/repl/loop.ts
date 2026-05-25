@@ -55,6 +55,7 @@ interface SessionState {
   tenant: string;
   user: string;
   conversationId: string;
+  debug: boolean;
   transcript: TranscriptEntry[];
 }
 
@@ -78,6 +79,7 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
     tenant: opts.config.tenantId,
     user: opts.config.userId,
     conversationId: opts.conversationId ?? randomUUID(),
+    debug: opts.config.debug,
     transcript: [],
   };
 
@@ -231,6 +233,7 @@ async function runOneTurn(
     user_id: session.user,
     mode: session.mode,
     conversation_id: session.conversationId,
+    ...(session.debug ? { debug: true } : {}),
   };
 
   const { run_id } = await client.runs.create(req, { signal: ctx.signal });

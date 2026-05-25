@@ -1,0 +1,23 @@
+{
+  "$comment": "Canonical list of HarnessEventType literals. The Python Literal in events.py is the source of truth; this JSON file mirrors it so the TypeScript miot-harness-client can run an equivalent parity check. When you add a literal, update both events.py AND this file; both test suites will fail until they agree.",
+  "event_types": [
+    "run.started",
+    "route.selected",
+    "tool.started",
+    "tool.completed",
+    "tool.failed",
+    "approval.requested",
+    "artifact.created",
+    "plan.created",
+    "agent.turn",
+    "agent.started",
+    "agent.completed",
+    "thinking.delta",
+    "thinking.completed",
+    "usage.recorded",
+    "freshness.warning",
+    "answer.completed",
+    "run.completed",
+    "run.failed"
+  ]
+}

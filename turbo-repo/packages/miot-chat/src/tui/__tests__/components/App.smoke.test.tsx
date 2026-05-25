@@ -32,6 +32,7 @@ function mkConfig(): ResolvedConfig {
     mode: "auto",
     profileName: "test",
     theme: null,
+    debug: false,
   };
 }
 

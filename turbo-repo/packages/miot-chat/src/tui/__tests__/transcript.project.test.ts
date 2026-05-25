@@ -22,8 +22,18 @@ function emptySlice(): TranscriptSlice {
   return {
     transcript: [],
     currentAssistantItemId: null,
+    currentThinkingItemId: null,
     pendingApprovals: [],
     currentRunId: null,
+    usageTotals: {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      costUsd: 0,
+      lastAgent: null,
+      lastCostUsd: null,
+    },
   };
 }
 
@@ -366,5 +376,113 @@ describe("transcript projector — approvals", () => {
       runId: "r1",
       message: "writes db",
     });
+  });
+});
+
+describe("transcript projector — thinking + usage (plan: SSE rich events)", () => {
+  it("thinking.delta creates a streaming thinking item; subsequent deltas append", () => {
+    const ctx = mkCtx();
+    const s1 = applyHarnessEvent(
+      emptySlice(),
+      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 1. " } }),
+      "r1",
+      ctx,
+    );
+    expect(s1.transcript).toHaveLength(1);
+    expect(s1.transcript[0]).toMatchObject({
+      kind: "thinking",
+      agent: "synthesizer",
+      text: "Step 1. ",
+      status: "streaming",
+    });
+    const id = s1.currentThinkingItemId!;
+    expect(typeof id).toBe("string");
+
+    const s2 = applyHarnessEvent(
+      s1,
+      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 2." } }),
+      "r1",
+      ctx,
+    );
+    expect(s2.transcript).toHaveLength(1);
+    expect(s2.transcript[0]).toMatchObject({
+      kind: "thinking",
+      text: "Step 1. Step 2.",
+    });
+    expect(s2.currentThinkingItemId).toBe(id);
+  });
+
+  it("thinking.completed flips status to complete and clears the current id", () => {
+    const ctx = mkCtx();
+    const s1 = applyHarnessEvent(
+      emptySlice(),
+      evt("thinking.delta", { data: { agent: "synthesizer", delta: "hi" } }),
+      "r1",
+      ctx,
+    );
+    const s2 = applyHarnessEvent(s1, evt("thinking.completed"), "r1", ctx);
+    expect(s2.currentThinkingItemId).toBeNull();
+    expect(s2.transcript[0]).toMatchObject({ kind: "thinking", status: "complete" });
+  });
+
+  it("usage.recorded accumulates totals across calls", () => {
+    const ctx = mkCtx();
+    const s1 = applyHarnessEvent(
+      emptySlice(),
+      evt("usage.recorded", {
+        data: {
+          agent: "filter_expert",
+          model: "claude-haiku-4-5",
+          input_tokens: 1000,
+          output_tokens: 100,
+          cache_read_input_tokens: 50,
+          cache_creation_input_tokens: 25,
+          cost_usd: 0.0042,
+        },
+      }),
+      "r1",
+      ctx,
+    );
+    expect(s1.usageTotals).toEqual({
+      inputTokens: 1000,
+      outputTokens: 100,
+      cacheReadTokens: 50,
+      cacheCreationTokens: 25,
+      costUsd: 0.0042,
+      lastAgent: "filter_expert",
+      lastCostUsd: 0.0042,
+    });
+
+    const s2 = applyHarnessEvent(
+      s1,
+      evt("usage.recorded", {
+        data: {
+          agent: "synthesizer",
+          model: "claude-sonnet-4-6",
+          input_tokens: 2000,
+          output_tokens: 200,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 0,
+        },
+      }),
+      "r1",
+      ctx,
+    );
+    expect(s2.usageTotals.inputTokens).toBe(3000);
+    expect(s2.usageTotals.outputTokens).toBe(300);
+    expect(s2.usageTotals.lastAgent).toBe("synthesizer");
+    expect(s2.usageTotals.lastCostUsd).toBeNull();
+    expect(s2.usageTotals.costUsd).toBeCloseTo(0.0042);
+  });
+
+  it("agent.completed is intentionally dropped from the transcript", () => {
+    const ctx = mkCtx();
+    const next = applyHarnessEvent(
+      emptySlice(),
+      evt("agent.completed", { data: { agent: "filter_expert", duration_ms: 100 } }),
+      "r1",
+      ctx,
+    );
+    expect(next.transcript).toHaveLength(0);
   });
 });

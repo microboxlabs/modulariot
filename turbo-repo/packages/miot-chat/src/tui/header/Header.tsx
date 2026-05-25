@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import { isAgenticTenantMismatch } from "../session/agentic.js";
-import type { SessionMeta } from "../session/types.js";
+import type { SessionMeta, UsageTotals } from "../session/types.js";
 import { Spinner } from "../transcript/Spinner.js";
 
 export interface HeaderProps {
@@ -10,6 +10,7 @@ export interface HeaderProps {
   turns?: number;
   approxTokens?: number;
   contextPercent?: number;
+  usageTotals?: UsageTotals;
 }
 
 const SEPARATOR = " · ";
@@ -47,6 +48,19 @@ export function Header(props: HeaderProps): React.ReactElement {
     chips.push(
       <Text key="tok" dimColor>
         ctx≈{props.approxTokens}tok{pct}
+      </Text>,
+    );
+  }
+  if (
+    props.usageTotals &&
+    (props.usageTotals.inputTokens > 0 || props.usageTotals.outputTokens > 0)
+  ) {
+    const u = props.usageTotals;
+    const cost = u.costUsd > 0 ? ` $${u.costUsd.toFixed(4)}` : "";
+    chips.push(
+      <Text key="usage" dimColor>
+        usage={u.inputTokens}→{u.outputTokens}
+        {cost}
       </Text>,
     );
   }

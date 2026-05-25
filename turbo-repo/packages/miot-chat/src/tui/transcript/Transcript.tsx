@@ -98,6 +98,16 @@ function TranscriptItemView(props: {
           {item.agent}
         </ChainRow>
       );
+    case "thinking":
+      // Dim multi-line block, append-only, no spinner. We don't tag
+      // these as "active" because the chain anchor stays on the
+      // owning agent row and we don't want two spinners at once.
+      return (
+        <Box flexDirection="row">
+          <Text dimColor>  ⋮ </Text>
+          <Text dimColor>{item.text}</Text>
+        </Box>
+      );
     case "plan":
       return (
         <ChainRow prefix="plan:" isActive={isActive}>

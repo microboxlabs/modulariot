@@ -1723,6 +1723,24 @@ export function useCalendarSlots(
 // ============================================================================
 
 /**
+ * Process-scope variable tuple set on the workflow before completing the
+ * task — populated by the planner's task-driven ASSIGN move so the
+ * `OnCreatePresentDriverBinding` ECM listener can read the resource tuple
+ * from process scope on the `presentDriver` create. Mirrors the assigned-
+ * stage binding payload field set (snake_case). See
+ * `docs/plans/calendar-task-driven-frontend-P0-spike.md` §2.2.
+ */
+export type AssignProcessVariables = {
+  carrier_id: string;
+  driver_id: string;
+  driver2_id: string | null;
+  truck_id: string;
+  trailer_id: string | null;
+  carrier_external_id: string | null;
+  tipo_servicio: string;
+};
+
+/**
  * Optional Alfresco workflow advance to bundle with a booking write. The
  * server runs the booking and the task transition as one operation and rolls
  * back the just-created booking if the transition fails.
@@ -1730,6 +1748,12 @@ export function useCalendarSlots(
 export type BookingTaskAdvance = {
   taskId: string;
   transitionId: string;
+  /**
+   * Optional process-scope variables to set on the workflow before the task
+   * is completed (task-driven ASSIGN move only). When omitted the task
+   * advance is a plain GET as today.
+   */
+  processVariables?: AssignProcessVariables;
 };
 
 export type CreateBookingRequest = BookingRequest & {
@@ -1757,16 +1781,25 @@ export async function createBooking(
 /**
  * Advance an Alfresco workflow task to the next stage via the given transition.
  * Called after booking and service-category sync are confirmed so that the
- * workflow only moves when both writes have succeeded.
+ * workflow only moves when both writes have succeeded. When
+ * `processVariables` is supplied the call sets the workflow's PROCESS-scope
+ * variables before completing the task — used by the planner's task-driven
+ * ASSIGN move (assignDriver → presentDriver) so the
+ * `OnCreatePresentDriverBinding` listener can read the resource tuple.
  */
 export async function advanceWorkflowTask(
   taskId: string,
-  transitionId: string
+  transitionId: string,
+  processVariables?: AssignProcessVariables
 ): Promise<void> {
+  const body: Record<string, unknown> = { taskId, transitionId };
+  if (processVariables) {
+    body.processVariables = processVariables;
+  }
   const response = await fetch("/app/api/task/end", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ taskId, transitionId }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = (await response.json().catch(() => ({}))) as {

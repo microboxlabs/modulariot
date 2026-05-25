@@ -20,7 +20,10 @@ const BOOKING_MUTATION_GROUPS = [
 ] as const;
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  endTask,
+  type EndTaskProcessVariables,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { Session } from "next-auth";
 import { extractCalendarBindingPayload } from "./binding-extractor";
 import { runCalendarBinding } from "./binding-helpers";
@@ -37,6 +40,15 @@ type BookingSlot = {
 type TaskAdvance = {
   taskId: string;
   transitionId: string;
+  /**
+   * Optional process-scope variables to set on the workflow before completing
+   * the task — populated by the planner's task-driven ASSIGN move so the
+   * `OnCreatePresentDriverBinding` ECM listener can read them on the
+   * `presentDriver` create. When present, the BFF's endTask call switches
+   * from GET to POST per ecm-coordinator#262. See
+   * `docs/plans/calendar-task-driven-frontend-P0-spike.md` §2.2.
+   */
+  processVariables?: EndTaskProcessVariables;
 };
 
 type AppBookingRequest = {
@@ -197,7 +209,12 @@ async function runTaskAdvance(
   advance: TaskAdvance
 ): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
   try {
-    await endTask(session, advance.taskId, advance.transitionId);
+    await endTask(
+      session,
+      advance.taskId,
+      advance.transitionId,
+      advance.processVariables
+    );
     return { ok: true };
   } catch (error) {
     logger.error(

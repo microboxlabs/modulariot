@@ -55,7 +55,14 @@ import {
   TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
 import { tr } from "@/features/i18n/tr.service";
-import { decideUnplanBindingNotification } from "@/features/calendar/services/task-driven-binding-gate";
+import {
+  decideUnplanBindingNotification,
+  decideUnassignBindingNotification,
+} from "@/features/calendar/services/task-driven-binding-gate";
+import {
+  decideAssignTaskAdvance,
+  getTaskDrivenUnassignTransition,
+} from "@/features/calendar/services/task-driven-assign";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
@@ -852,7 +859,11 @@ async function persistPlannedBooking({
 
     await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
-      await advanceWorkflowTask(taskAdvance.taskId, taskAdvance.transitionId);
+      await advanceWorkflowTask(
+        taskAdvance.taskId,
+        taskAdvance.transitionId,
+        taskAdvance.processVariables
+      );
     }
 
     setBookingIds((prev) => {
@@ -1763,9 +1774,25 @@ export function PlanningSelectionProvider({
       const transitionId = wasReassigning
         ? undefined
         : getNextTransition(liveTask?.stage);
+      // Task-driven ASSIGN move only: when the origin is flag-on AND the
+      // forward transition is `Presentar Conductor`, attach the resource
+      // tuple as PROCESS-scope variables so ECM's
+      // `OnCreatePresentDriverBinding` listener reads it from process scope
+      // on the next task's create. `null` for every other case (PLAN moves,
+      // flag-off origins, incomplete tuple) → plain GET advance, today's
+      // behavior unchanged.
+      const processVariables = decideAssignTaskAdvance(
+        transitionId,
+        effectiveService.origen,
+        effectiveService
+      );
       const taskAdvance: BookingTaskAdvance | undefined =
         transitionId && liveTask?.taskId
-          ? { taskId: liveTask.taskId, transitionId }
+          ? {
+              taskId: liveTask.taskId,
+              transitionId,
+              ...(processVariables ? { processVariables } : {}),
+            }
           : undefined;
 
       await persistPlannedBooking({
@@ -1921,7 +1948,17 @@ export function PlanningSelectionProvider({
       // `removeService`.
       const liveTask = getLiveTask(planned.service.mintral_serviceCode);
       if (liveTask) {
-        const transition = getUnassignTransition(liveTask.stage);
+        // Task-driven origins at `presentDriver` step back to `assignDriver`
+        // via the BPMN's `"Asignar Conductor/Transporte"` outcome — ECM's
+        // `OnCreateAssignDriverBinding` listener then reconciles the binding
+        // to `unassigned` on its own. Every other case (flag-off origins,
+        // pre-migration `assignDriver` stage) falls through to today's
+        // unassign map (`assignDriver → planService` via `Planificar Servicio`).
+        const transition =
+          getTaskDrivenUnassignTransition(
+            liveTask.stage,
+            planned.service.origen
+          ) ?? getUnassignTransition(liveTask.stage);
         if (transition) {
           await advanceWorkflowTask(liveTask.taskId, transition);
         }
@@ -1948,16 +1985,18 @@ export function PlanningSelectionProvider({
       }
 
       // Tell the coordinator the service is back to its planned state.
-      // Best-effort: a failure leaves a stale binding the next planner
-      // action on this calendar overwrites — don't block the user-visible
-      // removal on it.
-      const numeroServicio = planned.service.mintral_serviceCode;
-      if (numeroServicio && calendarId) {
-        await notifyCalendarBinding({
-          numero_servicio: numeroServicio,
-          calendar_id: calendarId,
-          stage: "unassigned",
-        }).catch((err) =>
+      // Task-driven origins skip this call entirely — the ECM listener on
+      // the unassign task move reconciles the binding to `unassigned` on
+      // its own. Best-effort for flag-off origins: a failure leaves a
+      // stale binding the next planner action on this calendar overwrites
+      // — don't block the user-visible removal on it.
+      const unassignNotification = decideUnassignBindingNotification(
+        planned.service.mintral_serviceCode,
+        calendarId,
+        planned.service.origen
+      );
+      if (unassignNotification) {
+        await notifyCalendarBinding(unassignNotification).catch((err) =>
           console.warn("Failed to notify calendar binding (unassigned):", err)
         );
       }

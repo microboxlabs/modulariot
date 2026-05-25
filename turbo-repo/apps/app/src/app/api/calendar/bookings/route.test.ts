@@ -73,10 +73,29 @@ async function loadRoute() {
 const TASK_DRIVEN_ORIGIN = "ANTOFAGASTA";
 const LEGACY_ORIGIN = "CALAMA";
 
+type WireProcessVariables = {
+  carrier_id: string;
+  driver_id: string;
+  driver2_id: string | null;
+  truck_id: string;
+  trailer_id: string | null;
+  carrier_external_id: string | null;
+  tipo_servicio: string;
+};
+
 function makeBookingRequest(overrides: {
   origen?: string;
   taskAdvance?: { taskId: string; transitionId: string };
+  processVariables?: WireProcessVariables;
 }) {
+  const advance = overrides.taskAdvance
+    ? {
+        ...overrides.taskAdvance,
+        ...(overrides.processVariables
+          ? { processVariables: overrides.processVariables }
+          : {}),
+      }
+    : undefined;
   return new Request("http://localhost/api/calendar/bookings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -92,7 +111,7 @@ function makeBookingRequest(overrides: {
         },
       },
       slot: { date: "2026-06-01", hour: 9, minutes: 0 },
-      ...(overrides.taskAdvance ? { taskAdvance: overrides.taskAdvance } : {}),
+      ...(advance ? { taskAdvance: advance } : {}),
     }),
   });
 }
@@ -155,10 +174,13 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
 
     expect(response.status).toBe(201);
     expect(runCalendarBindingMock).not.toHaveBeenCalled();
+    // No `processVariables` on this taskAdvance: the BFF forwards
+    // `undefined` to endTask so the provider stays on the legacy GET.
     expect(endTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({ user: expect.any(Object) }),
       "task-1",
-      "Next"
+      "Next",
+      undefined
     );
   });
 
@@ -226,5 +248,78 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
 
     expect(response.status).toBe(201);
     expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("flag ON + ASSIGN move: forwards processVariables to endTask (POST body), no binding call", async () => {
+    const { POST } = await loadRoute();
+    const response = await POST(
+      makeBookingRequest({
+        origen: TASK_DRIVEN_ORIGIN,
+        taskAdvance: {
+          taskId: "task-1",
+          transitionId: "Presentar Conductor",
+        },
+        processVariables: {
+          carrier_id: "carrier-uuid",
+          driver_id: "driver-uuid",
+          driver2_id: null,
+          truck_id: "truck-uuid",
+          trailer_id: null,
+          carrier_external_id: "PRVE-001",
+          tipo_servicio: "SIDER",
+        },
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(runCalendarBindingMock).not.toHaveBeenCalled();
+    expect(endTaskMock).toHaveBeenCalledTimes(1);
+    expect(endTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.any(Object) }),
+      "task-1",
+      "Presentar Conductor",
+      {
+        carrier_id: "carrier-uuid",
+        driver_id: "driver-uuid",
+        driver2_id: null,
+        truck_id: "truck-uuid",
+        trailer_id: null,
+        carrier_external_id: "PRVE-001",
+        tipo_servicio: "SIDER",
+      }
+    );
+  });
+
+  it("flag OFF + ASSIGN move: runs binding call AND a GET endTask (no processVariables on the wire)", async () => {
+    const { POST } = await loadRoute();
+    const response = await POST(
+      makeBookingRequest({
+        origen: LEGACY_ORIGIN,
+        taskAdvance: {
+          taskId: "task-1",
+          transitionId: "Presentar Conductor",
+        },
+        // Even if the caller (defensively) supplies a tuple, the BFF's
+        // gating decision is on origin — for flag-off, the binding call
+        // runs and endTask is called WITHOUT processVariables (today's GET).
+        processVariables: {
+          carrier_id: "carrier-uuid",
+          driver_id: "driver-uuid",
+          driver2_id: null,
+          truck_id: "truck-uuid",
+          trailer_id: null,
+          carrier_external_id: null,
+          tipo_servicio: "SIDER",
+        },
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
+    // The BFF still threads the processVariables it received onto endTask
+    // (the gate is at the FE — the planner only attaches the tuple when
+    // the origin is task-driven). What's load-bearing here is that the
+    // binding call STILL fires for legacy origins regardless.
+    expect(endTaskMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -26,6 +26,7 @@ import {
   deactivateCalendarTimeWindow,
   createBooking,
   moveBooking,
+  updateBooking,
   cancelBooking,
   listBookings,
   updateServiceCategory,
@@ -45,6 +46,7 @@ import {
   asTaskStageFromColumn,
   getNextTransition,
   getUnplanTransition,
+  getUnassignTransition,
 } from "@/features/calendar/services/task-stage-transitions";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
@@ -634,6 +636,25 @@ export interface SelectedService {
   assignedTruck?: string;
   /** Assigned trailer id — placeholder until the trailer feed is wired. */
   assignedTrailer?: string;
+  /**
+   * Carrier's upstream `prve_codigo` (from
+   * `AccreditedResource.external_id`). Persisted on the booking so the
+   * calendar-binding extractor can ship it as `carrier_external_id` —
+   * Alerce `proveedor` is sourced from this code, not from a UUID→RUT
+   * resolver hop nor from a service-sync Activiti variable.
+   */
+  assignedCarrierExternalId?: string | null;
+  /**
+   * Driver / truck / trailer upstream codes (`cond_codigo`,
+   * `cami_matricula`, `remo_matricula`). Declared for schema symmetry with
+   * the carrier slot; not yet routed downstream — driver depends on an
+   * Alerce-contract clarification, truck/trailer codes equal the resolver's
+   * plate today so the switch is a future no-op cleanup.
+   */
+  assignedDriverExternalId?: string | null;
+  assignedDriver2ExternalId?: string | null;
+  assignedTruckExternalId?: string | null;
+  assignedTrailerExternalId?: string | null;
 }
 
 export type TaskStage =
@@ -905,6 +926,13 @@ interface PlanningSelectionContextType {
   getAvailableAndenes: (date: Date, hour: number, minutes: number) => number[];
   isSidebarOpen: boolean;
   removeService: (serviceId: string) => Promise<void>;
+  /**
+   * Clear the driver/transport assignment from a planned service: reverse
+   * the workflow task back to `planService`, drop the assignment tuple from
+   * the booking's `resource_data`, notify the coordinator (stage
+   * "unassigned") and clear the local assignment fields.
+   */
+  removeAssignment: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
   /** Start assignment-only mode - opens sidebar with only Asignación tab available */
@@ -953,6 +981,11 @@ interface PlanningSelectionContextType {
         | "assignedDriver2"
         | "assignedTruck"
         | "assignedTrailer"
+        | "assignedCarrierExternalId"
+        | "assignedDriverExternalId"
+        | "assignedDriver2ExternalId"
+        | "assignedTruckExternalId"
+        | "assignedTrailerExternalId"
       >
     >
   ) => void;
@@ -1030,6 +1063,11 @@ const StoredServiceSchema = z
     assignedCarrier: z.string().optional(),
     assignedTruck: z.string().optional(),
     assignedTrailer: z.string().optional(),
+    assignedCarrierExternalId: z.string().nullable().optional(),
+    assignedDriverExternalId: z.string().nullable().optional(),
+    assignedDriver2ExternalId: z.string().nullable().optional(),
+    assignedTruckExternalId: z.string().nullable().optional(),
+    assignedTrailerExternalId: z.string().nullable().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -1854,6 +1892,86 @@ export function PlanningSelectionProvider({
   );
 
   /**
+   * Remove the driver/transport assignment from a planned service. The
+   * inverse of the "Asignar" arm of `confirmService`: it reverses the
+   * workflow task, drops the assignment tuple from the booking, and tells
+   * the coordinator to revert the service to its planned activity state.
+   */
+  const removeAssignment = useCallback(
+    async (serviceId: string) => {
+      // Persist-boundary permission guard — see confirmService for context.
+      if (!canMutateBookings) {
+        throw new Error(
+          "removeAssignment: caller lacks GROUP_PLANNING and GROUP_ASSIGNMENT"
+        );
+      }
+
+      const planned = plannedServices.find((p) => p.service.id === serviceId);
+      if (!planned) return;
+
+      // Reverse the workflow task BEFORE touching the booking. Assigning
+      // advanced the task `planService → assignDriver`; this steps it back.
+      // Resolve the live task by `mintral_serviceCode` against the kanban —
+      // never a stored taskId. A failed transition aborts the whole op so
+      // the assignment stays visible and the user can retry, mirroring
+      // `removeService`.
+      const liveTask = getLiveTask(planned.service.mintral_serviceCode);
+      if (liveTask) {
+        const transition = getUnassignTransition(liveTask.stage);
+        if (transition) {
+          await advanceWorkflowTask(liveTask.taskId, transition);
+        }
+      }
+
+      // Drop the assignment tuple from `cld_bookings.resource_data` so
+      // reopening the sidebar starts clean. Uses the plain booking PUT —
+      // not `moveBooking` — because the move route would re-derive the
+      // binding stage as "planned"; the explicit "unassigned" call below
+      // is the stage the coordinator dispatches on.
+      const clearedService: SelectedService = {
+        ...planned.service,
+        assignedCarrier: undefined,
+        assignedDriver: undefined,
+        assignedDriver2: undefined,
+        assignedTruck: undefined,
+        assignedTrailer: undefined,
+      };
+      const bookingId = bookingIds.get(serviceId);
+      if (bookingId) {
+        await updateBooking(bookingId, {
+          resource: buildResource(clearedService, planned.slot),
+        });
+      }
+
+      // Tell the coordinator the service is back to its planned state.
+      // Best-effort: a failure leaves a stale binding the next planner
+      // action on this calendar overwrites — don't block the user-visible
+      // removal on it.
+      const numeroServicio = planned.service.mintral_serviceCode;
+      if (numeroServicio && calendarId) {
+        await notifyCalendarBinding({
+          numero_servicio: numeroServicio,
+          calendar_id: calendarId,
+          stage: "unassigned",
+        }).catch((err) =>
+          console.warn("Failed to notify calendar binding (unassigned):", err)
+        );
+      }
+
+      // Clear the assignment tuple locally for immediate feedback.
+      setPlannedServices((prev) =>
+        prev.map((p) =>
+          p.service.id === serviceId
+            ? { ...p, service: clearedService }
+            : p
+        )
+      );
+      setBookingVersion((v) => v + 1);
+    },
+    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
+  );
+
+  /**
    * Start reassignment mode - keeps service in original slot until confirmed
    * The service remains visible in its original position with a visual indicator
    */
@@ -2030,6 +2148,7 @@ export function PlanningSelectionProvider({
       getAvailableAndenes,
       isSidebarOpen,
       removeService,
+      removeAssignment,
       startReassignment,
       cancelReassignment,
       startAssignment,
@@ -2079,6 +2198,7 @@ export function PlanningSelectionProvider({
       getAvailableAndenes,
       isSidebarOpen,
       removeService,
+      removeAssignment,
       startReassignment,
       cancelReassignment,
       startAssignment,

@@ -1,0 +1,60 @@
+# OTel Collector config for miot-harness local dev (plan 13 §B2).
+#
+# Receivers: OTLP/gRPC on :4317 (harness), OTLP/HTTP on :4318 (debug).
+# Processors: memory_limiter (back-pressure on OOM) + batch (efficient export).
+# Exporters: otlp/langfuse (native OTel ingest endpoint added in Langfuse v3).
+#
+# Reference: https://opentelemetry.io/docs/collector/configuration/
+# Langfuse OTel ingest: https://langfuse.com/docs/observability/get-started
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Drop spans before they OOM the worker. 80% soft / 90% hard of the
+  # process memory limit. Tune for prod hosts.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 90
+    spike_limit_percentage: 10
+  # Batch into 1MB/200ms chunks before shipping. Lower latency = smaller
+  # batches; raise `send_batch_size` if Langfuse ingest backs up.
+  batch:
+    timeout: 200ms
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+exporters:
+  # Langfuse v3 accepts OTel traces on /api/public/otel/v1/traces. The
+  # service URL is in-network because we share the docker network.
+  otlphttp/langfuse:
+    endpoint: http://langfuse-web:3000/api/public/otel
+    # Basic auth = base64(public_key:secret_key) for the Langfuse project
+    # auto-created by `LANGFUSE_INIT_PROJECT_{PUBLIC,SECRET}_KEY` in
+    # docker-compose.yml. Injected at runtime via env so the credential
+    # never lives in source. Generate / rotate with:
+    #   printf 'pk-lf-...:sk-lf-...' | base64
+    # then export the result as LANGFUSE_OTEL_BASIC_AUTH for the
+    # otel-collector service (see its `environment:` block in
+    # docker-compose.yml).
+    headers:
+      Authorization: "Basic ${env:LANGFUSE_OTEL_BASIC_AUTH}"
+  # Optional second exporter — uncomment when adding a backup backend
+  # (e.g. Jaeger, Honeycomb) so you can fan out without re-instrumenting.
+  # debug:
+  #   verbosity: detailed
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/langfuse]

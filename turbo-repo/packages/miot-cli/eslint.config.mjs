@@ -8,7 +8,12 @@ export default [
       "turbo/no-undeclared-env-vars": [
         "warn",
         {
-          allowList: ["MIOT_BASE_URL", "MIOT_TOKEN"],
+          allowList: [
+            "MIOT_BASE_URL",
+            "MIOT_TOKEN",
+            "MIOT_HARNESS_BASE_URL",
+            "MIOT_HARNESS_TOKEN",
+          ],
         },
       ],
     },

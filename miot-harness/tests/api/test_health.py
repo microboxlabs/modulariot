@@ -1,8 +1,9 @@
-"""Tests for the GET /health endpoint shape (T01)."""
+"""Tests for the GET /health and /health/ready endpoint shapes (T01)."""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,9 +14,7 @@ from miot_harness.config import get_settings
 
 @pytest.fixture(autouse=True)
 def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    # The "Nexo disabled" assumption requires NEITHER the file-path config
-    # NOR the DSN bypass to be set in the environment.
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", raising=False)
+    # The "Nexo disabled" assumption requires the DSN to be unset.
     monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
     get_settings.cache_clear()
     yield
@@ -23,7 +22,7 @@ def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 def test_health_default_nexo_disabled() -> None:
-    """Without MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT, lifespan disables Nexo and
+    """Without MIOT_HARNESS_NEXO_DSN, lifespan disables Nexo and
     /health reports the deploy-readable shape with Nexo state defaults."""
     app = create_app()
     with TestClient(app) as client:
@@ -61,3 +60,77 @@ def test_health_reflects_simulated_nexo_enabled_state() -> None:
         "coordinador_servicios",
     ]
     assert nexo["snapshot_age_minutes"] == 12.5
+
+
+def test_health_ready_without_nexo_dsn_is_ready() -> None:
+    """No DSN configured -> Nexo not required -> readiness probe passes."""
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.get("/health/ready")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ready"
+    nexo = body["nexo"]
+    assert nexo["required"] is False
+    assert nexo["enabled"] is False
+    assert nexo["tools"] == []
+    assert nexo["snapshot_age_minutes"] is None
+
+
+def test_health_ready_with_dsn_but_nexo_disabled_returns_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DSN configured but lifespan failed to enable Nexo (tunnel down,
+    tools didn't register, snapshot too stale, etc.) -> readiness MUST
+    fail so the Service doesn't route traffic to a half-booted pod."""
+    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
+    get_settings.cache_clear()
+
+    # Mirror tests/test_server_lifespan.py — mock pool creation to raise
+    # so lifespan exercises the "Nexo disabled despite DSN" path without
+    # attempting a real connect.
+    with patch(
+        "miot_harness.api.server.create_nexo_pool",
+        new=AsyncMock(side_effect=ConnectionRefusedError("tunnel down")),
+    ):
+        app = create_app()
+        with TestClient(app) as client:
+            resp = client.get("/health/ready")
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["status"] == "not_ready"
+    nexo = body["nexo"]
+    assert nexo["required"] is True
+    assert nexo["enabled"] is False
+
+
+def test_health_ready_reflects_simulated_nexo_enabled_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DSN configured AND lifespan brought Nexo up -> readiness passes.
+
+    Lifespan is stubbed-failed (so the chat-model factory isn't invoked,
+    keeping the test hermetic); the enabled state is simulated by post-
+    lifespan mutation of app.state, identical to how
+    `test_health_reflects_simulated_nexo_enabled_state` exercises /health.
+    """
+    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
+    get_settings.cache_clear()
+    with patch(
+        "miot_harness.api.server.create_nexo_pool",
+        new=AsyncMock(side_effect=ConnectionRefusedError("tunnel down")),
+    ):
+        app = create_app()
+        with TestClient(app) as client:
+            app.state.nexo_enabled = True
+            app.state.nexo_registered = ["coordinador_centro_control"]
+            app.state.nexo_snapshot_age_minutes = 7.5
+            resp = client.get("/health/ready")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ready"
+    nexo = body["nexo"]
+    assert nexo["required"] is True
+    assert nexo["enabled"] is True
+    assert nexo["tools"] == ["coordinador_centro_control"]
+    assert nexo["snapshot_age_minutes"] == 7.5

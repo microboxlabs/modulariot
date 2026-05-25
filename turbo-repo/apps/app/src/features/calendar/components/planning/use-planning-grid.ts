@@ -50,10 +50,10 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     getRemainingQuota,
     isSlotBlocked,
     removeService,
+    updateServiceAssignment,
     startReassignment,
     startAssignment,
     reassigningService,
-    updateServiceAssignment,
     selectChipSlot,
     selectChipResource,
     inspectPlannedService,
@@ -63,7 +63,8 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   } = usePlanningSelection();
 
   // Clear every assignment slot on the planned service — carrier, drivers,
-  // truck and trailer — so reopening the sidebar for this entry starts clean.
+  // truck and trailer (plus their upstream external_id codes) — so
+  // reopening the sidebar for this entry starts clean.
   const removeAssignment = useCallback(
     async (serviceId: string) => {
       updateServiceAssignment(serviceId, {
@@ -72,6 +73,11 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
         assignedDriver2: undefined,
         assignedTruck: undefined,
         assignedTrailer: undefined,
+        assignedCarrierExternalId: undefined,
+        assignedDriverExternalId: undefined,
+        assignedDriver2ExternalId: undefined,
+        assignedTruckExternalId: undefined,
+        assignedTrailerExternalId: undefined,
       });
     },
     [updateServiceAssignment]

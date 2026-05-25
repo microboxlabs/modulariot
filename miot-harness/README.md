@@ -88,3 +88,74 @@ quickstart). Add a dev-only dependency with `uv add --dev <pkg>`.
 - Deep Agents integration lives behind an adapter so the MIOT runtime can keep
   its own tool, permission, and audit contracts.
 
+## Run Modes
+
+`POST /runs` accepts an optional `mode` field on the request body
+(`Literal["auto", "canned", "meta", "agentic"]`, default `"auto"`).
+Mode picks *which dispatch path* the supervisor takes. The four values:
+
+| `mode`     | Route          | DB touch | Non-Mintral?     | LLM calls / run | Best for                                              |
+|------------|----------------|----------|------------------|-----------------|-------------------------------------------------------|
+| `auto`     | (LLM-decided)  | depends  | depends on route | depends         | default — the intent router picks one of the below.   |
+| `canned`   | `NEXO_QUERY`   | ✅ yes   | ❌ refused       | ~4-5            | "what's the data right now?" — curated `fn_dx_*`.     |
+| `meta`     | `NEXO_META`    | ❌ no    | ✅ allowed       | 1               | "what data exists / how is X calculated?" — no SQL.   |
+| `agentic`  | `NEXO_AGENTIC` | ✅ yes   | ❌ refused       | variable        | free-form exploration via composable primitives.      |
+
+The explicit modes (`canned` / `meta` / `agentic`) bypass the LLM
+intent router entirely. They're useful for ops (deterministic
+dispatch), evals (pin the route so a test doesn't drift if router
+quality changes), and cost-sensitive callers (`meta` is ~10× cheaper
+per run than `canned`).
+
+### `canned` — answer FROM the data
+
+Routes through the plan-12 `nexo_graph`: `filter_expert` picks one
+curated `fn_dx_*` Postgres function from the registered catalog, the
+harness runs that SQL against the tunneled Coordinador DB,
+`domain_analyst` inspects freshness, `synthesizer` writes the answer,
+`critic` reviews it (when enabled). Refused at the tenant gate for
+non-Mintral tenants because it reads confidential data.
+
+Examples that route here:
+- *"estado del coordinador hoy"* → `coordinador_centro_control`
+- *"cola crítica para hoy"* → `coordinador_cola_critica`
+- *"servicios con ETA en riesgo"* → `coordinador_eta_riesgo_hoy`
+
+### `meta` — answer ABOUT the data
+
+Calls `agents/meta_agent.py:meta_agent_node` **directly** — no
+LangGraph, one async LLM call (Haiku tier). The system prompt is the
+Coordinador primer plus the catalog of `fn_dx_*` descriptions; the
+function signature has no `pool` / `registry` / `tools` parameter, so
+"no SQL" is a structural guarantee — not a comment. Allowed for any
+tenant (meta info is non-confidential); emits a
+`tenant.bypass: meta_route` audit attribute when an off-lock tenant
+uses it.
+
+Examples that route here:
+- *"what data do you have available?"*
+- *"how is `es_critico` calculated?"*
+- *"what does `fn_dx_kpi_servicio` return?"*
+
+### `agentic` — explore the data with composable primitives
+
+Routes through `runtime/agentic_graph.py`. Instead of being constrained
+to one curated `fn_dx_*`, the planner can string together
+`nexo_describe` / `nexo_select` / `nexo_grep` / `nexo_explain` calls
+within the sqlglot safety gate (positive function allowlist, LATERAL
+rejection, mutation rejection, EXPLAIN cost ceiling). Critic is ON
+by default in this mode because the agent has more freedom to invent
+joins. Same tenant gate as `canned` — refused for non-Mintral. See
+`integrations/nexo/primitives.py`.
+
+### Cost separation in Langfuse
+
+Every emitted span carries the `mode:<m>` tag in `langfuse.tags`, so
+filtering by `mode:canned` vs `mode:meta` in the UI (or
+`uv run python -m miot_harness.observability.report --by mode` from
+the CLI) shows the dollar split per mode. Combined with `tenant:<id>`,
+this gives per-tenant-per-mode cost rollups suitable for tiered
+billing (e.g. unlimited `meta` for a flat fee + per-`canned`-run
+metered billing). See `infra/observability/README.md` for the full
+filter / CLI / ClickHouse procedures.
+

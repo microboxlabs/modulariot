@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from pydantic import ValidationError
 
@@ -18,8 +16,7 @@ def _clear_settings_cache():
 def test_default_nexo_settings():
     settings = HarnessSettings()
 
-    assert settings.nexo_db_scripts_root is None
-    assert settings.nexo_db_alias == "coordinador-dev"
+    assert settings.nexo_dsn is None
     assert settings.nexo_tenant_lock == "mintral"
     assert settings.nexo_search_path == "nexo"
     assert settings.nexo_freshness_warn_minutes == 30
@@ -35,8 +32,9 @@ def test_default_nexo_settings():
 
 
 def test_nexo_settings_from_env(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_SCRIPTS_ROOT", "/tmp/db-scripts")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DB_ALIAS", "coordinador-prod-harness")
+    monkeypatch.setenv(
+        "MIOT_HARNESS_NEXO_DSN", "postgresql://harness:secret@db:6432/citus"
+    )
     monkeypatch.setenv("MIOT_HARNESS_NEXO_TENANT_LOCK", "mintral")
     monkeypatch.setenv("MIOT_HARNESS_NEXO_FRESHNESS_WARN_MINUTES", "15")
     monkeypatch.setenv("MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES", "60")
@@ -47,8 +45,7 @@ def test_nexo_settings_from_env(monkeypatch):
 
     settings = HarnessSettings()
 
-    assert settings.nexo_db_scripts_root == Path("/tmp/db-scripts")
-    assert settings.nexo_db_alias == "coordinador-prod-harness"
+    assert settings.nexo_dsn == "postgresql://harness:secret@db:6432/citus"
     assert settings.nexo_tenant_lock == "mintral"
     assert settings.nexo_freshness_warn_minutes == 15
     assert settings.nexo_freshness_refuse_minutes == 60
@@ -72,3 +69,85 @@ def test_supervisor_mode_validates_literal(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_NEXO_SUPERVISOR_MODE", "bogus")
     with pytest.raises(ValidationError):
         HarnessSettings()
+
+
+def test_otel_settings_have_safe_defaults():
+    """Telemetry stays off unless explicitly enabled — `local` env, no exporter."""
+
+    settings = HarnessSettings()
+
+    assert settings.otel_enabled is False
+    assert settings.otel_endpoint == "http://localhost:4317"
+    assert settings.otel_service_name == "miot-harness"
+    assert settings.otel_environment == "local"
+
+
+def test_otel_settings_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_ENDPOINT", "http://collector:4317")
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_SERVICE_NAME", "miot-harness-prod")
+    monkeypatch.setenv("MIOT_HARNESS_OTEL_ENVIRONMENT", "prod")
+
+    settings = HarnessSettings()
+
+    assert settings.otel_enabled is True
+    assert settings.otel_endpoint == "http://collector:4317"
+    assert settings.otel_service_name == "miot-harness-prod"
+    assert settings.otel_environment == "prod"
+
+
+def test_langfuse_keys_default_to_none():
+    settings = HarnessSettings()
+    assert settings.langfuse_public_key is None
+    assert settings.langfuse_secret_key is None
+
+
+def test_langfuse_keys_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_PUBLIC_KEY", "pk-lf-test")
+    monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_SECRET_KEY", "sk-lf-test")
+
+    settings = HarnessSettings()
+
+    assert settings.langfuse_public_key == "pk-lf-test"
+    assert settings.langfuse_secret_key == "sk-lf-test"
+
+
+def test_langfuse_host_default_points_at_local_stack():
+    settings = HarnessSettings()
+    assert settings.langfuse_host == "http://localhost:3000"
+
+
+def test_langfuse_host_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_LANGFUSE_HOST", "https://langfuse.internal.modulariot.dev")
+    settings = HarnessSettings()
+    assert settings.langfuse_host == "https://langfuse.internal.modulariot.dev"
+
+
+def test_conversation_token_budget_default_is_24k():
+    settings = HarnessSettings()
+    assert settings.conversation_token_budget == 24_000
+
+
+def test_conversation_token_budget_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET", "8000")
+    settings = HarnessSettings()
+    assert settings.conversation_token_budget == 8_000
+
+
+def test_debug_tenant_allowed_trims_both_sides():
+    """Both the allow-list entries AND the input tenant_id are trimmed
+    so accidental whitespace on either side doesn't produce a silent
+    false-negative match.
+    """
+    settings = HarnessSettings(allow_debug_tenants=" mintral-dev , mintral-stg ")
+    assert settings.debug_tenant_allowed("mintral-dev") is True
+    assert settings.debug_tenant_allowed("  mintral-dev  ") is True
+    assert settings.debug_tenant_allowed("\tmintral-stg\n") is True
+    assert settings.debug_tenant_allowed("unauthorized") is False
+    assert settings.debug_tenant_allowed("") is False
+    assert settings.debug_tenant_allowed("   ") is False
+
+
+def test_debug_tenant_allowed_denies_when_unset():
+    settings = HarnessSettings(allow_debug_tenants=None)
+    assert settings.debug_tenant_allowed("mintral-dev") is False

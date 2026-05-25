@@ -13,7 +13,15 @@ HarnessEventType = Literal[
     "approval.requested",
     "artifact.created",
     "plan.created",
+    # Deprecated: superseded by agent.started / agent.completed. Kept in
+    # the union for back-compat with persisted run records and older
+    # SSE consumers; no new code emits this.
     "agent.turn",
+    "agent.started",
+    "agent.completed",
+    "thinking.delta",
+    "thinking.completed",
+    "usage.recorded",
     "freshness.warning",
     "answer.completed",
     "run.completed",

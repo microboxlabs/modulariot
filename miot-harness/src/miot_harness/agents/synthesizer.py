@@ -22,8 +22,9 @@ import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from miot_harness.agents.llm_streaming import stream_llm_with_thinking
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.runtime.context import HarnessContext
@@ -147,16 +148,32 @@ async def synthesizer_node(
     rendered = _render_evidence_for_synth(evidence)
     human = f"User question:\n{user_message}\n\nEvidence:\n{rendered}\n\nWrite the answer."
 
-    response = await model.ainvoke(
-        [
-            SystemMessage(content=system),
-            HumanMessage(content=human),
-        ]
-    )
-    text = response.content if hasattr(response, "content") else str(response)
-    if not isinstance(text, str):
-        text = str(text)
-    answer = text.strip() or "(sin respuesta)"
+    # Prior turns (when conversation_id is set) sit between the system
+    # prompt and the current evidence-bearing human message so the
+    # synthesizer can reference earlier facts ("as we saw last turn …")
+    # per plan 13 §E5 hydration.
+    prior_messages = state.get("prior_messages") or []
+    messages: list[BaseMessage] = [SystemMessage(content=system)]
+    messages.extend(prior_messages)
+    messages.append(HumanMessage(content=human))
+
+    stream_enabled = bool(settings and settings.nexo_synthesizer_stream)
+    if stream_enabled:
+        answer = await stream_llm_with_thinking(
+            model=model,
+            messages=messages,
+            progress=progress,
+            run_id=ctx.run_id,
+            agent_name="synthesizer",
+        )
+        if not answer:
+            answer = "(sin respuesta)"
+    else:
+        response = await model.ainvoke(messages)
+        text = response.content if hasattr(response, "content") else str(response)
+        if not isinstance(text, str):
+            text = str(text)
+        answer = text.strip() or "(sin respuesta)"
 
     _emit(progress, ctx.run_id, answer)
     return {"answer": answer}

@@ -99,7 +99,7 @@ async def load_nexo_tools(
                 registered=[],
                 reason=(
                     f"ACL regression: fn_refresh_direct_leak={leak}. "
-                    "Re-run db-scripts/scripts/seed/create-harness-reader-role.sql"
+                    "Re-apply the read-only harness reader-role grants."
                 ),
             )
     except Exception as exc:  # noqa: BLE001 — boot must not die
@@ -178,9 +178,7 @@ async def load_nexo_tools(
                 exc,
             )
 
-    logger.info(
-        "Nexo: enabled — %d tools registered (alias=%s)", len(registered), settings.nexo_db_alias
-    )
+    logger.info("Nexo: enabled — %d tools registered", len(registered))
     return NexoBootResult(
         enabled=True, registered=registered, snapshot_age_minutes=age_minutes
     )

@@ -1,0 +1,50 @@
+{
+  "name": "@microboxlabs/miot-chat",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "packages/miot-chat"
+  },
+  "type": "module",
+  "bin": {
+    "miot-chat": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@microboxlabs/miot-harness-client": "*",
+    "commander": "^14.0.0",
+    "ink": "^7.0.3",
+    "marked": "^14.1.4",
+    "react": "^19.2.3"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/react": "19.2.10",
+    "ink-testing-library": "^4.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "5.8.2",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

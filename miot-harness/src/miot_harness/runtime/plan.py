@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal, TypedDict
 from uuid import uuid4
 
+from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 
 from miot_harness.runtime.context import HarnessContext
@@ -42,6 +43,13 @@ class NexoState(TypedDict, total=False):
     pending_step_index: int
     answer: str | None
     failure: str | None
+    # Prior turns hydrated from `ConversationStore` by the supervisor before
+    # graph dispatch. LLM-bearing agents (filter_expert / synthesizer /
+    # agentic_graph.planner / meta_agent via kwarg) prepend these to their
+    # `[SystemMessage, current HumanMessage]` so multi-turn chats actually
+    # carry context across `/runs` calls. Empty list when conversation_id is
+    # absent or the store has no prior turns for it.
+    prior_messages: list[BaseMessage]
     # Event channel: nodes return {"_events": [evt, ...]} deltas;
     # LangGraph appends via operator.add so the run record can drain
     # them in document order. Phase D wires a Phase 1 SSE consumer.

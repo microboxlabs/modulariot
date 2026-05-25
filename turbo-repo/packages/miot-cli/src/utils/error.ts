@@ -1,5 +1,6 @@
 import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
 import { MiotConnectionApiError } from "@microboxlabs/miot-connection-client";
+import { MiotHarnessApiError } from "@microboxlabs/miot-harness-client";
 import type { OutputMode } from "../config.js";
 
 export function handleError(err: unknown, outputMode: OutputMode): never {
@@ -22,6 +23,30 @@ export function handleError(err: unknown, outputMode: OutputMode): never {
     }
 
     process.exit(err.status >= 500 ? 2 : 1);
+  }
+
+  if (err instanceof MiotHarnessApiError) {
+    if (outputMode === "json") {
+      console.log(
+        JSON.stringify(
+          {
+            error: {
+              code: err.code,
+              status: err.status,
+              run_id: err.runId,
+              message: err.message,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+    } else {
+      const status = err.status ? ` (${err.status})` : "";
+      const run = err.runId ? ` [run=${err.runId}]` : "";
+      console.error(`Error ${err.code}${status}${run}: ${err.message}`);
+    }
+    process.exit(err.status !== undefined && err.status >= 500 ? 2 : 1);
   }
 
   const message = err instanceof Error ? err.message : String(err);

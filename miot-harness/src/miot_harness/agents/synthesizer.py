@@ -24,6 +24,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from miot_harness.agents.llm_streaming import stream_llm_with_thinking
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.runtime.context import HarnessContext
@@ -155,11 +156,24 @@ async def synthesizer_node(
     messages: list[BaseMessage] = [SystemMessage(content=system)]
     messages.extend(prior_messages)
     messages.append(HumanMessage(content=human))
-    response = await model.ainvoke(messages)
-    text = response.content if hasattr(response, "content") else str(response)
-    if not isinstance(text, str):
-        text = str(text)
-    answer = text.strip() or "(sin respuesta)"
+
+    stream_enabled = bool(settings and settings.nexo_synthesizer_stream)
+    if stream_enabled:
+        answer = await stream_llm_with_thinking(
+            model=model,
+            messages=messages,
+            progress=progress,
+            run_id=ctx.run_id,
+            agent_name="synthesizer",
+        )
+        if not answer:
+            answer = "(sin respuesta)"
+    else:
+        response = await model.ainvoke(messages)
+        text = response.content if hasattr(response, "content") else str(response)
+        if not isinstance(text, str):
+            text = str(text)
+        answer = text.strip() or "(sin respuesta)"
 
     _emit(progress, ctx.run_id, answer)
     return {"answer": answer}

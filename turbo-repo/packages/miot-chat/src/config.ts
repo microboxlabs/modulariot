@@ -32,6 +32,12 @@ export interface ResolvedConfig {
   mode: RunMode;
   profileName: string;
   theme: ThemeConfig | null;
+  /**
+   * When true, outgoing runs request debug=true so the SSE stream
+   * carries full tool inputs and truncated tool outputs. Requires
+   * the server-side allow-list to permit the tenant.
+   */
+  debug: boolean;
 }
 
 export interface CliFlags {
@@ -41,6 +47,7 @@ export interface CliFlags {
   user?: string;
   mode?: string;
   profile?: string;
+  debug?: boolean;
 }
 
 export interface ResolveOptions {
@@ -120,6 +127,10 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     VALID_MODES.has(modeRaw as RunMode) ? modeRaw : "auto"
   ) as RunMode;
 
+  const debug = Boolean(
+    flags.debug ?? (env.MIOT_CHAT_DEBUG ? env.MIOT_CHAT_DEBUG !== "0" : false),
+  );
+
   return {
     baseUrl,
     token,
@@ -128,6 +139,7 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     mode,
     profileName,
     theme: cfg.theme ?? null,
+    debug,
   };
 }
 

@@ -152,3 +152,111 @@ describe("renderer — NO_COLOR mode", () => {
     expect(final.output).toBe("hi\n");
   });
 });
+
+describe("renderEvent — rich SSE events (plan: thinking + agents + tools)", () => {
+  it("agent.started renders a bold ▶ {name} status line", () => {
+    const { outputs } = feed(initialState(), [
+      evt("agent.started", {
+        data: { agent: "synthesizer", graph: "nexo", turn: 1 },
+      }),
+    ]);
+    expect(stripAnsi(outputs[0] ?? "")).toBe("▶ synthesizer");
+  });
+
+  it("agent.completed renders ✓ {name} ({ms}ms)", () => {
+    const { outputs } = feed(initialState(), [
+      evt("agent.completed", {
+        data: {
+          agent: "filter_expert",
+          graph: "nexo",
+          duration_ms: 812,
+          exit_reason: "ok",
+        },
+      }),
+    ]);
+    expect(stripAnsi(outputs[0] ?? "")).toBe("✓ filter_expert (812ms)");
+  });
+
+  it("enriched tool.started carries input_keys inline", () => {
+    const { outputs } = feed(initialState(), [
+      evt("tool.started", {
+        data: {
+          tool: "coordinador_l1_kpi_summary",
+          input_keys: ["p_window_hours", "tenant_id"],
+        },
+      }),
+    ]);
+    expect(stripAnsi(outputs[0] ?? "")).toBe(
+      "tool: coordinador_l1_kpi_summary(p_window_hours,tenant_id)",
+    );
+  });
+
+  it("enriched tool.completed carries result_shape inline", () => {
+    const { outputs } = feed(initialState(), [
+      evt("tool.completed", {
+        data: {
+          tool: "coordinador_l1_kpi_summary",
+          result_shape: { type: "rows", length: 12 },
+        },
+      }),
+    ]);
+    expect(stripAnsi(outputs[0] ?? "")).toBe(
+      "tool ok: coordinador_l1_kpi_summary → rows[12]",
+    );
+  });
+
+  it("usage.recorded renders inline tokens", () => {
+    const { outputs } = feed(initialState(), [
+      evt("usage.recorded", {
+        data: {
+          agent: "synthesizer",
+          model: "claude-sonnet-4-6",
+          input_tokens: 4012,
+          output_tokens: 189,
+          cache_read_input_tokens: 0,
+          cache_creation_input_tokens: 0,
+        },
+      }),
+    ]);
+    expect(stripAnsi(outputs[0] ?? "")).toBe(
+      "usage: synthesizer in=4012 out=189",
+    );
+  });
+
+  it("thinking.delta accumulates into state and emits dimmed text without CLEAR_LINE", () => {
+    const { state, outputs } = feed(initialState({ noColor: true }), [
+      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 1. ", index: 0 } }),
+      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 2.", index: 1 } }),
+    ]);
+    expect(outputs[0]).toBe("Step 1. ");
+    expect(outputs[1]).toBe("Step 2.");
+    expect(state.pendingThinking).toBe("Step 1. Step 2.");
+    expect(state.hasThinkingBlock).toBe(true);
+  });
+
+  it("thinking.completed emits a newline and clears hasThinkingBlock", () => {
+    const seed = initialState({ noColor: true });
+    const afterDelta = renderEvent(seed, evt("thinking.delta", {
+      data: { agent: "synthesizer", delta: "thinking…", index: 0 },
+    }));
+    const afterCompleted = renderEvent(
+      afterDelta.state,
+      evt("thinking.completed", {
+        data: { agent: "synthesizer", tokens: 42, length: 9 },
+      }),
+    );
+    expect(afterCompleted.output).toBe("\n");
+    expect(afterCompleted.state.hasThinkingBlock).toBe(false);
+  });
+
+  it("renderAuthoritativeAnswer prepends a newline when a thinking block was open", () => {
+    const seed = initialState({ noColor: true });
+    const afterDelta = renderEvent(seed, evt("thinking.delta", {
+      data: { agent: "synthesizer", delta: "thinking…", index: 0 },
+    }));
+    const final = renderAuthoritativeAnswer(afterDelta.state, "the answer");
+    // \n (from hasThinkingBlock) + answer + trailing \n
+    expect(final.output).toBe("\nthe answer\n");
+    expect(final.state.hasThinkingBlock).toBe(false);
+  });
+});

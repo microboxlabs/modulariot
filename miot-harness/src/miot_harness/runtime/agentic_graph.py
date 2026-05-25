@@ -25,10 +25,13 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
+from miot_harness.agents.llm_streaming import stream_llm_with_thinking
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.events import HarnessEvent
+from miot_harness.runtime.node_lifecycle import wrap_node_with_lifecycle
 from miot_harness.runtime.plan import NexoState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
@@ -115,12 +118,35 @@ def build_agentic_graph(
         if snapshot.get("failure"):
             return {"answer": "(no answer — see failure)"}
         model = models["synthesizer"]
+        ctx: HarnessContext = snapshot["ctx"]
 
         system = _AGENTIC_SYNTH_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
         prior_messages = snapshot.get("prior_messages") or []
         messages: list[BaseMessage] = [SystemMessage(content=system)]
         messages.extend(prior_messages)
         messages.append(HumanMessage(content=snapshot.get("user_message", "")))
+
+        if settings.nexo_synthesizer_stream:
+            events: list[HarnessEvent] = []
+            answer = await stream_llm_with_thinking(
+                model=model,
+                messages=messages,
+                progress=events.append,
+                run_id=ctx.run_id,
+                agent_name="synthesizer",
+            )
+            if not answer:
+                answer = "(sin respuesta)"
+            events.append(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="answer.completed",
+                    message="Synthesized final answer",
+                    data={"length": len(answer)},
+                )
+            )
+            return {"answer": answer, "_events": events}
+
         response = await model.ainvoke(messages)
         text = response.content if hasattr(response, "content") else str(response)
         return {"answer": text if isinstance(text, str) else str(text)}
@@ -133,11 +159,14 @@ def build_agentic_graph(
     async def summarizer(state: NexoState) -> dict[str, Any]:
         return {}
 
-    graph.add_node("tenancy_gate", tenancy_gate)
-    graph.add_node("planner", planner)
-    graph.add_node("synthesizer", synthesizer)
-    graph.add_node("critic", critic)
-    graph.add_node("summarizer", summarizer)
+    graph.add_node(
+        "tenancy_gate",
+        wrap_node_with_lifecycle("tenancy_gate", tenancy_gate, "agentic"),
+    )
+    graph.add_node("planner", wrap_node_with_lifecycle("planner", planner, "agentic"))
+    graph.add_node("synthesizer", wrap_node_with_lifecycle("synthesizer", synthesizer, "agentic"))
+    graph.add_node("critic", wrap_node_with_lifecycle("critic", critic, "agentic"))
+    graph.add_node("summarizer", wrap_node_with_lifecycle("summarizer", summarizer, "agentic"))
 
     graph.set_entry_point("tenancy_gate")
 

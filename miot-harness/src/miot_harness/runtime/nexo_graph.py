@@ -43,6 +43,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.observability.callbacks import NexoTelemetryCallback
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
+from miot_harness.runtime.node_lifecycle import wrap_node_with_lifecycle
 from miot_harness.runtime.plan import NexoState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
@@ -50,7 +51,11 @@ from miot_harness.tools.registry import ToolRegistry
 
 
 def instrument_model(
-    model: BaseChatModel, agent_name: str, ctx: HarnessContext
+    model: BaseChatModel,
+    agent_name: str,
+    ctx: HarnessContext,
+    *,
+    progress: Any = None,
 ) -> Any:
     """Wrap a chat model with a per-agent telemetry callback for this run.
 
@@ -58,6 +63,10 @@ def instrument_model(
     GenAI semconv attribution (tokens, cache split, cost), the internal
     ``modular.*`` attrs we group by, AND the ``langfuse.*`` attrs the
     Langfuse UI promotes to first-class filter columns (E10).
+
+    When `progress` is set, the callback ALSO emits a `usage.recorded`
+    HarnessEvent per LLM call so SSE consumers (curl, miot-chat) see
+    token counts as the run unfolds.
 
     Returns a `Runnable` proxy which is interface-compatible with
     `BaseChatModel.ainvoke` — the agent nodes only call that surface.
@@ -75,6 +84,7 @@ def instrument_model(
         user_id=ctx.user_id,
         session_id=session_id,
         tags=tags,
+        progress=progress,
     )
     return model.with_config(callbacks=[cb])
 
@@ -136,11 +146,15 @@ def build_nexo_graph(
 
     async def _filter_expert(state: NexoState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
-        return await filter_expert_node(
+        buf, progress = _make_event_buffer()
+        delta = await filter_expert_node(
             cast(dict[str, Any], state),
             registry=registry,
-            model=instrument_model(models["filter_expert"], "filter_expert", ctx),
+            model=instrument_model(
+                models["filter_expert"], "filter_expert", ctx, progress=progress
+            ),
         )
+        return _merge_events(delta, buf)
 
     async def _data_fetcher(state: NexoState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
@@ -161,17 +175,23 @@ def build_nexo_graph(
 
     async def _domain_analyst(state: NexoState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
-        return await domain_analyst_node(
+        buf, progress = _make_event_buffer()
+        delta = await domain_analyst_node(
             cast(dict[str, Any], state),
-            model=instrument_model(models["domain_analyst"], "domain_analyst", ctx),
+            model=instrument_model(
+                models["domain_analyst"], "domain_analyst", ctx, progress=progress
+            ),
         )
+        return _merge_events(delta, buf)
 
     async def _synthesizer(state: NexoState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await synthesizer_node(
             cast(dict[str, Any], state),
-            model=instrument_model(models["synthesizer"], "synthesizer", ctx),
+            model=instrument_model(
+                models["synthesizer"], "synthesizer", ctx, progress=progress
+            ),
             progress=progress,
             settings=settings,
         )
@@ -179,30 +199,47 @@ def build_nexo_graph(
 
     async def _critic(state: NexoState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
-        return await critic_node(
+        buf, progress = _make_event_buffer()
+        delta = await critic_node(
             cast(dict[str, Any], state),
             settings=settings,
-            model=instrument_model(models["critic"], "critic", ctx),
+            model=instrument_model(
+                models["critic"], "critic", ctx, progress=progress
+            ),
         )
+        return _merge_events(delta, buf)
 
     async def _summarizer(state: NexoState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
-        return await summarizer_node(
+        buf, progress = _make_event_buffer()
+        delta = await summarizer_node(
             cast(dict[str, Any], state),
-            model=instrument_model(models["summarizer"], "summarizer", ctx),
+            model=instrument_model(
+                models["summarizer"], "summarizer", ctx, progress=progress
+            ),
         )
+        return _merge_events(delta, buf)
 
     async def _tenant_gate(state: NexoState) -> dict[str, Any]:
         return await _tenant_gate_node(cast(dict[str, Any], state), settings=settings)
 
-    graph.add_node("tenant_gate", _tenant_gate)
-    graph.add_node("filter_expert", _filter_expert)
-    graph.add_node("data_fetcher", _data_fetcher)
-    graph.add_node("freshness_judge", _freshness_judge)
-    graph.add_node("domain_analyst", _domain_analyst)
-    graph.add_node("synthesizer", _synthesizer)
-    graph.add_node("critic", _critic)
-    graph.add_node("summarizer", _summarizer)
+    graph.add_node("tenant_gate", wrap_node_with_lifecycle("tenant_gate", _tenant_gate, "nexo"))
+    graph.add_node(
+        "filter_expert",
+        wrap_node_with_lifecycle("filter_expert", _filter_expert, "nexo"),
+    )
+    graph.add_node("data_fetcher", wrap_node_with_lifecycle("data_fetcher", _data_fetcher, "nexo"))
+    graph.add_node(
+        "freshness_judge",
+        wrap_node_with_lifecycle("freshness_judge", _freshness_judge, "nexo"),
+    )
+    graph.add_node(
+        "domain_analyst",
+        wrap_node_with_lifecycle("domain_analyst", _domain_analyst, "nexo"),
+    )
+    graph.add_node("synthesizer", wrap_node_with_lifecycle("synthesizer", _synthesizer, "nexo"))
+    graph.add_node("critic", wrap_node_with_lifecycle("critic", _critic, "nexo"))
+    graph.add_node("summarizer", wrap_node_with_lifecycle("summarizer", _summarizer, "nexo"))
 
     graph.set_entry_point("tenant_gate")
 

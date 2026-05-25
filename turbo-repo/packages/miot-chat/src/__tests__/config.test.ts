@@ -155,4 +155,38 @@ describe("resolveConfig precedence", () => {
       expect(r.mode).toBe(m);
     }
   });
+
+  it("defaults debug to false; --debug flag wins over env", () => {
+    const off = resolveConfig({ configDir: dir, env: {} });
+    expect(off.debug).toBe(false);
+
+    const byFlag = resolveConfig({
+      configDir: dir,
+      env: {},
+      flags: { debug: true },
+    });
+    expect(byFlag.debug).toBe(true);
+
+    const byEnv = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_DEBUG: "1" },
+    });
+    expect(byEnv.debug).toBe(true);
+
+    const envOff = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_DEBUG: "0" },
+    });
+    expect(envOff.debug).toBe(false);
+
+    // Precedence: when BOTH a flag and a conflicting env are present,
+    // the flag wins (resolveConfig uses `flags.debug ?? env.…`). Pins
+    // the title's claim with the actual conflicting input.
+    const flagBeatsEnvOff = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_DEBUG: "0" },
+      flags: { debug: true },
+    });
+    expect(flagBeatsEnvOff.debug).toBe(true);
+  });
 });

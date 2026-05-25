@@ -55,6 +55,7 @@ import {
   TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
 import { tr } from "@/features/i18n/tr.service";
+import { decideUnplanBindingNotification } from "@/features/calendar/services/task-driven-binding-gate";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
@@ -1866,16 +1867,19 @@ export function PlanningSelectionProvider({
       }
 
       // Tell the coordinator the service is no longer in this calendar.
-      // Best-effort: a failure here just leaves a stale binding row in
-      // act_ru_variable, which the next planner action on this calendar
-      // will overwrite. Don't block the user-visible removal on it.
-      const numeroServicio = planned?.service.mintral_serviceCode;
-      if (numeroServicio && calendarId) {
-        await notifyCalendarBinding({
-          numero_servicio: numeroServicio,
-          calendar_id: calendarId,
-          stage: "none",
-        }).catch((err) =>
+      // Task-driven origins skip this call entirely — the ECM listener on
+      // the unplan task move reconciles the binding to `none` on its own.
+      // Best-effort for flag-off origins: a failure here just leaves a
+      // stale binding row in act_ru_variable, which the next planner action
+      // on this calendar will overwrite. Don't block the user-visible
+      // removal on it.
+      const unplanNotification = decideUnplanBindingNotification(
+        planned?.service.mintral_serviceCode,
+        calendarId,
+        planned?.service.origen
+      );
+      if (unplanNotification) {
+        await notifyCalendarBinding(unplanNotification).catch((err) =>
           console.warn("Failed to notify calendar binding (none):", err)
         );
       }

@@ -24,6 +24,7 @@ import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.p
 import type { Session } from "next-auth";
 import { extractCalendarBindingPayload } from "./binding-extractor";
 import { runCalendarBinding } from "./binding-helpers";
+import { isOriginTaskDriven } from "@/features/calendar/services/task-driven-origin";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -174,6 +175,23 @@ async function compensateBooking(
   }
 }
 
+/**
+ * Resolve the service's origin delegate code from the booking's
+ * `resource.data` blob. `origen` is the canonical key the planner persists
+ * (`SelectedService.origen`, populated from `mintral_originDelegateCode`);
+ * the longer key is checked as a defensive fallback for bookings written
+ * through paths that store the raw Alfresco field name. Returns undefined
+ * when the field is missing or not a non-empty string.
+ */
+function readOrigin(data: Record<string, unknown> | undefined): string | undefined {
+  if (!data) return undefined;
+  const candidates = [data.origen, data.mintral_originDelegateCode];
+  for (const value of candidates) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return undefined;
+}
+
 async function runTaskAdvance(
   session: Session,
   advance: TaskAdvance
@@ -208,41 +226,48 @@ export async function POST(request: Request) {
   const resolved = await resolveBooking(client, body);
   if ("error" in resolved) return resolved.error;
 
-  // Tell the coordinator about this calendar binding *before* the workflow
-  // advance. The coordinator dispatches based on stage:
-  //   - planned (no full tuple)  → record the binding, no Alerce.
-  //   - assigned (full tuple)    → resolve UUIDs → push to Alerce → record.
-  // A failure on stage=assigned is hard: the binding webscript leaves
-  // process variables untouched on Alerce 4xx/5xx, we cancel the
-  // just-created booking, and the user can retry. Failures on stage=planned
-  // are also hard: an unbacked booking would drift from the trip's
-  // process state, so we cancel and surface the error.
-  // Bookings with no `mintral_serviceCode` (non-planner-driven) skip the
-  // call entirely.
-  const bindingPayload = extractCalendarBindingPayload(body);
-  if (bindingPayload) {
-    const bindingResult = await runCalendarBinding(
-      authResult.session,
-      bindingPayload
-    );
-    if (!bindingResult.ok) {
-      let compensated: boolean | undefined;
-      if (resolved.created) {
-        const compensation = await compensateBooking(
-          client,
-          resolved.booking.id,
-          bindingResult.message
-        );
-        compensated = compensation.compensated;
-      }
-      return NextResponse.json(
-        {
-          error: bindingResult.message,
-          calendarBindingFailed: true,
-          bookingCompensated: compensated,
-        },
-        { status: bindingResult.status }
+  // Task-driven origins skip the binding call entirely: ECM task listeners
+  // reconcile the calendar binding off the workflow task move alone. With no
+  // binding call, the cancel-booking-on-binding-failure compensation is dead
+  // for this path and is not executed. Flag-off origins keep today's behavior.
+  const originCode = readOrigin(body.resource?.data);
+  if (!isOriginTaskDriven(originCode)) {
+    // Tell the coordinator about this calendar binding *before* the workflow
+    // advance. The coordinator dispatches based on stage:
+    //   - planned (no full tuple)  → record the binding, no Alerce.
+    //   - assigned (full tuple)    → resolve UUIDs → push to Alerce → record.
+    // A failure on stage=assigned is hard: the binding webscript leaves
+    // process variables untouched on Alerce 4xx/5xx, we cancel the
+    // just-created booking, and the user can retry. Failures on stage=planned
+    // are also hard: an unbacked booking would drift from the trip's
+    // process state, so we cancel and surface the error.
+    // Bookings with no `mintral_serviceCode` (non-planner-driven) skip the
+    // call entirely.
+    const bindingPayload = extractCalendarBindingPayload(body);
+    if (bindingPayload) {
+      const bindingResult = await runCalendarBinding(
+        authResult.session,
+        bindingPayload
       );
+      if (!bindingResult.ok) {
+        let compensated: boolean | undefined;
+        if (resolved.created) {
+          const compensation = await compensateBooking(
+            client,
+            resolved.booking.id,
+            bindingResult.message
+          );
+          compensated = compensation.compensated;
+        }
+        return NextResponse.json(
+          {
+            error: bindingResult.message,
+            calendarBindingFailed: true,
+            bookingCompensated: compensated,
+          },
+          { status: bindingResult.status }
+        );
+      }
     }
   }
 

@@ -38,3 +38,42 @@ export function decideUnplanBindingNotification(
     stage: "none",
   };
 }
+
+/**
+ * Decision helper for the planner's UNASSIGN path: returns the
+ * `notifyCalendarBinding` payload to send (stage `"unassigned"`) when the
+ * coordinator must be told a service dropped its driver/transport tuple —
+ * or `null` when the call should be skipped.
+ *
+ * Skipped when:
+ * - the service has no business `mintral_serviceCode` to bind by;
+ * - there is no `calendarId` in scope;
+ * - the service's origin is task-driven (P3 — the ECM
+ *   `OnCreateAssignDriverBinding` listener on the workflow's
+ *   `presentDriver → assignDriver` move reconciles the binding to
+ *   `unassigned` on its own, so the frontend's webscript call would just
+ *   double-bind).
+ *
+ * Mirrors `decideUnplanBindingNotification` so the unassign flag-gating
+ * can be exercised by a unit test without pulling the planner context's
+ * full React/import graph into the test worker.
+ */
+export type UnassignBindingNotification = {
+  numero_servicio: string;
+  calendar_id: string;
+  stage: "unassigned";
+};
+
+export function decideUnassignBindingNotification(
+  numeroServicio: string | undefined,
+  calendarId: string | undefined,
+  origin: string | undefined
+): UnassignBindingNotification | null {
+  if (!numeroServicio || !calendarId) return null;
+  if (isOriginTaskDriven(origin)) return null;
+  return {
+    numero_servicio: numeroServicio,
+    calendar_id: calendarId,
+    stage: "unassigned",
+  };
+}

@@ -144,6 +144,80 @@ class HarnessSettings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
     )
 
+    # Auth0 / JWT verification (defense-in-depth in front of the
+    # Quarkus proxy). Off by default so unit tests and local dev see
+    # the legacy unauthenticated surface; production deploys flip
+    # `auth_enabled` and supply the issuer/JWKS/audience. Env-var
+    # names mirror `quarkus-srv`'s `miot.auth.*` config so a single
+    # block in Helm values can render both services.
+    auth_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AUTH_ENABLED", "auth_enabled"
+        ),
+    )
+    auth0_issuer: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTH0_ISSUER", "auth0_issuer"),
+    )
+    auth0_jwks_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTH0_JWKS_URL", "auth0_jwks_url"),
+    )
+    auth0_rs256_audience: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUTH0_RS256_AUDIENCE", "auth0_rs256_audience"
+        ),
+    )
+    # Dev/staging escape hatch: when true, requests without the
+    # `X-Miot-Tenant-Client-Id` header (i.e. callers reaching harness
+    # directly, bypassing the Quarkus proxy) are accepted and the
+    # body's `tenant_id` is honored. `validate_auth_config()` rejects
+    # this in production. Removed entirely in rung R6.
+    auth_direct_allowed: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AUTH_DIRECT_ALLOWED", "auth_direct_allowed"
+        ),
+    )
+
+    def validate_auth_config(self) -> None:
+        """Raise ``ValueError`` if the auth settings are internally
+        inconsistent. Call once at startup (lifespan).
+
+        Two rules:
+        - When ``auth_enabled`` is true, all three of ``auth0_issuer``,
+          ``auth0_jwks_url``, and ``auth0_rs256_audience`` must be set.
+          Otherwise ``verify_token`` would have nothing to compare
+          against and would silently accept any well-formed RS256 token.
+        - ``auth_direct_allowed`` is dev-only: rejected when ``env``
+          equals ``"production"``. The header is the only way the
+          proxy passes the verified tenant; allowing the body to win
+          in prod is the exact hole this rung closes.
+        """
+        if self.auth_enabled:
+            missing = [
+                name
+                for name, value in (
+                    ("auth0_issuer", self.auth0_issuer),
+                    ("auth0_jwks_url", self.auth0_jwks_url),
+                    ("auth0_rs256_audience", self.auth0_rs256_audience),
+                )
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "auth_enabled=True but the following settings are unset: "
+                    + ", ".join(missing)
+                )
+        if self.auth_direct_allowed and self.env == "production":
+            raise ValueError(
+                "auth_direct_allowed=True is not permitted when env='production'; "
+                "the X-Miot-Tenant-Client-Id header from the proxy is the only "
+                "trusted tenant source in prod."
+            )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> HarnessSettings:

@@ -7,7 +7,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
@@ -213,6 +213,29 @@ def create_app() -> FastAPI:
             "env": settings.env,
             "nexo": {
                 "enabled": app.state.nexo_enabled,
+                "tools": list(app.state.nexo_registered),
+                "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
+            },
+        }
+
+    @app.get("/health/ready")
+    async def health_ready(response: Response) -> dict[str, object]:
+        # Readiness contract (kubelet readinessProbe target): Nexo is
+        # "required" iff a DSN is configured. When required-but-not-enabled
+        # the lifespan logs critical and continues serving, but the pod
+        # should not receive traffic until tools register and the snapshot
+        # passes the refuse-gate.
+        nexo_required = settings.nexo_dsn is not None
+        nexo_enabled = bool(app.state.nexo_enabled)
+        ready = (not nexo_required) or nexo_enabled
+        if not ready:
+            response.status_code = 503
+        return {
+            "status": "ready" if ready else "not_ready",
+            "env": settings.env,
+            "nexo": {
+                "required": nexo_required,
+                "enabled": nexo_enabled,
                 "tools": list(app.state.nexo_registered),
                 "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
             },

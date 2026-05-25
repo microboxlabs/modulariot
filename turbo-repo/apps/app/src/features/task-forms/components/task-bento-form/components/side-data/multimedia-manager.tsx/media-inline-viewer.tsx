@@ -25,7 +25,7 @@ import { formatDateString } from "@/features/common/components/formatted-date/fo
 import { AlfrescoFileEntry } from "./image.types";
 import { ReviewStatus } from "./media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
-import { renameBentoFile, updateBentoCategory, useSearchTasks } from "@/features/common/providers/client-api.provider";
+import { renameBentoFile, updateBentoCategory, moveBentoFile, useSearchTasks } from "@/features/common/providers/client-api.provider";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { toast } from "sonner";
 import { HiPrinter } from "react-icons/hi";
@@ -50,6 +50,14 @@ export default function MediaInlineViewer({
   onDelete,
   onRename,
   currentTaskServiceCode,
+  draftObservations,
+  committedTimeline,
+  onAddObservation,
+  onRemoveDraftObservation,
+  onRemoveCommittedObservation,
+  onAddReply,
+  onRemoveReply,
+  onCategoryChanged,
   dictionary,
 }: {
   items: MediaViewerItem[];
@@ -61,7 +69,15 @@ export default function MediaInlineViewer({
   onEdit?: (index: number) => void;
   onDelete?: (index: number) => void;
   onRename?: () => void;
+  onCategoryChanged?: () => void;
   currentTaskServiceCode?: string;
+  draftObservations?: Map<string, ObservationEntry[]>;
+  committedTimeline?: Map<string, TimelineEntry[]>;
+  onAddObservation?: (fileId: string, type: ObservationType, description: string) => void;
+  onRemoveDraftObservation?: (fileId: string, obsId: string) => void;
+  onRemoveCommittedObservation?: (fileId: string, obsId: string) => void;
+  onAddReply?: (fileId: string, obsId: string, description: string) => void;
+  onRemoveReply?: (fileId: string, obsId: string, replyId: string) => void;
   dictionary: I18nRecord;
 }) {
   const [currentIndex, setCurrentIndex] = useState(
@@ -71,6 +87,19 @@ export default function MediaInlineViewer({
   const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+
+  const handleFileMoved = () => {
+    setIsMoveModalOpen(false);
+    if (items.length <= 1) {
+      onRename?.();
+      onClose();
+    } else {
+      if (currentIndex >= items.length - 1) {
+        setCurrentIndex(currentIndex - 1);
+      }
+      onRename?.();
+    }
+  };
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -114,7 +143,10 @@ export default function MediaInlineViewer({
     if (!id) return;
     const prev = currentCategory;
     setCurrentCategory(newCategory);
-    const promise = updateBentoCategory(id, newCategory);
+    const promise = updateBentoCategory(id, newCategory).then((res) => {
+      onCategoryChanged?.();
+      return res;
+    });
     toast.promise(promise, {
       loading: tr("bento.multimedia.category_change_loading", dictionary),
       success: tr("bento.multimedia.category_change_success", dictionary),
@@ -163,6 +195,9 @@ export default function MediaInlineViewer({
   const handleDecision = (decision: ReviewStatus) => {
     if (!id) return;
     onStatusChange?.(id, decision);
+
+    // If the file is already approved/rejected (committed), don't auto-advance
+    if (status === "approved" || status === "rejected") return;
 
     const updatedDrafts = new Map(draftDecisions ?? new Map());
     updatedDrafts.set(id, decision);
@@ -233,7 +268,7 @@ export default function MediaInlineViewer({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 shrink-0">
         {/* Left: file metadata */}
-        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {isEditingName ? (
             <input
               ref={nameInputRef}
@@ -271,7 +306,7 @@ export default function MediaInlineViewer({
             <span
               title={tr("bento.multimedia.viewer_click_rename", dictionary)}
               onClick={() => setIsEditingName(true)}
-              className="text-sm font-medium text-gray-900 dark:text-white truncate cursor-text hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className="text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
             >
               {editedName || current.file.entry.name}
             </span>
@@ -307,9 +342,11 @@ export default function MediaInlineViewer({
             <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium border ${
               draftDecisions.get(id) === "approved"
                 ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                : "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                : draftDecisions.get(id) === "pending"
+                  ? "border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+                  : "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
             }`}>
-              → {tr(draftDecisions.get(id) === "approved" ? "bento.multimedia.draft_will_approve" : "bento.multimedia.draft_will_reject", dictionary)}
+              → {tr(draftDecisions.get(id) === "approved" ? "bento.multimedia.draft_will_approve" : draftDecisions.get(id) === "pending" ? "bento.multimedia.draft_will_review" : "bento.multimedia.draft_will_reject", dictionary)}
             </span>
           )}
         </div>
@@ -427,27 +464,43 @@ export default function MediaInlineViewer({
           </button>
 
           {/* Approve / Reject */}
-          {(() => {
-            const draft = id ? (draftDecisions?.get(id) ?? null) : null;
-            return (
-              <ReviewSplitButton
-                primary={{
-                  label: <span className="inline lg:hidden xl:inline">{tr("bento.multimedia.btn_approve", dictionary)}</span>,
-                  icon: <HiCheck className="w-4 h-4" />,
-                  onClick: () => handleDecision("approved"),
-                  isActive: draft === "approved",
-                }}
-                secondaryActions={[
-                  {
-                    label: <span className="inline lg:hidden xl:inline">{tr("bento.multimedia.btn_reject", dictionary)}</span>,
-                    icon: <HiXMark className="w-4 h-4" />,
-                    onClick: () => handleDecision("rejected"),
-                    isActive: draft === "rejected",
-                  },
-                ]}
-              />
-            );
-          })()}
+          {status !== "approved" && (
+            <ReviewSplitButton
+              primary={{
+                label: <span className="inline lg:hidden xl:inline">{tr("bento.multimedia.btn_approve", dictionary)}</span>,
+                icon: <HiCheck className="w-4 h-4" />,
+                onClick: () => handleDecision("approved"),
+                isActive: (id ? (draftDecisions?.get(id) ?? null) : null) === "approved",
+              }}
+              secondaryActions={[
+                {
+                  label: <span className="inline lg:hidden xl:inline">{tr("bento.multimedia.btn_reject", dictionary)}</span>,
+                  icon: <HiXMark className="w-4 h-4" />,
+                  onClick: () => handleDecision("rejected"),
+                  isActive: (id ? (draftDecisions?.get(id) ?? null) : null) === "rejected",
+                },
+              ]}
+            />
+          )}
+          {status === "approved" && (
+            <Dropdown
+              label={tr("bento.multimedia.btn_change_status", dictionary)}
+              size="xs"
+              color="light"
+            >
+              {id && draftDecisions?.has(id) && (
+                <DropdownItem onClick={() => handleDecision("approved")}>
+                  {tr("bento.multimedia.btn_no_change", dictionary)}
+                </DropdownItem>
+              )}
+              <DropdownItem onClick={() => handleDecision("rejected")}>
+                {tr("bento.multimedia.btn_reject", dictionary)}
+              </DropdownItem>
+              <DropdownItem onClick={() => handleDecision("pending")}>
+                {tr("bento.multimedia.btn_back_to_review", dictionary)}
+              </DropdownItem>
+            </Dropdown>
+          )}
 
           {/* Close */}
           <button
@@ -517,13 +570,33 @@ export default function MediaInlineViewer({
               {current.file.entry.createdByUser?.displayName && (
                 <MetaRow label={tr("bento.multimedia.sidebar_prop_author", dictionary)} value={current.file.entry.createdByUser.displayName} />
               )}
+              {current.file.entry.properties["mintral:reviewStatus"] && current.file.entry.properties["mintral:reviewStatus"] !== "PENDING" && (
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_review_status", dictionary)} value={current.file.entry.properties["mintral:reviewStatus"] === "APPROVED" ? tr("bento.multimedia.sidebar_prop_review_approved", dictionary) : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary)} />
+              )}
+              {current.file.entry.properties["mintral:reviewedBy"] && (
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_by", dictionary)} value={current.file.entry.properties["mintral:reviewedBy"]} />
+              )}
+              {current.file.entry.properties["mintral:reviewedAt"] && (
+                <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_at", dictionary)} value={formatDateString(current.file.entry.properties["mintral:reviewedAt"])} />
+              )}
             </dl>
           </SidebarSection>
           <SidebarSection title={tr("bento.multimedia.sidebar_permits", dictionary)}>
             <PermitsSection dictionary={dictionary} />
           </SidebarSection>
-          <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)}>
-            <ObservationsSection dictionary={dictionary} />
+          <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)} defaultExpanded>
+            <ObservationsSection
+              key={id ?? currentIndex}
+              dictionary={dictionary}
+              draftObservations={draftObservations?.get(id ?? "") ?? []}
+              committedTimeline={committedTimeline?.get(id ?? "") ?? []}
+              isInDraftReview={!reviewStatuses?.get(id) || reviewStatuses?.get(id) === "pending"}
+              onAdd={(type, description) => { if (id) onAddObservation?.(id, type, description); }}
+              onRemoveDraft={(obsId) => { if (id) onRemoveDraftObservation?.(id, obsId); }}
+              onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
+              onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}
+              onRemoveReply={(obsId, rid) => { if (id) onRemoveReply?.(id, obsId, rid); }}
+            />
           </SidebarSection>
         </div>
       </div>
@@ -532,7 +605,9 @@ export default function MediaInlineViewer({
         show={isMoveModalOpen}
         onClose={() => setIsMoveModalOpen(false)}
         fileName={current.file.entry.name}
+        nodeId={id}
         currentTaskServiceCode={currentTaskServiceCode}
+        onMoved={handleFileMoved}
         dictionary={dictionary}
       />
 
@@ -629,7 +704,7 @@ function SidebarSection({
           isExpanded ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <div className="px-3 pb-3 pt-1">{children}</div>
+        <div className="px-3 pb-3 pt-2">{children}</div>
       </div>
     </div>
   );
@@ -805,7 +880,7 @@ function PermitsSection({ dictionary }: { dictionary: I18nRecord }) {
 
 // ─── Observations section ────────────────────────────────────────────────────
 
-type ObservationType =
+export type ObservationType =
   | "value_not_visible"
   | "bad_lighting"
   | "poor_image_quality"
@@ -819,102 +894,338 @@ type ObservationType =
   | "wrong_format"
   | "other";
 
-const OBSERVATION_LABELS: Record<ObservationType, string> = {
-  value_not_visible: "Value not visible",
-  bad_lighting: "Bad lighting",
-  poor_image_quality: "Poor image quality",
-  wrong_document: "Wrong document",
-  incorrect_data: "Incorrect data",
-  document_incomplete: "Document incomplete",
-  document_expired: "Document expired",
-  missing_signature: "Missing signature",
-  illegible_text: "Illegible text",
-  document_damaged: "Document damaged",
-  wrong_format: "Wrong format",
-  other: "Other",
+const OBSERVATION_TYPE_KEYS: ObservationType[] = [
+  "value_not_visible",
+  "bad_lighting",
+  "poor_image_quality",
+  "wrong_document",
+  "incorrect_data",
+  "document_incomplete",
+  "document_expired",
+  "missing_signature",
+  "illegible_text",
+  "document_damaged",
+  "wrong_format",
+  "other",
+];
+
+export type ReplyEntry = {
+  id: string;
+  description: string;
+  createdAt: Date;
+  createdBy?: string;
 };
 
-type ObservationEntry = {
+export type ObservationEntry = {
   id: string;
   type: ObservationType;
   description: string;
   createdAt: Date;
+  createdBy?: string;
+  replies?: ReplyEntry[];
 };
 
-const MOCK_OBSERVATIONS: ObservationEntry[] = [];
+export type StateChangeTimelineEntry = {
+  kind: "state_change";
+  id: string;
+  status: "approved" | "rejected";
+  committedAt: Date;
+  committedBy?: string;
+  observations: ObservationEntry[];
+};
 
-function ObservationsSection({ dictionary }: { dictionary: I18nRecord }) {
-  const [observations, setObservations] = useState<ObservationEntry[]>(MOCK_OBSERVATIONS);
+export type LooseObservationTimelineEntry = {
+  kind: "observation";
+  id: string;
+  type: ObservationType;
+  description: string;
+  createdAt: Date;
+  createdBy?: string;
+  replies?: ReplyEntry[];
+};
+
+export type TimelineEntry = StateChangeTimelineEntry | LooseObservationTimelineEntry;
+
+
+function relativeTime(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo`;
+  return `${Math.floor(months / 12)}y`;
+}
+
+function ObservationCard({
+  obs,
+  dictionary,
+  onDelete,
+  onAddReply,
+  onRemoveReply,
+}: {
+  obs: ObservationEntry;
+  dictionary: I18nRecord;
+  onDelete?: () => void;
+  onAddReply?: (description: string) => void;
+  onRemoveReply?: (replyId: string) => void;
+}) {
+  const [repliesOpen, setRepliesOpen] = useState(true);
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const replyCount = (obs.replies ?? []).length;
+
+  const handleReply = () => {
+    if (!replyText.trim()) return;
+    onAddReply?.(replyText.trim());
+    setReplyText("");
+    setIsReplying(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-1 group/card">
+
+      {/* Header: label · name · time · delete */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 shrink-0">
+          {tr(`bento.multimedia.obs_${obs.type}`, dictionary)}
+        </span>
+        {obs.createdBy && (
+          <span className="text-xs text-gray-400 dark:text-gray-500">{obs.createdBy}</span>
+        )}
+        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{relativeTime(obs.createdAt)}</span>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            title={tr("bento.multimedia.obs_delete", dictionary)}
+            className="ml-auto p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer shrink-0 opacity-100"
+          >
+            <HiTrash className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-gray-600 dark:text-gray-300 wrap-break-word leading-relaxed">
+        {obs.description}
+      </p>
+
+      {/* Actions row: replies toggle · reply */}
+      {(replyCount > 0 || onAddReply) && (
+        <div className="flex items-center gap-2">
+          {replyCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setRepliesOpen((v) => !v)}
+              className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+            >
+              <HiChevronDown className={`w-3 h-3 transition-transform duration-150 ${repliesOpen ? "" : "-rotate-90"}`} />
+              {replyCount} {replyCount === 1 ? "reply" : "replies"}
+            </button>
+          )}
+          {onAddReply && (
+            <button
+              type="button"
+              onClick={() => { setIsReplying((v) => !v); if (!isReplying) setRepliesOpen(true); }}
+              className="text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+            >
+              {tr("bento.multimedia.obs_reply", dictionary)}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Replies list */}
+      {repliesOpen && replyCount > 0 && (
+        <div className="flex flex-col gap-2 mt-0.5 pl-2 border-l-2 border-gray-100 dark:border-gray-700">
+          {(obs.replies ?? []).map((reply) => (
+            <div key={reply.id} className="flex items-center gap-1.5 group/reply rounded px-1.5 py-1 -mx-1.5 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <p className="text-xs text-gray-600 dark:text-gray-300 wrap-break-word leading-relaxed">
+                  {reply.description}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  {reply.createdBy && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{reply.createdBy}</span>
+                  )}
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{relativeTime(reply.createdAt)}</span>
+                </div>
+              </div>
+              {onRemoveReply && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveReply(reply.id)}
+                  className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer shrink-0 opacity-100"
+                >
+                  <HiTrash className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reply form — below the replies list */}
+      {isReplying && (
+        <div className="flex flex-col gap-1.5 pl-2 border-l-2 border-gray-100 dark:border-gray-700">
+          <textarea
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            placeholder={tr("bento.multimedia.obs_reply_placeholder", dictionary)}
+            rows={2}
+            autoFocus
+            className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1.5 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+          />
+          <div className="flex items-center justify-end gap-1">
+            <button type="button" onClick={() => { setIsReplying(false); setReplyText(""); }}
+              className="text-xs px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+              {tr("bento.multimedia.sidebar_obs_cancel", dictionary)}
+            </button>
+            <button type="button" onClick={handleReply} disabled={!replyText.trim()}
+              className="text-xs px-2 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer">
+              {tr("bento.multimedia.obs_reply_send", dictionary)}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ObservationsSection({
+  dictionary,
+  draftObservations,
+  committedTimeline,
+  isInDraftReview,
+  onAdd,
+  onRemoveDraft,
+  onRemoveCommitted,
+  onAddReply,
+  onRemoveReply,
+}: {
+  dictionary: I18nRecord;
+  draftObservations: ObservationEntry[];
+  committedTimeline: TimelineEntry[];
+  isInDraftReview: boolean;
+  onAdd: (type: ObservationType, description: string) => void;
+  onRemoveDraft: (id: string) => void;
+  onRemoveCommitted?: (id: string) => void;
+  onAddReply?: (obsId: string, description: string) => void;
+  onRemoveReply?: (obsId: string, replyId: string) => void;
+}) {
   const [isAdding, setIsAdding] = useState(false);
   const [newType, setNewType] = useState<ObservationType>("value_not_visible");
   const [newDescription, setNewDescription] = useState("");
 
   const handleAdd = () => {
     if (!newDescription.trim()) return;
-    setObservations((prev) => [
-      ...prev,
-      { id: `obs-${Date.now()}`, type: newType, description: newDescription.trim(), createdAt: new Date() },
-    ]);
+    onAdd(newType, newDescription.trim());
     setNewDescription("");
     setNewType("value_not_visible");
     setIsAdding(false);
   };
 
-  const handleRemove = (id: string) => {
-    setObservations((prev) => prev.filter((o) => o.id !== id));
-  };
+  const hasContent = committedTimeline.length > 0 || draftObservations.length > 0;
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Observation list card */}
-      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{tr("bento.multimedia.sidebar_observations", dictionary)}</span>
-          <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">{observations.length}</span>
-        </div>
-        <div className="flex flex-col max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/60">
-          {observations.length > 0 ? (
-            observations.map((obs) => (
-              <div key={obs.id} className="flex items-start gap-2 px-3 py-2.5 hover:bg-white dark:hover:bg-gray-800/60 transition-colors group/obs">
-                <div className="flex flex-col flex-1 min-w-0 gap-0.5">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
-                    {tr(`bento.multimedia.obs_${obs.type}`, dictionary)}
-                  </span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 wrap-break-word">{obs.description}</p>
-                  <span className="text-xs text-gray-300 dark:text-gray-600 mt-0.5">
-                    {formatDateString(obs.createdAt.toISOString())}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(obs.id)}
-                  className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer shrink-0 opacity-0 group-hover/obs:opacity-100"
+
+      {/* Timeline */}
+      {hasContent ? (
+        <div className="flex flex-col gap-2">
+          {committedTimeline.map((entry) => {
+            if (entry.kind === "state_change") {
+              const isApproved = entry.status === "approved";
+              return (
+                <div
+                  key={entry.id}
+                  className={`rounded-lg border overflow-hidden ${isApproved ? "border-green-200 dark:border-green-800" : "border-red-200 dark:border-red-800"}`}
                 >
-                  <HiXMark className="w-3 h-3" />
-                </button>
+                  <div className={`flex items-center gap-2 px-3 py-2 border-b ${isApproved ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"}`}>
+                    <span className={`text-xs font-semibold ${isApproved ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
+                      {tr(isApproved ? "bento.multimedia.sidebar_obs_state_approved" : "bento.multimedia.sidebar_obs_state_rejected", dictionary)}
+                    </span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+                      {formatDateString(entry.committedAt.toISOString())}
+                    </span>
+                    {entry.committedBy && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-24" title={entry.committedBy}>
+                        · {entry.committedBy}
+                      </span>
+                    )}
+                  </div>
+                  {entry.observations.length > 0 ? (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                      {entry.observations.map((obs) => (
+                        <div key={obs.id} className="px-3 py-2.5">
+                          <ObservationCard
+                            obs={obs}
+                            dictionary={dictionary}
+                            onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
+                            onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-2.5 italic">
+                      {tr("bento.multimedia.sidebar_obs_none_in_container", dictionary)}
+                    </p>
+                  )}
+                </div>
+              );
+            }
+
+            // Loose observation (added after a commit)
+            return (
+              <div key={entry.id} className="px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+                <ObservationCard
+                  obs={{ id: entry.id, type: entry.type, description: entry.description, createdAt: entry.createdAt, createdBy: entry.createdBy, replies: entry.replies }}
+                  dictionary={dictionary}
+                  onDelete={onRemoveCommitted ? () => onRemoveCommitted(entry.id) : undefined}
+                  onAddReply={onAddReply ? (desc) => onAddReply(entry.id, desc) : undefined}
+                  onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(entry.id, rid) : undefined}
+                />
               </div>
-            ))
-          ) : (
-            <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-3">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
-          )}
+            );
+          })}
+
+          {/* Draft observations visible while in review */}
+          {isInDraftReview && draftObservations.map((obs) => (
+            <div key={obs.id} className="px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30">
+              <ObservationCard
+                obs={obs}
+                dictionary={dictionary}
+                onDelete={() => onRemoveDraft(obs.id)}
+                onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
+                onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
+              />
+            </div>
+          ))}
         </div>
-      </div>
+      ) : isInDraftReview && draftObservations.length === 0 && !isAdding ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
+      ) : !hasContent && !isAdding ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
+      ) : null}
 
       {/* New observation form */}
       {isAdding ? (
         <div className="flex flex-col gap-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-900/10 p-3">
-          {/* Type select */}
           <select
             value={newType}
             onChange={(e) => setNewType(e.target.value as ObservationType)}
             className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 cursor-pointer"
           >
-            {(Object.keys(OBSERVATION_LABELS) as ObservationType[]).map((key) => (
+            {OBSERVATION_TYPE_KEYS.map((key) => (
               <option key={key} value={key}>{tr(`bento.multimedia.obs_${key}`, dictionary)}</option>
             ))}
           </select>
-
-          {/* Description textarea */}
           <textarea
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
@@ -922,8 +1233,6 @@ function ObservationsSection({ dictionary }: { dictionary: I18nRecord }) {
             rows={3}
             className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 resize-none"
           />
-
-          {/* Actions */}
           <div className="flex items-center justify-end gap-1.5">
             <button
               type="button"
@@ -968,44 +1277,61 @@ function CategoryDropdown({
   onCategoryChange: (category: string) => void;
   dictionary: I18nRecord;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const current = categories.find((c) => c.value === currentTag) ?? null;
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
   return (
-    <Dropdown
-      theme={{
-        floating: {
-          base: "z-50 w-52 rounded-lg overflow-hidden",
-          style: {
-            auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white shadow-lg",
-          },
-          item: {
-            base: "flex items-center gap-2 px-3 py-2 text-xs cursor-pointer w-full text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-600",
-            container: "w-full",
-          },
-        },
-      }}
-      renderTrigger={() => (
-        <button
-          type="button"
-          className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer shrink-0"
-        >
-          <span>{current?.label ?? tr("bento.multimedia.select_document_type", dictionary)}</span>
-          <HiChevronDown className="w-3 h-3" />
-        </button>
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setIsOpen((p) => !p)}
+        className={`flex items-center gap-2 text-sm font-semibold rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer ${
+          current
+            ? "text-blue-700 dark:text-blue-300 border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+            : "text-gray-500 dark:text-gray-400 border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400"
+        }`}
+      >
+        <span className="whitespace-nowrap">
+          {current?.label ?? tr("bento.multimedia.select_document_type", dictionary)}
+        </span>
+        <HiChevronDown className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1.5 z-50 w-max rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
+          <div className="p-1 flex flex-col gap-0.5">
+            {categories.map((cat) => {
+              const isSelected = cat.value === currentTag;
+              return (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => { onCategoryChange(cat.value); setIsOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left whitespace-nowrap transition-colors cursor-pointer ${
+                    isSelected
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span className="flex-1">{cat.label}</span>
+                  {isSelected && <HiCheck className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
-      label=""
-    >
-      {categories.map((cat) => (
-        <DropdownItem
-          key={cat.value}
-          onClick={() => onCategoryChange(cat.value)}
-          className={cat.value === currentTag ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20" : ""}
-          icon={cat.value === currentTag ? () => <HiCheck className="w-3 h-3 shrink-0" /> : undefined}
-        >
-          {cat.label}
-        </DropdownItem>
-      ))}
-    </Dropdown>
+    </div>
   );
 }
 
@@ -1115,13 +1441,17 @@ function MoveToTaskModal({
   show,
   onClose,
   fileName,
+  nodeId,
   currentTaskServiceCode,
+  onMoved,
   dictionary,
 }: {
   show: boolean;
   onClose: () => void;
   fileName: string;
+  nodeId?: string;
   currentTaskServiceCode?: string;
+  onMoved?: () => void;
   dictionary: I18nRecord;
 }) {
   const [search, setSearch] = useState("");
@@ -1150,9 +1480,17 @@ function MoveToTaskModal({
     : [];
 
   const handleMove = () => {
-    if (!selectedTask) return;
-    toast.success(`"${fileName}" ${tr("bento.multimedia.move_success", dictionary)} ${selectedTask.name}`);
-    onClose();
+    if (!selectedTask || !nodeId) return;
+    const movePromise = moveBentoFile(nodeId, selectedTask.id).then((res) => {
+      onMoved?.();
+      onClose();
+      return res;
+    });
+    toast.promise(movePromise, {
+      loading: tr("bento.multimedia.move_loading", dictionary),
+      success: `"${fileName}" ${tr("bento.multimedia.move_success", dictionary)} ${selectedTask.name}`,
+      error: tr("bento.multimedia.move_error", dictionary),
+    });
   };
 
   return (

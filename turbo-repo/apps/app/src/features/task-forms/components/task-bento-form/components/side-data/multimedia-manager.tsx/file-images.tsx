@@ -3,7 +3,7 @@
 import { Button, Checkbox, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { MdOutlineFileUpload } from "react-icons/md";
-import { HiChevronDown, HiArrowDownTray, HiCheck, HiXMark, HiExclamationTriangle } from "react-icons/hi2";
+import { HiChevronDown, HiArrowDownTray } from "react-icons/hi2";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
@@ -12,6 +12,7 @@ import {
   useOptimisticFileUpload,
   putBentoMultimedia,
   deleteBentoMultimedia,
+  updateBentoReviewState,
 } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -22,6 +23,7 @@ import DocumentList from "./document-list";
 import { AlfrescoFileEntry } from "./image.types";
 import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
 import MediaInlineViewer, { MediaViewerItem } from "./media-inline-viewer";
+import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry } from "./media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
 
 export const ALLOWED_FILE_TYPES = new Set([
@@ -228,6 +230,8 @@ export default function FileImages({
   const [reviewStatusUsers, setReviewStatusUsers] = useState<Map<string, string>>(new Map());
   const [draftDecisions, setDraftDecisions] = useState<Map<string, ReviewStatus>>(new Map());
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
+  const [draftObservations, setDraftObservations] = useState<Map<string, ObservationEntry[]>>(new Map());
+  const [committedTimeline, setCommittedTimeline] = useState<Map<string, TimelineEntry[]>>(new Map());
 
   const reviewSummary = useMemo(() => {
     const approved = allIds.filter((id) => reviewStatuses.get(id) === "approved").length;
@@ -236,21 +240,17 @@ export default function FileImages({
     return { approved, rejected, pending };
   }, [allIds, reviewStatuses]);
 
-  const draftSummary = useMemo(() => {
-    const approved = allIds.filter((id) => draftDecisions.get(id) === "approved").length;
-    const rejected = allIds.filter((id) => draftDecisions.get(id) === "rejected").length;
-    const undecided = allIds.filter((id) => !draftDecisions.has(id)).length;
-    return { approved, rejected, undecided };
-  }, [allIds, draftDecisions]);
-
-  const effectiveSummary = useMemo(() => {
-    const reviewTabIds = allIds.filter((id) => reviewStatuses.get(id) !== "approved");
-    const effective = (id: string) => draftDecisions.get(id) ?? reviewStatuses.get(id) ?? "pending";
-    const approved = reviewTabIds.filter((id) => effective(id) === "approved").length;
-    const rejected = reviewTabIds.filter((id) => effective(id) === "rejected").length;
-    const pending  = reviewTabIds.filter((id) => effective(id) === "pending").length;
-    return { approved, rejected, pending };
-  }, [allIds, draftDecisions, reviewStatuses]);
+  const draftChangeSummary = useMemo(() => {
+    let toApproved = 0;
+    let toRejected = 0;
+    let toPending = 0;
+    draftDecisions.forEach((status) => {
+      if (status === "approved") toApproved++;
+      else if (status === "rejected") toRejected++;
+      else toPending++;
+    });
+    return { toApproved, toRejected, toPending, total: draftDecisions.size };
+  }, [draftDecisions]);
 
   const filteredImages = useMemo(
     () =>
@@ -281,8 +281,114 @@ export default function FileImages({
   const { data: session } = useSession();
   const currentUserName = session?.user?.name ?? session?.user?.email ?? undefined;
 
+
   const handleStatusChange = useCallback((id: string, status: ReviewStatus) => {
-    setDraftDecisions((prev) => new Map(prev).set(id, status));
+    setDraftDecisions((prev) => {
+      const committed = reviewStatuses.get(id) ?? "pending";
+      const next = new Map(prev);
+      if (status === committed) {
+        next.delete(id);
+      } else {
+        next.set(id, status);
+      }
+      return next;
+    });
+  }, [reviewStatuses]);
+
+  const handleAddObservation = useCallback((fileId: string, type: ObservationType, description: string) => {
+    const committedStatus = reviewStatuses.get(fileId);
+    const isCommitted = committedStatus === "approved" || committedStatus === "rejected";
+    const entry: ObservationEntry = { id: `obs-${fileId}-${Date.now()}`, type, description, createdAt: new Date(), createdBy: currentUserName };
+    if (isCommitted) {
+      setCommittedTimeline((prev) => {
+        const next = new Map(prev);
+        next.set(fileId, [...(prev.get(fileId) ?? []), { kind: "observation" as const, ...entry }]);
+        return next;
+      });
+    } else {
+      setDraftObservations((prev) => {
+        const next = new Map(prev);
+        next.set(fileId, [...(prev.get(fileId) ?? []), entry]);
+        return next;
+      });
+    }
+  }, [reviewStatuses, currentUserName]);
+
+  const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {
+    setDraftObservations((prev) => {
+      const next = new Map(prev);
+      next.set(fileId, (prev.get(fileId) ?? []).filter((o) => o.id !== obsId));
+      return next;
+    });
+  }, []);
+
+  const handleRemoveCommittedObservation = useCallback((fileId: string, obsId: string) => {
+    setCommittedTimeline((prev) => {
+      const next = new Map(prev);
+      next.set(fileId, (prev.get(fileId) ?? []).filter((e) => e.id !== obsId));
+      return next;
+    });
+  }, []);
+
+  const handleAddReply = useCallback((fileId: string, obsId: string, description: string) => {
+    const reply = { id: `reply-${obsId}-${Date.now()}`, description, createdAt: new Date(), createdBy: currentUserName };
+    setCommittedTimeline((prev) => {
+      const next = new Map(prev);
+      next.set(fileId, (prev.get(fileId) ?? []).map((entry) => {
+        if (entry.kind === "observation" && entry.id === obsId) {
+          return { ...entry, replies: [...(entry.replies ?? []), reply] };
+        }
+        if (entry.kind === "state_change") {
+          return {
+            ...entry,
+            observations: entry.observations.map((obs) =>
+              obs.id === obsId ? { ...obs, replies: [...(obs.replies ?? []), reply] } : obs
+            ),
+          };
+        }
+        return entry;
+      }));
+      return next;
+    });
+    setDraftObservations((prev) => {
+      const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
+      if (!obs) return prev;
+      const next = new Map(prev);
+      next.set(fileId, (prev.get(fileId) ?? []).map((o) =>
+        o.id === obsId ? { ...o, replies: [...(o.replies ?? []), reply] } : o
+      ));
+      return next;
+    });
+  }, [currentUserName]);
+
+  const handleRemoveReply = useCallback((fileId: string, obsId: string, replyId: string) => {
+    setCommittedTimeline((prev) => {
+      const next = new Map(prev);
+      next.set(fileId, (prev.get(fileId) ?? []).map((entry) => {
+        if (entry.kind === "observation" && entry.id === obsId) {
+          return { ...entry, replies: (entry.replies ?? []).filter((r) => r.id !== replyId) };
+        }
+        if (entry.kind === "state_change") {
+          return {
+            ...entry,
+            observations: entry.observations.map((obs) =>
+              obs.id === obsId ? { ...obs, replies: (obs.replies ?? []).filter((r) => r.id !== replyId) } : obs
+            ),
+          };
+        }
+        return entry;
+      }));
+      return next;
+    });
+    setDraftObservations((prev) => {
+      const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
+      if (!obs) return prev;
+      const next = new Map(prev);
+      next.set(fileId, (prev.get(fileId) ?? []).map((o) =>
+        o.id === obsId ? { ...o, replies: (o.replies ?? []).filter((r) => r.id !== replyId) } : o
+      ));
+      return next;
+    });
   }, []);
 
   const { mutate: globalMutate } = useSWRConfig();
@@ -304,17 +410,53 @@ export default function FileImages({
     if (files.length > 0 && documentsData) {
       const newImages: any[] = [];
       const newDocuments: any[] = [];
+      const loadedStatuses = new Map<string, ReviewStatus>();
+      const loadedTimestamps = new Map<string, Date>();
+      const loadedUsers = new Map<string, string>();
       documentsData.data.forEach((document: any, index: number) => {
         if (!document.error && files[index]) {
-          if (files[index].entry.content.mimeType.includes("image")) {
-            newImages.push({ file: files[index], data: document });
+          const entry = files[index] as AlfrescoFileEntry;
+          const alfrescoState = entry.entry.properties["mintral:reviewStatus"];
+          if (alfrescoState === "APPROVED") loadedStatuses.set(entry.entry.id, "approved");
+          else if (alfrescoState === "REJECTED") loadedStatuses.set(entry.entry.id, "rejected");
+          else loadedStatuses.set(entry.entry.id, "pending");
+          const reviewedAt = entry.entry.properties["mintral:reviewedAt"];
+          if (reviewedAt) loadedTimestamps.set(entry.entry.id, new Date(reviewedAt));
+          const reviewedBy = entry.entry.properties["mintral:reviewedBy"];
+          if (reviewedBy) loadedUsers.set(entry.entry.id, reviewedBy);
+          if (entry.entry.content.mimeType.includes("image")) {
+            newImages.push({ file: entry, data: document });
           } else {
-            newDocuments.push({ file: files[index], data: document });
+            newDocuments.push({ file: entry, data: document });
           }
         }
       });
       setImages(newImages);
       setDocuments(newDocuments);
+      setReviewStatusTimestamps((prev) => {
+        const next = new Map(prev);
+        loadedTimestamps.forEach((date, id) => { if (!prev.has(id)) next.set(id, date); });
+        return next;
+      });
+      setReviewStatusUsers((prev) => {
+        const next = new Map(prev);
+        loadedUsers.forEach((user, id) => { if (!prev.has(id)) next.set(id, user); });
+        return next;
+      });
+      setReviewStatuses((prev) => {
+        const next = new Map(prev);
+        // Remove stale entries for nodes no longer in the list.
+        const liveIds = new Set([...newImages, ...newDocuments].map((item: { file: AlfrescoFileEntry }) => item.file.entry.id));
+        next.forEach((_, id) => { if (!liveIds.has(id)) next.delete(id); });
+        // Only "approved"/"rejected" from Alfresco override in-memory committed state.
+        // A "pending" from Alfresco (absent property) only applies when there is no
+        // in-memory decision — this preserves same-session commits while the backend
+        // Absence means the property is not yet set; treat as "review" (the default state).
+        loadedStatuses.forEach((status, id) => {
+          if (status !== "pending" || !prev.has(id)) next.set(id, status);
+        });
+        return next;
+      });
     }
   }, [documentsData, files]);
 
@@ -333,6 +475,14 @@ export default function FileImages({
     [images, documents, imageRefreshKey]
   );
 
+  const viewerItems = useMemo<MediaViewerItem[]>(
+    () => allMediaItems.filter((item) => {
+      const s = reviewStatuses.get(item.file.entry.id) ?? "pending";
+      return viewMode === "approved" ? s === "approved" : s !== "approved";
+    }),
+    [allMediaItems, viewMode, reviewStatuses]
+  );
+
   const openViewer = useCallback(
     (index: number) => {
       setViewerIndex(index);
@@ -348,7 +498,7 @@ export default function FileImages({
 
   const handleReplaceImage = useCallback(
     async (file: File, index: number) => {
-      const item = allMediaItems[index];
+      const item = viewerItems[index];
       if (!item?.file?.entry?.id) {
         toast.error(tr("bento.multimedia.update_error", dictionary));
         return;
@@ -377,12 +527,12 @@ export default function FileImages({
         setEditImageIndex(null);
       }
     },
-    [allMediaItems, dictionary, mutate, mutateContents, globalMutate]
+    [viewerItems, dictionary, mutate, mutateContents, globalMutate]
   );
 
   const handleDeleteMedia = useCallback(
     async (index: number) => {
-      const item = allMediaItems[index];
+      const item = viewerItems[index];
       if (!item?.file?.entry?.id) return;
       const nodeId = item.file.entry.id;
       const deletePromise = deleteBentoMultimedia(nodeId);
@@ -395,12 +545,12 @@ export default function FileImages({
         await deletePromise;
         await mutate();
         await mutateContents();
-        if (allMediaItems.length <= 1) closeViewer();
+        if (viewerItems.length <= 1) closeViewer();
       } catch {
         // error toast already shown
       }
     },
-    [allMediaItems, mutate, mutateContents, closeViewer]
+    [viewerItems, mutate, mutateContents, closeViewer]
   );
 
   if (!packageId) return null;
@@ -421,7 +571,7 @@ export default function FileImages({
         style={{ animationDelay: "350ms", opacity: 0 }}
       >
         <MediaInlineViewer
-          items={allMediaItems}
+          items={viewerItems}
           initialIndex={viewerIndex}
           onClose={closeViewer}
           reviewStatuses={reviewStatuses}
@@ -430,7 +580,15 @@ export default function FileImages({
           onEdit={(i) => setEditImageIndex(i)}
           onDelete={handleDeleteMedia}
           onRename={async () => { await mutate(); await mutateContents(); }}
+          onCategoryChanged={async () => { await mutate(); await mutateContents(); }}
           currentTaskServiceCode={task?.mintral_serviceCode}
+          draftObservations={draftObservations}
+          committedTimeline={committedTimeline}
+          onAddObservation={handleAddObservation}
+          onRemoveDraftObservation={handleRemoveDraftObservation}
+          onRemoveCommittedObservation={handleRemoveCommittedObservation}
+          onAddReply={handleAddReply}
+          onRemoveReply={handleRemoveReply}
           dictionary={dictionary}
         />
         <ReplaceImageModal
@@ -440,8 +598,8 @@ export default function FileImages({
             if (editImageIndex !== null) handleReplaceImage(file, editImageIndex);
           }}
           dictionary={dictionary}
-          imageName={editImageIndex === null ? undefined : allMediaItems[editImageIndex]?.file?.entry?.name}
-          accept={editImageIndex !== null && allMediaItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
+          imageName={editImageIndex === null ? undefined : viewerItems[editImageIndex]?.file?.entry?.name}
+          accept={editImageIndex !== null && viewerItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
         />
       </div>
     );
@@ -532,7 +690,7 @@ export default function FileImages({
       <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
 
             {/* Shared header */}
-            <div className="flex items-center gap-2.5 p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2.5 justify-between p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide shrink-0">
                 {tr("bento.multimedia.title", dictionary)}
                 <span className="ml-1.5 font-medium text-gray-400 dark:text-gray-500 normal-case tracking-normal">
@@ -569,7 +727,7 @@ export default function FileImages({
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Button
                   color="alternative"
                   onClick={() => document.getElementById("file-input")?.click()}
@@ -623,7 +781,10 @@ export default function FileImages({
                     file={image.file}
                     index={originalIndex}
                     type="image"
-                    onSelect={(i) => openViewer(i)}
+                    onSelect={() => {
+                      const idx = viewerItems.findIndex((item) => item.file.entry.id === image.file.entry.id);
+                      if (idx !== -1) openViewer(idx);
+                    }}
                     isSelected={selectedIds.has(image.file.entry.id)}
                     onToggleSelect={toggleSelect}
                     status={draftDecisions.get(image.file.entry.id) ?? reviewStatuses.get(image.file.entry.id) ?? "pending"}
@@ -652,7 +813,10 @@ export default function FileImages({
                     file={doc.file}
                     index={originalIndex}
                     type="document"
-                    onSelect={(i) => openViewer(images.length + i)}
+                    onSelect={() => {
+                      const idx = viewerItems.findIndex((item) => item.file.entry.id === doc.file.entry.id);
+                      if (idx !== -1) openViewer(idx);
+                    }}
                     isSelected={selectedIds.has(doc.file.entry.id)}
                     onToggleSelect={toggleSelect}
                     status={draftDecisions.get(doc.file.entry.id) ?? reviewStatuses.get(doc.file.entry.id) ?? "pending"}
@@ -667,27 +831,32 @@ export default function FileImages({
             </div>
 
             {/* Card footer — commit review */}
-            {allIds.length > 0 && viewMode === "review" && (
+            {allIds.length > 0 && draftDecisions.size > 0 && (
               <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/60">
                 <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                    {effectiveSummary.approved} {tr("bento.multimedia.count_approved", dictionary)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-                    {effectiveSummary.rejected} {tr("bento.multimedia.count_rejected", dictionary)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                    {effectiveSummary.pending} {tr("bento.multimedia.count_pending", dictionary)}
-                  </span>
+                  {draftChangeSummary.toApproved > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                      {draftChangeSummary.toApproved} → {tr("bento.multimedia.status_approved", dictionary)}
+                    </span>
+                  )}
+                  {draftChangeSummary.toRejected > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                      {draftChangeSummary.toRejected} → {tr("bento.multimedia.status_rejected", dictionary)}
+                    </span>
+                  )}
+                  {draftChangeSummary.toPending > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                      {draftChangeSummary.toPending} → {tr("bento.multimedia.status_pending", dictionary)}
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsCommitModalOpen(true)}
-                  disabled={draftDecisions.size === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                 >
                   {tr("bento.multimedia.btn_commit_review", dictionary)}
                 </button>
@@ -726,27 +895,32 @@ export default function FileImages({
         </ModalHeader>
         <ModalBody>
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                <HiCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
-                <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                  {draftSummary.approved} {tr(draftSummary.approved === 1 ? "bento.multimedia.commit_approve_one" : "bento.multimedia.commit_approve_many", dictionary)}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <HiXMark className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-                <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                  {draftSummary.rejected} {tr(draftSummary.rejected === 1 ? "bento.multimedia.commit_reject_one" : "bento.multimedia.commit_reject_many", dictionary)}
-                </span>
-              </div>
-              {draftSummary.undecided > 0 && (
-                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                  <HiExclamationTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                    {draftSummary.undecided} {tr(draftSummary.undecided === 1 ? "bento.multimedia.commit_undecided_one" : "bento.multimedia.commit_undecided_many", dictionary)}
-                  </span>
-                </div>
-              )}
+            <div className="flex flex-col gap-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+              {Array.from(draftDecisions.entries()).map(([id, newStatus]) => {
+                const item = allMediaItems.find((m) => m.file.entry.id === id);
+                const name = item?.file.entry.name ?? id;
+                const currentStatus = reviewStatuses.get(id) ?? "pending";
+                const statusColor = (s: string) =>
+                  s === "approved" ? "text-green-600 dark:text-green-400" : s === "rejected" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
+                const statusLabel = (s: string) =>
+                  s === "approved" ? tr("bento.multimedia.status_approved", dictionary) : s === "rejected" ? tr("bento.multimedia.status_rejected", dictionary) : tr("bento.multimedia.status_pending", dictionary);
+                const dotColor = (s: string) =>
+                  s === "approved" ? "bg-green-500" : s === "rejected" ? "bg-red-500" : "bg-amber-500";
+                return (
+                  <div key={id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <span className="truncate flex-1 text-gray-700 dark:text-gray-300 font-medium">{name}</span>
+                    <span className={`flex items-center gap-1 shrink-0 ${statusColor(currentStatus)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor(currentStatus)}`} />
+                      <span className="text-xs">{statusLabel(currentStatus)}</span>
+                    </span>
+                    <span className="text-gray-400 text-xs shrink-0">→</span>
+                    <span className={`flex items-center gap-1 shrink-0 ${statusColor(newStatus)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor(newStatus)}`} />
+                      <span className="text-xs font-semibold">{statusLabel(newStatus)}</span>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex justify-end pt-2">
               <Button
@@ -770,6 +944,32 @@ export default function FileImages({
                       return next;
                     });
                   }
+                  setCommittedTimeline((prev) => {
+                    const next = new Map(prev);
+                    draftDecisions.forEach((status, id) => {
+                      const entry: StateChangeTimelineEntry = {
+                        kind: "state_change",
+                        id: `sc-${id}-${now.getTime()}`,
+                        status: status as "approved" | "rejected",
+                        committedAt: now,
+                        committedBy: currentUserName,
+                        observations: draftObservations.get(id) ?? [],
+                      };
+                      next.set(id, [...(prev.get(id) ?? []), entry]);
+                    });
+                    return next;
+                  });
+                  setDraftObservations((prev) => {
+                    const next = new Map(prev);
+                    draftDecisions.forEach((_, id) => next.delete(id));
+                    return next;
+                  });
+                  draftDecisions.forEach((status, id) => {
+                    const alfrescoState = status === "approved" ? "APPROVED" : status === "rejected" ? "REJECTED" : "PENDING";
+                    updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString()).catch(() => {
+                      toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
+                    });
+                  });
                   setDraftDecisions(new Map());
                   setIsCommitModalOpen(false);
                   toast.success(tr("bento.multimedia.commit_success", dictionary));
@@ -790,8 +990,8 @@ export default function FileImages({
           if (editImageIndex !== null) handleReplaceImage(file, editImageIndex);
         }}
         dictionary={dictionary}
-        imageName={editImageIndex === null ? undefined : allMediaItems[editImageIndex]?.file?.entry?.name}
-        accept={editImageIndex !== null && allMediaItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
+        imageName={editImageIndex === null ? undefined : viewerItems[editImageIndex]?.file?.entry?.name}
+        accept={editImageIndex !== null && viewerItems[editImageIndex]?.type === "document" ? ".pdf" : ".jpg,.jpeg,.png"}
       />
 
       <FileViewer

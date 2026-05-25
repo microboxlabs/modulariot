@@ -20,14 +20,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const success = await updateNodeProperties(session, nodeId, properties);
-
-    if (!success) {
-      return NextResponse.json(
-        { error: "Update failed - no response from server" },
-        { status: 500 }
-      );
-    }
+    await updateNodeProperties(session, nodeId, properties);
 
     return NextResponse.json({ success: true, message: "Properties updated successfully" });
   } catch (error) {

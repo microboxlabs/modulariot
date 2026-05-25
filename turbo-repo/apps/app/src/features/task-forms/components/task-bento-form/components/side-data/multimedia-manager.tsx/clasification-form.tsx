@@ -199,7 +199,7 @@ export default function ClasificationForm({
         </Button>
       </div>
       <div
-        className={`flex flex-col gap-2 flex-grow overflow-y-auto border-2 border-dashed rounded-lg ${isDragOver ? "border-blue-500" : "border-transparent"}`}
+        className={`flex flex-col gap-2 grow overflow-y-auto border-2 border-dashed rounded-lg ${isDragOver ? "border-blue-500" : "border-transparent"}`}
         onDragEnter={(e) => {
           if (isUploading) {
             return;

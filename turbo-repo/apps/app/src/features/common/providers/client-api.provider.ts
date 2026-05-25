@@ -928,6 +928,33 @@ export async function updateBentoCategory(
   });
 }
 
+export async function updateBentoReviewState(
+  nodeId: string,
+  state: "PENDING" | "APPROVED" | "REJECTED",
+  reviewedBy?: string,
+  reviewedAt?: string
+): Promise<{ success: boolean; message: string }> {
+  const properties: Record<string, string> = { "mintral:reviewStatus": state };
+  if (reviewedBy) properties["mintral:reviewedBy"] = reviewedBy;
+  if (reviewedAt) properties["mintral:reviewedAt"] = reviewedAt;
+  return fetcher("/app/api/bento/properties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, properties }),
+  });
+}
+
+export async function moveBentoFile(
+  nodeId: string,
+  targetTaskId: string
+): Promise<{ success: boolean }> {
+  return fetcher("/app/api/bento/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, targetTaskId }),
+  });
+}
+
 export async function deleteBentoMultimedia(
   nodeId: string
 ): Promise<{ success: boolean; message: string }> {

@@ -482,10 +482,8 @@ export async function updateNodeProperties(
       body: JSON.stringify({ properties }),
     });
     if (!result.ok) {
-      logError(
-        new Error(`Update node properties failed with HTTP error: ${result.status} ${result.statusText}`)
-      );
-      return false;
+      const body = await result.text().catch(() => "(unreadable)");
+      throw new Error(`Alfresco ${result.status} ${result.statusText}: ${body}`);
     }
     return true;
   } catch (error) {
@@ -523,6 +521,33 @@ export async function updateNodeName(
       "Rename node failed with exception"
     );
     return false;
+  }
+}
+
+export async function moveNode(
+  session: Session,
+  nodeId: string,
+  targetParentId: string
+): Promise<boolean> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/move`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ targetParentId }),
+    });
+    if (!result.ok) {
+      const body = await result.text().catch(() => "(unreadable)");
+      throw new Error(`Move node failed: ${result.status} ${result.statusText}: ${body}`);
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Move node failed with exception"
+    );
+    throw error;
   }
 }
 

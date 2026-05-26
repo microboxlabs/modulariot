@@ -207,6 +207,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -219,6 +220,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: structural
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -231,6 +233,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -243,6 +246,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -255,6 +259,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -267,6 +272,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -279,6 +285,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 0
   expected_max_turns: 1
 
@@ -304,6 +311,7 @@
   expected_kpis_mentioned: []
   expected_freshness_cited: false
   expected_refusal: true
+  refusal_mechanism: semantic
   expected_min_turns: 1
   expected_max_turns: 2
 

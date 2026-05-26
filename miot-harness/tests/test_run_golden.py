@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
-from miot_harness.evals.run_golden import run_golden
+from miot_harness.evals.run_golden import run_golden, validate_entries
 
 GOLDEN_YAML = Path(__file__).resolve().parents[1] / "evals" / "golden" / "nexo" / "examples.yaml"
 
@@ -44,3 +45,39 @@ def test_fake_mode_records_reproducibility_env(tmp_path: Path) -> None:
     assert env["python"]
     assert env["platform"]
     assert "synthesizer" in env["models"]
+
+
+def _refusal_entry() -> dict[str, Any]:
+    """A minimal, valid refusal-expected entry for validation tests."""
+    return {
+        "id": "x",
+        "question": "q",
+        "tenant_id": "mintral",
+        "category": "adversarial",
+        "expected_tools": [],
+        "forbidden_tools": [],
+        "expected_kpis_mentioned": [],
+        "expected_freshness_cited": False,
+        "expected_refusal": True,
+        "expected_min_turns": 0,
+        "expected_max_turns": 1,
+        "refusal_mechanism": "semantic",
+    }
+
+
+def test_validate_requires_refusal_mechanism() -> None:
+    entry = _refusal_entry()
+    del entry["refusal_mechanism"]
+    errors = validate_entries([entry])
+    assert any("refusal_mechanism" in e for e in errors)
+
+
+def test_validate_rejects_bad_refusal_mechanism() -> None:
+    entry = _refusal_entry()
+    entry["refusal_mechanism"] = "bogus"
+    errors = validate_entries([entry])
+    assert any("refusal_mechanism" in e for e in errors)
+
+
+def test_validate_accepts_valid_refusal_mechanism() -> None:
+    assert validate_entries([_refusal_entry()]) == []

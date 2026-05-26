@@ -97,6 +97,13 @@ def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
             seen_ids.add(e["id"])
         if e.get("category") == "adversarial" and not e.get("expected_refusal", False):
             errors.append(f"entry[{i}] ({e.get('id')}): adversarial without expected_refusal")
+        if e.get("expected_refusal"):
+            mech = e.get("refusal_mechanism")
+            if mech not in ("structural", "semantic"):
+                errors.append(
+                    f"entry[{i}] ({e.get('id')}): expected_refusal requires "
+                    f"refusal_mechanism in (structural, semantic), got {mech!r}"
+                )
     return errors
 
 

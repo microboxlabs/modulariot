@@ -28,9 +28,6 @@ import java.util.Map;
  */
 public class HarnessProxyTestProfile implements QuarkusTestProfile {
 
-    /** Fixed port for the test WireMock instance. */
-    public static final int WIREMOCK_PORT = 18089;
-
     @Override
     public Map<String, String> getConfigOverrides() {
         Map<String, String> overrides = new HashMap<>();
@@ -44,10 +41,9 @@ public class HarnessProxyTestProfile implements QuarkusTestProfile {
         overrides.put("miot.auth.hs256-secret", TestTokenFactory.HS256_SECRET);
         overrides.put("miot.auth.hs256-audience", TestTokenFactory.M2M_AUDIENCE);
 
-        // Harness REST client binding (used from Q1 onward; declared in Q0 so the
-        // binding name + URL placeholder are stable across rungs).
-        overrides.put("quarkus.rest-client.\"harness\".url",
-                "http://localhost:" + WIREMOCK_PORT);
+        // The "harness" REST client URL is injected by WireMockLifecycle.start()
+        // at runtime because the WireMock port is ephemeral — fixed ports
+        // collide with anything else holding the port on the host.
 
         // Force the @DefaultBean stub Alfresco directory/group-admin clients to win.
         // @LookupUnlessProperty(stringValue="stub") only gates programmatic lookups,
@@ -84,9 +80,12 @@ public class HarnessProxyTestProfile implements QuarkusTestProfile {
     }
 
     /**
-     * Starts/stops a {@link WireMockServer} on {@link #WIREMOCK_PORT}. The
-     * server is exposed via {@link #server()} so later rungs (Q1..Q3) can
-     * stub harness routes without owning the lifecycle.
+     * Starts/stops a {@link WireMockServer} on an ephemeral port (so multiple
+     * Quarkus test JVMs on the same host don't collide on a fixed port).
+     * The resolved {@code "harness"} REST-client URL is returned from
+     * {@link #start()} so Quarkus picks the dynamic port up at config time;
+     * the server itself is exposed via {@link #server()} so later rungs
+     * (Q1..Q3) can stub harness routes without owning the lifecycle.
      */
     public static class WireMockLifecycle implements QuarkusTestResourceLifecycleManager {
 
@@ -99,9 +98,11 @@ public class HarnessProxyTestProfile implements QuarkusTestProfile {
 
         @Override
         public Map<String, String> start() {
-            server = new WireMockServer(WireMockConfiguration.options().port(WIREMOCK_PORT));
+            server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
             server.start();
-            return Map.of();
+            return Map.of(
+                    "quarkus.rest-client.\"harness\".url",
+                    "http://localhost:" + server.port());
         }
 
         @Override

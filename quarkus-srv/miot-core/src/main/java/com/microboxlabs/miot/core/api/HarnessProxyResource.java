@@ -108,8 +108,6 @@ public class HarnessProxyResource {
     }
 
     private static Response unwrapResponse(Throwable err) {
-        // onFailure(WebApplicationException.class) above narrows the throwable;
-        // the instanceof pattern keeps the compiler happy without a redundant cast.
         if (err instanceof WebApplicationException wae) {
             return wae.getResponse();
         }

@@ -34,6 +34,13 @@ class HarnessContext(BaseModel):
 class UserRequest(BaseModel):
     message: str
     thread_id: str = "demo-thread"
+    # Issue #522: `tenant_id` accepts a body value only as a legacy
+    # affordance for the unauthenticated/dev path. When auth is
+    # enabled, `api.server.require_auth` resolves the tenant from
+    # the `X-Miot-Tenant-Client-Id` header set by the Quarkus proxy,
+    # and `_apply_tenant_override` silently replaces the body value
+    # in /runs and /runs:start before dispatch. R6 removes this field
+    # entirely — do NOT build new logic that trusts the body value.
     tenant_id: str = "demo-tenant"
     user_id: str = "demo-user"
     route_context: dict[str, Any] = Field(default_factory=dict)

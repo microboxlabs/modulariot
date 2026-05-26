@@ -71,11 +71,15 @@ def jwks_document(keypair: RSAPrivateKey) -> dict[str, Any]:
     return {"keys": [public_jwk]}
 
 
-def _enable_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+def _enable_auth(
+    monkeypatch: pytest.MonkeyPatch, *, direct_allowed: bool = False
+) -> None:
     monkeypatch.setenv("MIOT_HARNESS_AUTH_ENABLED", "true")
     monkeypatch.setenv("AUTH0_ISSUER", ISSUER)
     monkeypatch.setenv("AUTH0_JWKS_URL", JWKS_URL)
     monkeypatch.setenv("AUTH0_RS256_AUDIENCE", AUDIENCE)
+    if direct_allowed:
+        monkeypatch.setenv("MIOT_HARNESS_AUTH_DIRECT_ALLOWED", "true")
     get_settings.cache_clear()
 
 
@@ -200,10 +204,11 @@ def test_auth_enabled_valid_token_reaches_handler(
     keypair: RSAPrivateKey,
     jwks_document: dict[str, Any],
 ) -> None:
-    """A correctly-signed token gets past the dependency. We hit
-    POST /runs:start which dispatches the supervisor as a background
-    task and returns 202 immediately — proves auth let us through
-    without coupling the test to a full /runs LLM run."""
+    """A correctly-signed token + the proxy's tenant header gets
+    past the dependency. POST /runs:start dispatches the supervisor
+    as a background task and returns 202 immediately — proves auth
+    let us through without coupling the test to a full /runs LLM run.
+    """
     _enable_auth(monkeypatch)
     app = create_app()
     with TestClient(app) as client:
@@ -212,7 +217,10 @@ def test_auth_enabled_valid_token_reaches_handler(
         resp = client.post(
             "/runs:start",
             json={"message": "hi"},
-            headers={"Authorization": f"Bearer {token}"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "gama-mobility",
+            },
         )
     assert resp.status_code == 202, resp.text
     assert resp.json()["run_id"].startswith("run_")
@@ -270,3 +278,252 @@ def test_lifespan_rejects_auth_enabled_without_issuer(
     with pytest.raises(ValueError, match="auth0_issuer"):
         with TestClient(app):
             pass
+
+
+# ---------------------------------------------------------------------------
+# R2: tenant resolution from X-Miot-Tenant-Client-Id header
+# ---------------------------------------------------------------------------
+
+
+TENANT_HEADER = "X-Miot-Tenant-Client-Id"
+
+
+def test_auth_enabled_missing_tenant_header_returns_401(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """Auth on, no escape hatch: a valid token without the proxy's
+    tenant header is rejected. The proxy is the source of truth."""
+    _enable_auth(monkeypatch, direct_allowed=False)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.post(
+            "/runs",
+            json={"message": "hi"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 401
+    assert "tenant_unresolved" in resp.text
+
+
+def test_auth_enabled_direct_allowed_skips_header_requirement(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """Dev escape hatch: with auth_direct_allowed=true, a valid token
+    is enough — header may be missing and the body's tenant_id is
+    used. (Removed in R6 along with the body field.)"""
+    _enable_auth(monkeypatch, direct_allowed=True)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.post(
+            "/runs",
+            json={"message": "hi", "tenant_id": "demo-tenant"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["tenant_id"] == "demo-tenant"
+
+
+def test_header_tenant_overrides_body_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """The header always wins. Body declaring tenant_id="evil-tenant"
+    must end up persisted as the header value, not the body's lie."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.post(
+            "/runs",
+            json={"message": "hi", "tenant_id": "evil-tenant"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "gama-mobility",
+            },
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["tenant_id"] == "gama-mobility"
+
+
+def test_runs_start_records_in_flight_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """POST /runs:start tags the in-flight run with the verified
+    tenant so /stream can refuse a cross-tenant subscriber while
+    the run is still mid-flight."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.post(
+            "/runs:start",
+            json={"message": "hi"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "gama-mobility",
+            },
+        )
+        assert resp.status_code == 202, resp.text
+        run_id = resp.json()["run_id"]
+        # If the run completed instantly the cleanup callback fires
+        # and the entry disappears — that's expected. Either the
+        # entry exists and matches, or it's gone.
+        tenant = app.state.in_flight_tenants.get(run_id)
+        assert tenant in (None, "gama-mobility")
+
+
+def test_cross_tenant_stream_replay_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+    tmp_path: Any,
+) -> None:
+    """A persisted run with tenant_id="alice-corp" cannot be
+    replayed via /stream by a token + header for "bob-corp" — 403.
+    We seed the on-disk record directly via JsonRunStore to avoid
+    coupling the test to the full /runs LLM path.
+    """
+    from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
+
+    seeded_store = JsonRunStore(tmp_path)
+    seeded_store.save(
+        HarnessRunRecord(
+            run_id="run_alice_xyz",
+            status="completed",
+            tenant_id="alice-corp",
+        )
+    )
+
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.get(
+            "/runs/run_alice_xyz/stream",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "bob-corp",
+            },
+        )
+    assert resp.status_code == 403
+    assert "cross_tenant_replay" in resp.text
+
+
+def test_cross_tenant_get_run_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+    tmp_path: Any,
+) -> None:
+    """Same as /stream but for GET /runs/{id} — refuse to hand back
+    a persisted record to a caller from a different tenant."""
+    from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
+
+    seeded_store = JsonRunStore(tmp_path)
+    seeded_store.save(
+        HarnessRunRecord(
+            run_id="run_alice_xyz",
+            status="completed",
+            tenant_id="alice-corp",
+        )
+    )
+
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.get(
+            "/runs/run_alice_xyz",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "bob-corp",
+            },
+        )
+    assert resp.status_code == 403
+
+
+def test_same_tenant_stream_replay_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+    tmp_path: Any,
+) -> None:
+    """The legitimate owner of a run can still replay it — 403 must
+    not fire on a matching tenant."""
+    from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
+
+    seeded_store = JsonRunStore(tmp_path)
+    seeded_store.save(
+        HarnessRunRecord(
+            run_id="run_alice_xyz",
+            status="completed",
+            tenant_id="alice-corp",
+        )
+    )
+
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        with client.stream(
+            "GET",
+            "/runs/run_alice_xyz/stream",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "alice-corp",
+            },
+        ) as resp:
+            # Reach the SSE path: 200 with text/event-stream. Drain
+            # the body to release the connection.
+            assert resp.status_code == 200, resp.read().decode()
+            resp.read()
+
+
+def test_legacy_record_without_tenant_id_still_loadable(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+    tmp_path: Any,
+) -> None:
+    """Pre-#522 records on disk don't carry tenant_id — they should
+    still load (Optional field, default None) and the cross-tenant
+    guard treats `None` as legacy / allow-through, so existing
+    deployments don't black-hole on upgrade."""
+    from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
+
+    seeded_store = JsonRunStore(tmp_path)
+    seeded_store.save(
+        HarnessRunRecord(run_id="run_legacy", status="completed")
+    )
+
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.get(
+            "/runs/run_legacy",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "bob-corp",
+            },
+        )
+    # Legacy record (tenant_id=None) is not refused.
+    assert resp.status_code == 200, resp.text

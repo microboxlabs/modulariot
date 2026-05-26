@@ -50,6 +50,11 @@ def _make_lifespan(
         app.state.harness = harness
         app.state.event_bus = harness.event_bus
         app.state.in_flight = {}
+        # Parallel map from in-flight run_id → tenant_id, populated by
+        # /runs:start and cleared in the task's done-callback. Lets
+        # /stream refuse a cross-tenant subscriber before the record
+        # ever lands on disk.
+        app.state.in_flight_tenants = {}
 
         # Auth (defense-in-depth behind the Quarkus proxy): instantiate
         # a JwksCache when enabled; require_auth reads it from
@@ -234,15 +239,23 @@ def create_app() -> FastAPI:
     async def require_auth(request: Request) -> Mapping[str, Any]:
         """Auth0 RS256 verification gate for /runs* endpoints.
 
-        Short-circuits to an empty claims dict when auth is disabled
-        (the legacy unauthenticated mode used by unit tests and local
-        dev). Otherwise enforces Bearer-token + JWKS-signature checks
-        against the configured Auth0 tenant. R2 will extend this to
-        also resolve the tenant from the X-Miot-Tenant-Client-Id
-        header set by the Quarkus proxy.
+        Short-circuits to a blank context when auth is disabled (the
+        legacy unauthenticated mode used by unit tests and local
+        dev). When enabled:
+
+        - Enforces Bearer-token + JWKS RS256 sig/iss/aud/exp checks.
+        - Resolves the caller's tenant from the
+          `X-Miot-Tenant-Client-Id` header set by the Quarkus proxy.
+        - Refuses requests missing that header unless
+          `auth_direct_allowed` is on (dev-only escape hatch).
+
+        Returns ``{"claims": <decoded JWT>, "tenant_id": <header value
+        or None>}``. Handlers use the tenant to override the body's
+        self-declared `UserRequest.tenant_id`; R7 removes the body
+        field entirely.
         """
         if not settings.auth_enabled:
-            return {}
+            return {"claims": {}, "tenant_id": None}
 
         auth_header = request.headers.get("Authorization") or ""
         if not auth_header.startswith("Bearer "):
@@ -285,7 +298,36 @@ def create_app() -> FastAPI:
                 detail=f"auth_failed:{exc.code}",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from exc
-        return claims
+
+        header_tenant = (
+            request.headers.get("X-Miot-Tenant-Client-Id") or ""
+        ).strip() or None
+        if header_tenant is None and not settings.auth_direct_allowed:
+            raise HTTPException(
+                status_code=401,
+                detail="auth_failed:tenant_unresolved",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"claims": claims, "tenant_id": header_tenant}
+
+    def _apply_tenant_override(
+        user_request: UserRequest, auth: Mapping[str, Any]
+    ) -> UserRequest:
+        """If the verified header carried a tenant, that value wins
+        over whatever the body declared. Body-only flow (auth disabled
+        or `auth_direct_allowed` without header) keeps the body value,
+        which is also why R7 has to delete the body field outright.
+        """
+        header_tenant = auth.get("tenant_id")
+        if not header_tenant:
+            return user_request
+        if user_request.tenant_id != header_tenant:
+            logger.info(
+                "Auth: overriding body tenant %r with header tenant %r",
+                user_request.tenant_id,
+                header_tenant,
+            )
+        return user_request.model_copy(update={"tenant_id": header_tenant})
 
     @app.get("/health")
     async def health() -> dict[str, object]:
@@ -322,14 +364,11 @@ def create_app() -> FastAPI:
             },
         }
 
-    @app.post(
-        "/runs",
-        response_model=HarnessRunRecord,
-        dependencies=[Depends(require_auth)],
-    )
+    @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(
         request: UserRequest,
         debug: bool = Query(False),
+        auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
         # Read harness from app.state so tests that inject a controlled
         # graph (via app.state.harness.nexo_graph = ...) see their patch.
@@ -337,47 +376,53 @@ def create_app() -> FastAPI:
         harness: HarnessSupervisor = app.state.harness
         if debug:
             request = request.model_copy(update={"debug": True})
+        request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         return await harness.run(request)
 
-    @app.get(
-        "/runs/{run_id}",
-        response_model=HarnessRunRecord,
-        dependencies=[Depends(require_auth)],
-    )
-    async def get_run(run_id: str) -> HarnessRunRecord:
+    @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
+    async def get_run(
+        run_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> HarnessRunRecord:
         harness: HarnessSupervisor = app.state.harness
-        return harness.run_store.load(run_id)
+        record = harness.run_store.load(run_id)
+        _enforce_tenant_owns_run(record, auth, run_id)
+        return record
 
-    @app.post(
-        "/runs:start",
-        status_code=202,
-        dependencies=[Depends(require_auth)],
-    )
+    @app.post("/runs:start", status_code=202)
     async def start_run(
         request: UserRequest,
         debug: bool = Query(False),
+        auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, str]:
         if debug:
             request = request.model_copy(update={"debug": True})
+        request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)
         )
         app.state.in_flight[run_id] = task
+        # Track the tenant for in-flight runs so /stream can reject
+        # cross-tenant subscribers even before the record lands on
+        # disk. Cleared in the done-callback alongside in_flight.
+        app.state.in_flight_tenants[run_id] = request.tenant_id
 
         def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
             app.state.in_flight.pop(run_id, None)
+            app.state.in_flight_tenants.pop(run_id, None)
 
         task.add_done_callback(_cleanup)
         return {"run_id": run_id}
 
-    @app.get(
-        "/runs/{run_id}/stream",
-        dependencies=[Depends(require_auth)],
-    )
-    async def stream_run(run_id: str, request: Request) -> StreamingResponse:
+    @app.get("/runs/{run_id}/stream")
+    async def stream_run(
+        run_id: str,
+        request: Request,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> StreamingResponse:
         # `event_bus` is the live channel for in-flight runs; without it
         # _sse_iterator can only ship the disk record and would close the
         # stream silently, which the client can't distinguish from a real
@@ -388,6 +433,7 @@ def create_app() -> FastAPI:
                 status_code=501,
                 detail="SSE streaming is not configured on this harness instance.",
             )
+        _enforce_tenant_owns_stream(app, run_id, auth)
         last_event_id = request.headers.get("Last-Event-ID")
         return StreamingResponse(
             _sse_iterator(app, run_id, last_event_id),
@@ -401,6 +447,64 @@ def create_app() -> FastAPI:
         )
 
     return app
+
+
+def _enforce_tenant_owns_run(
+    record: HarnessRunRecord, auth: Mapping[str, Any], run_id: str
+) -> None:
+    """Refuse to return a persisted run that belongs to a different
+    tenant than the verified caller. No-op when auth resolved no
+    tenant (auth disabled, or `auth_direct_allowed` without header).
+
+    Older records persisted before #522 don't carry `tenant_id` —
+    those are treated as legacy and allowed through; the new field
+    only forbids new cross-tenant attempts.
+    """
+    caller = auth.get("tenant_id")
+    if not caller:
+        return
+    if record.tenant_id is None:
+        return
+    if record.tenant_id != caller:
+        raise HTTPException(
+            status_code=403,
+            detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+        )
+
+
+def _enforce_tenant_owns_stream(
+    app: FastAPI, run_id: str, auth: Mapping[str, Any]
+) -> None:
+    """SSE-side counterpart to ``_enforce_tenant_owns_run``: checks
+    the in-flight tenant tracker first (for runs that have not yet
+    persisted) and falls back to the on-disk record. An unknown
+    run_id is left to ``_sse_iterator`` to handle with its own
+    `unknown_run_id` SSE error — replay protection only triggers
+    when we actually know who the run belongs to.
+    """
+    caller = auth.get("tenant_id")
+    if not caller:
+        return
+    in_flight_tenant = app.state.in_flight_tenants.get(run_id)
+    if in_flight_tenant is not None:
+        if in_flight_tenant != caller:
+            raise HTTPException(
+                status_code=403,
+                detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+            )
+        return
+    harness: HarnessSupervisor = app.state.harness
+    try:
+        record = harness.run_store.load(run_id)
+    except FileNotFoundError:
+        return
+    if record.tenant_id is None:
+        return
+    if record.tenant_id != caller:
+        raise HTTPException(
+            status_code=403,
+            detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+        )
 
 
 def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) -> None:

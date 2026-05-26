@@ -222,6 +222,18 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
     refusal_expected = bool(entry.get("expected_refusal"))
     answer_is_refusal = "mintral-only" in answer or "no puedo responder" in answer
 
+    if not refusal_expected:
+        refusal_score: bool | None = None
+        notes = ""
+    elif entry.get("refusal_mechanism") == "semantic":
+        # The scripted FakeListChatModel cannot produce a semantic refusal;
+        # this axis is only meaningful in real mode.
+        refusal_score = None
+        notes = "refusal: semantic — real-mode-only"
+    else:  # structural (e.g. tenant gate) — deterministic in fake mode
+        refusal_score = answer_is_refusal == refusal_expected
+        notes = ""
+
     return EvalScore(
         id=entry["id"],
         category=entry.get("category", ""),
@@ -230,7 +242,7 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
         freshness_citation=("refreshed" in answer or "snapshot" in answer or "hace" in answer)
         if not refusal_expected
         else None,
-        refusal=(answer_is_refusal == refusal_expected) if refusal_expected else None,
+        refusal=refusal_score,
         no_hallucination=all(
             sub.lower() in answer for sub in (entry.get("expected_kpis_mentioned") or [])
         )
@@ -244,6 +256,7 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
         if not refusal_expected
         else None,
         latency_ms=latency_ms,
+        notes=notes,
     )
 
 
@@ -371,10 +384,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.mode != "static":
-        ok = sum(1 for s in payload["scored"] if not s.get("notes"))
+        ok = sum(
+            1
+            for s in payload["scored"]
+            if not str(s.get("notes", "")).startswith("runner_error")
+        )
         total = len(payload["scored"])
         out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + ".json")
-        print(f"Wrote {out_path}: {ok}/{total} ran cleanly")
+        print(f"Wrote {out_path}: {ok}/{total} ran cleanly (no runner errors)")
     else:
         print(f"Validated {len(yaml.safe_load(yaml_path.read_text()))} entries")
     return 0

@@ -25,17 +25,19 @@ def test_fake_mode_runs_every_case_cleanly(tmp_path: Path) -> None:
     scored = payload["scored"]
     assert len(scored) >= 1
 
-    # No entry raised inside the runner.
-    errored = [s["id"] for s in scored if s.get("notes")]
+    # Only `runner_error:` notes are failures; other notes are intentional
+    # annotations (e.g. nulled semantic refusals).
+    errored = [s["id"] for s in scored if str(s.get("notes", "")).startswith("runner_error")]
     assert not errored, f"runner errors: {errored}"
 
-    # The over-engineering axis is populated for every non-refusal case and
-    # left None for refusal cases.
+    # freshness_citation / no_hallucination / step_economy are all gated by
+    # expected_refusal: per case they are all set, or all None, together. (We
+    # can't pivot on `refusal` here — semantic refusal cases now null it too.)
     for s in scored:
-        if s["refusal"] is None:  # not a refusal case
-            assert s["step_economy"] is not None, f"{s['id']} missing step_economy"
-        else:
-            assert s["step_economy"] is None, f"{s['id']} should not score step_economy"
+        gated = (s["freshness_citation"], s["no_hallucination"], s["step_economy"])
+        assert all(v is None for v in gated) or all(v is not None for v in gated), (
+            f"{s['id']} has inconsistent refusal-gated axes: {gated}"
+        )
 
 
 def test_fake_mode_records_reproducibility_env(tmp_path: Path) -> None:
@@ -81,3 +83,17 @@ def test_validate_rejects_bad_refusal_mechanism() -> None:
 
 def test_validate_accepts_valid_refusal_mechanism() -> None:
     assert validate_entries([_refusal_entry()]) == []
+
+
+def test_fake_mode_nulls_semantic_refusals(tmp_path: Path) -> None:
+    payload = asyncio.run(run_golden(GOLDEN_YAML, tmp_path, mode="fake"))
+    by_id = {s["id"]: s for s in payload["scored"]}
+
+    # Structural refusal (tenant gate) is deterministic -> scored bool.
+    structural = by_id["nexo-adversarial-002-tenant-mismatch"]
+    assert structural["refusal"] is True
+
+    # Semantic refusals cannot be produced by the scripted model -> None + note.
+    semantic = by_id["nexo-adversarial-003-prompt-injection"]
+    assert semantic["refusal"] is None
+    assert "semantic" in semantic["notes"]

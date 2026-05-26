@@ -246,13 +246,14 @@ def create_app() -> FastAPI:
         - Enforces Bearer-token + JWKS RS256 sig/iss/aud/exp checks.
         - Resolves the caller's tenant from the
           `X-Miot-Tenant-Client-Id` header set by the Quarkus proxy.
-        - Refuses requests missing that header unless
-          `auth_direct_allowed` is on (dev-only escape hatch).
+        - Refuses requests missing that header, no exceptions —
+          the proxy is the only trusted source of tenancy in prod.
 
         Returns ``{"claims": <decoded JWT>, "tenant_id": <header value
         or None>}``. Handlers use the tenant to override the body's
-        self-declared `UserRequest.tenant_id`; R7 removes the body
-        field entirely.
+        deprecated `UserRequest.tenant_id`; a future release removes
+        the body field entirely once staging soak confirms no caller
+        still depends on it.
         """
         if not settings.auth_enabled:
             return {"claims": {}, "tenant_id": None}
@@ -302,7 +303,7 @@ def create_app() -> FastAPI:
         header_tenant = (
             request.headers.get("X-Miot-Tenant-Client-Id") or ""
         ).strip() or None
-        if header_tenant is None and not settings.auth_direct_allowed:
+        if header_tenant is None:
             raise HTTPException(
                 status_code=401,
                 detail="auth_failed:tenant_unresolved",
@@ -314,9 +315,11 @@ def create_app() -> FastAPI:
         user_request: UserRequest, auth: Mapping[str, Any]
     ) -> UserRequest:
         """If the verified header carried a tenant, that value wins
-        over whatever the body declared. Body-only flow (auth disabled
-        or `auth_direct_allowed` without header) keeps the body value,
-        which is also why R7 has to delete the body field outright.
+        over whatever the body declared. Body-only flow (auth
+        disabled, i.e. local dev / unit tests) keeps the body value.
+        The body field itself is deprecated; a future release will
+        delete it from the schema once staging soak confirms no
+        caller still depends on it.
         """
         header_tenant = auth.get("tenant_id")
         if not header_tenant:
@@ -454,7 +457,7 @@ def _enforce_tenant_owns_run(
 ) -> None:
     """Refuse to return a persisted run that belongs to a different
     tenant than the verified caller. No-op when auth resolved no
-    tenant (auth disabled, or `auth_direct_allowed` without header).
+    tenant (auth disabled — local dev / unit tests).
 
     Older records persisted before #522 don't carry `tenant_id` —
     those are treated as legacy and allowed through; the new field

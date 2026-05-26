@@ -368,21 +368,9 @@ def test_validate_auth_config_raises_on_missing_audience() -> None:
         settings.validate_auth_config()
 
 
-def test_validate_auth_config_rejects_direct_allowed_in_production() -> None:
-    settings = HarnessSettings(env="production", auth_direct_allowed=True)
-    with pytest.raises(ValueError, match="auth_direct_allowed"):
-        settings.validate_auth_config()
-
-
-def test_validate_auth_config_allows_direct_allowed_in_local() -> None:
-    settings = HarnessSettings(env="local", auth_direct_allowed=True)
-    settings.validate_auth_config()  # no raise — dev mode
-
-
 def test_settings_defaults_keep_auth_off() -> None:
     settings = HarnessSettings()
     assert settings.auth_enabled is False
     assert settings.auth0_issuer is None
     assert settings.auth0_jwks_url is None
     assert settings.auth0_rs256_audience is None
-    assert settings.auth_direct_allowed is False

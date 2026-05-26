@@ -71,15 +71,11 @@ def jwks_document(keypair: RSAPrivateKey) -> dict[str, Any]:
     return {"keys": [public_jwk]}
 
 
-def _enable_auth(
-    monkeypatch: pytest.MonkeyPatch, *, direct_allowed: bool = False
-) -> None:
+def _enable_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MIOT_HARNESS_AUTH_ENABLED", "true")
     monkeypatch.setenv("AUTH0_ISSUER", ISSUER)
     monkeypatch.setenv("AUTH0_JWKS_URL", JWKS_URL)
     monkeypatch.setenv("AUTH0_RS256_AUDIENCE", AUDIENCE)
-    if direct_allowed:
-        monkeypatch.setenv("MIOT_HARNESS_AUTH_DIRECT_ALLOWED", "true")
     get_settings.cache_clear()
 
 
@@ -293,9 +289,12 @@ def test_auth_enabled_missing_tenant_header_returns_401(
     keypair: RSAPrivateKey,
     jwks_document: dict[str, Any],
 ) -> None:
-    """Auth on, no escape hatch: a valid token without the proxy's
-    tenant header is rejected. The proxy is the source of truth."""
-    _enable_auth(monkeypatch, direct_allowed=False)
+    """Auth on: a valid Auth0 token without the proxy's
+    `X-Miot-Tenant-Client-Id` header is rejected unconditionally.
+    The proxy is the only trusted source of tenancy in prod; the
+    R2-era `auth_direct_allowed` dev escape hatch was removed in R6.
+    """
+    _enable_auth(monkeypatch)
     app = create_app()
     with TestClient(app) as client:
         _swap_jwks(app, jwks_document)
@@ -307,28 +306,6 @@ def test_auth_enabled_missing_tenant_header_returns_401(
         )
     assert resp.status_code == 401
     assert "tenant_unresolved" in resp.text
-
-
-def test_auth_enabled_direct_allowed_skips_header_requirement(
-    monkeypatch: pytest.MonkeyPatch,
-    keypair: RSAPrivateKey,
-    jwks_document: dict[str, Any],
-) -> None:
-    """Dev escape hatch: with auth_direct_allowed=true, a valid token
-    is enough — header may be missing and the body's tenant_id is
-    used. (Removed in R6 along with the body field.)"""
-    _enable_auth(monkeypatch, direct_allowed=True)
-    app = create_app()
-    with TestClient(app) as client:
-        _swap_jwks(app, jwks_document)
-        token = _make_token(keypair)
-        resp = client.post(
-            "/runs",
-            json={"message": "hi", "tenant_id": "demo-tenant"},
-            headers={"Authorization": f"Bearer {token}"},
-        )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["tenant_id"] == "demo-tenant"
 
 
 def test_header_tenant_overrides_body_tenant(

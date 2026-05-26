@@ -34,15 +34,26 @@ class HarnessContext(BaseModel):
 class UserRequest(BaseModel):
     message: str
     thread_id: str = "demo-thread"
-    # Issue #522: `tenant_id` accepts a body value only as a legacy
-    # affordance for the unauthenticated/dev path. When auth is
-    # enabled, `api.server.require_auth` resolves the tenant from
-    # the `X-Miot-Tenant-Client-Id` header set by the Quarkus proxy,
-    # and `_apply_tenant_override` silently replaces the body value
-    # in /runs and /runs:start before dispatch. R6 removes this field
-    # entirely — do NOT build new logic that trusts the body value.
-    tenant_id: str = "demo-tenant"
-    user_id: str = "demo-user"
+    # Issue #522 R6: `tenant_id` and `user_id` are deprecated body
+    # fields. In production they are silently overridden in
+    # `api.server` from the `X-Miot-Tenant-Client-Id` header set by
+    # the Quarkus proxy — `api.server.require_auth` makes the header
+    # mandatory whenever `MIOT_HARNESS_AUTH_ENABLED=true`, so body
+    # values are inert in any deployment that has auth on. They
+    # remain on the schema only to keep the CLI demo, eval harness,
+    # and the existing unit-test fleet (~30 call sites) working
+    # while the dev escape hatch is being phased out. A follow-up
+    # release will remove both fields once staging soak confirms no
+    # remaining caller relies on them. Do NOT build new logic that
+    # trusts these values.
+    tenant_id: str = Field(
+        default="demo-tenant",
+        json_schema_extra={"deprecated": True},
+    )
+    user_id: str = Field(
+        default="demo-user",
+        json_schema_extra={"deprecated": True},
+    )
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
     conversation_id: str | None = None

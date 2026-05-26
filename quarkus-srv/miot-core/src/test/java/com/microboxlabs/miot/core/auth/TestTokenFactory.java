@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.auth;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
@@ -91,7 +92,7 @@ public final class TestTokenFactory {
     private static String signHs256(JwtClaims claims) {
         JsonWebSignature jws = new JsonWebSignature();
         jws.setPayload(claims.toJson());
-        jws.setKey(new HmacKey(HS256_SECRET.getBytes()));
+        jws.setKey(new HmacKey(HS256_SECRET.getBytes(StandardCharsets.UTF_8)));
         jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
         try {
             return jws.getCompactSerialization();

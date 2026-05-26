@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
+from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.integrations.nexo.boot import load_nexo_tools
 from miot_harness.integrations.nexo.pool import create_nexo_pool
@@ -48,6 +50,29 @@ def _make_lifespan(
         app.state.harness = harness
         app.state.event_bus = harness.event_bus
         app.state.in_flight = {}
+
+        # Auth (defense-in-depth behind the Quarkus proxy): instantiate
+        # a JwksCache when enabled; require_auth reads it from
+        # app.state. validate_auth_config has the explicit checks —
+        # call it here so any misconfig surfaces at boot, not on the
+        # first request. When auth is disabled in prod, log loudly so
+        # the operator notices the open surface.
+        settings.validate_auth_config()
+        if settings.auth_enabled:
+            assert settings.auth0_jwks_url is not None  # narrowed by validate
+            app.state.jwks = JwksCache(settings.auth0_jwks_url)
+            logger.info(
+                "Auth: enabled (issuer=%s, audience=%s)",
+                settings.auth0_issuer,
+                settings.auth0_rs256_audience,
+            )
+        else:
+            app.state.jwks = None
+            if settings.env == "production":
+                logger.warning(
+                    "Auth: DISABLED in production env — /runs* is "
+                    "unauthenticated. Set MIOT_HARNESS_AUTH_ENABLED=true."
+                )
 
         # Telemetry: configure_tracing installs the global TracerProvider so
         # NexoTelemetryCallback's spans (per-agent) and Traceloop's
@@ -206,6 +231,62 @@ def create_app() -> FastAPI:
         lifespan=_make_lifespan(harness, settings),
     )
 
+    async def require_auth(request: Request) -> Mapping[str, Any]:
+        """Auth0 RS256 verification gate for /runs* endpoints.
+
+        Short-circuits to an empty claims dict when auth is disabled
+        (the legacy unauthenticated mode used by unit tests and local
+        dev). Otherwise enforces Bearer-token + JWKS-signature checks
+        against the configured Auth0 tenant. R2 will extend this to
+        also resolve the tenant from the X-Miot-Tenant-Client-Id
+        header set by the Quarkus proxy.
+        """
+        if not settings.auth_enabled:
+            return {}
+
+        auth_header = request.headers.get("Authorization") or ""
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="missing Bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token = auth_header[len("Bearer ") :].strip()
+        if not token:
+            raise HTTPException(
+                status_code=401,
+                detail="empty Bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        jwks: JwksCache | None = request.app.state.jwks
+        if jwks is None:  # pragma: no cover — guarded by validate_auth_config
+            raise HTTPException(
+                status_code=500,
+                detail="auth enabled but JwksCache not configured",
+            )
+
+        # `auth0_issuer` and `auth0_rs256_audience` are guaranteed
+        # non-None when `auth_enabled` is true (validated at startup).
+        # The cast is just so mypy understands the narrowing.
+        assert settings.auth0_issuer is not None
+        assert settings.auth0_rs256_audience is not None
+
+        try:
+            claims = await verify_token(
+                token,
+                issuer=settings.auth0_issuer,
+                audiences=[settings.auth0_rs256_audience],
+                jwks=jwks,
+            )
+        except AuthError as exc:
+            raise HTTPException(
+                status_code=401,
+                detail=f"auth_failed:{exc.code}",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+        return claims
+
     @app.get("/health")
     async def health() -> dict[str, object]:
         return {
@@ -241,7 +322,11 @@ def create_app() -> FastAPI:
             },
         }
 
-    @app.post("/runs", response_model=HarnessRunRecord)
+    @app.post(
+        "/runs",
+        response_model=HarnessRunRecord,
+        dependencies=[Depends(require_auth)],
+    )
     async def create_run(
         request: UserRequest,
         debug: bool = Query(False),
@@ -255,12 +340,20 @@ def create_app() -> FastAPI:
         _enforce_debug_allowlist(request, settings)
         return await harness.run(request)
 
-    @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
+    @app.get(
+        "/runs/{run_id}",
+        response_model=HarnessRunRecord,
+        dependencies=[Depends(require_auth)],
+    )
     async def get_run(run_id: str) -> HarnessRunRecord:
         harness: HarnessSupervisor = app.state.harness
         return harness.run_store.load(run_id)
 
-    @app.post("/runs:start", status_code=202)
+    @app.post(
+        "/runs:start",
+        status_code=202,
+        dependencies=[Depends(require_auth)],
+    )
     async def start_run(
         request: UserRequest,
         debug: bool = Query(False),
@@ -280,7 +373,10 @@ def create_app() -> FastAPI:
         task.add_done_callback(_cleanup)
         return {"run_id": run_id}
 
-    @app.get("/runs/{run_id}/stream")
+    @app.get(
+        "/runs/{run_id}/stream",
+        dependencies=[Depends(require_auth)],
+    )
     async def stream_run(run_id: str, request: Request) -> StreamingResponse:
         # `event_bus` is the live channel for in-flight runs; without it
         # _sse_iterator can only ship the disk record and would close the

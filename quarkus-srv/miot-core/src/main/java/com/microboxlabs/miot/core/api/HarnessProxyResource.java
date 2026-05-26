@@ -103,8 +103,17 @@ public class HarnessProxyResource {
     private static Uni<Response> passThrough(Uni<Response> upstream) {
         return upstream
                 .onFailure(WebApplicationException.class)
-                .recoverWithItem(err -> ((WebApplicationException) err).getResponse())
+                .recoverWithItem(HarnessProxyResource::unwrapResponse)
                 .map(r -> Response.fromResponse(r).build());
+    }
+
+    private static Response unwrapResponse(Throwable err) {
+        // onFailure(WebApplicationException.class) above narrows the throwable;
+        // the instanceof pattern keeps the compiler happy without a redundant cast.
+        if (err instanceof WebApplicationException wae) {
+            return wae.getResponse();
+        }
+        throw new IllegalStateException("Expected WebApplicationException from upstream", err);
     }
 
     @FunctionalInterface

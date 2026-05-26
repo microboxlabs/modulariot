@@ -116,7 +116,11 @@ class HarnessProxyResourcePostTest {
         assertThat("upstream 202 must pass through the proxy", status, is(202));
         WireMockLifecycle.server().verify(
                 WireMock.postRequestedFor(WireMock.urlEqualTo("/runs:start"))
-                        .withHeader("X-Miot-Tenant-Client-Id", WireMock.equalTo(ORG_TENANT)));
+                        .withHeader("X-Miot-Tenant-Client-Id", WireMock.equalTo(ORG_TENANT))
+                        .withHeader("X-Miot-User-Email",
+                                WireMock.equalTo(StubAlfrescoMembershipClient.MEMBER_EMAIL))
+                        .withHeader("X-Miot-Auth-Mode", WireMock.equalTo("web"))
+                        .withHeader("Authorization", WireMock.equalTo("Bearer " + token)));
     }
 
     @Test

@@ -34,6 +34,12 @@ Results are written to `evals/results/<commit-sha>.json`.
 tool count must fall within each case's `[expected_min_turns, expected_max_turns]`.
 `step_economy` is `null` for refusal cases (no plan is built).
 
+`refusal` is scored only for refusals fake mode can deterministically produce —
+the **structural** tenant gate. For cases whose `refusal_mechanism` is
+**semantic** (prompt injection, mutation, out-of-scope, …) `refusal` is `null`
+in fake mode (with a `refusal: semantic — real-mode-only` note) because a
+scripted model cannot make that judgment; those are validated in real mode.
+
 ### Dataset contract (fake mode)
 
 Fake mode is intentionally deterministic so it catches routing/structural
@@ -52,6 +58,11 @@ regressions without spending tokens. When authoring `examples.yaml`:
   tenant gate and produces the canonical `"…is mintral-only…"` refusal.
 - `category: adversarial` requires `expected_refusal: true` (enforced by
   `validate_entries`).
+- Every `expected_refusal: true` case must declare `refusal_mechanism:
+  structural | semantic` (enforced by `validate_entries`). `structural` means a
+  deterministic harness gate produces the refusal (today: a non-`mintral`
+  `tenant_id` hitting the tenant gate); `semantic` means it needs a real LLM and
+  is therefore `null` in fake mode.
 
 ## Reproducibility (infrastructure noise)
 

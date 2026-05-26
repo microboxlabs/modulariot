@@ -5,11 +5,13 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -70,6 +72,17 @@ public class HarnessProxyResource {
         return forward(authorization, body, harness::startRun);
     }
 
+    @GET
+    @Path("/runs/{runId}")
+    public Uni<Response> getRun(@PathParam("slug") String slug,
+                                @PathParam("runId") String runId,
+                                @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.getRun(runId, authorization, tenantClientId, userEmail, authMode));
+    }
+
     private Uni<Response> forward(String authorization,
                                   Map<String, Object> body,
                                   HarnessCall call) {
@@ -78,8 +91,20 @@ public class HarnessProxyResource {
         // Web tokens carry an email claim; M2M tokens don't. Flagging
         // the mode explicitly spares the harness from re-deriving it.
         String authMode = userEmail != null ? "web" : "m2m";
-        return call.apply(authorization, tenantClientId, userEmail, authMode, body)
-                .map(upstream -> Response.fromResponse(upstream).build());
+        return passThrough(call.apply(authorization, tenantClientId, userEmail, authMode, body));
+    }
+
+    /**
+     * Pass upstream status + body through unchanged. Quarkus REST
+     * Reactive throws {@link WebApplicationException} for any non-2xx
+     * harness response; unwrap it so the original status (404, 500, …)
+     * reaches the caller instead of becoming a proxy-side 500.
+     */
+    private static Uni<Response> passThrough(Uni<Response> upstream) {
+        return upstream
+                .onFailure(WebApplicationException.class)
+                .recoverWithItem(err -> ((WebApplicationException) err).getResponse())
+                .map(r -> Response.fromResponse(r).build());
     }
 
     @FunctionalInterface

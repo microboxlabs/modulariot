@@ -2,9 +2,11 @@ package com.microboxlabs.miot.core.api;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -46,4 +48,13 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
             Map<String, Object> body);
+
+    @GET
+    @Path("/runs/{runId}")
+    Uni<Response> getRun(
+            @PathParam("runId") String runId,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
 }

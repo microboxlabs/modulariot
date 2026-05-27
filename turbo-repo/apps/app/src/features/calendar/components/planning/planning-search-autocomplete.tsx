@@ -28,6 +28,10 @@ export interface PlanningSearchAutocompleteProps {
   onSelect?: (service: SelectedService) => void;
   onMatchTypeSelect?: (matchType: MatchType, query: string) => void;
   onClear?: () => void;
+  // Fired with the debounced query (after MIN_CHARACTERS threshold; empty
+  // string before that). The parent threads this into the tasks request as
+  // `q=` so search reaches services beyond the current page.
+  onQueryChange?: (q: string) => void;
   hasActiveFilter?: boolean;
   isLoading?: boolean;
 }
@@ -37,14 +41,18 @@ const MIN_CHARACTERS = 2;
 const MAX_DROPDOWN_HEIGHT = 300;
 
 /**
- * Searchable fields configuration for service matching
+ * Searchable fields configuration for service matching.
+ *
+ * `lugarCarguio` is intentionally omitted: the field is hard-coded to ""
+ * in transformTaskToService because it isn't on `KanbanBoardTask`, so it
+ * could never produce matches. The MatchType union still includes it for
+ * the chip-state path until the workflow surfaces real data.
  */
 const SEARCHABLE_FIELDS: readonly MatchType[] = [
   "id",
   "cliente",
   "origen",
   "destino",
-  "lugarCarguio",
   "permanencia",
   "tipoViaje",
 ] as const;
@@ -177,6 +185,7 @@ export function PlanningSearchAutocomplete({
   onSelect,
   onMatchTypeSelect,
   onClear,
+  onQueryChange,
   hasActiveFilter = false,
   isLoading: externalIsLoading = false,
 }: Readonly<PlanningSearchAutocompleteProps>) {
@@ -208,6 +217,11 @@ export function PlanningSearchAutocomplete({
 
     return () => clearTimeout(timer);
   }, [query]);
+
+  // Surface the debounced query to the parent so it can re-fetch with `q=`.
+  useEffect(() => {
+    onQueryChange?.(debouncedQuery);
+  }, [debouncedQuery, onQueryChange]);
 
   // Search logic: group by match type and count matches
   const searchResults = useMemo(() => {

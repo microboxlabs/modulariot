@@ -44,6 +44,16 @@ import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
 import { z } from "zod";
 
+/** Alfresco node IDs are UUIDs or well-known aliases like -root-, -my-, -shared-. */
+const alfrescoNodeIdSchema = z.string().regex(
+  /^(-root-|-my-|-shared-|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  "Invalid Alfresco node ID"
+);
+
+function validateNodeId(nodeId: string): string {
+  return alfrescoNodeIdSchema.parse(nodeId);
+}
+
 const alfrescoApiLogger = createManagedLogger(
   "alfresco-api",
   "Alfresco API",
@@ -516,7 +526,8 @@ export async function updateNodeProperties(
   properties: Record<string, string>
 ): Promise<boolean> {
   try {
-    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     const result = await fetch(url, {
       method: "PUT",
@@ -543,7 +554,8 @@ export async function updateNodeName(
   name: string
 ): Promise<boolean> {
   try {
-    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     const result = await fetch(url, {
       method: "PUT",
@@ -572,7 +584,8 @@ export async function moveNode(
   targetParentId: string
 ): Promise<boolean> {
   try {
-    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/move`;
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}/move`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     const result = await fetch(url, {
       method: "POST",
@@ -598,7 +611,8 @@ export async function deleteNode(
   nodeId: string
 ): Promise<boolean> {
   try {
-    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     const result = await fetch(url, { method: "DELETE", headers });
     if (!result.ok) {

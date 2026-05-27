@@ -13,7 +13,7 @@ export async function PUT(request: NextRequest) {
   try {
     const { nodeId, properties } = await request.json();
 
-    if (!nodeId || !properties || typeof properties !== "object") {
+    if (!nodeId || !properties || typeof properties !== "object" || Array.isArray(properties)) {
       return NextResponse.json(
         { error: "Missing required fields: nodeId and properties" },
         { status: 400 }
@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     logError(error as Error);
     return NextResponse.json(
-      { error: (error as Error).message || "Update failed" },
+      { error: "Update failed" },
       { status: 500 }
     );
   }

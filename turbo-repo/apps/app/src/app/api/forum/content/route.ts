@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json()) as {
+  let body: {
     action: "topic/create" | "post/reply" | "post/delete" | "topic/delete";
     contentNodeRef?: string;
     title?: string;
@@ -60,6 +60,15 @@ export async function POST(req: NextRequest) {
     post?: string;
     author?: string;
   };
+
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
   if (!body?.action) {
     return NextResponse.json(
@@ -133,18 +142,10 @@ export async function POST(req: NextRequest) {
         );
     }
   } catch (e: unknown) {
-    const err = e as any;
-    console.error("[forum/content] Error:", {
-      action: body.action,
-      contentNodeRef: body.contentNodeRef,
-      status: err?.status,
-      message: err?.message,
-      body: err?.body ?? err?.data,
-      raw: String(e),
-    });
     logError(e as Error, {
       route: "POST /app/api/forum/content",
       action: body.action,
+      contentNodeRef: body.contentNodeRef,
     });
     if ((e as any)?.status === 401) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

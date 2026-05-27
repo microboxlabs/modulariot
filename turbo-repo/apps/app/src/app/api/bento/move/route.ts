@@ -31,7 +31,14 @@ export async function POST(request: NextRequest) {
     }
 
     // bpm_package is "workspace://SpacesStore/{uuid}" — take the last segment
-    const targetParentId = bpmPackage.split("/").pop()!;
+    const targetParentId = bpmPackage.split("/").pop();
+
+    if (!targetParentId) {
+      return NextResponse.json(
+        { error: "Invalid target package reference" },
+        { status: 422 }
+      );
+    }
 
     await moveNode(session, nodeId, targetParentId);
 
@@ -39,7 +46,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logError(error as Error);
     return NextResponse.json(
-      { error: (error as Error).message || "Move failed" },
+      { error: "Move failed" },
       { status: 500 }
     );
   }

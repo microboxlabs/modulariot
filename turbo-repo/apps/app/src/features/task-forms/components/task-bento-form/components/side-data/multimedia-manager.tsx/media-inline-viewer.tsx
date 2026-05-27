@@ -1100,7 +1100,7 @@ function PermitsSection({ dictionary }: { dictionary: I18nRecord }) {
                     type="button"
                     onClick={() => addPermit(user, "read")}
                     className="text-sm font-medium text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer shrink-0 leading-none px-1"
-                    title="Add user"
+                    title={tr("bento.multimedia.sidebar_permits_add_user", dictionary)}
                   >
                     +
                   </button>
@@ -1237,18 +1237,18 @@ export type LooseObservationTimelineEntry = {
 export type TimelineEntry = StateChangeTimelineEntry | LooseObservationTimelineEntry;
 
 
-function relativeTime(date: Date): string {
+function relativeTime(date: Date, dictionary: I18nRecord): string {
   const diff = Date.now() - date.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m`;
+  if (mins < 1) return tr("bento.multimedia.obs_just_now", dictionary);
+  if (mins < 60) return `${mins}${tr("bento.multimedia.obs_time_m", dictionary)}`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return `${hours}${tr("bento.multimedia.obs_time_h", dictionary)}`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
+  if (days < 30) return `${days}${tr("bento.multimedia.obs_time_d", dictionary)}`;
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo`;
-  return `${Math.floor(months / 12)}y`;
+  if (months < 12) return `${months}${tr("bento.multimedia.obs_time_mo", dictionary)}`;
+  return `${Math.floor(months / 12)}${tr("bento.multimedia.obs_time_y", dictionary)}`;
 }
 
 function ObservationCard({
@@ -1299,7 +1299,7 @@ function ObservationCard({
         {obs.createdBy && (
           <span className="text-xs text-gray-400 dark:text-gray-500">{obs.createdBy}</span>
         )}
-        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{relativeTime(obs.createdAt)}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{relativeTime(obs.createdAt, dictionary)}</span>
         {onDelete && (
           <button
             type="button"
@@ -1369,7 +1369,7 @@ function ObservationCard({
               className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
             >
               <HiChevronDown className={`w-3 h-3 transition-transform duration-150 ${repliesOpen ? "" : "-rotate-90"}`} />
-              {replyCount} {replyCount === 1 ? "reply" : "replies"}
+              {replyCount} {replyCount === 1 ? tr("bento.multimedia.obs_reply_one", dictionary) : tr("bento.multimedia.obs_replies_many", dictionary)}
             </button>
           )}
           {onAddReply && (
@@ -1397,7 +1397,7 @@ function ObservationCard({
                   {reply.createdBy && (
                     <span className="text-xs text-gray-400 dark:text-gray-500">{reply.createdBy}</span>
                   )}
-                  <span className="text-xs text-gray-400 dark:text-gray-500">{relativeTime(reply.createdAt)}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{relativeTime(reply.createdAt, dictionary)}</span>
                 </div>
               </div>
               {onRemoveReply && (

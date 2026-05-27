@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     logError(error as Error);
     return NextResponse.json(
-      { error: (error as Error).message || "Delete failed" },
+      { error: "Delete failed" },
       { status: 500 }
     );
   }

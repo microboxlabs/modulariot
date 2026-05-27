@@ -152,7 +152,7 @@ export default function MediaRow({
         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            title="Replace file"
+            title={tr("bento.multimedia.viewer_replace", dictionary)}
             onClick={onEdit}
             className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
           >

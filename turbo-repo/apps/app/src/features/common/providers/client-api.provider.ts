@@ -932,11 +932,13 @@ export async function updateBentoReviewState(
   nodeId: string,
   state: "PENDING" | "APPROVED" | "REJECTED",
   reviewedBy?: string,
-  reviewedAt?: string
+  reviewedAt?: string,
+  reviewComment?: string
 ): Promise<{ success: boolean; message: string }> {
   const properties: Record<string, string> = { "mintral:reviewStatus": state };
   if (reviewedBy) properties["mintral:reviewedBy"] = reviewedBy;
   if (reviewedAt) properties["mintral:reviewedAt"] = reviewedAt;
+  if (reviewComment) properties["mintral:reviewComment"] = reviewComment;
   return fetcher("/app/api/bento/properties", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -976,6 +978,65 @@ export async function putBentoMultimedia(
   return fetcher(url, {
     method: "PUT",
     body: formData,
+  });
+}
+
+// Content-level forum (per-node discussions)
+
+export function useGetContentDiscussion(contentNodeRef: string | undefined) {
+  const { data, error, isLoading, mutate } = useSWR<ForumDiscussionResponse, FetcherError>(
+    contentNodeRef
+      ? `/app/api/forum/content?contentNodeRef=${encodeURIComponent(contentNodeRef)}`
+      : null,
+    fetcher
+  );
+
+  return { data, error, isLoading, mutate };
+}
+
+export async function createContentForumTopic(
+  contentNodeRef: string,
+  title: string,
+  content?: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "topic/create", contentNodeRef, title, content }),
+  });
+}
+
+export async function replyContentForumPost(
+  topic: string,
+  parentPost: string,
+  content: string,
+  author?: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "post/reply", topic, parentPost, title: content, content, author }),
+  });
+}
+
+export async function deleteContentForumPost(
+  topic: string,
+  post: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "post/delete", topic, post }),
+  });
+}
+
+export async function deleteContentForumTopic(
+  topic: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "topic/delete", topic }),
   });
 }
 

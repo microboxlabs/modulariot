@@ -1386,7 +1386,11 @@ type ForumAction =
   | "post/create"
   | "post/reply"
   | "post/edit"
-  | "post/delete";
+  | "post/delete"
+  | "content/discussion/get"
+  | "content/topic/create"
+  | "content/topic/list"
+  | "content/discussion/ensure";
 
 async function callForumAction<TResponse = unknown>(
   session: Session,
@@ -1471,6 +1475,40 @@ export async function deleteForumTopic(
   data: { bpmPackage: string; topic: string }
 ): Promise<unknown> {
   return callForumAction(session, "topic/delete", { body: data });
+}
+
+// Content-level forum (per-node discussions)
+
+export async function getContentDiscussion(
+  session: Session,
+  contentNodeRef: string
+): Promise<ForumDiscussionResponse> {
+  return callForumAction<ForumDiscussionResponse>(session, "content/discussion/get", {
+    body: { contentNodeRef },
+  });
+}
+
+export async function createContentTopic(
+  session: Session,
+  data: { contentNodeRef: string; title: string; content?: string }
+): Promise<unknown> {
+  return callForumAction(session, "content/topic/create", { body: data });
+}
+
+export async function listContentTopics(
+  session: Session,
+  contentNodeRef: string
+): Promise<ForumDiscussionResponse> {
+  return callForumAction<ForumDiscussionResponse>(session, "content/topic/list", {
+    body: { contentNodeRef },
+  });
+}
+
+export async function ensureContentDiscussion(
+  session: Session,
+  data: { contentNodeRef: string; topicTitleIfCreate?: string }
+): Promise<unknown> {
+  return callForumAction(session, "content/discussion/ensure", { body: data });
 }
 
 // Message Templates API

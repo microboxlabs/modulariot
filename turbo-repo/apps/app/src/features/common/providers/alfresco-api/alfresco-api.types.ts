@@ -379,6 +379,7 @@ export type ForumPost = {
 export type ForumReply = {
   ref: string;
   title: string;
+  content?: string;
   author: string;
   created: string;
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Dropdown, DropdownItem, Modal, ModalHeader, ModalBody, Tooltip } from "flowbite-react";
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import {
   HiChevronDown,
   HiOutlineChevronLeft,
@@ -17,6 +17,7 @@ import {
   HiArrowTopRightOnSquare,
   HiTrash,
   HiArrowsRightLeft,
+  HiChevronLeft,
 } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -87,6 +88,17 @@ export default function MediaInlineViewer({
   const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [showAllObservations, setShowAllObservations] = useState(false);
+  const [isUnsentReplyModalOpen, setIsUnsentReplyModalOpen] = useState(false);
+  const pendingReplyRef = useRef<{ text: string; send: () => void }>({ text: "", send: () => {} });
+
+  const handleClose = () => {
+    if (pendingReplyRef.current.text.trim()) {
+      setIsUnsentReplyModalOpen(true);
+    } else {
+      onClose();
+    }
+  };
 
   const handleFileMoved = () => {
     setIsMoveModalOpen(false);
@@ -505,7 +517,7 @@ export default function MediaInlineViewer({
           {/* Close */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 cursor-pointer"
             aria-label={tr("bento.multimedia.viewer_close", dictionary)}
           >
@@ -549,6 +561,40 @@ export default function MediaInlineViewer({
           className="shrink-0 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto flex flex-col"
           style={{ width: "33.333%" }}
         >
+          {showAllObservations ? (
+            <div className="flex flex-col h-full">
+              <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setShowAllObservations(false)}
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <HiChevronLeft className="w-3.5 h-3.5" />
+                  {tr("bento.multimedia.sidebar_obs_back", dictionary)}
+                </button>
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 ml-auto">
+                  {tr("bento.multimedia.sidebar_observations", dictionary)}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3">
+                <ObservationsSection
+                  key={id ?? currentIndex}
+                  dictionary={dictionary}
+                  draftObservations={draftObservations?.get(id ?? "") ?? []}
+                  committedTimeline={committedTimeline?.get(id ?? "") ?? []}
+                  isInDraftReview={!reviewStatuses?.get(id) || reviewStatuses?.get(id) === "pending"}
+                  onAdd={(type, description) => { if (id) onAddObservation?.(id, type, description); }}
+                  onRemoveDraft={(obsId) => { if (id) onRemoveDraftObservation?.(id, obsId); }}
+                  onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
+                  onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}
+                  onRemoveReply={(obsId, rid) => { if (id) onRemoveReply?.(id, obsId, rid); }}
+                  pendingReplyRef={pendingReplyRef}
+                  mode="full"
+                />
+              </div>
+            </div>
+          ) : (
+          <>
           <SidebarSection title={tr("bento.multimedia.sidebar_properties", dictionary)} defaultExpanded>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               <MetaRow label={tr("bento.multimedia.sidebar_prop_name", dictionary)} value={current.file.entry.name} />
@@ -581,9 +627,11 @@ export default function MediaInlineViewer({
               )}
             </dl>
           </SidebarSection>
+          {/* TODO: Enable permits section when ready
           <SidebarSection title={tr("bento.multimedia.sidebar_permits", dictionary)}>
             <PermitsSection dictionary={dictionary} />
           </SidebarSection>
+          */}
           <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)} defaultExpanded>
             <ObservationsSection
               key={id ?? currentIndex}
@@ -596,8 +644,13 @@ export default function MediaInlineViewer({
               onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
               onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}
               onRemoveReply={(obsId, rid) => { if (id) onRemoveReply?.(id, obsId, rid); }}
+              pendingReplyRef={pendingReplyRef}
+              mode="preview"
+              onShowAll={() => setShowAllObservations(true)}
             />
           </SidebarSection>
+        </>
+        )}
         </div>
       </div>
       {/* Move to task modal */}
@@ -623,12 +676,12 @@ export default function MediaInlineViewer({
             inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
           },
           header: {
-            base: "flex items-center justify-between rounded-t border-b pt-5 px-5 pb-0 dark:border-gray-600",
+            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
             title: "text-base font-semibold text-gray-900 dark:text-white",
             close: { base: "hidden" },
           },
           body: {
-            base: "flex-1 overflow-auto px-5 pb-5",
+            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
           },
         }}
       >
@@ -662,6 +715,55 @@ export default function MediaInlineViewer({
                 }}
               >
                 {tr("bento.multimedia.btn_delete", dictionary)}
+              </Button>
+            </div>
+          </div>
+        </ModalBody>
+      </Modal>
+
+      {/* Unsent reply modal */}
+      <Modal
+        dismissible
+        show={isUnsentReplyModalOpen}
+        onClose={() => setIsUnsentReplyModalOpen(false)}
+        size="sm"
+        theme={{
+          content: {
+            base: "relative w-full p-4 md:h-auto",
+            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
+          },
+          header: {
+            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
+            title: "text-base font-semibold text-gray-900 dark:text-white",
+            close: { base: "hidden" },
+          },
+          body: {
+            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
+          },
+        }}
+      >
+        <ModalHeader className="border-none">
+          <span className="text-base font-semibold">{tr("bento.multimedia.unsent_reply_title", dictionary)}</span>
+        </ModalHeader>
+        <ModalBody>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {tr("bento.multimedia.unsent_reply_desc", dictionary)}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                color="alternative"
+                size="sm"
+                onClick={() => { setIsUnsentReplyModalOpen(false); pendingReplyRef.current = { text: "", send: () => {} }; onClose(); }}
+              >
+                {tr("bento.multimedia.unsent_reply_discard", dictionary)}
+              </Button>
+              <Button
+                color="blue"
+                size="sm"
+                onClick={() => { setIsUnsentReplyModalOpen(false); pendingReplyRef.current.send(); pendingReplyRef.current = { text: "", send: () => {} }; onClose(); }}
+              >
+                {tr("bento.multimedia.unsent_reply_save", dictionary)}
               </Button>
             </div>
           </div>
@@ -928,7 +1030,7 @@ export type ObservationEntry = {
 export type StateChangeTimelineEntry = {
   kind: "state_change";
   id: string;
-  status: "approved" | "rejected";
+  status: "approved" | "rejected" | "pending";
   committedAt: Date;
   committedBy?: string;
   observations: ObservationEntry[];
@@ -967,17 +1069,29 @@ function ObservationCard({
   onDelete,
   onAddReply,
   onRemoveReply,
+  pendingReplyRef,
 }: {
   obs: ObservationEntry;
   dictionary: I18nRecord;
   onDelete?: () => void;
   onAddReply?: (description: string) => void;
   onRemoveReply?: (replyId: string) => void;
+  pendingReplyRef?: React.MutableRefObject<{ text: string; send: () => void }>;
 }) {
   const [repliesOpen, setRepliesOpen] = useState(true);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const replyCount = (obs.replies ?? []).length;
+
+  useEffect(() => {
+    if (!pendingReplyRef || !isReplying) return;
+    pendingReplyRef.current = {
+      text: replyText,
+      send: () => { if (replyText.trim()) { onAddReply?.(replyText.trim()); } },
+    };
+    return () => { pendingReplyRef.current = { text: "", send: () => {} }; };
+  }, [replyText, isReplying, pendingReplyRef, onAddReply]);
 
   const handleReply = () => {
     if (!replyText.trim()) return;
@@ -1001,7 +1115,7 @@ function ObservationCard({
         {onDelete && (
           <button
             type="button"
-            onClick={onDelete}
+            onClick={() => setIsDeleteConfirmOpen(true)}
             title={tr("bento.multimedia.obs_delete", dictionary)}
             className="ml-auto p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer shrink-0 opacity-100"
           >
@@ -1014,6 +1128,48 @@ function ObservationCard({
       <p className="text-xs text-gray-600 dark:text-gray-300 wrap-break-word leading-relaxed">
         {obs.description}
       </p>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        dismissible
+        show={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        size="sm"
+        theme={{
+          content: {
+            base: "relative w-full p-4 md:h-auto",
+            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
+          },
+          header: {
+            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
+            title: "text-base font-semibold text-gray-900 dark:text-white",
+            close: { base: "hidden" },
+          },
+          body: {
+            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
+          },
+        }}
+      >
+        <ModalHeader className="border-none">
+          <span className="text-base font-semibold">{tr("bento.multimedia.obs_delete", dictionary)}</span>
+        </ModalHeader>
+        <ModalBody>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {tr("bento.multimedia.obs_delete_confirm", dictionary)}
+            </p>
+            <div className="flex justify-end">
+              <Button
+                color="red"
+                size="sm"
+                onClick={() => { setIsDeleteConfirmOpen(false); onDelete?.(); }}
+              >
+                {tr("bento.multimedia.obs_delete", dictionary)}
+              </Button>
+            </div>
+          </div>
+        </ModalBody>
+      </Modal>
 
       {/* Actions row: replies toggle · reply */}
       {(replyCount > 0 || onAddReply) && (
@@ -1107,6 +1263,9 @@ function ObservationsSection({
   onRemoveCommitted,
   onAddReply,
   onRemoveReply,
+  pendingReplyRef,
+  mode = "full",
+  onShowAll,
 }: {
   dictionary: I18nRecord;
   draftObservations: ObservationEntry[];
@@ -1117,10 +1276,24 @@ function ObservationsSection({
   onRemoveCommitted?: (id: string) => void;
   onAddReply?: (obsId: string, description: string) => void;
   onRemoveReply?: (obsId: string, replyId: string) => void;
+  pendingReplyRef?: React.MutableRefObject<{ text: string; send: () => void }>;
+  mode?: "preview" | "full";
+  onShowAll?: () => void;
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newType, setNewType] = useState<ObservationType>("value_not_visible");
   const [newDescription, setNewDescription] = useState("");
+  const [visibleCount, setVisibleCount] = useState(10);
+  const scrollSentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pendingReplyRef || !isAdding) return;
+    pendingReplyRef.current = {
+      text: newDescription,
+      send: () => { if (newDescription.trim()) { onAdd(newType, newDescription.trim()); } },
+    };
+    return () => { pendingReplyRef.current = { text: "", send: () => {} }; };
+  }, [newDescription, isAdding, pendingReplyRef, onAdd, newType]);
 
   const handleAdd = () => {
     if (!newDescription.trim()) return;
@@ -1130,93 +1303,101 @@ function ObservationsSection({
     setIsAdding(false);
   };
 
-  const hasContent = committedTimeline.length > 0 || draftObservations.length > 0;
+  const allEntries = useMemo(() => [...committedTimeline].reverse(), [committedTimeline]);
+  const hasContent = allEntries.length > 0 || draftObservations.length > 0;
+
+  // Preview mode: show last 3 entries
+  const PREVIEW_LIMIT = 3;
+  const isPreview = mode === "preview";
+  const displayEntries = isPreview ? allEntries.slice(0, PREVIEW_LIMIT) : allEntries.slice(0, visibleCount);
+  const hasMore = isPreview ? allEntries.length > PREVIEW_LIMIT : visibleCount < allEntries.length;
+
+  // Infinite scroll for full mode
+  useEffect(() => {
+    if (isPreview || !scrollSentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && visibleCount < allEntries.length) {
+          setVisibleCount((prev) => Math.min(prev + 10, allEntries.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(scrollSentinelRef.current);
+    return () => observer.disconnect();
+  }, [isPreview, visibleCount, allEntries.length]);
+
+  const renderEntry = (entry: TimelineEntry) => {
+    if (entry.kind === "state_change") {
+      const isApproved = entry.status === "approved";
+      const isPending = entry.status === "pending";
+      const borderColor = isApproved ? "border-green-200 dark:border-green-800" : isPending ? "border-amber-200 dark:border-amber-800" : "border-red-200 dark:border-red-800";
+      const headerBg = isApproved ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : isPending ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800";
+      const labelColor = isApproved ? "text-green-700 dark:text-green-300" : isPending ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300";
+      const labelKey = isApproved ? "bento.multimedia.sidebar_obs_state_approved" : isPending ? "bento.multimedia.sidebar_obs_state_pending" : "bento.multimedia.sidebar_obs_state_rejected";
+      return (
+        <div
+          key={entry.id}
+          className={`flex-shrink-0 rounded-lg border overflow-hidden ${borderColor}`}
+        >
+          <div className={`flex items-center gap-2 px-3 py-2 border-b ${headerBg}`}>
+            <span className={`text-xs font-semibold ${labelColor}`}>
+              {tr(labelKey, dictionary)}
+            </span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+              {formatDateString(entry.committedAt.toISOString())}
+            </span>
+            {entry.committedBy && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-24" title={entry.committedBy}>
+                · {entry.committedBy}
+              </span>
+            )}
+          </div>
+          {entry.observations.length > 0 ? (
+            <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {entry.observations.map((obs) => (
+                <div key={obs.id} className="px-3 py-2.5">
+                  <ObservationCard
+                    obs={obs}
+                    dictionary={dictionary}
+                    onDelete={onRemoveCommitted ? () => onRemoveCommitted(obs.id) : undefined}
+                    onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
+                    onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
+                    pendingReplyRef={pendingReplyRef}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-2.5 italic">
+              {tr("bento.multimedia.sidebar_obs_none_in_container", dictionary)}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // Loose observation
+    return (
+      <div key={entry.id} className="flex-shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+        <ObservationCard
+          obs={{ id: entry.id, type: entry.type, description: entry.description, createdAt: entry.createdAt, createdBy: entry.createdBy, replies: entry.replies }}
+          dictionary={dictionary}
+          onDelete={onRemoveCommitted ? () => onRemoveCommitted(entry.id) : undefined}
+          onAddReply={onAddReply ? (desc) => onAddReply(entry.id, desc) : undefined}
+          onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(entry.id, rid) : undefined}
+          pendingReplyRef={pendingReplyRef}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-2">
 
-      {/* Timeline */}
-      {hasContent ? (
-        <div className="flex flex-col gap-2">
-          {committedTimeline.map((entry) => {
-            if (entry.kind === "state_change") {
-              const isApproved = entry.status === "approved";
-              return (
-                <div
-                  key={entry.id}
-                  className={`rounded-lg border overflow-hidden ${isApproved ? "border-green-200 dark:border-green-800" : "border-red-200 dark:border-red-800"}`}
-                >
-                  <div className={`flex items-center gap-2 px-3 py-2 border-b ${isApproved ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"}`}>
-                    <span className={`text-xs font-semibold ${isApproved ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
-                      {tr(isApproved ? "bento.multimedia.sidebar_obs_state_approved" : "bento.multimedia.sidebar_obs_state_rejected", dictionary)}
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-                      {formatDateString(entry.committedAt.toISOString())}
-                    </span>
-                    {entry.committedBy && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-24" title={entry.committedBy}>
-                        · {entry.committedBy}
-                      </span>
-                    )}
-                  </div>
-                  {entry.observations.length > 0 ? (
-                    <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                      {entry.observations.map((obs) => (
-                        <div key={obs.id} className="px-3 py-2.5">
-                          <ObservationCard
-                            obs={obs}
-                            dictionary={dictionary}
-                            onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
-                            onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-2.5 italic">
-                      {tr("bento.multimedia.sidebar_obs_none_in_container", dictionary)}
-                    </p>
-                  )}
-                </div>
-              );
-            }
-
-            // Loose observation (added after a commit)
-            return (
-              <div key={entry.id} className="px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
-                <ObservationCard
-                  obs={{ id: entry.id, type: entry.type, description: entry.description, createdAt: entry.createdAt, createdBy: entry.createdBy, replies: entry.replies }}
-                  dictionary={dictionary}
-                  onDelete={onRemoveCommitted ? () => onRemoveCommitted(entry.id) : undefined}
-                  onAddReply={onAddReply ? (desc) => onAddReply(entry.id, desc) : undefined}
-                  onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(entry.id, rid) : undefined}
-                />
-              </div>
-            );
-          })}
-
-          {/* Draft observations visible while in review */}
-          {isInDraftReview && draftObservations.map((obs) => (
-            <div key={obs.id} className="px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30">
-              <ObservationCard
-                obs={obs}
-                dictionary={dictionary}
-                onDelete={() => onRemoveDraft(obs.id)}
-                onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
-                onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
-              />
-            </div>
-          ))}
-        </div>
-      ) : isInDraftReview && draftObservations.length === 0 && !isAdding ? (
-        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
-      ) : !hasContent && !isAdding ? (
-        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
-      ) : null}
-
-      {/* New observation form */}
+      {/* New observation form — fixed at top */}
       {isAdding ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-900/10 p-3">
+        <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-900/10 p-3">
           <select
             value={newType}
             onChange={(e) => setNewType(e.target.value as ObservationType)}
@@ -1255,11 +1436,54 @@ function ObservationsSection({
         <button
           type="button"
           onClick={() => setIsAdding(true)}
-          className="w-full text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 border border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 rounded-lg py-2 transition-colors cursor-pointer"
+          className="flex-shrink-0 w-full text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 border border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 rounded-lg py-2 transition-colors cursor-pointer"
         >
           {tr("bento.multimedia.sidebar_obs_add", dictionary)}
         </button>
       )}
+
+      {/* Timeline entries */}
+      {hasContent ? (
+        <div className="flex flex-col gap-2">
+          {displayEntries.map(renderEntry)}
+
+          {/* Draft observations visible while in review */}
+          {isInDraftReview && draftObservations.map((obs) => (
+            <div key={obs.id} className="flex-shrink-0 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30">
+              <ObservationCard
+                obs={obs}
+                dictionary={dictionary}
+                onDelete={() => onRemoveDraft(obs.id)}
+                onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
+                onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
+                pendingReplyRef={pendingReplyRef}
+              />
+            </div>
+          ))}
+
+          {/* Preview: "Show all" button */}
+          {isPreview && hasMore && (
+            <button
+              type="button"
+              onClick={() => onShowAll?.()}
+              className="w-full text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium py-2 rounded-lg border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
+            >
+              {tr("bento.multimedia.sidebar_obs_show_all", dictionary)} ({allEntries.length})
+            </button>
+          )}
+
+          {/* Full mode: infinite scroll sentinel */}
+          {!isPreview && hasMore && (
+            <div ref={scrollSentinelRef} className="flex justify-center py-2">
+              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+      ) : isInDraftReview && draftObservations.length === 0 && !isAdding ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
+      ) : !hasContent && !isAdding ? (
+        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
+      ) : null}
     </div>
   );
 }

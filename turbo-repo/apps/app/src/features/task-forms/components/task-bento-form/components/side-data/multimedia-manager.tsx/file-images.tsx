@@ -13,8 +13,12 @@ import {
   putBentoMultimedia,
   deleteBentoMultimedia,
   updateBentoReviewState,
+  createContentForumTopic,
+  replyContentForumPost,
+  deleteContentForumPost,
+  deleteContentForumTopic,
 } from "@/features/common/providers/client-api.provider";
-import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { TaskResponse, ForumDiscussionResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ClasificationForm from "./clasification-form";
@@ -23,8 +27,13 @@ import DocumentList from "./document-list";
 import { AlfrescoFileEntry } from "./image.types";
 import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
 import MediaInlineViewer, { MediaViewerItem } from "./media-inline-viewer";
-import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry } from "./media-inline-viewer";
+import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "./media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
+
+function toNodeRef(id: string): string {
+  if (id.startsWith("workspace://")) return id;
+  return `workspace://SpacesStore/${id}`;
+}
 
 export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
@@ -233,6 +242,9 @@ export default function FileImages({
   const [draftObservations, setDraftObservations] = useState<Map<string, ObservationEntry[]>>(new Map());
   const [committedTimeline, setCommittedTimeline] = useState<Map<string, TimelineEntry[]>>(new Map());
 
+  // Maps observation/reply IDs to their forum nodeRefs for backend operations
+  const [forumRefMap, setForumRefMap] = useState<Map<string, { topicRef: string; postRef: string }>>(new Map());
+
   const reviewSummary = useMemo(() => {
     const approved = allIds.filter((id) => reviewStatuses.get(id) === "approved").length;
     const rejected = allIds.filter((id) => reviewStatuses.get(id) === "rejected").length;
@@ -296,39 +308,58 @@ export default function FileImages({
   }, [reviewStatuses]);
 
   const handleAddObservation = useCallback((fileId: string, type: ObservationType, description: string) => {
-    const committedStatus = reviewStatuses.get(fileId);
-    const isCommitted = committedStatus === "approved" || committedStatus === "rejected";
     const entry: ObservationEntry = { id: `obs-${fileId}-${Date.now()}`, type, description, createdAt: new Date(), createdBy: currentUserName };
-    if (isCommitted) {
-      setCommittedTimeline((prev) => {
-        const next = new Map(prev);
-        next.set(fileId, [...(prev.get(fileId) ?? []), { kind: "observation" as const, ...entry }]);
-        return next;
-      });
-    } else {
-      setDraftObservations((prev) => {
-        const next = new Map(prev);
-        next.set(fileId, [...(prev.get(fileId) ?? []), entry]);
-        return next;
-      });
-    }
-  }, [reviewStatuses, currentUserName]);
-
-  const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {
-    setDraftObservations((prev) => {
+    // Always add to committedTimeline immediately (visible right away)
+    setCommittedTimeline((prev) => {
       const next = new Map(prev);
-      next.set(fileId, (prev.get(fileId) ?? []).filter((o) => o.id !== obsId));
+      next.set(fileId, [...(prev.get(fileId) ?? []), { kind: "observation" as const, ...entry }]);
       return next;
     });
-  }, []);
+    // Always persist immediately
+    createContentForumTopic(toNodeRef(fileId), type, `[${type}] ${description}`).catch(() => {});
+  }, [currentUserName]);
 
-  const handleRemoveCommittedObservation = useCallback((fileId: string, obsId: string) => {
+  const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {
+    // Remove from committedTimeline (observations are always added there now)
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
       next.set(fileId, (prev.get(fileId) ?? []).filter((e) => e.id !== obsId));
       return next;
     });
-  }, []);
+    // If the obsId is a backend ref (not a local temp id), delete the post
+    if (!obsId.startsWith("obs-")) {
+      const refs = forumRefMap.get(obsId);
+      if (refs) {
+        deleteContentForumPost(refs.topicRef, refs.postRef).catch(() => {});
+      } else {
+        deleteContentForumTopic(toNodeRef(obsId)).catch(() => {});
+      }
+    }
+  }, [forumRefMap]);
+
+  const handleRemoveCommittedObservation = useCallback((fileId: string, obsId: string) => {
+    setCommittedTimeline((prev) => {
+      const next = new Map(prev);
+      const entries = (prev.get(fileId) ?? [])
+        .filter((e) => e.id !== obsId)
+        .map((e) => {
+          if (e.kind === "state_change") {
+            return { ...e, observations: e.observations.filter((o) => o.id !== obsId) };
+          }
+          return e;
+        });
+      next.set(fileId, entries);
+      return next;
+    });
+    if (!obsId.startsWith("obs-")) {
+      const refs = forumRefMap.get(obsId);
+      if (refs) {
+        deleteContentForumPost(refs.topicRef, refs.postRef).catch(() => {});
+      } else {
+        deleteContentForumTopic(toNodeRef(obsId)).catch(() => {});
+      }
+    }
+  }, [forumRefMap]);
 
   const handleAddReply = useCallback((fileId: string, obsId: string, description: string) => {
     const reply = { id: `reply-${obsId}-${Date.now()}`, description, createdAt: new Date(), createdBy: currentUserName };
@@ -359,7 +390,12 @@ export default function FileImages({
       ));
       return next;
     });
-  }, [currentUserName]);
+    // Persist reply to per-node forum
+    const refs = forumRefMap.get(obsId);
+    if (refs) {
+      replyContentForumPost(refs.topicRef, refs.postRef, description, currentUserName).catch(() => {});
+    }
+  }, [currentUserName, forumRefMap]);
 
   const handleRemoveReply = useCallback((fileId: string, obsId: string, replyId: string) => {
     setCommittedTimeline((prev) => {
@@ -389,7 +425,12 @@ export default function FileImages({
       ));
       return next;
     });
-  }, []);
+    // Persist deletion to per-node forum
+    const refs = forumRefMap.get(obsId);
+    if (refs && !replyId.startsWith("reply-")) {
+      deleteContentForumPost(refs.topicRef, replyId).catch(() => {});
+    }
+  }, [forumRefMap]);
 
   const { mutate: globalMutate } = useSWRConfig();
 
@@ -459,6 +500,134 @@ export default function FileImages({
       });
     }
   }, [documentsData, files]);
+
+  // Hydrate committedTimeline from per-node forum discussions
+  const [discussionsLoaded, setDiscussionsLoaded] = useState(false);
+  useEffect(() => {
+    if (allIds.length === 0 || discussionsLoaded) return;
+    let cancelled = false;
+    async function fetchDiscussions() {
+      const results = await Promise.allSettled(
+        allIds.map(async (nodeId) => {
+          const res = await fetch(`/app/api/forum/content?contentNodeRef=${encodeURIComponent(toNodeRef(nodeId))}`);
+          if (!res.ok) return { nodeId, data: null };
+          const data = (await res.json()) as ForumDiscussionResponse;
+          return { nodeId, data };
+        })
+      );
+      if (cancelled) return;
+      const timeline = new Map<string, TimelineEntry[]>();
+      const refMap = new Map<string, { topicRef: string; postRef: string }>();
+      for (const result of results) {
+        if (result.status !== "fulfilled" || !result.value.data) continue;
+        const { nodeId, data } = result.value;
+        const entries: TimelineEntry[] = [];
+
+        // Flatten all posts into a unified list with metadata
+        type FlatPost = {
+          kind: "state_change" | "observation";
+          topicRef: string;
+          postRef: string;
+          title: string;
+          content: string;
+          author: string;
+          created: Date;
+          replies: { ref: string; title?: string; content?: string; created: string; author: string }[];
+        };
+        const allPosts: FlatPost[] = [];
+
+        for (const topic of data.topics ?? []) {
+          const isStateChange = topic.title === "APPROVED" || topic.title === "REJECTED" || topic.title === "PENDING";
+          for (const post of topic.posts ?? []) {
+            allPosts.push({
+              kind: isStateChange ? "state_change" : "observation",
+              topicRef: topic.ref,
+              postRef: post.ref,
+              title: topic.title,
+              content: post.content ?? "",
+              author: post.author,
+              created: new Date(post.created),
+              replies: (post.replies ?? []).map((r) => ({ ref: r.ref, title: r.title, content: r.content, created: r.created, author: r.author })),
+            });
+            refMap.set(post.ref, { topicRef: topic.ref, postRef: post.ref });
+          }
+        }
+
+        // Sort all posts chronologically
+        allPosts.sort((a, b) => a.created.getTime() - b.created.getTime());
+
+        // Build timeline: each state_change post becomes its own entry,
+        // observations get assigned to the next state_change after them
+        const stateChangePosts = allPosts.filter((p) => p.kind === "state_change");
+        const observationPosts = allPosts.filter((p) => p.kind === "observation");
+
+        // Create state-change entries (sorted by time)
+        const stateChangeEntries: StateChangeTimelineEntry[] = stateChangePosts.map((p) => ({
+          kind: "state_change" as const,
+          id: p.postRef,
+          status: p.title.toLowerCase() as "approved" | "rejected" | "pending",
+          committedAt: p.created,
+          committedBy: p.author,
+          observations: [],
+        }));
+
+        // Assign each observation to the first state-change created AFTER it
+        for (const obs of observationPosts) {
+          const plainDesc = obs.content.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
+          const match = /^\[([^\]]+)\]\s*(.*)$/.exec(plainDesc);
+          const obsType = match ? (match[1] as ObservationType) : (obs.title as ObservationType) || "other";
+          const obsDesc = match ? (match[2] ?? "") : plainDesc;
+
+          const obsEntry: ObservationEntry = {
+            id: obs.postRef,
+            type: obsType,
+            description: obsDesc,
+            createdAt: obs.created,
+            createdBy: obs.author,
+            replies: obs.replies.map((r) => {
+              const rawContent = r.content ?? r.title ?? "";
+              const plainContent = rawContent.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
+              return {
+                id: r.ref,
+                description: plainContent,
+                createdAt: new Date(r.created),
+                createdBy: r.author,
+              };
+            }),
+          };
+
+          // Find the first state-change that happened after this observation
+          const owning = stateChangeEntries.find((sc) => sc.committedAt.getTime() >= obs.created.getTime());
+          if (owning) {
+            owning.observations.push(obsEntry);
+          } else {
+            // Observation after all state-changes → loose entry
+            entries.push({ kind: "observation", ...obsEntry });
+          }
+        }
+
+        // Add state-change entries to the timeline
+        entries.push(...stateChangeEntries);
+
+        if (entries.length > 0) timeline.set(nodeId, entries);
+      }
+      setForumRefMap((prev) => {
+        const next = new Map(prev);
+        refMap.forEach((v, k) => next.set(k, v));
+        return next;
+      });
+      setCommittedTimeline((prev) => {
+        const next = new Map(prev);
+        timeline.forEach((entries, nodeId) => {
+          if (!prev.has(nodeId)) next.set(nodeId, entries);
+        });
+        return next;
+      });
+      setDiscussionsLoaded(true);
+    }
+    fetchDiscussions();
+    return () => { cancelled = true; };
+  }, [allIds, discussionsLoaded]);
 
   const allMediaItems = useMemo<MediaViewerItem[]>(
     () => [
@@ -876,12 +1045,12 @@ export default function FileImages({
             inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
           },
           header: {
-            base: "flex items-center justify-between rounded-t border-b p-5 dark:border-gray-600",
+            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
             title: "text-base font-semibold text-gray-900 dark:text-white",
             close: { base: "hidden" },
           },
           body: {
-            base: "flex-1 overflow-auto px-5 pb-5",
+            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
           },
         }}
       >
@@ -947,15 +1116,22 @@ export default function FileImages({
                   setCommittedTimeline((prev) => {
                     const next = new Map(prev);
                     draftDecisions.forEach((status, id) => {
+                      const existing = prev.get(id) ?? [];
+                      // Collect loose observations that aren't inside a state_change
+                      const looseObs: ObservationEntry[] = existing
+                        .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
+                        .map(({ kind: _kind, ...obs }) => obs);
+                      // Keep only state_change entries (remove loose observations that will be nested)
+                      const withoutLoose = existing.filter((e) => e.kind !== "observation");
                       const entry: StateChangeTimelineEntry = {
                         kind: "state_change",
                         id: `sc-${id}-${now.getTime()}`,
-                        status: status as "approved" | "rejected",
+                        status: status as "approved" | "rejected" | "pending",
                         committedAt: now,
                         committedBy: currentUserName,
-                        observations: draftObservations.get(id) ?? [],
+                        observations: [...looseObs, ...(draftObservations.get(id) ?? [])],
                       };
-                      next.set(id, [...(prev.get(id) ?? []), entry]);
+                      next.set(id, [...withoutLoose, entry]);
                     });
                     return next;
                   });
@@ -966,9 +1142,17 @@ export default function FileImages({
                   });
                   draftDecisions.forEach((status, id) => {
                     const alfrescoState = status === "approved" ? "APPROVED" : status === "rejected" ? "REJECTED" : "PENDING";
-                    updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString()).catch(() => {
+                    const existing = committedTimeline.get(id) ?? [];
+                    const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
+                    const allObs = [...looseObs, ...(draftObservations.get(id) ?? [])];
+                    const reviewComment = allObs
+                      .map((obs) => `[${obs.type}] ${obs.description}`)
+                      .join(" | ") || undefined;
+                    updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString(), reviewComment).catch(() => {
                       toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
                     });
+                    // Create state-change topic — observations are already persisted as individual topics
+                    createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState).catch(() => {});
                   });
                   setDraftDecisions(new Map());
                   setIsCommitModalOpen(false);

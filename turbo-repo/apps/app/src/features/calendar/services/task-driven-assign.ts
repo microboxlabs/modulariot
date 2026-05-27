@@ -14,7 +14,7 @@ export type AssignTupleInput = {
   assignedTruck?: string;
   assignedTrailer?: string;
   assignedCarrierExternalId?: string | null;
-  mintral_serviceKind?: string;
+  mintral_serviceType?: string;
 };
 
 /**
@@ -39,7 +39,7 @@ export function buildAssignProcessVariables(
   const carrierId = input.assignedCarrier;
   const driverId = input.assignedDriver;
   const truckId = input.assignedTruck;
-  const tipoServicioRaw = input.mintral_serviceKind;
+  const tipoServicioRaw = input.mintral_serviceType;
   if (!carrierId || !driverId || !truckId || !tipoServicioRaw) {
     return null;
   }

@@ -848,6 +848,22 @@ function isTaskDrivenPlanCreate(
   return !!vars && "calendar_id" in vars;
 }
 
+/**
+ * Task-driven ASSIGN move: ECM's `OnCreatePresentDriverBinding` updates the
+ * `cld_bookings` row itself from the resource tuple in processVariables on
+ * the `presentDriver` create. The FE must NOT call the booking POST/PUT in
+ * this path. Signaled by an `AssignProcessVariables` shape on
+ * `taskAdvance.processVariables` (presence of `carrier_id` key). On task-
+ * driven services the FE never stored a booking id (the plan move skipped
+ * the POST), so `oldBookingId` is irrelevant here — the shape alone decides.
+ */
+function isTaskDrivenAssignUpdate(
+  taskAdvance: BookingTaskAdvance | undefined
+): boolean {
+  const vars = taskAdvance?.processVariables;
+  return !!vars && "carrier_id" in vars;
+}
+
 async function persistPlannedBooking({
   calendarId,
   service,
@@ -883,6 +899,21 @@ async function persistPlannedBooking({
           throw err;
         }
       }
+      await advanceWorkflowTask(
+        taskAdvance.taskId,
+        taskAdvance.transitionId,
+        taskAdvance.processVariables
+      );
+      refreshSlots();
+      setBookingVersion((v) => v + 1);
+      return;
+    }
+
+    if (isTaskDrivenAssignUpdate(taskAdvance) && taskAdvance) {
+      // ECM owns the booking row for task-driven assign. Skip the FE
+      // booking POST/PUT and let ECM's `OnCreatePresentDriverBinding`
+      // update the row from the resource tuple in processVariables on
+      // the next `presentDriver` create.
       await advanceWorkflowTask(
         taskAdvance.taskId,
         taskAdvance.transitionId,

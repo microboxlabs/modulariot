@@ -28,10 +28,11 @@ export type UnplanBindingNotification = {
 export function decideUnplanBindingNotification(
   numeroServicio: string | undefined,
   calendarId: string | undefined,
-  origin: string | undefined
+  origin: string | undefined,
+  enabledOrigins: ReadonlySet<string>
 ): UnplanBindingNotification | null {
   if (!numeroServicio || !calendarId) return null;
-  if (isOriginTaskDriven(origin)) return null;
+  if (isOriginTaskDriven(origin, enabledOrigins)) return null;
   return {
     numero_servicio: numeroServicio,
     calendar_id: calendarId,
@@ -67,10 +68,11 @@ export type UnassignBindingNotification = {
 export function decideUnassignBindingNotification(
   numeroServicio: string | undefined,
   calendarId: string | undefined,
-  origin: string | undefined
+  origin: string | undefined,
+  enabledOrigins: ReadonlySet<string>
 ): UnassignBindingNotification | null {
   if (!numeroServicio || !calendarId) return null;
-  if (isOriginTaskDriven(origin)) return null;
+  if (isOriginTaskDriven(origin, enabledOrigins)) return null;
   return {
     numero_servicio: numeroServicio,
     calendar_id: calendarId,

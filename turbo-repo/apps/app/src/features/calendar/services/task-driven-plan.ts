@@ -68,9 +68,10 @@ export function decidePlanTaskAdvance(
   transitionId: string | undefined,
   origin: string | undefined,
   calendarId: string | undefined,
-  slot: PlanSlotInput
+  slot: PlanSlotInput,
+  enabledOrigins: ReadonlySet<string>
 ): PlanProcessVariables | null {
   if (transitionId !== "Asignar Conductor/Transporte") return null;
-  if (!isOriginTaskDriven(origin)) return null;
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
   return buildPlanProcessVariables(calendarId, slot);
 }

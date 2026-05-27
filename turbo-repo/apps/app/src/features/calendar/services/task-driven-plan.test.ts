@@ -12,15 +12,20 @@
  * Presence of these vars on the task move is the FE signal to SKIP the BFF
  * `POST /app/api/calendar/bookings` write — verified at the call site in
  * `planning-selection-context.tsx` via `isTaskDrivenPlanCreate`.
+ *
+ * The enabled-origins set is injected by the caller (planning provider
+ * reads `useTaskDrivenOrigins`); tests pass it explicitly to keep the
+ * helpers pure.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   buildPlanProcessVariables,
   decidePlanTaskAdvance,
 } from "./task-driven-plan";
 
-const ENV_KEY = "NEXT_PUBLIC_TASK_DRIVEN_ORIGINS";
 const CAL = "4b929627-35a8-4371-9cf1-065bcd6867f0";
+const FLAG_ON = new Set(["SCL"]);
+const FLAG_OFF = new Set<string>();
 
 describe("buildPlanProcessVariables", () => {
   it("formats the slot tuple as strings with YYYY-MM-DD (local) date", () => {
@@ -67,23 +72,17 @@ describe("buildPlanProcessVariables", () => {
 });
 
 describe("decidePlanTaskAdvance — plan-side flag gating", () => {
-  const original = process.env[ENV_KEY];
-
-  beforeEach(() => {
-    delete process.env[ENV_KEY];
-  });
-
-  afterEach(() => {
-    if (original === undefined) delete process.env[ENV_KEY];
-    else process.env[ENV_KEY] = original;
-  });
-
   const slot = { date: new Date(2026, 4, 27, 9, 15), hour: 9, minutes: 15 };
 
   it("flag ON + planService→assignDriver transition: returns the tuple", () => {
-    process.env[ENV_KEY] = "SCL";
     expect(
-      decidePlanTaskAdvance("Asignar Conductor/Transporte", "SCL", CAL, slot)
+      decidePlanTaskAdvance(
+        "Asignar Conductor/Transporte",
+        "SCL",
+        CAL,
+        slot,
+        FLAG_ON
+      )
     ).toEqual({
       calendar_id: CAL,
       slot_date: "2026-05-27",
@@ -93,50 +92,55 @@ describe("decidePlanTaskAdvance — plan-side flag gating", () => {
   });
 
   it("flag ON + non-plan transition (ASSIGN move): returns null", () => {
-    process.env[ENV_KEY] = "SCL";
     expect(
-      decidePlanTaskAdvance("Presentar Conductor", "SCL", CAL, slot)
+      decidePlanTaskAdvance("Presentar Conductor", "SCL", CAL, slot, FLAG_ON)
     ).toBeNull();
   });
 
   it("flag OFF: returns null even on the plan transition", () => {
-    process.env[ENV_KEY] = "SCL";
     expect(
       decidePlanTaskAdvance(
         "Asignar Conductor/Transporte",
         "ANTOFAGASTA",
         CAL,
-        slot
+        slot,
+        FLAG_ON
       )
     ).toBeNull();
   });
 
-  it("env unset: every origin is treated as flag-off", () => {
+  it("empty enabled set: every origin is treated as flag-off", () => {
     expect(
-      decidePlanTaskAdvance("Asignar Conductor/Transporte", "SCL", CAL, slot)
+      decidePlanTaskAdvance(
+        "Asignar Conductor/Transporte",
+        "SCL",
+        CAL,
+        slot,
+        FLAG_OFF
+      )
     ).toBeNull();
   });
 
   it("flag ON + missing calendarId: returns null", () => {
-    process.env[ENV_KEY] = "SCL";
     expect(
       decidePlanTaskAdvance(
         "Asignar Conductor/Transporte",
         "SCL",
         undefined,
-        slot
+        slot,
+        FLAG_ON
       )
     ).toBeNull();
   });
 
   it("flag ON + missing origin: returns null", () => {
-    process.env[ENV_KEY] = "SCL";
     expect(
       decidePlanTaskAdvance(
         "Asignar Conductor/Transporte",
         undefined,
         CAL,
-        slot
+        slot,
+        FLAG_ON
       )
     ).toBeNull();
   });

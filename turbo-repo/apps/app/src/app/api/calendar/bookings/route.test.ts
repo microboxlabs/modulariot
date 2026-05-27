@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-const ENV_KEY = "NEXT_PUBLIC_TASK_DRIVEN_ORIGINS";
+const ENV_KEY = "TASK_DRIVEN_ORIGINS";
 const ORIGINAL_ENV = process.env[ENV_KEY];
 
 const requireAuthMock = vi.fn();
@@ -63,9 +63,10 @@ vi.mock("@microboxlabs/miot-calendar-client", () => ({
 }));
 
 async function loadRoute() {
-  // Fresh import so each test picks up the current env state (the helper
-  // reads NEXT_PUBLIC_TASK_DRIVEN_ORIGINS lazily, but resetting modules
-  // also avoids any cached state from prior tests bleeding in).
+  // Fresh import so each test picks up the current env state (the route
+  // reads TASK_DRIVEN_ORIGINS per-request via parseTaskDrivenOrigins, but
+  // resetting modules also avoids any cached state from prior tests
+  // bleeding in).
   vi.resetModules();
   return import("./route");
 }

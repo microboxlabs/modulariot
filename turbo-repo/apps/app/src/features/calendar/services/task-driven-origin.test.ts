@@ -1,87 +1,60 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { isOriginTaskDriven } from "./task-driven-origin";
+import { describe, it, expect } from "vitest";
+import {
+  isOriginTaskDriven,
+  parseTaskDrivenOrigins,
+} from "./task-driven-origin";
 
-const ENV_KEY = "NEXT_PUBLIC_TASK_DRIVEN_ORIGINS";
+describe("parseTaskDrivenOrigins", () => {
+  it("returns an empty set for undefined / null / empty input", () => {
+    expect(parseTaskDrivenOrigins(undefined).size).toBe(0);
+    expect(parseTaskDrivenOrigins(null).size).toBe(0);
+    expect(parseTaskDrivenOrigins("").size).toBe(0);
+  });
+
+  it("splits on commas and trims whitespace around entries", () => {
+    const set = parseTaskDrivenOrigins(" ANTOFAGASTA , CALAMA ");
+    expect(set.has("ANTOFAGASTA")).toBe(true);
+    expect(set.has("CALAMA")).toBe(true);
+    expect(set.size).toBe(2);
+  });
+
+  it("drops empty entries (trailing comma, double comma)", () => {
+    const set = parseTaskDrivenOrigins("ANTOFAGASTA,,CALAMA,");
+    expect(set.size).toBe(2);
+    expect(set.has("")).toBe(false);
+  });
+
+  it("returns an empty set when input is only commas / whitespace", () => {
+    expect(parseTaskDrivenOrigins("  ,  ,   ").size).toBe(0);
+  });
+});
 
 describe("isOriginTaskDriven", () => {
-  const original = process.env[ENV_KEY];
-
-  beforeEach(() => {
-    delete process.env[ENV_KEY];
+  it("returns true for an origin in the enabled set", () => {
+    const enabled = new Set(["ANTOFAGASTA", "CALAMA"]);
+    expect(isOriginTaskDriven("ANTOFAGASTA", enabled)).toBe(true);
+    expect(isOriginTaskDriven("CALAMA", enabled)).toBe(true);
   });
 
-  afterEach(() => {
-    if (original === undefined) {
-      delete process.env[ENV_KEY];
-    } else {
-      process.env[ENV_KEY] = original;
-    }
+  it("returns false for an origin outside the enabled set", () => {
+    const enabled = new Set(["ANTOFAGASTA"]);
+    expect(isOriginTaskDriven("CALAMA", enabled)).toBe(false);
+    expect(isOriginTaskDriven("DOES_NOT_EXIST", enabled)).toBe(false);
   });
 
-  it("returns true for an origin listed in the env var", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA,CALAMA";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(true);
-    expect(isOriginTaskDriven("CALAMA")).toBe(true);
+  it("returns false for an empty enabled set (default off)", () => {
+    expect(isOriginTaskDriven("ANTOFAGASTA", new Set())).toBe(false);
   });
 
-  it("returns false for an origin not in the env list", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
-    expect(isOriginTaskDriven("CALAMA")).toBe(false);
-  });
-
-  it("returns false for an unknown / unrecognised origin code", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
-    expect(isOriginTaskDriven("DOES_NOT_EXIST")).toBe(false);
-  });
-
-  it("returns false when the env var is unset (default off)", () => {
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(false);
-  });
-
-  it("returns false when the env var is empty (default off)", () => {
-    process.env[ENV_KEY] = "";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(false);
-  });
-
-  it("returns false when the origin argument is undefined", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
-    expect(isOriginTaskDriven(undefined)).toBe(false);
-  });
-
-  it("returns false when the origin argument is an empty string", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA,";
-    expect(isOriginTaskDriven("")).toBe(false);
-  });
-
-  it("trims whitespace around entries", () => {
-    process.env[ENV_KEY] = " ANTOFAGASTA , CALAMA ";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(true);
-    expect(isOriginTaskDriven("CALAMA")).toBe(true);
-  });
-
-  it("ignores empty entries (trailing comma, double comma)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA,,CALAMA,";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(true);
-    expect(isOriginTaskDriven("CALAMA")).toBe(true);
-    expect(isOriginTaskDriven("")).toBe(false);
-  });
-
-  it("returns false when the env var contains only whitespace / commas", () => {
-    process.env[ENV_KEY] = "  ,  ,   ";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(false);
+  it("returns false when origin argument is undefined or empty", () => {
+    const enabled = new Set(["ANTOFAGASTA"]);
+    expect(isOriginTaskDriven(undefined, enabled)).toBe(false);
+    expect(isOriginTaskDriven("", enabled)).toBe(false);
   });
 
   it("is case-sensitive on the origin match", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
-    expect(isOriginTaskDriven("antofagasta")).toBe(false);
-    expect(isOriginTaskDriven("Antofagasta")).toBe(false);
-  });
-
-  it("picks up env changes between calls (no module-level caching)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(true);
-    process.env[ENV_KEY] = "CALAMA";
-    expect(isOriginTaskDriven("ANTOFAGASTA")).toBe(false);
-    expect(isOriginTaskDriven("CALAMA")).toBe(true);
+    const enabled = new Set(["ANTOFAGASTA"]);
+    expect(isOriginTaskDriven("antofagasta", enabled)).toBe(false);
+    expect(isOriginTaskDriven("Antofagasta", enabled)).toBe(false);
   });
 });

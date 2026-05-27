@@ -67,10 +67,11 @@ export function buildAssignProcessVariables(
 export function decideAssignTaskAdvance(
   transitionId: string | undefined,
   origin: string | undefined,
-  service: AssignTupleInput
+  service: AssignTupleInput,
+  enabledOrigins: ReadonlySet<string>
 ): AssignProcessVariables | null {
   if (transitionId !== "Presentar Conductor") return null;
-  if (!isOriginTaskDriven(origin)) return null;
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
   return buildAssignProcessVariables(service);
 }
 
@@ -88,9 +89,10 @@ export function decideAssignTaskAdvance(
  */
 export function getTaskDrivenUnassignTransition(
   stage: string | undefined,
-  origin: string | undefined
+  origin: string | undefined,
+  enabledOrigins: ReadonlySet<string>
 ): string | undefined {
-  if (!isOriginTaskDriven(origin)) return undefined;
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return undefined;
   if (stage !== "presentDriver") return undefined;
   return "Asignar Conductor/Transporte";
 }

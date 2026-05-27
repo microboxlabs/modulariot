@@ -1,37 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   decideUnassignBindingNotification,
   decideUnplanBindingNotification,
 } from "./task-driven-binding-gate";
 
-const ENV_KEY = "NEXT_PUBLIC_TASK_DRIVEN_ORIGINS";
+const FLAG_ON = new Set(["ANTOFAGASTA"]);
+const FLAG_OFF = new Set<string>();
 
 describe("decideUnplanBindingNotification — P2 unplan flag gating", () => {
-  const original = process.env[ENV_KEY];
-
-  beforeEach(() => {
-    delete process.env[ENV_KEY];
-  });
-
-  afterEach(() => {
-    if (original === undefined) {
-      delete process.env[ENV_KEY];
-    } else {
-      process.env[ENV_KEY] = original;
-    }
-  });
-
   it("flag ON: returns null for a task-driven origin (no binding call)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideUnplanBindingNotification("SVC-001", "cal-001", "ANTOFAGASTA")
+      decideUnplanBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "ANTOFAGASTA",
+        FLAG_ON
+      )
     ).toBeNull();
   });
 
-  it("flag OFF: returns the stage:none payload for a non-task-driven origin (unchanged)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
+  it("flag OFF: returns the stage:none payload for a non-task-driven origin", () => {
     expect(
-      decideUnplanBindingNotification("SVC-001", "cal-001", "CALAMA")
+      decideUnplanBindingNotification("SVC-001", "cal-001", "CALAMA", FLAG_ON)
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",
@@ -39,9 +29,14 @@ describe("decideUnplanBindingNotification — P2 unplan flag gating", () => {
     });
   });
 
-  it("env unset: every origin treated as flag-off (default)", () => {
+  it("empty enabled set: every origin treated as flag-off (default)", () => {
     expect(
-      decideUnplanBindingNotification("SVC-001", "cal-001", "ANTOFAGASTA")
+      decideUnplanBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "ANTOFAGASTA",
+        FLAG_OFF
+      )
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",
@@ -51,20 +46,24 @@ describe("decideUnplanBindingNotification — P2 unplan flag gating", () => {
 
   it("returns null when the service has no business code", () => {
     expect(
-      decideUnplanBindingNotification(undefined, "cal-001", "CALAMA")
+      decideUnplanBindingNotification(undefined, "cal-001", "CALAMA", FLAG_ON)
     ).toBeNull();
   });
 
   it("returns null when no calendar is in scope", () => {
     expect(
-      decideUnplanBindingNotification("SVC-001", undefined, "CALAMA")
+      decideUnplanBindingNotification("SVC-001", undefined, "CALAMA", FLAG_ON)
     ).toBeNull();
   });
 
   it("unknown origin: treated as flag-off (returns payload)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideUnplanBindingNotification("SVC-001", "cal-001", "UNKNOWN_CODE")
+      decideUnplanBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "UNKNOWN_CODE",
+        FLAG_ON
+      )
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",
@@ -73,9 +72,8 @@ describe("decideUnplanBindingNotification — P2 unplan flag gating", () => {
   });
 
   it("missing origin on the service: treated as flag-off (returns payload)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideUnplanBindingNotification("SVC-001", "cal-001", undefined)
+      decideUnplanBindingNotification("SVC-001", "cal-001", undefined, FLAG_ON)
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",
@@ -85,31 +83,25 @@ describe("decideUnplanBindingNotification — P2 unplan flag gating", () => {
 });
 
 describe("decideUnassignBindingNotification — P3 unassign flag gating", () => {
-  const original = process.env[ENV_KEY];
-
-  beforeEach(() => {
-    delete process.env[ENV_KEY];
-  });
-
-  afterEach(() => {
-    if (original === undefined) {
-      delete process.env[ENV_KEY];
-    } else {
-      process.env[ENV_KEY] = original;
-    }
-  });
-
   it("flag ON: returns null for a task-driven origin (no binding call)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideUnassignBindingNotification("SVC-001", "cal-001", "ANTOFAGASTA")
+      decideUnassignBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "ANTOFAGASTA",
+        FLAG_ON
+      )
     ).toBeNull();
   });
 
   it("flag OFF: returns the stage:unassigned payload (unchanged)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideUnassignBindingNotification("SVC-001", "cal-001", "CALAMA")
+      decideUnassignBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "CALAMA",
+        FLAG_ON
+      )
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",
@@ -117,9 +109,14 @@ describe("decideUnassignBindingNotification — P3 unassign flag gating", () => 
     });
   });
 
-  it("env unset: every origin treated as flag-off (default)", () => {
+  it("empty enabled set: every origin treated as flag-off (default)", () => {
     expect(
-      decideUnassignBindingNotification("SVC-001", "cal-001", "ANTOFAGASTA")
+      decideUnassignBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "ANTOFAGASTA",
+        FLAG_OFF
+      )
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",
@@ -129,20 +126,29 @@ describe("decideUnassignBindingNotification — P3 unassign flag gating", () => 
 
   it("returns null when the service has no business code", () => {
     expect(
-      decideUnassignBindingNotification(undefined, "cal-001", "CALAMA")
+      decideUnassignBindingNotification(undefined, "cal-001", "CALAMA", FLAG_ON)
     ).toBeNull();
   });
 
   it("returns null when no calendar is in scope", () => {
     expect(
-      decideUnassignBindingNotification("SVC-001", undefined, "CALAMA")
+      decideUnassignBindingNotification(
+        "SVC-001",
+        undefined,
+        "CALAMA",
+        FLAG_ON
+      )
     ).toBeNull();
   });
 
   it("unknown origin: treated as flag-off (returns payload)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideUnassignBindingNotification("SVC-001", "cal-001", "UNKNOWN_CODE")
+      decideUnassignBindingNotification(
+        "SVC-001",
+        "cal-001",
+        "UNKNOWN_CODE",
+        FLAG_ON
+      )
     ).toEqual({
       numero_servicio: "SVC-001",
       calendar_id: "cal-001",

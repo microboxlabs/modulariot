@@ -9,7 +9,8 @@
 ## 1. What is "task-driven"?
 
 The calendar planner has two operating modes per service origin, gated
-by the **`NEXT_PUBLIC_TASK_DRIVEN_ORIGINS`** env var (see §4):
+by the **`TASK_DRIVEN_ORIGINS`** env var, exposed to the client via the
+runtime-config provider (see §4):
 
 - **Flag OFF (legacy)** — the frontend writes the miot-calendar booking
   **and** explicitly calls the ECM calendar-binding webscript
@@ -121,80 +122,118 @@ The bookings BFF (`/app/api/calendar/bookings`) also threads
 `processVariables` through `BookingTaskAdvance` when the assign rides
 on a booking write — same wire shape.
 
-## 4. Per-origin rollout flag — `NEXT_PUBLIC_TASK_DRIVEN_ORIGINS`
+## 4. Per-origin rollout flag — `TASK_DRIVEN_ORIGINS`
 
 ### Shape
 
-A `NEXT_PUBLIC_*` env var read at request/render time (no module-level
-caching). Value is a **comma-separated list of origin codes** —
-specifically `mintral_originDelegateCode` values matched against the
-service's `origen` field. Whitespace around entries is trimmed; empty
-entries are ignored; matching is **case-sensitive**.
+A **server-side** env var, mirrored to the client through the runtime
+config provider. The server route `/app/api/runtime-config` reads
+`process.env.TASK_DRIVEN_ORIGINS` per request (`force-dynamic`, 5 min
+public cache) and the client picks it up via `useRuntimeConfig()`.
+**No `NEXT_PUBLIC_` prefix and no rebuild required to flip an origin**
+— update the deploy env and the next page load picks up the new value
+(plus a cache-busting hard refresh during the 5 min TTL window).
+
+Value is a **comma-separated list of origin codes** — specifically
+`mintral_originDelegateCode` values matched against the service's
+`origen` field. Whitespace around entries is trimmed; empty entries
+are ignored; matching is **case-sensitive**.
 
 Examples:
 
 ```env
 # Roll out two origins
-NEXT_PUBLIC_TASK_DRIVEN_ORIGINS=ANTOFAGASTA,CALAMA
+TASK_DRIVEN_ORIGINS=ANTOFAGASTA,CALAMA
 
 # Empty / unset → no origin is task-driven (default; legacy behavior)
-NEXT_PUBLIC_TASK_DRIVEN_ORIGINS=
+TASK_DRIVEN_ORIGINS=
 ```
 
 ### Reading the flag
 
+The helpers are pure — they take the enabled-origins set explicitly.
+React components consume the set via `useTaskDrivenOrigins()`, which
+parses the runtime-config string once and memoizes the `Set`:
+
 ```ts
+import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 import { isOriginTaskDriven } from "@/features/calendar/services/task-driven-origin";
 
-isOriginTaskDriven("ANTOFAGASTA"); // → true if listed
-isOriginTaskDriven("UNKNOWN");     // → false (unknown origins are flag-off)
-isOriginTaskDriven(undefined);     // → false (missing origin → flag-off)
+// Inside a React component (or a hook):
+const enabled = useTaskDrivenOrigins();
+isOriginTaskDriven("ANTOFAGASTA", enabled); // → true if listed
+isOriginTaskDriven("UNKNOWN", enabled);     // → false
+isOriginTaskDriven(undefined, enabled);     // → false
+```
+
+For **server-side** code (BFF routes), parse the env directly per
+request — the route handlers are `force-dynamic` so `process.env`
+reads are fresh:
+
+```ts
+import {
+  isOriginTaskDriven,
+  parseTaskDrivenOrigins,
+} from "@/features/calendar/services/task-driven-origin";
+
+const enabled = parseTaskDrivenOrigins(process.env.TASK_DRIVEN_ORIGINS);
+if (isOriginTaskDriven(originCode, enabled)) { /* skip legacy binding */ }
 ```
 
 Default-off is structural: every code path that branches on the flag
 returns the legacy decision (call the binding, GET the task move) when
 `isOriginTaskDriven` returns `false`, so an empty env list is
-byte-for-byte today's behavior.
+byte-for-byte today's behavior. The runtime-config fetch is async —
+during the few-ms window before it resolves the set is empty, which
+is also the safe (legacy) decision.
 
 ### Call sites (decision helpers, not direct flag reads)
 
-The planner does not read `isOriginTaskDriven` directly; three
-decision helpers wrap it so the planner stays declarative:
+The planner does not read `isOriginTaskDriven` directly; five decision
+helpers wrap it so the planner stays declarative. Each takes the
+enabled-origins set as its trailing argument:
 
-- `decideAssignTaskAdvance(transitionId, origin, service)` —
+- `decidePlanTaskAdvance(transitionId, origin, calendarId, slot, enabled)` —
+  `src/features/calendar/services/task-driven-plan.ts`. Returns the
+  slot `processVariables` payload when the transition is
+  `"Asignar Conductor/Transporte"` AND the origin is task-driven AND
+  `calendarId` is set; `null` otherwise. Presence signals
+  `persistPlannedBooking` to SKIP the BFF booking POST — ECM's
+  `OnCreateAssignDriverBinding` writes the row itself
+  (ecm-coordinator#266).
+- `decideAssignTaskAdvance(transitionId, origin, service, enabled)` —
   `src/features/calendar/services/task-driven-assign.ts`. Returns the
-  `processVariables` payload **only** when the transition is
+  resource `processVariables` payload **only** when the transition is
   `"Presentar Conductor"` AND the origin is task-driven AND the full
   tuple is present; `null` everywhere else (PLAN moves, flag-off,
-  incomplete tuple) → plain GET advance. Wired at
-  `planning-selection-context.tsx:1784`.
-- `decideUnplanBindingNotification(numeroServicio, calendarId, origin)` —
+  incomplete tuple) → plain GET advance.
+- `decideUnplanBindingNotification(numeroServicio, calendarId, origin, enabled)` —
   `src/features/calendar/services/task-driven-binding-gate.ts`.
   Returns the `stage="none"` `notifyCalendarBinding` payload to send
   on UNPLAN, or `null` when the call must be skipped (task-driven
-  origin, missing `numeroServicio`, missing `calendarId`). Wired at
-  `planning-selection-context.tsx:1903`.
-- `decideUnassignBindingNotification(numeroServicio, calendarId, origin)` —
+  origin, missing `numeroServicio`, missing `calendarId`).
+- `decideUnassignBindingNotification(numeroServicio, calendarId, origin, enabled)` —
   same file, sibling of the unplan helper. Returns the
   `stage="unassigned"` `notifyCalendarBinding` payload to send on
-  UNASSIGN, or `null` when the call must be skipped. Wired at
-  `planning-selection-context.tsx:1993`.
-- `getTaskDrivenUnassignTransition(stage, origin)` — same file as
-  `decideAssignTaskAdvance`. Returns `"Asignar Conductor/Transporte"`
+  UNASSIGN, or `null` when the call must be skipped.
+- `getTaskDrivenUnassignTransition(stage, origin, enabled)` — same
+  file as `decideAssignTaskAdvance`. Returns `"Asignar Conductor/Transporte"`
   when origin is task-driven AND stage is `presentDriver`; `undefined`
   otherwise → planner falls through to the legacy `getUnassignTransition`
-  map. Wired at `planning-selection-context.tsx:1958`.
+  map.
 
-The bookings BFF (`src/app/api/calendar/bookings/route.ts:251`) reads
-`isOriginTaskDriven` directly to short-circuit the
-`extractCalendarBindingPayload` + `runCalendarBinding` block — that
+The bookings BFF (`src/app/api/calendar/bookings/route.ts`) parses the
+env directly per request and calls `isOriginTaskDriven` to short-circuit
+the `extractCalendarBindingPayload` + `runCalendarBinding` block — that
 gate is server-side and has no helper because there's only one
 condition (origin in the env list).
 
 ## 5. Enabling an origin in the deploy
 
-`NEXT_PUBLIC_*` env vars in Next.js are **baked into the client bundle
-at build time**. Changes require a rebuild + redeploy of `apps/app`.
+`TASK_DRIVEN_ORIGINS` is read **at request time** by the server, not
+inlined into the client bundle. Flipping an origin takes effect on the
+next request once the runtime-config cache invalidates (5 min) — **no
+rebuild required**.
 
 1. **Pick the origin code.** The match key is the service's
    `mintral_originDelegateCode` value (uppercase ASCII, e.g.
@@ -206,13 +245,15 @@ at build time**. Changes require a rebuild + redeploy of `apps/app`.
    to bind against and the assign move silently does not push to
    Alerce. (See `calendar-task-driven-frontend.md` §2 for the
    per-origin coupling rationale.)
-3. **Add the code to `NEXT_PUBLIC_TASK_DRIVEN_ORIGINS`** in the
-   deploy environment — wherever this app's env is configured
-   (Vercel project settings, Kubernetes ConfigMap, Docker compose
-   file, `.env.local` for local dev). It's a comma-separated list, so
-   to migrate a second origin append: `ANTOFAGASTA` → `ANTOFAGASTA,CALAMA`.
-4. **Rebuild + redeploy.** A `NEXT_PUBLIC_*` change is not picked up
-   by a running server; trigger a new build.
+3. **Add the code to `TASK_DRIVEN_ORIGINS`** in the deploy environment
+   — wherever this app's env is configured (Kubernetes ConfigMap,
+   Docker compose file, `.env.local` for local dev). It's a
+   comma-separated list, so to migrate a second origin append:
+   `ANTOFAGASTA` → `ANTOFAGASTA,CALAMA`.
+4. **Reload the pod / restart the dev server.** A pod restart picks
+   up the new env immediately; clients will see the new value on
+   their next `/app/api/runtime-config` fetch (max 5 min stale via
+   the route's `s-maxage`).
 5. **Verify** with the recipe in
    `docs/plans/calendar-task-driven-frontend-P4-validation.md`
    (plan/assign/unplan/unassign on a service in the migrated origin).
@@ -230,12 +271,15 @@ by re-running the planner action).
 
 | Concern                                | File                                                                                       |
 |----------------------------------------|--------------------------------------------------------------------------------------------|
-| Origin rollout flag helper             | `src/features/calendar/services/task-driven-origin.ts`                                     |
+| Origin rollout flag helper (pure)      | `src/features/calendar/services/task-driven-origin.ts`                                     |
+| Runtime-config → enabled set bridge    | `src/features/calendar/services/use-task-driven-origins.ts`                                |
+| Plan process-variables builder         | `src/features/calendar/services/task-driven-plan.ts`                                       |
 | Assign process-variables builder       | `src/features/calendar/services/task-driven-assign.ts` (`buildAssignProcessVariables`)     |
-| Assign / unassign decision helpers     | `src/features/calendar/services/task-driven-assign.ts`                                     |
+| Plan / assign / unassign decision helpers | `src/features/calendar/services/task-driven-{plan,assign}.ts`                            |
 | Unplan / unassign binding-call gates   | `src/features/calendar/services/task-driven-binding-gate.ts`                               |
-| Planner wiring (plan/assign/unplan/unassign) | `src/features/calendar/components/planning/planning-selection-context.tsx` (lines 1784, 1903, 1958, 1993) |
-| Bookings BFF (per-origin binding gate) | `src/app/api/calendar/bookings/route.ts` (line 251)                                        |
+| Runtime-config types + whitelist       | `src/features/runtime-config/runtime-config.{types,constants}.ts`                          |
+| Planner wiring (plan/assign/unplan/unassign) | `src/features/calendar/components/planning/planning-selection-context.tsx`           |
+| Bookings BFF (per-origin binding gate) | `src/app/api/calendar/bookings/route.ts`                                                   |
 | Task-end BFF (POST `processVariables`) | `src/app/api/task/end/route.ts` (line 212)                                                 |
 | ECM provider `endTask` (POST shape)    | `src/features/common/providers/alfresco-api/alfresco-api.provider.ts` (line 256)           |
 | Client `advanceWorkflowTask`           | `src/features/common/providers/client-api.provider.ts` (line 1790)                         |

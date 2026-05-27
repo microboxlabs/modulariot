@@ -9,15 +9,20 @@
  *     `assignDriver → presentDriver` transition).
  *   - `getTaskDrivenUnassignTransition` — flag-aware presentDriver →
  *     assignDriver outcome for the unassign move.
+ *
+ * The enabled-origins set is injected by the caller (planning provider
+ * reads `useTaskDrivenOrigins`); tests pass it explicitly to keep the
+ * helpers pure.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   buildAssignProcessVariables,
   decideAssignTaskAdvance,
   getTaskDrivenUnassignTransition,
 } from "./task-driven-assign";
 
-const ENV_KEY = "NEXT_PUBLIC_TASK_DRIVEN_ORIGINS";
+const FLAG_ON = new Set(["ANTOFAGASTA"]);
+const FLAG_OFF = new Set<string>();
 
 const FULL_TUPLE = {
   assignedCarrier: "carrier-uuid",
@@ -88,23 +93,12 @@ describe("buildAssignProcessVariables", () => {
 });
 
 describe("decideAssignTaskAdvance — P3 assign flag gating", () => {
-  const original = process.env[ENV_KEY];
-
-  beforeEach(() => {
-    delete process.env[ENV_KEY];
-  });
-
-  afterEach(() => {
-    if (original === undefined) delete process.env[ENV_KEY];
-    else process.env[ENV_KEY] = original;
-  });
-
   it("flag ON + assignDriver→presentDriver transition: returns the tuple", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     const vars = decideAssignTaskAdvance(
       "Presentar Conductor",
       "ANTOFAGASTA",
-      FULL_TUPLE
+      FULL_TUPLE,
+      FLAG_ON
     );
     expect(vars).toMatchObject({
       carrier_id: "carrier-uuid",
@@ -115,85 +109,83 @@ describe("decideAssignTaskAdvance — P3 assign flag gating", () => {
   });
 
   it("flag ON + non-assign transition (PLAN move): returns null", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
       decideAssignTaskAdvance(
         "Asignar Conductor/Transporte",
         "ANTOFAGASTA",
-        FULL_TUPLE
+        FULL_TUPLE,
+        FLAG_ON
       )
     ).toBeNull();
   });
 
   it("flag OFF: returns null even for the assignDriver→presentDriver transition", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideAssignTaskAdvance("Presentar Conductor", "CALAMA", FULL_TUPLE)
+      decideAssignTaskAdvance(
+        "Presentar Conductor",
+        "CALAMA",
+        FULL_TUPLE,
+        FLAG_ON
+      )
     ).toBeNull();
   });
 
-  it("env unset: every origin is treated as flag-off", () => {
+  it("empty enabled set: every origin is treated as flag-off", () => {
     expect(
-      decideAssignTaskAdvance("Presentar Conductor", "ANTOFAGASTA", FULL_TUPLE)
+      decideAssignTaskAdvance(
+        "Presentar Conductor",
+        "ANTOFAGASTA",
+        FULL_TUPLE,
+        FLAG_OFF
+      )
     ).toBeNull();
   });
 
   it("flag ON + incomplete tuple: returns null (caller falls back to plain GET advance)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      decideAssignTaskAdvance("Presentar Conductor", "ANTOFAGASTA", {
-        assignedCarrier: "c",
-        assignedDriver: "d",
-        // no truck
-        mintral_serviceKind: "Sider",
-      })
+      decideAssignTaskAdvance(
+        "Presentar Conductor",
+        "ANTOFAGASTA",
+        {
+          assignedCarrier: "c",
+          assignedDriver: "d",
+          // no truck
+          mintral_serviceKind: "Sider",
+        },
+        FLAG_ON
+      )
     ).toBeNull();
   });
 });
 
 describe("getTaskDrivenUnassignTransition — P3 unassign flag gating", () => {
-  const original = process.env[ENV_KEY];
-
-  beforeEach(() => {
-    delete process.env[ENV_KEY];
-  });
-
-  afterEach(() => {
-    if (original === undefined) delete process.env[ENV_KEY];
-    else process.env[ENV_KEY] = original;
-  });
-
   it("flag ON + stage=presentDriver: returns the BPMN outcome", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      getTaskDrivenUnassignTransition("presentDriver", "ANTOFAGASTA")
+      getTaskDrivenUnassignTransition("presentDriver", "ANTOFAGASTA", FLAG_ON)
     ).toBe("Asignar Conductor/Transporte");
   });
 
   it("flag ON + stage=assignDriver: returns undefined (caller uses legacy map)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      getTaskDrivenUnassignTransition("assignDriver", "ANTOFAGASTA")
+      getTaskDrivenUnassignTransition("assignDriver", "ANTOFAGASTA", FLAG_ON)
     ).toBeUndefined();
   });
 
   it("flag OFF + stage=presentDriver: returns undefined (no change for un-migrated origins)", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      getTaskDrivenUnassignTransition("presentDriver", "CALAMA")
+      getTaskDrivenUnassignTransition("presentDriver", "CALAMA", FLAG_ON)
     ).toBeUndefined();
   });
 
-  it("env unset: every origin is treated as flag-off", () => {
+  it("empty enabled set: every origin is treated as flag-off", () => {
     expect(
-      getTaskDrivenUnassignTransition("presentDriver", "ANTOFAGASTA")
+      getTaskDrivenUnassignTransition("presentDriver", "ANTOFAGASTA", FLAG_OFF)
     ).toBeUndefined();
   });
 
   it("missing origin: treated as flag-off", () => {
-    process.env[ENV_KEY] = "ANTOFAGASTA";
     expect(
-      getTaskDrivenUnassignTransition("presentDriver", undefined)
+      getTaskDrivenUnassignTransition("presentDriver", undefined, FLAG_ON)
     ).toBeUndefined();
   });
 });

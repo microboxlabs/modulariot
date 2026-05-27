@@ -27,7 +27,10 @@ import {
 import type { Session } from "next-auth";
 import { extractCalendarBindingPayload } from "./binding-extractor";
 import { runCalendarBinding } from "./binding-helpers";
-import { isOriginTaskDriven } from "@/features/calendar/services/task-driven-origin";
+import {
+  isOriginTaskDriven,
+  parseTaskDrivenOrigins,
+} from "@/features/calendar/services/task-driven-origin";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -247,8 +250,15 @@ export async function POST(request: Request) {
   // reconcile the calendar binding off the workflow task move alone. With no
   // binding call, the cancel-booking-on-binding-failure compensation is dead
   // for this path and is not executed. Flag-off origins keep today's behavior.
+  // Read the rollout set fresh per request — `TASK_DRIVEN_ORIGINS` is mirrored
+  // to the client via the runtime-config provider, and the route is
+  // `force-dynamic`, so flipping an origin in the deploy env takes effect on
+  // the next request with no rebuild.
+  const enabledOrigins = parseTaskDrivenOrigins(
+    process.env.TASK_DRIVEN_ORIGINS
+  );
   const originCode = readOrigin(body.resource?.data);
-  if (!isOriginTaskDriven(originCode)) {
+  if (!isOriginTaskDriven(originCode, enabledOrigins)) {
     // Tell the coordinator about this calendar binding *before* the workflow
     // advance. The coordinator dispatches based on stage:
     //   - planned (no full tuple)  → record the binding, no Alerce.

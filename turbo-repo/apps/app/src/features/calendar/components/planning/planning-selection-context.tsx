@@ -64,6 +64,7 @@ import {
   getTaskDrivenUnassignTransition,
 } from "@/features/calendar/services/task-driven-assign";
 import { decidePlanTaskAdvance } from "@/features/calendar/services/task-driven-plan";
+import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
@@ -1206,6 +1207,12 @@ export function PlanningSelectionProvider({
   const { canPlan, canAssign, isLoadingPermissions } = useCalendarViewMode();
   const canMutateBookings = !isLoadingPermissions && (canPlan || canAssign);
 
+  // Per-origin task-driven rollout set, sourced from the backend's
+  // RuntimeConfigProvider (`TASK_DRIVEN_ORIGINS`). Empty until the runtime
+  // config has loaded; flag-off is the legacy path so the few-ms gap is
+  // safe. See `task-driven-origin.ts` for the matching contract.
+  const taskDrivenOrigins = useTaskDrivenOrigins();
+
   // Load calendar parallelism from the backend
   const { calendars } = useCalendars();
   const initializedParallelismRef = useRef(false);
@@ -1837,12 +1844,14 @@ export function PlanningSelectionProvider({
         transitionId,
         effectiveService.origen,
         calendarId,
-        slotToUse
+        slotToUse,
+        taskDrivenOrigins
       );
       const assignProcessVariables = decideAssignTaskAdvance(
         transitionId,
         effectiveService.origen,
-        effectiveService
+        effectiveService,
+        taskDrivenOrigins
       );
       const processVariables = planProcessVariables ?? assignProcessVariables;
       const taskAdvance: BookingTaskAdvance | undefined =
@@ -1887,6 +1896,7 @@ export function PlanningSelectionProvider({
       refreshSlots,
       getLiveTask,
       canMutateBookings,
+      taskDrivenOrigins,
     ]
   );
 
@@ -1962,7 +1972,8 @@ export function PlanningSelectionProvider({
       const unplanNotification = decideUnplanBindingNotification(
         planned?.service.mintral_serviceCode,
         calendarId,
-        planned?.service.origen
+        planned?.service.origen,
+        taskDrivenOrigins
       );
       if (unplanNotification) {
         await notifyCalendarBinding(unplanNotification).catch((err) =>
@@ -1978,7 +1989,14 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
+    [
+      bookingIds,
+      plannedServices,
+      getLiveTask,
+      calendarId,
+      canMutateBookings,
+      taskDrivenOrigins,
+    ]
   );
 
   /**
@@ -2016,7 +2034,8 @@ export function PlanningSelectionProvider({
         const transition =
           getTaskDrivenUnassignTransition(
             liveTask.stage,
-            planned.service.origen
+            planned.service.origen,
+            taskDrivenOrigins
           ) ?? getUnassignTransition(liveTask.stage);
         if (transition) {
           await advanceWorkflowTask(liveTask.taskId, transition);
@@ -2052,7 +2071,8 @@ export function PlanningSelectionProvider({
       const unassignNotification = decideUnassignBindingNotification(
         planned.service.mintral_serviceCode,
         calendarId,
-        planned.service.origen
+        planned.service.origen,
+        taskDrivenOrigins
       );
       if (unassignNotification) {
         await notifyCalendarBinding(unassignNotification).catch((err) =>
@@ -2070,7 +2090,14 @@ export function PlanningSelectionProvider({
       );
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
+    [
+      bookingIds,
+      plannedServices,
+      getLiveTask,
+      calendarId,
+      canMutateBookings,
+      taskDrivenOrigins,
+    ]
   );
 
   /**

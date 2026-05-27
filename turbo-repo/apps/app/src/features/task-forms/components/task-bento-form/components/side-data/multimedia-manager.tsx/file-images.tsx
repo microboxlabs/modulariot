@@ -730,16 +730,12 @@ export default function FileImages({
         const entries = buildNodeTimeline(data, refMap);
         if (entries.length > 0) timeline.set(nodeId, entries);
       }
-      setForumRefMap((prev) => {
-        const next = new Map(prev);
-        refMap.forEach((v, k) => next.set(k, v));
-        return next;
-      });
+      setForumRefMap((prev) => new Map([...prev, ...refMap]));
       setCommittedTimeline((prev) => {
         const next = new Map(prev);
-        timeline.forEach((entries, nodeId) => {
+        for (const [nodeId, entries] of timeline) {
           if (!prev.has(nodeId)) next.set(nodeId, entries);
-        });
+        }
         return next;
       });
       setDiscussionsLoaded(true);

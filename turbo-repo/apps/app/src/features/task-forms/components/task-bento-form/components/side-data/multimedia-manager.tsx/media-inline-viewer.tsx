@@ -63,6 +63,226 @@ function findNextUndecided(
   return null;
 }
 
+// ─── Complexity-reduction helpers ─────────────────────────────────────────────
+
+const STATUS_BADGE_CLASSES: Record<ReviewStatus, string> = {
+  approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+};
+
+const DRAFT_BADGE_CLASSES: Record<string, string> = {
+  approved: "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400",
+  pending: "border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
+  rejected: "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400",
+};
+
+const DRAFT_BADGE_KEYS: Record<string, string> = {
+  approved: "bento.multimedia.draft_will_approve",
+  pending: "bento.multimedia.draft_will_review",
+  rejected: "bento.multimedia.draft_will_reject",
+};
+
+function useDocBlob(current: MediaViewerItem | undefined, id: string | undefined) {
+  const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
+  const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!current || current.type !== "document" || !id) return;
+    if (docBlobUrls[id] || loadingDocs.has(id)) return;
+
+    setLoadingDocs((prev) => new Set(prev).add(id));
+    fetch(`/app/api/bento/content?nodeId=${id}`)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        setDocBlobUrls((prev) => ({ ...prev, [id]: url }));
+      })
+      .catch(() => {})
+      .finally(() => {
+        setLoadingDocs((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      });
+  }, [current, id, docBlobUrls, loadingDocs]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(docBlobUrls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const docUrl = current?.type === "document" && id ? docBlobUrls[id] : null;
+  const isDocLoading = current?.type === "document" && id ? loadingDocs.has(id) : false;
+
+  return { docUrl, isDocLoading };
+}
+
+function EditableFileName({
+  currentName,
+  nodeId,
+  onRenamed,
+  dictionary,
+  inputClassName,
+  spanClassName,
+}: Readonly<{
+  currentName: string;
+  nodeId: string | undefined;
+  onRenamed?: () => void;
+  dictionary: I18nRecord;
+  inputClassName: string;
+  spanClassName: string;
+}>) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(currentName);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsEditing(false);
+    setEditedName(currentName);
+  }, [currentName]);
+
+  useEffect(() => {
+    if (isEditing) inputRef.current?.select();
+  }, [isEditing]);
+
+  const handleBlur = () => {
+    const trimmed = editedName.trim();
+    if (trimmed && trimmed !== currentName && nodeId) {
+      const renamePromise = renameBentoFile(nodeId, trimmed);
+      toast.promise(renamePromise, {
+        loading: tr("bento.multimedia.rename_loading", dictionary),
+        success: tr("bento.multimedia.rename_success", dictionary),
+        error: tr("bento.multimedia.rename_error", dictionary),
+      });
+      renamePromise.then(() => onRenamed?.()).catch(() => {
+        setEditedName(currentName);
+      });
+    } else {
+      setEditedName(currentName);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") inputRef.current?.blur();
+    if (e.key === "Escape") {
+      setEditedName(currentName);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={editedName}
+        onChange={(e) => setEditedName(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className={inputClassName}
+      />
+    );
+  }
+
+  return (
+    <span
+      title={tr("bento.multimedia.viewer_click_rename", dictionary)}
+      onClick={() => setIsEditing(true)}
+      className={spanClassName}
+    >
+      {editedName || currentName}
+    </span>
+  );
+}
+
+function SharePopover({
+  fileUrl,
+  fileName,
+  dictionary,
+}: Readonly<{
+  fileUrl: string;
+  fileName: string;
+  dictionary: I18nRecord;
+}>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  const fullUrl = `${globalThis.location.origin}${fileUrl}`;
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(fullUrl);
+    toast.success(tr("bento.multimedia.viewer_link_copied", dictionary));
+    setIsOpen(false);
+  };
+
+  const handleEmail = () => {
+    const subject = encodeURIComponent(fileName);
+    const body = encodeURIComponent(`${fileName}\n\n${fullUrl}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+    setIsOpen(false);
+  };
+
+  const handleOpenTab = () => {
+    window.open(fileUrl, "_blank");
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <Tooltip content={tr("bento.multimedia.viewer_share", dictionary)} placement="bottom">
+        <button
+          type="button"
+          onClick={() => setIsOpen((p) => !p)}
+          className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+        >
+          <HiShare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        </button>
+      </Tooltip>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+          >
+            <HiLink className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+            {tr("bento.multimedia.viewer_copy_link", dictionary)}
+          </button>
+          <button
+            type="button"
+            onClick={handleEmail}
+            className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+          >
+            <HiEnvelope className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+            {tr("bento.multimedia.viewer_share_email", dictionary)}
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenTab}
+            className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+          >
+            <HiArrowTopRightOnSquare className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+            {tr("bento.multimedia.viewer_open_new_tab", dictionary)}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MediaInlineViewer({
   items,
   initialIndex = 0,
@@ -107,8 +327,6 @@ export default function MediaInlineViewer({
   const [currentIndex, setCurrentIndex] = useState(
     Math.max(0, Math.min(initialIndex, items.length - 1))
   );
-  const [docBlobUrls, setDocBlobUrls] = useState<Record<string, string>>({});
-  const [loadingDocs, setLoadingDocs] = useState<Set<string>>(new Set());
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [showAllObservations, setShowAllObservations] = useState(false);
@@ -135,30 +353,6 @@ export default function MediaInlineViewer({
     }
     onRename?.();
   };
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editedName, setEditedName] = useState("");
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setIsEditingName(false);
-    setEditedName(items[currentIndex]?.file?.entry?.name ?? "");
-  }, [currentIndex, items]);
-
-  useEffect(() => {
-    if (isEditingName) nameInputRef.current?.select();
-  }, [isEditingName]);
-  const [shareOpen, setShareOpen] = useState(false);
-  const shareRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!shareOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
-        setShareOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [shareOpen]);
 
   useEffect(() => {
     setCurrentIndex(Math.max(0, Math.min(initialIndex, items.length - 1)));
@@ -192,34 +386,7 @@ export default function MediaInlineViewer({
     });
   };
 
-  // Fetch PDF blob when navigating to a document
-  useEffect(() => {
-    if (!current || current.type !== "document" || !id) return;
-    if (docBlobUrls[id] || loadingDocs.has(id)) return;
-
-    setLoadingDocs((prev) => new Set(prev).add(id));
-    fetch(`/app/api/bento/content?nodeId=${id}`)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        setDocBlobUrls((prev) => ({ ...prev, [id]: url }));
-      })
-      .catch(() => {})
-      .finally(() => {
-        setLoadingDocs((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-      });
-  }, [current, id, docBlobUrls, loadingDocs]);
-
-  // Cleanup blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(docBlobUrls).forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const { docUrl, isDocLoading } = useDocBlob(current, id);
 
   if (!current) return null;
 
@@ -246,39 +413,17 @@ export default function MediaInlineViewer({
   };
 
   const fileUrl = id ? `/app/api/bento/content?nodeId=${id}` : "";
-  const fullUrl = id ? `${globalThis.location.origin}${fileUrl}` : "";
-
-  const shareCopyLink = async () => {
-    await navigator.clipboard.writeText(fullUrl);
-    toast.success(tr("bento.multimedia.viewer_link_copied", dictionary));
-    setShareOpen(false);
-  };
-
-  const shareByEmail = () => {
-    const subject = encodeURIComponent(current.file.entry.name);
-    const body = encodeURIComponent(`${current.file.entry.name}\n\n${fullUrl}`);
-    window.open(`mailto:?subject=${subject}&body=${body}`);
-    setShareOpen(false);
-  };
-
-  const shareOpenTab = () => {
-    window.open(fileUrl, "_blank");
-    setShareOpen(false);
-  };
 
   const handleDownload = () => {
     if (!id) return;
-    const url = `/app/api/bento/content?nodeId=${id}`;
-    downloadImage(url, dictionary, current.file.entry.name).catch(() => {});
+    downloadImage(fileUrl, dictionary, current.file.entry.name).catch(() => {});
   };
 
   const imageUrl =
     current.type === "image"
       ? `/app/api/bento/content?nodeId=${id}${current.refreshKey ? `&r=${current.refreshKey}` : ""}`
       : null;
-  const docUrl = current.type === "document" && id ? docBlobUrls[id] : null;
-  const isDocLoading =
-    current.type === "document" && id ? loadingDocs.has(id) : false;
+  const draftDecision = id ? (draftDecisions?.get(id) ?? null) : null;
 
   return (
     <div className="flex flex-col w-full h-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
@@ -309,48 +454,14 @@ export default function MediaInlineViewer({
             <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <div className="min-w-0 flex-1">
-            {isEditingName ? (
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                onBlur={() => {
-                  const trimmed = editedName.trim();
-                  const original = current.file.entry.name;
-                  if (trimmed && trimmed !== original && id) {
-                    const renamePromise = renameBentoFile(id, trimmed);
-                    toast.promise(renamePromise, {
-                      loading: tr("bento.multimedia.rename_loading", dictionary),
-                      success: tr("bento.multimedia.rename_success", dictionary),
-                      error: tr("bento.multimedia.rename_error", dictionary),
-                    });
-                    renamePromise.then(() => onRename?.()).catch(() => {
-                      setEditedName(original);
-                    });
-                  } else {
-                    setEditedName(original);
-                  }
-                  setIsEditingName(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") nameInputRef.current?.blur();
-                  if (e.key === "Escape") {
-                    setEditedName(current.file.entry.name);
-                    setIsEditingName(false);
-                  }
-                }}
-                className="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-full"
-              />
-            ) : (
-              <span
-                title={tr("bento.multimedia.viewer_click_rename", dictionary)}
-                onClick={() => setIsEditingName(true)}
-                className="block text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
-              >
-                {editedName || current.file.entry.name}
-              </span>
-            )}
+            <EditableFileName
+              currentName={current.file.entry.name}
+              nodeId={id}
+              onRenamed={onRename}
+              dictionary={dictionary}
+              inputClassName="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-full"
+              spanClassName="block text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
+            />
           </div>
           <button
             type="button"
@@ -429,7 +540,7 @@ export default function MediaInlineViewer({
                 type="button"
                 onClick={() => handleDecision("rejected")}
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
-                  (id ? (draftDecisions?.get(id) ?? null) : null) === "rejected"
+                  draftDecision === "rejected"
                     ? "border-red-400 dark:border-red-500 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
                     : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
@@ -441,7 +552,7 @@ export default function MediaInlineViewer({
                 type="button"
                 onClick={() => handleDecision("approved")}
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                  (id ? (draftDecisions?.get(id) ?? null) : null) === "approved"
+                  draftDecision === "approved"
                     ? "bg-blue-700 text-white"
                     : "bg-blue-600 hover:bg-blue-700 text-white"
                 }`}
@@ -458,7 +569,7 @@ export default function MediaInlineViewer({
               color="light"
               className="w-full"
             >
-              {id && draftDecisions?.has(id) && (
+              {draftDecision !== null && (
                 <DropdownItem onClick={() => handleDecision("approved")}>
                   {tr("bento.multimedia.btn_no_change", dictionary)}
                 </DropdownItem>
@@ -475,48 +586,14 @@ export default function MediaInlineViewer({
 
         {/* Desktop: original single-row layout (hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-2 min-w-0 flex-1 basis-auto">
-          {isEditingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
-              onBlur={() => {
-                const trimmed = editedName.trim();
-                const original = current.file.entry.name;
-                if (trimmed && trimmed !== original && id) {
-                  const renamePromise = renameBentoFile(id, trimmed);
-                  toast.promise(renamePromise, {
-                    loading: tr("bento.multimedia.rename_loading", dictionary),
-                    success: tr("bento.multimedia.rename_success", dictionary),
-                    error: tr("bento.multimedia.rename_error", dictionary),
-                  });
-                  renamePromise.then(() => onRename?.()).catch(() => {
-                    setEditedName(original);
-                  });
-                } else {
-                  setEditedName(original);
-                }
-                setIsEditingName(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") nameInputRef.current?.blur();
-                if (e.key === "Escape") {
-                  setEditedName(current.file.entry.name);
-                  setIsEditingName(false);
-                }
-              }}
-              className="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-48 max-w-full"
-            />
-          ) : (
-            <span
-              title={tr("bento.multimedia.viewer_click_rename", dictionary)}
-              onClick={() => setIsEditingName(true)}
-              className="text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
-            >
-              {editedName || current.file.entry.name}
-            </span>
-          )}
+          <EditableFileName
+            currentName={current.file.entry.name}
+            nodeId={id}
+            onRenamed={onRename}
+            dictionary={dictionary}
+            inputClassName="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-48 max-w-full"
+            spanClassName="text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
+          />
           <CategoryDropdown
             categories={Object.values(categories)}
             currentTag={currentCategory}
@@ -534,71 +611,22 @@ export default function MediaInlineViewer({
             </span>
           )}
           <span
-            className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium hidden sm:inline-block ${
-              status === "approved"
-                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                : status === "rejected"
-                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-            }`}
+            className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium hidden sm:inline-block ${STATUS_BADGE_CLASSES[status]}`}
           >
             {tr(`bento.multimedia.status_${status}`, dictionary)}
           </span>
-          {id && draftDecisions?.has(id) && (
+          {draftDecision !== null && (
             <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium border hidden sm:inline-block ${
-              draftDecisions.get(id) === "approved"
-                ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                : draftDecisions.get(id) === "pending"
-                  ? "border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
-                  : "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+              DRAFT_BADGE_CLASSES[draftDecision] ?? DRAFT_BADGE_CLASSES.rejected
             }`}>
-              → {tr({ approved: "bento.multimedia.draft_will_approve", pending: "bento.multimedia.draft_will_review", rejected: "bento.multimedia.draft_will_reject" }[draftDecisions.get(id) as string] ?? "bento.multimedia.draft_will_reject", dictionary)}
+              → {tr(DRAFT_BADGE_KEYS[draftDecision] ?? DRAFT_BADGE_KEYS.rejected, dictionary)}
             </span>
           )}
         </div>
 
         {/* Desktop: Right actions (hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-1 xl:gap-1.5 shrink-0">
-          {/* Share popover */}
-          <div ref={shareRef} className="relative">
-            <Tooltip content={tr("bento.multimedia.viewer_share", dictionary)} placement="bottom">
-              <button
-                type="button"
-                onClick={() => setShareOpen((p) => !p)}
-                className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <HiShare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              </button>
-            </Tooltip>
-            {shareOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={shareCopyLink}
-                  className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                >
-                  <HiLink className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  {tr("bento.multimedia.viewer_copy_link", dictionary)}
-                </button>
-                <button
-                  type="button"
-                  onClick={shareByEmail}
-                  className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                >
-                  <HiEnvelope className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  {tr("bento.multimedia.viewer_share_email", dictionary)}
-                </button>
-                <button
-                  type="button"
-                  onClick={shareOpenTab}
-                  className="w-full flex items-center whitespace-nowrap gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                >
-                  <HiArrowTopRightOnSquare className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                  {tr("bento.multimedia.viewer_open_new_tab", dictionary)}
-                </button>
-              </div>
-            )}
-          </div>
+          <SharePopover fileUrl={fileUrl} fileName={current.file.entry.name} dictionary={dictionary} />
           <Tooltip content={tr("bento.multimedia.viewer_download", dictionary)} placement="bottom">
             <button
               type="button"
@@ -676,14 +704,14 @@ export default function MediaInlineViewer({
                 label: <span className="hidden lg:hidden xl:inline">{tr("bento.multimedia.btn_approve", dictionary)}</span>,
                 icon: <HiCheck className="w-4 h-4" />,
                 onClick: () => handleDecision("approved"),
-                isActive: (id ? (draftDecisions?.get(id) ?? null) : null) === "approved",
+                isActive: draftDecision === "approved",
               }}
               secondaryActions={[
                 {
                   label: <span className="hidden lg:hidden xl:inline">{tr("bento.multimedia.btn_reject", dictionary)}</span>,
                   icon: <HiXMark className="w-4 h-4" />,
                   onClick: () => handleDecision("rejected"),
-                  isActive: (id ? (draftDecisions?.get(id) ?? null) : null) === "rejected",
+                  isActive: draftDecision === "rejected",
                 },
               ]}
             />
@@ -694,7 +722,7 @@ export default function MediaInlineViewer({
               size="xs"
               color="light"
             >
-              {id && draftDecisions?.has(id) && (
+              {draftDecision !== null && (
                 <DropdownItem onClick={() => handleDecision("approved")}>
                   {tr("bento.multimedia.btn_no_change", dictionary)}
                 </DropdownItem>

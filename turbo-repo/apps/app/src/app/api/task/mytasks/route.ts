@@ -42,6 +42,12 @@ export async function GET(req: NextRequest) {
   const date_range_from = url.searchParams.get("date_range_from");
   const date_range_to = url.searchParams.get("date_range_to");
   const calendarId = url.searchParams.get("calendarId");
+  const rawQ = url.searchParams.get("q");
+  // Mintral service IDs are stored as `v<digits>`; a purely numeric typed
+  // query won't prefix-match that column otherwise. Mirrors the `service=`
+  // normalization a few lines down so the autocomplete and the structured
+  // chip filter behave the same way for digit-only input.
+  const q = rawQ ? (/^\d+$/.test(rawQ) ? `v${rawQ}` : rawQ) : undefined;
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -64,6 +70,7 @@ export async function GET(req: NextRequest) {
       order: order ?? undefined,
       date_range_from: date_range_from ?? undefined,
       date_range_to: date_range_to ?? undefined,
+      q,
     },
   };
 
@@ -95,6 +102,7 @@ export async function GET(req: NextRequest) {
               order: order ?? undefined,
               date_range_from: date_range_from ?? undefined,
               date_range_to: date_range_to ?? undefined,
+              q,
             },
           });
         }),

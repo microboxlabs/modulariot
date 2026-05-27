@@ -1777,9 +1777,11 @@ export type BookingTaskAdvance = {
   /**
    * Optional process-scope variables to set on the workflow before the task
    * is completed: the ASSIGN tuple on the assignDriver → presentDriver move,
-   * or the SLOT tuple on the planService → assignDriver move (the latter
-   * also signals the FE should skip the booking POST — ECM owns the row).
-   * When omitted the task advance is a plain GET as today.
+   * or the SLOT tuple on the planService → assignDriver move. For task-
+   * driven origins both tuples also signal the FE to skip the booking
+   * POST/PUT — ECM owns the `cld_bookings` row (created on assignDriver,
+   * updated on presentDriver). When omitted the task advance is a plain
+   * GET as today.
    */
   processVariables?: TaskMoveProcessVariables;
 };

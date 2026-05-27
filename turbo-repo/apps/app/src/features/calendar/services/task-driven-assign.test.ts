@@ -31,7 +31,7 @@ const FULL_TUPLE = {
   assignedTruck: "truck-uuid",
   assignedTrailer: "trailer-uuid",
   assignedCarrierExternalId: "PRVE-001",
-  mintral_serviceKind: "Sider",
+  mintral_serviceType: "Sider",
 };
 
 describe("buildAssignProcessVariables", () => {
@@ -52,7 +52,7 @@ describe("buildAssignProcessVariables", () => {
       assignedCarrier: "c",
       assignedDriver: "d",
       assignedTruck: "t",
-      mintral_serviceKind: "Doble Sider",
+      mintral_serviceType: "Doble Sider",
     });
     expect(result).toMatchObject({
       carrier_id: "c",
@@ -86,7 +86,7 @@ describe("buildAssignProcessVariables", () => {
     expect(
       buildAssignProcessVariables({
         ...FULL_TUPLE,
-        mintral_serviceKind: undefined,
+        mintral_serviceType: undefined,
       })
     ).toBeNull();
   });
@@ -150,7 +150,7 @@ describe("decideAssignTaskAdvance — P3 assign flag gating", () => {
           assignedCarrier: "c",
           assignedDriver: "d",
           // no truck
-          mintral_serviceKind: "Sider",
+          mintral_serviceType: "Sider",
         },
         FLAG_ON
       )

@@ -220,6 +220,46 @@ miot harness runs get "$RUN_ID" | jq -r .answer
 
 If you want streaming + multi-turn state instead, use `miot chat`. The two commands share the same `@microboxlabs/miot-harness-client` underneath; they differ only in what they compose on top of it.
 
+## Development
+
+`miot-cli` lives in the `turbo-repo` npm workspace and depends on sibling packages (`@microboxlabs/miot-chat`, `@microboxlabs/miot-harness-client`, …) declared as `"*"`. Turbo handles build ordering; `tsup` emits `dist/`, and the `miot` bin points at `./dist/cli.js` — so the package must be built before `npm link`.
+
+```bash
+# from the monorepo root
+cd turbo-repo
+
+# install workspace deps (once, and after pulls)
+npm install
+
+# build miot-cli plus everything it depends on
+npx turbo run build --filter=@microboxlabs/miot-cli
+#   iterative work: rebuild on change
+#   npx turbo run dev --filter=@microboxlabs/miot-cli
+```
+
+Expose the bin globally:
+
+```bash
+cd packages/miot-cli
+npm link              # registers ./dist/cli.js as global `miot`
+miot --help
+```
+
+To link the standalone chat binary instead:
+
+```bash
+npx turbo run build --filter=@microboxlabs/miot-chat
+cd packages/miot-chat && npm link
+miot-chat --help
+```
+
+Unlink with `npm unlink -g @microboxlabs/miot-cli` (or `@microboxlabs/miot-chat`).
+
+Notes:
+
+- Always run `npm install` from `turbo-repo/` (the workspace root), not from inside a package — workspace hoisting is what wires `@microboxlabs/miot-chat` into `miot-cli/node_modules`.
+- `npm link` will appear to succeed even if `dist/` is missing; the resulting `miot` command then fails at runtime. Build first.
+
 ## License
 
 See [LICENSE](./LICENSE).

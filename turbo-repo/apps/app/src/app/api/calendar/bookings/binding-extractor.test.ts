@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { extractCalendarBindingPayload } from "./binding-extractor";
 
 const CALENDAR_ID = "cal-001";
-const SERVICE_CODE = "SVC-12345";
-const SERVICE_KIND = "carga";
+const SERVICE_CODE = "SVC12345";
+const SERVICE_TYPE = "v";
+const RESOURCE_ID = `${SERVICE_CODE}-${SERVICE_TYPE}`;
 const CARRIER_ID = "11111111-1111-1111-1111-111111111111";
 const DRIVER_ID = "22222222-2222-2222-2222-222222222222";
 const TRUCK_ID = "33333333-3333-3333-3333-333333333333";
@@ -14,9 +15,9 @@ function assignedBody(overrides: Record<string, unknown> = {}) {
   return {
     calendarId: CALENDAR_ID,
     resource: {
+      id: RESOURCE_ID,
       data: {
         mintral_serviceCode: SERVICE_CODE,
-        mintral_serviceKind: SERVICE_KIND,
         assignedCarrier: CARRIER_ID,
         assignedDriver: DRIVER_ID,
         assignedTruck: TRUCK_ID,
@@ -84,19 +85,20 @@ describe("extractCalendarBindingPayload — carrier_external_id", () => {
   });
 
   it("omits carrier_external_id when assigned tuple is complete but tipo_servicio is missing", () => {
-    // mintral_serviceKind missing forces the documented fall-through to
-    // stage="planned" — the assigned-only payload slots (including the
-    // new external_id) must NOT be set in that case.
+    // No resource.id suffix AND no mintral_serviceType forces the documented
+    // fall-through to stage="planned" — the assigned-only payload slots
+    // (including the new external_id) must NOT be set in that case.
     const payload = extractCalendarBindingPayload({
       calendarId: CALENDAR_ID,
       resource: {
+        id: SERVICE_CODE, // no `-` suffix → no service-type recoverable
         data: {
           mintral_serviceCode: SERVICE_CODE,
           assignedCarrier: CARRIER_ID,
           assignedDriver: DRIVER_ID,
           assignedTruck: TRUCK_ID,
           assignedCarrierExternalId: "958",
-          // mintral_serviceKind intentionally absent
+          // mintral_serviceType intentionally absent
         },
       },
     });
@@ -118,7 +120,7 @@ describe("extractCalendarBindingPayload — carrier_external_id", () => {
       stage: "assigned",
       numero_servicio: SERVICE_CODE,
       calendar_id: CALENDAR_ID,
-      tipo_servicio: SERVICE_KIND.toUpperCase(),
+      tipo_servicio: SERVICE_TYPE.toUpperCase(),
       carrier_id: CARRIER_ID,
       driver_id: DRIVER_ID,
       driver2_id: DRIVER2_ID,
@@ -126,5 +128,25 @@ describe("extractCalendarBindingPayload — carrier_external_id", () => {
       trailer_id: TRAILER_ID,
       carrier_external_id: "958",
     });
+  });
+
+  it("falls back to mintral_serviceType when resource.id has no `-` suffix", () => {
+    // Legacy/odd ids without the `${serviceCode}-${serviceType}` shape:
+    // the explicit field on the resource data is the documented fallback.
+    const payload = extractCalendarBindingPayload({
+      calendarId: CALENDAR_ID,
+      resource: {
+        id: SERVICE_CODE,
+        data: {
+          mintral_serviceCode: SERVICE_CODE,
+          mintral_serviceType: SERVICE_TYPE,
+          assignedCarrier: CARRIER_ID,
+          assignedDriver: DRIVER_ID,
+          assignedTruck: TRUCK_ID,
+        },
+      },
+    });
+    expect(payload?.stage).toBe("assigned");
+    expect(payload?.tipo_servicio).toBe(SERVICE_TYPE.toUpperCase());
   });
 });

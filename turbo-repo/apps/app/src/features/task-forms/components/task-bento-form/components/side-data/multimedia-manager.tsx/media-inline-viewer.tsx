@@ -2082,11 +2082,12 @@ function MoveToTaskModal({
                   task.name.startsWith(currentTaskServiceCode + " ")
                 );
                 const isSelected = selectedTask?.id === task.id;
-                const taskButtonCls = isCurrent
-                  ? "border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 opacity-50 cursor-not-allowed"
-                  : isSelected
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 cursor-pointer"
-                    : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer";
+                let taskButtonCls = "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer";
+                if (isCurrent) {
+                  taskButtonCls = "border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 opacity-50 cursor-not-allowed";
+                } else if (isSelected) {
+                  taskButtonCls = "border-blue-500 bg-blue-50 dark:bg-blue-900/20 cursor-pointer";
+                }
                 return (
                   <button
                     key={task.id}

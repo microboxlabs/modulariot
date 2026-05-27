@@ -1,0 +1,138 @@
+# 🔔 Release Notes v1.31.1 — ModularIoT
+
+### Fecha: 27/05/2026
+
+**Objetivo**: Esta versión cierra el modelo *task-driven* del planificador de calendario: el frontend deja de orquestar bindings manualmente y los task listeners de ECM toman el control end-to-end, con propagación de categoría de servicio, recursos asignados y prioridad de planificación hasta Alfresco y Alerce. En paralelo, ASK MIOT Harness incorpora streaming agentic detallado, atribución de costo por tenant y memoria multi-turno; los dashboards ganan tooltips, zoom, agrupamientos y transformaciones de fecha; y se estabiliza el arranque productivo del modulith con una serie de fixes de Flyway.
+
+## 🚀 Evolutivos
+
+- **🪢 Planificador de Calendario *Task-Driven* End-to-End**
+  - **Inversión de control**: El frontend deja de llamar a `/mintral/calendar/binding`; los listeners de Activiti (`OnCreatePresentDriverBinding`, etc.) ejecutan plan/unplan/assign/unassign automáticamente al mover la tarea correspondiente. *(Integración OSS — MIOT-0.5.3)*
+  - **Recursos en el proceso**: `EndTaskPostWebscript` recibe carrier/driver/truck/trailer/`tipo_servicio` como `processVariables`, escribiéndolos en process scope antes de completar la tarea para que `presentDriver` los lea sin atajos por task scope.
+  - **Reconciliación de bookings**: ECM reconstruye `cld_bookings.resource_data` desde process variables; el FE hidrata `SelectedService` desde la tupla almacenada para que reabrir un servicio planificado precargue todo. *(Integración OSS — MIOT-0.5.3)*
+  - **Persistencia de Asignar**: La tupla carrier/driver/truck/trailer ahora sobrevive a recargas (antes el 409 al recrear la booking dejaba `resource.data` huérfano). *(Integración OSS — MIOT-0.5.3)*
+  - **Remove-assignment real**: "Eliminar asignación" pasa de mutar estado local a persistir backend, llamar binding con `stage=unassigned` y devolver la tarea a `planService`. *(Integración OSS — MIOT-0.5.3)*
+
+- **🏷️ Categoría de Servicio Propagada hasta Alfresco**
+  - **Allow-list de `mintral_serviceCategory`**: `/mintral/tasks/end` acepta la clave en `processVariables`, evitando la ruta task-form que no propaga al proceso.
+  - **`reviewableAspect` en mintral**: Se añade `mintral:reviewableAspect` como aspecto mandatorio del contenido, con constraint LIST (`PENDING/APPROVED/REJECTED`) y campos de auditoría para el flujo de revisión/aprobación.
+  - **Badge en todas las superficies**: El planner muestra iniciales de categoría como badge en bento, cards de kanban (sustituyendo `F` cuando aplica) y chips del calendario. *(Integración OSS — MIOT-0.5.3)*
+  - **`clientRut` y `supplierPrveCodigo` visibles**: El bento del servicio expone *RUT Cliente* y *Código del Proveedor (prve_codigo)* leyendo variables ya populadas por la ingesta. *(Integración OSS — MIOT-0.5.3)*
+  - **Ordenamiento de incidencias por jerarquía**: Las badges respetan los 4 tiers definidos en ECM (#247), evitando que tier 2/3 queden bajo "+N más". *(Integración OSS — MIOT-0.5.3)*
+
+- **👁️ Rol Read-Only de Calendario**
+  - **`GROUP_CALENDAR_VIEWER`**: Nuevo rol Alfresco que habilita inspección de servicios planificados sin permitir modificaciones. *(Integración OSS — MIOT-0.5.3)*
+  - **Gating unificado**: Single source of truth `useCalendarViewMode` combina grupos Alfresco con el override `?as=viewer` (solo honrado para usuarios del nuevo grupo) y reordena affordances de grilla, chips y sidebar.
+  - **Compat con planners**: Planners que también tienen el viewer pueden preview del modo read-only sin migrar permisos.
+
+- **⚖️ Prioridad de Planificación Server-Side (4-Tier)**
+  - **Sort canónico**: `FastTaskServiceSqlImpl` agrega el preset `SORT_PRESET_CALENDAR_PLANNING` con 4 tiers de incidencia y `deliveryComplianceRate` ASC + `create_time_` DESC para que la primera página realmente refleje "qué actuar primero".
+  - **Antes de paginar**: La regla se aplica en BD, eliminando el bug previo donde el sort cliente-side solo era correcto en página 1.
+  - **Frontend opt-in**: `planning-sidebar-client.tsx` envía `orderBy=mintral_calendarPlanningPriority`; la respuesta queda alineada con la jerarquía operacional. *(Integración OSS — MIOT-0.5.3)*
+
+- **⏱️ Manual Slot Duration en TimeWindows**
+  - **Modo `MANUAL`/`AUTO`**: Cada `TimeWindow` define `slotGenerationMode`; en MANUAL el admin elige `slotDurationMinutes` y se generan `floor(windowMinutes / duration)` slots. *(Integración OSS — MIOT-0.5.3)*
+  - **Cap por día completo**: Las MANUAL windows ya no bloquean por posición — todas las ranuras son OPEN y la validación rechaza con `WINDOW_CAPACITY_REACHED` cuando los bookings del día alcanzan capacidad. *(Integración OSS — MIOT-0.5.3)*
+  - **Frontend Auto/Manual y OVERFLOW**: El planner soporta el toggle, dibuja OVERFLOW como ranuras muteadas y deriva el lock "window full" desde los servicios planificados (count-based, no posicional). *(Integración OSS — MIOT-0.5.3)*
+  - **Capacidad de remainder preservada**: La generación de slots usa ceil-division para no perder capacidad cuando `capacity % parallelism ≠ 0`. *(Integración OSS — MIOT-0.5.3)*
+
+- **🚦 ETA Confirmation Modal en Todas las Transiciones a *Trip Started***
+  - **UX uniforme**: Todas las transiciones cuyo target es *Trip Started* (incluyendo revertir desde *Confirm Arrival*) muestran la misma modal de Arrival Calculation Mode / Estimated Arrival / Manual Arrival sin variantes inconsistentes. *(Integración OSS — MIOT-0.5.3)*
+  - **Datos completos**: Se elimina el campo *Reason* genérico redundante de la variante anterior y se consolidan los campos canónicos.
+
+- **📊 Dashboards: Charts, Mapas y Batch Import**
+  - **Bar chart agrupado**: Soporte para barras side-by-side multi-valor por categoría. *(Integración OSS — MIOT-0.5.3)*
+  - **Tooltips y zoom en charts**: Tooltip configurable con plantillas; zoom y pan (mouse wheel/pinch) en X/Y; mejoras de etiquetas de eje y orientación horizontal en bar charts. *(Integración OSS — MIOT-0.5.3)*
+  - **Color rules para todo el chart**: Las reglas color-by-value se aplican a cartesianos, pies y gauges, alineadas con tablas.
+  - **Geographic view más controlable**: Filtrado por capa, soporte pgrest/planner como fuente, previews por capa, normalización de Authorization y mejor copy EN/ES. *(Integración OSS — MIOT-0.5.3)*
+  - **Batch Import — formatos y transforms por columna**: Las columnas `date`/`date-time` permiten formato visual configurable y transforms (timezone, truncado a día, start-of-day) antes del submit. *(Integración OSS — MIOT-0.5.3)*
+  - **Drawer alineado al template**: Settings del Batch Import muestran nombre del dashlet e ID badge con copy-link, consistente con el resto de widgets.
+
+- **🤖 ASK MIOT Harness Productivo**
+  - **Streaming agentic completo**: `GET /runs/{run_id}/stream` emite eventos por paso (thinking, agents, tools, usage) en todos los modos de dispatch — ya no es una vista coarse de lifecycle + tool name. *(Integración OSS — MIOT-0.5.3)*
+  - **Billing por tenant**: Nueva superficie de costo (tokens + USD) atribuible por tenant, agente y run mode, requisito de plan 14 (AMS multi-tenant). *(Integración OSS — MIOT-0.5.3)*
+  - **Memoria multi-turno**: `ConversationStore.get` ahora se invoca en cada turno con mismo `conversation_id`, devolviendo el contexto previo en lugar de partir de cero. *(Integración OSS — MIOT-0.5.3)*
+  - **Nexo DSN estándar**: `MIOT_HARNESS_NEXO_DSN=postgresql://...` reemplaza la dependencia del repo externo `db-scripts`; sin DSN, Nexo se deshabilita limpio.
+  - **`miot-chat` TUI**: Cliente interactivo Ink sobre `@microboxlabs/miot-harness-client`, distribuido como binario standalone y como subcomando `miot chat`. *(Integración OSS — MIOT-0.5.3)*
+  - **CLI agentic streaming**: Comando dedicado para drive del SSE end-to-end (modos `auto/canned/meta/agentic`), ideal para debugging y demos sin levantar el front.
+
+- **🌐 Sitio Marketing Reescrito (`apps/web`)**
+  - **Diseño alineado**: Nueva app `@modulariot/web` reemplaza `apps/web-site`, construida sobre Next.js 16, React 19, Tailwind v4, Flowbite y el design system oficial. *(Integración OSS — MIOT-0.5.3)*
+  - **Imagen canónica**: CI publica la nueva imagen como surface oficial, retirando `miot-web-site`.
+
+## 🔧 Integraciones
+
+- **🔌 Alerce `ModificacionRecursoServicios` — Push Confiable**
+  - **`conductor1` wire rename**: Renombre wire-only sin tocar nombre Java; `@JSONField(name = "conductor1")` resuelve el rechazo del upstream sin invasivos en el codebase.
+  - **`proveedor` desde el binding payload**: La fuente de verdad pasa a `service_resource_carrier_prve_codigo` propagado por el binding del calendario, cubriendo reasignaciones y cerrando el ~81% de gap que dejaba el variable de sync.
+  - **Per-calendar binding tracking**: Cada operación del planner registra `(service, calendar)` en process variables y, en `stage=assigned`, resuelve UUIDs y empuja a Alerce — superseding el alcance previo de #243.
+  - **Asignación dispara Alerce**: El path `extractCalendarBindingPayload()` lee `mintral_serviceKind` desde la fuente correcta para no caer en `planned` cuando la tupla es completa. *(Integración OSS — MIOT-0.5.3)*
+
+- **⚙️ Next.js 16.2.6 en Apps Turbo**
+  - **Upgrade coordinado**: `apps/app`, `apps/docs` y `apps/web` saltan a `16.2.6`, con `@next/mdx` alineado y `packages/ui` ajustando devDep para evitar hoist mixto y `NextRequest` mismatches contra `next-auth`. *(Integración OSS — MIOT-0.5.3)*
+  - **Lockfile único**: Refresh combinado para mantener resolución consistente en toda la monorepo.
+
+- **📡 Stack de Observabilidad Colocalizado con `miot-harness`**
+  - **Movimiento físico**: `infra/observability/` (Langfuse v3 + OTel Collector) pasa a `miot-harness/infra/observability/`, eliminando el `infra/` raíz vacío y manteniendo historia git. *(Integración OSS — MIOT-0.5.3)*
+  - **Provisioning único**: El stack solo aprovisiona el proyecto `miot-harness-local` que efectivamente consume — deployment/infra de un componente vive con el componente.
+
+- **📚 Documentación de Plataforma**
+  - **ASK MIOT Harness en docs**: Nueva sección bajo Platform en `apps/docs` con Overview, Architecture, Tipos de runs, modos y Storytelling artifacts. *(Integración OSS — MIOT-0.5.3)*
+  - **`miot-cli` build local + npm link**: README de `packages/miot-cli` documenta el flujo turbo build + `npm link` para exponer el binario `miot`, además de la variante standalone `miot-chat`. *(Integración OSS — MIOT-0.5.3)*
+
+- **🧰 `goal-loop` Agent Skill**
+  - **Workflow Ralph sobre `/goal`**: Nueva skill `.agents/skills/goal-loop/` que orquesta objetivos multi-fase mediante el evaluador single-condition del plugin `/goal` de Claude Code, en lugar de `/loop + ScheduleWakeup`. *(Integración OSS — MIOT-0.5.3)*
+  - **Goal ladder**: Patrón de un rung por fase con acceptance list explícita y verificación embebida (commit-match, gate exit codes, file checks).
+
+## 🐛 Correcciones
+
+- **🐛 Flyway: Arranque Productivo del Modulith**
+  - **Schema pinned**: `FlywayMigrator` fija `defaultSchema(miot_core)` para no fallar contra `public` con history table ausente. *(Integración OSS — MIOT-0.5.3)*
+  - **`locations` alineadas con componentes**: `quarkus.flyway.locations` se pinea a `core+resource`, respetando los flags `MIOT_COMPONENT_*` y evitando que migraciones de componentes no habilitados se ejecuten. *(Integración OSS — MIOT-0.5.3)*
+  - **`ignoreMissingMigrations`**: La extensión deja de fallar `validate()` cuando hay migraciones aplicadas históricamente (fleet `0.2.x`, driver `0.4.x`) que ya no están localmente resueltas. *(Integración OSS — MIOT-0.5.3)*
+  - **CI con `integrations`**: `quarkus.yml` habilita el componente `integrations` para que sus migraciones (incluida `0.6.0`) sean visibles en CI y no diverjan de producción. *(Integración OSS — MIOT-0.5.3)*
+
+- **🐛 `mintral_serviceCategory` Perdido en Listener**
+  - **Impacto**: Tras un PLAN limpio en origen task-driven, el chip se renderizaba sin badge de categoría — `delegateTask.getVariable("mintral_serviceCategory")` devolvía null en `OnCreateAssignDriverBinding.onCreate`.
+  - **Causa**: La PATCH del planner escribía `prop_mintral_serviceCategory` por task-form processor, lo que aterriza en task scope, no en process scope.
+  - **Solución**: Allow-list extendida en `EndTaskPostWebscript` y `buildResourceData` incorporando la clave, además del fix del listener (#269) — la categoría queda persistida tanto en process variables como en `cld_bookings.resource_data`.
+
+- **🐛 Bugs de Calendario**
+  - **Replan bajo TW slots**: La línea curva preview vuelve a renderizarse y la categoría original se conserva al replanificar, devolviendo el botón *Confirmar reasignación* a un estado habilitado tras elegir horario. *(Integración OSS — MIOT-0.5.3)*
+  - **Deactivate TW sin `validTo`**: Los schemas Zod request/response se alinean en `validTo: string | null`, eliminando el 400 cuando la ventana no tiene expiración. *(Integración OSS — MIOT-0.5.3)*
+  - **Mapa de camión sin pin**: El tipo `PgrestAccreditedResourceRow` agrega `integration` y `location` (EWKB), de modo que `truckRowToOption()` deja de hardcodear `latitude/longitude` en null. *(Integración OSS — MIOT-0.5.3)*
+  - **Dropdowns paginados**: Transportista/Conductor/Conductor 2/Camión/Remolque muestran correctamente el recurso seleccionado aunque no esté en la primera página cargada. *(Integración OSS — MIOT-0.5.3)*
+  - **Items dimmeados en búsqueda**: `VehicleCardButton` deja de aplicar `opacity-60` incondicional a camiones/remolques, alineándose con drivers y carriers. *(Integración OSS — MIOT-0.5.3)*
+  - **Click sobre chip**: Left-click selecciona solo el slot; right-click resalta solo el chip y abre context menu — sin selección simultánea de slot + recurso. *(Integración OSS — MIOT-0.5.3)*
+  - **Asignación dispara Alerce**: Asignar carrier/driver/truck a un servicio planificado vuelve a enviar `stage=assigned` y, por tanto, a empujar `ModificacionRecursoServicios`. *(Integración OSS — MIOT-0.5.3)*
+  - **Loading en sidebar buttons**: *Confirm/Plan* y *Asignar* deshabilitan durante el round-trip backend y muestran feedback visual, evitando duplicados por doble-click. *(Integración OSS — MIOT-0.5.3)*
+
+- **🐛 Dashboards y Proxies**
+  - **Scatter tooltip y posición**: El tooltip ahora lee `params.data[2]` (índice original embebido) en lugar de `dataIndex` desfasado por `.filter(Boolean)`. *(Integración OSS — MIOT-0.5.3)*
+  - **Tooltip ausente en chart dashlet**: Se añade configuración de tooltip on hover con plantillas, igual al patrón del geographic map.
+  - **Duplicate strategy real en Batch Import**: La opción del dropdown vuelve a tener efecto (Update/Skip/Create only); se aplica en backend al procesar duplicados.
+  - **Tooltip de fila fallida legible**: Se reemplaza el tooltip nativo por un popover multilinea controlado, eliminando los retardos de decenas de segundos y la obstrucción por filas vecinas.
+  - **PgREST Bearer prefix**: La ruta `/api/dashboard/pgrest/[functionName]` antepone `Bearer ` cuando el token viene de OAuth o stored-token, no solo cuando el operador lo incluyó manualmente en el env var. *(Integración OSS — MIOT-0.5.3)*
+
+- **🐛 ASK MIOT Harness Operacional**
+  - **Memoria multi-turno**: `ConversationStore.get` se cablea al request loop; el agente ya no responde como si fuera turno 1 cuando hay `conversation_id` previo. *(Integración OSS — MIOT-0.5.3)*
+  - **Readiness probe**: `miot_harness.api.server` expone `/health/ready` con contrato Nexo-aware (200 cuando boot completó, 503 en boot/restart), alineando el chart con la implementación. *(Integración OSS — MIOT-0.5.3)*
+
+## 📊 Beneficios
+
+- 🪢 **Una sola fuente de verdad para planificación**: Los listeners de ECM eliminan el doble write FE → binding webscript + task move, reduciendo race conditions y dejando al frontend una sola responsabilidad: mover tareas.
+- 🏷️ **Trazabilidad operacional completa**: Categoría de servicio, RUT cliente, prve_codigo, jerarquía de incidencias y reviewable aspect viajan desde el planner hasta Alfresco y Alerce sin pérdidas silenciosas.
+- 👁️ **Control de acceso más fino**: El rol `GROUP_CALENDAR_VIEWER` permite roles de inspección sin abrir mutación accidental, complementando el ACL de dashboards de la 1.31.0.
+- ⏱️ **Capacidad real, no posicional**: Manual slot duration con cap por día y remainder preservado se ajusta a operación real, evitando bloqueos artificiales o pérdida de capacidad por divisiones enteras.
+- 🤖 **Harness listo para multi-tenant**: Streaming por paso, billing por tenant, memoria multi-turno y DSN estándar reducen el costo de operar ASK MIOT y habilitan AMS multi-tenant (plan 14).
+- 📊 **Dashboards más expresivos**: Bar agrupado, tooltips, zoom, color rules, mapas configurables y batch import con transforms de fecha hacen del dashboard una superficie viable para más casos operacionales.
+- 🚀 **Arranque productivo blindado**: La serie de fixes de Flyway (schema, locations, ignoreMissing, CI integrations) deja al modulith con un boot estable contra el estado real de prod, sin escapes manuales.
+- 🌐 **Cara pública renovada**: `apps/web` reemplaza el sitio legacy alineado al design system oficial, cerrando la deuda de marketing fuera de la app principal.
+
+## 📌 Conclusión
+
+La versión 1.31.1 consolida el modelo *task-driven* del calendario que la 1.31.0 dejó habilitado parcialmente: el frontend ya no orquesta bindings ni toca `/mintral/calendar/binding`; los listeners de Activiti reaccionan a movimientos de tarea y reconcilian booking, Alerce y workflow desde una única fuente. Junto con la propagación end-to-end de `serviceCategory`, `clientRut`, `supplierPrveCodigo` y el ordenamiento jerárquico de incidencias, el operador trabaja con un calendario donde lo que ve y lo que persiste son lo mismo, y los downstream (Alerce, Alfresco) reciben datos completos sin atajos.
+
+ASK MIOT Harness deja de ser un POC: el streaming agentic emite cada paso por SSE, la atribución de costo permite operación multi-tenant responsable, la memoria conversacional vuelve a funcionar, y el cliente interactivo `miot-chat` (tanto binario standalone como subcomando `miot chat`) ofrece un loop de desarrollo decente para iterar sobre modos y rutas. La colocación del stack de observabilidad y la documentación de plataforma cierran el camino para que más equipos puedan operar el harness sin recurrir al README.
+
+Los dashboards continúan ganando expresividad — bar agrupado, tooltips, zoom, color rules en todos los tipos, geographic con filtros, batch import con transforms de fecha — y los fixes acumulados de scatter, tooltip de errores, Bearer prefix y duplicate strategy eliminan fricciones que apuraban a los autores hacia workarounds manuales. Finalmente, la serie de cuatro PRs sobre Flyway (schema pinned, locations pinned, `ignoreMissingMigrations`, CI con `integrations`) deja al modulith con un arranque productivo estable y predecible, sin requerir intervención manual en deploys futuros. La 1.31.1 entrega una plataforma operacionalmente más madura que su predecesora y prepara el terreno para la próxima iteración de multi-tenancy y conectividad agentic.

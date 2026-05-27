@@ -100,6 +100,29 @@ function removeReplyFromObservation(o: ObservationEntry, obsId: string, replyId:
   return o.id === obsId ? { ...o, replies: (o.replies ?? []).filter((r) => r.id !== replyId) } : o;
 }
 
+function buildCommittedEntry(
+  existing: TimelineEntry[],
+  status: string,
+  id: string,
+  now: Date,
+  committedBy: string | undefined,
+  extraObs: ObservationEntry[],
+): TimelineEntry[] {
+  const looseObs: ObservationEntry[] = existing
+    .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
+    .map((e) => ({ id: e.id, type: e.type, description: e.description, createdAt: e.createdAt, createdBy: e.createdBy, replies: e.replies }));
+  const withoutLoose = existing.filter((e) => e.kind !== "observation");
+  const entry: StateChangeTimelineEntry = {
+    kind: "state_change",
+    id: `sc-${id}-${now.getTime()}`,
+    status: status as "approved" | "rejected" | "pending",
+    committedAt: now,
+    committedBy,
+    observations: [...looseObs, ...extraObs],
+  };
+  return [...withoutLoose, entry];
+}
+
 function stripHtmlEntities(html: string): string {
   return html
     .replaceAll(/<[^>]*>/g, "")
@@ -275,7 +298,7 @@ function MediaSection({
   setSelectedIds,
   emptyText,
   children,
-}: {
+}: Readonly<{
   label: string;
   filteredCount: number;
   isExpanded: boolean;
@@ -286,7 +309,7 @@ function MediaSection({
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   emptyText: string;
   children: React.ReactNode;
-}) {
+}>) {
   const allChecked = allItemIds.length > 0 && allItemIds.every((id) => selectedIds.has(id));
   const someChecked = allItemIds.some((id) => selectedIds.has(id)) && !allChecked;
 
@@ -587,19 +610,7 @@ export default function FileImages({
       const next = new Map(prev);
       draftDecisions.forEach((status, id) => {
         const existing = prev.get(id) ?? [];
-        const looseObs: ObservationEntry[] = existing
-          .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
-          .map((e) => ({ id: e.id, type: e.type, description: e.description, createdAt: e.createdAt, createdBy: e.createdBy, replies: e.replies }));
-        const withoutLoose = existing.filter((e) => e.kind !== "observation");
-        const entry: StateChangeTimelineEntry = {
-          kind: "state_change",
-          id: `sc-${id}-${now.getTime()}`,
-          status: status as "approved" | "rejected" | "pending",
-          committedAt: now,
-          committedBy: currentUserName,
-          observations: [...looseObs, ...(draftObservations.get(id) ?? [])],
-        };
-        next.set(id, [...withoutLoose, entry]);
+        next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, draftObservations.get(id) ?? []));
       });
       return next;
     });

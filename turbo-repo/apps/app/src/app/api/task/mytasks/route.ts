@@ -47,7 +47,10 @@ export async function GET(req: NextRequest) {
   // query won't prefix-match that column otherwise. Mirrors the `service=`
   // normalization a few lines down so the autocomplete and the structured
   // chip filter behave the same way for digit-only input.
-  const q = rawQ ? (/^\d+$/.test(rawQ) ? `v${rawQ}` : rawQ) : undefined;
+  let q: string | undefined;
+  if (rawQ) {
+    q = /^\d+$/.test(rawQ) ? `v${rawQ}` : rawQ;
+  }
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;

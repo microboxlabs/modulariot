@@ -25,7 +25,7 @@ export default function BentoMediaSection({
     <div
       ref={containerRef}
       className="flex w-full transition-all duration-500 ease-in-out"
-      style={{ height: isMediaExpanded ? "min(85vh, 900px)" : "650px" }}
+      style={{ height: isMediaExpanded ? "min(95vh, 900px)" : "650px" }}
     >
       {/* Geographic — desktop only, collapses smoothly when viewer opens */}
       <div

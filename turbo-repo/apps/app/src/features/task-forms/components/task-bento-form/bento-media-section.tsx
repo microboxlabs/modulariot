@@ -2,17 +2,17 @@
 
 import { useState, useRef, useEffect } from "react";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import Geographic from "@/features/shipping/components/geographic";
 import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
 
 export default function BentoMediaSection({
   task,
   dict,
-}: {
+}: Readonly<{
   task: TaskResponse;
   dict: I18nDictionary;
-}) {
+}>) {
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +52,7 @@ export default function BentoMediaSection({
       >
         <FileImages
           task={task}
-          dictionary={dict as I18nRecord}
+          dictionary={dict}
           isExpanded={isMediaExpanded}
           onRequestExpand={() => setIsMediaExpanded(true)}
           onRequestCollapse={() => setIsMediaExpanded(false)}

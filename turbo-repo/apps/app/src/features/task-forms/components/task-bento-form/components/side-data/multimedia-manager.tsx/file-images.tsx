@@ -35,6 +35,166 @@ function toNodeRef(id: string): string {
   return `workspace://SpacesStore/${id}`;
 }
 
+function statusColorCls(s: string): string {
+  if (s === "approved") return "text-green-600 dark:text-green-400";
+  if (s === "rejected") return "text-red-600 dark:text-red-400";
+  return "text-amber-600 dark:text-amber-400";
+}
+
+function statusDotCls(s: string): string {
+  if (s === "approved") return "bg-green-500";
+  if (s === "rejected") return "bg-red-500";
+  return "bg-amber-500";
+}
+
+function statusLabelKey(s: string): string {
+  if (s === "approved") return "bento.multimedia.status_approved";
+  if (s === "rejected") return "bento.multimedia.status_rejected";
+  return "bento.multimedia.status_pending";
+}
+
+function stripObservationFromEntry(entry: TimelineEntry, obsId: string): TimelineEntry {
+  if (entry.kind === "state_change") {
+    return { ...entry, observations: entry.observations.filter((o) => o.id !== obsId) };
+  }
+  return entry;
+}
+
+type Reply = { id: string; description: string; createdAt: Date; createdBy: string | undefined };
+
+function addReplyToEntry(entry: TimelineEntry, obsId: string, reply: Reply): TimelineEntry {
+  if (entry.kind === "observation" && entry.id === obsId) {
+    return { ...entry, replies: [...(entry.replies ?? []), reply] };
+  }
+  if (entry.kind === "state_change") {
+    return {
+      ...entry,
+      observations: entry.observations.map((obs) =>
+        obs.id === obsId ? { ...obs, replies: [...(obs.replies ?? []), reply] } : obs
+      ),
+    };
+  }
+  return entry;
+}
+
+function removeReplyFromEntry(entry: TimelineEntry, obsId: string, replyId: string): TimelineEntry {
+  if (entry.kind === "observation" && entry.id === obsId) {
+    return { ...entry, replies: (entry.replies ?? []).filter((r) => r.id !== replyId) };
+  }
+  if (entry.kind === "state_change") {
+    return {
+      ...entry,
+      observations: entry.observations.map((obs) =>
+        obs.id === obsId ? { ...obs, replies: (obs.replies ?? []).filter((r) => r.id !== replyId) } : obs
+      ),
+    };
+  }
+  return entry;
+}
+
+function addReplyToObservation(o: ObservationEntry, obsId: string, reply: Reply): ObservationEntry {
+  return o.id === obsId ? { ...o, replies: [...(o.replies ?? []), reply] } : o;
+}
+
+function removeReplyFromObservation(o: ObservationEntry, obsId: string, replyId: string): ObservationEntry {
+  return o.id === obsId ? { ...o, replies: (o.replies ?? []).filter((r) => r.id !== replyId) } : o;
+}
+
+function stripHtmlEntities(html: string): string {
+  return html
+    .replaceAll(/<[^>]*>/g, "")
+    .replaceAll("&nbsp;", " ")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&")
+    .trim();
+}
+
+type FlatPost = {
+  kind: "state_change" | "observation";
+  topicRef: string;
+  postRef: string;
+  title: string;
+  content: string;
+  author: string;
+  created: Date;
+  replies: { ref: string; title?: string; content?: string; created: string; author: string }[];
+};
+
+function flattenTopicPosts(
+  data: ForumDiscussionResponse,
+  refMap: Map<string, { topicRef: string; postRef: string }>,
+): FlatPost[] {
+  const allPosts: FlatPost[] = [];
+  for (const topic of data.topics ?? []) {
+    const isStateChange = topic.title === "APPROVED" || topic.title === "REJECTED" || topic.title === "PENDING";
+    for (const post of topic.posts ?? []) {
+      allPosts.push({
+        kind: isStateChange ? "state_change" : "observation",
+        topicRef: topic.ref,
+        postRef: post.ref,
+        title: topic.title,
+        content: post.content ?? "",
+        author: post.author,
+        created: new Date(post.created),
+        replies: (post.replies ?? []).map((r) => ({ ref: r.ref, title: r.title, content: r.content, created: r.created, author: r.author })),
+      });
+      refMap.set(post.ref, { topicRef: topic.ref, postRef: post.ref });
+    }
+  }
+  return allPosts;
+}
+
+function buildObservationEntry(obs: FlatPost): ObservationEntry {
+  const plainDesc = stripHtmlEntities(obs.content);
+  const match = /^\[([^\]]+)\]\s*(.*)$/.exec(plainDesc);
+  const obsType = match ? (match[1] as ObservationType) : (obs.title as ObservationType) || "other";
+  const obsDesc = match ? (match[2] ?? "") : plainDesc;
+  return {
+    id: obs.postRef,
+    type: obsType,
+    description: obsDesc,
+    createdAt: obs.created,
+    createdBy: obs.author,
+    replies: obs.replies.map((r) => ({
+      id: r.ref,
+      description: stripHtmlEntities(r.content ?? r.title ?? ""),
+      createdAt: new Date(r.created),
+      createdBy: r.author,
+    })),
+  };
+}
+
+function buildNodeTimeline(data: ForumDiscussionResponse, refMap: Map<string, { topicRef: string; postRef: string }>): TimelineEntry[] {
+  const allPosts = flattenTopicPosts(data, refMap);
+  allPosts.sort((a, b) => a.created.getTime() - b.created.getTime());
+
+  const stateChangePosts = allPosts.filter((p) => p.kind === "state_change");
+  const observationPosts = allPosts.filter((p) => p.kind === "observation");
+
+  const stateChangeEntries: StateChangeTimelineEntry[] = stateChangePosts.map((p) => ({
+    kind: "state_change" as const,
+    id: p.postRef,
+    status: p.title.toLowerCase() as "approved" | "rejected" | "pending",
+    committedAt: p.created,
+    committedBy: p.author,
+    observations: [],
+  }));
+
+  const entries: TimelineEntry[] = [];
+  for (const obs of observationPosts) {
+    const obsEntry = buildObservationEntry(obs);
+    const owning = stateChangeEntries.find((sc) => sc.committedAt.getTime() >= obs.created.getTime());
+    if (owning) {
+      owning.observations.push(obsEntry);
+    } else {
+      entries.push({ kind: "observation", ...obsEntry });
+    }
+  }
+  entries.push(...stateChangeEntries);
+  return entries;
+}
+
 export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -349,12 +509,7 @@ export default function FileImages({
       const next = new Map(prev);
       const entries = (prev.get(fileId) ?? [])
         .filter((e) => e.id !== obsId)
-        .map((e) => {
-          if (e.kind === "state_change") {
-            return { ...e, observations: e.observations.filter((o) => o.id !== obsId) };
-          }
-          return e;
-        });
+        .map((e) => stripObservationFromEntry(e, obsId));
       next.set(fileId, entries);
       return next;
     });
@@ -372,29 +527,14 @@ export default function FileImages({
     const reply = { id: `reply-${obsId}-${Date.now()}`, description, createdAt: new Date(), createdBy: currentUserName };
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
-      next.set(fileId, (prev.get(fileId) ?? []).map((entry) => {
-        if (entry.kind === "observation" && entry.id === obsId) {
-          return { ...entry, replies: [...(entry.replies ?? []), reply] };
-        }
-        if (entry.kind === "state_change") {
-          return {
-            ...entry,
-            observations: entry.observations.map((obs) =>
-              obs.id === obsId ? { ...obs, replies: [...(obs.replies ?? []), reply] } : obs
-            ),
-          };
-        }
-        return entry;
-      }));
+      next.set(fileId, (prev.get(fileId) ?? []).map((entry) => addReplyToEntry(entry, obsId, reply)));
       return next;
     });
     setDraftObservations((prev) => {
       const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
       if (!obs) return prev;
       const next = new Map(prev);
-      next.set(fileId, (prev.get(fileId) ?? []).map((o) =>
-        o.id === obsId ? { ...o, replies: [...(o.replies ?? []), reply] } : o
-      ));
+      next.set(fileId, (prev.get(fileId) ?? []).map((o) => addReplyToObservation(o, obsId, reply)));
       return next;
     });
     // Persist reply to per-node forum
@@ -407,29 +547,14 @@ export default function FileImages({
   const handleRemoveReply = useCallback((fileId: string, obsId: string, replyId: string) => {
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
-      next.set(fileId, (prev.get(fileId) ?? []).map((entry) => {
-        if (entry.kind === "observation" && entry.id === obsId) {
-          return { ...entry, replies: (entry.replies ?? []).filter((r) => r.id !== replyId) };
-        }
-        if (entry.kind === "state_change") {
-          return {
-            ...entry,
-            observations: entry.observations.map((obs) =>
-              obs.id === obsId ? { ...obs, replies: (obs.replies ?? []).filter((r) => r.id !== replyId) } : obs
-            ),
-          };
-        }
-        return entry;
-      }));
+      next.set(fileId, (prev.get(fileId) ?? []).map((entry) => removeReplyFromEntry(entry, obsId, replyId)));
       return next;
     });
     setDraftObservations((prev) => {
       const obs = (prev.get(fileId) ?? []).find((o) => o.id === obsId);
       if (!obs) return prev;
       const next = new Map(prev);
-      next.set(fileId, (prev.get(fileId) ?? []).map((o) =>
-        o.id === obsId ? { ...o, replies: (o.replies ?? []).filter((r) => r.id !== replyId) } : o
-      ));
+      next.set(fileId, (prev.get(fileId) ?? []).map((o) => removeReplyFromObservation(o, obsId, replyId)));
       return next;
     });
     // Persist deletion to per-node forum
@@ -438,6 +563,68 @@ export default function FileImages({
       deleteContentForumPost(refs.topicRef, replyId).catch(() => {});
     }
   }, [forumRefMap]);
+
+  const handleCommitReview = useCallback(() => {
+    const now = new Date();
+    setReviewStatuses((prev) => {
+      const next = new Map(prev);
+      draftDecisions.forEach((status, id) => next.set(id, status));
+      return next;
+    });
+    setReviewStatusTimestamps((prev) => {
+      const next = new Map(prev);
+      draftDecisions.forEach((_, id) => next.set(id, now));
+      return next;
+    });
+    if (currentUserName) {
+      setReviewStatusUsers((prev) => {
+        const next = new Map(prev);
+        draftDecisions.forEach((_, id) => next.set(id, currentUserName));
+        return next;
+      });
+    }
+    setCommittedTimeline((prev) => {
+      const next = new Map(prev);
+      draftDecisions.forEach((status, id) => {
+        const existing = prev.get(id) ?? [];
+        const looseObs: ObservationEntry[] = existing
+          .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
+          .map((e) => ({ id: e.id, type: e.type, description: e.description, createdAt: e.createdAt, createdBy: e.createdBy, replies: e.replies }));
+        const withoutLoose = existing.filter((e) => e.kind !== "observation");
+        const entry: StateChangeTimelineEntry = {
+          kind: "state_change",
+          id: `sc-${id}-${now.getTime()}`,
+          status: status as "approved" | "rejected" | "pending",
+          committedAt: now,
+          committedBy: currentUserName,
+          observations: [...looseObs, ...(draftObservations.get(id) ?? [])],
+        };
+        next.set(id, [...withoutLoose, entry]);
+      });
+      return next;
+    });
+    setDraftObservations((prev) => {
+      const next = new Map(prev);
+      draftDecisions.forEach((_, id) => next.delete(id));
+      return next;
+    });
+    draftDecisions.forEach((status, id) => {
+      const alfrescoState = status === "approved" ? "APPROVED" : status === "rejected" ? "REJECTED" : "PENDING";
+      const existing = committedTimeline.get(id) ?? [];
+      const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
+      const allObs = [...looseObs, ...(draftObservations.get(id) ?? [])];
+      const reviewComment = allObs
+        .map((obs) => `[${obs.type}] ${obs.description}`)
+        .join(" | ") || undefined;
+      updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString(), reviewComment).catch(() => {
+        toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
+      });
+      createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState).catch(() => {});
+    });
+    setDraftDecisions(new Map());
+    setIsCommitModalOpen(false);
+    toast.success(tr("bento.multimedia.commit_success", dictionary));
+  }, [draftDecisions, currentUserName, draftObservations, committedTimeline, dictionary]);
 
   const { mutate: globalMutate } = useSWRConfig();
 
@@ -528,94 +715,7 @@ export default function FileImages({
       for (const result of results) {
         if (result.status !== "fulfilled" || !result.value.data) continue;
         const { nodeId, data } = result.value;
-        const entries: TimelineEntry[] = [];
-
-        // Flatten all posts into a unified list with metadata
-        type FlatPost = {
-          kind: "state_change" | "observation";
-          topicRef: string;
-          postRef: string;
-          title: string;
-          content: string;
-          author: string;
-          created: Date;
-          replies: { ref: string; title?: string; content?: string; created: string; author: string }[];
-        };
-        const allPosts: FlatPost[] = [];
-
-        for (const topic of data.topics ?? []) {
-          const isStateChange = topic.title === "APPROVED" || topic.title === "REJECTED" || topic.title === "PENDING";
-          for (const post of topic.posts ?? []) {
-            allPosts.push({
-              kind: isStateChange ? "state_change" : "observation",
-              topicRef: topic.ref,
-              postRef: post.ref,
-              title: topic.title,
-              content: post.content ?? "",
-              author: post.author,
-              created: new Date(post.created),
-              replies: (post.replies ?? []).map((r) => ({ ref: r.ref, title: r.title, content: r.content, created: r.created, author: r.author })),
-            });
-            refMap.set(post.ref, { topicRef: topic.ref, postRef: post.ref });
-          }
-        }
-
-        // Sort all posts chronologically
-        allPosts.sort((a, b) => a.created.getTime() - b.created.getTime());
-
-        // Build timeline: each state_change post becomes its own entry,
-        // observations get assigned to the next state_change after them
-        const stateChangePosts = allPosts.filter((p) => p.kind === "state_change");
-        const observationPosts = allPosts.filter((p) => p.kind === "observation");
-
-        // Create state-change entries (sorted by time)
-        const stateChangeEntries: StateChangeTimelineEntry[] = stateChangePosts.map((p) => ({
-          kind: "state_change" as const,
-          id: p.postRef,
-          status: p.title.toLowerCase() as "approved" | "rejected" | "pending",
-          committedAt: p.created,
-          committedBy: p.author,
-          observations: [],
-        }));
-
-        // Assign each observation to the first state-change created AFTER it
-        for (const obs of observationPosts) {
-          const plainDesc = obs.content.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
-          const match = /^\[([^\]]+)\]\s*(.*)$/.exec(plainDesc);
-          const obsType = match ? (match[1] as ObservationType) : (obs.title as ObservationType) || "other";
-          const obsDesc = match ? (match[2] ?? "") : plainDesc;
-
-          const obsEntry: ObservationEntry = {
-            id: obs.postRef,
-            type: obsType,
-            description: obsDesc,
-            createdAt: obs.created,
-            createdBy: obs.author,
-            replies: obs.replies.map((r) => {
-              const rawContent = r.content ?? r.title ?? "";
-              const plainContent = rawContent.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
-              return {
-                id: r.ref,
-                description: plainContent,
-                createdAt: new Date(r.created),
-                createdBy: r.author,
-              };
-            }),
-          };
-
-          // Find the first state-change that happened after this observation
-          const owning = stateChangeEntries.find((sc) => sc.committedAt.getTime() >= obs.created.getTime());
-          if (owning) {
-            owning.observations.push(obsEntry);
-          } else {
-            // Observation after all state-changes → loose entry
-            entries.push({ kind: "observation", ...obsEntry });
-          }
-        }
-
-        // Add state-change entries to the timeline
-        entries.push(...stateChangeEntries);
-
+        const entries = buildNodeTimeline(data, refMap);
         if (entries.length > 0) timeline.set(nodeId, entries);
       }
       setForumRefMap((prev) => {
@@ -666,6 +766,11 @@ export default function FileImages({
     },
     [onRequestExpand]
   );
+
+  const openViewerByFileId = useCallback((fileId: string) => {
+    const idx = viewerItems.findIndex((item) => item.file.entry.id === fileId);
+    if (idx !== -1) openViewer(idx);
+  }, [viewerItems, openViewer]);
 
   const closeViewer = useCallback(() => {
     setViewerIndex(null);
@@ -957,10 +1062,7 @@ export default function FileImages({
                     file={image.file}
                     index={originalIndex}
                     type="image"
-                    onSelect={() => {
-                      const idx = viewerItems.findIndex((item) => item.file.entry.id === image.file.entry.id);
-                      if (idx !== -1) openViewer(idx);
-                    }}
+                    onSelect={() => openViewerByFileId(image.file.entry.id)}
                     isSelected={selectedIds.has(image.file.entry.id)}
                     onToggleSelect={toggleSelect}
                     status={draftDecisions.get(image.file.entry.id) ?? reviewStatuses.get(image.file.entry.id) ?? "pending"}
@@ -989,10 +1091,7 @@ export default function FileImages({
                     file={doc.file}
                     index={originalIndex}
                     type="document"
-                    onSelect={() => {
-                      const idx = viewerItems.findIndex((item) => item.file.entry.id === doc.file.entry.id);
-                      if (idx !== -1) openViewer(idx);
-                    }}
+                    onSelect={() => openViewerByFileId(doc.file.entry.id)}
                     isSelected={selectedIds.has(doc.file.entry.id)}
                     onToggleSelect={toggleSelect}
                     status={draftDecisions.get(doc.file.entry.id) ?? reviewStatuses.get(doc.file.entry.id) ?? "pending"}
@@ -1076,23 +1175,17 @@ export default function FileImages({
                 const item = allMediaItems.find((m) => m.file.entry.id === id);
                 const name = item?.file.entry.name ?? id;
                 const currentStatus = reviewStatuses.get(id) ?? "pending";
-                const statusColor = (s: string) =>
-                  s === "approved" ? "text-green-600 dark:text-green-400" : s === "rejected" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
-                const statusLabel = (s: string) =>
-                  s === "approved" ? tr("bento.multimedia.status_approved", dictionary) : s === "rejected" ? tr("bento.multimedia.status_rejected", dictionary) : tr("bento.multimedia.status_pending", dictionary);
-                const dotColor = (s: string) =>
-                  s === "approved" ? "bg-green-500" : s === "rejected" ? "bg-red-500" : "bg-amber-500";
                 return (
                   <div key={id} className="flex items-center gap-2 px-3 py-2 text-sm">
                     <span className="truncate flex-1 text-gray-700 dark:text-gray-300 font-medium">{name}</span>
-                    <span className={`flex items-center gap-1 shrink-0 ${statusColor(currentStatus)}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor(currentStatus)}`} />
-                      <span className="text-xs">{statusLabel(currentStatus)}</span>
+                    <span className={`flex items-center gap-1 shrink-0 ${statusColorCls(currentStatus)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusDotCls(currentStatus)}`} />
+                      <span className="text-xs">{tr(statusLabelKey(currentStatus), dictionary)}</span>
                     </span>
                     <span className="text-gray-400 text-xs shrink-0">→</span>
-                    <span className={`flex items-center gap-1 shrink-0 ${statusColor(newStatus)}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor(newStatus)}`} />
-                      <span className="text-xs font-semibold">{statusLabel(newStatus)}</span>
+                    <span className={`flex items-center gap-1 shrink-0 ${statusColorCls(newStatus)}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusDotCls(newStatus)}`} />
+                      <span className="text-xs font-semibold">{tr(statusLabelKey(newStatus), dictionary)}</span>
                     </span>
                   </div>
                 );
@@ -1101,70 +1194,7 @@ export default function FileImages({
             <div className="flex justify-end pt-2">
               <Button
                 color="blue"
-                onClick={() => {
-                  const now = new Date();
-                  setReviewStatuses((prev) => {
-                    const next = new Map(prev);
-                    draftDecisions.forEach((status, id) => next.set(id, status));
-                    return next;
-                  });
-                  setReviewStatusTimestamps((prev) => {
-                    const next = new Map(prev);
-                    draftDecisions.forEach((_, id) => next.set(id, now));
-                    return next;
-                  });
-                  if (currentUserName) {
-                    setReviewStatusUsers((prev) => {
-                      const next = new Map(prev);
-                      draftDecisions.forEach((_, id) => next.set(id, currentUserName));
-                      return next;
-                    });
-                  }
-                  setCommittedTimeline((prev) => {
-                    const next = new Map(prev);
-                    draftDecisions.forEach((status, id) => {
-                      const existing = prev.get(id) ?? [];
-                      // Collect loose observations that aren't inside a state_change
-                      const looseObs: ObservationEntry[] = existing
-                        .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
-                        .map(({ kind: _kind, ...obs }) => obs);
-                      // Keep only state_change entries (remove loose observations that will be nested)
-                      const withoutLoose = existing.filter((e) => e.kind !== "observation");
-                      const entry: StateChangeTimelineEntry = {
-                        kind: "state_change",
-                        id: `sc-${id}-${now.getTime()}`,
-                        status: status as "approved" | "rejected" | "pending",
-                        committedAt: now,
-                        committedBy: currentUserName,
-                        observations: [...looseObs, ...(draftObservations.get(id) ?? [])],
-                      };
-                      next.set(id, [...withoutLoose, entry]);
-                    });
-                    return next;
-                  });
-                  setDraftObservations((prev) => {
-                    const next = new Map(prev);
-                    draftDecisions.forEach((_, id) => next.delete(id));
-                    return next;
-                  });
-                  draftDecisions.forEach((status, id) => {
-                    const alfrescoState = status === "approved" ? "APPROVED" : status === "rejected" ? "REJECTED" : "PENDING";
-                    const existing = committedTimeline.get(id) ?? [];
-                    const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
-                    const allObs = [...looseObs, ...(draftObservations.get(id) ?? [])];
-                    const reviewComment = allObs
-                      .map((obs) => `[${obs.type}] ${obs.description}`)
-                      .join(" | ") || undefined;
-                    updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString(), reviewComment).catch(() => {
-                      toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
-                    });
-                    // Create state-change topic — observations are already persisted as individual topics
-                    createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState).catch(() => {});
-                  });
-                  setDraftDecisions(new Map());
-                  setIsCommitModalOpen(false);
-                  toast.success(tr("bento.multimedia.commit_success", dictionary));
-                }}
+                onClick={handleCommitReview}
               >
                 {tr("bento.multimedia.btn_confirm", dictionary)}
               </Button>

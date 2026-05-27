@@ -202,6 +202,23 @@ export async function POST(request: NextRequest) {
     }
 
     const json = (await request.json()) as EndTaskRequest;
+
+    // Planner task-driven ASSIGN move: when `processVariables` is present,
+    // the caller is the calendar planner threading the assign tuple onto
+    // the `assignDriver → presentDriver` transition. There are no form
+    // fields to write — the resource tuple is the entire payload — so
+    // skip the kanban `updateTask` step and POST endTask with the variables
+    // body (ecm-coordinator#262). The kanban form-driven path is unchanged.
+    if (json.processVariables) {
+      const response = await endTask(
+        session,
+        json.taskId,
+        json.transitionId,
+        json.processVariables
+      );
+      return NextResponse.json({ success: true, status: 200, ...response });
+    }
+
     const updateTaskPayload = buildUpdateTaskPayload(json, session.user.email);
 
     logger.info(`updateTaskPayload=${JSON.stringify(updateTaskPayload)}`);

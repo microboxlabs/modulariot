@@ -232,10 +232,32 @@ export async function getTaskById(
   return result as TaskResponse;
 }
 
+/**
+ * Process-scope variable tuple set by the planner's task-driven ASSIGN
+ * move (`assignDriver → presentDriver`). When present, the endTask call
+ * switches from the legacy GET form to the POST + `processVariables` body
+ * shape defined by ecm-coordinator#262 — ECM sets these on the workflow's
+ * PROCESS scope before completing the task so the `OnCreatePresentDriverBinding`
+ * listener can read them on the next task's create. See
+ * `docs/plans/calendar-task-driven-frontend-P0-spike.md` §2.2–§2.3 for the
+ * exact field set (snake_case, mirrors the binding payload's assigned-stage
+ * tuple — no new fields, just a different transport).
+ */
+export type EndTaskProcessVariables = {
+  carrier_id: string;
+  driver_id: string;
+  driver2_id: string | null;
+  truck_id: string;
+  trailer_id: string | null;
+  carrier_external_id: string | null;
+  tipo_servicio: string;
+};
+
 export async function endTask(
   session: Session,
   taskId: string,
-  transitionId?: string
+  transitionId?: string,
+  processVariables?: EndTaskProcessVariables
 ): Promise<EndTaskResponse> {
   const queryParams = new URLSearchParams({
     taskId,
@@ -245,6 +267,17 @@ export async function endTask(
   }
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/end?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  if (processVariables) {
+    const result = await fetcher(url, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ processVariables }),
+    });
+    return result as EndTaskResponse;
+  }
   const result = await fetcher(url, {
     method: "GET",
     headers,

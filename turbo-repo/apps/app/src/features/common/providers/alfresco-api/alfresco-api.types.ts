@@ -235,6 +235,7 @@ export type FinishedWorkflowsRequest = {
     order?: string;
     date_range_from?: string;
     date_range_to?: string;
+    q?: string;
   };
 };
 

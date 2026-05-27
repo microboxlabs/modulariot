@@ -31,6 +31,7 @@ function makeTask(overrides: Partial<KanbanBoardTask> = {}): KanbanBoardTask {
     completed: false,
     daysLeft: 0,
     serviceKind: "",
+    serviceType: "",
     executionType: "",
     members: [],
     hoReference: "",

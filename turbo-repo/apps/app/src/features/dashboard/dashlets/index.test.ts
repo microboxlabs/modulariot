@@ -1,4 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@/features/geographic-view/components/layers/pin_layer_clustered", () => ({
+  PinLayer: class PinLayer {},
+}));
+
 import {
   getDashlet,
   getAllDashlets,
@@ -18,10 +23,10 @@ describe("getDashlet", () => {
     expect(result!.meta.id).toBe("container");
   });
 
-  it('returns definition for known componentId "card"', () => {
-    const result = getDashlet("card");
+  it('returns definition for known componentId "info_card"', () => {
+    const result = getDashlet("info_card");
     expect(result).toBeDefined();
-    expect(result!.meta.id).toBe("card");
+    expect(result!.meta.id).toBe("info_card");
   });
 
   it("returns undefined for unknown componentId", () => {
@@ -77,13 +82,13 @@ describe("canNestIn", () => {
   });
 
   it("returns true for any component at root (parentComponentId=null)", () => {
-    expect(canNestIn("card", null)).toBe(true);
+    expect(canNestIn("info_card", null)).toBe(true);
     expect(canNestIn("container", null)).toBe(true);
   });
 
   it("returns true for non-container inside container", () => {
     expect(
-      canNestIn("card", "container", undefined, { variant: "bento-box" }),
+      canNestIn("info_card", "container", undefined, { variant: "bento-box" }),
     ).toBe(true);
   });
 

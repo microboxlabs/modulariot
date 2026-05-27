@@ -1741,6 +1741,25 @@ export type AssignProcessVariables = {
 };
 
 /**
+ * Process-scope variable tuple set on the workflow before completing the
+ * task — populated by the planner's task-driven PLAN move so ECM's
+ * `OnCreateAssignDriverBinding` listener can write the `cld_bookings` row
+ * itself on the `assignDriver` create (ecm-coordinator#266 E2). All values
+ * are strings to match the `processVariables` body shape that
+ * `POST /alfresco/s/mintral/tasks/end` validates (ecm-coordinator#262).
+ */
+export type PlanProcessVariables = {
+  calendar_id: string;
+  slot_date: string;
+  slot_hour: string;
+  slot_minutes: string;
+};
+
+export type TaskMoveProcessVariables =
+  | AssignProcessVariables
+  | PlanProcessVariables;
+
+/**
  * Optional Alfresco workflow advance to bundle with a booking write. The
  * server runs the booking and the task transition as one operation and rolls
  * back the just-created booking if the transition fails.
@@ -1750,10 +1769,12 @@ export type BookingTaskAdvance = {
   transitionId: string;
   /**
    * Optional process-scope variables to set on the workflow before the task
-   * is completed (task-driven ASSIGN move only). When omitted the task
-   * advance is a plain GET as today.
+   * is completed: the ASSIGN tuple on the assignDriver → presentDriver move,
+   * or the SLOT tuple on the planService → assignDriver move (the latter
+   * also signals the FE should skip the booking POST — ECM owns the row).
+   * When omitted the task advance is a plain GET as today.
    */
-  processVariables?: AssignProcessVariables;
+  processVariables?: TaskMoveProcessVariables;
 };
 
 export type CreateBookingRequest = BookingRequest & {
@@ -1790,7 +1811,7 @@ export async function createBooking(
 export async function advanceWorkflowTask(
   taskId: string,
   transitionId: string,
-  processVariables?: AssignProcessVariables
+  processVariables?: TaskMoveProcessVariables
 ): Promise<void> {
   const body: Record<string, unknown> = { taskId, transitionId };
   if (processVariables) {

@@ -63,6 +63,7 @@ import {
   decideAssignTaskAdvance,
   getTaskDrivenUnassignTransition,
 } from "@/features/calendar/services/task-driven-assign";
+import { decidePlanTaskAdvance } from "@/features/calendar/services/task-driven-plan";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
@@ -827,6 +828,26 @@ function rollbackPlannedService(
   });
 }
 
+/**
+ * Task-driven PLAN move: ECM #266's `OnCreateAssignDriverBinding` writes
+ * the `cld_bookings` row itself from the slot processVariables on the
+ * `assignDriver` create. The FE must NOT call `POST /app/api/calendar/bookings`
+ * in this path. Signaled by a `PlanProcessVariables` shape on
+ * `taskAdvance.processVariables` (presence of `calendar_id` key), AND no
+ * `oldBookingId` (a re-plan with an existing row still routes through the
+ * atomic `bookings/{id}/move` so the row id and slot stay in lockstep —
+ * ECM's adoption guard adopts that same row on the next assignDriver
+ * create).
+ */
+function isTaskDrivenPlanCreate(
+  oldBookingId: string | undefined,
+  taskAdvance: BookingTaskAdvance | undefined
+): boolean {
+  if (oldBookingId) return false;
+  const vars = taskAdvance?.processVariables;
+  return !!vars && "calendar_id" in vars;
+}
+
 async function persistPlannedBooking({
   calendarId,
   service,
@@ -845,6 +866,33 @@ async function persistPlannedBooking({
   }
 
   try {
+    if (isTaskDrivenPlanCreate(oldBookingId, taskAdvance) && taskAdvance) {
+      // ECM owns the booking row for task-driven plan. Sync the service
+      // category onto the live task (best-effort; no booking to roll back
+      // since none exists yet) and let ECM's `OnCreateAssignDriverBinding`
+      // create the row from the slot processVariables on the next
+      // `assignDriver` create.
+      if (liveTaskId && service.serviceCategory) {
+        try {
+          await updateServiceCategory(liveTaskId, service.serviceCategory);
+        } catch (err) {
+          console.warn(
+            "Failed to sync service category before task-driven plan move:",
+            err
+          );
+          throw err;
+        }
+      }
+      await advanceWorkflowTask(
+        taskAdvance.taskId,
+        taskAdvance.transitionId,
+        taskAdvance.processVariables
+      );
+      refreshSlots();
+      setBookingVersion((v) => v + 1);
+      return;
+    }
+
     // Existing booking → atomic in-place move via POST /bookings/{id}/move.
     // The booking id is preserved; a same-slot call collapses to a
     // payload-only update on the server. This subsumes both the planner's
@@ -1774,18 +1822,29 @@ export function PlanningSelectionProvider({
       const transitionId = wasReassigning
         ? undefined
         : getNextTransition(liveTask?.stage);
-      // Task-driven ASSIGN move only: when the origin is flag-on AND the
-      // forward transition is `Presentar Conductor`, attach the resource
-      // tuple as PROCESS-scope variables so ECM's
-      // `OnCreatePresentDriverBinding` listener reads it from process scope
-      // on the next task's create. `null` for every other case (PLAN moves,
-      // flag-off origins, incomplete tuple) → plain GET advance, today's
+      // Task-driven move:
+      //   - PLAN (`Asignar Conductor/Transporte`): attach slot tuple so ECM's
+      //     `OnCreateAssignDriverBinding` writes the booking row itself
+      //     (ecm-coordinator#266). Presence of these vars also tells
+      //     `persistPlannedBooking` to SKIP the BFF booking POST.
+      //   - ASSIGN (`Presentar Conductor`): attach resource tuple so ECM's
+      //     `OnCreatePresentDriverBinding` reads it from process scope on
+      //     the next task's create.
+      // `null` for every other case (flag-off origins, missing live task,
+      // incomplete tuple) → plain GET advance + BFF booking POST, today's
       // behavior unchanged.
-      const processVariables = decideAssignTaskAdvance(
+      const planProcessVariables = decidePlanTaskAdvance(
+        transitionId,
+        effectiveService.origen,
+        calendarId,
+        slotToUse
+      );
+      const assignProcessVariables = decideAssignTaskAdvance(
         transitionId,
         effectiveService.origen,
         effectiveService
       );
+      const processVariables = planProcessVariables ?? assignProcessVariables;
       const taskAdvance: BookingTaskAdvance | undefined =
         transitionId && liveTask?.taskId
           ? {

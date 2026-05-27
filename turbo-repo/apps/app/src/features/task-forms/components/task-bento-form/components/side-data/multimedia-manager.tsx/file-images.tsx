@@ -619,8 +619,9 @@ export default function FileImages({
       draftDecisions.forEach((_, id) => next.delete(id));
       return next;
     });
+    const ALFRESCO_STATE_MAP: Record<string, "APPROVED" | "REJECTED" | "PENDING"> = { approved: "APPROVED", rejected: "REJECTED", pending: "PENDING" };
     draftDecisions.forEach((status, id) => {
-      const alfrescoState = status === "approved" ? "APPROVED" : status === "rejected" ? "REJECTED" : "PENDING";
+      const alfrescoState = ALFRESCO_STATE_MAP[status] ?? "PENDING";
       const existing = committedTimeline.get(id) ?? [];
       const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
       const allObs = [...looseObs, ...(draftObservations.get(id) ?? [])];

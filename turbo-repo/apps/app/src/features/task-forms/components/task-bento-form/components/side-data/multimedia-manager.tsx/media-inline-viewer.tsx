@@ -29,7 +29,6 @@ import { downloadImage } from "@/features/geographic-view/utils/download-image";
 import { renameBentoFile, updateBentoCategory, moveBentoFile, useSearchTasks } from "@/features/common/providers/client-api.provider";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { toast } from "sonner";
-import { HiPrinter } from "react-icons/hi";
 
 export type MediaViewerItem = {
   type: "image" | "document";
@@ -39,6 +38,30 @@ export type MediaViewerItem = {
 
 type PermitLevel = "read" | "edit";
 type PermitEntry = { id: string; displayName: string; level: PermitLevel };
+
+/** Find the next undecided file index, wrapping around from the end. */
+function findNextUndecided(
+  items: MediaViewerItem[],
+  currentIndex: number,
+  updatedDrafts: Map<string, ReviewStatus>,
+  reviewStatuses?: Map<string, ReviewStatus>,
+): number | null {
+  for (let i = currentIndex + 1; i < items.length; i++) {
+    const itemId = items[i]?.file?.entry?.id;
+    if (!itemId) continue;
+    if (updatedDrafts.has(itemId)) continue;
+    if ((reviewStatuses?.get(itemId) ?? "pending") === "approved") continue;
+    return i;
+  }
+  for (let i = 0; i < currentIndex; i++) {
+    const itemId = items[i]?.file?.entry?.id;
+    if (!itemId) continue;
+    if (updatedDrafts.has(itemId)) continue;
+    if ((reviewStatuses?.get(itemId) ?? "pending") === "approved") continue;
+    return i;
+  }
+  return null;
+}
 
 export default function MediaInlineViewer({
   items,
@@ -60,7 +83,7 @@ export default function MediaInlineViewer({
   onRemoveReply,
   onCategoryChanged,
   dictionary,
-}: {
+}: Readonly<{
   items: MediaViewerItem[];
   initialIndex?: number;
   onClose: () => void;
@@ -80,7 +103,7 @@ export default function MediaInlineViewer({
   onAddReply?: (fileId: string, obsId: string, description: string) => void;
   onRemoveReply?: (fileId: string, obsId: string, replyId: string) => void;
   dictionary: I18nRecord;
-}) {
+}>) {
   const [currentIndex, setCurrentIndex] = useState(
     Math.max(0, Math.min(initialIndex, items.length - 1))
   );
@@ -105,12 +128,12 @@ export default function MediaInlineViewer({
     if (items.length <= 1) {
       onRename?.();
       onClose();
-    } else {
-      if (currentIndex >= items.length - 1) {
-        setCurrentIndex(currentIndex - 1);
-      }
-      onRename?.();
+      return;
     }
+    if (currentIndex >= items.length - 1) {
+      setCurrentIndex(currentIndex - 1);
+    }
+    onRename?.();
   };
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -214,34 +237,16 @@ export default function MediaInlineViewer({
     const updatedDrafts = new Map(draftDecisions ?? new Map());
     updatedDrafts.set(id, decision);
 
-    const findNextUndecided = (): number | null => {
-      for (let i = currentIndex + 1; i < items.length; i++) {
-        const itemId = items[i]?.file?.entry?.id;
-        if (!itemId) continue;
-        if (updatedDrafts.has(itemId)) continue;
-        if ((reviewStatuses?.get(itemId) ?? "pending") === "approved") continue;
-        return i;
-      }
-      for (let i = 0; i < currentIndex; i++) {
-        const itemId = items[i]?.file?.entry?.id;
-        if (!itemId) continue;
-        if (updatedDrafts.has(itemId)) continue;
-        if ((reviewStatuses?.get(itemId) ?? "pending") === "approved") continue;
-        return i;
-      }
-      return null;
-    };
-
-    const nextIndex = findNextUndecided();
-    if (nextIndex !== null) {
-      setCurrentIndex(nextIndex);
-    } else {
+    const nextIndex = findNextUndecided(items, currentIndex, updatedDrafts, reviewStatuses);
+    if (nextIndex === null) {
       onClose();
+    } else {
+      setCurrentIndex(nextIndex);
     }
   };
 
   const fileUrl = id ? `/app/api/bento/content?nodeId=${id}` : "";
-  const fullUrl = id ? `${window.location.origin}${fileUrl}` : "";
+  const fullUrl = id ? `${globalThis.location.origin}${fileUrl}` : "";
 
   const shareCopyLink = async () => {
     await navigator.clipboard.writeText(fullUrl);
@@ -547,7 +552,7 @@ export default function MediaInlineViewer({
                   ? "border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
                   : "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
             }`}>
-              → {tr(draftDecisions.get(id) === "approved" ? "bento.multimedia.draft_will_approve" : draftDecisions.get(id) === "pending" ? "bento.multimedia.draft_will_review" : "bento.multimedia.draft_will_reject", dictionary)}
+              → {tr({ approved: "bento.multimedia.draft_will_approve", pending: "bento.multimedia.draft_will_review", rejected: "bento.multimedia.draft_will_reject" }[draftDecisions.get(id) as string] ?? "bento.multimedia.draft_will_reject", dictionary)}
             </span>
           )}
         </div>
@@ -967,11 +972,11 @@ function SidebarSection({
   title,
   defaultExpanded = false,
   children,
-}: {
+}: Readonly<{
   title: string;
   defaultExpanded?: boolean;
   children: ReactNode;
-}) {
+}>) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   return (
     <div className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
@@ -1000,7 +1005,7 @@ function SidebarSection({
   );
 }
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function MetaRow({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs font-medium text-gray-400 dark:text-gray-500">{label}</dt>
@@ -1011,7 +1016,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 // ─── Permits section ─────────────────────────────────────────────────────────
 
-function PermitsSection({ dictionary }: { dictionary: I18nRecord }) {
+function PermitsSection({ dictionary }: Readonly<{ dictionary: I18nRecord }>) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<{ id: string; displayName: string }[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -1258,14 +1263,14 @@ function ObservationCard({
   onAddReply,
   onRemoveReply,
   pendingReplyRef,
-}: {
+}: Readonly<{
   obs: ObservationEntry;
   dictionary: I18nRecord;
   onDelete?: () => void;
   onAddReply?: (description: string) => void;
   onRemoveReply?: (replyId: string) => void;
-  pendingReplyRef?: React.MutableRefObject<{ text: string; send: () => void }>;
-}) {
+  pendingReplyRef?: React.RefObject<{ text: string; send: () => void }>;
+}>) {
   const [repliesOpen, setRepliesOpen] = useState(true);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -1441,6 +1446,111 @@ function ObservationCard({
   );
 }
 
+const STATE_CHANGE_STYLES = {
+  approved: {
+    border: "border-green-200 dark:border-green-800",
+    header: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+    label: "text-green-700 dark:text-green-300",
+    key: "bento.multimedia.sidebar_obs_state_approved",
+  },
+  pending: {
+    border: "border-amber-200 dark:border-amber-800",
+    header: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
+    label: "text-amber-700 dark:text-amber-300",
+    key: "bento.multimedia.sidebar_obs_state_pending",
+  },
+  rejected: {
+    border: "border-red-200 dark:border-red-800",
+    header: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+    label: "text-red-700 dark:text-red-300",
+    key: "bento.multimedia.sidebar_obs_state_rejected",
+  },
+} as const;
+
+function StateChangeEntry({
+  entry,
+  dictionary,
+  onRemoveCommitted,
+  onAddReply,
+  onRemoveReply,
+  pendingReplyRef,
+}: {
+  entry: StateChangeTimelineEntry;
+  dictionary: I18nRecord;
+  onRemoveCommitted?: (id: string) => void;
+  onAddReply?: (obsId: string, description: string) => void;
+  onRemoveReply?: (obsId: string, replyId: string) => void;
+  pendingReplyRef?: React.RefObject<{ text: string; send: () => void }>;
+}) {
+  const style = STATE_CHANGE_STYLES[entry.status];
+  return (
+    <div className={`shrink-0 rounded-lg border overflow-hidden ${style.border}`}>
+      <div className={`flex items-center gap-2 px-3 py-2 border-b ${style.header}`}>
+        <span className={`text-xs font-semibold ${style.label}`}>
+          {tr(style.key, dictionary)}
+        </span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+          {formatDateString(entry.committedAt.toISOString())}
+        </span>
+        {entry.committedBy && (
+          <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-24" title={entry.committedBy}>
+            · {entry.committedBy}
+          </span>
+        )}
+      </div>
+      {entry.observations.length > 0 ? (
+        <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+          {entry.observations.map((obs) => (
+            <div key={obs.id} className="px-3 py-2.5">
+              <ObservationCard
+                obs={obs}
+                dictionary={dictionary}
+                onDelete={onRemoveCommitted ? () => onRemoveCommitted(obs.id) : undefined}
+                onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
+                onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
+                pendingReplyRef={pendingReplyRef}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-2.5 italic">
+          {tr("bento.multimedia.sidebar_obs_none_in_container", dictionary)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LooseObservationEntry({
+  entry,
+  dictionary,
+  onRemoveCommitted,
+  onAddReply,
+  onRemoveReply,
+  pendingReplyRef,
+}: {
+  entry: LooseObservationTimelineEntry;
+  dictionary: I18nRecord;
+  onRemoveCommitted?: (id: string) => void;
+  onAddReply?: (obsId: string, description: string) => void;
+  onRemoveReply?: (obsId: string, replyId: string) => void;
+  pendingReplyRef?: React.RefObject<{ text: string; send: () => void }>;
+}) {
+  return (
+    <div className="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+      <ObservationCard
+        obs={{ id: entry.id, type: entry.type, description: entry.description, createdAt: entry.createdAt, createdBy: entry.createdBy, replies: entry.replies }}
+        dictionary={dictionary}
+        onDelete={onRemoveCommitted ? () => onRemoveCommitted(entry.id) : undefined}
+        onAddReply={onAddReply ? (desc) => onAddReply(entry.id, desc) : undefined}
+        onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(entry.id, rid) : undefined}
+        pendingReplyRef={pendingReplyRef}
+      />
+    </div>
+  );
+}
+
 function ObservationsSection({
   dictionary,
   draftObservations,
@@ -1454,7 +1564,7 @@ function ObservationsSection({
   pendingReplyRef,
   mode = "full",
   onShowAll,
-}: {
+}: Readonly<{
   dictionary: I18nRecord;
   draftObservations: ObservationEntry[];
   committedTimeline: TimelineEntry[];
@@ -1464,10 +1574,10 @@ function ObservationsSection({
   onRemoveCommitted?: (id: string) => void;
   onAddReply?: (obsId: string, description: string) => void;
   onRemoveReply?: (obsId: string, replyId: string) => void;
-  pendingReplyRef?: React.MutableRefObject<{ text: string; send: () => void }>;
+  pendingReplyRef?: React.RefObject<{ text: string; send: () => void }>;
   mode?: "preview" | "full";
   onShowAll?: () => void;
-}) {
+}>) {
   const [isAdding, setIsAdding] = useState(false);
   const [newType, setNewType] = useState<ObservationType>("value_not_visible");
   const [newDescription, setNewDescription] = useState("");
@@ -1517,68 +1627,32 @@ function ObservationsSection({
 
   const renderEntry = (entry: TimelineEntry) => {
     if (entry.kind === "state_change") {
-      const isApproved = entry.status === "approved";
-      const isPending = entry.status === "pending";
-      const borderColor = isApproved ? "border-green-200 dark:border-green-800" : isPending ? "border-amber-200 dark:border-amber-800" : "border-red-200 dark:border-red-800";
-      const headerBg = isApproved ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : isPending ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800";
-      const labelColor = isApproved ? "text-green-700 dark:text-green-300" : isPending ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300";
-      const labelKey = isApproved ? "bento.multimedia.sidebar_obs_state_approved" : isPending ? "bento.multimedia.sidebar_obs_state_pending" : "bento.multimedia.sidebar_obs_state_rejected";
       return (
-        <div
+        <StateChangeEntry
           key={entry.id}
-          className={`flex-shrink-0 rounded-lg border overflow-hidden ${borderColor}`}
-        >
-          <div className={`flex items-center gap-2 px-3 py-2 border-b ${headerBg}`}>
-            <span className={`text-xs font-semibold ${labelColor}`}>
-              {tr(labelKey, dictionary)}
-            </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
-              {formatDateString(entry.committedAt.toISOString())}
-            </span>
-            {entry.committedBy && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-24" title={entry.committedBy}>
-                · {entry.committedBy}
-              </span>
-            )}
-          </div>
-          {entry.observations.length > 0 ? (
-            <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
-              {entry.observations.map((obs) => (
-                <div key={obs.id} className="px-3 py-2.5">
-                  <ObservationCard
-                    obs={obs}
-                    dictionary={dictionary}
-                    onDelete={onRemoveCommitted ? () => onRemoveCommitted(obs.id) : undefined}
-                    onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
-                    onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
-                    pendingReplyRef={pendingReplyRef}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-2.5 italic">
-              {tr("bento.multimedia.sidebar_obs_none_in_container", dictionary)}
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    // Loose observation
-    return (
-      <div key={entry.id} className="flex-shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
-        <ObservationCard
-          obs={{ id: entry.id, type: entry.type, description: entry.description, createdAt: entry.createdAt, createdBy: entry.createdBy, replies: entry.replies }}
+          entry={entry}
           dictionary={dictionary}
-          onDelete={onRemoveCommitted ? () => onRemoveCommitted(entry.id) : undefined}
-          onAddReply={onAddReply ? (desc) => onAddReply(entry.id, desc) : undefined}
-          onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(entry.id, rid) : undefined}
+          onRemoveCommitted={onRemoveCommitted}
+          onAddReply={onAddReply}
+          onRemoveReply={onRemoveReply}
           pendingReplyRef={pendingReplyRef}
         />
-      </div>
+      );
+    }
+    return (
+      <LooseObservationEntry
+        key={entry.id}
+        entry={entry}
+        dictionary={dictionary}
+        onRemoveCommitted={onRemoveCommitted}
+        onAddReply={onAddReply}
+        onRemoveReply={onRemoveReply}
+        pendingReplyRef={pendingReplyRef}
+      />
     );
   };
+
+  const showEmpty = !hasContent && !isAdding;
 
   return (
     <div className="flex flex-col gap-2">
@@ -1631,13 +1705,13 @@ function ObservationsSection({
       )}
 
       {/* Timeline entries */}
-      {hasContent ? (
+      {hasContent && (
         <div className="flex flex-col gap-2">
           {displayEntries.map(renderEntry)}
 
           {/* Draft observations visible while in review */}
           {isInDraftReview && draftObservations.map((obs) => (
-            <div key={obs.id} className="flex-shrink-0 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30">
+            <div key={obs.id} className="shrink-0 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/30">
               <ObservationCard
                 obs={obs}
                 dictionary={dictionary}
@@ -1667,11 +1741,11 @@ function ObservationsSection({
             </div>
           )}
         </div>
-      ) : isInDraftReview && draftObservations.length === 0 && !isAdding ? (
+      )}
+
+      {showEmpty && (
         <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
-      ) : !hasContent && !isAdding ? (
-        <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -1684,13 +1758,13 @@ function CategoryDropdown({
   onCategoryChange,
   dictionary,
   fullWidth = false,
-}: {
+}: Readonly<{
   categories: { value: string; label: string }[];
   currentTag: string | null;
   onCategoryChange: (category: string) => void;
   dictionary: I18nRecord;
   fullWidth?: boolean;
-}) {
+}>) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = categories.find((c) => c.value === currentTag) ?? null;
@@ -1767,10 +1841,10 @@ type ReviewAction = {
 function ReviewSplitButton({
   primary,
   secondaryActions,
-}: {
+}: Readonly<{
   primary: ReviewAction;
   secondaryActions: ReviewAction[];
-}) {
+}>) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1859,7 +1933,7 @@ function MoveToTaskModal({
   currentTaskServiceCode,
   onMoved,
   dictionary,
-}: {
+}: Readonly<{
   show: boolean;
   onClose: () => void;
   fileName: string;
@@ -1867,7 +1941,7 @@ function MoveToTaskModal({
   currentTaskServiceCode?: string;
   onMoved?: () => void;
   dictionary: I18nRecord;
-}) {
+}>) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedTask, setSelectedTask] = useState<KanbanBoardTask | null>(null);

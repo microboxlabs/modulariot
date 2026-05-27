@@ -33,7 +33,7 @@ export default function MediaRow({
   hideStatusDot = false,
   onEdit,
   dictionary,
-}: {
+}: Readonly<{
   file: AlfrescoFileEntry;
   index: number;
   type: "image" | "document";
@@ -46,7 +46,7 @@ export default function MediaRow({
   hideStatusDot?: boolean;
   onEdit?: () => void;
   dictionary: I18nRecord;
-}) {
+}>) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const { data } = useGetNodeThumbnail(file.entry.id);
 

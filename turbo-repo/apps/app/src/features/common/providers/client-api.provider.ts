@@ -1753,6 +1753,13 @@ export type PlanProcessVariables = {
   slot_date: string;
   slot_hour: string;
   slot_minutes: string;
+  /**
+   * Optional category from the planner sidebar form. ECM's
+   * `EndTaskPostWebscript` accepts the key (ecm-coordinator#270) and
+   * `OnCreateAssignDriverBinding` then persists it onto the booking row
+   * (#268). Omitted when blank.
+   */
+  mintral_serviceCategory?: string;
 };
 
 export type TaskMoveProcessVariables =

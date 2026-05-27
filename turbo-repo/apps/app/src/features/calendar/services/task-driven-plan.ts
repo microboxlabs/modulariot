@@ -24,6 +24,15 @@ export type PlanSlotInput = {
  * `processVariables` body shape on `POST /alfresco/s/mintral/tasks/end`
  * (ecm-coordinator#262), which is uniformly string-keyed.
  *
+ * `mintral_serviceCategory` is included alongside the slot keys (instead
+ * of relying on the `updateTaskServiceCategory` PATCH alone) because the
+ * task-form processor writes `prop_mintral_serviceCategory` to the **task
+ * node**, which does not propagate to **process scope** before
+ * `OnCreateAssignDriverBinding.onCreate` fires. The ECM allow-list
+ * accepts this key (camelCase + `mintral_` prefix matches the existing
+ * `MintralModel.VAR_SERVICE_CATEGORY` process variable name across the
+ * codebase) — see ecm-coordinator#270.
+ *
  * See `docs/plans/calendar-task-driven-frontend-P0-spike.md` §2.2 for the
  * wire contract, and `ecm-driven-booking-lifecycle-spike.md` §8 in
  * ecm-coordinator for the FE-side companion contract this implements.
@@ -33,19 +42,31 @@ export type PlanProcessVariables = {
   slot_date: string;
   slot_hour: string;
   slot_minutes: string;
+  /**
+   * Optional: when the planner sidebar form sets a service category, it
+   * rides here so ECM's `OnCreateAssignDriverBinding` can persist it on
+   * `cld_bookings.resource_data.serviceCategory`. Omitted when the form
+   * leaves the category blank.
+   */
+  mintral_serviceCategory?: string;
 };
 
 export function buildPlanProcessVariables(
   calendarId: string | undefined,
-  slot: PlanSlotInput
+  slot: PlanSlotInput,
+  serviceCategory?: string
 ): PlanProcessVariables | null {
   if (!calendarId) return null;
-  return {
+  const base: PlanProcessVariables = {
     calendar_id: calendarId,
     slot_date: dayjs(slot.date).format("YYYY-MM-DD"),
     slot_hour: String(slot.hour),
     slot_minutes: String(slot.minutes),
   };
+  if (serviceCategory) {
+    base.mintral_serviceCategory = serviceCategory;
+  }
+  return base;
 }
 
 /**
@@ -69,9 +90,10 @@ export function decidePlanTaskAdvance(
   origin: string | undefined,
   calendarId: string | undefined,
   slot: PlanSlotInput,
-  enabledOrigins: ReadonlySet<string>
+  enabledOrigins: ReadonlySet<string>,
+  serviceCategory?: string
 ): PlanProcessVariables | null {
   if (transitionId !== "Asignar Conductor/Transporte") return null;
   if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
-  return buildPlanProcessVariables(calendarId, slot);
+  return buildPlanProcessVariables(calendarId, slot, serviceCategory);
 }

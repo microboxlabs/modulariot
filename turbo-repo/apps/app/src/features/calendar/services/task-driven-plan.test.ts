@@ -60,6 +60,36 @@ describe("buildPlanProcessVariables", () => {
     });
   });
 
+  it("includes mintral_serviceCategory when provided", () => {
+    const vars = buildPlanProcessVariables(
+      CAL,
+      { date: new Date(2026, 4, 27, 9, 15), hour: 9, minutes: 15 },
+      "TRUNK_SUPPLY"
+    );
+    expect(vars).toEqual({
+      calendar_id: CAL,
+      slot_date: "2026-05-27",
+      slot_hour: "9",
+      slot_minutes: "15",
+      mintral_serviceCategory: "TRUNK_SUPPLY",
+    });
+  });
+
+  it("omits mintral_serviceCategory when blank or undefined", () => {
+    const blank = buildPlanProcessVariables(
+      CAL,
+      { date: new Date(2026, 4, 27, 9, 15), hour: 9, minutes: 15 },
+      ""
+    );
+    expect(blank).not.toHaveProperty("mintral_serviceCategory");
+    const undef = buildPlanProcessVariables(
+      CAL,
+      { date: new Date(2026, 4, 27, 9, 15), hour: 9, minutes: 15 },
+      undefined
+    );
+    expect(undef).not.toHaveProperty("mintral_serviceCategory");
+  });
+
   it("returns null when calendarId is missing", () => {
     expect(
       buildPlanProcessVariables(undefined, {
@@ -88,6 +118,25 @@ describe("decidePlanTaskAdvance — plan-side flag gating", () => {
       slot_date: "2026-05-27",
       slot_hour: "9",
       slot_minutes: "15",
+    });
+  });
+
+  it("flag ON + serviceCategory: includes mintral_serviceCategory in the tuple", () => {
+    expect(
+      decidePlanTaskAdvance(
+        "Asignar Conductor/Transporte",
+        "SCL",
+        CAL,
+        slot,
+        FLAG_ON,
+        "TRUNK_SUPPLY"
+      )
+    ).toEqual({
+      calendar_id: CAL,
+      slot_date: "2026-05-27",
+      slot_hour: "9",
+      slot_minutes: "15",
+      mintral_serviceCategory: "TRUNK_SUPPLY",
     });
   });
 

@@ -1845,7 +1845,8 @@ export function PlanningSelectionProvider({
         effectiveService.origen,
         calendarId,
         slotToUse,
-        taskDrivenOrigins
+        taskDrivenOrigins,
+        effectiveService.serviceCategory
       );
       const assignProcessVariables = decideAssignTaskAdvance(
         transitionId,

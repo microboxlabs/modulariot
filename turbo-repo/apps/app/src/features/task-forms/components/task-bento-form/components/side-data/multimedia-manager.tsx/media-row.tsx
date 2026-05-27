@@ -142,7 +142,7 @@ export default function MediaRow({
 
           {/* Status change row: only shown after a decision */}
           {statusChangeLine && (
-            <span className={`text-xs ${status === "approved" ? "text-gray-400 dark:text-gray-500" : "font-medium"} ${status !== "approved" ? statusCfg.textCls : ""}`}>
+            <span className={`text-xs ${status === "approved" ? "text-gray-400 dark:text-gray-500" : "font-medium"} ${status === "approved" ? "" : statusCfg.textCls}`}>
               {statusChangeLine}
             </span>
           )}

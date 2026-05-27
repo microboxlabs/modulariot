@@ -21,6 +21,7 @@ import {
 } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { MODAL_THEME, MODAL_THEME_LG } from "./modal-theme";
 import { getCategories } from "./clasification-form";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { AlfrescoFileEntry } from "./image.types";
@@ -896,20 +897,7 @@ export default function MediaInlineViewer({
         show={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         size="md"
-        theme={{
-          content: {
-            base: "relative w-full p-4 md:h-auto",
-            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
-          },
-          header: {
-            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
-            title: "text-base font-semibold text-gray-900 dark:text-white",
-            close: { base: "hidden" },
-          },
-          body: {
-            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
-          },
-        }}
+        theme={MODAL_THEME}
       >
         <ModalHeader className="border-none">
           <div className="flex flex-col">
@@ -953,20 +941,7 @@ export default function MediaInlineViewer({
         show={isUnsentReplyModalOpen}
         onClose={() => setIsUnsentReplyModalOpen(false)}
         size="sm"
-        theme={{
-          content: {
-            base: "relative w-full p-4 md:h-auto",
-            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
-          },
-          header: {
-            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
-            title: "text-base font-semibold text-gray-900 dark:text-white",
-            close: { base: "hidden" },
-          },
-          body: {
-            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
-          },
-        }}
+        theme={MODAL_THEME}
       >
         <ModalHeader className="border-none">
           <span className="text-base font-semibold">{tr("bento.multimedia.unsent_reply_title", dictionary)}</span>
@@ -1361,20 +1336,7 @@ function ObservationCard({
         show={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         size="sm"
-        theme={{
-          content: {
-            base: "relative w-full p-4 md:h-auto",
-            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
-          },
-          header: {
-            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
-            title: "text-base font-semibold text-gray-900 dark:text-white",
-            close: { base: "hidden" },
-          },
-          body: {
-            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
-          },
-        }}
+        theme={MODAL_THEME}
       >
         <ModalHeader className="border-none">
           <span className="text-base font-semibold">{tr("bento.multimedia.obs_delete", dictionary)}</span>
@@ -2021,20 +1983,7 @@ function MoveToTaskModal({
       show={show}
       onClose={onClose}
       size="lg"
-      theme={{
-        content: {
-          base: "relative w-full p-4 md:h-auto",
-          inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
-        },
-        header: {
-          base: "flex items-center justify-between rounded-t border-b pt-5 px-5 pb-0 dark:border-gray-600",
-          title: "text-base font-semibold text-gray-900 dark:text-white",
-          close: { base: "hidden" },
-        },
-        body: {
-          base: "flex-1 overflow-auto px-5 pb-5",
-        },
-      }}
+      theme={MODAL_THEME_LG}
     >
       <ModalHeader className="border-none">
         <div className="flex flex-col">

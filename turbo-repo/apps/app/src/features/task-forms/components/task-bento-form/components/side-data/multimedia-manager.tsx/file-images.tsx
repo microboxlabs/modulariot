@@ -21,6 +21,7 @@ import {
 import { TaskResponse, ForumDiscussionResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { MODAL_THEME } from "./modal-theme";
 import ClasificationForm from "./clasification-form";
 import FileViewer from "./file_viewer";
 import DocumentList from "./document-list";
@@ -123,9 +124,19 @@ function buildCommittedEntry(
   return [...withoutLoose, entry];
 }
 
+function stripHtmlTags(html: string): string {
+  let result = "";
+  let inTag = false;
+  for (const ch of html) {
+    if (ch === "<") { inTag = true; continue; }
+    if (ch === ">") { inTag = false; continue; }
+    if (!inTag) result += ch;
+  }
+  return result;
+}
+
 function stripHtmlEntities(html: string): string {
-  return html
-    .replaceAll(/<[^>]*>/g, "")
+  return stripHtmlTags(html)
     .replaceAll("&nbsp;", " ")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
@@ -170,9 +181,9 @@ function flattenTopicPosts(
 
 function buildObservationEntry(obs: FlatPost): ObservationEntry {
   const plainDesc = stripHtmlEntities(obs.content);
-  const match = /^\[([^\]]+)\]\s*(.*)$/.exec(plainDesc);
+  const match = /^\[([^\]]+)\](.*)$/.exec(plainDesc);
   const obsType = match ? (match[1] as ObservationType) : (obs.title as ObservationType) || "other";
-  const obsDesc = match ? (match[2] ?? "") : plainDesc;
+  const obsDesc = match ? (match[2]?.trim() ?? "") : plainDesc;
   return {
     id: obs.postRef,
     type: obsType,
@@ -214,8 +225,13 @@ function buildNodeTimeline(data: ForumDiscussionResponse, refMap: Map<string, { 
       entries.push({ kind: "observation", ...obsEntry });
     }
   }
-  entries.push(...stateChangeEntries);
-  return entries;
+  const combined: TimelineEntry[] = [...entries, ...stateChangeEntries];
+  combined.sort((a, b) => {
+    const timeA = a.kind === "state_change" ? a.committedAt.getTime() : a.createdAt.getTime();
+    const timeB = b.kind === "state_change" ? b.committedAt.getTime() : b.createdAt.getTime();
+    return timeA - timeB;
+  });
+  return combined;
 }
 
 export const ALLOWED_FILE_TYPES = new Set([
@@ -422,6 +438,7 @@ export default function FileImages({
   const [reviewStatusUsers, setReviewStatusUsers] = useState<Map<string, string>>(new Map());
   const [draftDecisions, setDraftDecisions] = useState<Map<string, ReviewStatus>>(new Map());
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const [draftObservations, setDraftObservations] = useState<Map<string, ObservationEntry[]>>(new Map());
   const [committedTimeline, setCommittedTimeline] = useState<Map<string, TimelineEntry[]>>(new Map());
 
@@ -587,55 +604,85 @@ export default function FileImages({
     }
   }, [forumRefMap]);
 
-  const handleCommitReview = useCallback(() => {
+  const handleCommitReview = useCallback(async () => {
     const now = new Date();
-    setReviewStatuses((prev) => {
-      const next = new Map(prev);
-      draftDecisions.forEach((status, id) => next.set(id, status));
-      return next;
-    });
-    setReviewStatusTimestamps((prev) => {
-      const next = new Map(prev);
-      draftDecisions.forEach((_, id) => next.set(id, now));
-      return next;
-    });
-    if (currentUserName) {
-      setReviewStatusUsers((prev) => {
-        const next = new Map(prev);
-        draftDecisions.forEach((_, id) => next.set(id, currentUserName));
-        return next;
-      });
-    }
-    setCommittedTimeline((prev) => {
-      const next = new Map(prev);
-      draftDecisions.forEach((status, id) => {
-        const existing = prev.get(id) ?? [];
-        next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, draftObservations.get(id) ?? []));
-      });
-      return next;
-    });
-    setDraftObservations((prev) => {
-      const next = new Map(prev);
-      draftDecisions.forEach((_, id) => next.delete(id));
-      return next;
-    });
     const ALFRESCO_STATE_MAP: Record<string, "APPROVED" | "REJECTED" | "PENDING"> = { approved: "APPROVED", rejected: "REJECTED", pending: "PENDING" };
-    draftDecisions.forEach((status, id) => {
-      const alfrescoState = ALFRESCO_STATE_MAP[status] ?? "PENDING";
-      const existing = committedTimeline.get(id) ?? [];
-      const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
-      const allObs = [...looseObs, ...(draftObservations.get(id) ?? [])];
-      const reviewComment = allObs
-        .map((obs) => `[${obs.type}] ${obs.description}`)
-        .join(" | ") || undefined;
-      updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString(), reviewComment).catch(() => {
-        toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
+
+    setIsCommitting(true);
+    try {
+      const networkOps = Array.from(draftDecisions.entries()).map(([id, status]) => {
+        const alfrescoState = ALFRESCO_STATE_MAP[status] ?? "PENDING";
+        const existing = committedTimeline.get(id) ?? [];
+        const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
+        const allObs = [...looseObs, ...(draftObservations.get(id) ?? [])];
+        const reviewComment = allObs
+          .map((obs) => `[${obs.type}] ${obs.description}`)
+          .join(" | ") || undefined;
+        return {
+          id,
+          status,
+          promise: Promise.allSettled([
+            updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString(), reviewComment),
+            createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState),
+          ]),
+        };
       });
-      createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState).catch(() => {});
-    });
-    setDraftDecisions(new Map());
-    setIsCommitModalOpen(false);
-    toast.success(tr("bento.multimedia.commit_success", dictionary));
+
+      const results = await Promise.all(networkOps.map(async (op) => ({ id: op.id, status: op.status, results: await op.promise })));
+
+      const succeeded = results.filter((r) => r.results[0].status === "fulfilled");
+      const failed = results.filter((r) => r.results[0].status === "rejected");
+
+      if (failed.length > 0) {
+        toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
+      }
+
+      if (succeeded.length > 0) {
+        const succeededIds = new Map(succeeded.map((r) => [r.id, r.status]));
+        setReviewStatuses((prev) => {
+          const next = new Map(prev);
+          succeededIds.forEach((status, id) => next.set(id, status));
+          return next;
+        });
+        setReviewStatusTimestamps((prev) => {
+          const next = new Map(prev);
+          succeededIds.forEach((_, id) => next.set(id, now));
+          return next;
+        });
+        if (currentUserName) {
+          setReviewStatusUsers((prev) => {
+            const next = new Map(prev);
+            succeededIds.forEach((_, id) => next.set(id, currentUserName));
+            return next;
+          });
+        }
+        setCommittedTimeline((prev) => {
+          const next = new Map(prev);
+          succeededIds.forEach((status, id) => {
+            const existing = prev.get(id) ?? [];
+            next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, draftObservations.get(id) ?? []));
+          });
+          return next;
+        });
+        setDraftObservations((prev) => {
+          const next = new Map(prev);
+          succeededIds.forEach((_, id) => next.delete(id));
+          return next;
+        });
+        setDraftDecisions((prev) => {
+          const next = new Map(prev);
+          succeededIds.forEach((_, id) => next.delete(id));
+          return next;
+        });
+        toast.success(tr("bento.multimedia.commit_success", dictionary));
+      }
+
+      if (failed.length === 0) {
+        setIsCommitModalOpen(false);
+      }
+    } finally {
+      setIsCommitting(false);
+    }
   }, [draftDecisions, currentUserName, draftObservations, committedTimeline, dictionary]);
 
   const { mutate: globalMutate } = useSWRConfig();
@@ -1153,20 +1200,7 @@ export default function FileImages({
         show={isCommitModalOpen}
         onClose={() => setIsCommitModalOpen(false)}
         size="md"
-        theme={{
-          content: {
-            base: "relative w-full p-4 md:h-auto",
-            inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
-          },
-          header: {
-            base: "flex items-center justify-between rounded-t border-b p-4 pb-0 dark:border-gray-600",
-            title: "text-base font-semibold text-gray-900 dark:text-white",
-            close: { base: "hidden" },
-          },
-          body: {
-            base: "flex-1 overflow-auto pt-4 px-4 pb-4",
-          },
-        }}
+        theme={MODAL_THEME}
       >
         <ModalHeader className="border-none">
           <div className="flex flex-col">
@@ -1203,6 +1237,7 @@ export default function FileImages({
               <Button
                 color="blue"
                 onClick={handleCommitReview}
+                disabled={isCommitting}
               >
                 {tr("bento.multimedia.btn_confirm", dictionary)}
               </Button>

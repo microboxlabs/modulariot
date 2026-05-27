@@ -137,7 +137,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje,
-    mintral_serviceKind: task.serviceKind || undefined,
+    mintral_serviceType: task.serviceType || undefined,
     ocupacion: 100 * (task.mintral_loadMaxUtilization ?? 0),
     loadMaxUtilization:
       task.mintral_loadMaxUtilization == null

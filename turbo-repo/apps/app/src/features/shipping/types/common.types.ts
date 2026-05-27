@@ -50,6 +50,7 @@ export type KanbanBoardTask = {
   mintral_delegacionOrigen?: string;
   expectedDepartureDate?: string;
   serviceKind: string;
+  serviceType: string;
   executionType: string;
   members: KanbanBoardTaskMember[];
   hoReference: string;

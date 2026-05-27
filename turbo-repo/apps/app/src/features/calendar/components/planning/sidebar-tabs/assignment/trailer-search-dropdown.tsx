@@ -330,7 +330,6 @@ export function TrailerSearchDropdown({
       }}
       renderCard={(props) => <TrailerCard {...props} />}
       renderSelectedButton={renderSelectedTrailerButton}
-      canSelect={(trailer) => trailer.estado === "disponible"}
       onQueryChange={onQueryChange}
       onReachEnd={onReachEnd}
       isLoadingMore={isLoadingMore}

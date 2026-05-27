@@ -866,7 +866,7 @@ export default function FileImages({
       <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
 
             {/* Shared header */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 justify-between p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 justify-between p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide shrink-0">
                 {tr("bento.multimedia.title", dictionary)}
                 <span className="ml-1.5 font-medium text-gray-400 dark:text-gray-500 normal-case tracking-normal">

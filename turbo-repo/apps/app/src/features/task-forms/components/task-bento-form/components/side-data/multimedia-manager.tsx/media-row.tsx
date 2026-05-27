@@ -10,6 +10,7 @@ import { getCategories } from "./clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+import { AlfrescoFileEntry } from "./image.types";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
 
@@ -33,7 +34,7 @@ export default function MediaRow({
   onEdit,
   dictionary,
 }: {
-  file: any;
+  file: AlfrescoFileEntry;
   index: number;
   type: "image" | "document";
   onSelect: (index: number) => void;

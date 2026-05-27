@@ -369,8 +369,8 @@ export default function MediaInlineViewer({
           </button>
           <button
             type="button"
-            onClick={() => setShareOpen((p) => !p)}
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            disabled
+            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 opacity-40 cursor-not-allowed"
             aria-label={tr("bento.multimedia.viewer_share", dictionary)}
           >
             <HiShare className="w-4 h-4 text-gray-600 dark:text-gray-400" />

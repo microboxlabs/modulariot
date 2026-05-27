@@ -13,7 +13,7 @@ Prereqs:
   + Postgres migrations spike higher.
 
 ```bash
-cd infra/observability
+cd miot-harness/infra/observability
 ./bootstrap.sh
 ```
 

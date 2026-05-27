@@ -92,6 +92,48 @@ class HarnessSettings(BaseSettings):
     nexo_critic_model: str = "claude-sonnet-4-6"
     nexo_summarizer_model: str = "claude-haiku-4-5"
 
+    # Synthesizer streaming (plan: SSE rich events). When enabled, the
+    # synthesizer's LLM call runs as a streaming `astream_events` loop
+    # and emits `thinking.delta` / `thinking.completed` SSE events so
+    # CLI clients see Claude's reasoning unfold in real time. Set to
+    # False (or `MIOT_HARNESS_NEXO_SYNTHESIZER_STREAM=0` at runtime)
+    # to fall back to the legacy `.ainvoke()` path with no thinking
+    # visibility — the production kill switch.
+    nexo_synthesizer_stream: bool = True
+    # Extended-thinking budget for the synthesizer. 0 disables thinking
+    # (the model still streams text). 4096 is a moderate default;
+    # increase up to ~16K for harder reasoning, but note the latency
+    # cost (8–15s extra at Sonnet 4.6 typical speed). Anthropic
+    # constraint: max_tokens must exceed budget_tokens — the chat-model
+    # factory bumps max_tokens automatically.
+    nexo_synthesizer_thinking_budget: int = Field(default=4096, ge=0)
+
+    # Tenants permitted to request `debug=true` runs. Debug runs surface
+    # full tool inputs and truncated tool outputs over SSE, which on a
+    # coordinador-touching path means real Mintral fleet data. None / empty
+    # (default) blocks debug for ALL tenants — debug requests get a 403.
+    # Comma-separated env var: `MIOT_HARNESS_ALLOW_DEBUG_TENANTS=mintral-dev,mintral-stg`.
+    # Kept as a raw string so pydantic-settings doesn't try to parse it
+    # as JSON; `debug_tenant_allowed()` below does the split.
+    allow_debug_tenants: str | None = None
+
+    def debug_tenant_allowed(self, tenant_id: str) -> bool:
+        """Return True iff `tenant_id` is on the debug allow-list.
+
+        Empty / unset allow-list denies every tenant — secure-by-default.
+        Whitespace is trimmed on both sides of the comparison so an
+        accidental leading/trailing space in the request body or env
+        var doesn't quietly produce a false-negative match.
+        """
+        tenant_id = tenant_id.strip()
+        if not tenant_id:
+            return False
+        raw = (self.allow_debug_tenants or "").strip()
+        if not raw:
+            return False
+        allowed = {t.strip() for t in raw.split(",") if t.strip()}
+        return tenant_id in allowed
+
     # Provider API keys (unprefixed, standard provider env names)
     anthropic_api_key: str | None = Field(
         default=None,

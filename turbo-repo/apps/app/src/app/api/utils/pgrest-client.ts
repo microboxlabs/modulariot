@@ -490,6 +490,14 @@ export interface PgrestAccreditedResourceRow {
   resource_id: string;
   resource_name: string | null;
   identifier: string | null;
+  /**
+   * Upstream short code, varies by resource_type:
+   * CARRIER → `prve_codigo`, DRIVER → `cond_codigo`,
+   * TRUCK → `cami_matricula`, TRAILER → `remo_matricula`.
+   * Used by downstream integrations (Alerce `proveedor`) where the upstream
+   * code — not the RUT or plate — is the authoritative identifier.
+   */
+  external_id: string | null;
   faena: string | null;
   rut_mandante: string | null;
   is_acredited: "ACREDITED" | "NOT ACREDITED";

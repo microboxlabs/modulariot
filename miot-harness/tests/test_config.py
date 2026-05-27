@@ -132,3 +132,22 @@ def test_conversation_token_budget_read_from_env(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET", "8000")
     settings = HarnessSettings()
     assert settings.conversation_token_budget == 8_000
+
+
+def test_debug_tenant_allowed_trims_both_sides():
+    """Both the allow-list entries AND the input tenant_id are trimmed
+    so accidental whitespace on either side doesn't produce a silent
+    false-negative match.
+    """
+    settings = HarnessSettings(allow_debug_tenants=" mintral-dev , mintral-stg ")
+    assert settings.debug_tenant_allowed("mintral-dev") is True
+    assert settings.debug_tenant_allowed("  mintral-dev  ") is True
+    assert settings.debug_tenant_allowed("\tmintral-stg\n") is True
+    assert settings.debug_tenant_allowed("unauthorized") is False
+    assert settings.debug_tenant_allowed("") is False
+    assert settings.debug_tenant_allowed("   ") is False
+
+
+def test_debug_tenant_allowed_denies_when_unset():
+    settings = HarnessSettings(allow_debug_tenants=None)
+    assert settings.debug_tenant_allowed("mintral-dev") is False

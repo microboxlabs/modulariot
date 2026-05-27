@@ -15,6 +15,13 @@ export interface AccreditedResource {
   resource_id: string;
   resource_name: string | null;
   identifier: string | null;
+  /**
+   * Upstream short code, varies by resource_type: CARRIER → `prve_codigo`,
+   * DRIVER → `cond_codigo`, TRUCK → `cami_matricula`, TRAILER →
+   * `remo_matricula`. Sent to Alerce `ModificacionRecursoServicios` as
+   * `proveedor` (and, eventually, the other slots).
+   */
+  external_id: string | null;
   faena: string | null;
   rut_mandante: string | null;
   is_acredited: "ACREDITED" | "NOT ACREDITED";

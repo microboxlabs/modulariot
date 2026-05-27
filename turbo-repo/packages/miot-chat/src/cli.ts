@@ -34,6 +34,10 @@ program
     "--profile <name>",
     "Named profile from ~/.miot-chat/config.json (or MIOT_CHAT_PROFILE env)",
   )
+  .option(
+    "--debug",
+    "Stream full tool inputs and truncated outputs (requires the harness to allow-list this tenant for debug; or MIOT_CHAT_DEBUG=1)",
+  )
   .action(async () => {
     const flags = program.opts<CliFlags>();
     const config = resolveConfig({ flags });

@@ -2,7 +2,6 @@ import { logger } from "@/lib/logger";
 import {
   notifyCalendarBinding,
   type CalendarBindingPayload,
-  type CalendarBindingStage,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { Session } from "next-auth";
 

@@ -7,7 +7,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from traceloop.sdk import Traceloop
@@ -102,10 +102,18 @@ def _make_lifespan(
                 # Build the conversational graph and inject into the
                 # supervisor. Per-agent models come from settings.
                 try:
+                    synth_thinking_budget = (
+                        settings.nexo_synthesizer_thinking_budget
+                        if settings.nexo_synthesizer_stream
+                        else None
+                    )
                     models = {
                         "filter_expert": get_chat_model(settings.nexo_filter_expert_model),
                         "domain_analyst": get_chat_model(settings.nexo_analyst_model),
-                        "synthesizer": get_chat_model(settings.nexo_synthesizer_model),
+                        "synthesizer": get_chat_model(
+                            settings.nexo_synthesizer_model,
+                            thinking_budget_tokens=synth_thinking_budget,
+                        ),
                         "critic": get_chat_model(settings.nexo_critic_model),
                         "summarizer": get_chat_model(settings.nexo_summarizer_model),
                     }
@@ -128,7 +136,10 @@ def _make_lifespan(
                         },
                         provenance_log=None,  # wired in F-phase when executor lands
                     )
-                    harness.meta_model = get_chat_model(settings.intent_router_model)
+                    harness.meta_model = get_chat_model(
+                        settings.intent_router_model,
+                        thinking_budget_tokens=synth_thinking_budget,
+                    )
                     harness.meta_primer = COORDINADOR_PRIMER
                     harness.meta_catalog = [
                         MetaAgentCatalogEntry(
@@ -207,12 +218,41 @@ def create_app() -> FastAPI:
             },
         }
 
+    @app.get("/health/ready")
+    async def health_ready(response: Response) -> dict[str, object]:
+        # Readiness contract (kubelet readinessProbe target): Nexo is
+        # "required" iff a DSN is configured. When required-but-not-enabled
+        # the lifespan logs critical and continues serving, but the pod
+        # should not receive traffic until tools register and the snapshot
+        # passes the refuse-gate.
+        nexo_required = settings.nexo_dsn is not None
+        nexo_enabled = bool(app.state.nexo_enabled)
+        ready = (not nexo_required) or nexo_enabled
+        if not ready:
+            response.status_code = 503
+        return {
+            "status": "ready" if ready else "not_ready",
+            "env": settings.env,
+            "nexo": {
+                "required": nexo_required,
+                "enabled": nexo_enabled,
+                "tools": list(app.state.nexo_registered),
+                "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
+            },
+        }
+
     @app.post("/runs", response_model=HarnessRunRecord)
-    async def create_run(request: UserRequest) -> HarnessRunRecord:
+    async def create_run(
+        request: UserRequest,
+        debug: bool = Query(False),
+    ) -> HarnessRunRecord:
         # Read harness from app.state so tests that inject a controlled
         # graph (via app.state.harness.nexo_graph = ...) see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
+        if debug:
+            request = request.model_copy(update={"debug": True})
+        _enforce_debug_allowlist(request, settings)
         return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
@@ -221,7 +261,13 @@ def create_app() -> FastAPI:
         return harness.run_store.load(run_id)
 
     @app.post("/runs:start", status_code=202)
-    async def start_run(request: UserRequest) -> dict[str, str]:
+    async def start_run(
+        request: UserRequest,
+        debug: bool = Query(False),
+    ) -> dict[str, str]:
+        if debug:
+            request = request.model_copy(update={"debug": True})
+        _enforce_debug_allowlist(request, settings)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)
@@ -259,6 +305,27 @@ def create_app() -> FastAPI:
         )
 
     return app
+
+
+def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) -> None:
+    """Refuse debug=true for tenants that aren't on the allow-list.
+
+    Debug-flagged runs surface full tool inputs and truncated outputs over
+    the SSE stream. On coordinador-touching routes that exposes real
+    Mintral fleet data, so the gate is secure-by-default: with no
+    `MIOT_HARNESS_ALLOW_DEBUG_TENANTS` configured, no tenant can opt in.
+    """
+    if not request.debug:
+        return
+    if settings.debug_tenant_allowed(request.tenant_id):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            f"debug=true is not permitted for tenant {request.tenant_id!r}. "
+            "Add the tenant to MIOT_HARNESS_ALLOW_DEBUG_TENANTS to enable."
+        ),
+    )
 
 
 def _format_sse_event(evt: HarnessEvent) -> bytes:

@@ -210,6 +210,9 @@ export function PlanningSidebarClient({
   const [searchTags, setSearchTags] = useState<
     Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
+  // Debounced text from the autocomplete. Flows into `apiParams` as `q=` so
+  // the backend prefix-search reaches services beyond the loaded page.
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Seed search tags from the active calendar's stored filter (origin /
   // destination delegate codes). Re-seed only when the filter signature
@@ -275,13 +278,17 @@ export function PlanningSidebarClient({
       params.push(`calendarId=${calendarId}`);
     }
 
+    if (searchQuery) {
+      params.push(`q=${encodeURIComponent(searchQuery)}`);
+    }
+
     // Server-side sort preset (ecm-coordinator #238): C309 urgency first,
     // then mintral_deliveryComplianceRate ASC. Resolves the pagination
     // correctness gap of the previous client-side sort.
     params.push("orderBy=mintral_calendarPlanningPriority");
 
     return params.join("&");
-  }, [searchTags, calendarId]);
+  }, [searchTags, calendarId, searchQuery]);
 
   // Fetch tasks from API
   const {
@@ -486,12 +493,13 @@ export function PlanningSidebarClient({
   // Strip the `?as=viewer` override (used by planners previewing the
   // viewer experience) without touching any other URL params. The page
   // re-renders in full-edit mode, mirroring the existing chip-menu
-  // "Salir de previsualización" action.
+  // "Salir de previsualización" action. Uses `replace` so the browser
+  // Back button doesn't bounce the user back into preview.
   const exitViewerPreview = useCallback(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("as");
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    router.replace(query ? `${pathname}?${query}` : pathname);
   }, [router, pathname, searchParams]);
 
   const handleSubmit = () => {
@@ -762,6 +770,7 @@ export function PlanningSidebarClient({
               onSelect={handleSearchSelect}
               onMatchTypeSelect={handleMatchTypeSelect}
               onClear={handleSearchClear}
+              onQueryChange={setSearchQuery}
               hasActiveFilter={searchTags.length > 0}
               isLoading={isLoadingTasks}
             />

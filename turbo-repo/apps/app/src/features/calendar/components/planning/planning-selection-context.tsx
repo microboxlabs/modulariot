@@ -635,6 +635,25 @@ export interface SelectedService {
   assignedTruck?: string;
   /** Assigned trailer id — placeholder until the trailer feed is wired. */
   assignedTrailer?: string;
+  /**
+   * Carrier's upstream `prve_codigo` (from
+   * `AccreditedResource.external_id`). Persisted on the booking so the
+   * calendar-binding extractor can ship it as `carrier_external_id` —
+   * Alerce `proveedor` is sourced from this code, not from a UUID→RUT
+   * resolver hop nor from a service-sync Activiti variable.
+   */
+  assignedCarrierExternalId?: string | null;
+  /**
+   * Driver / truck / trailer upstream codes (`cond_codigo`,
+   * `cami_matricula`, `remo_matricula`). Declared for schema symmetry with
+   * the carrier slot; not yet routed downstream — driver depends on an
+   * Alerce-contract clarification, truck/trailer codes equal the resolver's
+   * plate today so the switch is a future no-op cleanup.
+   */
+  assignedDriverExternalId?: string | null;
+  assignedDriver2ExternalId?: string | null;
+  assignedTruckExternalId?: string | null;
+  assignedTrailerExternalId?: string | null;
 }
 
 export type TaskStage =
@@ -961,6 +980,11 @@ interface PlanningSelectionContextType {
         | "assignedDriver2"
         | "assignedTruck"
         | "assignedTrailer"
+        | "assignedCarrierExternalId"
+        | "assignedDriverExternalId"
+        | "assignedDriver2ExternalId"
+        | "assignedTruckExternalId"
+        | "assignedTrailerExternalId"
       >
     >
   ) => void;
@@ -1038,6 +1062,11 @@ const StoredServiceSchema = z
     assignedCarrier: z.string().optional(),
     assignedTruck: z.string().optional(),
     assignedTrailer: z.string().optional(),
+    assignedCarrierExternalId: z.string().nullable().optional(),
+    assignedDriverExternalId: z.string().nullable().optional(),
+    assignedDriver2ExternalId: z.string().nullable().optional(),
+    assignedTruckExternalId: z.string().nullable().optional(),
+    assignedTrailerExternalId: z.string().nullable().optional(),
     _anden: z.number().optional(),
   })
   .optional();

@@ -24,6 +24,11 @@ class HarnessContext(BaseModel):
     # Phase E10 (plan 13): the multi-turn conversation id, if any.
     # Used as the Langfuse `session_id` (falls back to `thread_id`).
     conversation_id: str | None = None
+    # When true, the SSE stream carries full tool inputs and truncated
+    # tool outputs (~2KB cap). Off by default; coordinador outputs
+    # contain customer/fleet data that should not leak to unauthenticated
+    # stream consumers.
+    debug: bool = False
 
 
 class UserRequest(BaseModel):
@@ -34,6 +39,7 @@ class UserRequest(BaseModel):
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
     conversation_id: str | None = None
+    debug: bool = False
 
     def to_context(self) -> HarnessContext:
         return HarnessContext(
@@ -43,4 +49,5 @@ class UserRequest(BaseModel):
             route_context=self.route_context,
             mode=self.mode,
             conversation_id=self.conversation_id,
+            debug=self.debug,
         )

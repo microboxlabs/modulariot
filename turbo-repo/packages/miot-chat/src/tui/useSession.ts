@@ -104,6 +104,7 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
             user_id: meta.userId,
             mode: meta.mode,
             conversation_id: meta.conversationId,
+            ...(meta.debug ? { debug: true } : {}),
           },
           { signal: controller.signal },
         );

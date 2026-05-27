@@ -165,6 +165,13 @@ class HarnessSupervisor:
         except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
             logger.exception("HarnessSupervisor.run failed")
             record.status = "failed"
+            # Drain any agent-boundary events the lifecycle wrapper
+            # stashed on the exception (see runtime/node_lifecycle.py).
+            # These are emitted BEFORE run.failed so the SSE stream's
+            # ordering keeps agent.started / agent.completed inside the
+            # owning run's event sequence.
+            for ev in getattr(exc, "_harness_lifecycle_events", None) or []:
+                progress(ev)
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,
@@ -418,23 +425,76 @@ class HarnessSupervisor:
             record.answer = answer
             return
 
+        from miot_harness.config import get_settings
+
+        settings = get_settings()
+        stream_enabled = settings.nexo_synthesizer_stream
+        from time import monotonic
+
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="agent.started",
+                message="Entering meta_agent",
+                data={"agent": "meta_agent", "graph": "meta", "turn": 0},
+            )
+        )
+        start = monotonic()
+
         # Wrap meta_model with the per-agent telemetry callback so the
         # `anthropic.chat` observation Traceloop auto-emits carries the
         # same `modular.{agent,tenant_id,mode}` + `langfuse.tags` attrs
         # as the canned/agentic paths. Without this, meta-route inner
         # LLM-call cost slips through tenant rollups at observation
         # granularity (the root trace carries them, but the child
-        # observation doesn't).
-        instrumented_meta_model = instrument_model(self.meta_model, "meta_agent", ctx)
+        # observation doesn't). The progress sink wires `usage.recorded`
+        # too so SSE clients see token counts for the meta call.
+        instrumented_meta_model = instrument_model(
+            self.meta_model, "meta_agent", ctx, progress=progress
+        )
 
-        with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            delta = await meta_agent_node(
-                {"user_message": request.message},
-                model=instrumented_meta_model,
-                primer=self.meta_primer,
-                catalog=self.meta_catalog,
-                prior_messages=prior_messages or [],
+        try:
+            with agent_span("run", **self._root_span_kwargs(ctx, route)):
+                delta = await meta_agent_node(
+                    {"user_message": request.message},
+                    model=instrumented_meta_model,
+                    primer=self.meta_primer,
+                    catalog=self.meta_catalog,
+                    prior_messages=prior_messages or [],
+                    progress=progress if stream_enabled else None,
+                    stream=stream_enabled,
+                    run_id=ctx.run_id,
+                )
+            exit_reason = "ok"
+        except Exception:
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="agent.completed",
+                    message="Failed meta_agent",
+                    data={
+                        "agent": "meta_agent",
+                        "graph": "meta",
+                        "duration_ms": int((monotonic() - start) * 1000),
+                        "exit_reason": "failure",
+                    },
+                )
             )
+            raise
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="agent.completed",
+                message="Completed meta_agent",
+                data={
+                    "agent": "meta_agent",
+                    "graph": "meta",
+                    "duration_ms": int((monotonic() - start) * 1000),
+                    "exit_reason": exit_reason,
+                },
+            )
+        )
+
         record.answer = delta.get("answer") or "(no answer produced by meta agent)"
         progress(
             HarnessEvent(

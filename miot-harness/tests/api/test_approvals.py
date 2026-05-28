@@ -101,6 +101,23 @@ def test_resolve_unblocks_pending_approval() -> None:
         assert registry.decision(approval_id) == "approve"
 
 
+def test_resolve_is_single_shot_first_writer_wins() -> None:
+    """A second resolve() against the same approval is a no-op: the
+    first decision sticks, the second returns False. This closes a
+    race-window flip where the second call could otherwise overwrite
+    `entry.decision` between the waiter's `event.wait()` returning and
+    its `decision()` read.
+    """
+
+    registry = ApprovalRegistry()
+    registry.register("aid_once", "run_x")
+
+    assert registry.resolve("aid_once", "approve", "run_x") is True
+    # Second resolve sees the event already set → no-op, no overwrite.
+    assert registry.resolve("aid_once", "deny", "run_x") is False
+    assert registry.decision("aid_once") == "approve"
+
+
 def test_resolve_with_mismatched_run_id_returns_404() -> None:
     """A leaked approval_id can't be weaponized against another run:
     POST against a different run_id than the one the approval was

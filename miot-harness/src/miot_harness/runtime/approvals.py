@@ -51,17 +51,23 @@ class ApprovalRegistry:
         self, approval_id: str, decision: ApprovalDecision, run_id: str
     ) -> bool:
         """Set the decision and unblock the waiter. Returns False when
-        - no approval with that id is pending (already resolved, never
-          requested, or already discarded), OR
+        - no approval with that id is pending (never requested or
+          already discarded), OR
+        - the approval was already resolved (single-shot), OR
         - the approval belongs to a different run than `run_id`.
 
         The run_id check is defense-in-depth: a uuid4 approval_id is
         already 128-bit-unguessable, but it leaks via SSE event streams,
         logs, and traces. Refusing cross-run resolutions stops a leaked
         approval_id from being weaponized against another run.
+
+        Single-shot semantics close a race-window flip: between the
+        waiter's `event.wait()` returning and its `decision()` call, a
+        second resolve() could otherwise overwrite the decision. The
+        first writer wins; subsequent resolves are no-ops.
         """
         entry = self._pending.get(approval_id)
-        if entry is None or entry.run_id != run_id:
+        if entry is None or entry.run_id != run_id or entry.event.is_set():
             return False
         entry.decision = decision
         entry.event.set()

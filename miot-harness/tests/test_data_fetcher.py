@@ -182,6 +182,53 @@ async def test_fetcher_denied_permission_records_failure():
 
 
 @pytest.mark.asyncio
+async def test_fetcher_unregistered_tool_emits_canonical_failure_schema():
+    """When the planner picks a tool that isn't in the registry,
+    registry.invoke() raises KeyError before HarnessTool.invoke runs.
+    The fetcher emits tool.failed itself, and the payload must match
+    the canonical schema (`tool`, `error`, `error_type`, `reason`) so
+    SSE consumers don't have to special-case this branch. The returned
+    state delta also surfaces `error` and `error_type` alongside
+    `failure` so downstream synthesizer/critic nodes can read structured
+    context, not just a stringified message.
+    """
+
+    plan = NexoPlan(
+        steps=[NexoStep(intent="i", tool="not_a_real_tool", args={}, rationale="r")]
+    )
+    state = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "plan": plan,
+        "pending_step_index": 0,
+        "evidence": [],
+        "turn_count": 1,
+    }
+    events: list[HarnessEvent] = []
+
+    update = await data_fetcher_node(
+        state,
+        registry=ToolRegistry(),
+        settings=HarnessSettings(),
+        progress=events.append,
+    )
+
+    # State delta carries the structured fields.
+    assert update["error"] == "tool 'not_a_real_tool' is not registered"
+    assert update["error_type"] == "KeyError"
+    assert "not_a_real_tool" in update["failure"]
+
+    # Emitted tool.failed event matches runtime/tool.py:_emit_failed schema.
+    failed = [e for e in events if e.type == "tool.failed"]
+    assert len(failed) == 1
+    data = failed[0].data
+    assert data["tool"] == "not_a_real_tool"
+    assert data["error"] == "tool 'not_a_real_tool' is not registered"
+    assert data["error_type"] == "KeyError"
+    assert data["reason"] == data["error"]  # back-compat alias
+
+
+@pytest.mark.asyncio
 async def test_fetcher_no_pending_step_is_noop():
     """If pending_step_index >= len(steps), fetcher reports done without
     re-running anything."""

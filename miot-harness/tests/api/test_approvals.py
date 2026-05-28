@@ -82,12 +82,14 @@ def test_resolve_unblocks_pending_approval() -> None:
         registry = app.state.harness.approval_registry
         assert registry is not None
 
-        # Register an approval; the TestClient lifespan has put a real
-        # ApprovalRegistry on the harness, so we can drive both sides.
+        # Register an approval scoped to a specific run; the TestClient
+        # lifespan has put a real ApprovalRegistry on the harness, so we
+        # can drive both sides.
         approval_id = "test_aid"
-        event = registry.register(approval_id)
+        event = registry.register(approval_id, "run_test")
 
-        # Resolve via the HTTP endpoint.
+        # Resolve via the HTTP endpoint. The path's run_id must match
+        # the registered run_id; the registry refuses the mismatch.
         with TestClient(app) as client:
             resp = client.post(
                 f"/runs/run_test/approvals/{approval_id}",
@@ -97,6 +99,28 @@ def test_resolve_unblocks_pending_approval() -> None:
         # The wait-event is now set; the decision is readable.
         assert event.is_set()
         assert registry.decision(approval_id) == "approve"
+
+
+def test_resolve_with_mismatched_run_id_returns_404() -> None:
+    """A leaked approval_id can't be weaponized against another run:
+    POST against a different run_id than the one the approval was
+    registered with returns 404 (collapsed with "unknown" so
+    differential responses don't leak ownership).
+    """
+
+    app = create_app()
+    with TestClient(app):
+        registry = app.state.harness.approval_registry
+        registry.register("attacker_target_aid", "run_owner")
+
+        with TestClient(app) as client:
+            resp = client.post(
+                "/runs/run_attacker/approvals/attacker_target_aid",
+                json={"decision": "approve"},
+            )
+        assert resp.status_code == 404
+        # The approval is still pending — the mismatched call was a no-op.
+        assert registry.decision("attacker_target_aid") is None
 
 
 class _Inp(BaseModel):
@@ -162,11 +186,10 @@ async def test_ask_with_approve_decision_proceeds_to_completion() -> None:
 
     registry = ApprovalRegistry()
     tool = _make_ask_tool()
+    ctx = _make_ctx(registry=registry)
     events: list[HarnessEvent] = []
 
-    invoke_task = asyncio.create_task(
-        tool.invoke(_make_ctx(registry=registry), {}, events.append)
-    )
+    invoke_task = asyncio.create_task(tool.invoke(ctx, {}, events.append))
 
     # Let the tool register and start awaiting.
     for _ in range(50):
@@ -178,8 +201,9 @@ async def test_ask_with_approve_decision_proceeds_to_completion() -> None:
         pytest.fail("approval.requested was never emitted")
     approval_id = approval_events[0].data["approval_id"]
 
-    # Resolve to approve.
-    assert registry.resolve(approval_id, "approve") is True
+    # Resolve to approve — must pass the same run_id the tool registered
+    # with (ctx.run_id is the canonical source).
+    assert registry.resolve(approval_id, "approve", ctx.run_id) is True
     output = await asyncio.wait_for(invoke_task, timeout=1.0)
     assert output.ok is True
 
@@ -195,11 +219,10 @@ async def test_ask_with_deny_decision_emits_failed_and_raises() -> None:
 
     registry = ApprovalRegistry()
     tool = _make_ask_tool()
+    ctx = _make_ctx(registry=registry)
     events: list[HarnessEvent] = []
 
-    invoke_task = asyncio.create_task(
-        tool.invoke(_make_ctx(registry=registry), {}, events.append)
-    )
+    invoke_task = asyncio.create_task(tool.invoke(ctx, {}, events.append))
     for _ in range(50):
         await asyncio.sleep(0)
         approval_events = [e for e in events if e.type == "approval.requested"]
@@ -207,7 +230,7 @@ async def test_ask_with_deny_decision_emits_failed_and_raises() -> None:
             break
     approval_id = approval_events[0].data["approval_id"]
 
-    registry.resolve(approval_id, "deny")
+    registry.resolve(approval_id, "deny", ctx.run_id)
     with pytest.raises(PermissionError):
         await asyncio.wait_for(invoke_task, timeout=1.0)
 

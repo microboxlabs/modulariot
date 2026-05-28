@@ -72,7 +72,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 reason = "approval required but no approval_registry on context"
                 _emit_failed(progress, ctx, self.name, reason, "PermissionError")
                 raise PermissionError(reason)
-            event = registry.register(approval_id)
+            event = registry.register(approval_id, ctx.run_id)
             await event.wait()
             decision = registry.decision(approval_id)
             registry.discard(approval_id)

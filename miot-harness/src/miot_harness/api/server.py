@@ -354,12 +354,15 @@ def create_app() -> FastAPI:
     async def resolve_approval(
         run_id: str, approval_id: str, body: ApprovalDecision
     ) -> Response:
-        # The approval registry is keyed by approval_id alone — run_id is
-        # in the path for symmetry with the rest of the API and for audit
-        # logs, not as part of the lookup. A 404 here means the approval
-        # is unknown: never requested, already resolved, or discarded.
+        # Run-scoped lookup: registry.resolve refuses to set the decision
+        # if the approval was registered for a different run. A 404 here
+        # means the approval is unknown OR belongs to another run —
+        # collapsed into the same response so leaked approval_ids don't
+        # leak ownership through differential 403/404 responses.
         registry = app.state.harness.approval_registry
-        if registry is None or not registry.resolve(approval_id, body.decision):
+        if registry is None or not registry.resolve(
+            approval_id, body.decision, run_id
+        ):
             raise HTTPException(status_code=404, detail="Approval not pending")
         return Response(status_code=204)
 

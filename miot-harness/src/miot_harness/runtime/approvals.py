@@ -22,34 +22,46 @@ ApprovalDecision = Literal["approve", "deny"]
 
 @dataclass
 class _PendingApproval:
+    run_id: str
     event: asyncio.Event = field(default_factory=asyncio.Event)
     decision: ApprovalDecision | None = None
 
 
 class ApprovalRegistry:
     """In-process, async-safe registry of pending approvals keyed by
-    approval_id. Single-instance per harness process — the FastAPI
-    lifespan owns it via `app.state.approval_registry`.
+    approval_id and scoped to the run that requested them. Single-
+    instance per harness process — the FastAPI lifespan owns it via
+    `app.state.approval_registry`.
     """
 
     def __init__(self) -> None:
         self._pending: dict[str, _PendingApproval] = {}
 
-    def register(self, approval_id: str) -> asyncio.Event:
-        """Create the wait-event for `approval_id` and return it. The
-        caller awaits the event; `resolve()` sets it.
+    def register(self, approval_id: str, run_id: str) -> asyncio.Event:
+        """Create the wait-event for `approval_id`, scoped to `run_id`,
+        and return it. The caller awaits the event; `resolve()` sets it
+        once the matching run's caller (or its proxy) resolves the
+        approval via the API.
         """
-        entry = _PendingApproval()
+        entry = _PendingApproval(run_id=run_id)
         self._pending[approval_id] = entry
         return entry.event
 
-    def resolve(self, approval_id: str, decision: ApprovalDecision) -> bool:
+    def resolve(
+        self, approval_id: str, decision: ApprovalDecision, run_id: str
+    ) -> bool:
         """Set the decision and unblock the waiter. Returns False when
-        no approval with that id is pending (already resolved, never
-        requested, or already discarded).
+        - no approval with that id is pending (already resolved, never
+          requested, or already discarded), OR
+        - the approval belongs to a different run than `run_id`.
+
+        The run_id check is defense-in-depth: a uuid4 approval_id is
+        already 128-bit-unguessable, but it leaks via SSE event streams,
+        logs, and traces. Refusing cross-run resolutions stops a leaked
+        approval_id from being weaponized against another run.
         """
         entry = self._pending.get(approval_id)
-        if entry is None:
+        if entry is None or entry.run_id != run_id:
             return False
         entry.decision = decision
         entry.event.set()

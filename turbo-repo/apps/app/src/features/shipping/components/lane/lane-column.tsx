@@ -159,7 +159,7 @@ export function LaneColumn({
             renderTrigger={() => (
               <button
                 type="button"
-                className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                className="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 aria-label={tr("kanban.lane.menuLabel", dict)}
               >
                 <HiDotsHorizontal className="h-4 w-4" />

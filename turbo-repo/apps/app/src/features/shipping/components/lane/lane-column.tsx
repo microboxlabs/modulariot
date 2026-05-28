@@ -144,7 +144,7 @@ export function LaneColumn({
         compact ? "w-44" : "w-[280px]"
       }`}
     >
-      <div className="sticky top-0 z-20 mb-3 flex min-h-[2.5rem] items-center justify-between gap-2 bg-gray-100 dark:bg-gray-800">
+      <div className="sticky top-0 z-20 mb-2.5 flex min-h-[2.5rem] items-center justify-between gap-2 bg-gray-100 dark:bg-gray-800">
         <span className="line-clamp-2 min-w-0 flex-1 text-xs font-semibold uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-300">
           {title}
         </span>
@@ -261,7 +261,7 @@ export function LaneColumn({
           })
         }
         disabled={true}
-        className={`flex flex-col ${compact ? "gap-1" : "gap-4"}`}
+        className={`flex flex-col ${compact ? "gap-1" : "gap-2"}`}
       >
         {visibleTasks.map((task) => (
           <div

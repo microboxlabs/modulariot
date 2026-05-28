@@ -141,7 +141,12 @@ class HarnessSettings(BaseSettings):
     # header win. When unset (the default for local dev / evals), the
     # body values are accepted and requests pass through without a
     # header. Production must set this.
-    identity_signing_key: str | None = None
+    #
+    # `min_length=1` rejects the empty string at boot. The middleware
+    # otherwise treats "" as "set" (it's not None) and would enable
+    # signed mode with a trivially-guessable HMAC key — a far worse
+    # failure mode than refusing to start.
+    identity_signing_key: str | None = Field(default=None, min_length=1)
     # Skew tolerance for `exp` claims, in seconds. Tighter is better;
     # 60s accounts for routine clock drift in a docker-compose stack.
     identity_skew_seconds: int = Field(default=60, ge=0)

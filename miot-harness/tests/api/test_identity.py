@@ -94,6 +94,22 @@ def test_verify_rejects_malformed_header() -> None:
         verify_signed_identity("not-a-real-header", "shh")
 
 
+def test_settings_reject_empty_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`MIOT_HARNESS_IDENTITY_SIGNING_KEY=""` would enable signed mode
+    with an empty HMAC key (middleware checks `is not None`, and "" is
+    not None). Refusing to construct the settings at all is safer than
+    booting with a trivially-guessable secret.
+    """
+
+    from pydantic import ValidationError
+
+    from miot_harness.config import HarnessSettings
+
+    monkeypatch.setenv("MIOT_HARNESS_IDENTITY_SIGNING_KEY", "")
+    with pytest.raises(ValidationError):
+        HarnessSettings()
+
+
 # --- end-to-end through the FastAPI middleware ---
 
 

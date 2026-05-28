@@ -120,7 +120,7 @@ export async function getAuth0LogoutUrl(
     return null;
   }
 
-  // Default returnTo is the sign-in page
+  // Caller passes the sign-in page URL; fall back to the app base URL only if absent.
   const returnToUrl = returnTo || `${process.env.NEXTAUTH_URL || ""}`;
 
   // Auth0 logout endpoint: https://YOUR_DOMAIN/v2/logout

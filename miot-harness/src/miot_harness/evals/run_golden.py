@@ -85,6 +85,11 @@ class EvalScore:
     tokens_output: int | None = None
     cache_hit_pct: float | None = None
     per_agent_costs: dict[str, float] | None = None
+    # Drift vs the fake-mode baseline for the same commit. Populated by
+    # _annotate_drift in real mode only; None when no baseline was
+    # available or when the case wasn't in the baseline.
+    drift: bool | None = None
+    drift_detail: dict[str, Any] | None = None
 
 
 def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
@@ -378,6 +383,50 @@ async def _run_one_real(
     return _score(entry, final, latency_ms=latency_ms)
 
 
+_DRIFT_AXES = ("tool_selection", "filter_sanity")
+
+
+def _load_baseline(path: Path) -> dict[str, dict[str, Any]]:
+    """Load a fake-mode result JSON and index its `scored` list by `id`.
+    Returns an empty dict when the file doesn't exist or is unreadable —
+    drift comparison silently degrades to "no baseline".
+    """
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.warning("baseline %s could not be parsed", path)
+        return {}
+    return {entry["id"]: entry for entry in raw.get("scored", []) if "id" in entry}
+
+
+def _annotate_drift(
+    scored: list[EvalScore], baseline: dict[str, dict[str, Any]]
+) -> None:
+    """Compute drift fields on each EvalScore in-place by comparing the
+    real-mode result against the baseline (fake-mode) result for the
+    same case id.
+
+    Drift is a soft signal — a flipped axis doesn't make the suite
+    fail, it just surfaces "the real model picked a different tool
+    than the scripted fake did, look at it." Cases missing from the
+    baseline are left with drift=None.
+    """
+    for score in scored:
+        ref = baseline.get(score.id)
+        if ref is None:
+            continue
+        flipped: dict[str, Any] = {}
+        for axis in _DRIFT_AXES:
+            ref_v = ref.get(axis)
+            cur_v = getattr(score, axis)
+            if ref_v != cur_v:
+                flipped[axis] = {"baseline": ref_v, "real": cur_v}
+        score.drift = bool(flipped)
+        score.drift_detail = flipped or None
+
+
 def _commit_sha() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
@@ -390,6 +439,7 @@ async def run_golden(
     out_dir: Path,
     *,
     mode: str = "fake",
+    baseline_path: Path | None = None,
 ) -> dict[str, Any]:
     raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
@@ -469,6 +519,13 @@ async def run_golden(
     suffix = "-real" if mode == "real" else ""
     out_path = out_dir / f"{sha}{suffix}.json"
 
+    # Drift annotation — real mode only. Default baseline path is the
+    # same-commit fake-mode result; CI / local users can pass an
+    # explicit one. Missing file = silently skip (drift fields stay None).
+    if mode == "real":
+        baseline_resolved = baseline_path or (out_dir / f"{sha}.json")
+        _annotate_drift(scored, _load_baseline(baseline_resolved))
+
     # Cost rollup. Only meaningful in real mode — fake mode's
     # cost_usd is always None and the totals collapse to None / 0.
     case_costs = [s.cost_usd for s in scored if s.cost_usd is not None]
@@ -522,6 +579,16 @@ def main(argv: list[str] | None = None) -> int:
             "MIOT_HARNESS_NEXO_DSN, plus an active db-scripts tunnel)."
         ),
     )
+    parser.add_argument(
+        "--baseline",
+        default=None,
+        help=(
+            "Path to a fake-mode result JSON. In --mode real, every case "
+            "is compared against the same-id entry in the baseline; "
+            "flipped tool_selection / filter_sanity is surfaced as drift. "
+            "Default: evals/results/<HEAD-sha>.json."
+        ),
+    )
     args = parser.parse_args(argv)
 
     yaml_path = Path(args.yaml)
@@ -529,7 +596,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Golden YAML not found: {yaml_path}", file=sys.stderr)
         return 2
 
-    payload = asyncio.run(run_golden(yaml_path, Path(args.out_dir), mode=args.mode))
+    baseline_path = Path(args.baseline) if args.baseline else None
+    payload = asyncio.run(
+        run_golden(
+            yaml_path,
+            Path(args.out_dir),
+            mode=args.mode,
+            baseline_path=baseline_path,
+        )
+    )
     if not payload["valid"]:
         for err in payload["errors"]:
             print(f"INVALID: {err}", file=sys.stderr)

@@ -1,7 +1,7 @@
 import Image from "next/image";
-import { Fragment } from "react";
 import Link from "next/link";
 import type { KanBanCardProps } from "./kanban-card.types";
+import { GroupAvatar } from "../group-avatar/group-avatar";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
@@ -38,7 +38,7 @@ export default function KanbanCard({
       className={`relative rounded-lg hover:shadow-lg overflow-hidden ${
         compactKanbanView ? "p-1 " : "p-5 w-full"
       }
-      ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
+      ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-700"}
       ${cursor}
       `}
     >
@@ -171,22 +171,7 @@ export default function KanbanCard({
                   )}
                 </div>
                 <div className="flex items-center justify-start">
-                  {task.members.map((member) => (
-                    <Fragment key={member.id}>
-                      <Link href="#" className="-mr-3" prefetch={false}>
-                        <Image
-                          alt={member.name}
-                          height={28}
-                          src={`/app/images/users/${member.avatar}`}
-                          width={28}
-                          className="rounded-full border-2 border-white dark:border-gray-800"
-                        />
-                      </Link>
-                      <div className="invisible absolute z-50 inline-block rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white opacity-0 shadow-sm transition-opacity duration-300 dark:bg-gray-700">
-                        {member.name}
-                      </div>
-                    </Fragment>
-                  ))}
+                  <GroupAvatar group={task.candidateGroup} />
                 </div>
                 <DepartureDateShip
                   dict={dict}

@@ -120,7 +120,7 @@ export function LaneColumn({
         <button
           type="button"
           onClick={() => onLaneUpdate({ collapsed: false })}
-          className="flex w-10 shrink-0 flex-col items-center gap-2 rounded-lg bg-gray-100 p-2 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+          className="flex w-10 shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg bg-gray-100 p-2 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
           aria-label={tr("kanban.lane.expand", dict)}
         >
           <TaskCounter count={visibleTasks.length} dict={dict} />

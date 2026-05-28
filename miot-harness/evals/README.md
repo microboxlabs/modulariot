@@ -1,5 +1,12 @@
 # Harness evals
 
+## What an "eval" is
+
+The harness runs an AI agent ("Nexo") that answers operational questions by calling tools and reading data. An eval suite is the agent's test
+harness — it feeds the agent a set of known questions and checks whether it behaved correctly (picked the right tool, cited fresh data, refused
+when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you catch quality regressions before
+users do.
+
 Two independent suites live under `evals/`. They share a directory but never
 share a runner; their exit codes mean different things.
 

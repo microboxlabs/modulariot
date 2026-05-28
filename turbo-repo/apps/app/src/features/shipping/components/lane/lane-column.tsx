@@ -144,7 +144,7 @@ export function LaneColumn({
         compact ? "w-44" : "w-[280px]"
       }`}
     >
-      <div className="sticky top-0 z-10 mb-3 flex min-h-[2.5rem] items-center justify-between gap-2 bg-gray-100 dark:bg-gray-800">
+      <div className="sticky top-0 z-20 mb-3 flex min-h-[2.5rem] items-center justify-between gap-2 bg-gray-100 dark:bg-gray-800">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="line-clamp-2 min-w-0 text-xs font-semibold uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-300">
             {title}
@@ -157,6 +157,7 @@ export function LaneColumn({
             arrowIcon={false}
             dismissOnClick={false}
             label=""
+            className="z-50"
             renderTrigger={() => (
               <button
                 type="button"

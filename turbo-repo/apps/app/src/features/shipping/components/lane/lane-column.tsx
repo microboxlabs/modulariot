@@ -134,7 +134,7 @@ export function LaneColumn({
 
   const checkIcon = (active: boolean) => (
     <HiCheck
-      className={`h-4 w-4 ${active ? "text-primary-600 dark:text-primary-400" : "opacity-0"}`}
+      className={`h-4 w-4 shrink-0 ${active ? "text-primary-600 dark:text-primary-300" : "opacity-0"}`}
     />
   );
 
@@ -155,7 +155,7 @@ export function LaneColumn({
             arrowIcon={false}
             dismissOnClick={false}
             label=""
-            className="z-50"
+            className="z-50 w-60 [&_li>*]:whitespace-nowrap"
             renderTrigger={() => (
               <button
                 type="button"

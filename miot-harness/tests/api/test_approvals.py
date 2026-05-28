@@ -229,6 +229,40 @@ async def test_ask_with_approve_decision_proceeds_to_completion() -> None:
 
 
 @pytest.mark.asyncio
+async def test_registry_entry_discarded_when_wait_is_cancelled() -> None:
+    """If the surrounding run is cancelled while a tool is waiting on
+    an approval (event.wait()), the registry entry must still be
+    discarded — otherwise _pending grows unbounded across the process
+    lifetime. The try/finally in HarnessTool.invoke guarantees this.
+    """
+
+    registry = ApprovalRegistry()
+    tool = _make_ask_tool()
+    ctx = _make_ctx(registry=registry)
+    events: list[HarnessEvent] = []
+
+    invoke_task = asyncio.create_task(tool.invoke(ctx, {}, events.append))
+
+    for _ in range(50):
+        await asyncio.sleep(0)
+        approval_events = [e for e in events if e.type == "approval.requested"]
+        if approval_events:
+            break
+    else:
+        pytest.fail("approval.requested was never emitted")
+    approval_id = approval_events[0].data["approval_id"]
+    # The entry exists while the tool is awaiting.
+    assert approval_id in registry._pending  # type: ignore[attr-defined]
+
+    invoke_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await invoke_task
+
+    # finally clause must have removed it.
+    assert approval_id not in registry._pending  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
 async def test_ask_with_deny_decision_emits_failed_and_raises() -> None:
     """A tool awaits the registry; when the decision is deny, the tool
     emits tool.failed and raises PermissionError.

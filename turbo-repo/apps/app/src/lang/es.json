@@ -3391,6 +3391,14 @@
         }
       }
     },
+    "lastSignalMap": {
+      "title": "Última Señal",
+      "openInMaps": "Abrir en Maps",
+      "snapshot": "Captura",
+      "share": "Compartir",
+      "copyLink": "Copiar enlace",
+      "copied": "¡Copiado!"
+    },
     "gamification": {
       "healthScore": "Salud",
       "healthStatus": "Estado de Salud",

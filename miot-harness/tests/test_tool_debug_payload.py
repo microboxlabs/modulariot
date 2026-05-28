@@ -181,3 +181,114 @@ def test_compute_result_shape_dispatch(payload, expected) -> None:
     from miot_harness.runtime.tool import _compute_result_shape
 
     assert _compute_result_shape(payload) == expected
+
+
+def test_started_event_carries_source_badge() -> None:
+    """HarnessTool.source must propagate to tool.started.data.source so
+    the frontend trace can render the per-tool badge ("Coordinador · nexo",
+    "ModularIoT AMS", etc.) without waiting for tool.completed metadata.
+    Plan 07 gap 5.
+    """
+
+    async def _allow(_ctx: HarnessContext, _i: _Inp) -> PermissionResult:
+        return PermissionResult(decision="allow", reason="")
+
+    async def _call(_ctx, _i, _p):
+        return _Out(rows=[])
+
+    tool: HarnessTool[_Inp, _Out] = HarnessTool(
+        name="badged",
+        description="d",
+        input_model=_Inp,
+        output_model=_Out,
+        source="Coordinador · nexo (Citus DB)",
+        check_permission=_allow,
+        call=_call,
+    )
+
+    events: list[HarnessEvent] = []
+    import asyncio
+
+    asyncio.run(tool.invoke(_make_ctx(debug=False), {}, events.append))
+
+    started = [e for e in events if e.type == "tool.started"][0]
+    assert started.data["source"] == "Coordinador · nexo (Citus DB)"
+
+
+def test_started_event_source_defaults_to_empty_string() -> None:
+    """Tools that don't set source still emit a (blank) source field so
+    SSE consumers don't have to special-case absence.
+    """
+    events = _events_for(_make_ctx(debug=False))
+    started = [e for e in events if e.type == "tool.started"][0]
+    assert started.data["source"] == ""
+
+
+def test_tool_failed_emitted_when_call_raises() -> None:
+    """A tool whose call() raises must emit tool.failed (with structured
+    error/error_type) and re-raise the exception. Plan 07 gap 6.
+    """
+
+    async def _allow(_ctx: HarnessContext, _i: _Inp) -> PermissionResult:
+        return PermissionResult(decision="allow", reason="")
+
+    async def _boom(_ctx, _i, _p):
+        raise RuntimeError("upstream API down")
+
+    tool: HarnessTool[_Inp, _Out] = HarnessTool(
+        name="boom_tool",
+        description="d",
+        input_model=_Inp,
+        output_model=_Out,
+        check_permission=_allow,
+        call=_boom,
+    )
+
+    events: list[HarnessEvent] = []
+    import asyncio
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(tool.invoke(_make_ctx(debug=False), {}, events.append))
+
+    failed = [e for e in events if e.type == "tool.failed"]
+    assert len(failed) == 1
+    assert failed[0].data["tool"] == "boom_tool"
+    assert failed[0].data["error"] == "upstream API down"
+    assert failed[0].data["error_type"] == "RuntimeError"
+    # The reason alias keeps the data_fetcher legacy payload readable.
+    assert failed[0].data["reason"] == "upstream API down"
+
+
+def test_tool_failed_emitted_on_permission_deny() -> None:
+    """check_permission deny must emit tool.failed before raising
+    PermissionError. Plan 07 gap 6.
+    """
+
+    async def _deny(_ctx: HarnessContext, _i: _Inp) -> PermissionResult:
+        return PermissionResult(decision="deny", reason="tenant not allowed")
+
+    async def _call(_ctx, _i, _p):
+        return _Out(rows=[])
+
+    tool: HarnessTool[_Inp, _Out] = HarnessTool(
+        name="denied_tool",
+        description="d",
+        input_model=_Inp,
+        output_model=_Out,
+        check_permission=_deny,
+        call=_call,
+    )
+
+    events: list[HarnessEvent] = []
+    import asyncio
+
+    with pytest.raises(PermissionError):
+        asyncio.run(tool.invoke(_make_ctx(debug=False), {}, events.append))
+
+    failed = [e for e in events if e.type == "tool.failed"]
+    assert len(failed) == 1
+    assert failed[0].data["tool"] == "denied_tool"
+    assert failed[0].data["error"] == "tenant not allowed"
+    assert failed[0].data["error_type"] == "PermissionError"
+    # No tool.started should be emitted when permission denies up front.
+    assert not [e for e in events if e.type == "tool.started"]

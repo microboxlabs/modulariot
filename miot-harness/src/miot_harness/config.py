@@ -134,6 +134,18 @@ class HarnessSettings(BaseSettings):
         allowed = {t.strip() for t in raw.split(",") if t.strip()}
         return tenant_id in allowed
 
+    # Plan 07 gap 8: signed identity header. When `identity_signing_key`
+    # is set, requests must carry a valid `X-MIOT-Identity` header
+    # (HMAC-SHA256 of `{tenant_id, user_id, exp}`) and tenant_id/user_id
+    # from the request body are ignored — the verified values from the
+    # header win. When unset (the default for local dev / evals), the
+    # body values are accepted and requests pass through without a
+    # header. Production must set this.
+    identity_signing_key: str | None = None
+    # Skew tolerance for `exp` claims, in seconds. Tighter is better;
+    # 60s accounts for routine clock drift in a docker-compose stack.
+    identity_skew_seconds: int = Field(default=60, ge=0)
+
     # Provider API keys (unprefixed, standard provider env names)
     anthropic_api_key: str | None = Field(
         default=None,

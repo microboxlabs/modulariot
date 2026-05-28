@@ -1,6 +1,7 @@
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any, Generic, TypeVar
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
@@ -28,6 +29,11 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     output_model: type[OutputT]
     read_only: bool = True
     destructive: bool = False
+    # Trace badge — propagated into tool.started.data.source so the frontend
+    # can render "Coordinador · nexo" / "ModularIoT AMS" / etc. without
+    # waiting for the per-row metadata that _lift_metadata pulls from the
+    # tool output on tool.completed.
+    source: str = ""
     check_permission: Callable[[HarnessContext, InputT], Awaitable[PermissionResult]]
     call: Callable[[HarnessContext, InputT, Progress], Awaitable[OutputT]]
 
@@ -42,17 +48,43 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         input_keys = sorted(input_dump.keys())
         permission = await self.check_permission(ctx, parsed_input)
         if permission.decision == "deny":
+            _emit_failed(progress, ctx, self.name, permission.reason, "PermissionError")
             raise PermissionError(permission.reason)
         if permission.decision == "ask":
+            approval_id = uuid4().hex
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,
                     type="approval.requested",
                     message=permission.reason,
-                    data={"tool": self.name, "input": input_dump},
+                    data={
+                        "tool": self.name,
+                        "input": input_dump,
+                        "approval_id": approval_id,
+                    },
                 )
             )
-        started_data: dict[str, Any] = {"tool": self.name, "input_keys": input_keys}
+            registry = ctx.approval_registry
+            if registry is None:
+                # No human-in-the-loop wired (CLI / eval path). Refusing
+                # is safer than silently proceeding — the caller has no
+                # way to approve.
+                reason = "approval required but no approval_registry on context"
+                _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                raise PermissionError(reason)
+            event = registry.register(approval_id)
+            await event.wait()
+            decision = registry.decision(approval_id)
+            registry.discard(approval_id)
+            if decision != "approve":
+                reason = f"approval {approval_id} denied"
+                _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                raise PermissionError(reason)
+        started_data: dict[str, Any] = {
+            "tool": self.name,
+            "source": self.source,
+            "input_keys": input_keys,
+        }
         if ctx.debug:
             started_data.update(_debug_input_payload(input_dump))
         progress(
@@ -63,7 +95,11 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 data=started_data,
             )
         )
-        output = await self.call(ctx, parsed_input, progress)
+        try:
+            output = await self.call(ctx, parsed_input, progress)
+        except Exception as exc:
+            _emit_failed(progress, ctx, self.name, str(exc), type(exc).__name__)
+            raise
         completed_data: dict[str, Any] = {
             "tool": self.name,
             "result_shape": _compute_result_shape(output),
@@ -80,6 +116,28 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             )
         )
         return self.output_model.model_validate(output)
+
+
+def _emit_failed(
+    progress: Progress,
+    ctx: HarnessContext,
+    tool: str,
+    error: str,
+    error_type: str,
+) -> None:
+    progress(
+        HarnessEvent(
+            run_id=ctx.run_id,
+            type="tool.failed",
+            message=f"Tool {tool} failed",
+            data={
+                "tool": tool,
+                "error": error,
+                "error_type": error_type,
+                "reason": error,
+            },
+        )
+    )
 
 
 _METADATA_KEYS = ("source", "refreshed_at", "layer", "domain", "truncated")

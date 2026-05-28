@@ -102,12 +102,17 @@ async def data_fetcher_node(
 
     try:
         output = await registry.invoke(step.tool, ctx, step.args, progress)
+    except KeyError as exc:
+        # registry.get(name) couldn't find the tool — HarnessTool.invoke
+        # never ran, so no tool.failed was emitted on its behalf.
+        _emit_failed(progress, ctx, step.tool, f"tool {step.tool!r} is not registered")
+        return {"failure": f"tool {step.tool!r} is not registered: {exc}"}
     except PermissionError as exc:
-        _emit_failed(progress, ctx, step.tool, str(exc))
+        # HarnessTool.invoke already emitted tool.failed; don't double-emit.
         return {"failure": f"permission denied for {step.tool}: {exc}"}
     except Exception as exc:  # noqa: BLE001 — fetcher must not propagate
         logger.exception("data_fetcher: %s raised", step.tool)
-        _emit_failed(progress, ctx, step.tool, str(exc))
+        # HarnessTool.invoke already emitted tool.failed; don't double-emit.
         return {"failure": f"{step.tool} raised: {exc}"}
 
     evidence = _evidence_from_output(

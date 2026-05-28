@@ -276,6 +276,7 @@ def build_nexo_tool(
         output_model=output_model,
         read_only=True,
         destructive=False,
+        source="Coordinador · nexo (Citus DB)",
         check_permission=check_permission,
         call=call,
     )

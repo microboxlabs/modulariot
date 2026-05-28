@@ -156,6 +156,18 @@ def test_stream_with_last_event_id_skips_replayed_events() -> None:
     assert seqs == [r["data"]["seq"] for r in full_records if r["data"]["seq"] > cursor_seq]
 
 
+def test_cancel_unknown_run_id_returns_404() -> None:
+    """POST /runs/{id}/cancel against an unknown (never-started, already
+    terminal, or already cancelled) run returns 404 — the in-flight
+    registry is the source of truth. Plan 07 gap 7.
+    """
+
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post("/runs/run_never_started/cancel")
+    assert resp.status_code == 404
+
+
 def test_stream_unknown_run_id_emits_error_event() -> None:
     """A GET against an unknown run_id (no persisted record, not in-
     flight) emits a single `event: error` payload and closes the

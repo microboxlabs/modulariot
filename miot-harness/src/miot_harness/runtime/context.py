@@ -2,7 +2,9 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from miot_harness.runtime.approvals import ApprovalRegistry
 
 # The four explicit dispatch surfaces a caller can request. "auto" is the
 # default (LLM intent router decides). The other three bypass the router
@@ -12,6 +14,10 @@ RunMode = Literal["auto", "canned", "meta", "agentic"]
 
 
 class HarnessContext(BaseModel):
+    # ApprovalRegistry is a process-local handle, not a serializable
+    # field — needs arbitrary_types_allowed + manual exclude on dump.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     run_id: str = Field(default_factory=lambda: f"run_{uuid4().hex}")
     thread_id: str
     tenant_id: str
@@ -29,6 +35,10 @@ class HarnessContext(BaseModel):
     # contain customer/fleet data that should not leak to unauthenticated
     # stream consumers.
     debug: bool = False
+    # Plan 07 gap 3: per-run handle to the in-process approval registry.
+    # The API layer injects this from app.state; CLI/eval paths leave it
+    # None and the tool layer treats "ask" as deny when it's unset.
+    approval_registry: ApprovalRegistry | None = Field(default=None, exclude=True)
 
 
 class UserRequest(BaseModel):

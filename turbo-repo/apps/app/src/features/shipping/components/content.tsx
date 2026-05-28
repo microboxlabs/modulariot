@@ -22,6 +22,7 @@ import {
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { ViewSwitcher } from "@/features/common/components/view-switcher/view-switcher";
 import { useViewPreference } from "../hooks/use-view-preference";
+import { useCompactViewPreference } from "../hooks/use-compact-view-preference";
 import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
@@ -44,7 +45,8 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
-  const [compactKanbanView, setCompactKanbanView] = useState(true);
+  const [compactKanbanView, setCompactKanbanView] =
+    useCompactViewPreference(true);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const hoverTimeoutRef = useRef<number | null>(null);

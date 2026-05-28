@@ -134,7 +134,7 @@ export function LaneColumn({
 
   const checkIcon = (active: boolean) => (
     <HiCheck
-      className={`h-4 w-4 ${active ? "text-primary-600" : "opacity-0"}`}
+      className={`h-4 w-4 ${active ? "text-primary-600 dark:text-primary-400" : "opacity-0"}`}
     />
   );
 

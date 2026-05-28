@@ -116,6 +116,8 @@ export default function BehaviorHistory({
         return events.filter((e) => e.category === "uso");
       case "normativo":
         return events.filter((e) => e.category === "normativo");
+      case "eficiencia":
+        return events.filter((e) => e.category === "eficiencia");
       case "criticos":
         return events.filter((e) => e.urgency === "critical");
       default:
@@ -166,6 +168,13 @@ export default function BehaviorHistory({
             className={getFilterButtonClass("normativo")}
           >
             {tr("behaviorHistory.filter.regulatory", dict)}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFilterChange("eficiencia")}
+            className={getFilterButtonClass("eficiencia")}
+          >
+            {tr("behaviorHistory.filter.efficiency", dict)}
           </button>
           <button
             type="button"

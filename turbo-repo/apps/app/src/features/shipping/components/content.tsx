@@ -176,7 +176,7 @@ export default function PageContent({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="inline-block align-middle relative">
-        <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
+        <div className="h-[60px] px-6 flex items-center justify-between sticky top-0 z-10 bg-white dark:bg-gray-900 dark:text-white w-full border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <ClientBreadcrumb
               path={[
@@ -189,7 +189,7 @@ export default function PageContent({
               dict={dictionary.base}
             />
             {activeView === "kanban" && (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2.5 py-[3px] text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                 {tr("taskCounter.activeCount", dictionary.base, {
                   count: totalVisible.toString(),
                 })}

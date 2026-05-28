@@ -36,15 +36,18 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from langchain_core.language_models import FakeListChatModel
+from langchain_core.language_models import BaseChatModel, FakeListChatModel
 from pydantic import BaseModel
 
+from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.boot import load_nexo_tools
+from miot_harness.integrations.nexo.pool import create_nexo_pool
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.nexo_graph import build_nexo_graph
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool
-from miot_harness.tools.registry import ToolRegistry
+from miot_harness.tools.registry import ToolRegistry, build_default_registry
 
 logger = logging.getLogger(__name__)
 
@@ -184,23 +187,12 @@ def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
-    settings = HarnessSettings()
-    registry = _build_fake_registry(entry)
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_fake_models(entry))
-    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
-
-    initial: dict[str, Any] = {
-        "user_message": entry["question"],
-        "ctx": ctx,
-        "evidence": [],
-        "turn_count": 0,
-    }
-    t0 = time.perf_counter()
-    final = await graph.ainvoke(initial)
-    latency_ms = (time.perf_counter() - t0) * 1000
-
-    # Score
+def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -> EvalScore:
+    """Score a single eval entry against the final graph state. Shared by
+    fake and real mode — both modes feed in identical state shapes
+    (the NexoState dict produced by build_nexo_graph), so the scoring
+    rules apply uniformly.
+    """
     plan = final.get("plan")
     plan_tools = [s.tool for s in plan.steps] if plan is not None else []
     answer = (final.get("answer") or "").lower()
@@ -226,6 +218,89 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
         else None,
         latency_ms=latency_ms,
     )
+
+
+async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
+    settings = HarnessSettings()
+    registry = _build_fake_registry(entry)
+    graph = build_nexo_graph(registry=registry, settings=settings, models=_fake_models(entry))
+    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
+
+    initial: dict[str, Any] = {
+        "user_message": entry["question"],
+        "ctx": ctx,
+        "evidence": [],
+        "turn_count": 0,
+    }
+    t0 = time.perf_counter()
+    final = await graph.ainvoke(initial)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    return _score(entry, final, latency_ms=latency_ms)
+
+
+async def _build_real_setup(
+    settings: HarnessSettings,
+) -> tuple[ToolRegistry, Any, dict[str, BaseChatModel]]:
+    """Build a real harness setup: introspected Coordinador tools on a
+    live asyncpg pool + real chat models from the chat_models factory.
+
+    Returns `(registry, pool, models)`. Caller MUST close the pool.
+
+    Raises RuntimeError when settings lack the credentials real mode needs.
+    Refusing up front beats discovering an auth failure mid-suite.
+    """
+    if not settings.nexo_dsn:
+        raise RuntimeError(
+            "real mode requires MIOT_HARNESS_NEXO_DSN; bring up the "
+            "db-scripts tunnel and export the DSN before running."
+        )
+    if not settings.anthropic_api_key:
+        raise RuntimeError(
+            "real mode requires ANTHROPIC_API_KEY; the chat-model factory "
+            "cannot construct Claude models without it."
+        )
+
+    pool = await create_nexo_pool(
+        settings.nexo_dsn, application_name=settings.nexo_application_name
+    )
+    registry = build_default_registry()
+    boot = await load_nexo_tools(registry, settings=settings, pool=pool)
+    if not boot.enabled:
+        await pool.close()
+        raise RuntimeError(f"Nexo boot failed: {boot.reason}")
+
+    models: dict[str, BaseChatModel] = {
+        "filter_expert": get_chat_model(settings.nexo_filter_expert_model),
+        "domain_analyst": get_chat_model(settings.nexo_analyst_model),
+        "synthesizer": get_chat_model(
+            settings.nexo_synthesizer_model,
+            thinking_budget_tokens=settings.nexo_synthesizer_thinking_budget,
+        ),
+        "critic": get_chat_model(settings.nexo_critic_model),
+        "summarizer": get_chat_model(settings.nexo_summarizer_model),
+    }
+    return registry, pool, models
+
+
+async def _run_one_real(
+    entry: dict[str, Any],
+    *,
+    registry: ToolRegistry,
+    settings: HarnessSettings,
+    models: dict[str, BaseChatModel],
+) -> EvalScore:
+    graph = build_nexo_graph(registry=registry, settings=settings, models=models)
+    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
+    initial: dict[str, Any] = {
+        "user_message": entry["question"],
+        "ctx": ctx,
+        "evidence": [],
+        "turn_count": 0,
+    }
+    t0 = time.perf_counter()
+    final = await graph.ainvoke(initial)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    return _score(entry, final, latency_ms=latency_ms)
 
 
 def _commit_sha() -> str:
@@ -258,32 +333,66 @@ async def run_golden(
     if mode == "static":
         return {"mode": "static", "valid": True, "errors": [], "scored": []}
 
-    if mode != "fake":
-        raise NotImplementedError(f"mode {mode!r} not yet supported (fake|static only).")
+    if mode not in ("fake", "real"):
+        raise NotImplementedError(f"mode {mode!r} not yet supported (static|fake|real only).")
 
     scored: list[EvalScore] = []
-    for entry in entries:
+    real_setup: tuple[ToolRegistry, Any, dict[str, BaseChatModel]] | None = None
+    if mode == "real":
+        # Build the live setup once (introspect + connect + load models)
+        # and reuse it across every entry to avoid re-paying init cost.
         try:
-            scored.append(await _run_one_fake(entry))
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("eval entry %s raised", entry.get("id"))
-            scored.append(
-                EvalScore(
-                    id=entry.get("id", "?"),
-                    category=entry.get("category", ""),
-                    tool_selection=False,
-                    filter_sanity=False,
-                    freshness_citation=False,
-                    refusal=False,
-                    no_hallucination=False,
-                    latency_ms=None,
-                    notes=f"runner_error: {exc}",
+            real_setup = await _build_real_setup(HarnessSettings())
+        except RuntimeError as exc:
+            return {
+                "mode": "real",
+                "valid": False,
+                "errors": [str(exc)],
+                "scored": [],
+            }
+
+    try:
+        for entry in entries:
+            try:
+                if mode == "fake":
+                    scored.append(await _run_one_fake(entry))
+                else:
+                    assert real_setup is not None  # narrowing for mypy
+                    registry, _pool, models = real_setup
+                    scored.append(
+                        await _run_one_real(
+                            entry,
+                            registry=registry,
+                            settings=HarnessSettings(),
+                            models=models,
+                        )
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("eval entry %s raised", entry.get("id"))
+                scored.append(
+                    EvalScore(
+                        id=entry.get("id", "?"),
+                        category=entry.get("category", ""),
+                        tool_selection=False,
+                        filter_sanity=False,
+                        freshness_citation=False,
+                        refusal=False,
+                        no_hallucination=False,
+                        latency_ms=None,
+                        notes=f"runner_error: {exc}",
+                    )
                 )
-            )
+    finally:
+        if real_setup is not None:
+            _registry, pool, _models = real_setup
+            await pool.close()
 
     out_dir.mkdir(parents=True, exist_ok=True)
     sha = _commit_sha()
-    out_path = out_dir / f"{sha}.json"
+    # Real-mode results get a -real suffix so they don't clobber the
+    # canonical fake-mode baseline (which lives at <sha>.json).
+    suffix = "-real" if mode == "real" else ""
+    out_path = out_dir / f"{sha}{suffix}.json"
     payload = {
         "mode": mode,
         "valid": True,
@@ -314,8 +423,9 @@ def main(argv: list[str] | None = None) -> int:
         choices=("static", "fake", "real"),
         help=(
             "static = YAML validation only; "
-            "fake = scripted FakeListChatModel run; "
-            "real = live LLM (TODO)."
+            "fake = scripted FakeListChatModel run (deterministic); "
+            "real = live Anthropic + Nexo DB (requires ANTHROPIC_API_KEY + "
+            "MIOT_HARNESS_NEXO_DSN, plus an active db-scripts tunnel)."
         ),
     )
     args = parser.parse_args(argv)

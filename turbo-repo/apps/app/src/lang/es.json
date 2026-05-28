@@ -3439,7 +3439,7 @@
     "rank": {
       "conductor-senior": "Conductor Senior",
       "conductor-especializado": "Conductor Especializado",
-      "driver": "Conductor",
+      "conductor": "Conductor",
       "operador-logistico": "Operador Logístico"
     },
     "employmentStatus": {
@@ -3504,6 +3504,7 @@
         "safety": "Seguridad",
         "usage": "Uso",
         "regulatory": "Normativo",
+        "efficiency": "Eficiencia",
         "critical": "Críticos"
       },
       "urgency": {
@@ -3514,7 +3515,8 @@
       "category": {
         "safety": "Seguridad",
         "usage": "Uso",
-        "regulatory": "Normativo"
+        "regulatory": "Normativo",
+        "efficiency": "Eficiencia"
       }
     },
     "achievement": {

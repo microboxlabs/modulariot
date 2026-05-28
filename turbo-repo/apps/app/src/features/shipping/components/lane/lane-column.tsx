@@ -8,7 +8,14 @@ import {
   DropdownItem,
   Tooltip,
 } from "flowbite-react";
-import { HiCheck, HiDotsHorizontal } from "react-icons/hi";
+import {
+  HiCheck,
+  HiDotsHorizontal,
+  HiAdjustments,
+  HiSortAscending,
+  HiFilter,
+  HiChevronDoubleLeft,
+} from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { KanbanBoard, KanbanBoardTask, Task } from "../../types/common.types";
@@ -166,7 +173,8 @@ export function LaneColumn({
               </button>
             )}
           >
-            <DropdownHeader className="py-1 text-xs font-semibold uppercase text-gray-400">
+            <DropdownHeader className="flex items-center gap-1.5 py-1 text-xs font-semibold uppercase text-gray-400">
+              <HiAdjustments className="h-3.5 w-3.5" />
               {tr("kanban.lane.density", dict)}
             </DropdownHeader>
             <DropdownItem
@@ -188,7 +196,8 @@ export function LaneColumn({
               {tr("kanban.lane.densityExpanded", dict)}
             </DropdownItem>
 
-            <DropdownHeader className="py-1 text-xs font-semibold uppercase text-gray-400">
+            <DropdownHeader className="flex items-center gap-1.5 py-1 text-xs font-semibold uppercase text-gray-400">
+              <HiSortAscending className="h-3.5 w-3.5" />
               {tr("kanban.lane.sort", dict)}
             </DropdownHeader>
             <DropdownItem
@@ -216,7 +225,8 @@ export function LaneColumn({
               {tr("kanban.lane.sortCode", dict)}
             </DropdownItem>
 
-            <DropdownHeader className="py-1 text-xs font-semibold uppercase text-gray-400">
+            <DropdownHeader className="flex items-center gap-1.5 py-1 text-xs font-semibold uppercase text-gray-400">
+              <HiFilter className="h-3.5 w-3.5" />
               {tr("kanban.lane.filter", dict)}
             </DropdownHeader>
             <DropdownItem
@@ -239,6 +249,7 @@ export function LaneColumn({
             </DropdownItem>
 
             <DropdownItem
+              icon={HiChevronDoubleLeft}
               className="border-t border-gray-100 dark:border-gray-600"
               onClick={() => onLaneUpdate({ collapsed: true })}
             >

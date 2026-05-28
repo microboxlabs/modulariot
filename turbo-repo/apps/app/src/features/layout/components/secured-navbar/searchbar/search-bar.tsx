@@ -5,7 +5,8 @@ import { useDebouncedCallback } from "use-debounce";
 import { usePathname, useRouter } from "next/navigation";
 import { getNavegationParams } from "./navegation_params";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import React from "react";
+import React, { useEffect } from "react";
+import { KbdHint } from "./kbd-hint";
 
 export default function SearchBar({
   messages,
@@ -18,6 +19,25 @@ export default function SearchBar({
 }) {
   const router = useRouter();
   const pathName = usePathname();
+
+  // ⌘K / Ctrl+K focuses the search field from anywhere; Esc blurs it.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const el = document.getElementById("search") as HTMLInputElement | null;
+        el?.focus();
+        el?.select();
+      } else if (e.key === "Escape") {
+        const el = document.getElementById("search") as HTMLInputElement | null;
+        if (el && document.activeElement === el) {
+          el.blur();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const handleSearch = useDebouncedCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +69,7 @@ export default function SearchBar({
         <TextInput
           className="w-full lg:w-96"
           icon={HiSearch}
+          rightIcon={KbdHint}
           id="search"
           name="search"
           placeholder={messages.search}

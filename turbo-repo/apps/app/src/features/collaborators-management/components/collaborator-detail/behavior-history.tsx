@@ -87,6 +87,15 @@ function BehaviorTimelineEvent({
   );
 }
 
+const FILTER_BUTTONS: { value: FilterType; labelKey: string }[] = [
+  { value: "todos", labelKey: "behaviorHistory.filter.all" },
+  { value: "seguridad", labelKey: "behaviorHistory.filter.safety" },
+  { value: "uso", labelKey: "behaviorHistory.filter.usage" },
+  { value: "normativo", labelKey: "behaviorHistory.filter.regulatory" },
+  { value: "eficiencia", labelKey: "behaviorHistory.filter.efficiency" },
+  { value: "criticos", labelKey: "behaviorHistory.filter.critical" },
+];
+
 interface BehaviorHistoryProps {
   readonly activeFilter?: FilterType;
   readonly onFilterChange?: (filter: FilterType) => void;
@@ -109,20 +118,9 @@ export default function BehaviorHistory({
   };
 
   const filteredEvents = useMemo(() => {
-    switch (filter) {
-      case "seguridad":
-        return events.filter((e) => e.category === "seguridad");
-      case "uso":
-        return events.filter((e) => e.category === "uso");
-      case "normativo":
-        return events.filter((e) => e.category === "normativo");
-      case "eficiencia":
-        return events.filter((e) => e.category === "eficiencia");
-      case "criticos":
-        return events.filter((e) => e.urgency === "critical");
-      default:
-        return [...events];
-    }
+    if (filter === "todos") return [...events];
+    if (filter === "criticos") return events.filter((e) => e.urgency === "critical");
+    return events.filter((e) => e.category === filter);
   }, [filter, events]);
 
   const getFilterButtonClass = (filterType: FilterType) => {
@@ -141,48 +139,16 @@ export default function BehaviorHistory({
           {tr("behaviorHistory.title", dict)}
         </h3>
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => handleFilterChange("todos")}
-            className={getFilterButtonClass("todos")}
-          >
-            {tr("behaviorHistory.filter.all", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("seguridad")}
-            className={getFilterButtonClass("seguridad")}
-          >
-            {tr("behaviorHistory.filter.safety", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("uso")}
-            className={getFilterButtonClass("uso")}
-          >
-            {tr("behaviorHistory.filter.usage", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("normativo")}
-            className={getFilterButtonClass("normativo")}
-          >
-            {tr("behaviorHistory.filter.regulatory", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("eficiencia")}
-            className={getFilterButtonClass("eficiencia")}
-          >
-            {tr("behaviorHistory.filter.efficiency", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("criticos")}
-            className={getFilterButtonClass("criticos")}
-          >
-            {tr("behaviorHistory.filter.critical", dict)}
-          </button>
+          {FILTER_BUTTONS.map(({ value, labelKey }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => handleFilterChange(value)}
+              className={getFilterButtonClass(value)}
+            >
+              {tr(labelKey, dict)}
+            </button>
+          ))}
         </div>
       </div>
 

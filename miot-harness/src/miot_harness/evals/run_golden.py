@@ -78,6 +78,13 @@ class EvalScore:
     no_hallucination: bool | None
     latency_ms: float | None
     notes: str = ""
+    # Real-mode cost capture — populated from the graph's usage.recorded
+    # events. None on fake mode (FakeListChatModel has no telemetry).
+    cost_usd: float | None = None
+    tokens_input: int | None = None
+    tokens_output: int | None = None
+    cache_hit_pct: float | None = None
+    per_agent_costs: dict[str, float] | None = None
 
 
 def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
@@ -187,6 +194,65 @@ def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _aggregate_usage(
+    events: list[Any],
+) -> tuple[
+    float | None, int | None, int | None, float | None, dict[str, float] | None
+]:
+    """Aggregate `usage.recorded` events from a graph run.
+
+    The NexoTelemetryCallback (observability/callbacks.py) emits one
+    per LLM call with `{agent, model, input_tokens, output_tokens,
+    cache_read_input_tokens, cache_creation_input_tokens, cost_usd?}`
+    in `data`. Returns (total_cost, total_in, total_out, cache_hit_pct,
+    per_agent_costs) or all-None when no usage events were emitted
+    (fake mode, or a refusal-only run with zero LLM calls).
+    """
+    usage_events = [e for e in events if getattr(e, "type", None) == "usage.recorded"]
+    if not usage_events:
+        return (None, None, None, None, None)
+
+    total_cost = 0.0
+    total_in = 0
+    total_out = 0
+    total_cache_read = 0
+    has_cost = False
+    per_agent: dict[str, float] = {}
+
+    for evt in usage_events:
+        d = getattr(evt, "data", None) or {}
+        total_in += int(d.get("input_tokens", 0) or 0)
+        total_out += int(d.get("output_tokens", 0) or 0)
+        total_cache_read += int(d.get("cache_read_input_tokens", 0) or 0)
+        if "cost_usd" in d:
+            has_cost = True
+            cost = float(d["cost_usd"])
+            total_cost += cost
+            agent = str(d.get("agent", "unknown"))
+            per_agent[agent] = per_agent.get(agent, 0.0) + cost
+
+    # FakeListChatModel goes through the same callback but reports
+    # zero-token responses. Treat all-zero + no cost as "no signal"
+    # rather than booking cache_hit_pct=0% for a model that never
+    # touched a cache.
+    if total_in == 0 and total_out == 0 and not has_cost:
+        return (None, None, None, None, None)
+
+    # cache_hit_pct: cache reads as a fraction of all input tokens
+    # charged (cache reads + uncached input). 0% when LLM calls
+    # exercised inputs but never read from cache.
+    cache_total = total_cache_read + total_in
+    cache_hit_pct = (total_cache_read / cache_total * 100.0) if cache_total > 0 else 0.0
+
+    return (
+        total_cost if has_cost else None,
+        total_in,
+        total_out,
+        cache_hit_pct,
+        per_agent or None,
+    )
+
+
 def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -> EvalScore:
     """Score a single eval entry against the final graph state. Shared by
     fake and real mode — both modes feed in identical state shapes
@@ -201,6 +267,10 @@ def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -
 
     refusal_expected = bool(entry.get("expected_refusal"))
     answer_is_refusal = "mintral-only" in answer or "no puedo responder" in answer
+
+    cost_usd, tok_in, tok_out, cache_pct, per_agent = _aggregate_usage(
+        final.get("_events") or []
+    )
 
     return EvalScore(
         id=entry["id"],
@@ -217,6 +287,11 @@ def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -
         if not refusal_expected
         else None,
         latency_ms=latency_ms,
+        cost_usd=cost_usd,
+        tokens_input=tok_in,
+        tokens_output=tok_out,
+        cache_hit_pct=cache_pct,
+        per_agent_costs=per_agent,
     )
 
 
@@ -393,6 +468,21 @@ async def run_golden(
     # canonical fake-mode baseline (which lives at <sha>.json).
     suffix = "-real" if mode == "real" else ""
     out_path = out_dir / f"{sha}{suffix}.json"
+
+    # Cost rollup. Only meaningful in real mode — fake mode's
+    # cost_usd is always None and the totals collapse to None / 0.
+    case_costs = [s.cost_usd for s in scored if s.cost_usd is not None]
+    total_cost = sum(case_costs) if case_costs else None
+    total_tokens = sum(
+        (s.tokens_input or 0) + (s.tokens_output or 0) for s in scored
+    ) or None
+    cache_pcts = [s.cache_hit_pct for s in scored if s.cache_hit_pct is not None]
+    avg_cache_hit = (sum(cache_pcts) / len(cache_pcts)) if cache_pcts else None
+    # Per-mode rollup: today every case in the YAML routes through
+    # nexo_graph (canned). Until multi-route eval seeds exist, the
+    # rollup just attributes the whole spend to canned.
+    cost_by_mode = {"canned": total_cost} if total_cost is not None else {}
+
     payload = {
         "mode": mode,
         "valid": True,
@@ -400,6 +490,10 @@ async def run_golden(
         "commit": sha,
         "generated_at": datetime.now(UTC).isoformat(),
         "scored": [asdict(s) for s in scored],
+        "total_cost_usd": total_cost,
+        "total_tokens": total_tokens,
+        "cache_hit_pct": avg_cache_hit,
+        "cost_by_mode": cost_by_mode,
     }
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload

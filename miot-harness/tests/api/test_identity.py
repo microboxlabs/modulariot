@@ -115,19 +115,26 @@ def test_settings_reject_empty_signing_key(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_dev_mode_no_signing_key_accepts_body_tenant() -> None:
     """When identity_signing_key is unset (the default), body-supplied
-    tenant_id passes through. This is the eval / local-dev path.
+    tenant_id / user_id pass through and the recorded run executes
+    under them. This is the eval / local-dev path.
     """
     app = create_app()
     with TestClient(app) as client:
         resp = client.post(
-            "/runs", json={"message": "hi", "tenant_id": "from-body"}
+            "/runs",
+            json={
+                "message": "hi",
+                "tenant_id": "from-body",
+                "user_id": "user-from-body",
+            },
         )
     assert resp.status_code == 200
     body = resp.json()
-    # The recorded answer is wrapped, but the per-run record should
-    # acknowledge the body-supplied tenant somewhere — we just check
-    # the run completed.
     assert body["status"] == "completed"
+    # The resolved identity surfaces on the run record so callers can
+    # confirm which tenant/user the run actually executed under.
+    assert body["tenant_id"] == "from-body"
+    assert body["user_id"] == "user-from-body"
 
 
 def test_signed_mode_rejects_missing_header(
@@ -197,3 +204,8 @@ def test_signed_mode_accepts_valid_header_and_ignores_body_identity(
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "completed"
+    # The header values won; the body-supplied identity was discarded.
+    assert body["tenant_id"] == "verified-tenant"
+    assert body["user_id"] == "verified-user"
+    assert body["tenant_id"] != "body-tenant-ignored"
+    assert body["user_id"] != "body-user-ignored"

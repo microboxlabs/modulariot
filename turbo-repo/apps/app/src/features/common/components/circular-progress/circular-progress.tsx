@@ -53,8 +53,8 @@ export default function CircularProgress({
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span
-          className="font-semibold text-gray-700 dark:text-gray-300"
-          style={{ fontSize: Math.max(12, Math.round(size * 0.3)) }}
+          className="font-light text-gray-700 dark:text-gray-300"
+          style={{ fontSize: Math.max(6.0, Math.round(size * 0.3)) }}
         >
           {value}
         </span>

@@ -21,19 +21,25 @@ const urgencyLabelKeys: Record<string, string> = {
   info: "behaviorHistory.urgency.info",
 };
 
-const categoryLabelKeys: Record<BehaviorCategory, string> = {
+const categoryLabelKeys: Record<string, string> = {
   seguridad: "behaviorHistory.category.safety",
   uso: "behaviorHistory.category.usage",
   normativo: "behaviorHistory.category.regulatory",
+  eficiencia: "behaviorHistory.category.efficiency",
 };
 
-const categoryBadgeClasses: Record<BehaviorCategory, string> = {
+const categoryBadgeClasses: Record<string, string> = {
   seguridad:
     "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   uso: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
   normativo:
     "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  eficiencia:
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
 };
+
+const DEFAULT_BADGE_CLASS =
+  "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
 
 interface BehaviorTimelineEventProps {
   readonly event: BehaviorEvent;
@@ -46,16 +52,19 @@ function BehaviorTimelineEvent({
   isLast,
   dict,
 }: BehaviorTimelineEventProps) {
+  const urgencyKey = urgencyLabelKeys[event.urgency] ?? event.urgency;
+  const categoryKey = categoryLabelKeys[event.category] ?? event.category;
+
   return (
     <TimelineEvent
       title={event.title}
       urgency={event.urgency}
-      urgencyLabel={tr(urgencyLabelKeys[event.urgency], dict)}
+      urgencyLabel={tr(urgencyKey, dict)}
       isLast={isLast}
       extraBadges={
         <CustomBadge
-          text={tr(categoryLabelKeys[event.category], dict)}
-          className={categoryBadgeClasses[event.category]}
+          text={tr(categoryKey, dict)}
+          className={categoryBadgeClasses[event.category] ?? DEFAULT_BADGE_CLASS}
         />
       }
     >

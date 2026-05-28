@@ -427,6 +427,55 @@ def _annotate_drift(
         score.drift_detail = flipped or None
 
 
+def _print_report(
+    payload: dict[str, Any],
+    *,
+    baseline_payload: dict[str, Any] | None = None,
+) -> None:
+    """Print a human-readable summary of a run result: cost totals + per-mode
+    split + drift list + (optional) diff vs a baseline run.
+
+    Designed for terminal review during PR rollout — not a machine-readable
+    contract. The JSON file remains the authoritative artifact.
+    """
+    mode = payload.get("mode", "?")
+    sha = payload.get("commit", "?")
+    print(f"=== eval report — mode={mode} commit={sha} ===")
+    total = payload.get("total_cost_usd")
+    tokens = payload.get("total_tokens")
+    cache = payload.get("cache_hit_pct")
+    if total is not None:
+        print(f"Total cost: ${total:.4f}")
+    else:
+        print("Total cost: — (no LLM telemetry captured)")
+    if tokens is not None:
+        print(f"Total tokens: {tokens:,}")
+    if cache is not None:
+        print(f"Cache hit pct (avg): {cache:.1f}%")
+    cost_by_mode = payload.get("cost_by_mode") or {}
+    if cost_by_mode:
+        per_mode = ", ".join(f"{k}=${v:.4f}" for k, v in cost_by_mode.items())
+        print(f"Cost by mode: {per_mode}")
+
+    drifts = [s for s in payload.get("scored", []) if s.get("drift") is True]
+    if drifts:
+        print(f"\nDrift vs baseline: {len(drifts)} cases flipped")
+        for d in drifts:
+            axes = ", ".join((d.get("drift_detail") or {}).keys())
+            print(f"  - {d['id']}: {axes}")
+    elif mode == "real":
+        print("\nDrift vs baseline: none")
+
+    if baseline_payload is not None:
+        base_cost = baseline_payload.get("total_cost_usd") or 0.0
+        base_tokens = baseline_payload.get("total_tokens") or 0
+        if total is not None:
+            delta_cost = total - base_cost
+            print(f"\nΔ cost vs baseline: ${delta_cost:+.4f}")
+        if tokens is not None and base_tokens:
+            print(f"Δ tokens vs baseline: {tokens - base_tokens:+,}")
+
+
 def _commit_sha() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
@@ -589,7 +638,32 @@ def main(argv: list[str] | None = None) -> int:
             "Default: evals/results/<HEAD-sha>.json."
         ),
     )
+    parser.add_argument(
+        "--report",
+        default=None,
+        help=(
+            "Print a human-readable report for an existing result JSON "
+            "instead of running the suite. Combine with --baseline to "
+            "include a Δ-cost / Δ-tokens block. All other args ignored."
+        ),
+    )
     args = parser.parse_args(argv)
+
+    if args.report:
+        report_path = Path(args.report)
+        if not report_path.is_file():
+            print(f"Result file not found: {report_path}", file=sys.stderr)
+            return 2
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        baseline_payload: dict[str, Any] | None = None
+        if args.baseline:
+            baseline_file = Path(args.baseline)
+            if baseline_file.is_file():
+                baseline_payload = json.loads(
+                    baseline_file.read_text(encoding="utf-8")
+                )
+        _print_report(payload, baseline_payload=baseline_payload)
+        return 0
 
     yaml_path = Path(args.yaml)
     if not yaml_path.is_file():

@@ -489,6 +489,7 @@ async def run_golden(
     *,
     mode: str = "fake",
     baseline_path: Path | None = None,
+    cost_cap_usd: float = 10.0,
 ) -> dict[str, Any]:
     raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
@@ -525,6 +526,8 @@ async def run_golden(
                 "scored": [],
             }
 
+    accumulated_cost = 0.0
+    cost_cap_tripped = False
     try:
         for entry in entries:
             try:
@@ -541,6 +544,24 @@ async def run_golden(
                             models=models,
                         )
                     )
+                    # Cost-budget guard: when accumulated real-mode cost
+                    # exceeds the cap, abort the rest of the suite. The
+                    # default $10 cap is sized to make a footgun obvious
+                    # (e.g. accidentally running real mode against Sonnet
+                    # on every case), not to actually limit ops budgets.
+                    last_cost = scored[-1].cost_usd
+                    if last_cost is not None:
+                        accumulated_cost += last_cost
+                        if accumulated_cost > cost_cap_usd:
+                            cost_cap_tripped = True
+                            logger.warning(
+                                "cost cap $%.2f exceeded ($%.4f spent); "
+                                "aborting suite after case %s",
+                                cost_cap_usd,
+                                accumulated_cost,
+                                scored[-1].id,
+                            )
+                            break
             except Exception as exc:  # noqa: BLE001
                 logger.exception("eval entry %s raised", entry.get("id"))
                 scored.append(
@@ -600,6 +621,7 @@ async def run_golden(
         "total_tokens": total_tokens,
         "cache_hit_pct": avg_cache_hit,
         "cost_by_mode": cost_by_mode,
+        "cost_cap_tripped": cost_cap_tripped,
     }
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
@@ -647,6 +669,16 @@ def main(argv: list[str] | None = None) -> int:
             "include a Δ-cost / Δ-tokens block. All other args ignored."
         ),
     )
+    parser.add_argument(
+        "--cost-cap",
+        type=float,
+        default=10.0,
+        help=(
+            "Real-mode cost guard, in USD. The suite aborts after the "
+            "case whose cumulative cost crosses this threshold. Default "
+            "$10 — sized to make a footgun obvious; raise for full runs."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.report:
@@ -677,6 +709,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.out_dir),
             mode=args.mode,
             baseline_path=baseline_path,
+            cost_cap_usd=args.cost_cap,
         )
     )
     if not payload["valid"]:

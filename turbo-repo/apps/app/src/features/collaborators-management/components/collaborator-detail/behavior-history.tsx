@@ -8,7 +8,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type {
   BehaviorEvent,
-  BehaviorCategory,
   FilterType,
 } from "../../types/collaborators.types";
 

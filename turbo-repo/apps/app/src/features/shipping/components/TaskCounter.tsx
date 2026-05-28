@@ -10,9 +10,14 @@ export function TaskCounter({
   count,
   dict,
 }: PropsWithI18nDict<TaskCounterProps>) {
+  const label = tr("taskCounter.activeCount", dict, { count: count.toString() });
   return (
-    <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-      {tr("taskCounter.activeCount", dict, { count: count.toString() })}
-    </div>
+    <span
+      title={label}
+      aria-label={label}
+      className="inline-flex shrink-0 items-center justify-center rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+    >
+      {count}
+    </span>
   );
 }

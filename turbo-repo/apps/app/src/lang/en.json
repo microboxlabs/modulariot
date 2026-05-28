@@ -54,6 +54,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "transportValidation": "Driver / Transport Validation",
         "transportValidationCompact": "Driver / Transport",
         "missionControlTripInit": "Mission Control: Start trip",
@@ -170,6 +188,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "consolidateLoad": "Consolidate Load",
         "separateDocuments": "Separate Documents",
         "planService": "Plan Service",
@@ -503,6 +539,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "transportValidation": "Driver / transport validation",
         "transportValidationCompact": "Transport validation",
         "missionControlTripInit": "Start trip",
@@ -650,6 +704,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "confirmDelivery": "Confirm delivery",
         "confirmDeliveryCompact": "Confirm delivery",
         "receiveDelivery": "Receive delivery",

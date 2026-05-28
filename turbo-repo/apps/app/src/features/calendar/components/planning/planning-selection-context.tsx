@@ -55,6 +55,16 @@ import {
   TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  decideUnplanBindingNotification,
+  decideUnassignBindingNotification,
+} from "@/features/calendar/services/task-driven-binding-gate";
+import {
+  decideAssignTaskAdvance,
+  getTaskDrivenUnassignTransition,
+} from "@/features/calendar/services/task-driven-assign";
+import { decidePlanTaskAdvance } from "@/features/calendar/services/task-driven-plan";
+import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
@@ -599,12 +609,11 @@ export interface SelectedService {
   destino: string;
   tipoViaje: TripType;
   /**
-   * Raw Alfresco `mintral_serviceKind` value (e.g. "Sider", "Doble Sider").
-   * Unlike `tipoViaje` — a lossy display projection — this is forwarded
-   * verbatim on the booking payload so the bookings route can populate the
+   * Raw Alfresco `mintral_serviceType` value (e.g. "v"). Forwarded verbatim
+   * on the booking payload so the bookings route can populate the
    * coordinator binding's `tipo_servicio` and reach the assigned stage.
    */
-  mintral_serviceKind?: string;
+  mintral_serviceType?: string;
   ocupacion: number; // percentage 0-100
   permanencia: string;
   leadTime: LeadTimeData;
@@ -819,6 +828,42 @@ function rollbackPlannedService(
   });
 }
 
+/**
+ * Task-driven PLAN move: ECM #266's `OnCreateAssignDriverBinding` writes
+ * the `cld_bookings` row itself from the slot processVariables on the
+ * `assignDriver` create. The FE must NOT call `POST /app/api/calendar/bookings`
+ * in this path. Signaled by a `PlanProcessVariables` shape on
+ * `taskAdvance.processVariables` (presence of `calendar_id` key), AND no
+ * `oldBookingId` (a re-plan with an existing row still routes through the
+ * atomic `bookings/{id}/move` so the row id and slot stay in lockstep —
+ * ECM's adoption guard adopts that same row on the next assignDriver
+ * create).
+ */
+function isTaskDrivenPlanCreate(
+  oldBookingId: string | undefined,
+  taskAdvance: BookingTaskAdvance | undefined
+): boolean {
+  if (oldBookingId) return false;
+  const vars = taskAdvance?.processVariables;
+  return !!vars && "calendar_id" in vars;
+}
+
+/**
+ * Task-driven ASSIGN move: ECM's `OnCreatePresentDriverBinding` updates the
+ * `cld_bookings` row itself from the resource tuple in processVariables on
+ * the `presentDriver` create. The FE must NOT call the booking POST/PUT in
+ * this path. Signaled by an `AssignProcessVariables` shape on
+ * `taskAdvance.processVariables` (presence of `carrier_id` key). On task-
+ * driven services the FE never stored a booking id (the plan move skipped
+ * the POST), so `oldBookingId` is irrelevant here — the shape alone decides.
+ */
+function isTaskDrivenAssignUpdate(
+  taskAdvance: BookingTaskAdvance | undefined
+): boolean {
+  const vars = taskAdvance?.processVariables;
+  return !!vars && "carrier_id" in vars;
+}
+
 async function persistPlannedBooking({
   calendarId,
   service,
@@ -837,6 +882,48 @@ async function persistPlannedBooking({
   }
 
   try {
+    if (isTaskDrivenPlanCreate(oldBookingId, taskAdvance) && taskAdvance) {
+      // ECM owns the booking row for task-driven plan. Sync the service
+      // category onto the live task (best-effort; no booking to roll back
+      // since none exists yet) and let ECM's `OnCreateAssignDriverBinding`
+      // create the row from the slot processVariables on the next
+      // `assignDriver` create.
+      if (liveTaskId && service.serviceCategory) {
+        try {
+          await updateServiceCategory(liveTaskId, service.serviceCategory);
+        } catch (err) {
+          console.warn(
+            "Failed to sync service category before task-driven plan move:",
+            err
+          );
+          throw err;
+        }
+      }
+      await advanceWorkflowTask(
+        taskAdvance.taskId,
+        taskAdvance.transitionId,
+        taskAdvance.processVariables
+      );
+      refreshSlots();
+      setBookingVersion((v) => v + 1);
+      return;
+    }
+
+    if (isTaskDrivenAssignUpdate(taskAdvance) && taskAdvance) {
+      // ECM owns the booking row for task-driven assign. Skip the FE
+      // booking POST/PUT and let ECM's `OnCreatePresentDriverBinding`
+      // update the row from the resource tuple in processVariables on
+      // the next `presentDriver` create.
+      await advanceWorkflowTask(
+        taskAdvance.taskId,
+        taskAdvance.transitionId,
+        taskAdvance.processVariables
+      );
+      refreshSlots();
+      setBookingVersion((v) => v + 1);
+      return;
+    }
+
     // Existing booking → atomic in-place move via POST /bookings/{id}/move.
     // The booking id is preserved; a same-slot call collapses to a
     // payload-only update on the server. This subsumes both the planner's
@@ -851,7 +938,11 @@ async function persistPlannedBooking({
 
     await syncServiceCategoryWithWorkflow(service, booking.id, liveTaskId);
     if (taskAdvance) {
-      await advanceWorkflowTask(taskAdvance.taskId, taskAdvance.transitionId);
+      await advanceWorkflowTask(
+        taskAdvance.taskId,
+        taskAdvance.transitionId,
+        taskAdvance.processVariables
+      );
     }
 
     setBookingIds((prev) => {
@@ -1033,7 +1124,7 @@ const StoredServiceSchema = z
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
     tipoViaje: z.enum(["Sider", "Doble Sider", "Rampla"]).optional(),
-    mintral_serviceKind: z.string().optional(),
+    mintral_serviceType: z.string().optional(),
     ocupacion: z.number().optional(),
     permanencia: z.string().optional(),
     leadTime: z
@@ -1145,6 +1236,12 @@ export function PlanningSelectionProvider({
   // previewing viewer mode is treated as a viewer here too.
   const { canPlan, canAssign, isLoadingPermissions } = useCalendarViewMode();
   const canMutateBookings = !isLoadingPermissions && (canPlan || canAssign);
+
+  // Per-origin task-driven rollout set, sourced from the backend's
+  // RuntimeConfigProvider (`TASK_DRIVEN_ORIGINS`). Empty until the runtime
+  // config has loaded; flag-off is the legacy path so the few-ms gap is
+  // safe. See `task-driven-origin.ts` for the matching contract.
+  const taskDrivenOrigins = useTaskDrivenOrigins();
 
   // Load calendar parallelism from the backend
   const { calendars } = useCalendars();
@@ -1762,9 +1859,39 @@ export function PlanningSelectionProvider({
       const transitionId = wasReassigning
         ? undefined
         : getNextTransition(liveTask?.stage);
+      // Task-driven move:
+      //   - PLAN (`Asignar Conductor/Transporte`): attach slot tuple so ECM's
+      //     `OnCreateAssignDriverBinding` writes the booking row itself
+      //     (ecm-coordinator#266). Presence of these vars also tells
+      //     `persistPlannedBooking` to SKIP the BFF booking POST.
+      //   - ASSIGN (`Presentar Conductor`): attach resource tuple so ECM's
+      //     `OnCreatePresentDriverBinding` reads it from process scope on
+      //     the next task's create.
+      // `null` for every other case (flag-off origins, missing live task,
+      // incomplete tuple) → plain GET advance + BFF booking POST, today's
+      // behavior unchanged.
+      const planProcessVariables = decidePlanTaskAdvance(
+        transitionId,
+        effectiveService.origen,
+        calendarId,
+        slotToUse,
+        taskDrivenOrigins,
+        effectiveService.serviceCategory
+      );
+      const assignProcessVariables = decideAssignTaskAdvance(
+        transitionId,
+        effectiveService.origen,
+        effectiveService,
+        taskDrivenOrigins
+      );
+      const processVariables = planProcessVariables ?? assignProcessVariables;
       const taskAdvance: BookingTaskAdvance | undefined =
         transitionId && liveTask?.taskId
-          ? { taskId: liveTask.taskId, transitionId }
+          ? {
+              taskId: liveTask.taskId,
+              transitionId,
+              ...(processVariables ? { processVariables } : {}),
+            }
           : undefined;
 
       await persistPlannedBooking({
@@ -1800,6 +1927,7 @@ export function PlanningSelectionProvider({
       refreshSlots,
       getLiveTask,
       canMutateBookings,
+      taskDrivenOrigins,
     ]
   );
 
@@ -1866,16 +1994,20 @@ export function PlanningSelectionProvider({
       }
 
       // Tell the coordinator the service is no longer in this calendar.
-      // Best-effort: a failure here just leaves a stale binding row in
-      // act_ru_variable, which the next planner action on this calendar
-      // will overwrite. Don't block the user-visible removal on it.
-      const numeroServicio = planned?.service.mintral_serviceCode;
-      if (numeroServicio && calendarId) {
-        await notifyCalendarBinding({
-          numero_servicio: numeroServicio,
-          calendar_id: calendarId,
-          stage: "none",
-        }).catch((err) =>
+      // Task-driven origins skip this call entirely — the ECM listener on
+      // the unplan task move reconciles the binding to `none` on its own.
+      // Best-effort for flag-off origins: a failure here just leaves a
+      // stale binding row in act_ru_variable, which the next planner action
+      // on this calendar will overwrite. Don't block the user-visible
+      // removal on it.
+      const unplanNotification = decideUnplanBindingNotification(
+        planned?.service.mintral_serviceCode,
+        calendarId,
+        planned?.service.origen,
+        taskDrivenOrigins
+      );
+      if (unplanNotification) {
+        await notifyCalendarBinding(unplanNotification).catch((err) =>
           console.warn("Failed to notify calendar binding (none):", err)
         );
       }
@@ -1888,7 +2020,14 @@ export function PlanningSelectionProvider({
       // Bump version so the service list re-fetches (including newly unbooked)
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
+    [
+      bookingIds,
+      plannedServices,
+      getLiveTask,
+      calendarId,
+      canMutateBookings,
+      taskDrivenOrigins,
+    ]
   );
 
   /**
@@ -1917,7 +2056,18 @@ export function PlanningSelectionProvider({
       // `removeService`.
       const liveTask = getLiveTask(planned.service.mintral_serviceCode);
       if (liveTask) {
-        const transition = getUnassignTransition(liveTask.stage);
+        // Task-driven origins at `presentDriver` step back to `assignDriver`
+        // via the BPMN's `"Asignar Conductor/Transporte"` outcome — ECM's
+        // `OnCreateAssignDriverBinding` listener then reconciles the binding
+        // to `unassigned` on its own. Every other case (flag-off origins,
+        // pre-migration `assignDriver` stage) falls through to today's
+        // unassign map (`assignDriver → planService` via `Planificar Servicio`).
+        const transition =
+          getTaskDrivenUnassignTransition(
+            liveTask.stage,
+            planned.service.origen,
+            taskDrivenOrigins
+          ) ?? getUnassignTransition(liveTask.stage);
         if (transition) {
           await advanceWorkflowTask(liveTask.taskId, transition);
         }
@@ -1944,16 +2094,19 @@ export function PlanningSelectionProvider({
       }
 
       // Tell the coordinator the service is back to its planned state.
-      // Best-effort: a failure leaves a stale binding the next planner
-      // action on this calendar overwrites — don't block the user-visible
-      // removal on it.
-      const numeroServicio = planned.service.mintral_serviceCode;
-      if (numeroServicio && calendarId) {
-        await notifyCalendarBinding({
-          numero_servicio: numeroServicio,
-          calendar_id: calendarId,
-          stage: "unassigned",
-        }).catch((err) =>
+      // Task-driven origins skip this call entirely — the ECM listener on
+      // the unassign task move reconciles the binding to `unassigned` on
+      // its own. Best-effort for flag-off origins: a failure leaves a
+      // stale binding the next planner action on this calendar overwrites
+      // — don't block the user-visible removal on it.
+      const unassignNotification = decideUnassignBindingNotification(
+        planned.service.mintral_serviceCode,
+        calendarId,
+        planned.service.origen,
+        taskDrivenOrigins
+      );
+      if (unassignNotification) {
+        await notifyCalendarBinding(unassignNotification).catch((err) =>
           console.warn("Failed to notify calendar binding (unassigned):", err)
         );
       }
@@ -1968,7 +2121,14 @@ export function PlanningSelectionProvider({
       );
       setBookingVersion((v) => v + 1);
     },
-    [bookingIds, plannedServices, getLiveTask, calendarId, canMutateBookings]
+    [
+      bookingIds,
+      plannedServices,
+      getLiveTask,
+      calendarId,
+      canMutateBookings,
+      taskDrivenOrigins,
+    ]
   );
 
   /**

@@ -8,21 +8,21 @@ const STORAGE_KEY = "kanbanCompactView";
  * `initial` on first render and hydrates the saved value after mount.
  */
 export function useCompactViewPreference(initial = true) {
-  const [compact, setCompactState] = useState(initial);
+  const [compact, setCompact] = useState(initial);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved !== null) {
-        setCompactState(saved === "true");
+        setCompact(saved === "true");
       }
     } catch {
       // Storage unavailable (private mode); keep the in-memory value.
     }
   }, []);
 
-  const setCompact = useCallback((value: boolean) => {
-    setCompactState(value);
+  const update = useCallback((value: boolean) => {
+    setCompact(value);
     try {
       localStorage.setItem(STORAGE_KEY, String(value));
     } catch {
@@ -30,5 +30,5 @@ export function useCompactViewPreference(initial = true) {
     }
   }, []);
 
-  return [compact, setCompact] as const;
+  return [compact, update] as const;
 }

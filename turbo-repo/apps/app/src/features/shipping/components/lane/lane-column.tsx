@@ -43,7 +43,7 @@ interface LaneColumnProps {
 
 function departureValue(task: KanbanBoardTask): number {
   const raw = task.departureDate ?? task.expectedDepartureDate;
-  const time = raw ? new Date(raw).getTime() : NaN;
+  const time = raw ? new Date(raw).getTime() : Number.NaN;
   // Tasks without a date sort to the end.
   return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
 }
@@ -101,7 +101,7 @@ export function LaneColumn({
   onCardMouseEnter,
   onCardMouseLeave,
   onCardClick,
-}: LaneColumnProps) {
+}: Readonly<LaneColumnProps>) {
   const compact =
     laneState.density === "inherit"
       ? compactKanbanView
@@ -280,15 +280,9 @@ export function LaneColumn({
             className={`w-full h-fit group relative ${
               isLoading ? "cursor-wait" : ""
             }`}
-            role="button"
-            tabIndex={0}
             onMouseEnter={() => onCardMouseEnter(task)}
             onMouseLeave={onCardMouseLeave}
             onClick={onCardClick}
-            onKeyDown={(e) => {
-              e.preventDefault();
-            }}
-            aria-label={`Task ${task.id}`}
           >
             <KanbanCard
               task={task}

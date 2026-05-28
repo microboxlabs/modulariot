@@ -167,13 +167,9 @@ export default function PageContent({
     }
   };
 
-  const totalVisible = list.reduce(
-    (sum, board) =>
-      (showFinishedTasks ? board.finished : !board.finished)
-        ? sum + board.tasks.length
-        : sum,
-    0
-  );
+  const totalVisible = list
+    .filter((board) => (showFinishedTasks ? board.finished : !board.finished))
+    .reduce((sum, board) => sum + board.tasks.length, 0);
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">

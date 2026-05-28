@@ -61,8 +61,8 @@ export const taskShippingBoardMap: Record<string, string> = {
  * we read the known/likely fields defensively and return undefined otherwise so
  * the card simply omits the group marker until the proxy provides it.
  *
- * TODO(backend): have the task proxy expose the candidate group explicitly
- * (id + display name) rather than relying on these fallbacks.
+ * Backend follow-up (#553): have the task proxy expose the candidate group
+ * explicitly (id + display name) rather than relying on these fallbacks.
  */
 function toCandidateGroup(
   task: Record<string, unknown>

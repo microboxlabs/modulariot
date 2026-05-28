@@ -11,7 +11,7 @@ interface GroupAvatarProps {
 function hashHue(value: string): number {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
-    hash = (hash * 31 + value.charCodeAt(i)) % 360;
+    hash = (hash * 31 + (value.codePointAt(i) ?? 0)) % 360;
   }
   return hash;
 }
@@ -20,7 +20,7 @@ function groupInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0][0] + (parts.at(-1) ?? "")[0]).toUpperCase();
 }
 
 /**
@@ -28,7 +28,7 @@ function groupInitials(name: string): string {
  * Shipping tasks have no single assignee, so the group — not a person — is the
  * accurate owner to surface. Renders nothing when no group is available.
  */
-export function GroupAvatar({ group, size = 28 }: GroupAvatarProps) {
+export function GroupAvatar({ group, size = 28 }: Readonly<GroupAvatarProps>) {
   if (!group) {
     return null;
   }

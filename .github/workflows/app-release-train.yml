@@ -349,3 +349,21 @@ jobs:
             echo "Create it to update environment variables and deploy IMAGE_REF=$IMAGE_REF to: $DEPLOY_ENVIRONMENTS."
             exit 1
           fi
+
+  close-milestones:
+    name: Close release milestones
+    runs-on: ubuntu-latest
+    needs: [prepare, tag, deploy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.sha }}
+
+      - name: Close private and OSS milestones
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          GH_PROJECT_OWNER: microboxlabs
+        run: |
+          ./turbo-repo/generative_ai/tools/sh/close-release-milestones.sh \
+            --release "${{ inputs.private_milestone }}" \
+            --oss "${{ inputs.oss_milestone }}"

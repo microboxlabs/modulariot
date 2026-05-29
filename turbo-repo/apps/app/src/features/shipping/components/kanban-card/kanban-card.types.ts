@@ -6,4 +6,5 @@ export type KanBanCardProps = {
   compactKanbanView: boolean;
   showFinishedTasks?: boolean;
   isLoading?: boolean;
+  onCardClick?: () => void;
 };

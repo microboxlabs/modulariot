@@ -282,7 +282,6 @@ export function LaneColumn({
             }`}
             onMouseEnter={() => onCardMouseEnter(task)}
             onMouseLeave={onCardMouseLeave}
-            onClick={onCardClick}
           >
             <KanbanCard
               task={task}
@@ -291,6 +290,7 @@ export function LaneColumn({
               compactKanbanView={compact}
               showFinishedTasks={showFinishedTasks}
               isLoading={isLoading}
+              onCardClick={onCardClick}
             />
           </div>
         ))}

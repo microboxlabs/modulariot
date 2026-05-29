@@ -16,6 +16,7 @@ export default function KanbanCard({
   dict,
   showFinishedTasks,
   isLoading = false,
+  onCardClick,
 }: PropsWithI18nDict<KanBanCardProps>) {
   let cursor = "hover:shadow-lg cursor-pointer";
 
@@ -60,7 +61,11 @@ export default function KanbanCard({
           </div>
         )}
         <div className="flex items-center justify-between">
-          <Link href={`/task/edit/${task.id}`} className="w-full">
+          <Link
+            href={`/task/edit/${task.id}`}
+            className="w-full"
+            onClick={onCardClick}
+          >
             <div className="text-base text-gray-900 dark:text-gray-200">
               {compactKanbanView ? (
                 <div className="flex justify-between gap-2">

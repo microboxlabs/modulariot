@@ -420,6 +420,7 @@
           "status": "Estado",
           "enabled": "Acreditado",
           "notEnabled": "No Acreditado",
+          "superAccredited": "Súper Acreditado",
           "previousTrips": "Viajes previos",
           "lastTrip": "Último viaje",
           "speedExcess": "Exceso velocidad",

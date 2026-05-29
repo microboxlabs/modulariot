@@ -95,7 +95,7 @@ jobs:
 
       - name: Collect release issues
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
           GH_PROJECT_OWNER: microboxlabs
         run: |
           ./turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \

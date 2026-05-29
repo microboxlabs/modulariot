@@ -113,6 +113,8 @@ jobs:
         uses: actions/ai-inference@v2
         with:
           prompt-file: ./.github/prompts/app-release-notes.prompt.yml
+          endpoint: https://models.github.ai/inference
+          token: ${{ github.token }}
           model: ${{ inputs.release_notes_model }}
           temperature: 0.2
           max-completion-tokens: 12000

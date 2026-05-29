@@ -1,0 +1,41 @@
+# 🔔 Release Notes v1.31.3 — ModularIoT
+
+### Fecha: 29/05/2026
+
+**Objetivo**: Entregar mejoras de interfaz y experiencia de desarrollo: soporte de acreditación en tres estados para recursos de planificación, refactor visual y de interacción del tablero Kanban, y corrección del flujo de depuración server-side.
+
+## 🚀 Evolutivos
+
+- **📍 Placa de acreditación de 3 estados para recursos de planificación**
+  - **Punto clave**: Se añade un distintivo de acreditación con tres estados (ACCREDITED / NOT_ACCREDITED / SUPER_ACCREDITED), normalización y componente compartido para evitar roturas por cambios en el valor upstream.
+  - **Detalle técnico**: Nuevo módulo compartido (accreditation.tsx) con tipo union, normalizador toAccreditationLevel(), helpers de etiqueta y <AccreditationBadge>; filas/servicios y mappers actualizados para portar el campo acreditacion en lugar del antiguo boolean-ish. * (Integración OSS — MIOT-0.5.5)*
+
+- **📍 Refactor UI de Kanban — separación de carriles, menú de acciones por carril, búsqueda ⌘K, avatar de grupo**
+  - **Punto clave**: Adaptación del kit de diseño Mintral para mejorar claridad visual y ergonomía del módulo de envío; carriles separados, menú de acciones por carril, atajo de búsqueda y avatar para tareas agrupadas.
+  - **Detalle técnico**: Implementación de paneles por carril, persistencia de preferencias en localStorage, integración con SearchBar (⌘K/Ctrl+K), y mapping defensivo de candidateGroup (queda dependencia backend indicada con TODO). * (Integración OSS — MIOT-0.5.5)*
+
+## 🔧 Integraciones
+
+(Se omite esta sección porque no hay ítems clasificados como integraciones/infra en este conjunto de issues.)
+
+## 🐛 Correcciones
+
+- **🐛 Puntos de interrupción del servidor no se ligaban en la configuración de depuración de apps/app**
+  - **Impacto**: Los breakpoints server-side aparecían como "unbound" en VS Code/Cursor aunque el handler del route se ejecutara.
+  - **Solución**: Se cambió la configuración en .vscode/launch.json a un flujo de attach (type: node, request: attach, port: 9229) y se dejó resolveSourceMapLocations en null; el flujo recomendado es arrancar el servidor con `npm run dev -- --inspect` y usar la configuración "App: attach to server (:9229)". Notas: no requiere --webpack y funciona en Node 24. * (Integración OSS — MIOT-0.5.5)*
+
+## 📊 Beneficios
+
+- Mejora la visibilidad y precisión del estado de acreditación (ahora con soporte explícito para "Súper Acreditado").
+- Reduce errores de renderizado en listas y dropdowns al centralizar la lógica de acreditación en un componente compartido.
+- Mejora la ergonomía del tablero Kanban: separación clara de carriles, acciones por carril y búsqueda rápida con ⌘K.
+- Mejora la experiencia de desarrollo y depuración server-side al proporcionar un flujo de attach fiable para Next/App Router.
+- Preferencias de usuario persistentes por carril (localStorage) para una experiencia consistente entre sesiones.
+- Código más mantenible gracias a normalizadores y tipos actualizados que evitan comparaciones de strings frágiles.
+- Tests y checks de tipos ejecutados en las áreas tocadas según las descripciones de verificación.
+
+## 📌 Conclusión
+
+Estas actualizaciones fortalecen la coherencia visual y la robustez funcional del cliente Next.js, especialmente en áreas críticas para operaciones (recursos acreditados y tablero de envíos). La normalización de acreditación y el componente compartido reducen el riesgo de regresiones cuando cambian los valores upstream.
+
+Adicionalmente, la corrección del flujo de depuración server-side mejora la productividad de desarrollo y reduce fricciones al depurar handlers de rutas. Quedan documentadas las dependencias backend relevantes (p. ej. candidateGroup) para próximas iteraciones.

@@ -229,9 +229,8 @@ export default function EditableField({
 
     return (
       <div className={className}>
-        <span
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           onClick={disabled ? undefined : startEditing}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") startEditing();
@@ -239,7 +238,7 @@ export default function EditableField({
           className={displayClassName}
         >
           {displayValue ?? value}
-        </span>
+        </button>
       </div>
     );
   }

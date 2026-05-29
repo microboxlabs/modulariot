@@ -11,6 +11,11 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
+  AccreditationBadge,
+  accreditationLabel,
+  type AccreditationLevel,
+} from "./accreditation";
+import {
   BaseSearchDropdown,
   type FieldConfig,
   type CardRenderProps,
@@ -71,7 +76,7 @@ export interface TrailerOption {
    */
   externalId: string | null;
   tipo: RemolqueTipo;
-  estado: "disponible" | "ocupado";
+  acreditacion: AccreditationLevel;
   gpsIntegrado: boolean;
   estadoGps: "online" | "offline";
   capacidadKg: number;
@@ -83,7 +88,7 @@ export interface TrailerOption {
 type TrailerMatchType =
   | "plate"
   | "tipo"
-  | "estado"
+  | "acreditacion"
   | "gpsIntegrado"
   | "capacidadKg"
   | "kilometraje";
@@ -134,11 +139,8 @@ const TRAILER_FIELDS: readonly FieldConfig<
     getIcon: () => <HiTruck className={ICON_CLASS} />,
   },
   {
-    field: "estado",
-    getValue: (trailer, dict) =>
-      trailer.estado === "disponible"
-        ? tr("pages.planning.sidebar.assignment.available", dict)
-        : tr("pages.planning.sidebar.assignment.busy", dict),
+    field: "acreditacion",
+    getValue: (trailer, dict) => accreditationLabel(trailer.acreditacion, dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.trailerSearchFields.status", dict),
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
@@ -201,18 +203,21 @@ function TrailerCard({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
     >
-      {/* Header: Plate + Type + GPS Status */}
+      {/* Header: Plate + Type + accreditation badge + GPS Status */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <VehicleHeader
           plate={trailer.plate}
           subtitle={subtitle}
           isSelected={isSelected}
         />
-        <GpsStatusColumn
-          isGpsIntegrado={isGpsIntegrado}
-          isOnline={isOnline}
-          dict={dict}
-        />
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <AccreditationBadge level={trailer.acreditacion} dict={dict} />
+          <GpsStatusColumn
+            isGpsIntegrado={isGpsIntegrado}
+            isOnline={isOnline}
+            dict={dict}
+          />
+        </div>
       </div>
 
       {/* Stats Column */}
@@ -258,11 +263,12 @@ function renderSelectedTrailerButton(
 
   return (
     <div className="flex flex-col">
-      {/* Header with plate, type, GPS status, and chevron */}
+      {/* Header with plate, type, accreditation badge, GPS status, chevron */}
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <VehicleHeader plate={trailer.plate} subtitle={subtitle} isSelected />
         <div className="flex flex-col items-end gap-1 shrink-0">
           <div className="flex items-center gap-1.5">
+            <AccreditationBadge level={trailer.acreditacion} dict={dict} />
             <GpsBadge isGpsIntegrado={isGpsIntegrado} dict={dict} />
             <HiChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
           </div>

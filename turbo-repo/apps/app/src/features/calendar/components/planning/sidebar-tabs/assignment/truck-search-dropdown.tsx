@@ -14,6 +14,11 @@ import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
+  AccreditationBadge,
+  accreditationLabel,
+  type AccreditationLevel,
+} from "./accreditation";
+import {
   BaseSearchDropdown,
   type FieldConfig,
   type CardRenderProps,
@@ -39,7 +44,7 @@ export interface TruckOption {
   externalId: string | null;
   marca: string;
   tipo: "truck" | "furgon" | "trucketa";
-  estado: "disponible" | "ocupado";
+  acreditacion: AccreditationLevel;
   gpsIntegrado: boolean;
   estadoGps: "online" | "offline";
   viajesPrevios: number;
@@ -54,7 +59,7 @@ type TruckMatchType =
   | "plate"
   | "marca"
   | "tipo"
-  | "estado"
+  | "acreditacion"
   | "gpsIntegrado"
   | "viajesPrevios";
 
@@ -105,11 +110,8 @@ const TRUCK_FIELDS: readonly FieldConfig<TruckOption, TruckMatchType>[] = [
     getIcon: () => <HiTruck className={ICON_CLASS} />,
   },
   {
-    field: "estado",
-    getValue: (truck, dict) =>
-      truck.estado === "disponible"
-        ? tr("pages.planning.sidebar.assignment.available", dict)
-        : tr("pages.planning.sidebar.assignment.busy", dict),
+    field: "acreditacion",
+    getValue: (truck, dict) => accreditationLabel(truck.acreditacion, dict),
     getLabel: (dict) =>
       tr("pages.planning.sidebar.assignment.truckSearchFields.status", dict),
     getIcon: () => <HiStatusOnline className={ICON_CLASS} />,
@@ -298,7 +300,6 @@ function TruckCard({
   onClick,
   onMouseEnter,
 }: CardRenderProps<TruckOption>) {
-  const isAvailable = truck.estado === "disponible";
   const truckTypeLabel = tr(
     `pages.planning.sidebar.assignment.truckType.${truck.tipo}`,
     dict
@@ -319,18 +320,7 @@ function TruckCard({
           subtitle={subtitle}
           isSelected={isSelected}
         />
-        {isAvailable ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-            <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-200 dark:bg-green-800/50">
-              <HiCheck className="w-2.5 h-2.5" />
-            </span>
-            {tr("pages.planning.sidebar.assignment.enabled", dict)}
-          </span>
-        ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            {tr("pages.planning.sidebar.assignment.notEnabled", dict)}
-          </span>
-        )}
+        <AccreditationBadge level={truck.acreditacion} dict={dict} />
       </div>
 
       {/* 5-row stats block, always visible (mockup). */}
@@ -356,7 +346,10 @@ function renderSelectedTruckButton(truck: TruckOption, dict: I18nRecord) {
     <div className="flex flex-col">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <VehicleHeader plate={truck.plate} subtitle={subtitle} isSelected />
-        <HiChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <AccreditationBadge level={truck.acreditacion} dict={dict} />
+          <HiChevronDown className="w-4 h-4 text-gray-500" />
+        </div>
       </div>
       <div className="flex flex-col gap-0.5 text-[11px] pt-1 border-t border-gray-100 dark:border-gray-700">
         <TruckStatsRows truck={truck} dict={dict} />

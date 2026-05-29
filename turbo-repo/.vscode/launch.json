@@ -2,11 +2,26 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "App: debug server-side",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npx turbo run dev --filter=@modulariot/app",
-      "cwd": "${workspaceFolder}"
+      // ── Server-side debugging (API routes, server components) ─────────────
+      // 1) Run the dev server in a terminal (plain Turbopack is fine — this only
+      //    adds the Node inspector on :9229):
+      //        cd apps/app && npm run dev -- --inspect
+      // 2) Select this config and press F5 to attach.
+      //
+      // Why ATTACH and not a `node-terminal` launch: js-debug's terminal
+      // auto-attach never adopts Next's server worker (the process that runs
+      // route handlers), so breakpoints stay unbound. Attaching to :9229
+      // directly hits that worker — the same thing chrome://inspect does.
+      "name": "App: attach to server (:9229)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "cwd": "${workspaceFolder}/apps/app",
+      // Loosen js-debug's source-map location filter so route maps resolve
+      // regardless of the bundler's generated-URL scheme.
+      "resolveSourceMapLocations": null,
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
     },
     {
       "name": "App: debug client-side",
@@ -14,18 +29,6 @@
       "request": "launch",
       "url": "http://localhost:3050/app",
       "webRoot": "${workspaceFolder}/apps/app"
-    },
-    {
-      "name": "App: debug full stack",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npx turbo run dev --filter=@modulariot/app",
-      "cwd": "${workspaceFolder}",
-      "serverReadyAction": {
-        "pattern": "- Local:.+(https?://.+)",
-        "uriFormat": "%s",
-        "action": "debugWithChrome"
-      }
     }
   ]
 }

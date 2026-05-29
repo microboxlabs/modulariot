@@ -12,8 +12,11 @@ import { UserDropdownProps } from "./user-dropdown.types";
 import { getAuth0LogoutUrl } from "@/features/auth/services/auth.service";
 
 async function handleSignOut(lang: string) {
+  // Land back on the current-language sign-in page after federated logout.
+  const signInUrl = `${globalThis.location.origin}/app/${lang}/sign-in`;
+
   // Get Auth0 logout URL before signing out of NextAuth
-  const auth0LogoutUrl = await getAuth0LogoutUrl();
+  const auth0LogoutUrl = await getAuth0LogoutUrl(signInUrl);
 
   // Sign out of NextAuth first
   await signOut({ redirect: false });
@@ -23,7 +26,7 @@ async function handleSignOut(lang: string) {
     globalThis.location.href = auth0LogoutUrl;
   } else {
     // Fallback to sign-in page if Auth0 is not configured
-    globalThis.location.href = `/app/${lang}/sign-in`;
+    globalThis.location.href = signInUrl;
   }
 }
 

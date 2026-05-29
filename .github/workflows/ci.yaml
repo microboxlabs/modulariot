@@ -181,6 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [install, lint, build, changes]
     if: always()
+    permissions: {}
     steps:
       - name: Create summary
         run: |

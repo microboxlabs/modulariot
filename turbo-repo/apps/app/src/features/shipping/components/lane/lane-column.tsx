@@ -151,7 +151,15 @@ export function LaneColumn({
         compact ? "w-44" : "w-[280px]"
       }`}
     >
-      <div className="sticky top-0 z-20 mb-2.5 flex min-h-[2.5rem] items-center justify-between gap-2 bg-gray-100 dark:bg-gray-800">
+      {/*
+        The sticky header is a z-20 stacking context, which traps the lane menu
+        (a DOM descendant) at z-20 — so a later column's header paints over an
+        open menu. Flowbite renders the menu inline (no portal) and exposes no
+        open-state callback, so we detect "menu open" via the floating
+        role="menu" element it mounts only while open, and lift this header
+        above its z-20 siblings for the duration.
+      */}
+      <div className="sticky top-0 z-20 mb-2.5 flex min-h-[2.5rem] items-center justify-between gap-2 bg-gray-100 has-[[role=menu]]:z-30 dark:bg-gray-800">
         <span className="line-clamp-2 min-w-0 flex-1 text-xs font-semibold uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-300">
           {title}
         </span>

@@ -210,7 +210,7 @@ export default function PageContent({
         </div>
       </div>
       <div
-        className={`h-screen w-full overflow-auto ${
+        className={`isolate h-screen w-full overflow-auto ${
           activeView === "kanban" ? "bg-gray-50 dark:bg-gray-900" : ""
         }`}
       >

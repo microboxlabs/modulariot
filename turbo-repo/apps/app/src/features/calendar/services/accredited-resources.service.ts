@@ -24,7 +24,13 @@ export interface AccreditedResource {
   external_id: string | null;
   faena: string | null;
   rut_mandante: string | null;
-  is_acredited: "ACREDITED" | "NOT ACREDITED";
+  /**
+   * Accreditation state for the resource. Upstream emits three values:
+   * `ACCREDITED`, `NOT_ACCREDITED` and `SUPER_ACCREDITED` (the last one flags
+   * a resource accredited beyond the baseline). Normalized for the UI via
+   * `toAccreditationLevel`.
+   */
+  is_acredited: "ACCREDITED" | "NOT_ACCREDITED" | "SUPER_ACCREDITED";
   trip_count: number | null;
   last_trip: string | null;
   /** GPS integration flag (TRUCK rows). Independent of whether a position is on file. */

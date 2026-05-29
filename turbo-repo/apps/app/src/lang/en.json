@@ -420,6 +420,7 @@
           "status": "Status",
           "enabled": "Accredited",
           "notEnabled": "Not Accredited",
+          "superAccredited": "Super Accredited",
           "previousTrips": "Previous trips",
           "lastTrip": "Last trip",
           "speedExcess": "Speed excess",

@@ -1,12 +1,10 @@
 import "server-only";
-import {
-  I18nDictionries,
-  I18nDictionary,
-} from "./i18n.service.types";
+import { I18nDictionries, I18nDictionary } from "./i18n.service.types";
 import Negotiator from "negotiator";
 import { match } from "@formatjs/intl-localematcher";
 import type { NextRequest } from "next/server";
-import { defaultLocale, locales, tr } from "./tr.service";
+import { defaultLocale, locales, tr, trDynamic } from "./tr.service";
+import type { TrKey } from "./tr.types";
 
 const dictionaries: I18nDictionries<I18nDictionary> = {
   en: () => import("@/lang/en.json").then((m) => m.default),
@@ -20,7 +18,7 @@ export async function getDictionary(locale: string) {
   const dictionary = await dictionaries[locale]();
   const memoized = new Map<string, string>();
   return [
-    function _tr(path: string, params?: Record<string, string>): string {
+    function _tr(path: TrKey, params?: Record<string, string>): string {
       if (memoized.has(path)) {
         return memoized.get(path) ?? path;
       }
@@ -29,9 +27,20 @@ export async function getDictionary(locale: string) {
       return value;
     },
     dictionary,
+    // Escape hatch for runtime-built keys (not type-checked). Third tuple slot so
+    // existing `const [, dict]` / `const [tr]` destructuring stays untouched.
+    function _trDynamic(path: string, params?: Record<string, string>): string {
+      if (memoized.has(path)) {
+        return memoized.get(path) ?? path;
+      }
+      const value = trDynamic(path, dictionary, params);
+      memoized.set(path, value);
+      return value;
+    },
   ] as [
-    (path: string, params?: Record<string, string>) => string,
+    (path: TrKey, params?: Record<string, string>) => string,
     I18nDictionary,
+    (path: string, params?: Record<string, string>) => string,
   ];
 }
 

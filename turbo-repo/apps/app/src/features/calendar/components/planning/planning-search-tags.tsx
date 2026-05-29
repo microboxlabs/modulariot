@@ -6,9 +6,16 @@ import { HiX } from "react-icons/hi";
 import { FaTruck, FaMapMarkerAlt, FaCalendarAlt } from "react-icons/fa";
 import { twMerge } from "tailwind-merge";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
-type MatchType = "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+type MatchType =
+  | "id"
+  | "cliente"
+  | "origen"
+  | "destino"
+  | "lugarCarguio"
+  | "permanencia"
+  | "tipoViaje";
 
 export interface SearchTag {
   matchType: MatchType;
@@ -21,14 +28,23 @@ export interface PlanningSearchTagsProps {
   onTagsChange: (tags: SearchTag[]) => void;
 }
 
-const getMatchTypeLabel = (matchType: MatchType, dict: I18nDictionary): string => {
+const getMatchTypeLabel = (
+  matchType: MatchType,
+  dict: I18nDictionary
+): string => {
   const labels: Record<MatchType, string> = {
     id: tr("pages.planning.sidebar.search.matchType.id", dict),
     cliente: tr("pages.planning.sidebar.search.matchType.cliente", dict),
     origen: tr("pages.planning.sidebar.search.matchType.origen", dict),
     destino: tr("pages.planning.sidebar.search.matchType.destino", dict),
-    lugarCarguio: tr("pages.planning.sidebar.search.matchType.lugarCarguio", dict),
-    permanencia: tr("pages.planning.sidebar.search.matchType.permanencia", dict),
+    lugarCarguio: tr(
+      "pages.planning.sidebar.search.matchType.lugarCarguio",
+      dict
+    ),
+    permanencia: tr(
+      "pages.planning.sidebar.search.matchType.permanencia",
+      dict
+    ),
     tipoViaje: tr("pages.planning.sidebar.search.matchType.tipoViaje", dict),
   };
   const label = labels[matchType];
@@ -39,13 +55,17 @@ const getMatchTypeLabel = (matchType: MatchType, dict: I18nDictionary): string =
 // Helper to get translated location code or return original if not found
 const getLocationLabel = (code: string, dict: I18nDictionary): string => {
   const locationKey = `pages.planning.sidebar.search.locationCodes.${code}`;
-  const translated = tr(locationKey, dict);
+  const translated = trDynamic(locationKey, dict);
   // If translation exists and is different from key, return it; otherwise return original code
   return translated === locationKey ? code : translated;
 };
 
 // Helper to get translated value based on match type
-const getTranslatedValue = (matchType: MatchType, value: string, dict: I18nDictionary): string => {
+const getTranslatedValue = (
+  matchType: MatchType,
+  value: string,
+  dict: I18nDictionary
+): string => {
   // Translate location codes for origen and destino
   if (matchType === "origen" || matchType === "destino") {
     return getLocationLabel(value, dict);
@@ -114,7 +134,7 @@ export function PlanningSearchTags({
             //   ? "opacity-50 scale-95"
             //   : dragOverIndex === index
             //   ? "bg-blue-100 dark:bg-blue-800/40 border-blue-300 dark:border-blue-600 scale-105"
-            //   : 
+            //   :
             "hover:bg-blue-100 dark:hover:bg-blue-800/40"
           )}
         >

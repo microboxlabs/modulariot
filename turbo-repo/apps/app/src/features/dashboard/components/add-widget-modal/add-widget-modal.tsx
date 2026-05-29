@@ -12,7 +12,7 @@ import {
   type DashletMeta,
 } from "../../dashlets";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface AddWidgetModalProps {
@@ -49,8 +49,12 @@ export function AddWidgetModal({
     const query = searchQuery.trim().toLowerCase();
     return validDashlets.filter(
       (d) =>
-        resolveMetaString(d.meta.name, dictionary).toLowerCase().includes(query) ||
-        resolveMetaString(d.meta.description, dictionary).toLowerCase().includes(query)
+        resolveMetaString(d.meta.name, dictionary)
+          .toLowerCase()
+          .includes(query) ||
+        resolveMetaString(d.meta.description, dictionary)
+          .toLowerCase()
+          .includes(query)
     );
   }, [validDashlets, searchQuery, dictionary]);
 
@@ -140,7 +144,7 @@ export function AddWidgetModal({
  * the translated string is returned; otherwise the raw value is used as-is.
  */
 function resolveMetaString(value: string, dictionary: I18nRecord): string {
-  const resolved = tr(value, dictionary);
+  const resolved = trDynamic(value, dictionary);
   // tr() returns the path itself when the key is not found
   return resolved === value ? value : resolved;
 }
@@ -154,7 +158,11 @@ interface DashletOptionProps {
 /**
  * Single dashlet option in the selector grid
  */
-function DashletOption({ meta, dictionary, onSelect }: Readonly<DashletOptionProps>) {
+function DashletOption({
+  meta,
+  dictionary,
+  onSelect,
+}: Readonly<DashletOptionProps>) {
   const Icon = meta.icon;
   const name = resolveMetaString(meta.name, dictionary);
   const description = resolveMetaString(meta.description, dictionary);

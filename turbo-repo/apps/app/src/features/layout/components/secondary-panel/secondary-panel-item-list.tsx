@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import { pathNameWithoutLanguage } from "../../utils/utils";
@@ -46,7 +46,7 @@ function PanelChildItem({
   totals: Record<string, number | string>;
   onNavigate?: () => void;
 }>) {
-  const translatedLabel = tr(item.label, dict);
+  const translatedLabel = trDynamic(item.label, dict);
   const itemTotal = item.totals?.[item.label] ?? totals[item.label];
   const showBadge = itemTotal !== undefined && typeof itemTotal === "number";
 
@@ -99,11 +99,11 @@ function PanelNestedGroup({
   hasPermission: (groups: string[], op?: "OR" | "AND") => boolean;
   onNavigate?: () => void;
 }>) {
-  const translatedGroupLabel = tr(item.label, dict);
+  const translatedGroupLabel = trDynamic(item.label, dict);
   const visibleChildren = (item.items ?? []).filter(
     (child) =>
       isItemVisible(child, userGroups, hasPermission) &&
-      matchesSearch(tr(child.label, dict), searchQuery)
+      matchesSearch(trDynamic(child.label, dict), searchQuery)
   );
 
   if (visibleChildren.length === 0) return null;
@@ -153,7 +153,7 @@ export default function SecondaryPanelItemList({
       {items.map((item) => {
         if (!isItemVisible(item, userGroups, hasPermission)) return null;
 
-        const translatedLabel = tr(item.label, dict);
+        const translatedLabel = trDynamic(item.label, dict);
 
         // Nested group (item has children)
         if (item.items && item.items.length > 0) {

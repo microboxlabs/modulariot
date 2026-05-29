@@ -3,7 +3,7 @@
 import { HiCheck, HiExclamation } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // GPS Integrated Badge
@@ -78,7 +78,7 @@ export function WarningBadge({ count, labelKey, dict }: WarningBadgeProps) {
     <div className="flex flex-wrap items-center gap-1 mt-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700">
       <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
         <HiExclamation className="w-3 h-3" />
-        {tr(labelKey, dict)} ({count})
+        {trDynamic(labelKey, dict)} ({count})
       </span>
     </div>
   );

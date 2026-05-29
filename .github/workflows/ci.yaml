@@ -187,6 +187,10 @@ jobs:
         run: npx turbo run check-types --filter='!@modulariot/web-admin'
         working-directory: turbo-repo
 
+      - name: Check i18n locale integrity (en/es parity + no duplicate keys)
+        run: npx vitest run src/test/i18n/locale-parity.test.ts
+        working-directory: turbo-repo/apps/app
+
   # ===========================================================================
   # Build - Turbo build all Next.js apps and upload standalone artifacts
   # ===========================================================================

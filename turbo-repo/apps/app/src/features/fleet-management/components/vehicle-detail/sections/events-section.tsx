@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import type { Vehicle } from "../../../types/fleet.types";
 import type { TruckEventItem } from "../../../types/truck-events.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { MessageBanner } from "@/features/common/components/message-banner";
 import { CustomBadge } from "@/features/common/components/custom-badge";
@@ -45,7 +45,7 @@ const CATEGORY_I18N: Record<string, string> = {
 
 function getCategoryLabel(category: string, dict: I18nRecord): string {
   const key = CATEGORY_I18N[category];
-  return key ? tr(key, dict) : category;
+  return key ? trDynamic(key, dict) : category;
 }
 
 const URGENCY_I18N: Record<EventUrgency, string> = {
@@ -73,7 +73,7 @@ function getEventsBadge(events: TruckEventItem[], dict: I18nRecord) {
   if (criticalCount > 0) {
     return (
       <CustomBadge
-        text={tr(getCriticalKey(criticalCount), dict, {
+        text={trDynamic(getCriticalKey(criticalCount), dict, {
           count: String(criticalCount),
         })}
         className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -84,7 +84,7 @@ function getEventsBadge(events: TruckEventItem[], dict: I18nRecord) {
   if (warningCount > 0) {
     return (
       <CustomBadge
-        text={tr(getWarningKey(warningCount), dict, {
+        text={trDynamic(getWarningKey(warningCount), dict, {
           count: String(warningCount),
         })}
         className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
@@ -269,7 +269,7 @@ export default function EventsSection({ vehicle, dict }: EventsSectionProps) {
               key={event.id}
               title={eventTitle || event.symptom_name}
               urgency={urgency}
-              urgencyLabel={tr(URGENCY_I18N[urgency], dict)}
+              urgencyLabel={trDynamic(URGENCY_I18N[urgency], dict)}
               isLast={index === events.length - 1}
               extraBadges={
                 <CustomBadge

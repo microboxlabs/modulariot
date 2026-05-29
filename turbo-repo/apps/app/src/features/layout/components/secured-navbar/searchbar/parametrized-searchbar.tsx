@@ -10,7 +10,7 @@ import Tags from "./tags";
 import { ParamType } from "./navegation_params";
 import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 import dayjs from "dayjs";
@@ -301,7 +301,7 @@ function SelectorParams({
             { value: "", label: "-" },
             ...dynamicOptions.map((option) => ({
               value: option,
-              label: tr("symptoms.types." + option, dict),
+              label: trDynamic("symptoms.types." + option, dict),
             })),
           ];
         } else if (param.options && Array.isArray(param.options)) {

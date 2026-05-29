@@ -599,7 +599,8 @@
         "finished": "Finished",
         "finished_process": "Process Finished",
         "taskType": "Task Type",
-        "taskAction": "Task Action"
+        "taskAction": "Task Action",
+        "confirmDeliveryCompact": "Confirm Delivery"
       },
       "card": {
         "origin": "Origin",
@@ -819,7 +820,8 @@
         "Identity Validation not performed": "Identity Validation not performed",
         "Driver app not connected": "Driver app not connected",
         "Biometric verification not performed": "Biometric verification not performed",
-        "Driver verified by fingerprint": "Driver verified by fingerprint"
+        "Driver verified by fingerprint": "Driver verified by fingerprint",
+        "avg_delay": "Average delay"
       },
       "outcome": {
         "moreOptions": "More options",
@@ -862,7 +864,10 @@
         "Consolidar Carga": "Consolidate Load",
         "Separar Documentos": "Separate Documents",
         "Planificar Servicio": "Plan Service",
-        "Asignar Conductor": "Assign Driver"
+        "Asignar Conductor": "Assign Driver",
+        "tripInitiated": "Trip Started",
+        "tripNullified": "Trip Voided",
+        "tripCancelled": "Trip Cancelled"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -981,7 +986,9 @@
         "Consolidar Carga": "Consolidate Load",
         "Separar Documentos": "Separate Documents",
         "Planificar Servicio": "Plan Service",
-        "Asignar Conductor": "Assign Driver"
+        "Asignar Conductor": "Assign Driver",
+        "Confirmar Arribo": "Confirm Arrival",
+        "Confirmar Salida de Destino": "Confirm Departure from Destination"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -1024,7 +1031,21 @@
         "otherReasonPlaceholder": "Enter the reason...",
         "save": "Save",
         "cancel": "Cancel",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "rejectedGuide": "Guide rejected",
+        "rejectedGuideDesc": "The guide document has errors or is incomplete",
+        "rejectedLeftSide": "Left side rejected",
+        "rejectedLeftSideDesc": "The image of the vehicle's left side is unclear or invalid",
+        "rejectedRightSide": "Right side rejected",
+        "rejectedRightSideDesc": "The image of the vehicle's right side is unclear or invalid",
+        "rejectedFront": "Front rejected",
+        "rejectedFrontDesc": "The front image of the vehicle is unclear or invalid",
+        "rejectedBack": "Back rejected",
+        "rejectedBackDesc": "The rear image of the vehicle is unclear or invalid",
+        "noGpsValidationDesc": "The system could not validate the vehicle's GPS location",
+        "noDocumentConsolidationDesc": "Required document consolidation is missing",
+        "noClientSystemValidationDesc": "Could not validate with the client's system",
+        "otherReasonDesc": "Another reason not specified in the options above"
       }
     },
     "sovosVerificationForm": {
@@ -1350,7 +1371,11 @@
         "collaboratorsManagement": "Collaborators",
         "searchPlaceholder": "Search...",
         "createDashboard": "New dashboard",
-        "closePanel": "Close panel"
+        "closePanel": "Close panel",
+        "subtitle1": "Consolidation",
+        "subtitle2": "Document Separation",
+        "subtitle3": "Client System Validation",
+        "subtitle4": "GPS Validation"
       }
     },
     "calendar": {
@@ -1445,6 +1470,18 @@
           "save": "Save",
           "saveSuccess": "Loading docks updated",
           "saveError": "Failed to update loading docks"
+        },
+        "taskFilter": {
+          "title": "Task filter",
+          "description": "Filter tasks by origin and destination.",
+          "originLabel": "Origin",
+          "destinationLabel": "Destination",
+          "originPlaceholder": "Select an origin",
+          "destinationPlaceholder": "Select a destination",
+          "hint": "Only tasks matching the selected filters will be shown.",
+          "save": "Save",
+          "saveSuccess": "Task filter saved successfully",
+          "saveError": "Error saving the task filter"
         }
       }
     },
@@ -1812,7 +1849,6 @@
       "showFilters": "Show Filters",
       "showSidebar": "Show Sidebar",
       "showStyleSelector": "Show Style Selector",
-      "dataSource": "Data Source",
       "dataSourceMode": "Source Mode",
       "dataSourceNone": "Default (Live Positions)",
       "dataSourceStatic": "Static GeoJSON",
@@ -1820,10 +1856,9 @@
       "dataSourceSse": "SSE Stream",
       "geoJsonData": "GeoJSON Data",
       "invalidGeoJson": "Invalid GeoJSON. Must be a FeatureCollection.",
-      "apiUrl": "API URL",
       "sseUrl": "SSE URL",
       "refreshInterval": "Refresh interval (s)",
-      "dataPreview": "Data Preview",
+      "dataPreview": "Data preview",
       "previewLoading": "Loading...",
       "ssePreviewUnavailable": "SSE preview not available — data streams in real-time.",
       "defaultStyles": "Default Styles",
@@ -1843,7 +1878,6 @@
       "layerSaveError": "The following layers have incomplete data source configuration",
       "tooltipSection": "Tooltip",
       "tooltipTemplate": "Template",
-      "dataPreview": "Data preview",
       "geometryPoint": "Point",
       "geometryPath": "Path",
       "geometryPolygon": "Polygon",
@@ -2107,6 +2141,14 @@
     "noDevicesFound": "No devices found"
   },
   "symptoms": {
+    "1": "Condition in observation",
+    "2": "Compromised condition",
+    "3": "Critical condition",
+    "4": "Black code",
+    "5": "Deteriorating condition",
+    "6": "Under treatment",
+    "7": "Recovery phase",
+    "8": "Remission state",
     "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",
     "historic_symptoms": "Historic symptoms",
@@ -2126,14 +2168,6 @@
     "condition_in_treatment": "Condition in treatment",
     "in_treatment": "In treatment",
     "condition_in_observation": "Condition in observation",
-    "1": "Condition in observation",
-    "2": "Compromised condition",
-    "3": "Critical condition",
-    "4": "Black code",
-    "5": "Deteriorating condition",
-    "6": "Under treatment",
-    "7": "Recovery phase",
-    "8": "Remission state",
     "in_observation": "in observation",
     "under_observation": "Under observation",
     "under observation": "Under observation",
@@ -2374,7 +2408,8 @@
       "Deviation_Eta_Early": "Deviation Eta Early",
       "Fatigue And Drowsiness": "Fatigue and drowsiness",
       "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor"
-    }
+    },
+    "speed limit": "Speed limit exceeded"
   },
   "geographic_view": {
     "speed": "Speed",
@@ -2484,7 +2519,11 @@
     "driver_without_trip2": "is already verified or does not have a trip assigned.",
     "unable_to_validate_rut": "Unable to validate RUT",
     "gps_validation": "GPS Validation",
-    "last_signal": "Last signal"
+    "last_signal": "Last signal",
+    "biometric_verification_error": "Error verifying biometric data",
+    "Query return 2 results instead of max 1": "More than one trip assigned",
+    "Driver already verified": "Driver already verified",
+    "no_active_task_found": "You do not have a trip assigned for today. Please check with the Transport department."
   },
   "notifications": {
     "client": "Client",
@@ -2767,7 +2806,8 @@
     "executionType": "Execution Type",
     "priorityCode": "Priority",
     "serviceKind": "Service Kind",
-    "route": "Route"
+    "route": "Route",
+    "avg_signals_per_minute": "Number of signals per minute"
   },
   "searchbar": {
     "service": "Service",
@@ -3027,7 +3067,8 @@
       "externalId": "External ID",
       "rut": "RUT",
       "transportLicense": "Transport License",
-      "carrierName": "Carrier Name"
+      "carrierName": "Carrier Name",
+      "emptyTitle": "No vehicles in this fleet"
     },
     "status": {
       "active": "Active",
@@ -3205,7 +3246,8 @@
               "bannerTitle": "No signal",
               "bannerDesc": "No GPS data has been received recently."
             }
-          }
+          },
+          "dataProcesedToday": "Data processed today"
         },
         "events": {
           "title": "Operational Events",

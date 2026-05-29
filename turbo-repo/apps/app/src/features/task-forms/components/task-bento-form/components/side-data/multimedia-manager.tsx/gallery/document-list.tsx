@@ -1,5 +1,5 @@
 import InnerContainer from "./inner-container";
-import Document from "../document";
+import Document from "../../document";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function DocumentList({

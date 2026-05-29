@@ -319,6 +319,13 @@ export function DashboardView() {
           isDraggable: editMode,
           isResizable: editMode,
           minW: widget.layout?.minW ?? fallbackMinW,
+          // Allow resizing up to the currently-available columns so widgets can
+          // be dragged into the surplus columns that appear on wide screens.
+          // Positions are stored in absolute column units that may exceed the
+          // base 24. Accepted trade-off: editing the same dashboard on a
+          // narrower screen can make react-grid-layout reflow such widgets back
+          // inside the visible columns and persist that (view mode never
+          // persists reflows — see the editMode guard in handleLayoutChange).
           maxW: widget.layout?.maxW ?? cols,
           minH: widget.layout?.minH ?? fallbackMinH,
           maxH: widget.layout?.maxH ?? Infinity,

@@ -55,6 +55,12 @@ describe("computeGridSizing", () => {
     expect(s.scale).toBeCloseTo(1, 4);
   });
 
+  it("floors fitCols just under a column multiple (no float round-up)", () => {
+    const s = computeGridSizing({ containerWidth: 2399, usedCols: 24, editMode: true });
+    expect(s.cols).toBe(35); // floor(2399 * 24 / 1600) = 35, not 36
+    expect(s.designWidth).toBeCloseTo((35 * 1600) / 24, 4);
+  });
+
   it("a widened dashboard scales down to fit a smaller container", () => {
     const s = computeGridSizing({ containerWidth: 1600, usedCols: 36, editMode: true });
     expect(s.cols).toBe(36); // max(used 36, fitCols 24)

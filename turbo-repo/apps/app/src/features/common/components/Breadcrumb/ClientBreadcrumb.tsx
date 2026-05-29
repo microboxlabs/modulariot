@@ -7,7 +7,7 @@ import {
 } from "flowbite-react";
 import { HiHome } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import { useParams } from "next/navigation";
 
 export interface BreadcrumbPathItem {

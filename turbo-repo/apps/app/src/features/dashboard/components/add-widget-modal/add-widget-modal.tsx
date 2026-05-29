@@ -12,7 +12,7 @@ import {
   type DashletMeta,
 } from "../../dashlets";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface AddWidgetModalProps {

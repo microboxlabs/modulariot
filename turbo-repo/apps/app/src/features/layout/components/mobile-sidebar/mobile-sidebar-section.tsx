@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { HiChevronDown } from "react-icons/hi";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import { isSegmentPrefix } from "../../utils/utils";

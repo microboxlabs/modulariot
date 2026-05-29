@@ -13,7 +13,7 @@ import CollaboratorDetailHeader from "./collaborator-detail-header";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { HiClock, HiBolt, HiDocumentText, HiTruck } from "react-icons/hi2";
 import { IoShieldOutline, IoPulseOutline } from "react-icons/io5";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
 import CollaboratorSummary from "./collaborator-summary";
 

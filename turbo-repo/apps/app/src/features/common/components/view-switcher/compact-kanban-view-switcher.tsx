@@ -1,5 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import KanbanViewSwitcherIcon from "@/features/svg_components/kanban_view_switcher_icon";
 import KanbanViewSwitcherIconCompressed from "@/features/svg_components/kanban_view_switcher_icon_compressed";
 import { Tooltip } from "flowbite-react";

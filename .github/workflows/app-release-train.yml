@@ -116,12 +116,13 @@ jobs:
           const fs = require("fs");
           const prompt = fs.readFileSync(".github/prompts/app-release-notes.prompt.yml", "utf8");
           const issues = fs.readFileSync("release-issues.json", "utf8");
+          const indentedIssues = issues.split("\n").join("\n      ");
           const body = prompt
             .replaceAll("{{release_version}}", "${{ inputs.release_notes_version }}")
             .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
             .replaceAll("{{private_milestone}}", "${{ inputs.private_milestone }}")
             .replaceAll("{{oss_milestone}}", "${{ inputs.oss_milestone }}")
-            .replaceAll("{{release_issues}}", issues);
+            .replaceAll("{{release_issues}}", indentedIssues);
           fs.writeFileSync("release-notes.prompt.yml", body);
           NODE
 

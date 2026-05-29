@@ -7,4 +7,6 @@ export type KanBanCardProps = {
   showFinishedTasks?: boolean;
   isLoading?: boolean;
   onCardClick?: () => void;
+  onCardMouseEnter?: () => void;
+  onCardMouseLeave?: () => void;
 };

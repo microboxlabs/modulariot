@@ -280,8 +280,6 @@ export function LaneColumn({
             className={`w-full h-fit group relative ${
               isLoading ? "cursor-wait" : ""
             }`}
-            onMouseEnter={() => onCardMouseEnter(task)}
-            onMouseLeave={onCardMouseLeave}
           >
             <KanbanCard
               task={task}
@@ -291,6 +289,8 @@ export function LaneColumn({
               showFinishedTasks={showFinishedTasks}
               isLoading={isLoading}
               onCardClick={onCardClick}
+              onCardMouseEnter={() => onCardMouseEnter(task)}
+              onCardMouseLeave={onCardMouseLeave}
             />
           </div>
         ))}

@@ -17,6 +17,8 @@ export default function KanbanCard({
   showFinishedTasks,
   isLoading = false,
   onCardClick,
+  onCardMouseEnter,
+  onCardMouseLeave,
 }: PropsWithI18nDict<KanBanCardProps>) {
   let cursor = "hover:shadow-lg cursor-pointer";
 
@@ -65,6 +67,8 @@ export default function KanbanCard({
             href={`/task/edit/${task.id}`}
             className="w-full"
             onClick={onCardClick}
+            onMouseEnter={onCardMouseEnter}
+            onMouseLeave={onCardMouseLeave}
           >
             <div className="text-base text-gray-900 dark:text-gray-200">
               {compactKanbanView ? (

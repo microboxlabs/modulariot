@@ -26,13 +26,17 @@ export default function EditableField({
   value,
   displayValue,
   type,
-  label,
+  label = "",
   icon,
   onUpdate,
+  onSave,
   disabled = false,
   options = [],
   placeholder,
   className = "",
+  variant = "form",
+  displayClassName,
+  inputClassName,
 }: EditableFieldProps) {
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
 
@@ -53,6 +57,7 @@ export default function EditableField({
     fieldName,
     initialValue: value,
     onUpdate,
+    onSave,
     disabled,
   });
 
@@ -195,6 +200,49 @@ export default function EditableField({
       {error && <span className="text-xs text-red-500 ml-6">{error}</span>}
     </div>
   );
+
+  if (variant === "inline") {
+    if (state === "editing") {
+      return (
+        <div className={className}>
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => void saveValue()}
+            onKeyDown={handleKeyDown}
+            className={inputClassName}
+          />
+        </div>
+      );
+    }
+
+    if (state === "saving") {
+      return (
+        <div className={twMerge(className, "flex items-center gap-1")}>
+          <span className={displayClassName}>{editValue}</span>
+          <Spinner size="xs" />
+        </div>
+      );
+    }
+
+    return (
+      <div className={className}>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={disabled ? undefined : startEditing}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") startEditing();
+          }}
+          className={displayClassName}
+        >
+          {displayValue ?? value}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={`editable-field ${className}`}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Tooltip } from "flowbite-react";
 import {
   HiShare,
@@ -11,6 +11,7 @@ import {
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { toast } from "sonner";
+import { useClickOutside } from "@/features/common/hooks/use-click-outside";
 
 export function SharePopover({
   fileUrl,
@@ -23,15 +24,9 @@ export function SharePopover({
 }>) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setIsOpen(false), []);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
+  useClickOutside(ref, isOpen, close);
 
   const fullUrl = `${globalThis.location.origin}${fileUrl}`;
 

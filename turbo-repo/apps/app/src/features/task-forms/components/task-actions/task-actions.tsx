@@ -1,7 +1,8 @@
 "use client";
-import { ButtonGroup } from "flowbite-react";
+
+import { HiCheck } from "react-icons/hi";
+import { SplitButton } from "@/features/common/components/split-button";
 import { TaskActionsProps } from "./task-actions.types";
-import TaskActionButton from "../task-action-button/task-action-button";
 import { useDocumentValidation } from "./use-document-validation";
 import {
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
@@ -62,7 +63,7 @@ import { GroupAllowed } from "@/features/common/components/group-allowed/group-a
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
 import { useRouter } from "next/navigation";
 import { taskNextAction } from "../../services/client-form.service";
-import GroupButtonOptions from "./group-button-options";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function TaskActions({
   lang,
@@ -190,27 +191,29 @@ export default function TaskActions({
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        <ButtonGroup className="w-full">
-            <GroupButtonOptions
-              dict={dict}
-              handleSelection={handleSelection}
-              otherOptions={otherOptions}
-            />
-            {!showDocumentWarning && (
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={transitionId}
-                onClick={() =>
-                  handleSelection(
-                    transitionId,
-                    (dict.outcome as I18nRecord)[transitionId] as string
-                  )
-                }
-              />
-            )}
-          </ButtonGroup>
+        {!showDocumentWarning && (
+          <SplitButton
+            size="md"
+            overlay
+            secondaryLabel={tr("outcome.moreOptions", dict)}
+            primary={{
+              id: "continue",
+              label: (dict.outcome as I18nRecord).continue as string,
+              icon: <HiCheck className="w-5 h-5" />,
+              onClick: () =>
+                handleSelection(
+                  transitionId,
+                  (dict.outcome as I18nRecord)[transitionId] as string
+                ),
+            }}
+            secondaryActions={otherOptions.map(({ id, label, icon: Icon }) => ({
+              id,
+              label,
+              icon: <Icon />,
+              onClick: () => handleSelection(id as TaskOutcome, label),
+            }))}
+          />
+        )}
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

@@ -23,13 +23,17 @@ import { formatDateString } from "@/features/common/components/formatted-date/fo
 import { AlfrescoFileEntry } from "../image.types";
 import { ReviewStatus } from "../gallery/media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
-import { updateBentoCategory } from "@/features/common/providers/client-api.provider";
+import { updateBentoCategory, renameBentoFile } from "@/features/common/providers/client-api.provider";
 import { toast } from "sonner";
 
 import { findNextUndecided, formatBytes } from "./viewer-utils";
 import { STATUS_BADGE_CLASSES, DRAFT_BADGE_CLASSES, DRAFT_BADGE_KEYS } from "./viewer-constants";
 import { useDocBlob } from "./use-doc-blob";
-import { EditableFileName, SharePopover, CategoryDropdown, ReviewSplitButton } from "./header";
+import EditableField from "@/features/common/components/editable-field/editable-field";
+import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
+import { SplitButton } from "@/features/common/components/split-button";
+import { SharePopover } from "./header";
+import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
 import { SidebarSection, MetaRow } from "./sidebar";
 import { MoveToTaskModal } from "./modals";
 import { ObservationsSection } from "./observations";
@@ -213,13 +217,18 @@ export default function MediaInlineViewer({
             <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <div className="min-w-0 flex-1">
-            <EditableFileName
-              currentName={current.file.entry.name}
-              nodeId={id}
-              onRenamed={onRename}
-              dictionary={dictionary}
+            <EditableField
+              taskId=""
+              fieldName="name"
+              value={current.file.entry.name}
+              type="text"
+              variant="inline"
+              onSave={async (newName) => {
+                if (id) await renameBentoFile(id, newName);
+                onRename?.();
+              }}
               inputClassName="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-full"
-              spanClassName="block text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
+              displayClassName="block text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
             />
           </div>
           <button
@@ -282,12 +291,11 @@ export default function MediaInlineViewer({
 
         {/* Mobile: Row 3 — category dropdown full width */}
         <div className="py-1 sm:hidden">
-          <CategoryDropdown
+          <SelectorDropdown
             categories={Object.values(categories)}
-            currentTag={currentCategory}
-            onCategoryChange={handleCategoryChange}
+            baseCategory={currentCategory}
+            selectCategory={handleCategoryChange}
             dictionary={dictionary}
-            fullWidth
           />
         </div>
 
@@ -323,10 +331,28 @@ export default function MediaInlineViewer({
           )}
           {status === "approved" && (
             <Dropdown
-              label={tr("bento.multimedia.btn_change_status", dictionary)}
-              size="xs"
-              color="light"
+              label=""
+              theme={{
+                floating: {
+                  base: "overflow-hidden rounded-lg z-10",
+                  style: {
+                    auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
+                  },
+                },
+              }}
+              renderTrigger={() => (
+                <button
+                  type="button"
+                  className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-full"
+                >
+                  <span className="text-sm font-light">
+                    {tr("bento.multimedia.btn_change_status", dictionary)}
+                  </span>
+                  <HiChevronDown className="w-4 h-4" />
+                </button>
+              )}
               className="w-full"
+              style={{ width: "100%" }}
             >
               {draftDecision !== null && (
                 <DropdownItem onClick={() => handleDecision("approved")}>
@@ -345,41 +371,49 @@ export default function MediaInlineViewer({
 
         {/* Desktop: original single-row layout (hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-2 min-w-0 flex-1 basis-auto">
-          <EditableFileName
-            currentName={current.file.entry.name}
-            nodeId={id}
-            onRenamed={onRename}
-            dictionary={dictionary}
+          <EditableField
+            taskId=""
+            fieldName="name"
+            value={current.file.entry.name}
+            type="text"
+            variant="inline"
+            onSave={async (newName) => {
+              if (id) await renameBentoFile(id, newName);
+              onRename?.();
+            }}
             inputClassName="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-48 max-w-full"
-            spanClassName="text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
+            displayClassName="text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
           />
-          <CategoryDropdown
+          <SelectorDropdown
             categories={Object.values(categories)}
-            currentTag={currentCategory}
-            onCategoryChange={handleCategoryChange}
+            baseCategory={currentCategory}
+            selectCategory={handleCategoryChange}
             dictionary={dictionary}
+            fitWidth
           />
           {current.file.entry.modifiedAt && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-block">
-              {formatDateString(current.file.entry.modifiedAt)}
-            </span>
+            <CustomBadge
+              text={formatDateString(current.file.entry.modifiedAt)}
+              className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-flex"
+            />
           )}
           {current.file.entry.modifiedByUser?.id && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-block">
-              {current.file.entry.modifiedByUser.id}
-            </span>
+            <CustomBadge
+              text={current.file.entry.modifiedByUser.id}
+              className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-flex"
+            />
           )}
-          <span
-            className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium hidden sm:inline-block ${STATUS_BADGE_CLASSES[status]}`}
-          >
-            {tr(`bento.multimedia.status_${status}`, dictionary)}
-          </span>
+          <CustomBadge
+            text={tr(`bento.multimedia.status_${status}`, dictionary)}
+            className={`px-2 py-0.5 shrink-0 hidden sm:inline-flex ${STATUS_BADGE_CLASSES[status]}`}
+          />
           {draftDecision !== null && (
-            <span className={`text-xs rounded-full px-2 py-0.5 shrink-0 font-medium border hidden sm:inline-block ${
-              DRAFT_BADGE_CLASSES[draftDecision] ?? DRAFT_BADGE_CLASSES.rejected
-            }`}>
-              → {tr(DRAFT_BADGE_KEYS[draftDecision] ?? DRAFT_BADGE_KEYS.rejected, dictionary)}
-            </span>
+            <CustomBadge
+              text={`→ ${tr(DRAFT_BADGE_KEYS[draftDecision] ?? DRAFT_BADGE_KEYS.rejected, dictionary)}`}
+              className={`px-2 py-0.5 shrink-0 border hidden sm:inline-flex ${
+                DRAFT_BADGE_CLASSES[draftDecision] ?? DRAFT_BADGE_CLASSES.rejected
+              }`}
+            />
           )}
         </div>
 
@@ -458,13 +492,12 @@ export default function MediaInlineViewer({
 
           {/* Approve / Reject */}
           {status !== "approved" && (
-            <ReviewSplitButton
+            <SplitButton
               primary={{
                 id: "approve",
                 label: <span className="hidden lg:hidden xl:inline">{tr("bento.multimedia.btn_approve", dictionary)}</span>,
                 icon: <HiCheck className="w-4 h-4" />,
                 onClick: () => handleDecision("approved"),
-                isActive: draftDecision === "approved",
               }}
               secondaryActions={[
                 {
@@ -472,16 +505,32 @@ export default function MediaInlineViewer({
                   label: <span className="hidden lg:hidden xl:inline">{tr("bento.multimedia.btn_reject", dictionary)}</span>,
                   icon: <HiXMark className="w-4 h-4" />,
                   onClick: () => handleDecision("rejected"),
-                  isActive: draftDecision === "rejected",
                 },
               ]}
             />
           )}
           {status === "approved" && (
             <Dropdown
-              label={tr("bento.multimedia.btn_change_status", dictionary)}
-              size="xs"
-              color="light"
+              label=""
+              theme={{
+                floating: {
+                  base: "overflow-hidden rounded-lg z-10",
+                  style: {
+                    auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
+                  },
+                },
+              }}
+              renderTrigger={() => (
+                <button
+                  type="button"
+                  className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-fit"
+                >
+                  <span className="text-sm font-light whitespace-nowrap">
+                    {tr("bento.multimedia.btn_change_status", dictionary)}
+                  </span>
+                  <HiChevronDown className="w-4 h-4" />
+                </button>
+              )}
             >
               {draftDecision !== null && (
                 <DropdownItem onClick={() => handleDecision("approved")}>

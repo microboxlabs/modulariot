@@ -11,6 +11,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { AlfrescoFileEntry } from "../image.types";
+import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
 
@@ -121,9 +122,10 @@ export default function MediaRow({
               {file.entry.name}
             </span>
             {categoryLabel && (
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                {categoryLabel}
-              </span>
+              <CustomBadge
+                text={categoryLabel}
+                className="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 shrink-0 whitespace-nowrap"
+              />
             )}
             {!hideStatusDot && (
               <span

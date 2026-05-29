@@ -6,11 +6,11 @@ import { useEffect, useState } from "react";
 import { IoImagesOutline } from "react-icons/io5";
 import { FaRegFilePdf } from "react-icons/fa";
 import { HiPencilSquare } from "react-icons/hi2";
-import { getCategories } from "./clasification-form";
+import { getCategories } from "../clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
-import { AlfrescoFileEntry } from "./image.types";
+import { AlfrescoFileEntry } from "../image.types";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
 

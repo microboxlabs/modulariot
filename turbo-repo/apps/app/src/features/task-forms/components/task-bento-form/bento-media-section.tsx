@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import Geographic from "@/features/shipping/components/geographic";
-import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
+import FileImages from "./components/side-data/multimedia-manager.tsx/gallery/file-images";
 
 export default function BentoMediaSection({
   task,

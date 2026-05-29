@@ -1,7 +1,7 @@
 import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 import { ImageComponent } from "@/features/geographic-view/components/image-viewer/image-selector";
 import { useEffect, useState } from "react";
-import { getCategories } from "./clasification-form";
+import { getCategories } from "../clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function ImageElement({

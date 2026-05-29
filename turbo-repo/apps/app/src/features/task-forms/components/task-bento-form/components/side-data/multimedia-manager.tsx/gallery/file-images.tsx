@@ -21,14 +21,14 @@ import {
 import { TaskResponse, ForumDiscussionResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { MODAL_THEME } from "./modal-theme";
-import ClasificationForm from "./clasification-form";
-import FileViewer from "./file_viewer";
+import { MODAL_THEME } from "../modal-theme";
+import ClasificationForm from "../clasification-form";
+import FileViewer from "../file-viewer/file_viewer";
 import DocumentList from "./document-list";
-import { AlfrescoFileEntry } from "./image.types";
+import { AlfrescoFileEntry } from "../image.types";
 import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
-import MediaInlineViewer, { MediaViewerItem } from "./media-inline-viewer";
-import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "./media-inline-viewer";
+import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewer";
+import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
 
 function toNodeRef(id: string): string {

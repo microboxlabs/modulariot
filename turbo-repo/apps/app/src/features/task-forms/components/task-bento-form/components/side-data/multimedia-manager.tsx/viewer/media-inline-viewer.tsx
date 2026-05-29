@@ -1,23 +1,11 @@
 "use client";
 
-import { Button, Dropdown, DropdownItem, Modal, ModalHeader, ModalBody, Tooltip } from "flowbite-react";
 import { useState, useEffect, useRef } from "react";
 import {
-  HiChevronDown,
-  HiOutlineChevronLeft,
-  HiOutlineChevronRight,
-  HiXMark,
-  HiCheck,
-  HiArrowDownTray,
-  HiShare,
-  HiPencilSquare,
-  HiArrowsRightLeft,
   HiChevronLeft,
-  HiTrash,
 } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { MODAL_THEME } from "../modal-theme";
 import { getCategories } from "../clasification-form";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { AlfrescoFileEntry } from "../image.types";
@@ -31,13 +19,13 @@ import { STATUS_BADGE_CLASSES, DRAFT_BADGE_CLASSES, DRAFT_BADGE_KEYS } from "./v
 import { useDocBlob } from "./use-doc-blob";
 import EditableField from "@/features/common/components/editable-field/editable-field";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
-import { SplitButton } from "@/features/common/components/split-button";
-import { SharePopover } from "./header";
 import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
 import { SidebarSection, MetaRow } from "./sidebar";
-import { MoveToTaskModal } from "./modals";
+import { MoveToTaskModal, DeleteConfirmModal, UnsentReplyModal } from "./modals";
 import { ObservationsSection } from "./observations";
 import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations";
+import ViewerToolbar from "./viewer-toolbar";
+import MobileHeader from "./mobile-header";
 
 export type MediaViewerItem = {
   type: "image" | "document";
@@ -193,181 +181,29 @@ export default function MediaInlineViewer({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-x-2 gap-y-1 px-2 sm:px-3 py-2 border-b border-gray-200 dark:border-gray-700 shrink-0">
 
-        {/* Mobile: Row 1 — nav + file name + close */}
-        <div className="flex items-center gap-1.5 sm:hidden">
-          <button
-            type="button"
-            disabled={currentIndex === 0}
-            onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-            className="p-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-            aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
-          >
-            <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums shrink-0">
-            {currentIndex + 1}/{items.length}
-          </span>
-          <button
-            type="button"
-            disabled={currentIndex === items.length - 1}
-            onClick={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
-            className="p-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-            aria-label={tr("bento.multimedia.viewer_next", dictionary)}
-          >
-            <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <EditableField
-              taskId=""
-              fieldName="name"
-              value={current.file.entry.name}
-              type="text"
-              variant="inline"
-              onSave={async (newName) => {
-                if (id) await renameBentoFile(id, newName);
-                onRename?.();
-              }}
-              inputClassName="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-full"
-              displayClassName="block text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 cursor-pointer"
-            aria-label={tr("bento.multimedia.viewer_close", dictionary)}
-          >
-            <HiXMark className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-        </div>
-
-        {/* Mobile: Row 2 — action icons */}
-        <div className="flex items-center gap-1 sm:hidden">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-            aria-label={tr("bento.multimedia.viewer_download", dictionary)}
-          >
-            <HiArrowDownTray className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-          <button
-            type="button"
-            disabled
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 opacity-40 cursor-not-allowed"
-            aria-label={tr("bento.multimedia.viewer_share", dictionary)}
-          >
-            <HiShare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-          {onEdit && (
-            <button
-              type="button"
-              onClick={() => onEdit(currentIndex)}
-              className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              aria-label={tr("bento.multimedia.viewer_replace", dictionary)}
-            >
-              <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setIsMoveModalOpen(true)}
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-            aria-label={tr("bento.multimedia.viewer_move", dictionary)}
-          >
-            <HiArrowsRightLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-          {onDelete && (
-            <button
-              type="button"
-              onClick={() => setIsDeleteConfirmOpen(true)}
-              className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
-              aria-label={tr("bento.multimedia.viewer_delete", dictionary)}
-            >
-              <HiTrash className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors" />
-            </button>
-          )}
-        </div>
-
-        {/* Mobile: Row 3 — category dropdown full width */}
-        <div className="py-1 sm:hidden">
-          <SelectorDropdown
-            categories={Object.values(categories)}
-            baseCategory={currentCategory}
-            selectCategory={handleCategoryChange}
-            dictionary={dictionary}
-          />
-        </div>
-
-        {/* Mobile: Row 4 — approve/reject full width */}
-        <div className="flex items-center gap-2 sm:hidden">
-          {status !== "approved" && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleDecision("rejected")}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
-                  draftDecision === "rejected"
-                    ? "border-red-400 dark:border-red-500 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
-                    : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                }`}
-              >
-                <HiXMark className="w-4 h-4" />
-                {tr("bento.multimedia.btn_reject", dictionary)}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDecision("approved")}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
-                  draftDecision === "approved"
-                    ? "bg-blue-700 text-white"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
-                }`}
-              >
-                <HiCheck className="w-4 h-4" />
-                {tr("bento.multimedia.btn_approve", dictionary)}
-              </button>
-            </>
-          )}
-          {status === "approved" && (
-            <Dropdown
-              label=""
-              theme={{
-                floating: {
-                  base: "overflow-hidden rounded-lg z-10",
-                  style: {
-                    auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
-                  },
-                },
-              }}
-              renderTrigger={() => (
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-full"
-                >
-                  <span className="text-sm font-light">
-                    {tr("bento.multimedia.btn_change_status", dictionary)}
-                  </span>
-                  <HiChevronDown className="w-4 h-4" />
-                </button>
-              )}
-              className="w-full"
-              style={{ width: "100%" }}
-            >
-              {draftDecision !== null && (
-                <DropdownItem onClick={() => handleDecision("approved")}>
-                  {tr("bento.multimedia.btn_no_change", dictionary)}
-                </DropdownItem>
-              )}
-              <DropdownItem onClick={() => handleDecision("rejected")}>
-                {tr("bento.multimedia.btn_reject", dictionary)}
-              </DropdownItem>
-              <DropdownItem onClick={() => handleDecision("pending")}>
-                {tr("bento.multimedia.btn_back_to_review", dictionary)}
-              </DropdownItem>
-            </Dropdown>
-          )}
-        </div>
+        <MobileHeader
+          fileName={current.file.entry.name}
+          currentIndex={currentIndex}
+          totalItems={items.length}
+          status={status}
+          draftDecision={draftDecision}
+          categories={Object.values(categories)}
+          currentCategory={currentCategory}
+          onCategoryChange={handleCategoryChange}
+          onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+          onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
+          onDownload={handleDownload}
+          onEdit={onEdit ? () => onEdit(currentIndex) : undefined}
+          onMove={() => setIsMoveModalOpen(true)}
+          onDelete={onDelete ? () => setIsDeleteConfirmOpen(true) : undefined}
+          onDecision={handleDecision}
+          onClose={handleClose}
+          onRename={async (newName) => {
+            if (id) await renameBentoFile(id, newName);
+            onRename?.();
+          }}
+          dictionary={dictionary}
+        />
 
         {/* Desktop: original single-row layout (hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-2 min-w-0 flex-1 basis-auto">
@@ -418,144 +254,23 @@ export default function MediaInlineViewer({
         </div>
 
         {/* Desktop: Right actions (hidden on mobile) */}
-        <div className="hidden sm:flex items-center gap-1 xl:gap-1.5 shrink-0">
-          <SharePopover fileUrl={fileUrl} fileName={current.file.entry.name} dictionary={dictionary} />
-          <Tooltip content={tr("bento.multimedia.viewer_download", dictionary)} placement="bottom">
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-            >
-              <HiArrowDownTray className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            </button>
-          </Tooltip>
-          {onEdit && (
-            <div className="inline-flex lg:hidden xl:inline-flex">
-              <Tooltip content={tr("bento.multimedia.viewer_replace", dictionary)} placement="bottom">
-                <button
-                  type="button"
-                  onClick={() => onEdit(currentIndex)}
-                  className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                >
-                  <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                </button>
-              </Tooltip>
-            </div>
-          )}
-          <div className="inline-flex lg:hidden xl:inline-flex">
-            <Tooltip content={tr("bento.multimedia.viewer_move", dictionary)} placement="bottom">
-              <button
-                type="button"
-                onClick={() => setIsMoveModalOpen(true)}
-                className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <HiArrowsRightLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              </button>
-            </Tooltip>
-          </div>
-          {onDelete && (
-            <Tooltip content={tr("bento.multimedia.viewer_delete", dictionary)} placement="bottom">
-              <button
-                type="button"
-                onClick={() => setIsDeleteConfirmOpen(true)}
-                className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
-              >
-                <HiTrash className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors" />
-              </button>
-            </Tooltip>
-          )}
-
-          <div className="w-px h-5 bg-gray-200 dark:bg-gray-600" />
-
-          {/* Navigation with counter in the middle */}
-          <button
-            type="button"
-            disabled={currentIndex === 0}
-            onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-            className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
-          >
-            <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-          <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums px-1 min-w-8 xl:min-w-10 text-center">
-            {currentIndex + 1}/{items.length}
-          </span>
-          <button
-            type="button"
-            disabled={currentIndex === items.length - 1}
-            onClick={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
-            className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            aria-label={tr("bento.multimedia.viewer_next", dictionary)}
-          >
-            <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-
-          {/* Approve / Reject */}
-          {status !== "approved" && (
-            <SplitButton
-              primary={{
-                id: "approve",
-                label: <span className="hidden lg:hidden xl:inline">{tr("bento.multimedia.btn_approve", dictionary)}</span>,
-                icon: <HiCheck className="w-4 h-4" />,
-                onClick: () => handleDecision("approved"),
-              }}
-              secondaryActions={[
-                {
-                  id: "reject",
-                  label: <span className="hidden lg:hidden xl:inline">{tr("bento.multimedia.btn_reject", dictionary)}</span>,
-                  icon: <HiXMark className="w-4 h-4" />,
-                  onClick: () => handleDecision("rejected"),
-                },
-              ]}
-            />
-          )}
-          {status === "approved" && (
-            <Dropdown
-              label=""
-              theme={{
-                floating: {
-                  base: "overflow-hidden rounded-lg z-10",
-                  style: {
-                    auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
-                  },
-                },
-              }}
-              renderTrigger={() => (
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-fit"
-                >
-                  <span className="text-sm font-light whitespace-nowrap">
-                    {tr("bento.multimedia.btn_change_status", dictionary)}
-                  </span>
-                  <HiChevronDown className="w-4 h-4" />
-                </button>
-              )}
-            >
-              {draftDecision !== null && (
-                <DropdownItem onClick={() => handleDecision("approved")}>
-                  {tr("bento.multimedia.btn_no_change", dictionary)}
-                </DropdownItem>
-              )}
-              <DropdownItem onClick={() => handleDecision("rejected")}>
-                {tr("bento.multimedia.btn_reject", dictionary)}
-              </DropdownItem>
-              <DropdownItem onClick={() => handleDecision("pending")}>
-                {tr("bento.multimedia.btn_back_to_review", dictionary)}
-              </DropdownItem>
-            </Dropdown>
-          )}
-
-          {/* Close */}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 cursor-pointer"
-            aria-label={tr("bento.multimedia.viewer_close", dictionary)}
-          >
-            <HiXMark className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
-        </div>
+        <ViewerToolbar
+          fileUrl={fileUrl}
+          fileName={current.file.entry.name}
+          currentIndex={currentIndex}
+          totalItems={items.length}
+          status={status}
+          draftDecision={draftDecision}
+          onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+          onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
+          onDownload={handleDownload}
+          onEdit={onEdit ? () => onEdit(currentIndex) : undefined}
+          onMove={() => setIsMoveModalOpen(true)}
+          onDelete={onDelete ? () => setIsDeleteConfirmOpen(true) : undefined}
+          onDecision={handleDecision}
+          onClose={handleClose}
+          dictionary={dictionary}
+        />
       </div>
 
       {/* Content */}
@@ -693,84 +408,25 @@ export default function MediaInlineViewer({
       />
 
       {/* Delete confirmation modal */}
-      <Modal
-        dismissible
+      <DeleteConfirmModal
         show={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
-        size="md"
-        theme={MODAL_THEME}
-      >
-        <ModalHeader className="border-none">
-          <div className="flex flex-col">
-            <span className="text-base font-semibold">{tr("bento.multimedia.delete_modal_title", dictionary)}</span>
-            <span className="text-sm text-gray-500 mt-1 font-normal">
-              {tr("bento.multimedia.delete_modal_desc", dictionary)}
-            </span>
-          </div>
-        </ModalHeader>
-        <ModalBody>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
-                {current.file.entry.name}
-              </span>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                color="alternative"
-                onClick={() => setIsDeleteConfirmOpen(false)}
-              >
-                {tr("bento.multimedia.btn_cancel", dictionary)}
-              </Button>
-              <Button
-                color="blue"
-                onClick={() => {
-                  setIsDeleteConfirmOpen(false);
-                  onDelete?.(currentIndex);
-                }}
-              >
-                {tr("bento.multimedia.btn_delete", dictionary)}
-              </Button>
-            </div>
-          </div>
-        </ModalBody>
-      </Modal>
+        onConfirm={() => {
+          setIsDeleteConfirmOpen(false);
+          onDelete?.(currentIndex);
+        }}
+        fileName={current.file.entry.name}
+        dictionary={dictionary}
+      />
 
       {/* Unsent reply modal */}
-      <Modal
-        dismissible
+      <UnsentReplyModal
         show={isUnsentReplyModalOpen}
         onClose={() => setIsUnsentReplyModalOpen(false)}
-        size="sm"
-        theme={MODAL_THEME}
-      >
-        <ModalHeader className="border-none">
-          <span className="text-base font-semibold">{tr("bento.multimedia.unsent_reply_title", dictionary)}</span>
-        </ModalHeader>
-        <ModalBody>
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {tr("bento.multimedia.unsent_reply_desc", dictionary)}
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button
-                color="alternative"
-                size="sm"
-                onClick={() => { setIsUnsentReplyModalOpen(false); pendingReplyRef.current = { text: "", send: () => {} }; onClose(); }}
-              >
-                {tr("bento.multimedia.unsent_reply_discard", dictionary)}
-              </Button>
-              <Button
-                color="blue"
-                size="sm"
-                onClick={() => { setIsUnsentReplyModalOpen(false); pendingReplyRef.current.send(); pendingReplyRef.current = { text: "", send: () => {} }; onClose(); }}
-              >
-                {tr("bento.multimedia.unsent_reply_save", dictionary)}
-              </Button>
-            </div>
-          </div>
-        </ModalBody>
-      </Modal>
+        onDiscard={() => { setIsUnsentReplyModalOpen(false); pendingReplyRef.current = { text: "", send: () => {} }; onClose(); }}
+        onSave={() => { setIsUnsentReplyModalOpen(false); pendingReplyRef.current.send(); pendingReplyRef.current = { text: "", send: () => {} }; onClose(); }}
+        dictionary={dictionary}
+      />
     </div>
   );
 }

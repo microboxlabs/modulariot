@@ -1,0 +1,30 @@
+# 🔔 Release Notes v9.99.4 — ModularIoT
+
+### Fecha: 29/05/2026
+
+**Objetivo**: Resolver regresiones de UI en la gestión de colaboradores y corregir la redirección de cierre de sesión para garantizar una experiencia localizada y sin páginas 404.
+
+## 🐛 Correcciones
+
+- **🐛 Correcciones en la gestión de colaboradores y renderizado del historial de comportamientos**
+  - **Impacto**: La interfaz de gestión de colaboradores mostraba entradas duplicadas en el historial de comportamientos, vistas específicas de colaborador/conductor no se abrían correctamente, y el estilo de los números en el componente de progreso circular era incorrecto. Faltaban claves de localización para roles y categorías de comportamiento en inglés y español.
+  - **Solución**: Se reparó el renderizado del historial para evitar duplicados, se corrigió el comportamiento de la vista/resumen para abrir correctamente el colaborador o conductor seleccionado, se ajustó el estilo visual de los números en el progreso circular y se añadieron/actualizaron claves de localización en los ficheros de idioma. (Integración OSS — MIOT-0.5.4)
+
+- **🐛 Redirección tras cierre de sesión terminaba en 404 en lugar de la página de inicio de sesión localizada**
+  - **Impacto**: Tras cerrar la sesión, los usuarios quedaban en la URL base `/app` que no sirve contenido para usuarios desconectados, mostrando una página 404 y dejando al usuario sin camino claro de regreso al inicio de sesión.
+  - **Solución**: Se ajustó la ruta post-logout para redirigir al usuario a la página de inicio de sesión localizada `/app/{lang}/sign-in` (soporte para `en` y `es`) y se verificó la compatibilidad con el flujo de logout federado de Auth0; se aseguró que las URLs de logout utilizadas sean alcanzables desde el flujo de Auth0. (Integración OSS — MIOT-0.5.4)
+
+## 📊 Beneficios
+
+- Mejor experiencia de usuario al gestionar colaboradores: vistas específicas funcionan y el historial ya no muestra duplicados.
+- Interfaz visual más consistente: números en los indicadores circulares muestran el estilo correcto.
+- Flujo de cierre de sesión robusto y localizado: evita páginas 404 y lleva al usuario a la pantalla de acceso en su idioma.
+- Localización ampliada: etiquetas de roles y categorías de comportamiento están disponibles en inglés y español.
+- Menor fricción operativa y menos confusión para usuarios finales y equipos de soporte.
+- Comportamiento del cliente más predecible en integraciones de identidad (Auth0 / logout federado).
+
+## 📌 Conclusión
+
+Esta versión corrige problemas que afectaban directamente la usabilidad en la gestión de colaboradores y la experiencia de cierre de sesión. Al arreglar los duplicados en el historial, las vistas específicas y la localización, se mejora la confianza del usuario en las funcionalidades de colaboración.
+
+Además, la redirección post-logout ahora apunta a una página de inicio de sesión localizada, eliminando la clase de errores donde usuarios quedaban en una página 404 tras cerrar sesión. Estas correcciones reducen fricción para usuarios y equipos de soporte, y preparan la base para futuras mejoras en la experiencia multilingüe.

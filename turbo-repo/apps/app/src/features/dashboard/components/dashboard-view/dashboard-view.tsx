@@ -64,23 +64,9 @@ function DashboardPlaceholder({
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
-import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
+import { type GridLayoutItem } from "../../types/dashboard.types";
+import { computeGridSizing } from "../../utils/grid-sizing";
 
-/**
- * Fixed grid width (px) calibrated for a 1080p screen (1920px viewport
- * minus sidebar and padding). The grid always renders at this width and
- * CSS-scales to match the actual container: scale < 1 on smaller screens,
- * scale > 1 on larger ones.
- */
-const DESIGN_WIDTH = 1600;
-
-/**
- * Upper bound on the fill-to-fit scale. The grid scales up to fill the
- * available width, but stops growing past this factor so content does not
- * become oversized on 4K / ultrawide monitors; beyond it the grid is centered.
- * Sensible range: 1.25–1.5.
- */
-const MAX_SCALE = 1.35;
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
@@ -134,16 +120,37 @@ export function DashboardView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const clipRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  // Fill-to-fit scale, clamped to MAX_SCALE. Drives both the CSS transform and
-  // the grid's position strategy (so drag/resize math stays correct at scale).
-  const [scale, setScale] = useState(1);
+  const hasWidgets = isLoaded && widgets.length > 0;
+
+  // Columns the current arrangement occupies (max x + w across widgets).
+  // Resolve missing widths via the dashlet layout defaults so this matches the
+  // width the grid actually renders (see the `layout` memo). Otherwise `cols`
+  // could be smaller than a widget's real extent and react-grid-layout would
+  // clamp it and persist the shifted position.
+  const usedCols = useMemo(
+    () =>
+      widgets.reduce((max, w) => {
+        const defaults = getDashlet(w.componentId)?.getLayoutDefaults(w.config);
+        const width = w.layout?.w ?? Math.max(1, defaults?.minW ?? 1);
+        return Math.max(max, (w.layout?.x ?? 0) + width);
+      }, 0),
+    [widgets]
+  );
+
+  // Grow-columns sizing: wide screens expose extra columns in edit mode; view
+  // mode fills the width (scaled, clamped). See utils/grid-sizing.ts.
+  const { cols, designWidth, scale, offsetLeft } = useMemo(
+    () => computeGridSizing({ containerWidth, usedCols, editMode }),
+    [containerWidth, usedCols, editMode]
+  );
+
+  // Keeps drag/resize math correct under the CSS transform.
   const positionStrategy = useMemo(
     () => createScaledStrategy(scale),
     [scale]
   );
-
-  const hasWidgets = isLoaded && widgets.length > 0;
 
   // Inline name editing
   const [isEditingName, setIsEditingName] = useState(false);
@@ -223,68 +230,56 @@ export function DashboardView() {
     );
   };
 
-  // Measure container width reactively
+  // Measure the available container width; it drives the column count and scale.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
       return;
     }
 
-    let lastScale = 1;
-
-    // Reserve the *scaled* height in normal flow. CSS transforms don't change
-    // the layout box, so without this the scaled grid would overflow its slot
-    // (overlapping the "Add widget" button) at scale > 1 or leave a gap at < 1.
-    const applyHeight = () => {
-      if (!gridRef.current || !clipRef.current) return;
-      clipRef.current.style.height = `${gridRef.current.offsetHeight * lastScale}px`;
+    const measure = (width: number) => {
+      if (width > 0) {
+        setContainerWidth(width);
+      }
     };
 
-    const updateScale = (width: number) => {
-      if (!gridRef.current || !clipRef.current) return;
-      const raw = width > 0 ? width / DESIGN_WIDTH : 1;
-      const next = Math.min(raw, MAX_SCALE);
-      lastScale = next;
-      setScale(next);
-      gridRef.current.style.transform = `scale(${next})`;
-      // Center horizontally once the scale is clamped (grid narrower than container).
-      gridRef.current.style.marginLeft = `${Math.max(0, (width - DESIGN_WIDTH * next) / 2)}px`;
-      clipRef.current.style.width = `${width}px`;
-      applyHeight();
-    };
-
-    // Initial measurement after layout is complete
+    // Initial measurement after layout is complete.
     requestAnimationFrame(() => {
       const style = getComputedStyle(container);
       const px =
         Number.parseFloat(style.paddingLeft) +
         Number.parseFloat(style.paddingRight);
-      const width = container.clientWidth - px;
-      if (width > 0) {
-        updateScale(width);
-      }
+      measure(container.clientWidth - px);
     });
 
-    // Observe the container width to drive the fill-to-fit scale.
-    const containerObserver = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        updateScale(entry.contentRect.width);
+        measure(entry.contentRect.width);
       }
     });
-    containerObserver.observe(container);
+    observer.observe(container);
 
-    // Observe the grid's own (unscaled) height so the reserved slot tracks
-    // widgets being added/removed/resized.
-    const gridObserver = new ResizeObserver(() => applyHeight());
-    if (gridRef.current) {
-      gridObserver.observe(gridRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Reserve the *scaled* grid height in normal flow. CSS transforms don't change
+  // the layout box, so without this the scaled grid would overlap the "Add widget"
+  // button at scale > 1 or leave a gap at < 1. Re-runs when scale/cols change and
+  // observes the grid so the slot tracks widgets being added/removed/resized.
+  useEffect(() => {
+    const grid = gridRef.current;
+    const clip = clipRef.current;
+    if (!grid || !clip) {
+      return;
     }
-
-    return () => {
-      containerObserver.disconnect();
-      gridObserver.disconnect();
+    const apply = () => {
+      clip.style.height = `${grid.offsetHeight * scale}px`;
     };
-  }, [isLoaded, hasWidgets]); // Re-run when content mounts (gridRef appears)
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [scale, cols, designWidth, hasWidgets]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -324,12 +319,12 @@ export function DashboardView() {
           isDraggable: editMode,
           isResizable: editMode,
           minW: widget.layout?.minW ?? fallbackMinW,
-          maxW: widget.layout?.maxW ?? GRID_COLS,
+          maxW: widget.layout?.maxW ?? cols,
           minH: widget.layout?.minH ?? fallbackMinH,
           maxH: widget.layout?.maxH ?? Infinity,
         };
       }),
-    [widgets, editMode]
+    [widgets, editMode, cols]
   );
 
   const handleLayoutChange = useCallback(
@@ -422,18 +417,24 @@ export function DashboardView() {
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
         <div ref={containerRef} className="w-full min-h-full">
           {hasWidgets ? (
-            <div ref={clipRef} style={{ overflow: "visible" }}>
+            <div ref={clipRef} style={{ width: "100%", overflow: "visible" }}>
               <div
                 style={{
-                  width: DESIGN_WIDTH,
+                  width: designWidth,
+                  marginLeft: offsetLeft,
+                  transform: `scale(${scale})`,
                   transformOrigin: "top left",
+                  transition:
+                    containerWidth > 0
+                      ? "transform 150ms ease, margin-left 150ms ease"
+                      : undefined,
                   position: "relative",
                 }}
                 ref={gridRef}
               >
                 {/* Grid cell overlay — only visible in edit mode */}
                 {editMode && (() => {
-                  const colW = (DESIGN_WIDTH - 16 * (GRID_COLS - 1)) / GRID_COLS;
+                  const colW = (designWidth - 16 * (cols - 1)) / cols;
                   const colP = colW + 16;
                   const rowH = 55;
                   const rowP = 71;
@@ -454,10 +455,10 @@ export function DashboardView() {
                 <GridLayout
                   className="dashboard-root-grid w-full"
                   layout={layout}
-                  width={DESIGN_WIDTH}
+                  width={designWidth}
                   positionStrategy={positionStrategy}
                   gridConfig={{
-                    cols: GRID_COLS,
+                    cols,
                     rowHeight: 55,
                     margin: [16, 16] as const,
                     containerPadding: [0, 0] as const,

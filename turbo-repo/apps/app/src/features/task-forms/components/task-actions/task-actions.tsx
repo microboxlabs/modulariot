@@ -1,7 +1,7 @@
 "use client";
 
 import { HiCheck } from "react-icons/hi";
-import { SplitButton } from "@/features/common/components/split-button";
+import SplitButton from "@/features/common/components/split-button/split-button";
 import { TaskActionsProps } from "./task-actions.types";
 import { useDocumentValidation } from "./use-document-validation";
 import {

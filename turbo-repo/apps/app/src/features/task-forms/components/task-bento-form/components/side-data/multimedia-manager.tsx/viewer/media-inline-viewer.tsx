@@ -20,10 +20,13 @@ import { useDocBlob } from "./use-doc-blob";
 import EditableField from "@/features/common/components/editable-field/editable-field";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
-import { SidebarSection, MetaRow } from "./sidebar";
-import { MoveToTaskModal, DeleteConfirmModal, UnsentReplyModal } from "./modals";
-import { ObservationsSection } from "./observations";
-import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations";
+import { SidebarSection } from "./sidebar/sidebar-section";
+import { MetaRow } from "./sidebar/meta-row";
+import { MoveToTaskModal } from "./modals/move-to-task-modal";
+import { DeleteConfirmModal } from "./modals/delete-confirm-modal";
+import { UnsentReplyModal } from "./modals/unsent-reply-modal";
+import { ObservationsSection } from "./observations/observations-section";
+import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations/observation.types";
 import ViewerToolbar from "./viewer-toolbar";
 import MobileHeader from "./mobile-header";
 
@@ -34,7 +37,7 @@ export type MediaViewerItem = {
 };
 
 export type { ObservationEntry, ObservationType, TimelineEntry };
-export type { StateChangeTimelineEntry, LooseObservationTimelineEntry } from "./observations";
+export type { StateChangeTimelineEntry, LooseObservationTimelineEntry } from "./observations/observation.types";
 
 export default function MediaInlineViewer({
   items,

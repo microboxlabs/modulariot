@@ -14,8 +14,8 @@ import {
 } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { SplitButton } from "@/features/common/components/split-button";
-import { SharePopover } from "./header";
+import SplitButton from "@/features/common/components/split-button/split-button";
+import { SharePopover } from "./header/share-popover";
 import type { ReviewStatus } from "../gallery/media-row";
 
 export default function ViewerToolbar({

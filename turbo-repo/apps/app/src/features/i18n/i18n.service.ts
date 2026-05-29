@@ -30,11 +30,16 @@ export async function getDictionary(locale: string) {
     // Escape hatch for runtime-built keys (not type-checked). Third tuple slot so
     // existing `const [, dict]` / `const [tr]` destructuring stays untouched.
     function _trDynamic(path: string, params?: Record<string, string>): string {
-      if (memoized.has(path)) {
-        return memoized.get(path) ?? path;
+      // Cache by path AND params: the same dynamic key may be rendered with
+      // different params (e.g. validation messages), so keying on path alone
+      // would return a stale result. Serializing [path, params] as the key is
+      // unambiguous and never collides with a bare-path key used by `_tr`.
+      const cacheKey = JSON.stringify([path, params ?? {}]);
+      if (memoized.has(cacheKey)) {
+        return memoized.get(cacheKey) ?? path;
       }
       const value = trDynamic(path, dictionary, params);
-      memoized.set(path, value);
+      memoized.set(cacheKey, value);
       return value;
     },
   ] as [

@@ -14,6 +14,8 @@ set -euo pipefail
 # Workflow setup note:
 #   The release workflow expects a repository or environment secret named
 #   COPILOT_PAT with the "Copilot Requests" permission enabled.
+#   If the repository does not allow GITHUB_TOKEN to create pull requests, also
+#   set RELEASE_BOT_TOKEN with repo contents/pull-request write access.
 
 : "${APP_VERSION:?APP_VERSION is required}"
 : "${APP_TAG:?APP_TAG is required}"

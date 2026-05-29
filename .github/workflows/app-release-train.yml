@@ -110,24 +110,32 @@ jobs:
       - name: Install Copilot CLI
         run: npm install -g @github/copilot
 
+      - name: Build release notes prompt
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const prompt = fs.readFileSync(".github/prompts/app-release-notes.prompt.yml", "utf8");
+          const issues = fs.readFileSync("release-issues.json", "utf8");
+          const body = prompt
+            .replaceAll("{{release_version}}", "${{ inputs.release_notes_version }}")
+            .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
+            .replaceAll("{{private_milestone}}", "${{ inputs.private_milestone }}")
+            .replaceAll("{{oss_milestone}}", "${{ inputs.oss_milestone }}")
+            .replaceAll("{{release_issues}}", issues);
+          fs.writeFileSync("release-notes.prompt.yml", body);
+          NODE
+
       - name: Generate release notes with AI inference
         id: release_notes_ai
         uses: actions/ai-inference@v2
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
         with:
-          prompt-file: ./.github/prompts/app-release-notes.prompt.yml
+          prompt-file: ./release-notes.prompt.yml
           provider: copilot
           model: ${{ inputs.release_notes_model }}
           temperature: 0.2
           max-completion-tokens: 12000
-          input: |
-            release_version: ${{ inputs.release_notes_version }}
-            release_date: ${{ steps.release_date.outputs.date }}
-            private_milestone: ${{ inputs.private_milestone }}
-            oss_milestone: ${{ inputs.oss_milestone }}
-          file_input: |
-            release_issues: release-issues.json
 
       - name: Write release notes
         run: |
@@ -154,7 +162,7 @@ jobs:
       - name: Open release PR
         id: pr
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
           url="$(gh pr create \
             --base trunk \

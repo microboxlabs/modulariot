@@ -2986,9 +2986,9 @@
         "slide2_sort": "Sort",
         "slide2_filter": "Filter",
         "slide2_collapse": "Collapse",
-        "slide3_title": "Search with ⌘K",
+        "slide3_title": "Search with ⌘K / Ctrl+K",
         "slide3_placeholder": "Search trip, plate or driver…",
-        "slide3_desc": "Press ⌘K anywhere to jump straight to the search box.",
+        "slide3_desc": "Press ⌘K / Ctrl+K anywhere to jump straight to the search box.",
         "slide4_title": "Your View, Remembered",
         "slide4_desc": "Density, sorting, filters and collapsed lanes persist across reloads."
       },

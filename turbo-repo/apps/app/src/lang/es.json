@@ -3017,9 +3017,9 @@
         "slide2_sort": "Orden",
         "slide2_filter": "Filtro",
         "slide2_collapse": "Contraer",
-        "slide3_title": "Busca con ⌘K",
+        "slide3_title": "Busca con ⌘K / Ctrl+K",
         "slide3_placeholder": "Buscar viaje, patente o conductor…",
-        "slide3_desc": "Presiona ⌘K en cualquier momento para ir directo a la búsqueda.",
+        "slide3_desc": "Presiona ⌘K / Ctrl+K en cualquier momento para ir directo a la búsqueda.",
         "slide4_title": "Tu Vista, Recordada",
         "slide4_desc": "Densidad, orden, filtros y columnas contraídas persisten al recargar."
       },

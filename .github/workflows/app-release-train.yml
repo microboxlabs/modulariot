@@ -114,7 +114,7 @@ jobs:
         with:
           prompt-file: ./.github/prompts/app-release-notes.prompt.yml
           endpoint: https://models.github.ai/inference
-          token: ${{ github.token }}
+          token: ${{ secrets.GH_MODELS_TOKEN }}
           model: ${{ inputs.release_notes_model }}
           temperature: 0.2
           max-completion-tokens: 12000

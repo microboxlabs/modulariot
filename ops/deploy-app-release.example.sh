@@ -10,6 +10,10 @@ set -euo pipefail
 #   APP_TAG             Scoped git tag, for example app@v0.5.5
 #   IMAGE_REF           Immutable image digest, for example ghcr.io/...@sha256:...
 #   DEPLOY_ENVIRONMENTS Comma-separated environment names, for example staging,production
+#
+# Workflow setup note:
+#   The release workflow also expects a repository or environment secret named
+#   GH_MODELS_TOKEN with permission to call GitHub Models inference.
 
 : "${APP_VERSION:?APP_VERSION is required}"
 : "${APP_TAG:?APP_TAG is required}"

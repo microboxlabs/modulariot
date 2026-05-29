@@ -12,8 +12,8 @@ set -euo pipefail
 #   DEPLOY_ENVIRONMENTS Comma-separated environment names, for example staging,production
 #
 # Workflow setup note:
-#   The release workflow also expects a repository or environment secret named
-#   GH_MODELS_TOKEN with permission to call GitHub Models inference.
+#   The release workflow expects a repository or environment secret named
+#   COPILOT_PAT with the "Copilot Requests" permission enabled.
 
 : "${APP_VERSION:?APP_VERSION is required}"
 : "${APP_TAG:?APP_TAG is required}"

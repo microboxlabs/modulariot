@@ -20,9 +20,9 @@ on:
         required: true
         type: string
       release_notes_model:
-        description: "GitHub Models id for non-agentic release note generation."
+        description: "Copilot model id for non-agentic release note generation."
         required: false
-        default: "openai/gpt-4o-mini"
+        default: "gpt-5-mini"
         type: string
       deploy_environments:
         description: "Comma-separated environment names consumed by deploy hook."
@@ -35,7 +35,6 @@ permissions:
   pull-requests: write
   packages: write
   id-token: write
-  models: read
 
 env:
   NODE_VERSION: "22"
@@ -108,13 +107,17 @@ jobs:
         id: release_date
         run: echo "date=$(date +'%d/%m/%Y')" >> "$GITHUB_OUTPUT"
 
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
       - name: Generate release notes with AI inference
         id: release_notes_ai
         uses: actions/ai-inference@v2
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
         with:
           prompt-file: ./.github/prompts/app-release-notes.prompt.yml
-          endpoint: https://models.github.ai/inference
-          token: ${{ secrets.GH_MODELS_TOKEN }}
+          provider: copilot
           model: ${{ inputs.release_notes_model }}
           temperature: 0.2
           max-completion-tokens: 12000

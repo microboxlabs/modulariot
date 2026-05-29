@@ -53,6 +53,13 @@ export type KanbanBoardTask = {
   serviceType: string;
   executionType: string;
   members: KanbanBoardTaskMember[];
+  /**
+   * The pooled candidate group a task is offered to. Shipping tasks are pooled
+   * (no single assignee), so this group — not a person — is the meaningful owner
+   * shown on the card. Optional: the proxy only populates it once the backend
+   * surfaces the task's candidate group; absent until then.
+   */
+  candidateGroup?: KanbanTaskGroup;
   hoReference: string;
   title?: string;
   departureDate?: string;
@@ -84,6 +91,11 @@ export type KanbanBoardTaskMember = {
   id: number;
   name: string;
   avatar: string;
+};
+
+export type KanbanTaskGroup = {
+  id: string;
+  name: string;
 };
 
 export type KanbanPageData = {

@@ -9,6 +9,7 @@ import Tags from "./tags";
 // import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 import { ParamType } from "./navegation_params";
 import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
+import { KbdHint } from "./kbd-hint";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
@@ -149,6 +150,7 @@ export default function ParametrizedSearchBar({
         <TextInput
           className="w-full lg:w-96"
           icon={HiSearch}
+          rightIcon={KbdHint}
           id="search"
           placeholder={messages.search}
           defaultValue={searchParams.get("search") || ""}

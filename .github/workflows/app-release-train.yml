@@ -200,8 +200,15 @@ jobs:
           PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
         run: |
           for attempt in {1..60}; do
-            merged_at="$(gh pr view "$PR_NUMBER" --json mergedAt --jq '.mergedAt')"
-            merge_sha="$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid // ""')"
+            pr="$(gh pr view "$PR_NUMBER" --json mergedAt,mergeCommit,state)"
+            merged_at="$(echo "$pr" | jq -r '.mergedAt')"
+            merge_sha="$(echo "$pr" | jq -r '.mergeCommit.oid // ""')"
+            state="$(echo "$pr" | jq -r '.state')"
+
+            if [[ "$state" == "CLOSED" && ( "$merged_at" == "null" || -z "$merge_sha" ) ]]; then
+              echo "::error::Release PR #$PR_NUMBER was closed without being merged. Re-run the release train to create a new release PR."
+              exit 1
+            fi
 
             if [[ "$merged_at" != "null" && -n "$merge_sha" ]]; then
               echo "Release PR #$PR_NUMBER merged at $merged_at ($merge_sha)."
@@ -313,7 +320,7 @@ jobs:
           tags: |
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.app_version }}
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:app-v${{ needs.prepare.outputs.app_version }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ needs.tag.outputs.sha }}
           build-args: |
             APP_NAME=app
           provenance: true

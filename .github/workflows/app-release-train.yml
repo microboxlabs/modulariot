@@ -50,6 +50,7 @@ jobs:
       app_version: ${{ steps.version.outputs.app_version }}
       tag: ${{ steps.version.outputs.tag }}
       branch: ${{ steps.branch.outputs.branch }}
+      pr_number: ${{ steps.pr.outputs.number }}
       pr_url: ${{ steps.pr.outputs.url }}
     steps:
       - uses: actions/checkout@v4
@@ -170,6 +171,8 @@ jobs:
             --head "${{ steps.branch.outputs.branch }}" \
             --title "chore(app): prepare v${{ steps.version.outputs.app_version }} release" \
             --body "Prepares app release ${{ steps.version.outputs.tag }} with release notes v${{ inputs.release_notes_version }}.\n\nApprove and merge this PR, then approve the protected release job to tag, build, and deploy.")"
+          number="${url##*/}"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
   approve:
@@ -188,16 +191,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare, approve]
     outputs:
-      sha: ${{ steps.trunk.outputs.sha }}
+      sha: ${{ steps.release_pr.outputs.sha }}
     steps:
+      - name: Wait for release PR merge
+        id: release_pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
+        run: |
+          for attempt in {1..60}; do
+            pr="$(gh pr view "$PR_NUMBER" --json mergedAt,mergeCommit,state)"
+            merged_at="$(echo "$pr" | jq -r '.mergedAt')"
+            merge_sha="$(echo "$pr" | jq -r '.mergeCommit.oid // ""')"
+            state="$(echo "$pr" | jq -r '.state')"
+
+            if [[ "$state" == "CLOSED" && ( "$merged_at" == "null" || -z "$merge_sha" ) ]]; then
+              echo "::error::Release PR #$PR_NUMBER was closed without being merged. Re-run the release train to create a new release PR."
+              exit 1
+            fi
+
+            if [[ "$merged_at" != "null" && -n "$merge_sha" ]]; then
+              echo "Release PR #$PR_NUMBER merged at $merged_at ($merge_sha)."
+              echo "sha=$merge_sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Release PR #$PR_NUMBER is not merged yet. Waiting before tagging... ($attempt/60)"
+            sleep 60
+          done
+
+          echo "::error::Release PR #$PR_NUMBER was approved but is still not merged. Merge it before the release train can tag trunk."
+          exit 1
+
       - uses: actions/checkout@v4
         with:
-          ref: trunk
+          ref: ${{ steps.release_pr.outputs.sha }}
           fetch-depth: 0
-
-      - name: Resolve trunk
-        id: trunk
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Verify release prep landed on trunk
         run: |
@@ -291,7 +320,7 @@ jobs:
           tags: |
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.app_version }}
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:app-v${{ needs.prepare.outputs.app_version }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ needs.tag.outputs.sha }}
           build-args: |
             APP_NAME=app
           provenance: true
@@ -327,3 +356,21 @@ jobs:
             echo "Create it to update environment variables and deploy IMAGE_REF=$IMAGE_REF to: $DEPLOY_ENVIRONMENTS."
             exit 1
           fi
+
+  close-milestones:
+    name: Close release milestones
+    runs-on: ubuntu-latest
+    needs: [prepare, tag, deploy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.sha }}
+
+      - name: Close private and OSS milestones
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          GH_PROJECT_OWNER: microboxlabs
+        run: |
+          ./turbo-repo/generative_ai/tools/sh/close-release-milestones.sh \
+            --release "${{ inputs.private_milestone }}" \
+            --oss "${{ inputs.oss_milestone }}"

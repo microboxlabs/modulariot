@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Checkbox, Modal, ModalHeader, ModalBody } from "flowbite-react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { HiChevronDown, HiArrowDownTray } from "react-icons/hi2";
 import { toast } from "sonner";
@@ -412,6 +412,7 @@ export default function FileImages({
   const [isImagesExpanded, setIsImagesExpanded] = useState(true);
   const [isDocumentsExpanded, setIsDocumentsExpanded] = useState(true);
   const [viewMode, setViewMode] = useState<"approved" | "review">("approved");
+  const viewModeInitialized = useRef(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -450,6 +451,14 @@ export default function FileImages({
     const rejected = allIds.filter((id) => reviewStatuses.get(id) === "rejected").length;
     const pending  = allIds.filter((id) => (reviewStatuses.get(id) ?? "pending") === "pending").length;
     return { approved, rejected, pending };
+  }, [allIds, reviewStatuses]);
+
+  useEffect(() => {
+    if (viewModeInitialized.current) return;
+    if (allIds.length === 0) return;
+    const hasReviewItems = allIds.some((id) => (reviewStatuses.get(id) ?? "pending") !== "approved");
+    if (hasReviewItems) setViewMode("review");
+    viewModeInitialized.current = true;
   }, [allIds, reviewStatuses]);
 
   const draftChangeSummary = useMemo(() => {
@@ -1026,72 +1035,74 @@ export default function FileImages({
       <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
 
             {/* Shared header */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 justify-between p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide shrink-0">
+            <div className="flex flex-wrap items-center gap-2 p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide truncate min-w-0">
                 {tr("bento.multimedia.title", dictionary)}
-                <span className="ml-1.5 font-medium text-gray-400 dark:text-gray-500 normal-case tracking-normal">
+                <span className="ml-1 text-sm text-gray-400 dark:text-gray-500 normal-case tracking-normal">
                   ({reviewSummary.approved}/{allIds.length})
                 </span>
               </span>
 
-              {/* View toggle */}
-              <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("approved")}
-                  className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                    viewMode === "approved"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {tr("bento.multimedia.tab_approved", dictionary)}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("review")}
-                  className={`relative flex items-center gap-1.5 px-3 py-1 text-xs font-medium border-l border-gray-200 dark:border-gray-600 transition-colors cursor-pointer ${
-                    viewMode === "review"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {tr("bento.multimedia.tab_review", dictionary)}
-                  {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || draftDecisions.size > 0) && (
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
-                  )}
-                </button>
-              </div>
+              <div className="flex items-center justify-between gap-2 ml-auto flex-1">
+                {/* View toggle */}
+                <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("approved")}
+                    className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                      viewMode === "approved"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {tr("bento.multimedia.tab_approved", dictionary)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("review")}
+                    className={`relative flex items-center gap-1.5 px-3 py-1 text-xs font-medium border-l border-gray-200 dark:border-gray-600 transition-colors cursor-pointer ${
+                      viewMode === "review"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {tr("bento.multimedia.tab_review", dictionary)}
+                    {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || draftDecisions.size > 0) && (
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
+                    )}
+                  </button>
+                </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  color="alternative"
-                  onClick={() => document.getElementById("file-input")?.click()}
-                  className="p-2 py-1! h-7 text-xs! gap-1"
-                >
-                  <MdOutlineFileUpload className="w-3.5 h-3.5 mr-1" />
-                  {tr("bento.multimedia.btn_upload", dictionary)}
-                </Button>
-                <Button
-                  color="alternative"
-                  disabled={selectedIds.size === 0}
-                  onClick={() => document.getElementById("file-input")?.click()}
-                  className="p-2 py-1! h-7 text-xs! gap-1"
-                >
-                  <HiArrowDownTray className="w-3.5 h-3.5" />
-                  {tr("bento.multimedia.btn_download", dictionary)}
-                </Button>
-                <div className="flex items-center self-center px-1">
-                  <Checkbox
-                    title={tr("bento.multimedia.select_all", dictionary)}
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
-                    onChange={(e) => {
-                      setSelectedIds(e.target.checked ? new Set(allIds) : new Set());
-                    }}
-                  />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    color="alternative"
+                    onClick={() => document.getElementById("file-input")?.click()}
+                    className="p-2 py-1! h-7 text-xs! gap-1"
+                  >
+                    <MdOutlineFileUpload className="w-3.5 h-3.5 mr-1" />
+                    {tr("bento.multimedia.btn_upload", dictionary)}
+                  </Button>
+                  <Button
+                    color="alternative"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => document.getElementById("file-input")?.click()}
+                    className="p-2 py-1! h-7 text-xs! gap-1"
+                  >
+                    <HiArrowDownTray className="w-3.5 h-3.5" />
+                    {tr("bento.multimedia.btn_download", dictionary)}
+                  </Button>
+                  <div className="flex items-center self-center px-1">
+                    <Checkbox
+                      title={tr("bento.multimedia.select_all", dictionary)}
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected;
+                      }}
+                      onChange={(e) => {
+                        setSelectedIds(e.target.checked ? new Set(allIds) : new Set());
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

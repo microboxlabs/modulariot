@@ -324,6 +324,7 @@ export default function MediaInlineViewer({
                   onRemoveReply={(obsId, rid) => { if (id) onRemoveReply?.(id, obsId, rid); }}
                   pendingReplyRef={pendingReplyRef}
                   mode="full"
+                  category={currentCategory}
                 />
               </div>
             </div>
@@ -351,6 +352,7 @@ export default function MediaInlineViewer({
               pendingReplyRef={pendingReplyRef}
               mode="preview"
               onShowAll={() => setShowAllObservations(true)}
+              category={currentCategory}
             />
           </SidebarSection>
         </>

@@ -62,6 +62,7 @@ import type {
   SlotListResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
+import type { ObservationTypeItem } from "./alfresco-api/observation-types.types";
 
 export function useMyTasks(
   columns: string[],
@@ -2136,6 +2137,36 @@ export function useServiceTypes() {
     error,
     isLoading,
   };
+}
+
+/**
+ * Active content-review observation reasons, ordered by `position` (missing
+ * positions last) then name. Backed by the Alfresco "Tipos de Observación"
+ * data list via the BFF route. Consumers fall back to the static
+ * OBSERVATION_TYPE_KEYS when this returns empty (loading / error).
+ */
+export function useObservationTypes(category?: string | null) {
+  const key = category
+    ? `/app/api/observation-types?appliesTo=${encodeURIComponent(category)}`
+    : "/app/api/observation-types";
+  const { data, error, isLoading } = useSWR<ObservationTypeItem[], FetcherError>(
+    key,
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  const observationTypes = useMemo(
+    () =>
+      (data ?? [])
+        .filter((t) => t.isActive)
+        .sort(
+          (a, b) =>
+            (a.position ?? Number.MAX_SAFE_INTEGER) -
+              (b.position ?? Number.MAX_SAFE_INTEGER) ||
+            a.name.localeCompare(b.name)
+        ),
+    [data]
+  );
+  return { observationTypes, error, isLoading };
 }
 
 /**

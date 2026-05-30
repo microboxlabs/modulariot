@@ -7,6 +7,7 @@ import {
   AlfrescoApi,
 } from "@alfresco/js-api";
 import type { ServiceType } from "./service-types.types";
+import type { ObservationTypeItem } from "./observation-types.types";
 import type {
   EndTaskResponse,
   FastTasksResponse,
@@ -1907,6 +1908,31 @@ export async function getServiceTypes(
   const response = await fetch(url, { headers });
   if (!response.ok) throw new Error(`service-types: ${response.status}`);
   return serviceTypesSchema.parse(await response.json());
+}
+
+const observationTypeSchema = z.object({
+  nodeRef: z.string(),
+  code: z.string(),
+  name: z.string(),
+  // Alfresco's JSONObject(Map) omits null-valued keys, so optional/nullish props
+  // may be absent for items created without a description or position.
+  description: z.string().nullish(),
+  isActive: z.boolean(),
+  position: z.number().nullish(),
+  appliesTo: z.array(z.string()).nullish(),
+});
+const observationTypesSchema = z.array(observationTypeSchema);
+
+export async function getObservationTypes(
+  session: Session,
+  appliesTo?: string | null
+): Promise<ObservationTypeItem[]> {
+  const qs = appliesTo ? `?appliesTo=${encodeURIComponent(appliesTo)}` : "";
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/observation-types${qs}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(`observation-types: ${response.status}`);
+  return observationTypesSchema.parse(await response.json());
 }
 
 export const timelapseMetadataSchema = z.object({

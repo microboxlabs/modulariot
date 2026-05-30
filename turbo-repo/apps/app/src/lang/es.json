@@ -2755,7 +2755,7 @@
       "category_change_loading": "Actualizando tipo de documento...",
       "category_change_success": "Tipo de documento actualizado",
       "category_change_error": "Error al actualizar el tipo de documento",
-      "status_pending": "Pendiente",
+      "status_pending": "En revisión",
       "status_approved": "Aprobado",
       "status_rejected": "Rechazado",
       "draft_will_approve": "Aprobar",

@@ -63,8 +63,14 @@ export default function SplitButton({
     <>
       {overlay && dropdownOpen && (
         <div
+          role="button"
+          tabIndex={-1}
+          aria-label="Close dropdown"
           className="fixed inset-0 z-30 transition-all duration-300 opacity-100 visible backdrop-blur-[10px] bg-black/30"
           onClick={() => setDropdownOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" || e.key === "Enter") setDropdownOpen(false);
+          }}
         />
       )}
       <div className={`flex items-stretch ${size === "sm" ? "ml-1 h-7 sm:h-9" : "h-10"}`}>

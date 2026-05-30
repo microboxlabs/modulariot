@@ -210,7 +210,7 @@ export default function TaskActions({
               id,
               label,
               icon: <Icon />,
-              onClick: () => handleSelection(id as TaskOutcome, label),
+              onClick: () => handleSelection(id, label),
             }))}
           />
         )}

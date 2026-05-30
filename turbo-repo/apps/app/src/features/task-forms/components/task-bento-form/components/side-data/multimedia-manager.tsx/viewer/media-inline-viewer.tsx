@@ -14,14 +14,13 @@ import { downloadImage } from "@/features/geographic-view/utils/download-image";
 import { updateBentoCategory, renameBentoFile } from "@/features/common/providers/client-api.provider";
 import { toast } from "sonner";
 
-import { findNextUndecided, formatBytes } from "./viewer-utils";
+import { findNextUndecided } from "./viewer-utils";
 import { STATUS_BADGE_CLASSES, DRAFT_BADGE_CLASSES, DRAFT_BADGE_KEYS } from "./viewer-constants";
 import { useDocBlob } from "./use-doc-blob";
 import EditableField from "@/features/common/components/editable-field/editable-field";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
 import { SidebarSection } from "./sidebar/sidebar-section";
-import { MetaRow } from "./sidebar/meta-row";
 import { MoveToTaskModal } from "./modals/move-to-task-modal";
 import { DeleteConfirmModal } from "./modals/delete-confirm-modal";
 import { UnsentReplyModal } from "./modals/unsent-reply-modal";
@@ -29,6 +28,8 @@ import { ObservationsSection } from "./observations/observations-section";
 import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations/observation.types";
 import ViewerToolbar from "./viewer-toolbar";
 import MobileHeader from "./mobile-header";
+import MediaContentDisplay from "./media-content-display";
+import { PropertiesGrid } from "./sidebar/properties-grid";
 
 export type MediaViewerItem = {
   type: "image" | "document";
@@ -280,31 +281,14 @@ export default function MediaInlineViewer({
       <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden">
         {/* Media area */}
         <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900 overflow-hidden shrink-0 sm:shrink basis-1/2 sm:basis-auto">
-          {current.type === "image" && imageUrl && (
-            <img
-              src={imageUrl}
-              alt={current.file.entry.name}
-              className="max-w-full max-h-full object-contain"
-            />
-          )}
-          {current.type === "document" && isDocLoading && (
-            <div className="flex flex-col items-center gap-3 text-gray-500 dark:text-gray-400">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">{tr("bento.multimedia.viewer_loading_doc", dictionary)}</span>
-            </div>
-          )}
-          {current.type === "document" && !isDocLoading && docUrl && (
-            <iframe
-              src={docUrl}
-              title={current.file.entry.name}
-              className="w-full h-full border-0"
-            />
-          )}
-          {current.type === "document" && !isDocLoading && !docUrl && (
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("bento.multimedia.viewer_load_error", dictionary)}
-            </span>
-          )}
+          <MediaContentDisplay
+            type={current.type}
+            fileName={current.file.entry.name}
+            imageUrl={imageUrl}
+            docUrl={docUrl}
+            isDocLoading={isDocLoading}
+            dictionary={dictionary}
+          />
         </div>
 
         {/* Metadata sidebar */}
@@ -347,36 +331,11 @@ export default function MediaInlineViewer({
           ) : (
           <>
           <SidebarSection title={tr("bento.multimedia.sidebar_properties", dictionary)} defaultExpanded>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <MetaRow label={tr("bento.multimedia.sidebar_prop_name", dictionary)} value={current.file.entry.name} />
-              {categoryLabel && <MetaRow label={tr("bento.multimedia.sidebar_prop_category", dictionary)} value={categoryLabel} />}
-              {current.file.entry.properties["cm:versionLabel"] && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_version", dictionary)} value={`v${current.file.entry.properties["cm:versionLabel"]}`} />
-              )}
-              <MetaRow label={tr("bento.multimedia.sidebar_prop_type", dictionary)} value={current.file.entry.content.mimeTypeName ?? current.file.entry.content.mimeType} />
-              <MetaRow label={tr("bento.multimedia.sidebar_prop_size", dictionary)} value={formatBytes(current.file.entry.content.sizeInBytes)} />
-              {current.file.entry.modifiedAt && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_modified", dictionary)} value={formatDateString(current.file.entry.modifiedAt)} />
-              )}
-              {current.file.entry.modifiedByUser?.displayName && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_modified_by", dictionary)} value={current.file.entry.modifiedByUser.displayName} />
-              )}
-              {current.file.entry.createdAt && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_created", dictionary)} value={formatDateString(current.file.entry.createdAt)} />
-              )}
-              {current.file.entry.createdByUser?.displayName && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_author", dictionary)} value={current.file.entry.createdByUser.displayName} />
-              )}
-              {current.file.entry.properties["mintral:reviewStatus"] && current.file.entry.properties["mintral:reviewStatus"] !== "PENDING" && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_review_status", dictionary)} value={current.file.entry.properties["mintral:reviewStatus"] === "APPROVED" ? tr("bento.multimedia.sidebar_prop_review_approved", dictionary) : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary)} />
-              )}
-              {current.file.entry.properties["mintral:reviewedBy"] && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_by", dictionary)} value={current.file.entry.properties["mintral:reviewedBy"]} />
-              )}
-              {current.file.entry.properties["mintral:reviewedAt"] && (
-                <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_at", dictionary)} value={formatDateString(current.file.entry.properties["mintral:reviewedAt"])} />
-              )}
-            </dl>
+            <PropertiesGrid
+              entry={current.file.entry}
+              categoryLabel={categoryLabel}
+              dictionary={dictionary}
+            />
           </SidebarSection>
           <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)} defaultExpanded>
             <ObservationsSection

@@ -57,7 +57,11 @@ jobs:
 
       - name: Resolve image metadata
         id: vars
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          sha="${PR_HEAD_SHA:-$GITHUB_SHA}"
+          echo "short_sha=${sha::7}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci

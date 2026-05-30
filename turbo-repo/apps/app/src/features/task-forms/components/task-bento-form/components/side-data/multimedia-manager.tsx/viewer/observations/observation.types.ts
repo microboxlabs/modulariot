@@ -1,3 +1,8 @@
+// The active list of reasons is served at runtime by the Alfresco "Tipos de
+// Observación" data list (ecm-coordinator, prefix `observationtypedl`). This
+// union + OBSERVATION_TYPE_KEYS is the persisted code type and the offline
+// fallback rendered before that catalog loads — keep the codes here in sync
+// with the data list seed (tools/js-console/utility/sync-observation-types.js).
 export type ObservationType =
   | "value_not_visible"
   | "bad_lighting"

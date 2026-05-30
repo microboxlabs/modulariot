@@ -8,6 +8,7 @@ import { OBSERVATION_TYPE_KEYS } from "./observation.types";
 import { ObservationCard } from "./observation-card";
 import { StateChangeEntry } from "./state-change-entry";
 import { LooseObservationEntry } from "./loose-observation-entry";
+import { useObservationTypes } from "@/features/common/providers/client-api.provider";
 
 export function ObservationsSection({
   dictionary,
@@ -22,6 +23,7 @@ export function ObservationsSection({
   pendingReplyRef,
   mode = "full",
   onShowAll,
+  category,
 }: Readonly<{
   dictionary: I18nRecord;
   draftObservations: ObservationEntry[];
@@ -35,12 +37,43 @@ export function ObservationsSection({
   pendingReplyRef?: React.RefObject<{ text: string; send: () => void }>;
   mode?: "preview" | "full";
   onShowAll?: () => void;
+  /** Document category (mintral:contentType) — scopes which observation reasons are offered. */
+  category?: string | null;
 }>) {
   const [isAdding, setIsAdding] = useState(false);
   const [newType, setNewType] = useState<ObservationType>("value_not_visible");
   const [newDescription, setNewDescription] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
+
+  // The selectable observation reasons come from the Alfresco "Tipos de
+  // Observación" data list. While it loads (or if the request fails) we fall
+  // back to the static OBSERVATION_TYPE_KEYS so the picker is never empty.
+  const { observationTypes } = useObservationTypes(category);
+  const typeOptions = useMemo<{ code: ObservationType; name?: string }[]>(
+    () =>
+      observationTypes.length > 0
+        ? observationTypes.map((t) => ({ code: t.code as ObservationType, name: t.name }))
+        : OBSERVATION_TYPE_KEYS.map((code) => ({ code })),
+    [observationTypes]
+  );
+  const defaultType = typeOptions[0]?.code ?? "value_not_visible";
+
+  // Label: prefer the i18n translation keyed by code, fall back to the data
+  // list's name (and finally the raw code) for reasons without a translation.
+  const obsTypeLabel = (code: ObservationType, name?: string): string => {
+    const key = `bento.multimedia.obs_${code}`;
+    const label = tr(key, dictionary);
+    return label === key ? name ?? code : label;
+  };
+
+  // Keep the selected reason valid if the catalog changes (e.g. the current
+  // selection was deactivated).
+  useEffect(() => {
+    if (typeOptions.length > 0 && !typeOptions.some((o) => o.code === newType)) {
+      setNewType(typeOptions[0].code);
+    }
+  }, [typeOptions, newType]);
 
   useEffect(() => {
     if (!pendingReplyRef || !isAdding) return;
@@ -55,7 +88,7 @@ export function ObservationsSection({
     if (!newDescription.trim()) return;
     onAdd(newType, newDescription.trim());
     setNewDescription("");
-    setNewType("value_not_visible");
+    setNewType(defaultType);
     setIsAdding(false);
   };
 
@@ -123,8 +156,8 @@ export function ObservationsSection({
             onChange={(e) => setNewType(e.target.value as ObservationType)}
             className="w-full text-xs rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 cursor-pointer"
           >
-            {OBSERVATION_TYPE_KEYS.map((key) => (
-              <option key={key} value={key}>{tr(`bento.multimedia.obs_${key}`, dictionary)}</option>
+            {typeOptions.map((opt) => (
+              <option key={opt.code} value={opt.code}>{obsTypeLabel(opt.code, opt.name)}</option>
             ))}
           </select>
           <textarea

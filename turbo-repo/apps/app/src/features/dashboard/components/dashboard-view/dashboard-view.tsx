@@ -66,6 +66,7 @@ import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { type GridLayoutItem } from "../../types/dashboard.types";
 import { computeGridSizing } from "../../utils/grid-sizing";
+import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
 
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
@@ -147,10 +148,7 @@ export function DashboardView() {
   );
 
   // Keeps drag/resize math correct under the CSS transform.
-  const positionStrategy = useMemo(
-    () => createScaledStrategy(scale),
-    [scale]
-  );
+  const positionStrategy = useMemo(() => createScaledStrategy(scale), [scale]);
 
   // Inline name editing
   const [isEditingName, setIsEditingName] = useState(false);
@@ -303,36 +301,39 @@ export function DashboardView() {
   }, [editMode, undo, redo]);
 
   // Convert widgets to react-grid-layout format
-  const layout: Layout = useMemo(
-    () =>
-      widgets.map((widget, index) => {
-        const dashlet = getDashlet(widget.componentId);
-        const layoutDefaults = dashlet?.getLayoutDefaults(widget.config);
-        const fallbackMinW = Math.max(1, layoutDefaults?.minW ?? 1);
-        const fallbackMinH = Math.max(1, layoutDefaults?.minH ?? 1);
-        return {
-          i: widget.id,
-          x: widget.layout?.x ?? 0,
-          y: widget.layout?.y ?? index,
-          w: widget.layout?.w ?? fallbackMinW,
-          h: widget.layout?.h ?? fallbackMinH,
-          isDraggable: editMode,
-          isResizable: editMode,
-          minW: widget.layout?.minW ?? fallbackMinW,
-          // Allow resizing up to the currently-available columns so widgets can
-          // be dragged into the surplus columns that appear on wide screens.
-          // Positions are stored in absolute column units that may exceed the
-          // base 24. Accepted trade-off: editing the same dashboard on a
-          // narrower screen can make react-grid-layout reflow such widgets back
-          // inside the visible columns and persist that (view mode never
-          // persists reflows — see the editMode guard in handleLayoutChange).
-          maxW: widget.layout?.maxW ?? cols,
-          minH: widget.layout?.minH ?? fallbackMinH,
-          maxH: widget.layout?.maxH ?? Infinity,
-        };
-      }),
-    [widgets, editMode, cols]
-  );
+  const layout: Layout = useMemo(() => {
+    const items = widgets.map((widget, index) => {
+      const dashlet = getDashlet(widget.componentId);
+      const layoutDefaults = dashlet?.getLayoutDefaults(widget.config);
+      const fallbackMinW = Math.max(1, layoutDefaults?.minW ?? 1);
+      const fallbackMinH = Math.max(1, layoutDefaults?.minH ?? 1);
+      return {
+        i: widget.id,
+        x: widget.layout?.x ?? 0,
+        y: widget.layout?.y ?? index,
+        w: widget.layout?.w ?? fallbackMinW,
+        h: widget.layout?.h ?? fallbackMinH,
+        isDraggable: editMode,
+        isResizable: editMode,
+        minW: widget.layout?.minW ?? fallbackMinW,
+        // Allow resizing up to the currently-available columns so widgets can
+        // be dragged into the surplus columns that appear on wide screens.
+        // Positions are stored in absolute column units that may exceed the
+        // base 24. Accepted trade-off: editing the same dashboard on a
+        // narrower screen can make react-grid-layout reflow such widgets back
+        // inside the visible columns and persist that (view mode never
+        // persists reflows — see the editMode guard in handleLayoutChange).
+        maxW: widget.layout?.maxW ?? cols,
+        minH: widget.layout?.minH ?? fallbackMinH,
+        maxH: widget.layout?.maxH ?? Infinity,
+      };
+    });
+    // In view mode, fit over-wide widgets into the columns that fit the screen
+    // (clamp + re-pack) so a widened board doesn't shrink the whole view on a
+    // smaller screen. Display-only — never persisted (handleLayoutChange returns
+    // early when not in edit mode).
+    return editMode ? items : fitLayoutToCols(items, cols);
+  }, [widgets, editMode, cols]);
 
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
@@ -440,25 +441,26 @@ export function DashboardView() {
                 ref={gridRef}
               >
                 {/* Grid cell overlay — only visible in edit mode */}
-                {editMode && (() => {
-                  const colW = (designWidth - 16 * (cols - 1)) / cols;
-                  const colP = colW + 16;
-                  const rowH = 55;
-                  const rowP = 71;
-                  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='rgba(55,65,81,0.25)'/></svg>`;
-                  return (
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
-                        backgroundSize: `${colP}px ${rowP}px`,
-                        backgroundRepeat: "repeat",
-                        zIndex: 0,
-                      }}
-                    />
-                  );
-                })()}
+                {editMode &&
+                  (() => {
+                    const colW = (designWidth - 16 * (cols - 1)) / cols;
+                    const colP = colW + 16;
+                    const rowH = 55;
+                    const rowP = 71;
+                    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='rgba(55,65,81,0.25)'/></svg>`;
+                    return (
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
+                          backgroundSize: `${colP}px ${rowP}px`,
+                          backgroundRepeat: "repeat",
+                          zIndex: 0,
+                        }}
+                      />
+                    );
+                  })()}
                 <GridLayout
                   className="dashboard-root-grid w-full"
                   layout={layout}
@@ -491,7 +493,6 @@ export function DashboardView() {
                 </GridLayout>
               </div>
             </div>
-
           ) : (
             <DashboardPlaceholder
               isLoaded={isLoaded}
@@ -502,10 +503,7 @@ export function DashboardView() {
           {/* Add new widget button — outside the scaled grid */}
           {hasWidgets && editMode && (
             <div className="flex justify-center pt-4">
-              <Button
-                color="light"
-                onClick={() => setIsAddModalOpen(true)}
-              >
+              <Button color="light" onClick={() => setIsAddModalOpen(true)}>
                 <HiPlus className="mr-2 h-4 w-4" />
                 {tr("dashboard.addWidget", dictionary)}
               </Button>

@@ -143,7 +143,7 @@ jobs:
           EOF
           )"
 
-          comment_id="$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" \
+          comment_id="$(gh api --paginate "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" \
             --jq ".[] | select(.body | contains(\"$marker\")) | .id" | tail -1)"
 
           if [[ -n "$comment_id" ]]; then

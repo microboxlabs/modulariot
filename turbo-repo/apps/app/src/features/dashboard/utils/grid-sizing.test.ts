@@ -55,6 +55,23 @@ describe("computeGridSizing", () => {
     expect(s.scale).toBeCloseTo(1, 4);
   });
 
+  it("view mode clamps a widened board to the screen instead of shrinking it", () => {
+    // 36-col content on a ~1366px laptop: fitCols = floor(1366*24/1600) = 20,
+    // so view renders at 24 cols (not 36) and scales ~0.85 — NOT ~0.57.
+    const s = computeGridSizing({ containerWidth: 1366, usedCols: 36, editMode: false });
+    expect(s.cols).toBe(24);
+    expect(s.designWidth).toBeCloseTo(1600, 4);
+    expect(s.scale).toBeCloseTo(1366 / 1600, 4); // ≈ 0.854, not 1366/2400 ≈ 0.57
+  });
+
+  it("view mode renders at the columns that fit when content partially fits", () => {
+    // 36-col content on a 1700px screen: fitCols = floor(1700*24/1600) = 25.
+    const s = computeGridSizing({ containerWidth: 1700, usedCols: 36, editMode: false });
+    expect(s.cols).toBe(25);
+    expect(s.designWidth).toBeCloseTo((25 * 1600) / 24, 4);
+    expect(s.scale).toBeCloseTo(1700 / ((25 * 1600) / 24), 4); // ≈ 1.02
+  });
+
   it("floors fitCols just under a column multiple (no float round-up)", () => {
     const s = computeGridSizing({ containerWidth: 2399, usedCols: 24, editMode: true });
     expect(s.cols).toBe(35); // floor(2399 * 24 / 1600) = 35, not 36

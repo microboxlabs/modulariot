@@ -52,3 +52,12 @@ export * from "./components/item-chip";
 export * from "./context/calendar-provider";
 // Generic planning-selection provider: selection state + booking CRUD core.
 export * from "./context/planning-selection-context";
+
+// ── Phase 4 (PASS 1): grid-core shell components ──
+
+// Standardized confirmation dialog (labels translated host-side).
+export * from "./components/confirmation-modal";
+// Time-axis label + slot-cell indicator pieces (badges, quota, blocked mark).
+export * from "./components/planning/slot-cell-shared";
+// Reassignment connector overlay (origin → target slot line + arrow).
+export * from "./components/planning/reassignment-connector";

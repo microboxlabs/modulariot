@@ -1,8 +1,4 @@
-/**
- * Format a 0-100 percentage value for display, fixed to 2 decimals.
- * Use for occupancy and load utilization fields so the format stays consistent.
- */
-export function formatPercent(value: number): string {
-  const safe = Number.isFinite(value) ? value : 0;
-  return `${safe.toFixed(2)}%`;
-}
+// Moved to @microboxlabs/miot-calendar-ui (Phase 1). This thin re-export keeps
+// existing `./planning-format` importers working; remove in Phase 5 once callers
+// import from the package directly.
+export * from "@microboxlabs/miot-calendar-ui";

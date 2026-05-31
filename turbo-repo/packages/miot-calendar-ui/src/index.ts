@@ -82,3 +82,9 @@ export * from "./components/planning/planning-views.types";
 export * from "./components/planning/day/day-grid";
 // Day view: reads the active date from useCalendar() and renders the day grid.
 export * from "./components/planning/planning-day-view";
+// Week view: 7-day shift grid (host injects grid data + shell-props builder).
+export * from "./components/planning/planning-week-view";
+// Month view: day-cell grid; chips via the renderDayChip render-prop seam.
+export * from "./components/planning/planning-month-view";
+// Calendar switch: renders day/week/month from the useCalendar() active view.
+export * from "./components/planning/planning-calendar";

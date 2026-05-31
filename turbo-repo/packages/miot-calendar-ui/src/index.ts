@@ -76,3 +76,9 @@ export * from "./components/planning/planning-grid-shell";
 export * from "./components/planning/calendar-navigation";
 // Presentational day/week/month switcher (active view + handler injected).
 export * from "./components/planning/calendar-view-switcher";
+// View seam types: injected grid controller + shell-props builder + view props.
+export * from "./components/planning/planning-views.types";
+// Single-day axis grid (host injects grid data + shell-props builder).
+export * from "./components/planning/day/day-grid";
+// Day view: reads the active date from useCalendar() and renders the day grid.
+export * from "./components/planning/planning-day-view";

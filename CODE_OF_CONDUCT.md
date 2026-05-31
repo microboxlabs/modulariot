@@ -40,8 +40,11 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement.
-All complaints will be reviewed and investigated promptly and fairly.
+reported to the community leaders responsible for enforcement at
+<!-- TODO: add a dedicated Code of Conduct contact email -->
+**[INSERT CONTACT EMAIL]**. All complaints will be reviewed and investigated
+promptly and fairly. Community leaders are obligated to respect the privacy and
+security of the reporter of any incident.
 
 ## Attribution
 
@@ -49,4 +52,4 @@ This Code of Conduct is adapted from the [Contributor Covenant][homepage],
 version 2.0, available at
 https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
 
-[homepage]: https://www.contributor-covenant.org 
+[homepage]: https://www.contributor-covenant.org

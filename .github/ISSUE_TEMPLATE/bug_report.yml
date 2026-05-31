@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a problem so we can fix it
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill out the sections below.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: dropdown
+    id: workspace
+    attributes:
+      label: Affected workspace
+      description: Which part of the monorepo is affected?
+      options:
+        - quarkus-srv (Integration)
+        - ecm-srv (Coordinator)
+        - turbo-repo (Frontend)
+        - miot-harness (AI harness)
+        - Not sure / other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the behavior?
+      placeholder: |
+        1. Go to '...'
+        2. Run '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js / Java / Python versions, browser, deployment, etc.
+      placeholder: |
+        - OS: macOS 15
+        - Node: 20.x
+        - Java: 21
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste any relevant log output or screenshots.
+      render: shell
+    validations:
+      required: false

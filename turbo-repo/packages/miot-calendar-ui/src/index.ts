@@ -50,3 +50,5 @@ export * from "./components/item-card";
 export * from "./components/item-chip";
 // Generic calendar UI state provider + hooks (domain logic layered on later).
 export * from "./context/calendar-provider";
+// Generic planning-selection provider: selection state + booking CRUD core.
+export * from "./context/planning-selection-context";

@@ -69,3 +69,10 @@ export * from "./components/planning/shift-overlay-layer";
 export * from "./components/planning/planning-grid-overlays";
 // Grid shell: scroll container + overlay mount points (view markup as children).
 export * from "./components/planning/planning-grid-shell";
+
+// ── Phase 4 (PASS 2): nav + view shell components ──
+
+// Presentational "today" button (label + handler injected by the host).
+export * from "./components/planning/calendar-navigation";
+// Presentational day/week/month switcher (active view + handler injected).
+export * from "./components/planning/calendar-view-switcher";

@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "flowbite-react/plugin/tailwindcss";
 @source "../../.flowbite-react/class-list.json";
+/* Scan the extracted calendar package so its Tailwind classes (e.g. the
+   TIME_WINDOW_COLORS shift tints) are generated — they live in the package
+   source now, outside the app's default content roots. R6 formalises this as
+   the package's Tailwind preset/@source contract for external consumers. */
+@source "../../../../packages/miot-calendar-ui/src";
 
 @config "../../tailwind.config.ts";
 

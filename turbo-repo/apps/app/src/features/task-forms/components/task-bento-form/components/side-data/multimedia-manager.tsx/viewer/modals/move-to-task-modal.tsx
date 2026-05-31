@@ -3,14 +3,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { HiCheck } from "react-icons/hi2";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { MODAL_THEME_LG } from "../../modal-theme";
 import { moveBentoFile, useMyTasks } from "@/features/common/providers/client-api.provider";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { toast } from "sonner";
 import { PlanningSearchAutocomplete } from "@/features/calendar/components/planning/planning-search-autocomplete";
-import type { SelectedService } from "@/features/calendar/components/planning/planning-selection-context";
+import type { SelectedService, TripType } from "@/features/calendar/components/planning/planning-selection-context";
 
 /**
  * Transform KanbanBoardTask to SelectedService for the search autocomplete.
@@ -23,7 +23,7 @@ function taskToSelectedService(task: KanbanBoardTask): SelectedService {
     origen: task.origin || "",
     destino: task.destination || "",
     lugarCarguio: "",
-    tipoViaje: task.serviceKind || "Sider",
+    tipoViaje: (task.serviceKind || "Sider") as TripType,
     ocupacion: 0,
     permanencia: "24h",
     leadTime: {
@@ -233,7 +233,7 @@ export function MoveToTaskModal({
         <div className="flex flex-col gap-3">
           {/* Search - uses the same component as the calendar planning sidebar */}
           <PlanningSearchAutocomplete
-            dict={dictionary}
+            dict={dictionary as I18nDictionary}
             services={servicesForSearch}
             onSelect={handleSearchSelect}
             onMatchTypeSelect={handleMatchTypeSelect}

@@ -61,3 +61,11 @@ export * from "./components/confirmation-modal";
 export * from "./components/planning/slot-cell-shared";
 // Reassignment connector overlay (origin → target slot line + arrow).
 export * from "./components/planning/reassignment-connector";
+// Delete-confirmation modal + i18n-seam message builders.
+export * from "./components/planning/delete-confirmation-modal";
+// Shift overlay layer: per-shift rectangles + chips (chip render-prop seam).
+export * from "./components/planning/shift-overlay-layer";
+// Root grid overlays: host context menu + delete modals + reassign connector.
+export * from "./components/planning/planning-grid-overlays";
+// Grid shell: scroll container + overlay mount points (view markup as children).
+export * from "./components/planning/planning-grid-shell";

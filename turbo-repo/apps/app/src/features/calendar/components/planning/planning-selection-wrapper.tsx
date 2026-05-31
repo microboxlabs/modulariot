@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { z } from "zod";
 import {
   PlanningSelectionProvider as CorePlanningSelectionProvider,
+  CalendarProvider,
   type BookingPersistContext,
   type CalendarHost,
   type CalendarItem,
@@ -31,7 +32,11 @@ import {
   notifyCalendarBinding,
   type BookingTaskAdvance,
 } from "@/features/common/providers/client-api.provider";
-import { parseUrlDate } from "@/features/calendar/services/calendar.service";
+import {
+  parseUrlDate,
+  isValidViewMode,
+} from "@/features/calendar/services/calendar.service";
+import { CalendarUrlSync } from "./use-calendar-url-sync";
 import {
   apiToLocalTimeWindow,
   localToApiTimeWindow,
@@ -650,6 +655,13 @@ export function PlanningSelectionProvider({
     ]
   );
 
+  // Seed the package calendar state (view/date) from the URL on mount; the
+  // CalendarUrlSync bridge keeps URL ↔ state in sync thereafter. URL ownership
+  // stays app-side so the package never touches next/navigation.
+  const urlView = searchParams.get("view");
+  const initialView = isValidViewMode(urlView) ? urlView : "week";
+  const initialDate = parseUrlDate(searchParams.get("date"))?.toDate();
+
   return (
     <CorePlanningSelectionProvider<SelectedService>
       host={host}
@@ -668,7 +680,14 @@ export function PlanningSelectionProvider({
       onSelectedDateChange={setSlotDate}
       onBookingChange={refreshLiveTasks}
     >
-      {children}
+      <CalendarProvider
+        host={host}
+        initialView={initialView}
+        initialDate={initialDate}
+      >
+        <CalendarUrlSync defaultView={initialView} />
+        {children}
+      </CalendarProvider>
     </CorePlanningSelectionProvider>
   );
 }

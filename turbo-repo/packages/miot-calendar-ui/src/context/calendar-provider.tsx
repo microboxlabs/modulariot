@@ -36,19 +36,19 @@ export interface CalendarState {
 const CalendarStateContext = createContext<CalendarState | null>(null);
 const CalendarHostContext = createContext<CalendarHost | null>(null);
 
-export interface CalendarProviderProps {
-  host: CalendarHost;
+export interface CalendarProviderProps<TRaw = unknown> {
+  host: CalendarHost<TRaw>;
   initialView?: ViewMode;
   initialDate?: Date;
   children: ReactNode;
 }
 
-export function CalendarProvider({
+export function CalendarProvider<TRaw = unknown>({
   host,
   initialView = "week",
   initialDate,
   children,
-}: CalendarProviderProps) {
+}: CalendarProviderProps<TRaw>) {
   const [view, setView] = useState<ViewMode>(initialView);
   const [currentDate, setCurrentDate] = useState<Date>(
     () => initialDate ?? new Date()
@@ -74,7 +74,7 @@ export function CalendarProvider({
   );
 
   return (
-    <CalendarHostContext.Provider value={host}>
+    <CalendarHostContext.Provider value={host as CalendarHost}>
       <CalendarStateContext.Provider value={state}>
         {children}
       </CalendarStateContext.Provider>

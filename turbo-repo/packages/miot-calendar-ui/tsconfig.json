@@ -2,7 +2,16 @@
   "extends": "@repo/typescript-config/react-library.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // tsup bundles the entry, so use bundler-style module resolution: relative
+    // re-exports in src/index.ts don't need explicit .js extensions for DTS emit.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // Match apps/app's tsconfig: the calendar code being extracted was written
+    // against noUncheckedIndexedAccess:false (the repo base.json sets it true,
+    // but apps/app overrides to false). Aligning here keeps moved code building
+    // unchanged across all extraction phases.
+    "noUncheckedIndexedAccess": false
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

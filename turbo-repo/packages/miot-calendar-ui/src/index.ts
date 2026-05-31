@@ -2,7 +2,31 @@
 //
 // The reusable, domain-agnostic calendar UI surface is extracted here across
 // phases P1–P6 (see .cursor/plans/calendar-ui-package-extraction.plan.md).
-// This placeholder keeps the package buildable while the scaffold (P0) lands.
 
-/** Package marker; replaced by real exports in later phases. */
+/** Package marker. */
 export const MIOT_CALENDAR_UI_VERSION = "0.1.0";
+
+// Time-window primitives: the canonical TimeSlot/TimeWindow/TimeBlock config
+// model, color presets, type guards, and pattern/quota utilities.
+export * from "./components/planning/time-window";
+
+// Pure grid geometry: shift-rectangle layout + variable-row stretching.
+export * from "./components/planning/shift-layout";
+
+// Slot-cell styling helpers (Tailwind class derivation, blocked/spare stripes).
+export * from "./components/planning/planning-slot-utils";
+
+// Display formatting helpers.
+export * from "./components/planning/planning-format";
+
+// Calendar URL/view-mode + time-axis slot utilities.
+export * from "./services/calendar.service";
+// The time-axis slot ({hour, minutes, label}) is distinct from the time-window
+// config TimeSlot above; surface it under an unambiguous name to avoid a clash.
+export type { TimeSlot as TimeAxisSlot, ViewMode } from "./services/calendar.service.types";
+
+// API <-> local time-window mapping + the response validation schema.
+export * from "./services/time-window.service";
+
+// Time-slot request/response DTOs.
+export * from "./types/time-slot.types";

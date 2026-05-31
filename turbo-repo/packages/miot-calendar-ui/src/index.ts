@@ -39,6 +39,12 @@ export * from "./types/calendar-item";
 export * from "./types/calendar-slot";
 // The single contract a host implements to mount the calendar.
 export * from "./contract/calendar-host";
+// Booking CRUD surface + persist-decision context the host wires in.
+export * from "./contract/booking-api";
+// Generic planned/reassigning/assigning item models.
+export * from "./types/planning";
+// Generic booking request/resource builders + optimistic rollback.
+export * from "./services/booking-persistence";
 // Default sidebar card + grid chip rendered from a CalendarItem.
 export * from "./components/item-card";
 export * from "./components/item-chip";

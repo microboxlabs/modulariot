@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ClientConfig } from "@microboxlabs/miot-calendar-client";
 import type { CalendarItem } from "../types/calendar-item";
 import type { SelectedSlot } from "../types/calendar-slot";
+import type { BookingApi, BookingPersistContext } from "./booking-api";
 
 /** Translate function injected by the host (e.g. the app's i18n `tr`). */
 export interface CalendarI18n {
@@ -29,12 +30,51 @@ export interface CalendarPermissions {
  * hooks let the host intercept or supplement it.
  */
 export interface CalendarHooks<TRaw = unknown> {
-  /** Return false to skip the package's default booking persistence. */
-  shouldPersistBooking?: (item: CalendarItem, slot: SelectedSlot) => boolean;
-  afterPlan?: (item: CalendarItem, slot: SelectedSlot, raw?: TRaw) => void | Promise<void>;
-  afterAssign?: (item: CalendarItem, assignment: unknown) => void | Promise<void>;
-  afterMove?: (item: CalendarItem, from: SelectedSlot, to: SelectedSlot) => void | Promise<void>;
+  /**
+   * Return false to skip the package's default booking persistence (the
+   * task-driven origins whose backend listener writes the row itself). The
+   * `ctx` carries the core's `oldBookingId`/`isReassigning` so the host can
+   * recompute the task-driven decision without owning the selection state.
+   */
+  shouldPersistBooking?: (
+    item: CalendarItem,
+    slot: SelectedSlot,
+    ctx: BookingPersistContext
+  ) => boolean;
+  /**
+   * Post-persist domain side-effects for a plan/assign confirm: category sync,
+   * workflow task advance. For task-driven origins (`shouldPersistBooking` →
+   * false) it runs in place of the skipped POST, so the task advance happens
+   * before any row write; for legacy origins it runs AFTER the booking POST
+   * (with `ctx.booking` set to the freshly written row).
+   */
+  afterPlan?: (
+    item: CalendarItem,
+    slot: SelectedSlot,
+    ctx: BookingPersistContext
+  ) => void | Promise<void>;
+  afterAssign?: (
+    item: CalendarItem,
+    assignment: unknown
+  ) => void | Promise<void>;
+  afterMove?: (
+    item: CalendarItem,
+    from: SelectedSlot,
+    to: SelectedSlot
+  ) => void | Promise<void>;
+  /**
+   * Pre-cancel reversal for a full unplan: reverse the workflow task + notify
+   * the host binding. Runs BEFORE the package cancels the booking; throwing
+   * aborts the removal so the item stays visible and the user can retry.
+   */
   afterCancel?: (item: CalendarItem) => void | Promise<void>;
+  /**
+   * Clear-assignment reversal: reverse the workflow task + notify the binding
+   * (domain), then return the host item with its assignment tuple cleared so
+   * the package can rewrite the booking resource and local state. Throwing
+   * aborts the unassignment so the tuple stays visible.
+   */
+  onUnassign?: (raw: TRaw) => TRaw | Promise<TRaw>;
 }
 
 /** Context handed to a host-provided assign panel renderer. */
@@ -56,6 +96,20 @@ export interface CalendarHost<TRaw = unknown> {
   calendarId: string;
   /** Map a host domain object to the canonical CalendarItem. */
   toItem: (raw: TRaw) => CalendarItem;
+  /**
+   * Booking CRUD. When omitted the package builds a default from `client` via
+   * `createMiotCalendarClient`; hosts that proxy through their own backend
+   * (and drive workflow side-effects) override it.
+   */
+  bookingApi?: BookingApi;
+  /**
+   * Resolve the host's *live* workflow task for an item by its stable business
+   * code. Undefined when the host has no workflow, or no active task for the
+   * item. `stage` is host-defined (e.g. a kanban column key).
+   */
+  getLiveTask?: (
+    serviceCode: string | undefined
+  ) => { taskId: string; stage: string } | undefined;
   /** Override the default sidebar card. */
   renderItemCard?: (item: CalendarItem) => ReactNode;
   /** Override the default grid chip. */

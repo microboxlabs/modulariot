@@ -30,3 +30,17 @@ export * from "./services/time-window.service";
 
 // Time-slot request/response DTOs.
 export * from "./types/time-slot.types";
+
+// ── Phase 2: canonical item model + host contract + default components ──
+
+// The canonical, domain-agnostic descriptor of a listed/planned element.
+export * from "./types/calendar-item";
+// A selected grid slot (date + time-of-day + optional platform).
+export * from "./types/calendar-slot";
+// The single contract a host implements to mount the calendar.
+export * from "./contract/calendar-host";
+// Default sidebar card + grid chip rendered from a CalendarItem.
+export * from "./components/item-card";
+export * from "./components/item-chip";
+// Generic calendar UI state provider + hooks (domain logic layered on later).
+export * from "./context/calendar-provider";

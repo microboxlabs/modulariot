@@ -63,6 +63,7 @@ import { tr } from "@/features/i18n/tr.service";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { SelectedService, TaskStage } from "./planning-selection-types";
+import { ServiceEvent } from "./service-event";
 
 /**
  * Zod schema for data stored inside booking.resource.data. All SelectedService
@@ -491,6 +492,12 @@ export function PlanningSelectionProvider({
         title: raw.cliente,
         raw,
       }),
+      // Domain sidebar card: the freight ServiceEvent rendered from the
+      // canonical item's raw service. The package's generic SidebarShell calls
+      // this seam (falling back to its default ItemCard when unset).
+      renderItemCard: (item) => (
+        <ServiceEvent service={item.raw as SelectedService} dict={dict} />
+      ),
       bookingApi: {
         createBooking,
         moveBooking,

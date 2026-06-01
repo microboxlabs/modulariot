@@ -95,3 +95,5 @@ export * from "./components/planning/planning-calendar";
 export * from "./components/planning/planning-search-autocomplete";
 // Generic active-filter chip list (match-type labels resolved by the host).
 export * from "./components/planning/planning-search-tags";
+// Generic sidebar frame: slot bar + header + list/form content (card via seam).
+export * from "./components/planning/sidebar-shell";

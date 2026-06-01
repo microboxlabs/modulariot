@@ -17,9 +17,6 @@ Instead, report them privately using GitHub's private vulnerability reporting:
    of this repository.
 2. Click **Report a vulnerability** to open a private advisory.
 
-<!-- TODO (maintainers): enable "Private vulnerability reporting" under
-     Settings -> Code security and analysis so the button above is available. -->
-
 Please include as much of the following as you can:
 
 - The type of issue (e.g. injection, authentication bypass, data exposure).

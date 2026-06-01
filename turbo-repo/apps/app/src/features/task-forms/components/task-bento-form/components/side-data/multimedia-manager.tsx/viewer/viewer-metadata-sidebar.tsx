@@ -1,6 +1,6 @@
 "use client";
 
-import type { MutableRefObject } from "react";
+import type { RefObject } from "react";
 import { HiChevronLeft } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -52,7 +52,7 @@ export default function ViewerMetadataSidebar({
   onRemoveCommittedObservation?: (fileId: string, obsId: string) => void;
   onAddReply?: (fileId: string, obsId: string, description: string) => void;
   onRemoveReply?: (fileId: string, obsId: string, replyId: string) => void;
-  pendingReplyRef: MutableRefObject<{ text: string; send: () => void }>;
+  pendingReplyRef: RefObject<{ text: string; send: () => void }>;
   dictionary: I18nRecord;
 }>) {
   return (

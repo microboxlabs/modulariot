@@ -36,6 +36,14 @@ function toNodeRef(id: string): string {
   return `workspace://SpacesStore/${id}`;
 }
 
+function isReviewableFile(file: AlfrescoFileEntry): boolean {
+  return file.entry.aspectNames?.includes("mintral:reviewableAspect") ?? false;
+}
+
+function getEffectiveStatus(file: AlfrescoFileEntry, reviewStatuses: Map<string, ReviewStatus>): ReviewStatus {
+  return isReviewableFile(file) ? reviewStatuses.get(file.entry.id) ?? "pending" : "approved";
+}
+
 function statusColorCls(s: string): string {
   if (s === "approved") return "text-green-600 dark:text-green-400";
   if (s === "rejected") return "text-red-600 dark:text-red-400";
@@ -183,11 +191,10 @@ function buildObservationEntry(obs: FlatPost): ObservationEntry {
   const plainDesc = stripHtmlEntities(obs.content);
   const match = /^\[([^\]]+)\](.*)$/.exec(plainDesc);
   const obsType = match ? (match[1] as ObservationType) : (obs.title as ObservationType) || "other";
-  const obsDesc = match ? (match[2]?.trim() ?? "") : plainDesc;
   return {
     id: obs.postRef,
     type: obsType,
-    description: obsDesc,
+    description: plainDesc,
     createdAt: obs.created,
     createdBy: obs.author,
     replies: obs.replies.map((r) => ({
@@ -447,38 +454,56 @@ export default function FileImages({
   const [forumRefMap, setForumRefMap] = useState<Map<string, { topicRef: string; postRef: string }>>(new Map());
 
   const reviewSummary = useMemo(() => {
-    const approved = allIds.filter((id) => reviewStatuses.get(id) === "approved").length;
-    const rejected = allIds.filter((id) => reviewStatuses.get(id) === "rejected").length;
-    const pending  = allIds.filter((id) => (reviewStatuses.get(id) ?? "pending") === "pending").length;
+    let approved = 0;
+    let rejected = 0;
+    let pending = 0;
+    [...images, ...documents].forEach((item) => {
+      const status = getEffectiveStatus(item.file, reviewStatuses);
+      if (status === "approved") approved++;
+      else if (status === "rejected") rejected++;
+      else pending++;
+    });
     return { approved, rejected, pending };
-  }, [allIds, reviewStatuses]);
+  }, [images, documents, reviewStatuses]);
 
   useEffect(() => {
     if (viewModeInitialized.current) return;
-    if (allIds.length === 0) return;
-    const hasReviewItems = allIds.some((id) => (reviewStatuses.get(id) ?? "pending") !== "approved");
+    if (images.length + documents.length === 0) return;
+    const hasReviewItems = [...images, ...documents].some((item) => {
+      const status = getEffectiveStatus(item.file, reviewStatuses);
+      return isReviewableFile(item.file) && status !== "approved";
+    });
     if (hasReviewItems) setViewMode("review");
     viewModeInitialized.current = true;
-  }, [allIds, reviewStatuses]);
+  }, [images, documents, reviewStatuses]);
+
+  const reviewableDraftDecisions = useMemo(
+    () =>
+      Array.from(draftDecisions.entries()).filter(([id]) => {
+        const item = [...images, ...documents].find((item) => item.file.entry.id === id);
+        return item ? isReviewableFile(item.file) : false;
+      }),
+    [draftDecisions, images, documents]
+  );
 
   const draftChangeSummary = useMemo(() => {
     let toApproved = 0;
     let toRejected = 0;
     let toPending = 0;
-    draftDecisions.forEach((status) => {
+    reviewableDraftDecisions.forEach(([, status]) => {
       if (status === "approved") toApproved++;
       else if (status === "rejected") toRejected++;
       else toPending++;
     });
-    return { toApproved, toRejected, toPending, total: draftDecisions.size };
-  }, [draftDecisions]);
+    return { toApproved, toRejected, toPending, total: reviewableDraftDecisions.length };
+  }, [reviewableDraftDecisions]);
 
   const filteredImages = useMemo(
     () =>
       images
         .map((img, idx) => ({ img, idx }))
         .filter(({ img }) => {
-          const s = reviewStatuses.get(img.file.entry.id) ?? "pending";
+          const s = getEffectiveStatus(img.file, reviewStatuses);
           return viewMode === "approved" ? s === "approved" : s !== "approved";
         }),
     [images, viewMode, reviewStatuses]
@@ -489,7 +514,7 @@ export default function FileImages({
       documents
         .map((doc: { file: AlfrescoFileEntry }, idx: number) => ({ doc, idx }))
         .filter(({ doc }) => {
-          const s = reviewStatuses.get(doc.file.entry.id) ?? "pending";
+          const s = getEffectiveStatus(doc.file, reviewStatuses);
           return viewMode === "approved" ? s === "approved" : s !== "approved";
         }),
     [documents, viewMode, reviewStatuses]
@@ -532,7 +557,7 @@ export default function FileImages({
       return next;
     });
     // Always persist immediately
-    createContentForumTopic(toNodeRef(fileId), type, `[${type}] ${description}`).catch(() => {});
+    createContentForumTopic(toNodeRef(fileId), type, description).catch(() => {});
   }, [currentUserName]);
 
   const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {
@@ -619,7 +644,7 @@ export default function FileImages({
 
     setIsCommitting(true);
     try {
-      const networkOps = Array.from(draftDecisions.entries()).map(([id, status]) => {
+      const networkOps = reviewableDraftDecisions.map(([id, status]) => {
         const alfrescoState = ALFRESCO_STATE_MAP[status] ?? "PENDING";
         const existing = committedTimeline.get(id) ?? [];
         const looseObs = existing.filter((e) => e.kind === "observation") as LooseObservationTimelineEntry[];
@@ -692,7 +717,7 @@ export default function FileImages({
     } finally {
       setIsCommitting(false);
     }
-  }, [draftDecisions, currentUserName, draftObservations, committedTimeline, dictionary]);
+  }, [reviewableDraftDecisions, currentUserName, draftObservations, committedTimeline, dictionary]);
 
   const { mutate: globalMutate } = useSWRConfig();
 
@@ -817,7 +842,7 @@ export default function FileImages({
 
   const viewerItems = useMemo<MediaViewerItem[]>(
     () => allMediaItems.filter((item) => {
-      const s = reviewStatuses.get(item.file.entry.id) ?? "pending";
+      const s = getEffectiveStatus(item.file, reviewStatuses);
       return viewMode === "approved" ? s === "approved" : s !== "approved";
     }),
     [allMediaItems, viewMode, reviewStatuses]
@@ -895,7 +920,7 @@ export default function FileImages({
         // error toast already shown
       }
     },
-    [viewerItems, mutate, mutateContents, closeViewer]
+    [viewerItems, mutate, mutateContents, closeViewer, dictionary]
   );
 
   if (!packageId) return null;
@@ -1067,7 +1092,7 @@ export default function FileImages({
                     }`}
                   >
                     {tr("bento.multimedia.tab_review", dictionary)}
-                    {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || draftDecisions.size > 0) && (
+                    {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || reviewableDraftDecisions.length > 0) && (
                       <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
                     )}
                   </button>
@@ -1131,7 +1156,7 @@ export default function FileImages({
                     onSelect={() => openViewerByFileId(image.file.entry.id)}
                     isSelected={selectedIds.has(image.file.entry.id)}
                     onToggleSelect={toggleSelect}
-                    status={draftDecisions.get(image.file.entry.id) ?? reviewStatuses.get(image.file.entry.id) ?? "pending"}
+                    status={isReviewableFile(image.file) ? (draftDecisions.get(image.file.entry.id) ?? getEffectiveStatus(image.file, reviewStatuses)) : "approved"}
                     statusSetAt={reviewStatusTimestamps.get(image.file.entry.id)}
                     statusSetBy={reviewStatusUsers.get(image.file.entry.id)}
                     hideStatusDot={viewMode === "approved"}
@@ -1160,7 +1185,7 @@ export default function FileImages({
                     onSelect={() => openViewerByFileId(doc.file.entry.id)}
                     isSelected={selectedIds.has(doc.file.entry.id)}
                     onToggleSelect={toggleSelect}
-                    status={draftDecisions.get(doc.file.entry.id) ?? reviewStatuses.get(doc.file.entry.id) ?? "pending"}
+                    status={isReviewableFile(doc.file) ? (draftDecisions.get(doc.file.entry.id) ?? getEffectiveStatus(doc.file, reviewStatuses)) : "approved"}
                     statusSetAt={reviewStatusTimestamps.get(doc.file.entry.id)}
                     statusSetBy={reviewStatusUsers.get(doc.file.entry.id)}
                     hideStatusDot={viewMode === "approved"}
@@ -1172,7 +1197,7 @@ export default function FileImages({
             </div>
 
             {/* Card footer — commit review */}
-            {allIds.length > 0 && draftDecisions.size > 0 && (
+            {allIds.length > 0 && reviewableDraftDecisions.length > 0 && (
               <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/60">
                 <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                   {draftChangeSummary.toApproved > 0 && (
@@ -1224,7 +1249,7 @@ export default function FileImages({
         <ModalBody>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-              {Array.from(draftDecisions.entries()).map(([id, newStatus]) => {
+              {reviewableDraftDecisions.map(([id, newStatus]) => {
                 const item = allMediaItems.find((m) => m.file.entry.id === id);
                 const name = item?.file.entry.name ?? id;
                 const currentStatus = reviewStatuses.get(id) ?? "pending";

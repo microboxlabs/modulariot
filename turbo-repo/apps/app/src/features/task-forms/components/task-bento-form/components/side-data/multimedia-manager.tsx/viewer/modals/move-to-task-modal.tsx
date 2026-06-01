@@ -65,21 +65,44 @@ function TaskServiceCard({
     cardCls = "border-blue-500 bg-blue-50 dark:bg-blue-900/20 cursor-pointer";
   }
 
+  const transporter = task.mintral_supplierName || task.client || task.clientCode || "";
+  const driver = task.mintral_driver1Name || "";
+  const truck = task.mintral_truckLicensePlate || "";
+  const trailer = task.mintral_trailerLicensePlate || "";
+
   return (
     <button
       type="button"
       disabled={isCurrent}
       onClick={onSelect}
-      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors ${cardCls}`}
+      className={`w-full flex flex-col gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors ${cardCls}`}
     >
-      <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
-        {task.name}
-      </span>
-      {(task.origin || task.destination) && (
-        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-          {task.origin || "—"} → {task.destination || "—"}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
+          {task.name}
         </span>
-      )}
+        {(task.origin || task.destination) && (
+          <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+            {task.origin || "—"} → {task.destination || "—"}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+        <span className="col-span-2 wrap-break-word">
+          <strong>{tr("bento.multimedia.move_service_transporter", dictionary)}:</strong> {transporter || "-"}
+        </span>
+        {driver && (
+          <span className="truncate">
+            <strong>{tr("bento.multimedia.move_service_driver", dictionary)}:</strong> {driver}
+          </span>
+        )}
+        <span className="truncate">
+          <strong>{tr("bento.multimedia.move_service_truck", dictionary)}:</strong> {truck || "-"}
+        </span>
+        <span className="truncate">
+          <strong>{tr("bento.multimedia.move_service_trailer", dictionary)}:</strong> {trailer || "-"}
+        </span>
+      </div>
       {isCurrent && (
         <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 whitespace-nowrap">
           {tr("bento.multimedia.move_file_here", dictionary)}
@@ -151,23 +174,27 @@ export function MoveToTaskModal({
 
   // Filter tasks based on selected match type
   const filteredTasks = useMemo(() => {
-    if (!filterMatchType) return allTasks;
-    const { matchType, query } = filterMatchType;
-    const lowerQuery = query.toLowerCase();
-    return allTasks.filter((task) => {
-      switch (matchType) {
-        case "id":
-          return (task.name || task.id).toLowerCase().includes(lowerQuery);
-        case "cliente":
-          return (task.client || task.clientCode || "").toLowerCase().includes(lowerQuery);
-        case "origen":
-          return (task.origin || "").toLowerCase().includes(lowerQuery);
-        case "destino":
-          return (task.destination || "").toLowerCase().includes(lowerQuery);
-        default:
-          return true;
-      }
-    });
+    let tasks = allTasks;
+    if (filterMatchType) {
+      const { matchType, query } = filterMatchType;
+      const lowerQuery = query.toLowerCase();
+      tasks = allTasks.filter((task) => {
+        switch (matchType) {
+          case "id":
+            return (task.name || task.id).toLowerCase().includes(lowerQuery);
+          case "cliente":
+            return (task.client || task.clientCode || "").toLowerCase().includes(lowerQuery);
+          case "origen":
+            return (task.origin || "").toLowerCase().includes(lowerQuery);
+          case "destino":
+            return (task.destination || "").toLowerCase().includes(lowerQuery);
+          default:
+            return true;
+        }
+      });
+    }
+
+    return tasks;
   }, [allTasks, filterMatchType]);
 
   const handleSearchSelect = useCallback((service: SelectedService) => {
@@ -232,16 +259,18 @@ export function MoveToTaskModal({
       <ModalBody>
         <div className="flex flex-col gap-3">
           {/* Search - uses the same component as the calendar planning sidebar */}
-          <PlanningSearchAutocomplete
-            dict={dictionary}
-            services={servicesForSearch}
-            onSelect={handleSearchSelect}
-            onMatchTypeSelect={handleMatchTypeSelect}
-            onClear={handleSearchClear}
-            onQueryChange={handleQueryChange}
-            hasActiveFilter={filterMatchType !== null}
-            isLoading={isLoading}
-          />
+          <div className="flex flex-col gap-3">
+            <PlanningSearchAutocomplete
+              dict={dictionary}
+              services={servicesForSearch}
+              onSelect={handleSearchSelect}
+              onMatchTypeSelect={handleMatchTypeSelect}
+              onClear={handleSearchClear}
+              onQueryChange={handleQueryChange}
+              hasActiveFilter={filterMatchType !== null}
+              isLoading={isLoading}
+            />
+          </div>
 
           {/* Results list */}
           <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">

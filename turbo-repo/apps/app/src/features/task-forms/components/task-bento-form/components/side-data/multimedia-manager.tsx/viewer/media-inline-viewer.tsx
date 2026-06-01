@@ -121,6 +121,8 @@ export default function MediaInlineViewer({
   const [currentCategory, setCurrentCategory] = useState<string | null>(
     current?.file?.entry?.properties["mintral:contentType"] ?? null
   );
+
+  const isCurrentReviewable = current?.file?.entry?.aspectNames?.includes("mintral:reviewableAspect") ?? false;
   useEffect(() => {
     setCurrentCategory(items[currentIndex]?.file?.entry?.properties["mintral:contentType"] ?? null);
   }, [currentIndex, items]);
@@ -149,10 +151,14 @@ export default function MediaInlineViewer({
 
   const categories = getCategories(dictionary);
   const categoryLabel = categories[currentCategory as keyof typeof categories]?.label;
-  const status: ReviewStatus = id ? (reviewStatuses?.get(id) ?? "pending") : "pending";
+  const status: ReviewStatus = id
+    ? isCurrentReviewable
+      ? (reviewStatuses?.get(id) ?? "pending")
+      : "approved"
+    : "pending";
 
   const handleDecision = (decision: ReviewStatus) => {
-    if (!id) return;
+    if (!id || !isCurrentReviewable) return;
     onStatusChange?.(id, decision);
 
     if (status === "approved" || status === "rejected") return;
@@ -178,7 +184,7 @@ export default function MediaInlineViewer({
   const refreshSuffix = current.refreshKey ? `&r=${current.refreshKey}` : "";
   const imageUrl =
     current.type === "image" ? `/app/api/bento/content?nodeId=${id}${refreshSuffix}` : null;
-  const draftDecision = id ? (draftDecisions?.get(id) ?? null) : null;
+  const draftDecision = id && isCurrentReviewable ? (draftDecisions?.get(id) ?? null) : null;
 
   return (
     <div className="flex flex-col w-full h-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
@@ -271,8 +277,9 @@ export default function MediaInlineViewer({
           onEdit={onEdit ? () => onEdit(currentIndex) : undefined}
           onMove={() => setIsMoveModalOpen(true)}
           onDelete={onDelete ? () => setIsDeleteConfirmOpen(true) : undefined}
-          onDecision={handleDecision}
+          onDecision={isCurrentReviewable ? handleDecision : undefined}
           onClose={handleClose}
+          reviewEnabled={isCurrentReviewable}
           dictionary={dictionary}
         />
       </div>

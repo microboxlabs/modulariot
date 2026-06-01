@@ -33,6 +33,7 @@ export default function ViewerToolbar({
   onDelete,
   onDecision,
   onClose,
+  reviewEnabled = true,
   dictionary,
 }: Readonly<{
   fileUrl: string;
@@ -47,8 +48,9 @@ export default function ViewerToolbar({
   onEdit?: () => void;
   onMove: () => void;
   onDelete?: () => void;
-  onDecision: (decision: ReviewStatus) => void;
+  onDecision?: (decision: ReviewStatus) => void;
   onClose: () => void;
+  reviewEnabled?: boolean;
   dictionary: I18nRecord;
 }>) {
   return (
@@ -125,7 +127,7 @@ export default function ViewerToolbar({
       </button>
 
       {/* Review actions */}
-      {status !== "approved" && (
+      {reviewEnabled && status !== "approved" && onDecision && (
         <SplitButton
           primary={{
             id: "approve",
@@ -143,7 +145,7 @@ export default function ViewerToolbar({
           ]}
         />
       )}
-      {status === "approved" && (
+      {reviewEnabled && status === "approved" && onDecision && (
         <Dropdown
           label=""
           theme={{

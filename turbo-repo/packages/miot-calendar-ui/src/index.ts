@@ -97,3 +97,5 @@ export * from "./components/planning/planning-search-autocomplete";
 export * from "./components/planning/planning-search-tags";
 // Generic sidebar frame: slot bar + header + list/form content (card via seam).
 export * from "./components/planning/sidebar-shell";
+// Generic departure-time + andén availability picker (labels via i18n seam).
+export * from "./components/planning/time-slot-assignment";

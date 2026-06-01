@@ -50,7 +50,7 @@ export default function ViewerToolbar({
   onEdit?: () => void;
   onMove: () => void;
   onDelete?: () => void;
-  onDecision?: (decision: ReviewStatus) => void;
+  onDecision: (decision: ReviewStatus) => void;
   onClose: () => void;
   reviewEnabled?: boolean;
   dictionary: I18nRecord;

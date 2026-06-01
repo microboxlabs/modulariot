@@ -2,13 +2,11 @@
 // app-side (the @microboxlabs/miot-calendar-ui package is domain-agnostic) and
 // are injected into the generic planning provider via planning-selection-wrapper.
 
-import {
-  type LeadTimeData,
-  getLeadTimeStatus,
-} from "@/features/common/components/kpi-display";
+import { type LeadTimeData } from "@/features/common/components/kpi-display";
 
 // Re-export the lead-time helpers so existing planning imports keep resolving.
-export { type LeadTimeData, getLeadTimeStatus };
+export type { LeadTimeData };
+export { getLeadTimeStatus } from "@/features/common/components/kpi-display";
 
 /** Trip type options. */
 export type TripType = "Sider" | "Doble Sider" | "Rampla";

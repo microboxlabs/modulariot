@@ -8,10 +8,8 @@
 // package itself stays domain-agnostic.
 
 import {
-  PlanningGridShell,
   getDeleteModalMessages,
   getDeleteAssignmentMessages,
-  type PlanningGridShellProps,
   type ShiftOverlayLayerProps,
   type PlanningGridOverlaysProps,
   type CalendarI18n,
@@ -25,8 +23,10 @@ import type { UsePlanningGridReturn } from "./use-planning-grid";
 import { PlannedServiceChip } from "./planned-service-chip";
 import { ServiceContextMenu } from "./service-context-menu";
 
-export { PlanningGridShell };
-export type { PlanningGridShellProps };
+export {
+  PlanningGridShell,
+  type PlanningGridShellProps,
+} from "@microboxlabs/miot-calendar-ui";
 
 /**
  * Build the `shiftOverlay` + `gridOverlays` prop bundles for

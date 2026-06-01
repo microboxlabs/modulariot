@@ -12,8 +12,8 @@ import {
   computeSlotState,
   getSlotCellClassName,
   type SlotState,
-} from "../planning-slot-utils";
-import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
+} from "@microboxlabs/miot-calendar-ui";
+import { SlotCellContent, TimeLabelCell } from "@microboxlabs/miot-calendar-ui";
 import { usePlanningGrid } from "../use-planning-grid";
 import {
   PlanningGridShell,
@@ -25,7 +25,7 @@ import {
   computeStretchedRowLayout,
   rowOffsetsFromHeights,
   type PositionedShift,
-} from "../shift-layout";
+} from "@microboxlabs/miot-calendar-ui";
 
 interface DayGridProps {
   lang: string;

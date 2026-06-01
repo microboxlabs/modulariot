@@ -101,3 +101,9 @@ export * from "./components/planning/sidebar-shell";
 export * from "./components/planning/time-slot-assignment";
 // Generic sidebar form tab region: category + time picker + confirm + assignPanel.
 export * from "./components/planning/sidebar-form-shell";
+
+// ── Phase 6: consumer theming ──
+
+// flowbite-react theme customizations the calendar relies on (primary button);
+// wrap the calendar in `<ThemeProvider theme={miotCalendarTheme}>`.
+export * from "./theme";

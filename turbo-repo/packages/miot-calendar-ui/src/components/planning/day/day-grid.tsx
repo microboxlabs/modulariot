@@ -5,34 +5,23 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import { twMerge } from "tailwind-merge";
-import type { DayInfo } from "../planning-day-view.types";
-import type { PlannedService } from "../planning-selection-context";
-import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import type { CalendarItem } from "../../../types/calendar-item";
+import type { PlannedService } from "../../../types/planning";
+import type { DayGridProps, DayInfo } from "../planning-views.types";
 import {
   computeSlotState,
   getSlotCellClassName,
-  SlotCellContent,
-  TimeLabelCell,
+  type SlotState,
+} from "../planning-slot-utils";
+import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
+import { PlanningGridShell } from "../planning-grid-shell";
+import {
   BASE_ROW_HEIGHT_PX,
   buildShiftLayout,
   computeStretchedRowLayout,
   rowOffsetsFromHeights,
-  type SlotState,
   type PositionedShift,
-} from "@microboxlabs/miot-calendar-ui";
-import { usePlanningGrid } from "../use-planning-grid";
-import {
-  PlanningGridShell,
-  buildPlanningGridShellProps,
-} from "../planning-grid-shell";
-
-interface DayGridProps {
-  lang: string;
-  dict: I18nDictionary;
-  currentDate: Date;
-  startHour?: number;
-  endHour?: number;
-}
+} from "../shift-layout";
 
 function getDayInfo(date: Date, lang: string): DayInfo {
   const locale = lang === "es" ? "es" : "en";
@@ -58,8 +47,6 @@ interface DayGridSlotCellProps {
 }
 
 function DayGridSlotCell({
-  slot,
-  currentDate,
   isPastDay,
   state,
   isLastSlot,
@@ -76,14 +63,14 @@ function DayGridSlotCell({
   );
 }
 
-export default function DayGrid({
+export function DayGrid<TItem extends { id: string } = CalendarItem>({
   lang,
-  dict,
   currentDate,
+  grid,
+  buildShellProps,
   startHour = 8,
   endHour = 22,
-}: Readonly<DayGridProps>) {
-  const planningGrid = usePlanningGrid({ startHour, endHour });
+}: Readonly<DayGridProps<TItem>>) {
   const {
     handleSelectSlot,
     isSlotSelected: checkSlotSelected,
@@ -95,7 +82,7 @@ export default function DayGrid({
     configuredTimeSlots,
     plannedServices,
     isShiftWindowFull,
-  } = planningGrid;
+  } = grid;
 
   const dayInfo = useMemo(
     () => getDayInfo(currentDate, lang),
@@ -131,7 +118,7 @@ export default function DayGrid({
   // the overlay layer can fetch the chips that belong inside each shift
   // rectangle in O(1).
   const servicesByStartOnDate = useMemo(() => {
-    const map = new Map<string, PlannedService[]>();
+    const map = new Map<string, PlannedService<TItem>[]>();
     for (const ps of plannedServices) {
       if (!dayjs(ps.slot.date).isSame(currentDate, "day")) continue;
       const key = `${ps.slot.hour}:${ps.slot.minutes}`;
@@ -204,21 +191,20 @@ export default function DayGrid({
   // Time-axis column width — the overlay covers the day column only.
   const TIME_AXIS_WIDTH_PX = 64;
 
-  const shellProps = buildPlanningGridShellProps({
-    planningGrid,
+  const { shiftOverlay, gridOverlays } = buildShellProps({
     positionedShifts,
     onShiftClick: handleShiftClick,
     isShiftSelected,
     getServicesForShift,
     isWindowFull: isShiftWindowFull,
-    dict,
   });
 
   return (
-    <PlanningGridShell
+    <PlanningGridShell<TItem>
       shiftOverlayTopPx={HEADER_HEIGHT_PX}
       shiftOverlayLeftPx={TIME_AXIS_WIDTH_PX}
-      {...shellProps}
+      shiftOverlay={shiftOverlay}
+      gridOverlays={gridOverlays}
     >
       <div className="grid" style={{ gridTemplateColumns: "64px 1fr" }}>
         {/* Header row - empty corner cell */}
@@ -298,3 +284,5 @@ export default function DayGrid({
     </PlanningGridShell>
   );
 }
+
+export default DayGrid;

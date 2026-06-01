@@ -1,6 +1,6 @@
 import type { TimeWindowRequest } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
-import type { TimeSlot, TimeWindowColor } from "@microboxlabs/miot-calendar-ui";
+import type { TimeSlot, TimeWindowColor } from "../components/planning/time-window";
 import dayjs from "dayjs";
 
 export const TimeWindowResponseSchema = z.object({

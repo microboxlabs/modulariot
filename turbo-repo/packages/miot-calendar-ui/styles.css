@@ -1,0 +1,22 @@
+/*
+ * @microboxlabs/miot-calendar-ui — convenience styling entry for consumers.
+ *
+ * The calendar renders Tailwind v4 utility classes (including the
+ * TIME_WINDOW_COLORS shift tints — emerald/blue/violet/rose/amber/cyan/lime/
+ * orange 50·100 + dark variants — and a flowbite `primary` palette). Those
+ * classes live in the *package*, outside your app's default content roots, so
+ * your Tailwind build won't generate them unless it scans the package.
+ *
+ * `@import` this file from your own Tailwind entry (after `@import "tailwindcss"`
+ * and the flowbite plugin) and the `@source` below makes Tailwind scan the
+ * package's built `dist/` (which inlines every class literal) so all calendar
+ * classes are emitted:
+ *
+ *   @import "tailwindcss";
+ *   @import "flowbite-react/plugin/tailwindcss";
+ *   @import "@microboxlabs/miot-calendar-ui/styles.css";
+ *
+ * `@source` is resolved relative to THIS file, so it works from inside
+ * node_modules with no path juggling on the consumer side.
+ */
+@source "./dist";

@@ -99,3 +99,5 @@ export * from "./components/planning/planning-search-tags";
 export * from "./components/planning/sidebar-shell";
 // Generic departure-time + andén availability picker (labels via i18n seam).
 export * from "./components/planning/time-slot-assignment";
+// Generic sidebar form tab region: category + time picker + confirm + assignPanel.
+export * from "./components/planning/sidebar-form-shell";

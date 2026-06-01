@@ -88,3 +88,10 @@ export * from "./components/planning/planning-week-view";
 export * from "./components/planning/planning-month-view";
 // Calendar switch: renders day/week/month from the useCalendar() active view.
 export * from "./components/planning/planning-calendar";
+
+// ── Phase 4 (PASS 3): sidebar shell + search components ──
+
+// Generic grouped-autocomplete search box (fields + i18n injected by the host).
+export * from "./components/planning/planning-search-autocomplete";
+// Generic active-filter chip list (match-type labels resolved by the host).
+export * from "./components/planning/planning-search-tags";

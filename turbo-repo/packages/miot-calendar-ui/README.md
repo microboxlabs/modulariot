@@ -15,9 +15,15 @@ Transport is handled by the sibling [`@microboxlabs/miot-calendar-client`](https
 ## Install
 
 ```bash
-npm install @microboxlabs/miot-calendar-ui @microboxlabs/miot-calendar-client
-# or: pnpm add … / yarn add …
+npm install @microboxlabs/miot-calendar-ui
+# or: pnpm add @microboxlabs/miot-calendar-ui  ·  yarn add @microboxlabs/miot-calendar-ui
 ```
+
+`@microboxlabs/miot-calendar-client` is a **dependency** of this package, so it
+installs automatically — you don't add or import it directly. The consumer-facing
+client types (`ClientConfig`, `BookingRequest`/`BookingResponse`/`BookingUpdateRequest`/
+`BookingListResponse`, `MoveBookingRequest`) are re-exported from
+`@microboxlabs/miot-calendar-ui`, so everything comes from this one package.
 
 ### Peer dependencies
 

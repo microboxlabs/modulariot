@@ -107,3 +107,16 @@ export * from "./components/planning/sidebar-form-shell";
 // flowbite-react theme customizations the calendar relies on (primary button);
 // wrap the calendar in `<ThemeProvider theme={miotCalendarTheme}>`.
 export * from "./theme";
+
+// Re-export the consumer-facing miot-calendar-client types referenced by the
+// CalendarHost contract (`client` config + the BookingApi override surface), so
+// hosts depend on, and import from, ONLY this package — the client ships as a
+// transitive dependency and need not be installed or imported directly.
+export type {
+  ClientConfig,
+  BookingRequest,
+  BookingResponse,
+  BookingUpdateRequest,
+  BookingListResponse,
+  MoveBookingRequest,
+} from "@microboxlabs/miot-calendar-client";

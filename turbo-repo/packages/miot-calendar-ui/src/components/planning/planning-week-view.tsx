@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useMemo, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -9,29 +8,27 @@ import isoWeek from "dayjs/plugin/isoWeek";
 
 dayjs.extend(isoWeek);
 import { twMerge } from "tailwind-merge";
+import type { CalendarItem } from "../../types/calendar-item";
+import type { PlannedService } from "../../types/planning";
+import { useCalendar } from "../../context/calendar-provider";
 import type {
   PlanningWeekViewProps,
   WeekDay,
-} from "./planning-week-view.types";
-import { parseUrlDate } from "@/features/calendar/services/calendar.service";
-import type { PlannedService } from "./planning-selection-context";
+} from "./planning-views.types";
 import {
   computeSlotState,
   getSlotCellClassName,
-  SlotCellContent,
-  TimeLabelCell,
+  type SlotState,
+} from "./planning-slot-utils";
+import { SlotCellContent, TimeLabelCell } from "./slot-cell-shared";
+import { PlanningGridShell } from "./planning-grid-shell";
+import {
   BASE_ROW_HEIGHT_PX,
   buildShiftLayout,
   computeStretchedRowLayout,
   rowOffsetsFromHeights,
-  type SlotState,
   type PositionedShift,
-} from "@microboxlabs/miot-calendar-ui";
-import { usePlanningGrid } from "./use-planning-grid";
-import {
-  PlanningGridShell,
-  buildPlanningGridShellProps,
-} from "./planning-grid-shell";
+} from "./shift-layout";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -61,7 +58,6 @@ interface WeekSlotCellProps {
 
 function WeekSlotCell({
   day,
-  slot,
   slotState,
   isLastDay,
   isLastSlot,
@@ -86,16 +82,15 @@ function WeekSlotCell({
   );
 }
 
-export default function PlanningWeekView({
+export function PlanningWeekView<TItem extends { id: string } = CalendarItem>({
   lang,
-  dict,
-  currentDate: propDate,
+  grid,
+  buildShellProps,
   startHour = 8,
   endHour = 22,
-}: Readonly<PlanningWeekViewProps>) {
-  const searchParams = useSearchParams();
+}: Readonly<PlanningWeekViewProps<TItem>>) {
+  const { currentDate } = useCalendar();
 
-  const planningGrid = usePlanningGrid({ startHour, endHour });
   const {
     handleSelectSlot,
     isSlotSelected: checkSlotSelected,
@@ -107,15 +102,7 @@ export default function PlanningWeekView({
     configuredTimeSlots,
     plannedServices,
     isShiftWindowFull,
-  } = planningGrid;
-
-  // Read date from URL, fallback to prop or today
-  const currentDate = useMemo(() => {
-    const urlDate = parseUrlDate(searchParams.get("date"));
-    if (urlDate) return urlDate.toDate();
-    if (propDate) return propDate;
-    return new Date();
-  }, [searchParams, propDate]);
+  } = grid;
 
   const weekDays = useMemo(
     () => generateWeekDays(currentDate, lang),
@@ -155,12 +142,12 @@ export default function PlanningWeekView({
   // Index planned services by date and exact "HH:MM" start so the overlay
   // layer can fetch the chips that belong inside each shift in O(1).
   const servicesByDateAndStart = useMemo(() => {
-    const map = new Map<string, Map<string, PlannedService[]>>();
+    const map = new Map<string, Map<string, PlannedService<TItem>[]>>();
     for (const ps of plannedServices) {
       const dayKey = dayjs(ps.slot.date).format("YYYY-MM-DD");
       let inner = map.get(dayKey);
       if (!inner) {
-        inner = new Map<string, PlannedService[]>();
+        inner = new Map<string, PlannedService<TItem>[]>();
         map.set(dayKey, inner);
       }
       const slotKey = `${ps.slot.hour}:${ps.slot.minutes}`;
@@ -252,21 +239,20 @@ export default function PlanningWeekView({
   const HEADER_HEIGHT_PX = 64;
   const TIME_AXIS_WIDTH_PX = 64;
 
-  const shellProps = buildPlanningGridShellProps({
-    planningGrid,
+  const { shiftOverlay, gridOverlays } = buildShellProps({
     positionedShifts,
     onShiftClick: handleShiftClick,
     isShiftSelected,
     getServicesForShift,
     isWindowFull: isShiftWindowFull,
-    dict,
   });
 
   return (
-    <PlanningGridShell
+    <PlanningGridShell<TItem>
       shiftOverlayTopPx={HEADER_HEIGHT_PX}
       shiftOverlayLeftPx={TIME_AXIS_WIDTH_PX}
-      {...shellProps}
+      shiftOverlay={shiftOverlay}
+      gridOverlays={gridOverlays}
     >
       <div
         className="grid min-w-150"
@@ -374,3 +360,5 @@ export default function PlanningWeekView({
     </PlanningGridShell>
   );
 }
+
+export default PlanningWeekView;

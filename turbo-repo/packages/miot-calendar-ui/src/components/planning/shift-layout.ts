@@ -5,7 +5,7 @@ import {
   isTimeWindow,
   type TimeSlot,
   type TimeWindowColor,
-} from "./planning-selection-context";
+} from "./time-window";
 
 /** Baseline pixel height of one 30-min row when no shift inside needs more. */
 export const BASE_ROW_HEIGHT_PX = 48;
@@ -77,7 +77,7 @@ export function computeStretchedRowLayout(params: {
       Math.floor((shift.endsAtMin - 1 - dayStartMin) / 30)
     );
     for (let r = Math.max(0, startRow); r <= endRow; r++) {
-      if (required > requiredPxPerMin[r]) requiredPxPerMin[r] = required;
+      if (required > (requiredPxPerMin[r] ?? 0)) requiredPxPerMin[r] = required;
     }
   }
   const heights = requiredPxPerMin.map((p) =>
@@ -243,8 +243,8 @@ function minutesToPx(minutesFromTop: number, rowOffsets: number[]): number {
   const lastIdx = rowOffsets.length - 1;
   const rowIdx = Math.min(Math.floor(minutesFromTop / 30), lastIdx - 1);
   const within = minutesFromTop - rowIdx * 30;
-  const top = rowOffsets[rowIdx];
-  const next = rowOffsets[rowIdx + 1];
+  const top = rowOffsets[rowIdx] ?? 0;
+  const next = rowOffsets[rowIdx + 1] ?? 0;
   const rowH = next - top;
   return top + (within / 30) * rowH;
 }

@@ -38,7 +38,10 @@ const nextConfig = {
   // ESM-only packages that Node.js loads natively on the server (no bundling)
   serverExternalPackages: ["pino", "pino-pretty"],
   // ESM-only packages that Turbopack must transpile for client bundles
-  transpilePackages: ["@microboxlabs/miot-calendar-client"],
+  transpilePackages: [
+    "@microboxlabs/miot-calendar-client",
+    "@microboxlabs/miot-calendar-ui",
+  ],
 };
 
 const mdxConfig = withMDX({

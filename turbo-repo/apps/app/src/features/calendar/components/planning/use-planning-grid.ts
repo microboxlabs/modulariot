@@ -8,7 +8,7 @@ import {
   type PlannedService,
   type TimeWindow,
 } from "./planning-selection-context";
-import type { PositionedShift } from "./shift-layout";
+import type { PositionedShift } from "@microboxlabs/miot-calendar-ui";
 import { useServiceActions } from "./use-service-actions";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";

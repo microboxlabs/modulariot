@@ -1,15 +1,4 @@
-import type { TimeWindowColor } from "@microboxlabs/miot-calendar-ui";
-
-/**
- * Re-export the canonical TimeSlot/TimeWindow/TimeBlock from the calendar UI
- * package so there is a single source of truth — the definitions can't drift
- * apart (and aren't flagged as duplicate code).
- */
-export type {
-  TimeSlot,
-  TimeWindow,
-  TimeBlock,
-} from "@microboxlabs/miot-calendar-ui";
+import type { TimeWindowColor } from "../components/planning/time-window";
 
 /**
  * Request/Response types for API operations

@@ -32,12 +32,7 @@ export type {
 } from "@microboxlabs/miot-calendar-ui";
 
 // ── freight domain (stays app-side) ──
-export {
-  DEBUG_SHOW_TEST_SERVICE,
-  TEST_SERVICES,
-  TEST_SERVICE,
-  getLeadTimeStatus,
-} from "./planning-selection-types";
+export { getLeadTimeStatus } from "./planning-selection-types";
 export type {
   SelectedService,
   TripType,

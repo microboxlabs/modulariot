@@ -16,8 +16,6 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
-  DEBUG_SHOW_TEST_SERVICE,
-  TEST_SERVICES,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
@@ -352,11 +350,8 @@ export function PlanningSidebarClient({
     return services;
   }, [myTasksData]);
 
-  // Use only real API data - no fallback to mock
-  // When DEBUG_SHOW_TEST_SERVICE is true, add test services for development
-  const allServices = DEBUG_SHOW_TEST_SERVICE
-    ? [...TEST_SERVICES, ...apiServices]
-    : apiServices;
+  // Use only real API data.
+  const allServices = apiServices;
 
   // Format the selected slot for display with start and end times.
   // Always use the actual selected slot's time (e.g., 10:00-10:30) rather than

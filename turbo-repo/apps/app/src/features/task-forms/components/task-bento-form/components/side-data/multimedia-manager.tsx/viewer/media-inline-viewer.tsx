@@ -9,6 +9,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { getCategories } from "../clasification-form";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { AlfrescoFileEntry } from "../image.types";
+import { isReviewableEntry } from "../reviewable";
 import { ReviewStatus } from "../gallery/media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
 import { updateBentoCategory, renameBentoFile } from "@/features/common/providers/client-api.provider";
@@ -150,6 +151,8 @@ export default function MediaInlineViewer({
   const categories = getCategories(dictionary);
   const categoryLabel = categories[currentCategory as keyof typeof categories]?.label;
   const status: ReviewStatus = id ? (reviewStatuses?.get(id) ?? "pending") : "pending";
+  // Non-reviewable content (no mintral:reviewableAspect) exposes no review controls.
+  const isReviewable = isReviewableEntry(current.file);
 
   const handleDecision = (decision: ReviewStatus) => {
     if (!id) return;
@@ -191,6 +194,7 @@ export default function MediaInlineViewer({
           totalItems={items.length}
           status={status}
           draftDecision={draftDecision}
+          isReviewable={isReviewable}
           categories={Object.values(categories)}
           currentCategory={currentCategory}
           onCategoryChange={handleCategoryChange}
@@ -243,16 +247,25 @@ export default function MediaInlineViewer({
               className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-flex"
             />
           )}
-          <CustomBadge
-            text={tr(`bento.multimedia.status_${status}`, dictionary)}
-            className={`px-2 py-0.5 shrink-0 hidden sm:inline-flex ${STATUS_BADGE_CLASSES[status]}`}
-          />
-          {draftDecision !== null && (
+          {isReviewable ? (
+            <>
+              <CustomBadge
+                text={tr(`bento.multimedia.status_${status}`, dictionary)}
+                className={`px-2 py-0.5 shrink-0 hidden sm:inline-flex ${STATUS_BADGE_CLASSES[status]}`}
+              />
+              {draftDecision !== null && (
+                <CustomBadge
+                  text={`→ ${tr(DRAFT_BADGE_KEYS[draftDecision] ?? DRAFT_BADGE_KEYS.rejected, dictionary)}`}
+                  className={`px-2 py-0.5 shrink-0 border hidden sm:inline-flex ${
+                    DRAFT_BADGE_CLASSES[draftDecision] ?? DRAFT_BADGE_CLASSES.rejected
+                  }`}
+                />
+              )}
+            </>
+          ) : (
             <CustomBadge
-              text={`→ ${tr(DRAFT_BADGE_KEYS[draftDecision] ?? DRAFT_BADGE_KEYS.rejected, dictionary)}`}
-              className={`px-2 py-0.5 shrink-0 border hidden sm:inline-flex ${
-                DRAFT_BADGE_CLASSES[draftDecision] ?? DRAFT_BADGE_CLASSES.rejected
-              }`}
+              text={tr("bento.multimedia.not_reviewable", dictionary)}
+              className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden sm:inline-flex"
             />
           )}
         </div>
@@ -265,6 +278,7 @@ export default function MediaInlineViewer({
           totalItems={items.length}
           status={status}
           draftDecision={draftDecision}
+          isReviewable={isReviewable}
           onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
           onDownload={handleDownload}
@@ -295,7 +309,7 @@ export default function MediaInlineViewer({
         <div
           className="shrink-0 sm:shrink-0 border-t sm:border-t-0 sm:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto flex flex-col w-full sm:w-1/3 min-h-0 basis-1/2 sm:basis-auto sm:h-full"
         >
-          {showAllObservations ? (
+          {showAllObservations && isReviewable ? (
             <div className="flex flex-col h-full">
               <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <button
@@ -337,6 +351,7 @@ export default function MediaInlineViewer({
               dictionary={dictionary}
             />
           </SidebarSection>
+          {isReviewable && (
           <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)} defaultExpanded>
             <ObservationsSection
               key={id ?? currentIndex}
@@ -355,6 +370,7 @@ export default function MediaInlineViewer({
               category={currentCategory}
             />
           </SidebarSection>
+          )}
         </>
         )}
         </div>

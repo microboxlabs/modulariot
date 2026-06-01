@@ -92,6 +92,17 @@ def _swap_jwks(app: Any, jwks_payload: dict[str, Any]) -> None:
     app.state.jwks = JwksCache(JWKS_URL, http_client=client)
 
 
+def _swap_failing_jwks(app: Any) -> None:
+    """Replace the live JwksCache with one whose endpoint always 500s,
+    to exercise the 'auth temporarily unavailable' path."""
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="upstream boom")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(_handler))
+    app.state.jwks = JwksCache(JWKS_URL, http_client=client)
+
+
 def _make_token(
     private_key: RSAPrivateKey,
     *,
@@ -504,3 +515,73 @@ def test_legacy_record_without_tenant_id_still_loadable(
         )
     # Legacy record (tenant_id=None) is not refused.
     assert resp.status_code == 200, resp.text
+
+
+# ---------------------------------------------------------------------------
+# Failure-path hardening (review fixes)
+# ---------------------------------------------------------------------------
+
+
+def test_auth_enabled_jwks_unavailable_returns_503(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+) -> None:
+    """When the JWKS endpoint errors, verification cannot run: the
+    harness returns a retryable 503 (auth temporarily unavailable) with
+    a Retry-After header — not an opaque 500."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_failing_jwks(app)
+        token = _make_token(keypair)
+        resp = client.post(
+            "/runs",
+            json={"message": "hi"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "gama-mobility",
+            },
+        )
+    assert resp.status_code == 503, resp.text
+    assert "jwks_fetch_failed" in resp.text
+    assert resp.headers.get("Retry-After") == "5"
+
+
+def test_get_run_unknown_id_returns_404(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """GET /runs/{unknown} is a clean 404, not a 500 leaked from the
+    run store's FileNotFoundError."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        resp = client.get(
+            "/runs/run_does_not_exist",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "gama-mobility",
+            },
+        )
+    assert resp.status_code == 404, resp.text
+
+
+def test_format_sse_error_escapes_injection() -> None:
+    """A crafted run_id must not break out of the JSON payload or forge
+    extra SSE frames: the data line stays a single valid JSON object
+    carrying run_id as an escaped string."""
+    from miot_harness.api.server import _format_sse_error
+
+    malicious = 'x"]}\ndata: event: injected\ndata: pwned'
+    frame = _format_sse_error(malicious, "unknown_run_id").decode()
+    assert frame.startswith("event: error\ndata: ")
+    assert frame.endswith("\n\n")
+    body = frame[len("event: error\ndata: ") : -2]
+    assert "\n" not in body  # no injected newline survived
+    assert json.loads(body) == {
+        "error": "unknown_run_id",
+        "run_id": malicious,
+    }

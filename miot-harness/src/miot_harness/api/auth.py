@@ -74,11 +74,18 @@ class JwksCache:
         ttl_seconds: int = 600,
         http_client: httpx.AsyncClient | None = None,
         request_timeout: float = 5.0,
+        min_refresh_interval: float = 10.0,
     ) -> None:
         self._url = jwks_url
         self._ttl = ttl_seconds
         self._client = http_client
         self._timeout = request_timeout
+        # Floor between cache-miss-triggered refreshes. Caps the upstream
+        # JWKS GET rate so a flood of tokens bearing unknown kids (or a
+        # brief IdP outage) can't fetch once per request and trip Auth0's
+        # JWKS rate limit, which would take auth down for everyone.
+        self._min_refresh_interval = min_refresh_interval
+        self._last_refresh = float("-inf")
         self._lock = asyncio.Lock()
         self._keys: dict[str, _CachedKey] = {}
 
@@ -93,11 +100,19 @@ class JwksCache:
             cached = self._keys.get(kid)
             if cached is not None and (time.monotonic() - cached.fetched_at) < self._ttl:
                 return cached.key
-            await self._refresh()
-            cached = self._keys.get(kid)
+            now = time.monotonic()
+            if (now - self._last_refresh) >= self._min_refresh_interval:
+                # Stamp the attempt before awaiting so a refresh that
+                # raises (IdP outage) still counts against the cooldown —
+                # otherwise every request would retry and storm the IdP.
+                self._last_refresh = now
+                await self._refresh()
+                cached = self._keys.get(kid)
             if cached is None:
-                # Refresh succeeded but the kid is still unknown — the
-                # token was signed by a key the IdP no longer publishes.
+                # Either the refresh just ran and the kid is genuinely
+                # absent (signed by a key the IdP no longer publishes),
+                # or we're inside the cooldown with nothing cached. Both
+                # reject without another upstream fetch.
                 raise AuthError("invalid_signature", f"unknown kid {kid!r}")
             return cached.key
 

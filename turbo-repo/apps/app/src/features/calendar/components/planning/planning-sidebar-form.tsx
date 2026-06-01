@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dayjs from "dayjs";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -21,11 +21,10 @@ import {
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
-import { formatPercent } from "@microboxlabs/miot-calendar-ui";
+import { formatPercent, SidebarFormShell } from "@microboxlabs/miot-calendar-ui";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
-import { SidebarFormShell } from "@microboxlabs/miot-calendar-ui";
 import {
   type TimeSlotOption,
   AssignmentForm,

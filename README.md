@@ -51,7 +51,7 @@ uv run miot-harness demo "Tell me the story of delivery compliance this month an
 
 ## Contributing
 
-See [CONTRIBUTING.md](turbo-repo/CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). For security issues, see our [Security Policy](SECURITY.md).
 
 ## Community
 

@@ -323,10 +323,49 @@ export default function CollaboratorSummary({
   collaborator,
   dict,
   locale,
-  monthlyData,
+  monthlyData: rawMonthlyData,
   scores,
 }: CollaboratorSummaryProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  // Aggregate daily data points into one value per month (average).
+  // The backend may return one entry per day; the chart expects one per month.
+  const monthlyData = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { score: number; safety: number; punctuality: number; incidents: number; count: number }
+    >();
+    for (const d of rawMonthlyData) {
+      const monthKey = d.date.slice(0, 7); // "YYYY-MM"
+      const existing = grouped.get(monthKey);
+      const score = d.score ?? 0;
+      const safety = d.safety ?? 0;
+      const punctuality = d.punctuality ?? 0;
+      const incidents = d.incidents ?? 0;
+      if (existing) {
+        existing.score += score;
+        existing.safety += safety;
+        existing.punctuality += punctuality;
+        existing.incidents += incidents;
+        existing.count += 1;
+      } else {
+        grouped.set(monthKey, {
+          score,
+          safety,
+          punctuality,
+          incidents,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(grouped.entries()).map(([date, agg]) => ({
+      date,
+      score: Math.round(agg.score / agg.count),
+      safety: Math.round(agg.safety / agg.count),
+      punctuality: Math.round(agg.punctuality / agg.count),
+      incidents: agg.incidents,
+    }));
+  }, [rawMonthlyData]);
 
   const overallScore = useMemo(() => {
     if (scores.length === 0) return 0;

@@ -11,6 +11,10 @@ import {
   useAccreditedResources,
   type AccreditedResource,
 } from "@/features/calendar/services/accredited-resources.service";
+import {
+  toAccreditationLevel,
+  type AccreditationLevel,
+} from "./accreditation";
 import { DriverSearchDropdown } from "./driver-search-dropdown";
 import {
   CarrierSearchDropdown,
@@ -35,7 +39,7 @@ export interface DriverOption {
    * (driver Alerce contract — `conductor` field — still expects RUT today).
    */
   externalId: string | null;
-  estado: "habilitado" | "no habilitado";
+  acreditacion: AccreditationLevel;
   viajesPrevios: number;
   ultimoViaje: string;
   excesoVelocidad: number;
@@ -183,10 +187,10 @@ function formatLastTrip(raw: string | null | undefined): string {
 
 /**
  * Map an `ams.fn_rd_accredited_resources` CARRIER row to the shape expected by
- * `CarrierSearchDropdown`. The upstream function returns both accredited
- * and non-accredited carriers; `is_acredited` drives the UI badge. Both states
- * are surfaced and selectable — the planner sees accreditation as context, not
- * as a hard block.
+ * `CarrierSearchDropdown`. The upstream function returns carriers in every
+ * accreditation state; `is_acredited` drives the UI badge. All states are
+ * surfaced and selectable — the planner sees accreditation as context, not as
+ * a hard block.
  */
 function carrierRowToOption(row: AccreditedResource): CarrierOption {
   const rut = row.identifier ?? "";
@@ -195,7 +199,7 @@ function carrierRowToOption(row: AccreditedResource): CarrierOption {
     name: row.resource_name ?? rut,
     rut,
     externalId: row.external_id,
-    estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
+    acreditacion: toAccreditationLevel(row.is_acredited),
   };
 }
 
@@ -207,8 +211,8 @@ function carrierRowToOption(row: AccreditedResource): CarrierOption {
  * map preview can drop a pin. `gpsIntegrado` is driven by `integration`
  * (independent of whether a recent position is on file); `estadoGps`
  * reflects coordinate availability — `online` only when we have something
- * to plot. `estado` piggybacks on `is_acredited` (ACREDITED → `disponible`,
- * NOT ACREDITED → `ocupado`) to reuse the existing UI badge.
+ * to plot. `acreditacion` carries the upstream `is_acredited` state through
+ * to the shared accreditation badge.
  */
 function truckRowToOption(row: AccreditedResource): TruckOption {
   const plate = row.identifier ?? "";
@@ -222,7 +226,7 @@ function truckRowToOption(row: AccreditedResource): TruckOption {
     externalId: row.external_id,
     marca: row.resource_name ?? "",
     tipo: "truck",
-    estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
+    acreditacion: toAccreditationLevel(row.is_acredited),
     gpsIntegrado: row.integration === "INTEGRATED",
     estadoGps: hasPosition ? "online" : "offline",
     viajesPrevios: row.trip_count ?? 0,
@@ -236,7 +240,7 @@ function truckRowToOption(row: AccreditedResource): TruckOption {
 
 /**
  * Map an `ams.fn_rd_accredited_resources` TRAILER row onto the existing
- * `TrailerOption` shape. Mirrors `truckRowToOption`: `estado` rides on
+ * `TrailerOption` shape. Mirrors `truckRowToOption`: `acreditacion` rides on
  * `is_acredited`, GPS defaults to "no signal", and `problemasReportados`
  * surfaces lost-signal counts from the symptoms bag. The numeric fleet
  * fields (`capacidadKg`, `kilometraje`) and `ultimoMantenimiento` are not
@@ -252,7 +256,7 @@ function trailerRowToOption(row: AccreditedResource): TrailerOption {
     plate,
     externalId: row.external_id,
     tipo: TRAILER_TIPO_FALLBACK,
-    estado: row.is_acredited === "ACREDITED" ? "disponible" : "ocupado",
+    acreditacion: toAccreditationLevel(row.is_acredited),
     gpsIntegrado: false,
     estadoGps: "offline",
     capacidadKg: 0,
@@ -277,7 +281,7 @@ function driverRowToOption(row: AccreditedResource): DriverOption {
     name: row.resource_name ?? rut,
     rut,
     externalId: row.external_id,
-    estado: row.is_acredited === "ACREDITED" ? "habilitado" : "no habilitado",
+    acreditacion: toAccreditationLevel(row.is_acredited),
     viajesPrevios: row.trip_count ?? 0,
     ultimoViaje: formatLastTrip(row.last_trip),
     excesoVelocidad: symptoms[SYMPTOM_SPEED_LIMIT] ?? 0,

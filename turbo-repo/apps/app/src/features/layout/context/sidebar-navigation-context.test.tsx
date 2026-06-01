@@ -11,12 +11,29 @@ import { pages } from "../models/pages";
 // Mocks
 // ---------------------------------------------------------------------------
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
+vi.mock("@/features/dashboard/hooks/use-dashboard-dynamic-items", () => ({
+  useDashboardDynamicItems: () => [],
+}));
+
 vi.mock("@/features/common/providers/client-api.provider", () => ({
   useMyTasksCount: vi.fn(),
   useHistoricInstancesCount: vi.fn(),
   useMapPositions: vi.fn(),
   useSymptoms: vi.fn(),
   useUserFilters: vi.fn(),
+  useCalendars: vi.fn(() => ({ calendars: [], isLoading: false, error: null })),
+  useUserSite: vi.fn(() => ({ siteName: "test" })),
   getMyTasks: vi.fn(),
 }));
 

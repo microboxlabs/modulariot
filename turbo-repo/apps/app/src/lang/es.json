@@ -54,6 +54,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Opciones de columna",
+          "density": "Densidad",
+          "densityInherit": "Predeterminado",
+          "densityCompact": "Compacta",
+          "densityExpanded": "Expandida",
+          "sort": "Ordenar por",
+          "sortNone": "Orden predeterminado",
+          "sortPriority": "Prioridad",
+          "sortEta": "Fecha de salida",
+          "sortCode": "Código de servicio",
+          "filter": "Filtrar",
+          "filterNone": "Mostrar todo",
+          "filterUrgent": "Solo urgentes",
+          "filterActionable": "Solo accionables",
+          "collapse": "Contraer columna",
+          "expand": "Expandir columna"
+        },
         "transportValidation": "Validación de Conductor / transporte",
         "transportValidationCompact": "Validación transporte",
         "missionControlTripInit": "Iniciar viaje",
@@ -170,6 +188,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Opciones de columna",
+          "density": "Densidad",
+          "densityInherit": "Predeterminado",
+          "densityCompact": "Compacta",
+          "densityExpanded": "Expandida",
+          "sort": "Ordenar por",
+          "sortNone": "Orden predeterminado",
+          "sortPriority": "Prioridad",
+          "sortEta": "Fecha de salida",
+          "sortCode": "Código de servicio",
+          "filter": "Filtrar",
+          "filterNone": "Mostrar todo",
+          "filterUrgent": "Solo urgentes",
+          "filterActionable": "Solo accionables",
+          "collapse": "Contraer columna",
+          "expand": "Expandir columna"
+        },
         "consolidateLoad": "Consolidar Carga",
         "separateDocuments": "Separar Documentos",
         "planService": "Planificar Servicio",
@@ -420,6 +456,7 @@
           "status": "Estado",
           "enabled": "Acreditado",
           "notEnabled": "No Acreditado",
+          "superAccredited": "Súper Acreditado",
           "previousTrips": "Viajes previos",
           "lastTrip": "Último viaje",
           "speedExcess": "Exceso velocidad",
@@ -503,6 +540,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Opciones de columna",
+          "density": "Densidad",
+          "densityInherit": "Predeterminado",
+          "densityCompact": "Compacta",
+          "densityExpanded": "Expandida",
+          "sort": "Ordenar por",
+          "sortNone": "Orden predeterminado",
+          "sortPriority": "Prioridad",
+          "sortEta": "Fecha de salida",
+          "sortCode": "Código de servicio",
+          "filter": "Filtrar",
+          "filterNone": "Mostrar todo",
+          "filterUrgent": "Solo urgentes",
+          "filterActionable": "Solo accionables",
+          "collapse": "Contraer columna",
+          "expand": "Expandir columna"
+        },
         "transportValidation": "Validación de Conductor / transporte",
         "transportValidationCompact": "Validación transporte",
         "missionControlTripInit": "Iniciar viaje",
@@ -651,6 +706,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Opciones de columna",
+          "density": "Densidad",
+          "densityInherit": "Predeterminado",
+          "densityCompact": "Compacta",
+          "densityExpanded": "Expandida",
+          "sort": "Ordenar por",
+          "sortNone": "Orden predeterminado",
+          "sortPriority": "Prioridad",
+          "sortEta": "Fecha de salida",
+          "sortCode": "Código de servicio",
+          "filter": "Filtrar",
+          "filterNone": "Mostrar todo",
+          "filterUrgent": "Solo urgentes",
+          "filterActionable": "Solo accionables",
+          "collapse": "Contraer columna",
+          "expand": "Expandir columna"
+        },
         "confirmDelivery": "Confirmar Entrega",
         "confirmDeliveryCompact": "Confirmar Entrega",
         "receiveDelivery": "Confirmar Recepción",
@@ -2936,6 +3009,21 @@
       "license_plate_and_date_range": "patente y rango de fechas."
     },
     "slider": {
+      "kanban": {
+        "slide1_title": "Tablero Kanban Renovado",
+        "slide1_subtitle": "Columnas más limpias, controles más rápidos.",
+        "slide2_title": "Acciones por Columna",
+        "slide2_lane": "Iniciar viaje",
+        "slide2_density": "Densidad",
+        "slide2_sort": "Orden",
+        "slide2_filter": "Filtro",
+        "slide2_collapse": "Contraer",
+        "slide3_title": "Busca con ⌘K / Ctrl+K",
+        "slide3_placeholder": "Buscar viaje, patente o conductor…",
+        "slide3_desc": "Presiona ⌘K / Ctrl+K en cualquier momento para ir directo a la búsqueda.",
+        "slide4_title": "Tu Vista, Recordada",
+        "slide4_desc": "Densidad, orden, filtros y columnas contraídas persisten al recargar."
+      },
       "new_features_appeared": "Hay nuevas funcionalidades.",
       "test_pulse_historic_feature": "¡Prueba el nuevo Histórico de pulsos!",
       "description": "Filtra pulsos por patente y rango de fechas para obtener un reporte descargable basado en posiciones pasadas de los vehículos.",
@@ -3439,7 +3527,7 @@
     "rank": {
       "conductor-senior": "Conductor Senior",
       "conductor-especializado": "Conductor Especializado",
-      "driver": "Conductor",
+      "conductor": "Conductor",
       "operador-logistico": "Operador Logístico"
     },
     "employmentStatus": {
@@ -3504,6 +3592,7 @@
         "safety": "Seguridad",
         "usage": "Uso",
         "regulatory": "Normativo",
+        "efficiency": "Eficiencia",
         "critical": "Críticos"
       },
       "urgency": {
@@ -3514,7 +3603,8 @@
       "category": {
         "safety": "Seguridad",
         "usage": "Uso",
-        "regulatory": "Normativo"
+        "regulatory": "Normativo",
+        "efficiency": "Eficiencia"
       }
     },
     "achievement": {

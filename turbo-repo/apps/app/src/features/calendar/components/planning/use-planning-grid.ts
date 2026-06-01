@@ -8,7 +8,7 @@ import {
   type PlannedService,
   type TimeWindow,
 } from "./planning-selection-context";
-import type { PositionedShift } from "./shift-layout";
+import type { PositionedShift } from "@microboxlabs/miot-calendar-ui";
 import { useServiceActions } from "./use-service-actions";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
@@ -50,7 +50,7 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     getRemainingQuota,
     isSlotBlocked,
     removeService,
-    updateServiceAssignment,
+    removeAssignment,
     startReassignment,
     startAssignment,
     reassigningService,
@@ -61,27 +61,6 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     clearChipSelection,
     andenesCount,
   } = usePlanningSelection();
-
-  // Clear every assignment slot on the planned service — carrier, drivers,
-  // truck and trailer (plus their upstream external_id codes) — so
-  // reopening the sidebar for this entry starts clean.
-  const removeAssignment = useCallback(
-    async (serviceId: string) => {
-      updateServiceAssignment(serviceId, {
-        assignedCarrier: undefined,
-        assignedDriver: undefined,
-        assignedDriver2: undefined,
-        assignedTruck: undefined,
-        assignedTrailer: undefined,
-        assignedCarrierExternalId: undefined,
-        assignedDriverExternalId: undefined,
-        assignedDriver2ExternalId: undefined,
-        assignedTruckExternalId: undefined,
-        assignedTrailerExternalId: undefined,
-      });
-    },
-    [updateServiceAssignment]
-  );
 
   // Use shared hook for context menu and delete modal
   const serviceActions = useServiceActions({

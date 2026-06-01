@@ -54,6 +54,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "transportValidation": "Driver / Transport Validation",
         "transportValidationCompact": "Driver / Transport",
         "missionControlTripInit": "Mission Control: Start trip",
@@ -170,6 +188,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "consolidateLoad": "Consolidate Load",
         "separateDocuments": "Separate Documents",
         "planService": "Plan Service",
@@ -420,6 +456,7 @@
           "status": "Status",
           "enabled": "Accredited",
           "notEnabled": "Not Accredited",
+          "superAccredited": "Super Accredited",
           "previousTrips": "Previous trips",
           "lastTrip": "Last trip",
           "speedExcess": "Speed excess",
@@ -503,6 +540,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "transportValidation": "Driver / transport validation",
         "transportValidationCompact": "Transport validation",
         "missionControlTripInit": "Start trip",
@@ -650,6 +705,24 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "lane": {
+          "menuLabel": "Lane options",
+          "density": "Density",
+          "densityInherit": "Board default",
+          "densityCompact": "Compact",
+          "densityExpanded": "Expanded",
+          "sort": "Sort by",
+          "sortNone": "Default order",
+          "sortPriority": "Priority",
+          "sortEta": "Departure date",
+          "sortCode": "Service code",
+          "filter": "Filter",
+          "filterNone": "Show all",
+          "filterUrgent": "Only urgent",
+          "filterActionable": "Only actionable",
+          "collapse": "Collapse lane",
+          "expand": "Expand lane"
+        },
         "confirmDelivery": "Confirm delivery",
         "confirmDeliveryCompact": "Confirm delivery",
         "receiveDelivery": "Receive delivery",
@@ -2905,6 +2978,21 @@
       "license_plate_and_date_range": "license plate and date range."
     },
     "slider": {
+      "kanban": {
+        "slide1_title": "Renewed Kanban Board",
+        "slide1_subtitle": "Cleaner lanes, faster controls.",
+        "slide2_title": "Per-Lane Actions",
+        "slide2_lane": "Start trip",
+        "slide2_density": "Density",
+        "slide2_sort": "Sort",
+        "slide2_filter": "Filter",
+        "slide2_collapse": "Collapse",
+        "slide3_title": "Search with ⌘K / Ctrl+K",
+        "slide3_placeholder": "Search trip, plate or driver…",
+        "slide3_desc": "Press ⌘K / Ctrl+K anywhere to jump straight to the search box.",
+        "slide4_title": "Your View, Remembered",
+        "slide4_desc": "Density, sorting, filters and collapsed lanes persist across reloads."
+      },
       "new_features_appeared": "A new feature has appeared.",
       "test_pulse_historic_feature": "Test the new Pulse Historic feature!!!",
       "description": "Filter pulses by license plate and date range to get a downloadable report based by past positions of the vehicles.",
@@ -3406,7 +3494,7 @@
     "rank": {
       "conductor-senior": "Senior Driver",
       "conductor-especializado": "Specialized Driver",
-      "driver": "Driver",
+      "conductor": "Driver",
       "operador-logistico": "Logistics Operator"
     },
     "employmentStatus": {
@@ -3471,6 +3559,7 @@
         "safety": "Safety",
         "usage": "Usage",
         "regulatory": "Regulatory",
+        "efficiency": "Efficiency",
         "critical": "Critical"
       },
       "urgency": {
@@ -3481,7 +3570,8 @@
       "category": {
         "safety": "Safety",
         "usage": "Usage",
-        "regulatory": "Regulatory"
+        "regulatory": "Regulatory",
+        "efficiency": "Efficiency"
       }
     },
     "achievement": {

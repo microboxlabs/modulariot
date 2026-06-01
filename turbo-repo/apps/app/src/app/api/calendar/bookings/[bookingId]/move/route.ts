@@ -179,7 +179,7 @@ export async function POST(
   // we reverse the move so the user sees a consistent state.
   const bindingPayload = extractCalendarBindingPayload({
     calendarId: moved.calendarId,
-    resource: { data: moved.resource.data },
+    resource: { id: moved.resource.id, data: moved.resource.data },
   });
   if (!bindingPayload) return NextResponse.json(moved);
 

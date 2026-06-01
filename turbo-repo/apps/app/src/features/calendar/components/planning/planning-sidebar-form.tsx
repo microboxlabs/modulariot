@@ -21,7 +21,7 @@ import {
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
-import { formatPercent } from "./planning-format";
+import { formatPercent } from "@microboxlabs/miot-calendar-ui";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";

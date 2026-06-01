@@ -12,7 +12,7 @@ import {
   getLeadTimeStatus,
 } from "./planning-selection-types";
 import { categorizeIncidencias } from "./incidencias.types";
-import { formatPercent } from "./planning-format";
+import { formatPercent } from "@microboxlabs/miot-calendar-ui";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";

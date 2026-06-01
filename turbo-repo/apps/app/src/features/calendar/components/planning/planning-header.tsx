@@ -10,8 +10,10 @@ import type { PlanningHeaderProps } from "./planning-header.types";
 import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
 import { Button } from "flowbite-react";
-import { CalendarNavigation } from "./calendar-navigation";
-import { CalendarViewSwitcher } from "./calendar-view-switcher";
+import {
+  CalendarNavigation,
+  CalendarViewSwitcher,
+} from "@microboxlabs/miot-calendar-ui";
 import {
   DATE_FORMAT,
   isValidViewMode,

@@ -13,12 +13,13 @@ type PropertiesGridProps = Readonly<{
 
 export function PropertiesGrid({ entry, categoryLabel, dictionary }: PropertiesGridProps) {
   const reviewStatus = entry.properties["mintral:reviewStatus"];
-  const reviewStatusLabel =
-    reviewStatus && reviewStatus !== "PENDING"
-      ? reviewStatus === "APPROVED"
+  let reviewStatusLabel: string | null = null;
+  if (reviewStatus && reviewStatus !== "PENDING") {
+    reviewStatusLabel =
+      reviewStatus === "APPROVED"
         ? tr("bento.multimedia.sidebar_prop_review_approved", dictionary)
-        : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary)
-      : null;
+        : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary);
+  }
 
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3">

@@ -25,6 +25,7 @@ export default function MobileHeader({
   totalItems,
   status,
   draftDecision,
+  isReviewable,
   categories,
   currentCategory,
   onCategoryChange,
@@ -44,6 +45,7 @@ export default function MobileHeader({
   totalItems: number;
   status: ReviewStatus;
   draftDecision: ReviewStatus | null;
+  isReviewable: boolean;
   categories: { value: string; label: string }[];
   currentCategory: string | null;
   onCategoryChange: (category: string) => void;
@@ -163,7 +165,8 @@ export default function MobileHeader({
         />
       </div>
 
-      {/* Row 4 — approve/reject full width */}
+      {/* Row 4 — approve/reject full width (only for reviewable content) */}
+      {isReviewable && (
       <div className="flex items-center gap-2 sm:hidden">
         {status !== "approved" && (
           <>
@@ -232,6 +235,7 @@ export default function MobileHeader({
           </Dropdown>
         )}
       </div>
+      )}
     </>
   );
 }

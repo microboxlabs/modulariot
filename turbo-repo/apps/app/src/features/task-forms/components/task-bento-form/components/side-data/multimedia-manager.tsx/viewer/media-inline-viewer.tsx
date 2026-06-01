@@ -1,35 +1,29 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  HiChevronLeft,
-} from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getCategories } from "../clasification-form";
-import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { AlfrescoFileEntry } from "../image.types";
+import { isReviewableEntry } from "../reviewable";
 import { ReviewStatus } from "../gallery/media-row";
 import { downloadImage } from "@/features/geographic-view/utils/download-image";
 import { updateBentoCategory, renameBentoFile } from "@/features/common/providers/client-api.provider";
 import { toast } from "sonner";
 
 import { findNextUndecided } from "./viewer-utils";
-import { STATUS_BADGE_CLASSES, DRAFT_BADGE_CLASSES, DRAFT_BADGE_KEYS } from "./viewer-constants";
 import { useDocBlob } from "./use-doc-blob";
 import EditableField from "@/features/common/components/editable-field/editable-field";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
-import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
-import { SidebarSection } from "./sidebar/sidebar-section";
 import { MoveToTaskModal } from "./modals/move-to-task-modal";
 import { DeleteConfirmModal } from "./modals/delete-confirm-modal";
 import { UnsentReplyModal } from "./modals/unsent-reply-modal";
-import { ObservationsSection } from "./observations/observations-section";
 import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations/observation.types";
 import ViewerToolbar from "./viewer-toolbar";
 import MobileHeader from "./mobile-header";
 import MediaContentDisplay from "./media-content-display";
-import { PropertiesGrid } from "./sidebar/properties-grid";
+import ViewerHeaderBadges from "./viewer-header-badges";
+import ViewerMetadataSidebar from "./viewer-metadata-sidebar";
 
 export type MediaViewerItem = {
   type: "image" | "document";
@@ -151,11 +145,9 @@ export default function MediaInlineViewer({
 
   const categories = getCategories(dictionary);
   const categoryLabel = categories[currentCategory as keyof typeof categories]?.label;
-  const status: ReviewStatus = id
-    ? isCurrentReviewable
-      ? (reviewStatuses?.get(id) ?? "pending")
-      : "approved"
-    : "pending";
+  const status: ReviewStatus = id ? (reviewStatuses?.get(id) ?? "pending") : "pending";
+  // Non-reviewable content (no mintral:reviewableAspect) exposes no review controls.
+  const isReviewable = isReviewableEntry(current.file);
 
   const handleDecision = (decision: ReviewStatus) => {
     if (!id || !isCurrentReviewable) return;
@@ -184,7 +176,9 @@ export default function MediaInlineViewer({
   const refreshSuffix = current.refreshKey ? `&r=${current.refreshKey}` : "";
   const imageUrl =
     current.type === "image" ? `/app/api/bento/content?nodeId=${id}${refreshSuffix}` : null;
-  const draftDecision = id && isCurrentReviewable ? (draftDecisions?.get(id) ?? null) : null;
+  const draftDecision = id ? (draftDecisions?.get(id) ?? null) : null;
+  const handleEditClick = onEdit ? () => onEdit(currentIndex) : undefined;
+  const handleDeleteClick = onDelete ? () => setIsDeleteConfirmOpen(true) : undefined;
 
   return (
     <div className="flex flex-col w-full h-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
@@ -197,15 +191,16 @@ export default function MediaInlineViewer({
           totalItems={items.length}
           status={status}
           draftDecision={draftDecision}
+          isReviewable={isReviewable}
           categories={Object.values(categories)}
           currentCategory={currentCategory}
           onCategoryChange={handleCategoryChange}
           onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
           onDownload={handleDownload}
-          onEdit={onEdit ? () => onEdit(currentIndex) : undefined}
+          onEdit={handleEditClick}
           onMove={() => setIsMoveModalOpen(true)}
-          onDelete={onDelete ? () => setIsDeleteConfirmOpen(true) : undefined}
+          onDelete={handleDeleteClick}
           onDecision={handleDecision}
           onClose={handleClose}
           onRename={async (newName) => {
@@ -237,30 +232,13 @@ export default function MediaInlineViewer({
             dictionary={dictionary}
             fitWidth
           />
-          {current.file.entry.modifiedAt && (
-            <CustomBadge
-              text={formatDateString(current.file.entry.modifiedAt)}
-              className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-flex"
-            />
-          )}
-          {current.file.entry.modifiedByUser?.id && (
-            <CustomBadge
-              text={current.file.entry.modifiedByUser.id}
-              className="text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 shrink-0 hidden md:inline-flex"
-            />
-          )}
-          <CustomBadge
-            text={tr(`bento.multimedia.status_${status}`, dictionary)}
-            className={`px-2 py-0.5 shrink-0 hidden sm:inline-flex ${STATUS_BADGE_CLASSES[status]}`}
+          <ViewerHeaderBadges
+            entry={current.file.entry}
+            status={status}
+            draftDecision={draftDecision}
+            isReviewable={isReviewable}
+            dictionary={dictionary}
           />
-          {draftDecision !== null && (
-            <CustomBadge
-              text={`→ ${tr(DRAFT_BADGE_KEYS[draftDecision] ?? DRAFT_BADGE_KEYS.rejected, dictionary)}`}
-              className={`px-2 py-0.5 shrink-0 border hidden sm:inline-flex ${
-                DRAFT_BADGE_CLASSES[draftDecision] ?? DRAFT_BADGE_CLASSES.rejected
-              }`}
-            />
-          )}
         </div>
 
         {/* Desktop: Right actions (hidden on mobile) */}
@@ -271,13 +249,14 @@ export default function MediaInlineViewer({
           totalItems={items.length}
           status={status}
           draftDecision={draftDecision}
+          isReviewable={isReviewable}
           onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
           onDownload={handleDownload}
-          onEdit={onEdit ? () => onEdit(currentIndex) : undefined}
+          onEdit={handleEditClick}
           onMove={() => setIsMoveModalOpen(true)}
-          onDelete={onDelete ? () => setIsDeleteConfirmOpen(true) : undefined}
-          onDecision={isCurrentReviewable ? handleDecision : undefined}
+          onDelete={handleDeleteClick}
+          onDecision={handleDecision}
           onClose={handleClose}
           reviewEnabled={isCurrentReviewable}
           dictionary={dictionary}
@@ -299,72 +278,26 @@ export default function MediaInlineViewer({
         </div>
 
         {/* Metadata sidebar */}
-        <div
-          className="shrink-0 sm:shrink-0 border-t sm:border-t-0 sm:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto flex flex-col w-full sm:w-1/3 min-h-0 basis-1/2 sm:basis-auto sm:h-full"
-        >
-          {showAllObservations ? (
-            <div className="flex flex-col h-full">
-              <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                <button
-                  type="button"
-                  onClick={() => setShowAllObservations(false)}
-                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <HiChevronLeft className="w-3.5 h-3.5" />
-                  {tr("bento.multimedia.sidebar_obs_back", dictionary)}
-                </button>
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 ml-auto">
-                  {tr("bento.multimedia.sidebar_observations", dictionary)}
-                </span>
-              </div>
-              <div className="flex-1 overflow-y-auto p-3">
-                <ObservationsSection
-                  key={id ?? currentIndex}
-                  dictionary={dictionary}
-                  draftObservations={draftObservations?.get(id ?? "") ?? []}
-                  committedTimeline={committedTimeline?.get(id ?? "") ?? []}
-                  isInDraftReview={!reviewStatuses?.get(id) || reviewStatuses?.get(id) === "pending"}
-                  onAdd={(type, description) => { if (id) onAddObservation?.(id, type, description); }}
-                  onRemoveDraft={(obsId) => { if (id) onRemoveDraftObservation?.(id, obsId); }}
-                  onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
-                  onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}
-                  onRemoveReply={(obsId, rid) => { if (id) onRemoveReply?.(id, obsId, rid); }}
-                  pendingReplyRef={pendingReplyRef}
-                  mode="full"
-                  category={currentCategory}
-                />
-              </div>
-            </div>
-          ) : (
-          <>
-          <SidebarSection title={tr("bento.multimedia.sidebar_properties", dictionary)} defaultExpanded>
-            <PropertiesGrid
-              entry={current.file.entry}
-              categoryLabel={categoryLabel}
-              dictionary={dictionary}
-            />
-          </SidebarSection>
-          <SidebarSection title={tr("bento.multimedia.sidebar_observations", dictionary)} defaultExpanded>
-            <ObservationsSection
-              key={id ?? currentIndex}
-              dictionary={dictionary}
-              draftObservations={draftObservations?.get(id ?? "") ?? []}
-              committedTimeline={committedTimeline?.get(id ?? "") ?? []}
-              isInDraftReview={!reviewStatuses?.get(id) || reviewStatuses?.get(id) === "pending"}
-              onAdd={(type, description) => { if (id) onAddObservation?.(id, type, description); }}
-              onRemoveDraft={(obsId) => { if (id) onRemoveDraftObservation?.(id, obsId); }}
-              onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
-              onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}
-              onRemoveReply={(obsId, rid) => { if (id) onRemoveReply?.(id, obsId, rid); }}
-              pendingReplyRef={pendingReplyRef}
-              mode="preview"
-              onShowAll={() => setShowAllObservations(true)}
-              category={currentCategory}
-            />
-          </SidebarSection>
-        </>
-        )}
-        </div>
+        <ViewerMetadataSidebar
+          id={id}
+          currentIndex={currentIndex}
+          entry={current.file.entry}
+          categoryLabel={categoryLabel}
+          currentCategory={currentCategory}
+          isReviewable={isReviewable}
+          showAllObservations={showAllObservations}
+          setShowAllObservations={setShowAllObservations}
+          reviewStatuses={reviewStatuses}
+          draftObservations={draftObservations}
+          committedTimeline={committedTimeline}
+          onAddObservation={onAddObservation}
+          onRemoveDraftObservation={onRemoveDraftObservation}
+          onRemoveCommittedObservation={onRemoveCommittedObservation}
+          onAddReply={onAddReply}
+          onRemoveReply={onRemoveReply}
+          pendingReplyRef={pendingReplyRef}
+          dictionary={dictionary}
+        />
       </div>
 
       {/* Move to task modal */}

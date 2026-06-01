@@ -3,7 +3,7 @@ import {
   TIME_WINDOW_COLORS,
   TimeWindowUtils,
   type TimeWindow,
-} from "./planning-selection-context";
+} from "./time-window";
 
 export const BLOCKED_STRIPE_CLASS =
   "[background:repeating-linear-gradient(45deg,rgb(254,242,242),rgb(254,242,242)_4px,rgba(239,68,68,0.2)_4px,rgba(239,68,68,0.2)_8px)] dark:[background:repeating-linear-gradient(45deg,rgb(55,48,48),rgb(55,48,48)_4px,rgba(239,68,68,0.3)_4px,rgba(239,68,68,0.3)_8px)]";

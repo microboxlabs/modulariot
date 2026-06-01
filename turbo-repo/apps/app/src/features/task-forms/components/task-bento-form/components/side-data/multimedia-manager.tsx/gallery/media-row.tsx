@@ -32,6 +32,7 @@ export default function MediaRow({
   statusSetAt,
   statusSetBy,
   hideStatusDot = false,
+  isReviewable = true,
   onEdit,
   dictionary,
 }: Readonly<{
@@ -45,6 +46,7 @@ export default function MediaRow({
   statusSetAt?: Date;
   statusSetBy?: string;
   hideStatusDot?: boolean;
+  isReviewable?: boolean;
   onEdit?: () => void;
   dictionary: I18nRecord;
 }>) {
@@ -127,7 +129,7 @@ export default function MediaRow({
                 className="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 shrink-0 whitespace-nowrap"
               />
             )}
-            {!hideStatusDot && (
+            {!hideStatusDot && isReviewable && (
               <span
                 title={statusLabel}
                 className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotCls}`}
@@ -142,8 +144,8 @@ export default function MediaRow({
             </span>
           )}
 
-          {/* Status change row: only shown after a decision */}
-          {statusChangeLine && (
+          {/* Status change row: only shown after a decision, for reviewable content */}
+          {isReviewable && statusChangeLine && (
             <span className={`text-xs ${status === "approved" ? "text-gray-400 dark:text-gray-500" : "font-medium"} ${status === "approved" ? "" : statusCfg.textCls}`}>
               {statusChangeLine}
             </span>

@@ -1,9 +1,9 @@
 "use client";
 
-import { ConfirmationModal } from "@/features/common/components/confirmation-modal";
-import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
-import type { PlannedService } from "./planning-selection-context";
+import { ConfirmationModal } from "../confirmation-modal";
+import type { CalendarItem } from "../../types/calendar-item";
+import type { CalendarI18n } from "../../contract/calendar-host";
+import type { PlannedService } from "../../types/planning";
 
 export interface DeleteConfirmationModalMessages {
   title: string;
@@ -14,11 +14,11 @@ export interface DeleteConfirmationModalMessages {
   delete: string;
 }
 
-interface DeleteConfirmationModalProps {
+interface DeleteConfirmationModalProps<TItem extends { id: string } = CalendarItem> {
   isOpen: boolean;
-  plannedService: PlannedService | null;
+  plannedService: PlannedService<TItem> | null;
   messages: DeleteConfirmationModalMessages;
-  onConfirm: (plannedService: PlannedService) => void;
+  onConfirm: (plannedService: PlannedService<TItem>) => void;
   onCancel: () => void;
 }
 
@@ -26,10 +26,11 @@ const DELETE_MODAL_BASE = "layout.planning.deleteModal" as const;
 const DELETE_ASSIGNMENT_MODAL_BASE =
   "layout.planning.deleteAssignmentModal" as const;
 
+/** Build the delete-plan modal copy through the host i18n seam. */
 export function getDeleteModalMessages(
-  dict: I18nDictionary,
-  _serviceId: string
+  i18n: CalendarI18n
 ): DeleteConfirmationModalMessages {
+  const { tr, dict } = i18n;
   return {
     title: tr(`${DELETE_MODAL_BASE}.title`, dict),
     messagePrefix: tr(`${DELETE_MODAL_BASE}.messagePrefix`, dict),
@@ -40,10 +41,11 @@ export function getDeleteModalMessages(
   };
 }
 
+/** Build the delete-assignment modal copy through the host i18n seam. */
 export function getDeleteAssignmentMessages(
-  dict: I18nDictionary,
-  _serviceId: string
+  i18n: CalendarI18n
 ): DeleteConfirmationModalMessages {
+  const { tr, dict } = i18n;
   return {
     title: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.title`, dict),
     messagePrefix: tr(`${DELETE_ASSIGNMENT_MODAL_BASE}.messagePrefix`, dict),
@@ -55,15 +57,19 @@ export function getDeleteAssignmentMessages(
 }
 
 /**
- * Confirmation modal for deleting a planned service assignment
+ * Confirmation modal for deleting a planned item (plan or assignment). Generic
+ * over the host item type; only the item's `id` is shown. Copy is supplied by
+ * the caller via {@link DeleteConfirmationModalMessages} (translated host-side).
  */
-export function DeleteConfirmationModal({
+export function DeleteConfirmationModal<
+  TItem extends { id: string } = CalendarItem,
+>({
   isOpen,
   plannedService,
   messages,
   onConfirm,
   onCancel,
-}: Readonly<DeleteConfirmationModalProps>) {
+}: Readonly<DeleteConfirmationModalProps<TItem>>) {
   if (!plannedService) return null;
 
   const handleConfirm = () => {

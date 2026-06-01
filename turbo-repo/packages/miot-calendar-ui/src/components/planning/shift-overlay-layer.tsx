@@ -1,48 +1,66 @@
 "use client";
 
+import { Fragment, type MouseEvent, type ReactNode } from "react";
 import dayjs from "dayjs";
 import { twMerge } from "tailwind-merge";
-import type {
-  PlannedService,
-  TimeWindowColor,
-} from "./planning-selection-context";
+import type { CalendarItem } from "../../types/calendar-item";
+import type { PlannedService } from "../../types/planning";
 import type { PositionedShift } from "./shift-layout";
+import type { TimeWindowColor } from "./time-window";
 import { SPARE_SLOT_STRIPE_CLASS } from "./planning-slot-utils";
-import { PlannedServiceChip } from "./planned-service-chip";
-import type {
-  I18nDictionary,
-  I18nRecord,
-} from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { ItemChip } from "../item-chip";
 
-interface Props {
+/** Per-chip interaction context handed to the chip renderer. */
+export interface ChipRenderContext<TItem extends { id: string } = CalendarItem> {
+  /** Visual right-click highlight (static ring). */
+  selected: boolean;
+  /** This chip is the one being reassigned (pulsing ring). */
+  reassigning: boolean;
+  /** Left-click handler — undefined for read-only (viewer) callers. */
+  onClick?: (ps: PlannedService<TItem>) => void;
+  onContextMenu: (e: MouseEvent, ps: PlannedService<TItem>) => void;
+}
+
+export interface ShiftOverlayLayerProps<
+  TItem extends { id: string } = CalendarItem,
+> {
   readonly shifts: readonly PositionedShift[];
   readonly onShiftClick?: (shift: PositionedShift) => void;
   readonly isShiftSelected?: (shift: PositionedShift) => boolean;
   readonly getServicesForShift?: (
     shift: PositionedShift
-  ) => readonly PlannedService[];
+  ) => readonly PlannedService<TItem>[];
   /**
    * True when the shift's time window has reached its booking capacity for that day. Derived from
    * the planned services upstream — when true, no shift in the window accepts a new booking (the
    * empty ones render as muted "spare" slots).
    */
   readonly isWindowFull?: (shift: PositionedShift) => boolean;
-  readonly onChipClick?: (ps: PlannedService) => void;
+  readonly onChipClick?: (ps: PlannedService<TItem>) => void;
   readonly onChipContextMenu?: (
-    e: React.MouseEvent,
-    ps: PlannedService
+    e: MouseEvent,
+    ps: PlannedService<TItem>
   ) => void;
   readonly reassigningServiceId?: string;
   /** Predicate driving the chip's right-click highlight ring. */
   readonly isChipSelected?: (serviceId: string) => boolean;
-  readonly dict: I18nDictionary | I18nRecord;
+  /**
+   * Host chip override. When omitted, each chip renders via the package default
+   * {@link ItemChip} from the item's id. Hosts pass a renderer to keep their
+   * domain chip (icons, status colors, badges) and wire the interaction context.
+   */
+  readonly renderChip?: (
+    ps: PlannedService<TItem>,
+    ctx: ChipRenderContext<TItem>
+  ) => ReactNode;
+  /** Pre-translated tooltip shown on a window-full (spare) rectangle. */
+  readonly windowFullTooltip?: string;
 }
 
 /**
  * Overlay layer that paints one rectangle per synthesized shift on top of the
  * underlying day grid. Each rectangle owns:
- *  - the existing planned-service chips for that exact shift start, rendered
+ *  - the existing planned-item chips for that exact shift start, rendered
  *    above the rectangle so chip click + right-click work natively, and
  *  - an "add booking" affordance (an absolutely-positioned button covering
  *    the empty area) when the shift has remaining capacity.
@@ -51,7 +69,9 @@ interface Props {
  * interactive content for a shift lives here, in one stacking context, so
  * there is no z-index fight between cells, chips, and overlays.
  */
-export function ShiftOverlayLayer({
+export function ShiftOverlayLayer<
+  TItem extends { id: string } = CalendarItem,
+>({
   shifts,
   onShiftClick,
   isShiftSelected,
@@ -61,8 +81,11 @@ export function ShiftOverlayLayer({
   onChipContextMenu,
   reassigningServiceId,
   isChipSelected,
-  dict,
-}: Props) {
+  renderChip,
+  windowFullTooltip,
+}: ShiftOverlayLayerProps<TItem>) {
+  const onChipCtx: (e: MouseEvent, ps: PlannedService<TItem>) => void =
+    onChipContextMenu ?? (() => {});
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
       {shifts.map((s) => {
@@ -106,7 +129,7 @@ export function ShiftOverlayLayer({
         );
         const labelHM = formatHM(s.slotHour, s.slotMinutes);
         const title = windowFull
-          ? tr("pages.planning.grid.windowFullTooltip", dict)
+          ? (windowFullTooltip ?? "")
           : `${labelHM} – ${formatHM(
               Math.floor(s.endsAtMin / 60),
               s.endsAtMin % 60
@@ -151,22 +174,38 @@ export function ShiftOverlayLayer({
                 "add" button below; chips re-enable pointer-events-auto so
                 their own click + onContextMenu fire natively. Stacked
                 vertically so each chip uses the full overlay width to
-                show the service info; chips beyond the rectangle's
+                show the item info; chips beyond the rectangle's
                 height overflow visibly. */}
             {hasServices && (
               <div className="absolute inset-1 flex flex-col gap-0.5 pointer-events-none">
-                {services.map((ps) => (
-                  <PlannedServiceChip
-                    key={ps.service.id}
-                    plannedService={ps}
-                    isBeingReassigned={reassigningServiceId === ps.service.id}
-                    isSelected={isChipSelected?.(ps.service.id) ?? false}
-                    onContextMenu={onChipContextMenu ?? noop}
-                    onClick={onChipClick}
-                    className="w-full"
-                    dict={dict}
-                  />
-                ))}
+                {services.map((ps) => {
+                  const chipSelected = isChipSelected?.(ps.service.id) ?? false;
+                  const chipReassigning =
+                    reassigningServiceId === ps.service.id;
+                  return (
+                    <Fragment key={ps.service.id}>
+                      {renderChip ? (
+                        renderChip(ps, {
+                          selected: chipSelected,
+                          reassigning: chipReassigning,
+                          onClick: onChipClick,
+                          onContextMenu: onChipCtx,
+                        })
+                      ) : (
+                        <ItemChip
+                          item={{ id: ps.service.id, title: ps.service.id }}
+                          selected={chipSelected}
+                          reassigning={chipReassigning}
+                          onClick={
+                            onChipClick ? () => onChipClick(ps) : undefined
+                          }
+                          onContextMenu={(e) => onChipCtx(e, ps)}
+                          className="w-full"
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -174,10 +213,6 @@ export function ShiftOverlayLayer({
       })}
     </div>
   );
-}
-
-function noop() {
-  /* noop — used when no context-menu handler is wired. */
 }
 
 function formatHM(h: number, m: number): string {

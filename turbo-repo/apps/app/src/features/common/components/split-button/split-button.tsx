@@ -62,8 +62,8 @@ export default function SplitButton({
   return (
     <>
       {overlay && dropdownOpen && (
-        <div
-          role="button"
+        <button
+          type="button"
           tabIndex={-1}
           aria-label="Close dropdown"
           className="fixed inset-0 z-30 transition-all duration-300 opacity-100 visible backdrop-blur-[10px] bg-black/30"

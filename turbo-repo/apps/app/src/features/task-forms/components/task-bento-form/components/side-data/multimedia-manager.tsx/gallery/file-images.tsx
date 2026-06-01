@@ -26,6 +26,7 @@ import ClasificationForm from "../clasification-form";
 import FileViewer from "../file-viewer/file_viewer";
 import DocumentList from "./document-list";
 import { AlfrescoFileEntry } from "../image.types";
+import { isReviewableEntry } from "../reviewable";
 import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
 import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewer";
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
@@ -418,7 +419,9 @@ export default function FileImages({
 
   const [isImagesExpanded, setIsImagesExpanded] = useState(true);
   const [isDocumentsExpanded, setIsDocumentsExpanded] = useState(true);
-  const [viewMode, setViewMode] = useState<"approved" | "review">("approved");
+  // "ready" = Listos tab (approved reviewable items + all non-reviewable content);
+  // "review" = Revisión tab (reviewable items still pending or rejected).
+  const [viewMode, setViewMode] = useState<"ready" | "review">("ready");
   const viewModeInitialized = useRef(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -438,6 +441,20 @@ export default function FileImages({
     ],
     [images, documents]
   );
+
+  // Ids of items the backend marked reviewable (have mintral:reviewableAspect).
+  // Everything else is non-reviewable: it belongs in the Listos tab and exposes no
+  // review controls, regardless of any (absent) review status.
+  const reviewableIds = useMemo(() => {
+    const ids = new Set<string>();
+    images.forEach((img) => {
+      if (isReviewableEntry(img.file)) ids.add(img.file.entry.id);
+    });
+    documents.forEach((doc: { file: AlfrescoFileEntry }) => {
+      if (isReviewableEntry(doc.file)) ids.add(doc.file.entry.id);
+    });
+    return ids;
+  }, [images, documents]);
   const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < allIds.length;
 
@@ -454,28 +471,26 @@ export default function FileImages({
   const [forumRefMap, setForumRefMap] = useState<Map<string, { topicRef: string; postRef: string }>>(new Map());
 
   const reviewSummary = useMemo(() => {
-    let approved = 0;
-    let rejected = 0;
-    let pending = 0;
-    [...images, ...documents].forEach((item) => {
-      const status = getEffectiveStatus(item.file, reviewStatuses);
-      if (status === "approved") approved++;
-      else if (status === "rejected") rejected++;
-      else pending++;
-    });
-    return { approved, rejected, pending };
-  }, [images, documents, reviewStatuses]);
+    // Only reviewable items contribute to review counts; non-reviewable content has no
+    // status and must not light up the "Revisión" badge (it would otherwise default to
+    // pending).
+    const approved = allIds.filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "approved").length;
+    const rejected = allIds.filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "rejected").length;
+    const pending = allIds.filter((id) => reviewableIds.has(id) && (reviewStatuses.get(id) ?? "pending") === "pending").length;
+    // Items shown in the "Listos" tab: approved reviewable + all non-reviewable.
+    const ready = allIds.length - pending - rejected;
+    return { approved, rejected, pending, ready };
+  }, [allIds, reviewStatuses, reviewableIds]);
 
   useEffect(() => {
     if (viewModeInitialized.current) return;
-    if (images.length + documents.length === 0) return;
-    const hasReviewItems = [...images, ...documents].some((item) => {
-      const status = getEffectiveStatus(item.file, reviewStatuses);
-      return isReviewableFile(item.file) && status !== "approved";
-    });
+    if (allIds.length === 0) return;
+    const hasReviewItems = allIds.some(
+      (id) => reviewableIds.has(id) && (reviewStatuses.get(id) ?? "pending") !== "approved"
+    );
     if (hasReviewItems) setViewMode("review");
     viewModeInitialized.current = true;
-  }, [images, documents, reviewStatuses]);
+  }, [allIds, reviewStatuses, reviewableIds]);
 
   const reviewableDraftDecisions = useMemo(
     () =>
@@ -498,26 +513,33 @@ export default function FileImages({
     return { toApproved, toRejected, toPending, total: reviewableDraftDecisions.length };
   }, [reviewableDraftDecisions]);
 
+  // Tab membership for an item id:
+  //  - non-reviewable        → Listos ("ready") only
+  //  - reviewable + approved → Listos
+  //  - reviewable + pending/rejected → Revisión ("review")
+  const belongsToTab = useCallback(
+    (id: string) => {
+      if (!reviewableIds.has(id)) return viewMode === "ready";
+      const s = reviewStatuses.get(id) ?? "pending";
+      return viewMode === "ready" ? s === "approved" : s !== "approved";
+    },
+    [reviewableIds, reviewStatuses, viewMode]
+  );
+
   const filteredImages = useMemo(
     () =>
       images
         .map((img, idx) => ({ img, idx }))
-        .filter(({ img }) => {
-          const s = getEffectiveStatus(img.file, reviewStatuses);
-          return viewMode === "approved" ? s === "approved" : s !== "approved";
-        }),
-    [images, viewMode, reviewStatuses]
+        .filter(({ img }) => belongsToTab(img.file.entry.id)),
+    [images, belongsToTab]
   );
 
   const filteredDocuments = useMemo(
     () =>
       documents
         .map((doc: { file: AlfrescoFileEntry }, idx: number) => ({ doc, idx }))
-        .filter(({ doc }) => {
-          const s = getEffectiveStatus(doc.file, reviewStatuses);
-          return viewMode === "approved" ? s === "approved" : s !== "approved";
-        }),
-    [documents, viewMode, reviewStatuses]
+        .filter(({ doc }) => belongsToTab(doc.file.entry.id)),
+    [documents, belongsToTab]
   );
 
 
@@ -841,11 +863,8 @@ export default function FileImages({
   );
 
   const viewerItems = useMemo<MediaViewerItem[]>(
-    () => allMediaItems.filter((item) => {
-      const s = getEffectiveStatus(item.file, reviewStatuses);
-      return viewMode === "approved" ? s === "approved" : s !== "approved";
-    }),
-    [allMediaItems, viewMode, reviewStatuses]
+    () => allMediaItems.filter((item) => belongsToTab(item.file.entry.id)),
+    [allMediaItems, belongsToTab]
   );
 
   const openViewer = useCallback(
@@ -1064,7 +1083,7 @@ export default function FileImages({
               <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide truncate min-w-0">
                 {tr("bento.multimedia.title", dictionary)}
                 <span className="ml-1 text-sm text-gray-400 dark:text-gray-500 normal-case tracking-normal">
-                  ({reviewSummary.approved}/{allIds.length})
+                  ({reviewSummary.ready}/{allIds.length})
                 </span>
               </span>
 
@@ -1073,14 +1092,14 @@ export default function FileImages({
                 <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                   <button
                     type="button"
-                    onClick={() => setViewMode("approved")}
+                    onClick={() => setViewMode("ready")}
                     className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                      viewMode === "approved"
+                      viewMode === "ready"
                         ? "bg-blue-600 text-white"
                         : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
-                    {tr("bento.multimedia.tab_approved", dictionary)}
+                    {tr("bento.multimedia.tab_ready", dictionary)}
                   </button>
                   <button
                     type="button"
@@ -1159,7 +1178,8 @@ export default function FileImages({
                     status={isReviewableFile(image.file) ? (draftDecisions.get(image.file.entry.id) ?? getEffectiveStatus(image.file, reviewStatuses)) : "approved"}
                     statusSetAt={reviewStatusTimestamps.get(image.file.entry.id)}
                     statusSetBy={reviewStatusUsers.get(image.file.entry.id)}
-                    hideStatusDot={viewMode === "approved"}
+                    hideStatusDot={viewMode === "ready"}
+                    isReviewable={reviewableIds.has(image.file.entry.id)}
                     dictionary={dictionary}
                   />
                 ))}
@@ -1188,7 +1208,8 @@ export default function FileImages({
                     status={isReviewableFile(doc.file) ? (draftDecisions.get(doc.file.entry.id) ?? getEffectiveStatus(doc.file, reviewStatuses)) : "approved"}
                     statusSetAt={reviewStatusTimestamps.get(doc.file.entry.id)}
                     statusSetBy={reviewStatusUsers.get(doc.file.entry.id)}
-                    hideStatusDot={viewMode === "approved"}
+                    hideStatusDot={viewMode === "ready"}
+                    isReviewable={reviewableIds.has(doc.file.entry.id)}
                     dictionary={dictionary}
                   />
                 ))}

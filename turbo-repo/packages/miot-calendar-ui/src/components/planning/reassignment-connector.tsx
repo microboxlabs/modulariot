@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import type { SelectedSlot } from "./planning-selection-context";
 import dayjs from "dayjs";
+import type { SelectedSlot } from "../../types/calendar-slot";
 
 interface SlotPosition {
   x: number;

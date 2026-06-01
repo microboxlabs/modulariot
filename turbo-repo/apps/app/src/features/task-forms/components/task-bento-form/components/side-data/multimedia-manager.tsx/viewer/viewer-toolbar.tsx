@@ -25,6 +25,7 @@ export default function ViewerToolbar({
   totalItems,
   status,
   draftDecision,
+  isReviewable,
   onPrev,
   onNext,
   onDownload,
@@ -42,6 +43,7 @@ export default function ViewerToolbar({
   totalItems: number;
   status: ReviewStatus;
   draftDecision: ReviewStatus | null;
+  isReviewable: boolean;
   onPrev: () => void;
   onNext: () => void;
   onDownload: () => void;
@@ -126,8 +128,8 @@ export default function ViewerToolbar({
         <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
       </button>
 
-      {/* Review actions */}
-      {reviewEnabled && status !== "approved" && onDecision && (
+      {/* Review actions — only for reviewable content */}
+      {isReviewable && status !== "approved" && (
         <SplitButton
           primary={{
             id: "approve",
@@ -145,7 +147,7 @@ export default function ViewerToolbar({
           ]}
         />
       )}
-      {reviewEnabled && status === "approved" && onDecision && (
+      {isReviewable && status === "approved" && (
         <Dropdown
           label=""
           theme={{

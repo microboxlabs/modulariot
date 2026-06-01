@@ -24,6 +24,10 @@ export interface AlfrescoFileEntry {
     parentId: string;
     aspectNames?: string[];
     properties: Record<string, string | undefined>;
+    // Aspect QNames applied to the node (requested via include=aspectNames in the
+    // /app/api/bento/multimedia route). Used to tell reviewable from non-reviewable
+    // content — see isReviewableEntry in ./reviewable.
+    aspectNames?: string[];
   };
 }
 

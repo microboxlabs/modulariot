@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 type BentoReviewState = { pending: number; rejected: number };
 
@@ -14,10 +14,11 @@ const BentoReviewContext = createContext<BentoReviewContextValue>({
   dispatch: () => {},
 });
 
-export function BentoReviewProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useState<BentoReviewState>({ pending: 0, rejected: 0 });
+export function BentoReviewProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const [state, setState] = useState<BentoReviewState>({ pending: 0, rejected: 0 });
+  const value = useMemo(() => ({ state, dispatch: setState }), [state]);
   return (
-    <BentoReviewContext.Provider value={{ state, dispatch }}>
+    <BentoReviewContext.Provider value={value}>
       {children}
     </BentoReviewContext.Provider>
   );

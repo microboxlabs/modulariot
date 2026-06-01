@@ -31,6 +31,7 @@ import ReplaceImageModal from "@/features/geographic-view/components/image-viewe
 import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewer";
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
+import { useBentoReview } from "../../../../bento-review-context";
 
 function toNodeRef(id: string): string {
   if (id.startsWith("workspace://")) return id;
@@ -481,6 +482,11 @@ export default function FileImages({
     const ready = allIds.length - pending - rejected;
     return { approved, rejected, pending, ready };
   }, [allIds, reviewStatuses, reviewableIds]);
+
+  const { dispatch: dispatchReviewState } = useBentoReview();
+  useEffect(() => {
+    dispatchReviewState({ pending: reviewSummary.pending, rejected: reviewSummary.rejected });
+  }, [reviewSummary.pending, reviewSummary.rejected, dispatchReviewState]);
 
   useEffect(() => {
     if (viewModeInitialized.current) return;

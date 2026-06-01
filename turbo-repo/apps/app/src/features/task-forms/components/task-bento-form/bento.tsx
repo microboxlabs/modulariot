@@ -1,6 +1,7 @@
 import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
+import { BentoReviewProvider } from "./bento-review-context";
 
 import TripInformation from "./components/trip-information/trip-information";
 import DriverInfo from "./components/driver/driver";
@@ -38,6 +39,7 @@ export default function Bento({
 
   return (
     <div className="flex flex-col w-full h-full ">
+      <BentoReviewProvider>
       {/* Head */}
       <BentoHead
         task={task}
@@ -114,6 +116,7 @@ export default function Bento({
         </div>
         {/* Content */}
       </div>
+      </BentoReviewProvider>
     </div>
   );
 }

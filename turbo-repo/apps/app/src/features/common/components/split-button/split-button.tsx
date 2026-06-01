@@ -17,6 +17,8 @@ export type SplitButtonProps = Readonly<{
   secondaryLabel?: ReactNode;
   size?: "sm" | "md";
   overlay?: boolean;
+  disabled?: boolean;
+  primaryDisabled?: boolean;
 }>;
 
 export default function SplitButton({
@@ -25,6 +27,8 @@ export default function SplitButton({
   secondaryLabel,
   size = "sm",
   overlay = false,
+  disabled = false,
+  primaryDisabled = false,
 }: SplitButtonProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,7 +61,7 @@ export default function SplitButton({
       ? "h-7 sm:h-9 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5"
       : "h-10 text-sm px-3 py-2";
 
-  const secondaryBase = `flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${sizeClasses}`;
+  const secondaryBase = `flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${sizeClasses}`;
 
   return (
     <>
@@ -79,6 +83,7 @@ export default function SplitButton({
           <button
             type="button"
             onClick={secondaryActions[0].onClick}
+            disabled={disabled}
             className={`${secondaryBase} rounded-lg rounded-r-none`}
           >
             {secondaryActions[0].icon}
@@ -90,6 +95,7 @@ export default function SplitButton({
             <button
               type="button"
               onClick={() => setDropdownOpen((p) => !p)}
+              disabled={disabled}
               className={`${secondaryBase} rounded-lg rounded-r-none`}
             >
               {secondaryLabel && (
@@ -128,7 +134,8 @@ export default function SplitButton({
         <button
           type="button"
           onClick={primary.onClick}
-          className={`flex items-center gap-1.5 font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer ${sizeClasses} ${
+          disabled={disabled || primaryDisabled}
+          className={`flex items-center gap-1.5 font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${sizeClasses} ${
             secondaryActions.length > 0 || secondaryLabel
               ? "rounded-lg rounded-l-none"
               : "rounded-lg"

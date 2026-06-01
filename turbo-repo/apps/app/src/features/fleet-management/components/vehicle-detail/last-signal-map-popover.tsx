@@ -24,6 +24,7 @@ import {
 } from "react-icons/hi2";
 import { MapProvider } from "@/features/google-maps/provider/google-maps.provider";
 import { createSVGIcon } from "@/features/geographic-view/components/prototype/svg-generation";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -177,6 +178,9 @@ function OsmMapView({
   readonly latitude: number;
   readonly longitude: number;
 }) {
+  const runtimeConfig = useRuntimeConfig();
+  const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
+  const isRuntimeConfigLoading = runtimeConfig === null;
   // Memoize the pin layer so deck.gl doesn't reconstruct the icon on every
   // parent render. `createSVGIcon(1, false)` is the "Happy" blue face — the
   // default look the app uses for a healthy vehicle pin.
@@ -210,20 +214,22 @@ function OsmMapView({
       style={MAP_CONTAINER_STYLE}
       className="relative overflow-hidden"
     >
-      <Map
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-        mapStyle={OSM_STYLE}
-        initialViewState={{
-          longitude,
-          latitude,
-          zoom: MAP_ZOOM,
-        }}
-        attributionControl={false}
-        dragRotate={false}
-        touchPitch={false}
-      >
-        <DeckGLOverlay layers={layers} />
-      </Map>
+      {!isRuntimeConfigLoading && (
+        <Map
+          mapboxAccessToken={mapboxAccessToken}
+          mapStyle={OSM_STYLE}
+          initialViewState={{
+            longitude,
+            latitude,
+            zoom: MAP_ZOOM,
+          }}
+          attributionControl={false}
+          dragRotate={false}
+          touchPitch={false}
+        >
+          <DeckGLOverlay layers={layers} />
+        </Map>
+      )}
     </div>
   );
 }

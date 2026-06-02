@@ -1,7 +1,7 @@
 import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
 import { useMemo } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { ImageItem } from "./image.types";
+import { ImageItem } from "../image.types";
 
 export default function ImageViewerConnector({
   images,

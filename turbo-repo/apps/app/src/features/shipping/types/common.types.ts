@@ -66,6 +66,8 @@ export type KanbanBoardTask = {
   arrivalDate?: string;
   estimatedArrivalDate?: string;
   mintral_truckLicensePlate?: string;
+  mintral_trailerLicensePlate?: string;
+  mintral_driver1Name?: string;
   mintral_supplierName?: string;
   mintral_priorityCode?: string;
   mintral_icuCondition?: number;

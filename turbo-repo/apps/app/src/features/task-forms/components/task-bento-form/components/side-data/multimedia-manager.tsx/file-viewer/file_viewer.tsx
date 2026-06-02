@@ -1,6 +1,6 @@
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { getCategories } from "./clasification-form";
+import { getCategories } from "../clasification-form";
 import { useEffect, useState } from "react";
 
 export default function FileViewer({

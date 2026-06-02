@@ -11,7 +11,7 @@ import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-i
 import { buildEChartsOption } from "./build-chart-option";
 import { useDashboard } from "../../context/dashboard-context";
 import { useDashboardFilters } from "../../context/dashboard-filters-context";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { ColorPalette } from "./chart-palettes";
 import type { ChartColorRulesConfig } from "./value-color-rules";
 
@@ -106,16 +106,20 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // ============================================================================
 
 const DATE_RANGE_OPTIONS: { value: DateRange; labelKey: string }[] = [
-  { value: "all",  labelKey: "dashboard.dashlets.chart.rangeAll" },
-  { value: "7d",   labelKey: "dashboard.dashlets.chart.range7d" },
-  { value: "30d",  labelKey: "dashboard.dashlets.chart.range30d" },
-  { value: "90d",  labelKey: "dashboard.dashlets.chart.range90d" },
+  { value: "all", labelKey: "dashboard.dashlets.chart.rangeAll" },
+  { value: "7d", labelKey: "dashboard.dashlets.chart.range7d" },
+  { value: "30d", labelKey: "dashboard.dashlets.chart.range30d" },
+  { value: "90d", labelKey: "dashboard.dashlets.chart.range90d" },
   { value: "180d", labelKey: "dashboard.dashlets.chart.range180d" },
-  { value: "1y",   labelKey: "dashboard.dashlets.chart.range1y" },
+  { value: "1y", labelKey: "dashboard.dashlets.chart.range1y" },
 ];
 
 const DATE_RANGE_DAYS: Partial<Record<DateRange, number>> = {
-  "7d": 7, "30d": 30, "90d": 90, "180d": 180, "1y": 365,
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "180d": 180,
+  "1y": 365,
 };
 
 function filterRowsByDateRange(
@@ -197,10 +201,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const rows = config.dataMode === "static" ? (config.rows ?? []) : fetchedRows;
 
-  const isDateAxis = config.chartType === "line" && !!config.xAxisDateFormat && config.xAxisDateFormat !== "none";
-  const [activeDateRange, setActiveDateRange] = useState<DateRange>(config.defaultDateRange ?? "all");
+  const isDateAxis =
+    config.chartType === "line" &&
+    !!config.xAxisDateFormat &&
+    config.xAxisDateFormat !== "none";
+  const [activeDateRange, setActiveDateRange] = useState<DateRange>(
+    config.defaultDateRange ?? "all"
+  );
   const filteredRows = useMemo(
-    () => isDateAxis ? filterRowsByDateRange(rows, config.xAxisColumn, activeDateRange) : rows,
+    () =>
+      isDateAxis
+        ? filterRowsByDateRange(rows, config.xAxisColumn, activeDateRange)
+        : rows,
     [rows, isDateAxis, config.xAxisColumn, activeDateRange]
   );
   const effectiveDateFormat = useMemo((): XAxisDateFormat => {
@@ -248,14 +260,27 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       series: resolvedSeries,
       xAxisDateFormat: effectiveDateFormat,
     }),
-    [config, resolvedXAxisLabel, resolvedYAxisLabel, resolvedSeries, effectiveDateFormat]
+    [
+      config,
+      resolvedXAxisLabel,
+      resolvedYAxisLabel,
+      resolvedSeries,
+      effectiveDateFormat,
+    ]
   );
 
   const [containerWidth, setContainerWidth] = useState(0);
 
   const noDataLabel = tr("dashboard.dashlets.chart.noData", dictionary);
   const option = useMemo(
-    () => buildEChartsOption(resolvedConfig, filteredRows, darkMode, noDataLabel, containerWidth),
+    () =>
+      buildEChartsOption(
+        resolvedConfig,
+        filteredRows,
+        darkMode,
+        noDataLabel,
+        containerWidth
+      ),
     [resolvedConfig, filteredRows, darkMode, noDataLabel, containerWidth]
   );
 
@@ -318,7 +343,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
               }`}
             >
-              {tr(r.labelKey, dictionary)}
+              {trDynamic(r.labelKey, dictionary)}
             </button>
           ))}
         </div>

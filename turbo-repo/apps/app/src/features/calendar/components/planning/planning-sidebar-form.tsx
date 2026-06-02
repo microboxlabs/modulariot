@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import dayjs from "dayjs";
 import { Badge, Button, Spinner } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   FormSection,
   InfoRow,
@@ -21,7 +21,10 @@ import {
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
-import { formatPercent, SidebarFormShell } from "@microboxlabs/miot-calendar-ui";
+import {
+  formatPercent,
+  SidebarFormShell,
+} from "@microboxlabs/miot-calendar-ui";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
@@ -504,7 +507,7 @@ export function PlanningSidebarForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {isReadOnlyView && (
         <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-          {tr(
+          {trDynamic(
             isViewerOnly
               ? "pages.planning.sidebar.form.viewerBanner"
               : "pages.planning.sidebar.form.readOnlyBanner",
@@ -517,46 +520,31 @@ export function PlanningSidebarForm({
         className="flex flex-col gap-4 min-w-0 border-0 p-0 m-0"
       >
         {/* Flags Section */}
-      {hasIncidencias && (
-        <FormSection title={tr("pages.planning.sidebar.form.flags", dict)}>
-          <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-            {/* Primary incidencias - always visible */}
-            {primary.map(({ key, config }) => {
-              const tooltip =
-                codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
-              return (
-                <Badge
-                  key={key}
-                  size="xs"
-                  title={tooltip}
-                  {...getIncidenciaBadgeProps(key, config.color, config.label)}
-                >
-                  {config.label}
-                </Badge>
-              );
-            })}
+        {hasIncidencias && (
+          <FormSection title={tr("pages.planning.sidebar.form.flags", dict)}>
+            <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+              {/* Primary incidencias - always visible */}
+              {primary.map(({ key, config }) => {
+                const tooltip =
+                  codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+                return (
+                  <Badge
+                    key={key}
+                    size="xs"
+                    title={tooltip}
+                    {...getIncidenciaBadgeProps(
+                      key,
+                      config.color,
+                      config.label
+                    )}
+                  >
+                    {config.label}
+                  </Badge>
+                );
+              })}
 
-            {/* Inline secondary incidencias - always visible */}
-            {inlineSecondary.map(({ key, config }) => {
-              const tooltip =
-                codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
-              return (
-                <Badge
-                  key={key}
-                  size="xs"
-                  color="gray"
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
-                  title={tooltip}
-                >
-                  {config.label}
-                </Badge>
-              );
-            })}
-
-            {/* Collapsed secondary incidencias - revealed when expanded */}
-            {hasCollapsed &&
-              showAllIncidencias &&
-              collapsedSecondary.map(({ key, config }) => {
+              {/* Inline secondary incidencias - always visible */}
+              {inlineSecondary.map(({ key, config }) => {
                 const tooltip =
                   codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
                 return (
@@ -572,165 +560,198 @@ export function PlanningSidebarForm({
                 );
               })}
 
-            {/* "+N more" button to expand collapsed secondary incidencias */}
-            {hasCollapsed && !showAllIncidencias && (
-              <button
-                type="button"
-                onClick={() => setShowAllIncidencias(true)}
-                className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-colors"
-              >
-                {tr("pages.planning.sidebar.form.showMore", dict, {
-                  count: String(collapsedSecondary.length),
+              {/* Collapsed secondary incidencias - revealed when expanded */}
+              {hasCollapsed &&
+                showAllIncidencias &&
+                collapsedSecondary.map(({ key, config }) => {
+                  const tooltip =
+                    codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+                  return (
+                    <Badge
+                      key={key}
+                      size="xs"
+                      color="gray"
+                      className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                      title={tooltip}
+                    >
+                      {config.label}
+                    </Badge>
+                  );
                 })}
-              </button>
-            )}
 
-            {/* "Show less" button when expanded */}
-            {hasCollapsed && showAllIncidencias && (
-              <button
-                type="button"
-                onClick={() => setShowAllIncidencias(false)}
-                className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 cursor-pointer transition-colors"
-              >
-                {tr("pages.planning.sidebar.form.showLess", dict)}
-              </button>
-            )}
-          </div>
-        </FormSection>
-      )}
-      {/* Live workflow stage — sits above the KPIs as the form's first data row */}
-      {liveTaskStage && (
-        <InfoRow
-          label={tr("pages.planning.sidebar.taskStage.label", dict)}
-          value={tr(`pages.planning.sidebar.taskStage.${liveTaskStage}`, dict)}
-        />
-      )}
-      {/* KPIs Section */}
-      <FormSection title={tr("pages.planning.sidebar.form.kpis", dict)}>
-        <LeadTimeDisplay leadTime={selectedService.leadTime} dict={dict} />
-        <KpiRow label="ETA" value={eta} />
-        <ProgressBar
-          label={{ text: tr("pages.planning.sidebar.form.occupancy", dict) }}
-          progress={occupancy}
-          value={{ text: formatPercent(occupancy) }}
-        />
-      </FormSection>
-      {/* Load Utilization Section */}
-      {selectedService.loadConstraint && (
-        <FormSection
-          title={tr("pages.planning.sidebar.form.loadUtilization", dict)}
-        >
-          <InfoRow
-            label={tr("pages.planning.sidebar.form.constraint", dict)}
-            value={selectedService.loadConstraint}
-          />
-          <InfoRow
-            label={tr("pages.planning.sidebar.form.maxUtilization", dict)}
-            value={
-              selectedService.loadMaxUtilization == null
-                ? "—"
-                : formatPercent(selectedService.loadMaxUtilization)
-            }
-          />
-          {selectedService.loadConstraint === "Carga" && (
-            <InfoRow
-              label={tr("pages.planning.sidebar.form.weightUtilization", dict)}
-              value={
-                selectedService.loadWeightUtilization == null
-                  ? "—"
-                  : formatPercent(selectedService.loadWeightUtilization)
-              }
-            />
-          )}
-          {selectedService.loadConstraint === "Pallets" && (
-            <InfoRow
-              label={tr("pages.planning.sidebar.form.palletUtilization", dict)}
-              value={
-                selectedService.loadPalletUtilization == null
-                  ? "—"
-                  : formatPercent(selectedService.loadPalletUtilization)
-              }
-            />
-          )}
-          {selectedService.loadConstraint === "Volumen" && (
-            <InfoRow
-              label={tr("pages.planning.sidebar.form.volumeUtilization", dict)}
-              value={
-                selectedService.loadVolumeUtilization == null
-                  ? "—"
-                  : formatPercent(selectedService.loadVolumeUtilization)
-              }
-            />
-          )}
-        </FormSection>
-      )}
-      {/* Information Section */}
-      <FormSection title={tr("pages.planning.sidebar.form.information", dict)}>
-        <InfoRow label={tr("ID", dict)} value={id} />
-        <InfoRow
-          label={tr("pages.planning.sidebar.form.client", dict)}
-          value={client}
-        />
-        {selectedService.mintral_clientRut && (
-          <InfoRow
-            label={tr("pages.planning.sidebar.form.clientRut", dict)}
-            value={selectedService.mintral_clientRut}
-          />
+              {/* "+N more" button to expand collapsed secondary incidencias */}
+              {hasCollapsed && !showAllIncidencias && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllIncidencias(true)}
+                  className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-colors"
+                >
+                  {tr("pages.planning.sidebar.form.showMore", dict, {
+                    count: String(collapsedSecondary.length),
+                  })}
+                </button>
+              )}
+
+              {/* "Show less" button when expanded */}
+              {hasCollapsed && showAllIncidencias && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllIncidencias(false)}
+                  className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 cursor-pointer transition-colors"
+                >
+                  {tr("pages.planning.sidebar.form.showLess", dict)}
+                </button>
+              )}
+            </div>
+          </FormSection>
         )}
-        <InfoRow
-          label={tr("pages.planning.sidebar.form.route", dict)}
-          value={`${origin} → ${destination}`}
-        />
-        <InfoRow
-          label={tr("pages.planning.sidebar.form.loadingPlace", dict)}
-          value={loadingPlace}
-        />
-        <InfoRow
-          label={tr("pages.planning.sidebar.form.tripType", dict)}
-          value={tripType}
-        />
-        <InfoRow
-          label={tr("pages.planning.sidebar.form.permanence", dict)}
-          value={permanence}
-        />
-        {selectedService.expectedDepartureDate && (
+        {/* Live workflow stage — sits above the KPIs as the form's first data row */}
+        {liveTaskStage && (
           <InfoRow
-            label={tr("pages.planning.sidebar.form.departureDate", dict)}
-            value={formatDateString(
-              selectedService.expectedDepartureDate,
-              "datetime"
+            label={tr("pages.planning.sidebar.taskStage.label", dict)}
+            value={tr(
+              `pages.planning.sidebar.taskStage.${liveTaskStage}`,
+              dict
             )}
           />
         )}
-      </FormSection>
-      {/* Notes Section */}
-      <FormSection title={tr("pages.planning.sidebar.form.notes", dict)}>
-        <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-          {notes}
-        </p>
-      </FormSection>
-      {/* Time & Andenes Selection */}
-      {isSlotsLoading && (
+        {/* KPIs Section */}
+        <FormSection title={tr("pages.planning.sidebar.form.kpis", dict)}>
+          <LeadTimeDisplay leadTime={selectedService.leadTime} dict={dict} />
+          <KpiRow label="ETA" value={eta} />
+          <ProgressBar
+            label={{ text: tr("pages.planning.sidebar.form.occupancy", dict) }}
+            progress={occupancy}
+            value={{ text: formatPercent(occupancy) }}
+          />
+        </FormSection>
+        {/* Load Utilization Section */}
+        {selectedService.loadConstraint && (
+          <FormSection
+            title={tr("pages.planning.sidebar.form.loadUtilization", dict)}
+          >
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.constraint", dict)}
+              value={selectedService.loadConstraint}
+            />
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.maxUtilization", dict)}
+              value={
+                selectedService.loadMaxUtilization == null
+                  ? "—"
+                  : formatPercent(selectedService.loadMaxUtilization)
+              }
+            />
+            {selectedService.loadConstraint === "Carga" && (
+              <InfoRow
+                label={tr(
+                  "pages.planning.sidebar.form.weightUtilization",
+                  dict
+                )}
+                value={
+                  selectedService.loadWeightUtilization == null
+                    ? "—"
+                    : formatPercent(selectedService.loadWeightUtilization)
+                }
+              />
+            )}
+            {selectedService.loadConstraint === "Pallets" && (
+              <InfoRow
+                label={tr(
+                  "pages.planning.sidebar.form.palletUtilization",
+                  dict
+                )}
+                value={
+                  selectedService.loadPalletUtilization == null
+                    ? "—"
+                    : formatPercent(selectedService.loadPalletUtilization)
+                }
+              />
+            )}
+            {selectedService.loadConstraint === "Volumen" && (
+              <InfoRow
+                label={tr(
+                  "pages.planning.sidebar.form.volumeUtilization",
+                  dict
+                )}
+                value={
+                  selectedService.loadVolumeUtilization == null
+                    ? "—"
+                    : formatPercent(selectedService.loadVolumeUtilization)
+                }
+              />
+            )}
+          </FormSection>
+        )}
+        {/* Information Section */}
         <FormSection
-          title={tr("pages.planning.sidebar.form.timeAssignment", dict)}
+          title={tr("pages.planning.sidebar.form.information", dict)}
         >
-          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-            {tr("pages.planning.sidebar.form.loadingSlots", dict)}
+          <InfoRow label={tr("ID", dict)} value={id} />
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.client", dict)}
+            value={client}
+          />
+          {selectedService.mintral_clientRut && (
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.clientRut", dict)}
+              value={selectedService.mintral_clientRut}
+            />
+          )}
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.route", dict)}
+            value={`${origin} → ${destination}`}
+          />
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.loadingPlace", dict)}
+            value={loadingPlace}
+          />
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.tripType", dict)}
+            value={tripType}
+          />
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.permanence", dict)}
+            value={permanence}
+          />
+          {selectedService.expectedDepartureDate && (
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.departureDate", dict)}
+              value={formatDateString(
+                selectedService.expectedDepartureDate,
+                "datetime"
+              )}
+            />
+          )}
+        </FormSection>
+        {/* Notes Section */}
+        <FormSection title={tr("pages.planning.sidebar.form.notes", dict)}>
+          <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+            {notes}
           </p>
         </FormSection>
-      )}
-      {!isSlotsLoading &&
-        backendSlots &&
-        backendSlots.length > 0 &&
-        timeOptions.length === 0 && (
+        {/* Time & Andenes Selection */}
+        {isSlotsLoading && (
           <FormSection
             title={tr("pages.planning.sidebar.form.timeAssignment", dict)}
           >
             <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
-              {tr("pages.planning.sidebar.form.noSlotsAvailable", dict)}
+              {tr("pages.planning.sidebar.form.loadingSlots", dict)}
             </p>
           </FormSection>
         )}
+        {!isSlotsLoading &&
+          backendSlots &&
+          backendSlots.length > 0 &&
+          timeOptions.length === 0 && (
+            <FormSection
+              title={tr("pages.planning.sidebar.form.timeAssignment", dict)}
+            >
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                {tr("pages.planning.sidebar.form.noSlotsAvailable", dict)}
+              </p>
+            </FormSection>
+          )}
       </fieldset>
       {/* Custom Tabs. Kept outside the disabled fieldset so viewers can
           still switch between Planificación and Asignación for inspection

@@ -8,7 +8,10 @@ import { buildSignInFormMessages } from "@/features/auth/utils/utils";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getAuthConfig } from "@/features/auth/config/auth-providers.config";
-import type { ProviderLabels, SamlLabels } from "@/features/auth/components/form-sign-in/form-sign-in.types";
+import type {
+  ProviderLabels,
+  SamlLabels,
+} from "@/features/auth/components/form-sign-in/form-sign-in.types";
 import type { AuthConfig } from "@/features/auth/config/auth-providers.types";
 
 /**
@@ -59,23 +62,33 @@ function buildSamlLabels(
   }
 
   return {
-    teamSlugLabel: resolveTranslationKey(authConfig.teamSlugLabel, "pages.login.teamSlug.label", translate),
-    teamSlugPlaceholder: resolveTranslationKey(authConfig.teamSlugPlaceholder, "pages.login.teamSlug.placeholder", translate),
+    teamSlugLabel: resolveTranslationKey(
+      authConfig.teamSlugLabel,
+      "pages.login.teamSlug.label",
+      translate
+    ),
+    teamSlugPlaceholder: resolveTranslationKey(
+      authConfig.teamSlugPlaceholder,
+      "pages.login.teamSlug.placeholder",
+      translate
+    ),
     teamSlugRequired: translate("pages.login.teamSlug.required"),
   };
 }
 
 export default async function SignInPage(params: ParamsWithLang) {
   const { lang } = await params.params;
-  const [dict] = await getDictionary(lang);
+  const [dict, , dictDynamic] = await getDictionary(lang);
   const signInMessages = buildSignInFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();
-  const providerLabels = buildProviderLabels(authConfig, dict);
+  // Provider/SAML labels and dividerText come from runtime auth config: the key
+  // is only known at runtime, so they use the dynamic (unchecked) translator.
+  const providerLabels = buildProviderLabels(authConfig, dictDynamic);
   const dividerText = authConfig.dividerText?.includes(".")
-    ? dict(authConfig.dividerText)
-    : authConfig.dividerText ?? dict("pages.login.divider");
-  const samlLabels = buildSamlLabels(authConfig, dict);
+    ? dictDynamic(authConfig.dividerText)
+    : (authConfig.dividerText ?? dict("pages.login.divider"));
+  const samlLabels = buildSamlLabels(authConfig, dictDynamic);
 
   return (
     <div className="mx-auto flex flex-col px-6 pt-8 md:h-screen">

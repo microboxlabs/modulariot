@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 
@@ -32,7 +32,7 @@ export default function MobileSidebarItem({
   if (!hasPermission(item.requiredGroups ?? [])) return null;
 
   const Icon = item.icon;
-  const translatedLabel = tr(item.label, dict);
+  const translatedLabel = trDynamic(item.label, dict);
   const isDirect = !hasChildren;
 
   function getIconColor(): string {

@@ -1,8 +1,8 @@
 import { Button, Checkbox } from "flowbite-react";
-import LoadableDoc from "./loadable-doc";
+import LoadableDoc from "./file-viewer/loadable-doc";
 import { useState, useEffect } from "react";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
-import InnerContainer from "./inner-container";
+import InnerContainer from "./gallery/inner-container";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -199,7 +199,7 @@ export default function ClasificationForm({
         </Button>
       </div>
       <div
-        className={`flex flex-col gap-2 flex-grow overflow-y-auto border-2 border-dashed rounded-lg ${isDragOver ? "border-blue-500" : "border-transparent"}`}
+        className={`flex flex-col gap-2 grow overflow-y-auto border-2 border-dashed rounded-lg ${isDragOver ? "border-blue-500" : "border-transparent"}`}
         onDragEnter={(e) => {
           if (isUploading) {
             return;
@@ -262,7 +262,7 @@ export default function ClasificationForm({
             categories={Object.values(categories)}
             error={errorOnCondition.includes(index)}
             uploading={isUploading}
-            selectCategory={(category) => {
+            selectCategory={(category: string) => {
               setLoadableDocs(
                 loadableDocs.map((loadableDoc) =>
                   loadableDoc.name + "-" + loadableDoc.lastModified ===

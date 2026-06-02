@@ -2,13 +2,15 @@ import { ReactNode } from "react";
 
 export type EditableFieldType = "text" | "datetime-local" | "date" | "select";
 
+export type EditableFieldVariant = "form" | "inline";
+
 export type EditableFieldOption = {
   value: string;
   label: string;
 };
 
 export type EditableFieldProps = Readonly<{
-  /** The task ID this field belongs to */
+  /** The task ID this field belongs to (can be empty string when using onSave) */
   taskId: string;
   /** The field name (property key) to update, e.g., "mintral_arrivalDate" */
   fieldName: string;
@@ -19,11 +21,13 @@ export type EditableFieldProps = Readonly<{
   /** The type of input to show in edit mode */
   type: EditableFieldType;
   /** Label text for the field */
-  label: string;
+  label?: string;
   /** Optional icon to display before the label */
   icon?: ReactNode;
   /** Callback after successful update */
   onUpdate?: (newValue: string) => void;
+  /** Custom save handler — when provided, bypasses the default updateTaskProperties call */
+  onSave?: (newValue: string) => Promise<void>;
   /** Whether editing is disabled */
   disabled?: boolean;
   /** Options for select type fields */
@@ -32,6 +36,12 @@ export type EditableFieldProps = Readonly<{
   placeholder?: string;
   /** Additional CSS classes */
   className?: string;
+  /** Variant: "form" shows label+pencil, "inline" shows just clickable text */
+  variant?: EditableFieldVariant;
+  /** Class for the display text when variant="inline" */
+  displayClassName?: string;
+  /** Class for the input when variant="inline" */
+  inputClassName?: string;
 }>;
 
 export type EditableFieldState = "display" | "editing" | "saving" | "error";

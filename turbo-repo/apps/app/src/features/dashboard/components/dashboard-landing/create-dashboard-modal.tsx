@@ -9,7 +9,7 @@ import { z } from "zod";
 import { Label, TextInput } from "flowbite-react";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { generateSlug } from "./create-dashboard-modal.config";
 import type { DashboardStorageSchema } from "../../types/dashboard.types";
@@ -176,9 +176,7 @@ export function CreateDashboardModal({
     >
       <div className="flex flex-col gap-4">
         <div>
-          <Label htmlFor="name">
-            {tr("dashboard.create.nameLabel", dict)}
-          </Label>
+          <Label htmlFor="name">{tr("dashboard.create.nameLabel", dict)}</Label>
           <TextInput
             id="name"
             placeholder={tr("dashboard.create.namePlaceholder", dict)}
@@ -187,7 +185,7 @@ export function CreateDashboardModal({
           />
           {errors.name?.message && (
             <p className="mt-1 text-sm text-red-600">
-              {tr(errors.name.message, dict)}
+              {trDynamic(errors.name.message, dict)}
             </p>
           )}
         </div>

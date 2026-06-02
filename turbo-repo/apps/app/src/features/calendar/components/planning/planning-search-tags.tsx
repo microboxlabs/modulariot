@@ -24,9 +24,29 @@ export interface PlanningSearchTagsProps {
   onTagsChange: (tags: SearchTag[]) => void;
 }
 
-/** Capitalized, translated match-type label for the freight planning filters. */
+/**
+ * Capitalized, translated match-type label for the freight planning filters.
+ * Match types are a closed set, so each key is resolved with the type-checked
+ * `tr` (not a dynamic template) — a renamed/removed locale key fails the build
+ * instead of silently shipping a raw key path.
+ */
 function freightTagLabel(dict: I18nDictionary, matchType: string): string {
-  const label = tr(`pages.planning.sidebar.search.matchType.${matchType}`, dict);
+  const labels: Record<MatchType, string> = {
+    id: tr("pages.planning.sidebar.search.matchType.id", dict),
+    cliente: tr("pages.planning.sidebar.search.matchType.cliente", dict),
+    origen: tr("pages.planning.sidebar.search.matchType.origen", dict),
+    destino: tr("pages.planning.sidebar.search.matchType.destino", dict),
+    lugarCarguio: tr(
+      "pages.planning.sidebar.search.matchType.lugarCarguio",
+      dict
+    ),
+    permanencia: tr(
+      "pages.planning.sidebar.search.matchType.permanencia",
+      dict
+    ),
+    tipoViaje: tr("pages.planning.sidebar.search.matchType.tipoViaje", dict),
+  };
+  const label = labels[matchType as MatchType] ?? matchType;
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 

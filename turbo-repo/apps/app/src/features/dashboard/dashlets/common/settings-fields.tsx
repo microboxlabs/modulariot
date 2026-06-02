@@ -426,24 +426,30 @@ function HbAutoInput({
         color={getFlowbiteColor(status)}
         autoComplete="off"
       />
-      {ac.isOpen && (
-        ac.hasNoSuggestions ? (
-          <HbNoSuggestionsHint />
-        ) : (
-          <DropdownList
-            items={ac.filtered}
-            selectedIndex={ac.selectedIndex}
-            onSelect={ac.handleSelect}
-            onHover={ac.setSelectedIndex}
-            dropdownRef={ac.dropdownRef}
-            getKey={(s) => s}
-            renderItem={(s) => (
-              <HbDropdownItem col={s} sampleValue={schemaSampleRow?.[s]} />
-            )}
-          />
-        )
-      )}
+      <HbAutocompleteDropdown ac={ac} schemaSampleRow={schemaSampleRow} />
     </div>
+  );
+}
+
+// Shared autocomplete dropdown — renders either the no-suggestions hint or the column list
+function HbAutocompleteDropdown({ ac, schemaSampleRow }: Readonly<{
+  ac: ReturnType<typeof useHbAutocomplete>;
+  schemaSampleRow?: Record<string, string>;
+}>) {
+  if (!ac.isOpen) return null;
+  if (ac.hasNoSuggestions) return <HbNoSuggestionsHint />;
+  return (
+    <DropdownList
+      items={ac.filtered}
+      selectedIndex={ac.selectedIndex}
+      onSelect={ac.handleSelect}
+      onHover={ac.setSelectedIndex}
+      dropdownRef={ac.dropdownRef}
+      getKey={(s) => s}
+      renderItem={(s) => (
+        <HbDropdownItem col={s} sampleValue={schemaSampleRow?.[s]} />
+      )}
+    />
   );
 }
 
@@ -528,23 +534,7 @@ function HbAutoTextarea({
         color={getFlowbiteColor(status)}
         autoComplete="off"
       />
-      {ac.isOpen && (
-        ac.hasNoSuggestions ? (
-          <HbNoSuggestionsHint />
-        ) : (
-          <DropdownList
-            items={ac.filtered}
-            selectedIndex={ac.selectedIndex}
-            onSelect={ac.handleSelect}
-            onHover={ac.setSelectedIndex}
-            dropdownRef={ac.dropdownRef}
-            getKey={(s) => s}
-            renderItem={(s) => (
-              <HbDropdownItem col={s} sampleValue={schemaSampleRow?.[s]} />
-            )}
-          />
-        )
-      )}
+      <HbAutocompleteDropdown ac={ac} schemaSampleRow={schemaSampleRow} />
     </div>
   );
 }

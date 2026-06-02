@@ -8,7 +8,6 @@ import io.vertx.core.http.RequestOptions;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.core.http.HttpClient;
-import io.vertx.mutiny.core.http.HttpClientResponse;
 import io.vertx.mutiny.core.http.HttpServerResponse;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;

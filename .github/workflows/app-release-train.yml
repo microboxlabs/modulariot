@@ -361,10 +361,7 @@ jobs:
           IMAGE_TAG: ${{ needs.prepare.outputs.app_version }}
           IMAGE_REF: ${{ needs.build.outputs.image }}
         run: |
-          if [[ -z "$DEPLOY_DISPATCH_REPO" ]]; then
-            echo "DEPLOY_DISPATCH_REPO is required, for example microboxlabs/miot-deployments." >&2
-            exit 1
-          fi
+          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
 
           if [[ -z "$GH_TOKEN" ]]; then
             echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2

@@ -17,6 +17,7 @@ import {
   buildDataProviderLayers,
   buildNamedMapLayers,
 } from "./layers/build-layers";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 
 // ============================================================================
 // Constants / helpers
@@ -135,6 +136,11 @@ export default function MapVisualization({
   /** Raw pick callback for any layer click (used by custom layers passed via `layers`) */
   onLayerClick?: (info: PickingInfo) => void;
 }) {
+  const runtimeConfig = useRuntimeConfig();
+  const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
+  const isRuntimeConfigLoading = runtimeConfig === null;
+  const hasMapboxAccessToken = mapboxAccessToken.trim().length > 0;
+  const shouldRenderMap = !isRuntimeConfigLoading && hasMapboxAccessToken;
   const [cursor, setCursor] = useState<string>("grab");
   const [isMapDragging, setIsMapDragging] = useState(false);
   const [internalZoom, setInternalZoom] = useState(2.5);
@@ -318,53 +324,59 @@ export default function MapVisualization({
       ref={containerRef}
       className="h-full w-full relative rounded-lg overflow-hidden"
     >
-      <Map
-        ref={mapRef}
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-        mapStyle={mapStyles[mapStyle]}
-        onLoad={(e) => {
-          const z = e.target.getZoom();
-          setInternalZoom(z);
-          onZoomChange?.(z);
-        }}
-        onZoom={(e) => {
-          setInternalZoom(e.viewState.zoom);
-          onZoomChange?.(e.viewState.zoom);
-        }}
-        onDragStart={() => setIsMapDragging(true)}
-        onDragEnd={() => setIsMapDragging(false)}
-        cursor={cursor}
-        initialViewState={{
-          longitude: -62.136105,
-          latitude: -21.756514,
-          zoom: 2.5,
-        }}
-        preserveDrawingBuffer={true}
-        antialias={true}
-      >
-        {isLoading && (
-          <div className="absolute top-4 left-0 bg-gray-200 dark:bg-gray-800 p-2 rounded-r-full z-10">
-            <Spinner />
-          </div>
-        )}
-        <DeckGLOverlay
-          layers={mergedLayers}
-          onHover={handleHover}
-          onClick={handleClick}
-          getCursor={({ isHovering }) => {
-            let newCursor: string;
-            if (isMapDragging) {
-              newCursor = "grabbing";
-            } else if (isHovering) {
-              newCursor = "pointer";
-            } else {
-              newCursor = "grab";
-            }
-            setCursor(newCursor);
-            return newCursor;
+      {shouldRenderMap ? (
+        <Map
+          ref={mapRef}
+          mapboxAccessToken={mapboxAccessToken}
+          mapStyle={mapStyles[mapStyle]}
+          onLoad={(e) => {
+            const z = e.target.getZoom();
+            setInternalZoom(z);
+            onZoomChange?.(z);
           }}
-        />
-      </Map>
+          onZoom={(e) => {
+            setInternalZoom(e.viewState.zoom);
+            onZoomChange?.(e.viewState.zoom);
+          }}
+          onDragStart={() => setIsMapDragging(true)}
+          onDragEnd={() => setIsMapDragging(false)}
+          cursor={cursor}
+          initialViewState={{
+            longitude: -62.136105,
+            latitude: -21.756514,
+            zoom: 2.5,
+          }}
+          preserveDrawingBuffer={true}
+          antialias={true}
+        >
+          {isLoading && (
+            <div className="absolute top-4 left-0 bg-gray-200 dark:bg-gray-800 p-2 rounded-r-full z-10">
+              <Spinner />
+            </div>
+          )}
+          <DeckGLOverlay
+            layers={mergedLayers}
+            onHover={handleHover}
+            onClick={handleClick}
+            getCursor={({ isHovering }) => {
+              let newCursor: string;
+              if (isMapDragging) {
+                newCursor = "grabbing";
+              } else if (isHovering) {
+                newCursor = "pointer";
+              } else {
+                newCursor = "grab";
+              }
+              setCursor(newCursor);
+              return newCursor;
+            }}
+          />
+        </Map>
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+          <Spinner />
+        </div>
+      )}
       {mapboxStyles}
     </div>
   );

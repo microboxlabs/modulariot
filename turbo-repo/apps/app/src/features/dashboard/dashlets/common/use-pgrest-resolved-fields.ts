@@ -80,7 +80,10 @@ export function usePgrestResolvedFields({
         return parsed as Record<string, string>;
       }
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed[0] as Record<string, string>;
+        const first = parsed[0];
+        if (typeof first === "object" && first !== null && !Array.isArray(first)) {
+          return first as Record<string, string>;
+        }
       }
     } catch { /* invalid JSON — treat as no data */ }
     return undefined;

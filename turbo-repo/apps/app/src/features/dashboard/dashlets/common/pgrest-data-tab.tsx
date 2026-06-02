@@ -57,7 +57,7 @@ export function PgrestDataTab({
   const jsonError = useMemo(() => {
     if (!staticData.trim()) return null;
     try { JSON.parse(staticData); return null; }
-    catch { return "Invalid JSON"; }
+    catch { return true; }
   }, [staticData]);
 
   return (
@@ -85,7 +85,7 @@ export function PgrestDataTab({
       {dataMode === "static" && onStaticDataChange && (
         <div>
           <Label className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
-            Static JSON
+            {tr("dashboard.settings.staticJson", dictionary)}
           </Label>
           <Textarea
             value={staticData}
@@ -96,11 +96,11 @@ export function PgrestDataTab({
             color={jsonError ? "failure" : "gray"}
           />
           {jsonError && (
-            <p className="mt-1 text-xs text-red-500">{jsonError}</p>
+            <p className="mt-1 text-xs text-red-500">{tr("dashboard.settings.invalidJson", dictionary)}</p>
           )}
           {!jsonError && staticData.trim() && (
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-              Use <span className="font-mono">{"{{row.key}}"}</span> in fields to reference values.
+              {tr("dashboard.settings.staticDataHelper", dictionary, { example: "{{row.key}}" })}
             </p>
           )}
         </div>

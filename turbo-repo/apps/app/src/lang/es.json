@@ -1815,6 +1815,7 @@
       "useRowColumnInFields": "Usa {code} en los campos",
       "plannerResponseColumns": "Columnas de respuesta:",
       "plannerSchemaHint": "Usa {{row.<columna>}} en los campos del dashlet",
+      "staticDataHelper": "Usa {example} en los campos para referenciar valores.",
       "hbNoSuggestionsPrefix": "Sin datos disponibles. En la pestaña",
       "hbNoSuggestionsSuffix": "agrega un JSON estático o configura una fuente pgrest/planner.",
       "plannerIntrospectionFailed": "Error de introspección:",
@@ -2121,6 +2122,10 @@
         "name": "Vista Geográfica",
         "description": "Mapa interactivo con marcadores de posición y filtros",
         "load_failed": "Error al cargar datos del mapa"
+      },
+      "flex_container": {
+        "name": "Contenedor Flexible",
+        "description": "Contenedor de diseño en fila, columna o cuadrícula con tamaño individual por hijo"
       },
       "batchImport": {
         "defaultTitle": "Importar datos",

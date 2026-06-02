@@ -97,8 +97,8 @@ export function useHbAutocomplete({
     return suggestions.filter((s) => s.toLowerCase().includes(lower));
   }, [partial, suggestions]);
 
-  // True when {{ is open but there's nothing to suggest yet
-  const hasNoSuggestions = partial !== null && !suggestions?.length;
+  // True when {{ is open but filtering yields no results
+  const hasNoSuggestions = partial !== null && filtered.length === 0;
 
   // Always replace from the last `{{` backward so bare {{ and {{row.partial
   // both get replaced cleanly with {{prefix.key}}.

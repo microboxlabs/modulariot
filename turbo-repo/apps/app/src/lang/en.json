@@ -1809,6 +1809,7 @@
       "useRowColumnInFields": "Use {code} in fields",
       "plannerResponseColumns": "Response columns:",
       "plannerSchemaHint": "Use {{row.<column>}} in dashlet fields",
+      "staticDataHelper": "Use {example} in fields to reference values.",
       "hbNoSuggestionsPrefix": "No data available. In the",
       "hbNoSuggestionsSuffix": "tab, add a static JSON or configure a pgrest/planner source.",
       "plannerIntrospectionFailed": "Introspection failed:",
@@ -2121,6 +2122,10 @@
         "name": "Geographic Map",
         "description": "Interactive map with position markers and filters",
         "load_failed": "Failed to load map data"
+      },
+      "flex_container": {
+        "name": "Flex Container",
+        "description": "Row, column, or grid layout container with per-child sizing"
       },
       "batchImport": {
         "defaultTitle": "Import data",

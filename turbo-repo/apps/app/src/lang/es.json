@@ -2126,7 +2126,14 @@
       },
       "flex_container": {
         "name": "Contenedor Flexible",
-        "description": "Contenedor de diseño en fila, columna o cuadrícula con tamaño individual por hijo"
+        "description": "Contenedor de diseño en fila, columna o cuadrícula con tamaño individual por hijo",
+        "layout": "Diseño",
+        "layoutRow": "Fila",
+        "layoutRowHint": "Elementos en línea",
+        "layoutColumn": "Columna",
+        "layoutColumnHint": "Elementos apilados",
+        "layoutGrid": "Cuadrícula",
+        "layoutGridHint": "Elementos en mosaico"
       },
       "batchImport": {
         "defaultTitle": "Importar datos",

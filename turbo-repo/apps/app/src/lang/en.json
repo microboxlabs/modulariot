@@ -2126,7 +2126,14 @@
       },
       "flex_container": {
         "name": "Flex Container",
-        "description": "Row, column, or grid layout container with per-child sizing"
+        "description": "Row, column, or grid layout container with per-child sizing",
+        "layout": "Layout",
+        "layoutRow": "Row",
+        "layoutRowHint": "Items side by side",
+        "layoutColumn": "Column",
+        "layoutColumnHint": "Items stacked",
+        "layoutGrid": "Grid",
+        "layoutGridHint": "Items wrap"
       },
       "batchImport": {
         "defaultTitle": "Import data",

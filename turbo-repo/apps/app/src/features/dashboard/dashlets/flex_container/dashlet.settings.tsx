@@ -8,12 +8,12 @@ import { defaultConfig } from "./dashlet";
 import { SettingsTextField, SettingsTextareaField } from "../common/settings-fields";
 import { SettingsShell } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
-const LAYOUT_OPTIONS: { value: FlexLayout; label: string; hint: string }[] = [
-  { value: "row", label: "Row", hint: "Items side by side" },
-  { value: "column", label: "Column", hint: "Items stacked" },
-  { value: "grid", label: "Grid", hint: "Items wrap" },
+const LAYOUT_OPTIONS: { value: FlexLayout; labelKey: string; hintKey: string }[] = [
+  { value: "row", labelKey: "dashboard.dashlets.flex_container.layoutRow", hintKey: "dashboard.dashlets.flex_container.layoutRowHint" },
+  { value: "column", labelKey: "dashboard.dashlets.flex_container.layoutColumn", hintKey: "dashboard.dashlets.flex_container.layoutColumnHint" },
+  { value: "grid", labelKey: "dashboard.dashlets.flex_container.layoutGrid", hintKey: "dashboard.dashlets.flex_container.layoutGridHint" },
 ];
 
 export function DashletSettings({
@@ -53,7 +53,7 @@ export function DashletSettings({
     <div className="flex w-full flex-col gap-4">
       <div>
         <Label className="mb-1.5 block text-xs font-normal text-gray-500 dark:text-gray-400">
-          Layout
+          {trDynamic("dashboard.dashlets.flex_container.layout", dictionary)}
         </Label>
         <div className="flex gap-2">
           {LAYOUT_OPTIONS.map((opt) => (
@@ -68,8 +68,8 @@ export function DashletSettings({
                   : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
               }`}
             >
-              <div className="font-medium">{opt.label}</div>
-              <div className="mt-0.5 text-[10px] opacity-60">{opt.hint}</div>
+              <div className="font-medium">{trDynamic(opt.labelKey, dictionary)}</div>
+              <div className="mt-0.5 text-[10px] opacity-60">{trDynamic(opt.hintKey, dictionary)}</div>
             </button>
           ))}
         </div>

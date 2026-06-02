@@ -8,6 +8,7 @@ import { defaultConfig } from "./dashlet";
 import { SettingsTextField, SettingsTextareaField } from "../common/settings-fields";
 import { SettingsShell } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
+import { tr } from "@/features/i18n/tr.service";
 
 const LAYOUT_OPTIONS: { value: FlexLayout; label: string; hint: string }[] = [
   { value: "row", label: "Row", hint: "Items side by side" },
@@ -76,18 +77,18 @@ export function DashletSettings({
 
       <SettingsTextField
         id="flex-title"
-        label="Title"
+        label={tr("dashboard.settings.name", dictionary)}
         value={title}
         onChange={setTitle}
-        placeholder="Enter title"
+        placeholder={tr("dashboard.settings.enterName", dictionary)}
       />
 
       <SettingsTextareaField
         id="flex-description"
-        label="Description"
+        label={tr("dashboard.settings.description", dictionary)}
         value={description}
         onChange={setDescription}
-        placeholder="Enter description"
+        placeholder={tr("dashboard.settings.enterDescription", dictionary)}
         rows={2}
       />
     </div>

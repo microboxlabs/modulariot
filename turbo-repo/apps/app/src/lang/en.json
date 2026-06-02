@@ -2203,7 +2203,8 @@
       "progress": "Progress",
       "metric": "Metric",
       "untitled": "Untitled",
-      "group": "Group"
+      "group": "Group",
+      "noWidgetsYet": "No widgets yet"
     }
   },
   "liveStreams": {

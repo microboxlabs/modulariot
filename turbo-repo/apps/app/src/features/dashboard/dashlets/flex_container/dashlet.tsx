@@ -3,6 +3,8 @@
 import React, { useMemo } from "react";
 import Markdown from "react-markdown";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // Types
@@ -35,6 +37,7 @@ export function Dashlet({
   editMode,
   children,
 }: Readonly<DashletComponentProps>) {
+  const { dictionary } = useDashboard();
   const config = (widget.config as unknown as DashletConfig) ?? defaultConfig;
   const layout = config.layout ?? "row";
   const title = config.title?.trim() || "Untitled";
@@ -115,7 +118,7 @@ export function Dashlet({
       <div className="flex-1 min-h-0 p-2 overflow-hidden">
         {!hasChildren && !editMode ? (
           <div className="flex h-full flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-            <p className="text-sm">No widgets yet</p>
+            <p className="text-sm">{tr("dashboard.defaults.noWidgetsYet", dictionary)}</p>
           </div>
         ) : (
           <div style={containerStyle}>{wrappedChildren}</div>

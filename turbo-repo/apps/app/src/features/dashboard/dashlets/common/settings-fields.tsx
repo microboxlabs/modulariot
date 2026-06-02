@@ -13,7 +13,7 @@ import {
 import { HiQuestionMarkCircle, HiChevronDown } from "react-icons/hi2";
 import Markdown from "react-markdown";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { tr } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { useHbAutocomplete } from "./use-hb-autocomplete";
 import { DropdownList } from "./dropdown-list";
@@ -445,7 +445,7 @@ function HbAutoInput({
 }
 
 // Shared dropdown item — shows {{row.col}} with optional sample value on the right
-function HbDropdownItem({ col, sampleValue }: { col: string; sampleValue?: string }) {
+function HbDropdownItem({ col, sampleValue }: Readonly<{ col: string; sampleValue?: string }>) {
   return (
     <span className="flex w-full items-center justify-between gap-3">
       <span className="font-mono text-xs">

@@ -177,14 +177,14 @@ export function SimpleDashletSettings<C extends object>({
     return undefined;
   }, [dataMode, staticData]);
 
-  const schemaSuggestions: string[] | undefined =
-    dataMode === "planner" && dataTabProps.plannerVariableName
-      ? schemas.get(dataTabProps.plannerVariableName)
-      : isPgrest && dataTabProps.pgrest.sampleRows.length > 0
-        ? Object.keys(dataTabProps.pgrest.sampleRows[0])
-        : parsedStaticRow
-          ? Object.keys(parsedStaticRow)
-          : undefined;
+  let schemaSuggestions: string[] | undefined;
+  if (dataMode === "planner" && dataTabProps.plannerVariableName) {
+    schemaSuggestions = schemas.get(dataTabProps.plannerVariableName);
+  } else if (isPgrest && dataTabProps.pgrest.sampleRows.length > 0) {
+    schemaSuggestions = Object.keys(dataTabProps.pgrest.sampleRows[0]);
+  } else if (parsedStaticRow) {
+    schemaSuggestions = Object.keys(parsedStaticRow);
+  }
 
   const schemaSampleRow: Record<string, string> | undefined =
     isPgrest && dataTabProps.pgrest.sampleRows.length > 0

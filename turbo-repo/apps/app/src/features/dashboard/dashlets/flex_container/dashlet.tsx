@@ -82,12 +82,14 @@ export function Dashlet({
     if (!children) return null;
     return React.Children.map(children, (child, index) => {
       const key = widgetChildren[index]?.id ?? index;
-      const itemStyle: React.CSSProperties =
-        layout === "column"
-          ? { flex: "1 1 0", width: "100%", minWidth: 0, minHeight: 0 }
-          : layout === "grid"
-            ? { flex: "1 1 auto", minWidth: 0, minHeight: 0 }
-            : { flex: "1 1 0", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" };
+      let itemStyle: React.CSSProperties;
+      if (layout === "column") {
+        itemStyle = { flex: "1 1 0", width: "100%", minWidth: 0, minHeight: 0 };
+      } else if (layout === "grid") {
+        itemStyle = { flex: "1 1 auto", minWidth: 0, minHeight: 0 };
+      } else {
+        itemStyle = { flex: "1 1 0", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" };
+      }
 
       return (
         <div key={key} style={itemStyle}>

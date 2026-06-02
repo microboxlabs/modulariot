@@ -7,29 +7,6 @@ on:
         description: "App semver without v prefix. Leave blank to bump the latest app@v* patch."
         required: false
         type: string
-      release_notes_version:
-        description: "Private release-notes version, for example 1.31.2."
-        required: true
-        type: string
-      private_milestone:
-        description: "Private release milestone, for example 1.31.2."
-        required: true
-        type: string
-      oss_milestone:
-        description: "OSS milestone, for example MIOT-0.5.4."
-        required: true
-        type: string
-      release_notes_model:
-        description: "Copilot model id for non-agentic release note generation."
-        required: false
-        default: "gpt-5-mini"
-        type: string
-      deploy_environments:
-        description: "Comma-separated environment names consumed by deploy hook."
-        required: false
-        default: "staging,production"
-        type: string
-
 permissions:
   contents: write
   pull-requests: write
@@ -41,6 +18,7 @@ env:
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-app
+  RELEASE_NOTES_MODEL: gpt-5-mini
 
 jobs:
   prepare:
@@ -49,6 +27,9 @@ jobs:
     outputs:
       app_version: ${{ steps.version.outputs.app_version }}
       tag: ${{ steps.version.outputs.tag }}
+      release_notes_version: ${{ steps.version.outputs.release_notes_version }}
+      private_milestone: ${{ steps.version.outputs.private_milestone }}
+      oss_milestone: ${{ steps.version.outputs.oss_milestone }}
       branch: ${{ steps.branch.outputs.branch }}
       pr_number: ${{ steps.pr.outputs.number }}
       pr_url: ${{ steps.pr.outputs.url }}
@@ -61,7 +42,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Determine next app version
+      - name: Determine release metadata
         id: version
         run: |
           if [[ -n "${{ inputs.app_version }}" ]]; then
@@ -81,8 +62,27 @@ jobs:
             exit 1
           fi
 
+          latest_release_notes="$(find turbo-repo/apps/app/src/releases \
+            -maxdepth 1 \
+            -type f \
+            -name 'v[0-9]*.[0-9]*.[0-9]*.mdx' \
+            -exec basename {} .mdx \; |
+            sed 's/^v//' |
+            sort -V |
+            tail -1)"
+
+          if [[ -z "$latest_release_notes" ]]; then
+            release_notes_version="1.0.0"
+          else
+            IFS=. read -r notes_major notes_minor notes_patch <<< "$latest_release_notes"
+            release_notes_version="${notes_major}.${notes_minor}.$((notes_patch + 1))"
+          fi
+
           echo "app_version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=app@v$version" >> "$GITHUB_OUTPUT"
+          echo "release_notes_version=$release_notes_version" >> "$GITHUB_OUTPUT"
+          echo "private_milestone=Release-$release_notes_version" >> "$GITHUB_OUTPUT"
+          echo "oss_milestone=MIOT-$version" >> "$GITHUB_OUTPUT"
 
       - name: Create release branch
         id: branch
@@ -100,8 +100,8 @@ jobs:
           GH_PROJECT_OWNER: microboxlabs
         run: |
           ./turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \
-            --release "${{ inputs.private_milestone }}" \
-            --oss "${{ inputs.oss_milestone }}" \
+            --release "${{ steps.version.outputs.private_milestone }}" \
+            --oss "${{ steps.version.outputs.oss_milestone }}" \
             --state all > release-issues.json
 
       - name: Resolve release date
@@ -119,10 +119,10 @@ jobs:
           const issues = fs.readFileSync("release-issues.json", "utf8");
           const indentedIssues = issues.split("\n").join("\n      ");
           const body = prompt
-            .replaceAll("{{release_version}}", "${{ inputs.release_notes_version }}")
+            .replaceAll("{{release_version}}", "${{ steps.version.outputs.release_notes_version }}")
             .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
-            .replaceAll("{{private_milestone}}", "${{ inputs.private_milestone }}")
-            .replaceAll("{{oss_milestone}}", "${{ inputs.oss_milestone }}")
+            .replaceAll("{{private_milestone}}", "${{ steps.version.outputs.private_milestone }}")
+            .replaceAll("{{oss_milestone}}", "${{ steps.version.outputs.oss_milestone }}")
             .replaceAll("{{release_issues}}", indentedIssues);
           fs.writeFileSync("release-notes.prompt.yml", body);
           NODE
@@ -135,13 +135,13 @@ jobs:
         with:
           prompt-file: ./release-notes.prompt.yml
           provider: copilot
-          model: ${{ inputs.release_notes_model }}
+          model: ${{ env.RELEASE_NOTES_MODEL }}
           temperature: 0.2
           max-completion-tokens: 12000
 
       - name: Write release notes
         run: |
-          release_file="turbo-repo/apps/app/src/releases/v${{ inputs.release_notes_version }}.mdx"
+          release_file="turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx"
           node - "${{ steps.release_notes_ai.outputs['response-file'] }}" "$release_file" <<'NODE'
           const fs = require("fs");
           const [source, target] = process.argv.slice(2);
@@ -157,7 +157,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add turbo-repo/apps/app/package.json turbo-repo/package-lock.json turbo-repo/apps/app/src/releases/v${{ inputs.release_notes_version }}.mdx
+          git add turbo-repo/apps/app/package.json turbo-repo/package-lock.json turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx
           git commit -m "chore(app): prepare v${{ steps.version.outputs.app_version }} release"
           git push origin "${{ steps.branch.outputs.branch }}"
 
@@ -170,7 +170,7 @@ jobs:
             --base trunk \
             --head "${{ steps.branch.outputs.branch }}" \
             --title "chore(app): prepare v${{ steps.version.outputs.app_version }} release" \
-            --body "Prepares app release ${{ steps.version.outputs.tag }} with release notes v${{ inputs.release_notes_version }}.\n\nApprove and merge this PR, then approve the protected release job to tag, build, and deploy.")"
+            --body "Prepares app release ${{ steps.version.outputs.tag }} with release notes v${{ steps.version.outputs.release_notes_version }}.\n\nMilestones: ${{ steps.version.outputs.private_milestone }}, ${{ steps.version.outputs.oss_milestone }}.\n\nApprove and merge this PR, then approve the protected release job to tag, build, and deploy.")"
           number="${url##*/}"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -232,7 +232,7 @@ jobs:
         run: |
           package_version="$(node -p "require('./turbo-repo/apps/app/package.json').version")"
           lock_version="$(node -p "require('./turbo-repo/package-lock.json').packages['apps/app'].version")"
-          release_file="turbo-repo/apps/app/src/releases/v${{ inputs.release_notes_version }}.mdx"
+          release_file="turbo-repo/apps/app/src/releases/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
 
           if [[ "$package_version" != "${{ needs.prepare.outputs.app_version }}" ]]; then
             echo "trunk package.json is $package_version, expected ${{ needs.prepare.outputs.app_version }}." >&2
@@ -332,30 +332,53 @@ jobs:
           echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: Deploy configured environments
+    name: Dispatch configured environment deploys
     runs-on: ubuntu-latest
     needs: [prepare, tag, build]
     environment:
       name: app-deploy
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.tag.outputs.sha }}
-
-      - name: Deploy hook
+      - name: Dispatch private deployment workflow
         env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           APP_VERSION: ${{ needs.prepare.outputs.app_version }}
           APP_TAG: ${{ needs.prepare.outputs.tag }}
+          IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ needs.prepare.outputs.app_version }}
           IMAGE_REF: ${{ needs.build.outputs.image }}
-          DEPLOY_ENVIRONMENTS: ${{ inputs.deploy_environments }}
         run: |
-          if [[ -x "./ops/deploy-app-release.sh" ]]; then
-            ./ops/deploy-app-release.sh
-          else
-            echo "No ./ops/deploy-app-release.sh hook found."
-            echo "Create it to update environment variables and deploy IMAGE_REF=$IMAGE_REF to: $DEPLOY_ENVIRONMENTS."
+          if [[ -z "$DEPLOY_DISPATCH_REPO" ]]; then
+            echo "DEPLOY_DISPATCH_REPO is required, for example microboxlabs/miot-deployments." >&2
             exit 1
           fi
+
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
+            exit 1
+          fi
+
+          jq -n \
+            --arg app_version "$APP_VERSION" \
+            --arg app_tag "$APP_TAG" \
+            --arg image_repository "$IMAGE_REPOSITORY" \
+            --arg image_tag "$IMAGE_TAG" \
+            --arg image_ref "$IMAGE_REF" \
+            '{
+              event_type: "miot-app-release",
+              client_payload: {
+                app_version: $app_version,
+                app_tag: $app_tag,
+                image_repository: $image_repository,
+                image_tag: $image_tag,
+                image_ref: $image_ref
+              }
+            }' |
+            gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
+              --method POST \
+              --input -
+
+          echo "Dispatched ${APP_TAG} deployment to ${DEPLOY_DISPATCH_REPO}."
 
   close-milestones:
     name: Close release milestones
@@ -372,5 +395,5 @@ jobs:
           GH_PROJECT_OWNER: microboxlabs
         run: |
           ./turbo-repo/generative_ai/tools/sh/close-release-milestones.sh \
-            --release "${{ inputs.private_milestone }}" \
-            --oss "${{ inputs.oss_milestone }}"
+            --release "${{ needs.prepare.outputs.private_milestone }}" \
+            --oss "${{ needs.prepare.outputs.oss_milestone }}"

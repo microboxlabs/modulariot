@@ -213,7 +213,7 @@ jobs:
           PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
         run: |
           for attempt in {1..60}; do
-            pr="$(gh pr view "$PR_NUMBER" --json mergedAt,mergeCommit,state)"
+            pr="$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json mergedAt,mergeCommit,state)"
             merged_at="$(echo "$pr" | jq -r '.mergedAt')"
             merge_sha="$(echo "$pr" | jq -r '.mergeCommit.oid // ""')"
             state="$(echo "$pr" | jq -r '.state')"

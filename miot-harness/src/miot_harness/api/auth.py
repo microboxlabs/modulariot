@@ -86,6 +86,11 @@ class JwksCache:
         # JWKS rate limit, which would take auth down for everyone.
         self._min_refresh_interval = min_refresh_interval
         self._last_refresh = float("-inf")
+        # Last refresh failure, if any. Lets lookups during the cooldown
+        # window surface "auth unavailable" instead of a misleading
+        # "invalid token" when the JWKS endpoint is down. Cleared on the
+        # next successful refresh.
+        self._last_refresh_error: Exception | None = None
         self._lock = asyncio.Lock()
         self._keys: dict[str, _CachedKey] = {}
 
@@ -106,13 +111,25 @@ class JwksCache:
                 # raises (IdP outage) still counts against the cooldown —
                 # otherwise every request would retry and storm the IdP.
                 self._last_refresh = now
-                await self._refresh()
+                try:
+                    await self._refresh()
+                except Exception as exc:
+                    # Remember the failure so other lookups during the
+                    # cooldown surface it too, then re-raise so this request
+                    # fails the same way (mapped to 503 by require_auth).
+                    self._last_refresh_error = exc
+                    raise
+                self._last_refresh_error = None
                 cached = self._keys.get(kid)
             if cached is None:
-                # Either the refresh just ran and the kid is genuinely
-                # absent (signed by a key the IdP no longer publishes),
-                # or we're inside the cooldown with nothing cached. Both
-                # reject without another upstream fetch.
+                if self._last_refresh_error is not None:
+                    # A recent refresh failed and we're still inside the
+                    # cooldown: we genuinely can't verify, so surface the
+                    # upstream error (auth unavailable) rather than claiming
+                    # the token is invalid.
+                    raise self._last_refresh_error
+                # Refresh ran and the kid is genuinely absent — signed by a
+                # key the IdP no longer publishes.
                 raise AuthError("invalid_signature", f"unknown kid {kid!r}")
             return cached.key
 

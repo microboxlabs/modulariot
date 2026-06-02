@@ -12,7 +12,7 @@ import {
 } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   AccreditationBadge,
   accreditationLabel,
@@ -172,7 +172,7 @@ function GpsIntegrationValue({
   return (
     <span className={twMerge("inline-flex items-center gap-1", tone)}>
       <Icon className="w-3.5 h-3.5" />
-      {tr(
+      {trDynamic(
         isGpsIntegrado
           ? "pages.planning.sidebar.assignment.integrated"
           : "pages.planning.sidebar.assignment.notIntegrated",
@@ -213,7 +213,7 @@ function GpsStateValue({
             : "text-gray-500 dark:text-gray-400"
         )}
       >
-        {tr(
+        {trDynamic(
           isOnline
             ? "pages.planning.sidebar.assignment.online"
             : "pages.planning.sidebar.assignment.offline",

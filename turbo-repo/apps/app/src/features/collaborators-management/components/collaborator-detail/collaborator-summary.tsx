@@ -7,7 +7,7 @@ import type {
   ScoreCardValue,
 } from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { IoShieldOutline } from "react-icons/io5";
 import { HiClock, HiTruck, HiExclamationTriangle } from "react-icons/hi2";
 import ReactECharts from "echarts-for-react";
@@ -253,7 +253,7 @@ function QuickSummaryPanel({
             <span
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${scoreLabel.className}`}
             >
-              {tr(scoreLabel.labelKey, dict)}
+              {trDynamic(scoreLabel.labelKey, dict)}
             </span>
           )}
         </>

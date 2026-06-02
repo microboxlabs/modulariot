@@ -5,7 +5,7 @@ import { HiOutlineClock, HiMapPin, HiTruck } from "react-icons/hi2";
 import { CustomBadge } from "@/features/common/components/custom-badge";
 import { TimelineEvent } from "@/features/common/components/timeline-event";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type {
   BehaviorEvent,
   FilterType,
@@ -58,11 +58,11 @@ function BehaviorTimelineEvent({
     <TimelineEvent
       title={event.title}
       urgency={event.urgency}
-      urgencyLabel={tr(urgencyKey, dict)}
+      urgencyLabel={trDynamic(urgencyKey, dict)}
       isLast={isLast}
       extraBadges={
         <CustomBadge
-          text={tr(categoryKey, dict)}
+          text={trDynamic(categoryKey, dict)}
           className={categoryBadgeClasses[event.category] ?? DEFAULT_BADGE_CLASS}
         />
       }

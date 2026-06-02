@@ -13,7 +13,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GpsValidationModalProps } from "./gps-validation-modal.types";
 import { MapProvider } from "@/features/google-maps/provider/google-maps.provider";
 import MapComponent from "./map";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 // This lists are so the elements to not "show" or to show in a different way are more understandable on the condition of displaying them
 const date_values = ["ultimo_last_timestamp", "createdat"];
@@ -81,7 +81,7 @@ export default function GpsValidationModal({
                             <strong>
                               {msg?.cards
                                 ? tr(`cards.${key}`, msg)
-                                : tr(key, msg ?? {})}
+                                : trDynamic(key, msg ?? {})}
                             </strong>
                           </TableCell>
                           <TableCell>

@@ -73,8 +73,8 @@ export function useHbAutocomplete({
       const prefixMatch = prefixPattern.exec(before);
       if (prefixMatch) return prefixMatch[1];
 
-      // Case 2: bare {{ with no closing }} yet → show all
-      if (/\{\{[^{}]*$/.test(before)) return "";
+      // Case 2: bare {{ (optionally followed by whitespace only) → show all
+      if (/\{\{\s*$/.test(before)) return "";
 
       return null;
     },

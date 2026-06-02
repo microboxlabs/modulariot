@@ -117,14 +117,30 @@ export function useHybridPgrestContext(
   const loading = dataMode === "planner" ? plannerLoading : pgrestLoading;
   const fetchError = dataMode === "planner" ? plannerError : pgrestError;
 
+  const staticRow = useMemo(() => {
+    if (dataMode !== "static" || !config.staticData) return null;
+    try {
+      const parsed = JSON.parse(config.staticData) as unknown;
+      if (Array.isArray(parsed)) return (parsed[0] ?? null) as Record<string, unknown> | null;
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+      return null;
+    } catch {
+      console.error("[useHybridPgrestContext] Invalid staticData JSON:", config.staticData);
+      return null;
+    }
+  }, [dataMode, config.staticData]);
+
   const templateContext = useMemo(() => {
     const dpContext = buildDataProviderContext(dataProvider);
+    if (dataMode === "static" && staticRow) {
+      return { ...staticRow, row: staticRow, ...dpContext, filter: activeFilters };
+    }
     if ((dataMode === "pgrest" || dataMode === "planner") && rows.length > 0) {
       const firstRow = rows[0];
       return { ...firstRow, row: firstRow, ...dpContext, filter: activeFilters };
     }
     return { ...dpContext, filter: activeFilters };
-  }, [dataProvider, dataMode, rows, activeFilters]);
+  }, [dataProvider, dataMode, rows, staticRow, activeFilters]);
 
   return { templateContext, loading, fetchError };
 }

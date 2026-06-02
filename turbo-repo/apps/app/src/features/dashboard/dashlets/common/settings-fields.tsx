@@ -384,6 +384,7 @@ interface HbAutoInputProps {
   "aria-label"?: string;
   "aria-labelledby"?: string;
   className?: string;
+  dictionary?: I18nRecord;
 }
 
 /**
@@ -400,6 +401,7 @@ function HbAutoInput({
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledby,
   className,
+  dictionary,
 }: Readonly<HbAutoInputProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
 
@@ -426,18 +428,19 @@ function HbAutoInput({
         color={getFlowbiteColor(status)}
         autoComplete="off"
       />
-      <HbAutocompleteDropdown ac={ac} schemaSampleRow={schemaSampleRow} />
+      <HbAutocompleteDropdown ac={ac} schemaSampleRow={schemaSampleRow} dictionary={dictionary} />
     </div>
   );
 }
 
 // Shared autocomplete dropdown — renders either the no-suggestions hint or the column list
-function HbAutocompleteDropdown({ ac, schemaSampleRow }: Readonly<{
+function HbAutocompleteDropdown({ ac, schemaSampleRow, dictionary }: Readonly<{
   ac: ReturnType<typeof useHbAutocomplete>;
   schemaSampleRow?: Record<string, string>;
+  dictionary?: I18nRecord;
 }>) {
   if (!ac.isOpen) return null;
-  if (ac.hasNoSuggestions) return <HbNoSuggestionsHint />;
+  if (ac.hasNoSuggestions) return <HbNoSuggestionsHint dictionary={dictionary} />;
   return (
     <DropdownList
       items={ac.filtered}
@@ -472,13 +475,22 @@ function HbDropdownItem({ col, sampleValue }: Readonly<{ col: string; sampleValu
 }
 
 // Shared empty-state hint shown when {{ is detected but no columns are available
-function HbNoSuggestionsHint() {
+function HbNoSuggestionsHint({ dictionary }: Readonly<{ dictionary?: I18nRecord }>) {
+  const prefix = dictionary
+    ? trDynamic("dashboard.hbNoSuggestionsPrefix", dictionary)
+    : "No data available. In the";
+  const label = dictionary
+    ? trDynamic("dashboard.dataProvider", dictionary)
+    : "Data Provider";
+  const suffix = dictionary
+    ? trDynamic("dashboard.hbNoSuggestionsSuffix", dictionary)
+    : "tab, add a static JSON or configure a pgrest/planner source.";
   return (
     <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs text-gray-400 dark:text-gray-500">
-        No data available. In the{" "}
-        <span className="font-medium text-gray-500 dark:text-gray-400">Data Provider</span>{" "}
-        tab, add a static JSON or configure a pgrest/planner source.
+        {prefix}{" "}
+        <span className="font-medium text-gray-500 dark:text-gray-400">{label}</span>{" "}
+        {suffix}
       </p>
     </div>
   );
@@ -497,6 +509,7 @@ interface HbAutoTextareaProps {
   id?: string;
   rows?: number;
   "aria-label"?: string;
+  dictionary?: I18nRecord;
 }
 
 function HbAutoTextarea({
@@ -508,6 +521,7 @@ function HbAutoTextarea({
   id,
   rows = 3,
   "aria-label": ariaLabel,
+  dictionary,
 }: Readonly<HbAutoTextareaProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
 
@@ -534,7 +548,7 @@ function HbAutoTextarea({
         color={getFlowbiteColor(status)}
         autoComplete="off"
       />
-      <HbAutocompleteDropdown ac={ac} schemaSampleRow={schemaSampleRow} />
+      <HbAutocompleteDropdown ac={ac} schemaSampleRow={schemaSampleRow} dictionary={dictionary} />
     </div>
   );
 }
@@ -574,6 +588,7 @@ interface HbTextFieldProps {
   schemaSampleRow?: Record<string, string>;
   /** Markdown string shown in a ? tooltip next to the label */
   tooltip?: string;
+  dictionary?: I18nRecord;
 }
 
 /**
@@ -590,6 +605,7 @@ export function HbTextField({
   schemaSuggestions,
   schemaSampleRow,
   tooltip,
+  dictionary,
 }: Readonly<HbTextFieldProps>) {
   return (
     <div>
@@ -620,6 +636,7 @@ export function HbTextField({
         placeholder={placeholder}
         schemaSuggestions={schemaSuggestions}
         schemaSampleRow={schemaSampleRow}
+        dictionary={dictionary}
       />
     </div>
   );
@@ -678,6 +695,7 @@ export function HbTextFieldList({
             rows={f.rows ?? 3}
             schemaSuggestions={suggestions}
             schemaSampleRow={sampleRow}
+            dictionary={dictionary}
           />
         ) : (
           <HbTextField
@@ -689,6 +707,7 @@ export function HbTextFieldList({
             placeholder={placeholder}
             schemaSuggestions={suggestions}
             schemaSampleRow={sampleRow}
+            dictionary={dictionary}
           />
         );
       })}
@@ -737,6 +756,7 @@ interface HbTextareaFieldProps {
   rows?: number;
   schemaSuggestions?: string[];
   schemaSampleRow?: Record<string, string>;
+  dictionary?: I18nRecord;
 }
 
 /**
@@ -752,6 +772,7 @@ export function HbTextareaField({
   rows = 2,
   schemaSuggestions,
   schemaSampleRow,
+  dictionary,
 }: Readonly<HbTextareaFieldProps>) {
   return (
     <div>
@@ -771,6 +792,7 @@ export function HbTextareaField({
         rows={rows}
         schemaSuggestions={schemaSuggestions}
         schemaSampleRow={schemaSampleRow}
+        dictionary={dictionary}
       />
     </div>
   );

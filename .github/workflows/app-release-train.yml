@@ -7,6 +7,10 @@ on:
         description: "App semver without v prefix. Leave blank to bump the latest app@v* patch."
         required: false
         type: string
+      release_notes_version:
+        description: "Private release-notes semver without v prefix. Leave blank to bump the latest release note patch."
+        required: false
+        type: string
 permissions:
   contents: write
   pull-requests: write
@@ -62,20 +66,29 @@ jobs:
             exit 1
           fi
 
-          latest_release_notes="$(find turbo-repo/apps/app/src/releases \
-            -maxdepth 1 \
-            -type f \
-            -name 'v[0-9]*.[0-9]*.[0-9]*.mdx' \
-            -exec basename {} .mdx \; |
-            sed 's/^v//' |
-            sort -V |
-            tail -1)"
-
-          if [[ -z "$latest_release_notes" ]]; then
-            release_notes_version="1.0.0"
+          if [[ -n "${{ inputs.release_notes_version }}" ]]; then
+            release_notes_version="${{ inputs.release_notes_version }}"
           else
-            IFS=. read -r notes_major notes_minor notes_patch <<< "$latest_release_notes"
-            release_notes_version="${notes_major}.${notes_minor}.$((notes_patch + 1))"
+            latest_release_notes="$(find turbo-repo/apps/app/src/releases \
+              -maxdepth 1 \
+              -type f \
+              -name 'v[0-9]*.[0-9]*.[0-9]*.mdx' \
+              -exec basename {} .mdx \; |
+              sed 's/^v//' |
+              sort -V |
+              tail -1)"
+
+            if [[ -z "$latest_release_notes" ]]; then
+              release_notes_version="1.0.0"
+            else
+              IFS=. read -r notes_major notes_minor notes_patch <<< "$latest_release_notes"
+              release_notes_version="${notes_major}.${notes_minor}.$((notes_patch + 1))"
+            fi
+          fi
+
+          if ! [[ "$release_notes_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release notes version: $release_notes_version" >&2
+            exit 1
           fi
 
           echo "app_version=$version" >> "$GITHUB_OUTPUT"
@@ -200,7 +213,7 @@ jobs:
           PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
         run: |
           for attempt in {1..60}; do
-            pr="$(gh pr view "$PR_NUMBER" --json mergedAt,mergeCommit,state)"
+            pr="$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json mergedAt,mergeCommit,state)"
             merged_at="$(echo "$pr" | jq -r '.mergedAt')"
             merge_sha="$(echo "$pr" | jq -r '.mergeCommit.oid // ""')"
             state="$(echo "$pr" | jq -r '.state')"

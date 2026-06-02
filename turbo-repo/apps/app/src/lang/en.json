@@ -1819,6 +1819,7 @@
       "apiUrl": "API URL",
       "mustBeJsonArray": "Must be a JSON array",
       "invalidJson": "Invalid JSON",
+      "invalidJsonShape": "Must be a JSON object or a non-empty array of objects.",
       "dataSourceProvider": "Data Source Provider",
       "selectProvider": "Select a provider…",
       "noActiveProviders": "No active providers available",

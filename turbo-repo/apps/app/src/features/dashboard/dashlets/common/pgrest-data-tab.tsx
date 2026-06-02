@@ -54,10 +54,17 @@ export function PgrestDataTab({
 }: Readonly<PgrestDataTabProps>) {
   const labels = buildPgrestContentLabels(dictionary);
 
-  const jsonError = useMemo(() => {
+  const jsonError = useMemo((): "parse" | "shape" | null => {
     if (!staticData.trim()) return null;
-    try { JSON.parse(staticData); return null; }
-    catch { return true; }
+    let parsed: unknown;
+    try { parsed = JSON.parse(staticData); }
+    catch { return "parse"; }
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) return null;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const first = parsed[0];
+      if (typeof first === "object" && first !== null && !Array.isArray(first)) return null;
+    }
+    return "shape";
   }, [staticData]);
 
   return (
@@ -96,7 +103,11 @@ export function PgrestDataTab({
             color={jsonError ? "failure" : "gray"}
           />
           {jsonError && (
-            <p className="mt-1 text-xs text-red-500">{tr("dashboard.settings.invalidJson", dictionary)}</p>
+            <p className="mt-1 text-xs text-red-500">
+              {jsonError === "shape"
+                ? tr("dashboard.settings.invalidJsonShape", dictionary)
+                : tr("dashboard.settings.invalidJson", dictionary)}
+            </p>
           )}
           {!jsonError && staticData.trim() && (
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">

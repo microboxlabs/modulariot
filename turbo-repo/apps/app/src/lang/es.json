@@ -1825,6 +1825,7 @@
       "apiUrl": "URL de API",
       "mustBeJsonArray": "Debe ser un arreglo JSON",
       "invalidJson": "JSON inválido",
+      "invalidJsonShape": "Debe ser un objeto JSON o un arreglo de objetos no vacío.",
       "dataSourceProvider": "Proveedor de Datos",
       "selectProvider": "Seleccionar proveedor…",
       "noActiveProviders": "No hay proveedores activos disponibles",

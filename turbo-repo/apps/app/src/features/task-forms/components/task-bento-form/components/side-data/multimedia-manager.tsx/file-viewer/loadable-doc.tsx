@@ -1,6 +1,6 @@
 import { Checkbox } from "flowbite-react";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
-import { FileType } from "./clasification-form";
+import { FileType } from "../clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 

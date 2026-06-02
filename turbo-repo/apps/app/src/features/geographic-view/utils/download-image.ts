@@ -4,12 +4,12 @@ import { toast } from "sonner";
 
 export async function downloadImage(
   imageUrl: string,
-  dictionary?: I18nRecord
+  dictionary?: I18nRecord,
+  filename?: string
 ): Promise<boolean> {
-  const prefix = dictionary
-    ? tr("geographic_view.image_prefix", dictionary)
-    : "image";
-  const filename = `${prefix}-${new Date().toISOString().slice(0, 10)}.png`;
+  const effectiveFilename = filename ?? (
+    `${dictionary ? tr("geographic_view.image_prefix", dictionary) : "image"}-${new Date().toISOString().slice(0, 10)}.png`
+  );
 
   // For data URLs (base64), convert directly to blob
   if (imageUrl.startsWith("data:")) {
@@ -17,7 +17,7 @@ export async function downloadImage(
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = filename;
+    link.download = effectiveFilename;
     link.href = blobUrl;
     document.body.appendChild(link);
     link.click();
@@ -29,7 +29,7 @@ export async function downloadImage(
   // For blob URLs, download directly
   if (imageUrl.startsWith("blob:")) {
     const link = document.createElement("a");
-    link.download = filename;
+    link.download = effectiveFilename;
     link.href = imageUrl;
     document.body.appendChild(link);
     link.click();
@@ -46,7 +46,7 @@ export async function downloadImage(
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = filename;
+    link.download = effectiveFilename;
     link.href = blobUrl;
     document.body.appendChild(link);
     link.click();
@@ -65,7 +65,7 @@ export async function downloadImage(
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = filename;
+    link.download = effectiveFilename;
     link.href = blobUrl;
     document.body.appendChild(link);
     link.click();

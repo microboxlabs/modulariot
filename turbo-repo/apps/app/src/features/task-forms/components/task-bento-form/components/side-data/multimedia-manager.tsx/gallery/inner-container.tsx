@@ -11,7 +11,7 @@ export default function InnerContainer({
   children: React.ReactNode;
 }) {
   return (
-    <div className="absolute top-0 left-0 w-full h-full flex flex-col gap-2 bg-white dark:bg-gray-800 z-20">
+    <div className="absolute top-0 left-0 w-full h-full flex flex-col gap-2 bg-white dark:bg-gray-800 z-20 p-2">
       <div className="rounded-lg flex justify-between">
         <div className="flex flex-row items-center gap-2 p-2 text-lg text-gray-900 dark:text-white">
           {title}

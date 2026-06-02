@@ -1430,6 +1430,8 @@
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
+        "organizations": "Organizations",
+        "dataSources": "Data Sources",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",

@@ -13,10 +13,13 @@ import {
 import { HiQuestionMarkCircle, HiChevronDown } from "react-icons/hi2";
 import Markdown from "react-markdown";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { useHbAutocomplete } from "./use-hb-autocomplete";
 import { DropdownList } from "./dropdown-list";
+
+const LABEL_CLS = "text-xs font-normal text-gray-500 dark:text-gray-400";
+const LABEL_BLOCK_CLS = `mb-1 block ${LABEL_CLS}`;
 
 // ============================================================================
 // SettingsTextField
@@ -49,7 +52,7 @@ export function SettingsTextField({
     <div>
       <Label
         htmlFor={id}
-        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+        className={LABEL_BLOCK_CLS}
       >
         {label}
       </Label>
@@ -108,7 +111,7 @@ export function SettingsNumberField({
     <div>
       <Label
         htmlFor={id}
-        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+        className={LABEL_BLOCK_CLS}
       >
         {label}
       </Label>
@@ -160,7 +163,7 @@ export function SettingsTextareaField({
     <div>
       <Label
         htmlFor={id}
-        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+        className={LABEL_BLOCK_CLS}
       >
         {label}
       </Label>
@@ -212,7 +215,7 @@ export function SettingsSelectField({
     <div className="w-full">
       <Label
         htmlFor={id}
-        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+        className={LABEL_BLOCK_CLS}
       >
         {label}
       </Label>
@@ -678,7 +681,7 @@ export function HbTextFieldList({
           <HbTextareaField
             key={f.id}
             id={f.id}
-            label={tr(f.labelKey, dictionary)}
+            label={trDynamic(f.labelKey, dictionary)}
             value={fieldValues[f.state]}
             onChange={fieldSetters[f.state]}
             placeholder={placeholder}
@@ -690,7 +693,7 @@ export function HbTextFieldList({
           <HbTextField
             key={f.id}
             id={f.id}
-            label={tr(f.labelKey, dictionary)}
+            label={trDynamic(f.labelKey, dictionary)}
             value={fieldValues[f.state]}
             onChange={fieldSetters[f.state]}
             placeholder={placeholder}
@@ -765,7 +768,7 @@ export function HbTextareaField({
       {label && (
         <Label
           htmlFor={id}
-          className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+          className={LABEL_BLOCK_CLS}
         >
           {label}
         </Label>

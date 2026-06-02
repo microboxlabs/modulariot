@@ -24,6 +24,10 @@ export interface SettingsFieldDef {
   readonly state: string;
   readonly hbPlaceholder: string;
   readonly staticPlaceholder: string;
+  /** Render as a multi-line textarea */
+  readonly multiline?: boolean;
+  /** Rows for textarea (default 3) */
+  readonly rows?: number;
 }
 
 /**
@@ -145,6 +149,8 @@ export function SimpleDashletSettings<C extends object>({
     dataMode,
     pgrestSaveFields,
     dataTabProps,
+    staticData,
+    setStaticData,
   } = useSimplePgrestSettings({
     config: config as Record<string, unknown>,
     fieldNames,
@@ -152,10 +158,40 @@ export function SimpleDashletSettings<C extends object>({
     fieldSetters: setters,
   });
 
-  const schemaSuggestions =
+  // Parse static JSON for suggestions when in static mode
+  const parsedStaticRow = useMemo((): Record<string, string> | undefined => {
+    if (dataMode !== "static" || !staticData.trim()) return undefined;
+    try {
+      const parsed: unknown = JSON.parse(staticData);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, String(v)])
+        );
+      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return Object.fromEntries(
+          Object.entries(parsed[0] as Record<string, unknown>).map(([k, v]) => [k, String(v)])
+        );
+      }
+    } catch { /* invalid JSON */ }
+    return undefined;
+  }, [dataMode, staticData]);
+
+  const schemaSuggestions: string[] | undefined =
     dataMode === "planner" && dataTabProps.plannerVariableName
       ? schemas.get(dataTabProps.plannerVariableName)
-      : undefined;
+      : isPgrest && dataTabProps.pgrest.sampleRows.length > 0
+        ? Object.keys(dataTabProps.pgrest.sampleRows[0])
+        : parsedStaticRow
+          ? Object.keys(parsedStaticRow)
+          : undefined;
+
+  const schemaSampleRow: Record<string, string> | undefined =
+    isPgrest && dataTabProps.pgrest.sampleRows.length > 0
+      ? Object.fromEntries(
+          Object.entries(dataTabProps.pgrest.sampleRows[0]).map(([k, v]) => [k, String(v)])
+        )
+      : parsedStaticRow;
 
   // ── Save payload (shared by dirty tracking & handleSave) ────────────
   const buildFullSavePayload = () => ({
@@ -191,6 +227,7 @@ export function SimpleDashletSettings<C extends object>({
         isPgrest={isPgrest}
         dictionary={dictionary}
         schemaSuggestions={schemaSuggestions}
+        schemaSampleRow={schemaSampleRow}
       />
       {extraVisualization}
       {thresholdNode}
@@ -202,6 +239,8 @@ export function SimpleDashletSettings<C extends object>({
       id={`${idPrefix}-data-mode`}
       {...dataTabProps}
       dictionary={dictionary}
+      staticData={staticData}
+      onStaticDataChange={setStaticData}
     />
   );
 

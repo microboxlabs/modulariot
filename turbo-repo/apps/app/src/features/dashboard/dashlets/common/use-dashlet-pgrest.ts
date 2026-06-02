@@ -21,6 +21,8 @@ export interface PgrestDashletFields {
   pgrestHttpMethod?: PgrestHttpMethod;
   dataSourceId?: string;
   plannerVariableName?: string;
+  /** JSON string used as static data row when dataMode is "static" */
+  staticData?: string;
 }
 
 // ============================================================================
@@ -71,6 +73,7 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
     fields,
     dataSourceId: config.dataSourceId,
     plannerVariableName: config.plannerVariableName,
+    staticData: config.staticData,
     refreshIntervalMs,
   });
 }

@@ -17,6 +17,7 @@ import type { ContainerConfig, ContainerVariant } from "./container";
 
 // Import dashlet definitions (each folder exports dashletDefinition)
 import { dashletDefinition as containerDefinition } from "./container";
+import { dashletDefinition as flexContainerDefinition } from "./flex_container";
 import { dashletDefinition as percentageValueDefinition } from "./percentage_value";
 import { dashletDefinition as statDetailedDefinition } from "./stat_detailed";
 import { dashletDefinition as statIconDefinition } from "./stat_icon";
@@ -40,6 +41,7 @@ import { dashletDefinition as geographicMapDefinition } from "./geographic_map";
 // ============================================================================
 const DASHLET_DEFINITIONS: DashletDefinition[] = [
   containerDefinition,
+  flexContainerDefinition,
   percentageValueDefinition,
   statDetailedDefinition,
   statIconDefinition,

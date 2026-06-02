@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import { Label, Textarea } from "flowbite-react";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestSettingsSection } from "./pgrest-settings-section";
 import { PlannerVariableSelector } from "./planner-variable-selector";
@@ -26,6 +28,8 @@ interface PgrestDataTabProps {
   dataSourceId?: string;
   onDataSourceIdChange?: (id: string) => void;
   activeProviders?: DataSourceOption[];
+  staticData?: string;
+  onStaticDataChange?: (v: string) => void;
 }
 
 /**
@@ -45,8 +49,16 @@ export function PgrestDataTab({
   dataSourceId,
   onDataSourceIdChange,
   activeProviders,
+  staticData = "",
+  onStaticDataChange,
 }: Readonly<PgrestDataTabProps>) {
   const labels = buildPgrestContentLabels(dictionary);
+
+  const jsonError = useMemo(() => {
+    if (!staticData.trim()) return null;
+    try { JSON.parse(staticData); return null; }
+    catch { return "Invalid JSON"; }
+  }, [staticData]);
 
   return (
     <>
@@ -70,6 +82,29 @@ export function PgrestDataTab({
           },
         ]}
       />
+      {dataMode === "static" && onStaticDataChange && (
+        <div>
+          <Label className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+            Static JSON
+          </Label>
+          <Textarea
+            value={staticData}
+            onChange={(e) => onStaticDataChange(e.target.value)}
+            placeholder={'{\n  "value": "156",\n  "label": "Orders"\n}'}
+            rows={6}
+            className="font-mono text-xs"
+            color={jsonError ? "failure" : "gray"}
+          />
+          {jsonError && (
+            <p className="mt-1 text-xs text-red-500">{jsonError}</p>
+          )}
+          {!jsonError && staticData.trim() && (
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              Use <span className="font-mono">{"{{row.key}}"}</span> in fields to reference values.
+            </p>
+          )}
+        </div>
+      )}
       {dataMode === "pgrest" && (
         <PgrestSettingsSection
           pgrest={pgrest}

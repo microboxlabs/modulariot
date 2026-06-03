@@ -110,7 +110,7 @@ export default function ViewerToolbar({
         type="button"
         disabled={currentIndex === 0}
         onClick={onPrev}
-        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
       >
         <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -122,7 +122,7 @@ export default function ViewerToolbar({
         type="button"
         disabled={currentIndex === totalItems - 1}
         onClick={onNext}
-        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
         aria-label={tr("bento.multimedia.viewer_next", dictionary)}
       >
         <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />

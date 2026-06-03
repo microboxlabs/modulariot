@@ -344,7 +344,7 @@ function MediaSection({
         <button
           type="button"
           onClick={onToggleExpanded}
-          className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0 border-b border-b border-gray-200 dark:border-gray-600"
+          className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0 border-b border-b border-gray-200 dark:border-gray-600 cursor-pointer"
         >
           <div className="flex items-center gap-2 flex-1 text-left group transition-colors min-w-0">
             <HiChevronDown
@@ -1246,13 +1246,13 @@ export default function FileImages({
                     </span>
                   )}
                 </div>
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsCommitModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  className="flex items-center gap-1.5 px-3 h-8 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
                 >
                   {tr("bento.multimedia.btn_commit_review", dictionary)}
-                </button>
+                </Button>
               </div>
             )}
           </div>

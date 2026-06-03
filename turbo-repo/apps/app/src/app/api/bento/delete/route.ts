@@ -21,12 +21,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const success = await deleteNode(session, nodeId);
+    const result = await deleteNode(session, nodeId);
 
-    if (!success) {
+    if (!result.ok) {
       return NextResponse.json(
-        { error: "Delete failed - no response from server" },
-        { status: 500 }
+        { error: `Delete failed: ${result.reason}` },
+        { status: result.status }
       );
     }
 

@@ -68,7 +68,7 @@ export default function MobileHeader({
           type="button"
           disabled={currentIndex === 0}
           onClick={onPrev}
-          className="p-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+          className="p-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 cursor-pointer"
           aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
         >
           <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -80,7 +80,7 @@ export default function MobileHeader({
           type="button"
           disabled={currentIndex === totalItems - 1}
           onClick={onNext}
-          className="p-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+          className="p-1 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 cursor-pointer"
           aria-label={tr("bento.multimedia.viewer_next", dictionary)}
         >
           <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />

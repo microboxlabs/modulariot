@@ -128,7 +128,7 @@ export default function SplitButton({
               </button>
             </MaybeTooltip>
             {dropdownOpen && (
-              <div className={`absolute top-full mt-1 left-0 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden ${overlay ? "z-40" : "z-50"}`}>
+              <div className={`absolute top-full mt-1 left-0 w-max bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden ${overlay ? "z-40" : "z-50"}`}>
                 {secondaryActions.map((action) => (
                   <button
                     key={action.id}

@@ -14,9 +14,9 @@ Las solicitudes llegan al harness por dos puertas, en este orden:
 
    El harness reverifica el mismo token Auth0 RS256 contra el JWKS configurado. Un llamador que evade Quarkus y golpea el puerto del harness directamente es rechazado también en esta capa — no hay camino a un endpoint `/runs*` sin un token válido, incluso desde dentro del cluster.
 
-El campo `tenant_id` del cuerpo es sobrescrito silenciosamente por el valor verificado del header antes del dispatch; un cuerpo que declara `tenant_id="evil-tenant"` termina persistido como el tenant del header. El campo será eliminado por completo del esquema público en una versión futura.
+El campo `tenant_id` del cuerpo es sobrescrito silenciosamente por el valor verificado del header antes del despacho; un cuerpo que declara `tenant_id="evil-tenant"` termina persistido como el tenant del header. El campo será eliminado por completo del esquema público en una versión futura.
 
-`/runs/{id}` y `/runs/{id}/stream` agregan una verificación de replay entre tenants: un token para el tenant B no puede obtener ni suscribirse a un run que se originó bajo el tenant A, ya sea que el run esté en vuelo o ya terminal.
+`/runs/{id}` y `/runs/{id}/stream` agregan una verificación de replay entre tenants: un token para el tenant B no puede obtener ni suscribirse a una ejecución que se originó bajo el tenant A, ya sea que la ejecución esté en vuelo o ya terminal.
 
 ## Qué se protege
 
@@ -24,8 +24,8 @@ El campo `tenant_id` del cuerpo es sobrescrito silenciosamente por el valor veri
 |---|---|---|
 | `GET /health` | no | kubelet liveness |
 | `GET /health/ready` | no | kubelet readiness; reporta estado de boot de Nexo |
-| `POST /runs` | sí | run sincrónico; el tenant del header sobrescribe el cuerpo |
-| `POST /runs:start` | sí | dispatch asíncrono + 202; el tenant del header sobrescribe el cuerpo |
+| `POST /runs` | sí | ejecución sincrónica; el tenant del header sobrescribe el cuerpo |
+| `POST /runs:start` | sí | despacho asíncrono + 202; el tenant del header sobrescribe el cuerpo |
 | `GET /runs/{id}` | sí | 403 en replay entre tenants |
 | `GET /runs/{id}/stream` | sí | SSE; 403 en replay entre tenants |
 
@@ -70,6 +70,6 @@ El harness expone una razón legible por máquina en cada 401:
 | `auth_failed:wrong_issuer`          | El claim `iss` no equivale a `AUTH0_ISSUER`            |
 | `auth_failed:wrong_audience`        | El claim `aud` no incluye `AUTH0_RS256_AUDIENCE`       |
 | `auth_failed:tenant_unresolved`     | Token válido pero `X-Miot-Tenant-Client-Id` ausente    |
-| `cross_tenant_replay:run …`         | (403) El tenant del token ≠ tenant del run             |
+| `cross_tenant_replay:run …`         | (403) El tenant del token ≠ tenant de la ejecución     |
 
 Operadores pueden `curl` cualquier falla para triajear sin necesidad de leer logs.

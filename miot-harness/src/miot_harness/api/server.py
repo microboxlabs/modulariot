@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
@@ -8,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -299,6 +301,16 @@ def create_app() -> FastAPI:
                 detail=f"auth_failed:{exc.code}",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from exc
+        except httpx.HTTPError as exc:
+            # JWKS endpoint unreachable / erroring: verification could
+            # not run, so this is "auth temporarily unavailable", not
+            # "token rejected". Return a retryable 503 instead of leaking
+            # an opaque 500 (which also carries no Retry-After signal).
+            raise HTTPException(
+                status_code=503,
+                detail="auth_unavailable:jwks_fetch_failed",
+                headers={"Retry-After": "5"},
+            ) from exc
 
         header_tenant = (
             request.headers.get("X-Miot-Tenant-Client-Id") or ""
@@ -389,7 +401,13 @@ def create_app() -> FastAPI:
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
         harness: HarnessSupervisor = app.state.harness
-        record = harness.run_store.load(run_id)
+        try:
+            record = harness.run_store.load(run_id)
+        except FileNotFoundError as exc:
+            # An unknown run is a 404, not a 500 leaked from the store.
+            raise HTTPException(
+                status_code=404, detail=f"unknown run_id {run_id!r}"
+            ) from exc
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
 
@@ -540,7 +558,11 @@ def _format_sse_event(evt: HarnessEvent) -> bytes:
 
 
 def _format_sse_error(run_id: str, error: str) -> bytes:
-    payload = f'{{"error": "{error}", "run_id": "{run_id}"}}'
+    # Serialize with json.dumps: run_id is URL-derived (Starlette
+    # percent-decodes path params, so it can contain `"` or `\n`).
+    # Hand-building this JSON would let a crafted run_id break out of the
+    # payload or inject a forged SSE frame; json.dumps escapes both.
+    payload = json.dumps({"error": error, "run_id": run_id})
     return f"event: error\ndata: {payload}\n\n".encode()
 
 

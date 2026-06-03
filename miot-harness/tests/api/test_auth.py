@@ -318,6 +318,75 @@ async def test_jwks_cache_concurrent_refresh_collapses(
     assert transport.hits == 1
 
 
+@pytest.mark.asyncio
+async def test_jwks_cache_unknown_kid_flood_collapses_to_one_fetch(
+    keypair: RSAPrivateKey, jwks_with_client: tuple[JwksCache, _CountingTransport]
+) -> None:
+    """A burst of tokens bearing unknown kids must not fetch the JWKS
+    once per request. The refresh cooldown caps it at a single upstream
+    GET so a forged-kid flood can't hammer Auth0's rate-limited endpoint
+    and take auth down for legitimate callers."""
+    cache, transport = jwks_with_client
+    token = _make_token(keypair, kid=OTHER_KID)  # kid absent from JWKS
+    for _ in range(20):
+        with pytest.raises(AuthError) as excinfo:
+            await verify_token(
+                token, issuer=ISSUER, audiences=[AUDIENCE], jwks=cache
+            )
+        assert excinfo.value.code == "invalid_signature"
+    assert transport.hits == 1  # cooldown collapses the flood
+
+
+@pytest.mark.asyncio
+async def test_jwks_cache_refresh_error_propagates_for_503_mapping(
+    keypair: RSAPrivateKey,
+) -> None:
+    """A JWKS endpoint that errors surfaces as an httpx error out of
+    get_key (the FastAPI layer maps it to a 503), not as an AuthError —
+    'auth could not be performed' is distinct from 'token rejected'."""
+    def _handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="upstream boom")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(_handler)) as client:
+        cache = JwksCache(JWKS_URL, http_client=client)
+        token = _make_token(keypair)
+        with pytest.raises(httpx.HTTPError):
+            await verify_token(
+                token, issuer=ISSUER, audiences=[AUDIENCE], jwks=cache
+            )
+
+
+@pytest.mark.asyncio
+async def test_jwks_cache_outage_surfaces_error_during_cooldown(
+    keypair: RSAPrivateKey,
+) -> None:
+    """During a JWKS outage, a second lookup inside the cooldown window must
+    re-surface the upstream error (→ 503), not a misleading AuthError
+    (→ 401 'invalid token'). The cooldown still caps it to one fetch."""
+    hits = 0
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        nonlocal hits
+        hits += 1
+        return httpx.Response(500, text="upstream boom")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(_handler)) as client:
+        cache = JwksCache(JWKS_URL, http_client=client)
+        token = _make_token(keypair, kid=OTHER_KID)  # absent from the empty cache
+        # First lookup attempts the refresh, which fails → upstream error.
+        with pytest.raises(httpx.HTTPError):
+            await verify_token(
+                token, issuer=ISSUER, audiences=[AUDIENCE], jwks=cache
+            )
+        # Second lookup is inside the cooldown: it must NOT downgrade to an
+        # AuthError, and must NOT hit the network again.
+        with pytest.raises(httpx.HTTPError):
+            await verify_token(
+                token, issuer=ISSUER, audiences=[AUDIENCE], jwks=cache
+            )
+        assert hits == 1
+
+
 # ---------------------------------------------------------------------------
 # HarnessSettings.validate_auth_config
 # ---------------------------------------------------------------------------

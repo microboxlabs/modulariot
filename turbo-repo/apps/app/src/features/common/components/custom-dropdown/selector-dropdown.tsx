@@ -3,6 +3,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import { useState, useEffect, useRef } from "react";
 import { HiChevronDown } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
 
 export default function SelectorDropdown({
   categories,
@@ -71,7 +72,7 @@ export default function SelectorDropdown({
         renderTrigger={() => (
           <Button
             color="alternative"
-            className={`flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover ${fitWidth ? "w-fit" : "w-full"} ${triggerClassName ?? ""}`}
+            className={twMerge("flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover", fitWidth ? "w-fit" : "w-full", triggerClassName)}
             disabled={disabled}
           >
             <a

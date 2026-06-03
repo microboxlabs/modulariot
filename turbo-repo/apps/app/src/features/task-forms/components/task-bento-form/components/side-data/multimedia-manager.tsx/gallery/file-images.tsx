@@ -483,10 +483,29 @@ export default function FileImages({
     return { approved, rejected, pending, ready };
   }, [allIds, reviewStatuses, reviewableIds]);
 
+  const rejectedItems = useMemo(() => {
+    return allIds
+      .filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "rejected")
+      .map((id) => {
+        const file = ([...images, ...documents] as { file: AlfrescoFileEntry }[])
+          .find((item) => item.file?.entry?.id === id);
+        const fileName = file?.file?.entry?.name ?? id;
+        // Find the last state_change entry with status "rejected" for this file
+        const timeline = committedTimeline.get(id) ?? [];
+        const lastRejection = [...timeline]
+          .reverse()
+          .find((e) => e.kind === "state_change" && e.status === "rejected");
+        const observations = lastRejection && lastRejection.kind === "state_change"
+          ? lastRejection.observations
+          : [];
+        return { fileName, observations };
+      });
+  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline]);
+
   const { dispatch: dispatchReviewState } = useBentoReview();
   useEffect(() => {
-    dispatchReviewState({ pending: reviewSummary.pending, rejected: reviewSummary.rejected });
-  }, [reviewSummary.pending, reviewSummary.rejected, dispatchReviewState]);
+    dispatchReviewState({ pending: reviewSummary.pending, rejected: reviewSummary.rejected, rejectedItems });
+  }, [reviewSummary.pending, reviewSummary.rejected, rejectedItems, dispatchReviewState]);
 
   useEffect(() => {
     if (viewModeInitialized.current) return;

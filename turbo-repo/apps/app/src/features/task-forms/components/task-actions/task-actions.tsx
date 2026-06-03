@@ -3,6 +3,7 @@
 import { HiCheck } from "react-icons/hi";
 import { Tooltip } from "flowbite-react";
 import SplitButton from "@/features/common/components/split-button/split-button";
+import GoBackModal from "./go-back-modal";
 import { TaskActionsProps } from "./task-actions.types";
 import { useDocumentValidation } from "./use-document-validation";
 import {
@@ -42,13 +43,16 @@ import {
   OUTCOME_PLAN_SERVICE,
   OUTCOME_SEPARATE_DOCUMENTS,
   OUTCOME_ASSIGN_DRIVER_V2,
+  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  DELIVERY_COORDINATOR_PROCESS_TASKS,
+  PLANNING_COORDINATOR_PROCESS_TASKS,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
   I18nRecord,
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import {
   TaskNextActionState,
   ShippingCoordinatorProcessFormsV2,
@@ -77,6 +81,7 @@ export default function TaskActions({
   extraData,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
+  const [openGoBackModal, setOpenGoBackModal] = useState(false);
   const [outcome, setOutcome] = useState<
     | TaskOutcome
     | TaskOutcomeV2
@@ -104,6 +109,31 @@ export default function TaskActions({
       router.replace(`/${lang}/shipping`);
     }
   }, [state]);
+
+  const handleGoBackConfirm = useCallback(async () => {
+    if (!outcome) return;
+    setOpenGoBackModal(false);
+    try {
+      const formData = new FormData();
+      formData.append("taskId", taskId);
+      formData.append("transitionId", outcome as string);
+      if (taskType) formData.append("taskType", taskType);
+      const response = await taskNextAction({}, formData);
+      if (response?.success) {
+        if (taskType && SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
+          router.push(`/${lang}/shipping`);
+        } else if (taskType && DELIVERY_COORDINATOR_PROCESS_TASKS.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
+          router.push(`/${lang}/delivery`);
+        } else if (taskType && PLANNING_COORDINATOR_PROCESS_TASKS.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
+          router.push(`/${lang}/planning`);
+        } else {
+          router.push(`/${lang}/shipping`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [outcome, taskId, taskType, lang, router]);
 
   const handleSelection = (
     outcome:
@@ -225,11 +255,19 @@ export default function TaskActions({
             (dict.outcome as I18nRecord)[transitionId] as string
           ),
       }}
-      secondaryActions={otherOptions.map(({ id, label, icon: Icon }) => ({
+      secondaryActions={otherOptions.map(({ id, label, icon: Icon, isGoBack }) => ({
         id,
         label,
         icon: <Icon />,
-        onClick: () => handleSelection(id, label),
+        onClick: () => {
+          setOutcome(id);
+          setOutcomeLabel(label);
+          if (isGoBack) {
+            setOpenGoBackModal(true);
+          } else {
+            setOpenModal(true);
+          }
+        },
       }))}
     />
   );
@@ -256,6 +294,15 @@ export default function TaskActions({
           openModal={openModal}
           setOpenModal={setOpenModal}
           extraData={extraData}
+        />
+
+        <GoBackModal
+          show={openGoBackModal}
+          onClose={() => setOpenGoBackModal(false)}
+          onConfirm={handleGoBackConfirm}
+          outcomeLabel={outcomeLabel ?? ""}
+          rejectedItems={reviewState.rejectedItems}
+          dict={dict}
         />
       </GroupAllowed>
     </div>

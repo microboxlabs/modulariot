@@ -119,7 +119,7 @@ export default function SplitButton({
                       action.onClick();
                       setDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer whitespace-nowrap"
                   >
                     {action.icon}
                     {action.label}

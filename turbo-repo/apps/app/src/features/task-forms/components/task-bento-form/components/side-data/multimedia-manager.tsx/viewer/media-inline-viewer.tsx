@@ -13,7 +13,6 @@ import { toast } from "sonner";
 
 import { findNextUndecided } from "./viewer-utils";
 import { useDocBlob } from "./use-doc-blob";
-import EditableField from "@/features/common/components/editable-field/editable-field";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import { MoveToTaskModal } from "./modals/move-to-task-modal";
 import { DeleteConfirmModal } from "./modals/delete-confirm-modal";
@@ -198,7 +197,6 @@ export default function MediaInlineViewer({
           onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}
           onDownload={handleDownload}
-          onEdit={handleEditClick}
           onMove={() => setIsMoveModalOpen(true)}
           onDelete={handleDeleteClick}
           onDecision={handleDecision}
@@ -212,19 +210,6 @@ export default function MediaInlineViewer({
 
         {/* Desktop: original single-row layout (hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-2 min-w-0 flex-1 basis-auto">
-          <EditableField
-            taskId=""
-            fieldName="name"
-            value={current.file.entry.name}
-            type="text"
-            variant="inline"
-            onSave={async (newName) => {
-              if (id) await renameBentoFile(id, newName);
-              onRename?.();
-            }}
-            inputClassName="text-sm font-medium text-gray-900 dark:text-white bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none min-w-0 w-48 max-w-full"
-            displayClassName="text-sm font-medium text-gray-900 dark:text-white truncate transition-colors cursor-text hover:text-blue-600 dark:hover:text-blue-400"
-          />
           <SelectorDropdown
             categories={Object.values(categories)}
             baseCategory={currentCategory}
@@ -295,6 +280,7 @@ export default function MediaInlineViewer({
           onRemoveCommittedObservation={onRemoveCommittedObservation}
           onAddReply={onAddReply}
           onRemoveReply={onRemoveReply}
+          onRename={id ? async (newName) => { await renameBentoFile(id, newName); onRename?.(); } : undefined}
           pendingReplyRef={pendingReplyRef}
           dictionary={dictionary}
         />

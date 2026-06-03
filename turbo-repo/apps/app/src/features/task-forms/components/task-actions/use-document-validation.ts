@@ -68,9 +68,17 @@ export function useDocumentValidation(
 
   const entries: NodeEntry[] = data?.data?.list?.entries || [];
 
-  const hasPOD = entries.some(
-    (file) =>
-      file.entry.properties?.["mintral:contentType"] === "PROOF_OF_DELIVERY"
+  // A delivery document can arrive classified either as PROOF_OF_DELIVERY or
+  // PROOF_OF_LOAD_RECEIPT, so both satisfy the document gate.
+  const ACCEPTED_POD_CONTENT_TYPES = [
+    "PROOF_OF_DELIVERY",
+    "PROOF_OF_LOAD_RECEIPT",
+  ];
+
+  const hasPOD = entries.some((file) =>
+    ACCEPTED_POD_CONTENT_TYPES.includes(
+      file.entry.properties?.["mintral:contentType"] ?? ""
+    )
   );
 
   const hasPOLF = false;

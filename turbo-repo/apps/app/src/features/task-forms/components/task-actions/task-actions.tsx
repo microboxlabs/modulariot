@@ -1,6 +1,7 @@
 "use client";
 
 import { HiCheck } from "react-icons/hi";
+import { Tooltip } from "flowbite-react";
 import SplitButton from "@/features/common/components/split-button/split-button";
 import { TaskActionsProps } from "./task-actions.types";
 import { useDocumentValidation } from "./use-document-validation";
@@ -60,6 +61,7 @@ import {
 } from "../../services/form.service.types";
 
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
+import { ValidationIcon } from "../task-bento-form/components/driver/validation-icon";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
 import { useRouter } from "next/navigation";
 import { taskNextAction } from "../../services/client-form.service";
@@ -191,37 +193,58 @@ export default function TaskActions({
   const reviewBlocksAll = reviewState.pending > 0;
   const reviewBlocksContinue = reviewState.pending === 0 && reviewState.rejected > 0;
 
+  const tooltipReasons: string[] = [];
+  if (showDocumentWarning) tooltipReasons.push(tr("outcome.disabledMissingDocs", dict));
+  if (reviewBlocksAll) tooltipReasons.push(tr("outcome.disabledPendingReview", dict));
+  if (!reviewBlocksAll && reviewBlocksContinue) tooltipReasons.push(tr("outcome.disabledRejectedDocs", dict));
+  const tooltipContent = tooltipReasons.length > 0 ? (
+    <ul className="flex flex-col gap-1 text-xs">
+      {tooltipReasons.map((r) => (
+        <li key={r} className="flex items-center gap-1.5">
+          <ValidationIcon status="error" isLoading={false} size="sm" />
+          {r}
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
+  const splitBtn = (
+    <SplitButton
+      size="md"
+      overlay
+      secondaryLabel={tr("outcome.moreOptions", dict)}
+      disabled={showDocumentWarning || reviewBlocksAll}
+      primaryDisabled={reviewBlocksContinue}
+      primary={{
+        id: "continue",
+        label: (dict.outcome as I18nRecord).continue as string,
+        icon: <HiCheck className="w-5 h-5" />,
+        onClick: () =>
+          handleSelection(
+            transitionId,
+            (dict.outcome as I18nRecord)[transitionId] as string
+          ),
+      }}
+      secondaryActions={otherOptions.map(({ id, label, icon: Icon }) => ({
+        id,
+        label,
+        icon: <Icon />,
+        onClick: () => handleSelection(id, label),
+      }))}
+    />
+  );
+
   return (
     <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
       <GroupAllowed
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        {!showDocumentWarning && (
-          <SplitButton
-            size="md"
-            overlay
-            secondaryLabel={tr("outcome.moreOptions", dict)}
-            disabled={reviewBlocksAll}
-            primaryDisabled={reviewBlocksContinue}
-            primary={{
-              id: "continue",
-              label: (dict.outcome as I18nRecord).continue as string,
-              icon: <HiCheck className="w-5 h-5" />,
-              onClick: () =>
-                handleSelection(
-                  transitionId,
-                  (dict.outcome as I18nRecord)[transitionId] as string
-                ),
-            }}
-            secondaryActions={otherOptions.map(({ id, label, icon: Icon }) => ({
-              id,
-              label,
-              icon: <Icon />,
-              onClick: () => handleSelection(id, label),
-            }))}
-          />
-        )}
+        {tooltipContent ? (
+          <Tooltip content={tooltipContent} placement="bottom">
+            <div>{splitBtn}</div>
+          </Tooltip>
+        ) : splitBtn}
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

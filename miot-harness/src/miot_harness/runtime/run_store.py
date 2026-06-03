@@ -17,6 +17,12 @@ class HarnessRunRecord(BaseModel):
     # one-shot requests; set when the caller passes `conversation_id`.
     # Langfuse groups runs by this attribute.
     conversation_id: str | None = None
+    # Issue #522 R2: tenant the run originated under, recorded so the
+    # SSE replay endpoint can refuse a cross-tenant subscriber even
+    # for terminal runs that have left the in-flight tracker. Optional
+    # so pre-#522 persisted records still load; populated by the
+    # supervisor from `HarnessContext.tenant_id` going forward.
+    tenant_id: str | None = None
 
 
 class JsonRunStore:

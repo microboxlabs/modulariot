@@ -101,6 +101,7 @@ class HarnessSupervisor:
             run_id=ctx.run_id,
             status="running",
             conversation_id=request.conversation_id,
+            tenant_id=ctx.tenant_id,
         )
 
         def progress(event: HarnessEvent) -> None:

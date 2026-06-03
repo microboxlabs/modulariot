@@ -5,7 +5,7 @@ import { Tooltip } from "flowbite-react";
 import { HiChevronDown } from "react-icons/hi2";
 import type { ReactNode } from "react";
 
-function MaybeTooltip({ content, children }: { content: ReactNode; children: ReactNode }) {
+function MaybeTooltip({ content, children }: Readonly<{ content: ReactNode; children: ReactNode }>) {
   if (!content) return <>{children}</>;
   return (
     <Tooltip content={content} placement="bottom">

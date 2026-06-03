@@ -102,8 +102,8 @@ export default function GoBackModal({
                 {trDynamic(countKey, dict, { count: String(rejectedItems.length) })}
               </p>
               <ul className="flex flex-col gap-4">
-                {rejectedItems.map((item, i) => (
-                  <li key={i} className="rounded-lg border border-red-200 dark:border-red-800 overflow-hidden">
+                {rejectedItems.map((item) => (
+                  <li key={item.fileName} className="rounded-lg border border-red-200 dark:border-red-800 overflow-hidden">
                     {/* File name header */}
                     <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
                       <HiDocumentText className="w-3.5 h-3.5 text-red-500 shrink-0" />

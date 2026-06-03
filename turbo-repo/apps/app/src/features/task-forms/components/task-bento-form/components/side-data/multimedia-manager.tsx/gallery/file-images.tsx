@@ -495,7 +495,7 @@ export default function FileImages({
         const lastRejection = [...timeline]
           .reverse()
           .find((e) => e.kind === "state_change" && e.status === "rejected");
-        const observations = lastRejection && lastRejection.kind === "state_change"
+        const observations = lastRejection?.kind === "state_change"
           ? lastRejection.observations
           : [];
         return { fileName, observations };

@@ -42,11 +42,11 @@ export function PropertiesGrid({ entry, categoryLabel, onRename, dictionary }: P
           ) : entry.name
         }
       />
-      {categoryLabel && <MetaRow label={tr("bento.multimedia.sidebar_prop_category", dictionary)} value={categoryLabel} />}
+      {categoryLabel && <MetaRow label={tr("bento.multimedia.sidebar_prop_type", dictionary)} value={categoryLabel} />}
       {entry.properties["cm:versionLabel"] && (
         <MetaRow label={tr("bento.multimedia.sidebar_prop_version", dictionary)} value={`v${entry.properties["cm:versionLabel"]}`} />
       )}
-      <MetaRow label={tr("bento.multimedia.sidebar_prop_type", dictionary)} value={entry.content.mimeTypeName ?? entry.content.mimeType} />
+      <MetaRow label={tr("bento.multimedia.sidebar_prop_format", dictionary)} value={entry.content.mimeTypeName ?? entry.content.mimeType} />
       <MetaRow label={tr("bento.multimedia.sidebar_prop_size", dictionary)} value={formatBytes(entry.content.sizeInBytes)} />
       {entry.properties["exif:pixelXDimension"] != null && entry.properties["exif:pixelYDimension"] != null && (
         <MetaRow label="Resolution" value={`${entry.properties["exif:pixelXDimension"]} × ${entry.properties["exif:pixelYDimension"]}`} />

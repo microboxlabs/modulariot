@@ -82,6 +82,7 @@ export default function TaskActions({
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [openGoBackModal, setOpenGoBackModal] = useState(false);
+  const [isGoBackSubmitting, setIsGoBackSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<
     | TaskOutcome
     | TaskOutcomeV2
@@ -112,7 +113,7 @@ export default function TaskActions({
 
   const handleGoBackConfirm = useCallback(async () => {
     if (!outcome) return;
-    setOpenGoBackModal(false);
+    setIsGoBackSubmitting(true);
     try {
       const formData = new FormData();
       formData.append("taskId", taskId);
@@ -120,6 +121,7 @@ export default function TaskActions({
       if (taskType) formData.append("taskType", taskType);
       const response = await taskNextAction({}, formData);
       if (response?.success) {
+        setOpenGoBackModal(false);
         if (taskType && SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
           router.push(`/${lang}/shipping`);
         } else if (taskType && DELIVERY_COORDINATOR_PROCESS_TASKS.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
@@ -129,9 +131,13 @@ export default function TaskActions({
         } else {
           router.push(`/${lang}/shipping`);
         }
+      } else {
+        console.error("[GoBack] action failed", response);
       }
     } catch (err) {
-      console.error(err);
+      console.error("[GoBack] unexpected error", err);
+    } finally {
+      setIsGoBackSubmitting(false);
     }
   }, [outcome, taskId, taskType, lang, router]);
 
@@ -304,8 +310,10 @@ export default function TaskActions({
           show={openGoBackModal}
           onClose={() => setOpenGoBackModal(false)}
           onConfirm={handleGoBackConfirm}
+          isSubmitting={isGoBackSubmitting}
           outcomeLabel={outcomeLabel ?? ""}
           rejectedItems={reviewState.rejectedItems}
+          lang={lang}
           dict={dict}
         />
       </GroupAllowed>

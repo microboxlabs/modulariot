@@ -3,23 +3,24 @@
 import { Button, Modal, ModalBody, ModalHeader } from "flowbite-react";
 import { HiExclamationCircle, HiDocumentText } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { RejectedItem, ObservationEntry } from "../task-bento-form/bento-review-context";
-function fmt(date: Date): string {
-  return new Date(date).toLocaleString(undefined, {
+
+function fmt(date: Date, locale: string): string {
+  return new Date(date).toLocaleString(locale, {
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }
 
-function ObservationCard({ obs }: Readonly<{ obs: ObservationEntry }>) {
+function ObservationCard({ obs, locale }: Readonly<{ obs: ObservationEntry; locale: string }>) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5 flex-wrap">
         {obs.createdBy && (
           <span className="text-xs text-gray-400 dark:text-gray-500">{obs.createdBy}</span>
         )}
-        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{fmt(obs.createdAt)}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{fmt(obs.createdAt, locale)}</span>
       </div>
       <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{obs.description}</p>
       {obs.replies && obs.replies.length > 0 && (
@@ -31,7 +32,7 @@ function ObservationCard({ obs }: Readonly<{ obs: ObservationEntry }>) {
                 {reply.createdBy && (
                   <span className="text-xs text-gray-400 dark:text-gray-500">{reply.createdBy}</span>
                 )}
-                <span className="text-xs text-gray-400 dark:text-gray-500">{fmt(reply.createdAt)}</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">{fmt(reply.createdAt, locale)}</span>
               </div>
             </div>
           ))}
@@ -44,9 +45,11 @@ function ObservationCard({ obs }: Readonly<{ obs: ObservationEntry }>) {
 interface GoBackModalProps {
   show: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
+  isSubmitting?: boolean;
   outcomeLabel: string;
   rejectedItems: RejectedItem[];
+  lang: string;
   dict: I18nRecord;
 }
 
@@ -54,11 +57,16 @@ export default function GoBackModal({
   show,
   onClose,
   onConfirm,
+  isSubmitting = false,
   outcomeLabel,
   rejectedItems,
+  lang,
   dict,
 }: Readonly<GoBackModalProps>) {
   const hasItems = rejectedItems.length > 0;
+  const countKey = rejectedItems.length === 1
+    ? "outcome.goBackModalRejectedCount_one"
+    : "outcome.goBackModalRejectedCount";
 
   return (
     <Modal
@@ -91,7 +99,7 @@ export default function GoBackModal({
           {hasItems ? (
             <>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {tr("outcome.goBackModalRejectedCount", dict, { count: String(rejectedItems.length) })}
+                {trDynamic(countKey, dict, { count: String(rejectedItems.length) })}
               </p>
               <ul className="flex flex-col gap-4">
                 {rejectedItems.map((item, i) => (
@@ -108,7 +116,7 @@ export default function GoBackModal({
                     {item.observations.length > 0 ? (
                       <div className="flex flex-col gap-2 p-3">
                         {item.observations.map((obs) => (
-                          <ObservationCard key={obs.id} obs={obs} />
+                          <ObservationCard key={obs.id} obs={obs} locale={lang} />
                         ))}
                       </div>
                     ) : (
@@ -130,7 +138,7 @@ export default function GoBackModal({
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button color="blue" onClick={onConfirm}>
+            <Button color="blue" onClick={onConfirm} disabled={isSubmitting}>
               {tr("outcome.goBackModalConfirm", dict)}
             </Button>
           </div>

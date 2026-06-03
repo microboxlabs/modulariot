@@ -1,8 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Tooltip } from "flowbite-react";
 import { HiChevronDown } from "react-icons/hi2";
 import type { ReactNode } from "react";
+
+function MaybeTooltip({ content, children }: { content: ReactNode; children: ReactNode }) {
+  if (!content) return <>{children}</>;
+  return (
+    <Tooltip content={content} placement="bottom">
+      <div>{children}</div>
+    </Tooltip>
+  );
+}
 
 export type SplitButtonAction = {
   id: string;
@@ -19,6 +29,8 @@ export type SplitButtonProps = Readonly<{
   overlay?: boolean;
   disabled?: boolean;
   primaryDisabled?: boolean;
+  tooltip?: ReactNode;
+  primaryTooltip?: ReactNode;
 }>;
 
 export default function SplitButton({
@@ -29,6 +41,8 @@ export default function SplitButton({
   overlay = false,
   disabled = false,
   primaryDisabled = false,
+  tooltip,
+  primaryTooltip,
 }: SplitButtonProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -80,35 +94,39 @@ export default function SplitButton({
       <div className={`flex items-stretch ${size === "sm" ? "ml-1 h-7 sm:h-9" : "h-10"}`}>
         {/* Secondary: single action button OR chevron dropdown */}
         {secondaryActions.length === 1 && !secondaryLabel && (
-          <button
-            type="button"
-            onClick={secondaryActions[0].onClick}
-            disabled={disabled}
-            className={`${secondaryBase} rounded-lg rounded-r-none`}
-          >
-            {secondaryActions[0].icon}
-            {secondaryActions[0].label}
-          </button>
-        )}
-        {(secondaryActions.length > 1 || secondaryLabel) && (
-          <div ref={dropdownRef} className={`relative ${overlay ? "z-40" : ""}`}>
+          <MaybeTooltip content={disabled ? tooltip : undefined}>
             <button
               type="button"
-              onClick={() => setDropdownOpen((p) => !p)}
+              onClick={secondaryActions[0].onClick}
               disabled={disabled}
               className={`${secondaryBase} rounded-lg rounded-r-none`}
             >
-              {secondaryLabel && (
-                <span className="hidden lg:block whitespace-nowrap">
-                  {secondaryLabel}
-                </span>
-              )}
-              <HiChevronDown
-                className={`w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
-                  dropdownOpen ? "rotate-180" : ""
-                }`}
-              />
+              {secondaryActions[0].icon}
+              {secondaryActions[0].label}
             </button>
+          </MaybeTooltip>
+        )}
+        {(secondaryActions.length > 1 || secondaryLabel) && (
+          <div ref={dropdownRef} className={`relative ${overlay ? "z-40" : ""}`}>
+            <MaybeTooltip content={disabled ? tooltip : undefined}>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen((p) => !p)}
+                disabled={disabled}
+                className={`${secondaryBase} rounded-lg rounded-r-none`}
+              >
+                {secondaryLabel && (
+                  <span className="hidden lg:block whitespace-nowrap">
+                    {secondaryLabel}
+                  </span>
+                )}
+                <HiChevronDown
+                  className={`w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
+                    dropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            </MaybeTooltip>
             {dropdownOpen && (
               <div className={`absolute top-full mt-1 left-0 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden ${overlay ? "z-40" : "z-50"}`}>
                 {secondaryActions.map((action) => (
@@ -131,19 +149,21 @@ export default function SplitButton({
         )}
 
         {/* Primary action button */}
-        <button
-          type="button"
-          onClick={primary.onClick}
-          disabled={disabled || primaryDisabled}
-          className={`flex items-center gap-1.5 font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${sizeClasses} ${
-            secondaryActions.length > 0 || secondaryLabel
-              ? "rounded-lg rounded-l-none"
-              : "rounded-lg"
-          }`}
-        >
-          {primary.icon}
-          {primary.label}
-        </button>
+        <MaybeTooltip content={(disabled || primaryDisabled) ? primaryTooltip : undefined}>
+          <button
+            type="button"
+            onClick={primary.onClick}
+            disabled={disabled || primaryDisabled}
+            className={`flex items-center gap-1.5 font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${sizeClasses} ${
+              secondaryActions.length > 0 || secondaryLabel
+                ? "rounded-lg rounded-l-none"
+                : "rounded-lg"
+            }`}
+          >
+            {primary.icon}
+            {primary.label}
+          </button>
+        </MaybeTooltip>
       </div>
     </>
   );

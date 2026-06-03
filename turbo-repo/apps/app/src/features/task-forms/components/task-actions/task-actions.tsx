@@ -1,7 +1,7 @@
 "use client";
 
 import { HiCheck } from "react-icons/hi";
-import { Tooltip } from "flowbite-react";
+
 import SplitButton from "@/features/common/components/split-button/split-button";
 import GoBackModal from "./go-back-modal";
 import { TaskActionsProps } from "./task-actions.types";
@@ -223,20 +223,26 @@ export default function TaskActions({
   const reviewBlocksAll = reviewState.pending > 0;
   const reviewBlocksContinue = reviewState.pending === 0 && reviewState.rejected > 0;
 
-  const tooltipReasons: string[] = [];
-  if (showDocumentWarning) tooltipReasons.push(tr("outcome.disabledMissingDocs", dict));
-  if (reviewBlocksAll) tooltipReasons.push(tr("outcome.disabledPendingReview", dict));
-  if (!reviewBlocksAll && reviewBlocksContinue) tooltipReasons.push(tr("outcome.disabledRejectedDocs", dict));
-  const tooltipContent = tooltipReasons.length > 0 ? (
+  const makeTooltip = (reasons: string[]) => reasons.length === 0 ? undefined : (
     <ul className="flex flex-col gap-1 text-xs">
-      {tooltipReasons.map((r) => (
-        <li key={r} className="flex items-center gap-1.5">
-          <ValidationIcon status="error" isLoading={false} size="sm" />
+      {reasons.map((r) => (
+        <li key={r} className="flex items-center gap-1.5 whitespace-nowrap">
+          <span className="shrink-0"><ValidationIcon status="error" isLoading={false} size="sm" /></span>
           {r}
         </li>
       ))}
     </ul>
-  ) : null;
+  );
+
+  const sharedReasons: string[] = [];
+  if (showDocumentWarning) sharedReasons.push(tr("outcome.disabledMissingDocs", dict));
+  if (reviewBlocksAll) sharedReasons.push(tr("outcome.disabledPendingReview", dict));
+
+  const moreOptionsTooltip = makeTooltip(sharedReasons);
+  const continueTooltip = makeTooltip([
+    ...sharedReasons,
+    ...(!reviewBlocksAll && reviewBlocksContinue ? [tr("outcome.disabledRejectedDocs", dict)] : []),
+  ]);
 
   const splitBtn = (
     <SplitButton
@@ -245,6 +251,8 @@ export default function TaskActions({
       secondaryLabel={tr("outcome.moreOptions", dict)}
       disabled={showDocumentWarning || reviewBlocksAll}
       primaryDisabled={reviewBlocksContinue}
+      tooltip={moreOptionsTooltip}
+      primaryTooltip={continueTooltip}
       primary={{
         id: "continue",
         label: (dict.outcome as I18nRecord).continue as string,
@@ -278,11 +286,7 @@ export default function TaskActions({
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        {tooltipContent ? (
-          <Tooltip content={tooltipContent} placement="bottom">
-            <div>{splitBtn}</div>
-          </Tooltip>
-        ) : splitBtn}
+        {splitBtn}
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

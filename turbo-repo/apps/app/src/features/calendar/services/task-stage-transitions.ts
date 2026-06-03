@@ -1,4 +1,4 @@
-import type { TaskStage } from "../components/planning/planning-selection-context";
+import type { TaskStage } from "../components/planning/planning-selection-types";
 
 /**
  * Default Alfresco workflow transitions to fire when the user completes the

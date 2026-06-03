@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import {
   endTask,
   updateTask,
+  getChildrenNodes,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
   AlfrescoErrorResponse,
@@ -15,6 +16,80 @@ import {
   getErrorStatus,
   isFetcherError,
 } from "@/app/api/utils/api-error-handler";
+import type { Session } from "next-auth";
+
+// All transition IDs that advance the workflow forward.
+// Backward/previous transitions (secondary options) are not in this set,
+// so they remain allowed even when documents are rejected.
+const FORWARD_TRANSITION_IDS = new Set([
+  "Presentar Conductor",
+  "Preparar Servicio",
+  "Torre de Control: Iniciar Viaje",
+  "Torre de Control: Iniciar Viaje sin firma",
+  "Monitorear viaje en curso",
+  "Confirmar Arribo",
+  "Confirmar Cierre Monitoreo / Entrega",
+  "Viaje Finalizado",
+  "Recibir Entrega",
+  "Notificar Entrega (5.11)",
+  "Separar Documentos",
+  "Planificar Servicio",
+  "Asignar Conductor/Transporte",
+]);
+
+type ReviewViolation = { code: string; message: string };
+
+async function checkDocumentReview(
+  session: Session,
+  bpmPackage: string,
+  transitionId: string | undefined
+): Promise<ReviewViolation | null> {
+  const packageNodeId = bpmPackage.split("/").pop();
+  if (!packageNodeId) return null;
+
+  try {
+    const children = await getChildrenNodes(session, packageNodeId, {
+      include: ["properties", "aspectNames"],
+      maxItems: 200,
+    });
+
+    const entries = children?.list?.entries ?? [];
+    const reviewable = entries.filter((e) =>
+      e.entry.aspectNames?.includes("mintral:reviewableAspect")
+    );
+
+    if (reviewable.length === 0) return null;
+
+    const hasPending = reviewable.some((e) => {
+      const s = e.entry.properties?.["mintral:reviewStatus"];
+      return !s || s === "PENDING";
+    });
+
+    if (hasPending) {
+      return {
+        code: "UNREVIEWED_DOCUMENTS",
+        message: "Cannot advance: some documents are still pending review.",
+      };
+    }
+
+    const hasRejected = reviewable.some(
+      (e) => e.entry.properties?.["mintral:reviewStatus"] === "REJECTED"
+    );
+
+    if (hasRejected && transitionId && FORWARD_TRANSITION_IDS.has(transitionId)) {
+      return {
+        code: "REJECTED_DOCUMENTS",
+        message: "Cannot advance: some documents have been rejected.",
+      };
+    }
+  } catch (err) {
+    // Fail open: if Alfresco is unreachable, log and allow the transition
+    // rather than blocking users on a transient infra issue.
+    logError(err as Error, { context: "checkDocumentReview" });
+  }
+
+  return null;
+}
 
 /**
  * Fields to skip during dynamic property mapping
@@ -202,6 +277,30 @@ export async function POST(request: NextRequest) {
     }
 
     const json = (await request.json()) as EndTaskRequest;
+
+    // Planner task-driven ASSIGN move: when `processVariables` is present,
+    // the caller is the calendar planner threading the assign tuple onto
+    // the `assignDriver → presentDriver` transition. There are no form
+    // fields to write — the resource tuple is the entire payload — so
+    // skip the kanban `updateTask` step and POST endTask with the variables
+    // body (ecm-coordinator#262). The kanban form-driven path is unchanged.
+    if (json.processVariables) {
+      const response = await endTask(
+        session,
+        json.taskId,
+        json.transitionId,
+        json.processVariables
+      );
+      return NextResponse.json({ success: true, status: 200, ...response });
+    }
+
+    if (json.bpm_package) {
+      const violation = await checkDocumentReview(session, json.bpm_package, json.transitionId);
+      if (violation) {
+        return NextResponse.json({ success: false, error: violation }, { status: 422 });
+      }
+    }
+
     const updateTaskPayload = buildUpdateTaskPayload(json, session.user.email);
 
     logger.info(`updateTaskPayload=${JSON.stringify(updateTaskPayload)}`);

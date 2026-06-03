@@ -1,0 +1,409 @@
+name: App Release Train
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "App semver without v prefix. Leave blank to bump the latest app@v* patch."
+        required: false
+        type: string
+      release_notes_version:
+        description: "Private release-notes semver without v prefix. Leave blank to bump the latest release note patch."
+        required: false
+        type: string
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+  id-token: write
+
+env:
+  NODE_VERSION: "22"
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_OWNER: microboxlabs
+  IMAGE_NAME: miot-app
+  RELEASE_NOTES_MODEL: gpt-5-mini
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+      tag: ${{ steps.version.outputs.tag }}
+      release_notes_version: ${{ steps.version.outputs.release_notes_version }}
+      private_milestone: ${{ steps.version.outputs.private_milestone }}
+      oss_milestone: ${{ steps.version.outputs.oss_milestone }}
+      branch: ${{ steps.branch.outputs.branch }}
+      pr_number: ${{ steps.pr.outputs.number }}
+      pr_url: ${{ steps.pr.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Determine release metadata
+        id: version
+        run: |
+          if [[ -n "${{ inputs.app_version }}" ]]; then
+            version="${{ inputs.app_version }}"
+          else
+            latest="$(git tag --list 'app@v*' | sed 's/^app@v//' | sort -V | tail -1)"
+            if [[ -z "$latest" ]]; then
+              version="0.1.0"
+            else
+              IFS=. read -r major minor patch <<< "$latest"
+              version="${major}.${minor}.$((patch + 1))"
+            fi
+          fi
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid app version: $version" >&2
+            exit 1
+          fi
+
+          if [[ -n "${{ inputs.release_notes_version }}" ]]; then
+            release_notes_version="${{ inputs.release_notes_version }}"
+          else
+            latest_release_notes="$(find turbo-repo/apps/app/src/releases \
+              -maxdepth 1 \
+              -type f \
+              -name 'v[0-9]*.[0-9]*.[0-9]*.mdx' \
+              -exec basename {} .mdx \; |
+              sed 's/^v//' |
+              sort -V |
+              tail -1)"
+
+            if [[ -z "$latest_release_notes" ]]; then
+              release_notes_version="1.0.0"
+            else
+              IFS=. read -r notes_major notes_minor notes_patch <<< "$latest_release_notes"
+              release_notes_version="${notes_major}.${notes_minor}.$((notes_patch + 1))"
+            fi
+          fi
+
+          if ! [[ "$release_notes_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release notes version: $release_notes_version" >&2
+            exit 1
+          fi
+
+          echo "app_version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=app@v$version" >> "$GITHUB_OUTPUT"
+          echo "release_notes_version=$release_notes_version" >> "$GITHUB_OUTPUT"
+          echo "private_milestone=Release-$release_notes_version" >> "$GITHUB_OUTPUT"
+          echo "oss_milestone=MIOT-$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create release branch
+        id: branch
+        run: |
+          branch="release/app-v${{ steps.version.outputs.app_version }}"
+          git switch -c "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Bump app package version
+        run: bash turbo-repo/generative_ai/tools/sh/bump-app-version.sh "${{ steps.version.outputs.app_version }}"
+
+      - name: Collect release issues
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          GH_PROJECT_OWNER: microboxlabs
+        run: |
+          ./turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \
+            --release "${{ steps.version.outputs.private_milestone }}" \
+            --oss "${{ steps.version.outputs.oss_milestone }}" \
+            --state all > release-issues.json
+
+      - name: Resolve release date
+        id: release_date
+        run: echo "date=$(date +'%d/%m/%Y')" >> "$GITHUB_OUTPUT"
+
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Build release notes prompt
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const prompt = fs.readFileSync(".github/prompts/app-release-notes.prompt.yml", "utf8");
+          const issues = fs.readFileSync("release-issues.json", "utf8");
+          const indentedIssues = issues.split("\n").join("\n      ");
+          const body = prompt
+            .replaceAll("{{release_version}}", "${{ steps.version.outputs.release_notes_version }}")
+            .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
+            .replaceAll("{{private_milestone}}", "${{ steps.version.outputs.private_milestone }}")
+            .replaceAll("{{oss_milestone}}", "${{ steps.version.outputs.oss_milestone }}")
+            .replaceAll("{{release_issues}}", indentedIssues);
+          fs.writeFileSync("release-notes.prompt.yml", body);
+          NODE
+
+      - name: Generate release notes with AI inference
+        id: release_notes_ai
+        uses: actions/ai-inference@v2
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
+        with:
+          prompt-file: ./release-notes.prompt.yml
+          provider: copilot
+          model: ${{ env.RELEASE_NOTES_MODEL }}
+          temperature: 0.2
+          max-completion-tokens: 12000
+
+      - name: Write release notes
+        run: |
+          release_file="turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx"
+          node - "${{ steps.release_notes_ai.outputs['response-file'] }}" "$release_file" <<'NODE'
+          const fs = require("fs");
+          const [source, target] = process.argv.slice(2);
+          let content = fs.readFileSync(source, "utf8").trim();
+          content = content.replace(/^```(?:mdx|markdown|md)?\s*/i, "").replace(/\s*```$/i, "").trim();
+          if (!content.startsWith("# 🔔 Release Notes")) {
+            throw new Error("AI response did not start with the expected release-notes heading.");
+          }
+          fs.writeFileSync(target, `${content}\n`);
+          NODE
+
+      - name: Commit release prep
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add turbo-repo/apps/app/package.json turbo-repo/package-lock.json turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx
+          git commit -m "chore(app): prepare v${{ steps.version.outputs.app_version }} release"
+          git push origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open release PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+        run: |
+          url="$(gh pr create \
+            --base trunk \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --title "chore(app): prepare v${{ steps.version.outputs.app_version }} release" \
+            --body "Prepares app release ${{ steps.version.outputs.tag }} with release notes v${{ steps.version.outputs.release_notes_version }}.\n\nMilestones: ${{ steps.version.outputs.private_milestone }}, ${{ steps.version.outputs.oss_milestone }}.\n\nApprove and merge this PR, then approve the protected release job to tag, build, and deploy.")"
+          number="${url##*/}"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+  approve:
+    name: Approval gate
+    runs-on: ubuntu-latest
+    needs: prepare
+    environment:
+      name: app-release-approval
+      url: ${{ needs.prepare.outputs.pr_url }}
+    steps:
+      - name: Approval acknowledged
+        run: echo "Release approval granted for ${{ needs.prepare.outputs.tag }}"
+
+  tag:
+    name: Tag trunk
+    runs-on: ubuntu-latest
+    needs: [prepare, approve]
+    outputs:
+      sha: ${{ steps.release_pr.outputs.sha }}
+    steps:
+      - name: Wait for release PR merge
+        id: release_pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
+        run: |
+          for attempt in {1..60}; do
+            pr="$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json mergedAt,mergeCommit,state)"
+            merged_at="$(echo "$pr" | jq -r '.mergedAt')"
+            merge_sha="$(echo "$pr" | jq -r '.mergeCommit.oid // ""')"
+            state="$(echo "$pr" | jq -r '.state')"
+
+            if [[ "$state" == "CLOSED" && ( "$merged_at" == "null" || -z "$merge_sha" ) ]]; then
+              echo "::error::Release PR #$PR_NUMBER was closed without being merged. Re-run the release train to create a new release PR."
+              exit 1
+            fi
+
+            if [[ "$merged_at" != "null" && -n "$merge_sha" ]]; then
+              echo "Release PR #$PR_NUMBER merged at $merged_at ($merge_sha)."
+              echo "sha=$merge_sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Release PR #$PR_NUMBER is not merged yet. Waiting before tagging... ($attempt/60)"
+            sleep 60
+          done
+
+          echo "::error::Release PR #$PR_NUMBER was approved but is still not merged. Merge it before the release train can tag trunk."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release_pr.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Verify release prep landed on trunk
+        run: |
+          package_version="$(node -p "require('./turbo-repo/apps/app/package.json').version")"
+          lock_version="$(node -p "require('./turbo-repo/package-lock.json').packages['apps/app'].version")"
+          release_file="turbo-repo/apps/app/src/releases/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
+
+          if [[ "$package_version" != "${{ needs.prepare.outputs.app_version }}" ]]; then
+            echo "trunk package.json is $package_version, expected ${{ needs.prepare.outputs.app_version }}." >&2
+            echo "Merge the release PR before approving/tagging." >&2
+            exit 1
+          fi
+
+          if [[ "$lock_version" != "${{ needs.prepare.outputs.app_version }}" ]]; then
+            echo "trunk package-lock.json is $lock_version, expected ${{ needs.prepare.outputs.app_version }}." >&2
+            echo "Merge the release PR before approving/tagging." >&2
+            exit 1
+          fi
+
+          if [[ ! -f "$release_file" ]]; then
+            echo "Missing release notes file on trunk: $release_file" >&2
+            echo "Merge the release PR before approving/tagging." >&2
+            exit 1
+          fi
+
+      - name: Create and push annotated app tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ needs.prepare.outputs.tag }}" -m "${{ needs.prepare.outputs.tag }}"
+          git push origin "${{ needs.prepare.outputs.tag }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ needs.prepare.outputs.tag }}" \
+            --title "${{ needs.prepare.outputs.tag }}" \
+            --generate-notes \
+            --latest
+
+  build:
+    name: Build and publish app image
+    runs-on: ubuntu-latest
+    needs: [prepare, tag]
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build app
+        run: npx turbo run build --filter=@modulariot/app
+        working-directory: turbo-repo
+
+      - name: Stage app artifact
+        run: |
+          mkdir -p build-context/.next
+          cp -r turbo-repo/apps/app/.next/standalone build-context/.next/standalone
+          cp -r turbo-repo/apps/app/.next/static build-context/.next/static
+          cp -r turbo-repo/apps/app/public build-context/public
+          cp turbo-repo/docker/nextjs.standalone.Dockerfile build-context/
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: docker
+        uses: docker/build-push-action@v6
+        with:
+          context: build-context/
+          file: build-context/nextjs.standalone.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.app_version }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:app-v${{ needs.prepare.outputs.app_version }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ needs.tag.outputs.sha }}
+          build-args: |
+            APP_NAME=app
+          provenance: true
+          sbom: true
+
+      - name: Export image ref
+        id: image
+        run: |
+          echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Dispatch configured environment deploys
+    runs-on: ubuntu-latest
+    needs: [prepare, tag, build]
+    environment:
+      name: app-deploy
+    steps:
+      - name: Dispatch private deployment workflow
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
+          APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+          APP_TAG: ${{ needs.prepare.outputs.tag }}
+          IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ needs.prepare.outputs.app_version }}
+          IMAGE_REF: ${{ needs.build.outputs.image }}
+        run: |
+          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
+
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
+            exit 1
+          fi
+
+          jq -n \
+            --arg app_version "$APP_VERSION" \
+            --arg app_tag "$APP_TAG" \
+            --arg image_repository "$IMAGE_REPOSITORY" \
+            --arg image_tag "$IMAGE_TAG" \
+            --arg image_ref "$IMAGE_REF" \
+            '{
+              event_type: "miot-app-release",
+              client_payload: {
+                app_version: $app_version,
+                app_tag: $app_tag,
+                image_repository: $image_repository,
+                image_tag: $image_tag,
+                image_ref: $image_ref
+              }
+            }' |
+            gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
+              --method POST \
+              --input -
+
+          echo "Dispatched ${APP_TAG} deployment to ${DEPLOY_DISPATCH_REPO}."
+
+  close-milestones:
+    name: Close release milestones
+    runs-on: ubuntu-latest
+    needs: [prepare, tag, deploy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.sha }}
+
+      - name: Close private and OSS milestones
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          GH_PROJECT_OWNER: microboxlabs
+        run: |
+          ./turbo-repo/generative_ai/tools/sh/close-release-milestones.sh \
+            --release "${{ needs.prepare.outputs.private_milestone }}" \
+            --oss "${{ needs.prepare.outputs.oss_milestone }}"

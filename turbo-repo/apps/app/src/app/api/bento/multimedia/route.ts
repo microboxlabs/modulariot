@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     const taskResponses = await getChildrenNodes(session, nodeId, {
       where: "(isFile=true and assocType='cm:contains')",
-      include: ["properties"],
+      include: ["properties", "aspectNames"],
     });
 
     return NextResponse.json({

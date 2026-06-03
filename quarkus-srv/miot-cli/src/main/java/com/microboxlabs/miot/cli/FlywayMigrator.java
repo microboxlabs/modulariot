@@ -74,9 +74,17 @@ public class FlywayMigrator {
 
         LOG.infof("Flyway locations: %s", locations);
 
+        // Pin Flyway's metadata table to a schema we own. Without these,
+        // Flyway's default schema is the JDBC connection's default — `public`
+        // on PostgreSQL — so `flyway_schema_history` ends up next to anything
+        // else that stray writes drop into `public`, and a single non-Flyway
+        // table there will fail startup with "Found non-empty schema(s)
+        // 'public' but no schema history table".
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSourceInstance.get())
                 .locations(locations.toArray(String[]::new))
+                .schemas("miot_core")
+                .defaultSchema("miot_core")
                 .outOfOrder(true)
                 .ignoreMigrationPatterns("*:missing")
                 .load();

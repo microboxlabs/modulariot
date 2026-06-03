@@ -1,10 +1,13 @@
 "use client";
 
 import React from "react";
-import { Breadcrumb as FlowbiteBreadcrumb, BreadcrumbItem } from "flowbite-react";
+import {
+  Breadcrumb as FlowbiteBreadcrumb,
+  BreadcrumbItem,
+} from "flowbite-react";
 import { HiHome } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import { useParams } from "next/navigation";
 
 export interface BreadcrumbPathItem {
@@ -26,14 +29,14 @@ export const ClientBreadcrumb: React.FC<Readonly<ClientBreadcrumbProps>> = ({
   dict,
 }) => {
   const { lang } = useParams<{ lang: string }>();
-  
-  const normalizedPath = path.map((item) => 
+
+  const normalizedPath = path.map((item) =>
     typeof item === "string" ? { label: item, href: undefined } : item
   );
-  
+
   const translatedPath = normalizedPath.map((item) => ({
     ...item,
-    label: tr(item.label, dict),
+    label: trDynamic(item.label, dict),
     href: item.href ? `/app/${lang}${item.href}` : undefined,
   }));
 
@@ -42,18 +45,15 @@ export const ClientBreadcrumb: React.FC<Readonly<ClientBreadcrumbProps>> = ({
       <FlowbiteBreadcrumb aria-label="Breadcrumb">
         {translatedPath.map((item, index) =>
           index === 0 ? (
-            <BreadcrumbItem 
-              icon={() => rootIcon} 
+            <BreadcrumbItem
+              icon={() => rootIcon}
               key={item.label + index}
               href={item.href}
             >
               {item.label}
             </BreadcrumbItem>
           ) : (
-            <BreadcrumbItem 
-              key={item.label + index}
-              href={item.href}
-            >
+            <BreadcrumbItem key={item.label + index} href={item.href}>
               {item.label}
             </BreadcrumbItem>
           )

@@ -1,11 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Label, TextInput, Textarea, Select, Tooltip, ToggleSwitch, Button } from "flowbite-react";
+import {
+  Label,
+  TextInput,
+  Textarea,
+  Select,
+  Tooltip,
+  ToggleSwitch,
+  Button,
+} from "flowbite-react";
 import { HiQuestionMarkCircle, HiChevronDown } from "react-icons/hi2";
 import Markdown from "react-markdown";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { useHbAutocomplete } from "./use-hb-autocomplete";
 import { DropdownList } from "./dropdown-list";
@@ -39,7 +47,10 @@ export function SettingsTextField({
 }: Readonly<SettingsTextFieldProps>) {
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+      <Label
+        htmlFor={id}
+        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+      >
         {label}
       </Label>
       <TextInput
@@ -95,7 +106,10 @@ export function SettingsNumberField({
 
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+      <Label
+        htmlFor={id}
+        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+      >
         {label}
       </Label>
       <TextInput
@@ -144,7 +158,10 @@ export function SettingsTextareaField({
 }: Readonly<SettingsTextareaFieldProps>) {
   return (
     <div>
-      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+      <Label
+        htmlFor={id}
+        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+      >
         {label}
       </Label>
       <Textarea
@@ -193,7 +210,10 @@ export function SettingsSelectField({
 }: Readonly<SettingsSelectFieldProps>) {
   return (
     <div className="w-full">
-      <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+      <Label
+        htmlFor={id}
+        className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+      >
         {label}
       </Label>
       <Select
@@ -273,7 +293,9 @@ export function SettingsPickerItem({
 }: Readonly<SettingsPickerItemProps>) {
   return (
     <div className="flex items-center gap-1.5">
-      <Label className="text-xs font-normal text-gray-500 dark:text-gray-400">{label}</Label>
+      <Label className="text-xs font-normal text-gray-500 dark:text-gray-400">
+        {label}
+      </Label>
       {children}
     </div>
   );
@@ -421,13 +443,24 @@ function HbAutoInput({
 
 // Stable markdown component overrides for the tooltip — defined outside
 // HbTextField so React never treats them as new references on each render.
-const MD_P = ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => <p className="mb-2 last:mb-0">{children}</p>;
-const MD_STRONG = ({ children }: React.HTMLAttributes<HTMLElement>) => <strong className="font-semibold">{children}</strong>;
-const MD_EM = ({ children }: React.HTMLAttributes<HTMLElement>) => <em className="italic opacity-80">{children}</em>;
+const MD_P = ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => (
+  <p className="mb-2 last:mb-0">{children}</p>
+);
+const MD_STRONG = ({ children }: React.HTMLAttributes<HTMLElement>) => (
+  <strong className="font-semibold">{children}</strong>
+);
+const MD_EM = ({ children }: React.HTMLAttributes<HTMLElement>) => (
+  <em className="italic opacity-80">{children}</em>
+);
 const MD_CODE = ({ children }: React.HTMLAttributes<HTMLElement>) => (
   <code className="rounded bg-white/20 px-1 py-0.5 font-mono">{children}</code>
 );
-const MARKDOWN_COMPONENTS = { p: MD_P, strong: MD_STRONG, em: MD_EM, code: MD_CODE };
+const MARKDOWN_COMPONENTS = {
+  p: MD_P,
+  strong: MD_STRONG,
+  em: MD_EM,
+  code: MD_CODE,
+};
 
 // ============================================================================
 // HbTextField — Handlebars-aware TextInput with label
@@ -462,16 +495,17 @@ export function HbTextField({
   return (
     <div>
       <div className="mb-1 flex items-center gap-1">
-        <Label htmlFor={id} className="text-xs font-normal text-gray-500 dark:text-gray-400">
+        <Label
+          htmlFor={id}
+          className="text-xs font-normal text-gray-500 dark:text-gray-400"
+        >
           {label}
         </Label>
         {tooltip && (
           <Tooltip
             content={
               <div className="max-w-64 text-left text-xs">
-                <Markdown components={MARKDOWN_COMPONENTS}>
-                  {tooltip}
-                </Markdown>
+                <Markdown components={MARKDOWN_COMPONENTS}>{tooltip}</Markdown>
               </div>
             }
             placement="top"
@@ -527,7 +561,7 @@ export function HbTextFieldList({
         <HbTextField
           key={f.id}
           id={f.id}
-          label={tr(f.labelKey, dictionary)}
+          label={trDynamic(f.labelKey, dictionary)}
           value={fieldValues[f.state]}
           onChange={fieldSetters[f.state]}
           placeholder={isPgrest ? f.hbPlaceholder : f.staticPlaceholder}
@@ -595,7 +629,10 @@ export function HbTextareaField({
   return (
     <div>
       {label && (
-        <Label htmlFor={id} className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+        <Label
+          htmlFor={id}
+          className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400"
+        >
           {label}
         </Label>
       )}
@@ -642,13 +679,11 @@ export function ExpandableSection({
         className={`w-full border-0 ring-0 focus:ring-0 flex justify-between ${open ? "rounded-t-lg rounded-b-none" : "rounded-lg"}`}
       >
         {title}
-        <HiChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <HiChevronDown
+          className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </Button>
-      {open && (
-        <div className="space-y-2 px-3 pb-3 pt-1">
-          {children}
-        </div>
-      )}
+      {open && <div className="space-y-2 px-3 pb-3 pt-1">{children}</div>}
     </div>
   );
 }
@@ -675,7 +710,9 @@ export function SettingsToggleRow({
   return (
     <div className="flex items-center gap-2">
       <ToggleSwitch checked={checked} onChange={onChange} sizing="sm" />
-      <Label className="text-xs font-normal text-gray-500 dark:text-gray-400">{label}</Label>
+      <Label className="text-xs font-normal text-gray-500 dark:text-gray-400">
+        {label}
+      </Label>
     </div>
   );
 }

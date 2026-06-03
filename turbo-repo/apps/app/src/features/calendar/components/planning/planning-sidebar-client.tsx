@@ -4,19 +4,20 @@ import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
-import { HiArrowLeft, HiX, HiSwitchHorizontal } from "react-icons/hi";
-import { twMerge } from "tailwind-merge";
+import { HiSwitchHorizontal } from "react-icons/hi";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  SidebarShell,
+  useCalendarHost,
+  type CalendarItem,
+} from "@microboxlabs/miot-calendar-ui";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
-  DEBUG_SHOW_TEST_SERVICE,
-  TEST_SERVICES,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
-import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
@@ -137,7 +138,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje,
-    mintral_serviceKind: task.serviceKind || undefined,
+    mintral_serviceType: task.serviceType || undefined,
     ocupacion: 100 * (task.mintral_loadMaxUtilization ?? 0),
     loadMaxUtilization:
       task.mintral_loadMaxUtilization == null
@@ -210,6 +211,9 @@ export function PlanningSidebarClient({
   const [searchTags, setSearchTags] = useState<
     Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
+  // Debounced text from the autocomplete. Flows into `apiParams` as `q=` so
+  // the backend prefix-search reaches services beyond the loaded page.
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Seed search tags from the active calendar's stored filter (origin /
   // destination delegate codes). Re-seed only when the filter signature
@@ -275,13 +279,17 @@ export function PlanningSidebarClient({
       params.push(`calendarId=${calendarId}`);
     }
 
+    if (searchQuery) {
+      params.push(`q=${encodeURIComponent(searchQuery)}`);
+    }
+
     // Server-side sort preset (ecm-coordinator #238): C309 urgency first,
     // then mintral_deliveryComplianceRate ASC. Resolves the pagination
     // correctness gap of the previous client-side sort.
     params.push("orderBy=mintral_calendarPlanningPriority");
 
     return params.join("&");
-  }, [searchTags, calendarId]);
+  }, [searchTags, calendarId, searchQuery]);
 
   // Fetch tasks from API
   const {
@@ -342,11 +350,8 @@ export function PlanningSidebarClient({
     return services;
   }, [myTasksData]);
 
-  // Use only real API data - no fallback to mock
-  // When DEBUG_SHOW_TEST_SERVICE is true, add test services for development
-  const allServices = DEBUG_SHOW_TEST_SERVICE
-    ? [...TEST_SERVICES, ...apiServices]
-    : apiServices;
+  // Use only real API data.
+  const allServices = apiServices;
 
   // Format the selected slot for display with start and end times.
   // Always use the actual selected slot's time (e.g., 10:00-10:30) rather than
@@ -636,26 +641,6 @@ export function PlanningSidebarClient({
     forceViewer;
   const showCloseButton = !displayState.isFormActive || isInSpecialMode;
 
-  const headerButton = showCloseButton ? (
-    <button
-      type="button"
-      onClick={handleCancel}
-      className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-      aria-label={tr("pages.planning.sidebar.form.cancel", dict)}
-    >
-      <HiX className="w-5 h-5" />
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={handleBack}
-      className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-      aria-label={tr("pages.planning.sidebar.form.back", dict)}
-    >
-      <HiArrowLeft className="w-5 h-5" />
-    </button>
-  );
-
   // Determine the header title based on current mode
   const getHeaderTitle = (): string => {
     if (!displayState.isFormActive) {
@@ -666,151 +651,104 @@ export function PlanningSidebarClient({
     }
     return tr("pages.planning.sidebar.title", dict);
   };
-  const headerTitle = getHeaderTitle();
 
-  return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
-      {/* Selected slot display */}
-      {displayState.formattedSlot && (
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-500 dark:text-gray-400">
-              {tr("pages.planning.sidebar.form.slot", dict)}:
-            </span>
-            <span className="font-medium text-gray-900 dark:text-white capitalize">
-              {displayState.formattedSlot.date}
-            </span>
-            <span className="font-mono font-medium text-gray-900 dark:text-white">
-              {displayState.formattedSlot.startTime}
-            </span>
-            <span className="text-gray-300 dark:text-gray-600">→</span>
-            <span className="font-mono font-medium text-gray-900 dark:text-white">
-              {displayState.formattedSlot.endTime}
-            </span>
-          </div>
-        </div>
-      )}
-      {/* Header */}
-      <div className="px-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 h-10">
-          {headerButton}
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {headerTitle}
-          </h2>
-          {displayState.selectedService?.id && (
-            <span className="text-sm font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
-              {displayState.selectedService.id}
-            </span>
-          )}
-        </div>
-      </div>
-      {/* Content */}
-      <div className="flex-1 p-3 overflow-y-auto">
-        {displayState.isFormActive ? (
-          <PlanningSidebarForm
-            dict={dict}
-            isActive={true}
-            selectedService={
-              displayState.selectedService
-                ? {
-                    ...displayState.selectedService,
-                    mintral_clientRut:
-                      displayState.selectedService.mintral_clientRut ??
-                      allServices.find(
-                        (s) => s.id === displayState.selectedService?.id
-                      )?.mintral_clientRut,
-                    mintral_delegacionOrigen:
-                      displayState.selectedService.mintral_delegacionOrigen ??
-                      allServices.find(
-                        (s) => s.id === displayState.selectedService?.id
-                      )?.mintral_delegacionOrigen,
-                    slot: displayState.formattedSlot?.full,
-                  }
-                : undefined
-            }
-            onSubmit={handleSubmit}
-            andenesCount={andenesCount}
-            slotStartTime={displayState.formattedSlot?.startTime}
-            slotEndTime={displayState.formattedSlot?.endTime}
-            backendSlots={backendSlots}
-            isSlotsLoading={isSlotsLoading}
-            liveTaskStage={
-              getLiveTask(displayState.selectedService?.mintral_serviceCode)
-                ?.stage
-            }
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {/* Reassignment mode banner */}
-            {displayState.reassigningService && (
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
-                <HiSwitchHorizontal className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                    {tr("pages.planning.sidebar.reassignment.title", dict)}
-                  </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 truncate">
-                    {displayState.reassigningService.service.service.id}
-                  </p>
-                </div>
-              </div>
-            )}
+  // Canonical items for the generic shell; the host's renderItemCard seam
+  // renders each as the freight ServiceEvent from `item.raw`.
+  const { toItem } = useCalendarHost();
+  const items = useMemo<CalendarItem[]>(
+    () => sortedServices.map((service) => toItem(service)),
+    [sortedServices, toItem]
+  );
 
-            {/* Search bar with autocomplete */}
-            <PlanningSearchAutocomplete
-              dict={dict}
-              services={allServices}
-              onSelect={handleSearchSelect}
-              onMatchTypeSelect={handleMatchTypeSelect}
-              onClear={handleSearchClear}
-              hasActiveFilter={searchTags.length > 0}
-              isLoading={isLoadingTasks}
-            />
-
-            {/* Tags manager */}
-            {searchTags.length > 0 && (
-              <PlanningSearchTags
-                dict={dict}
-                tags={searchTags}
-                onTagsChange={handleTagsChange}
-              />
-            )}
-
-            {/* Services list */}
-            <div className="flex flex-col gap-1.5">
-              {sortedServices.length > 0 ? (
-                sortedServices.map((service) => {
-                  const isReassigning =
-                    displayState.reassigningService?.service.service.id ===
-                    service.id;
-                  return (
-                    <div
-                      key={service.id}
-                      className={twMerge(
-                        "rounded-xl",
-                        isReassigning &&
-                          "ring-2 ring-amber-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-800"
-                      )}
-                    >
-                      <ServiceEvent service={service} dict={dict} />
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                  {tr("pages.planning.sidebar.search.noResults", dict)}
-                </p>
-              )}
-            </div>
-
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-              {displayState.reassigningService
-                ? tr("pages.planning.sidebar.reassignment.hint", dict)
-                : tr("pages.planning.sidebar.selectServiceHint", dict)}
-            </p>
-          </div>
-        )}
+  const banner = displayState.reassigningService ? (
+    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+      <HiSwitchHorizontal className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+          {tr("pages.planning.sidebar.reassignment.title", dict)}
+        </p>
+        <p className="text-xs text-amber-600 dark:text-amber-400 truncate">
+          {displayState.reassigningService.service.service.id}
+        </p>
       </div>
     </div>
+  ) : undefined;
+
+  return (
+    <SidebarShell
+      isFormActive={displayState.isFormActive}
+      headerTitle={getHeaderTitle()}
+      selectedItemId={displayState.selectedService?.id}
+      formattedSlot={displayState.formattedSlot}
+      slotLabel={tr("pages.planning.sidebar.form.slot", dict)}
+      showCloseButton={showCloseButton}
+      backLabel={tr("pages.planning.sidebar.form.back", dict)}
+      closeLabel={tr("pages.planning.sidebar.form.cancel", dict)}
+      onBack={handleBack}
+      onClose={handleCancel}
+      banner={banner}
+      search={
+        <PlanningSearchAutocomplete
+          dict={dict}
+          services={allServices}
+          onSelect={handleSearchSelect}
+          onMatchTypeSelect={handleMatchTypeSelect}
+          onClear={handleSearchClear}
+          onQueryChange={setSearchQuery}
+          hasActiveFilter={searchTags.length > 0}
+          isLoading={isLoadingTasks}
+        />
+      }
+      tags={
+        searchTags.length > 0 ? (
+          <PlanningSearchTags
+            dict={dict}
+            tags={searchTags}
+            onTagsChange={handleTagsChange}
+          />
+        ) : undefined
+      }
+      items={items}
+      highlightItemId={displayState.reassigningService?.service.service.id}
+      emptyText={tr("pages.planning.sidebar.search.noResults", dict)}
+      hintText={
+        displayState.reassigningService
+          ? tr("pages.planning.sidebar.reassignment.hint", dict)
+          : tr("pages.planning.sidebar.selectServiceHint", dict)
+      }
+      form={
+        <PlanningSidebarForm
+          dict={dict}
+          isActive={true}
+          selectedService={
+            displayState.selectedService
+              ? {
+                  ...displayState.selectedService,
+                  mintral_clientRut:
+                    displayState.selectedService.mintral_clientRut ??
+                    allServices.find(
+                      (s) => s.id === displayState.selectedService?.id
+                    )?.mintral_clientRut,
+                  mintral_delegacionOrigen:
+                    displayState.selectedService.mintral_delegacionOrigen ??
+                    allServices.find(
+                      (s) => s.id === displayState.selectedService?.id
+                    )?.mintral_delegacionOrigen,
+                  slot: displayState.formattedSlot?.full,
+                }
+              : undefined
+          }
+          onSubmit={handleSubmit}
+          andenesCount={andenesCount}
+          slotStartTime={displayState.formattedSlot?.startTime}
+          slotEndTime={displayState.formattedSlot?.endTime}
+          backendSlots={backendSlots}
+          isSlotsLoading={isSlotsLoading}
+          liveTaskStage={
+            getLiveTask(displayState.selectedService?.mintral_serviceCode)?.stage
+          }
+        />
+      }
+    />
   );
 }

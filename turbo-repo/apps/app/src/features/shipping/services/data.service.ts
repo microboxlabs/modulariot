@@ -1,4 +1,8 @@
-import { KanbanBoard, KanbanBoardTask } from "../types/common.types";
+import {
+  KanbanBoard,
+  KanbanBoardTask,
+  KanbanTaskGroup,
+} from "../types/common.types";
 import kanbanBoards from "../model/kanban.json";
 import kanbanPickingBoards from "../model/picking-kanban.json";
 import kanbanShippingV2Boards from "../model/kanban-shipping-v2.json";
@@ -51,7 +55,32 @@ export const taskShippingBoardMap: Record<string, string> = {
   "wfship2:planServiceTask": "planService",
 };
 
-function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {  
+/**
+ * Best-effort resolution of a pooled task's candidate group from the raw task
+ * record. The exact key depends on the backend surfacing the candidate group;
+ * we read the known/likely fields defensively and return undefined otherwise so
+ * the card simply omits the group marker until the proxy provides it.
+ *
+ * Backend follow-up (#553): have the task proxy expose the candidate group
+ * explicitly (id + display name) rather than relying on these fallbacks.
+ */
+function toCandidateGroup(
+  task: Record<string, unknown>
+): KanbanTaskGroup | undefined {
+  const raw =
+    (task.mintral_candidateGroup as string | undefined) ??
+    (task.bpm_groupAssignee as string | undefined) ??
+    (task.bpm_pooledActors as string | undefined);
+  if (!raw || typeof raw !== "string") {
+    return undefined;
+  }
+  // Alfresco group authorities look like "GROUP_<name>"; show the bare name.
+  const id = raw.split(",")[0].trim();
+  const name = id.replace(/^GROUP_/, "");
+  return id ? { id, name } : undefined;
+}
+
+function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
   const serviceCode = task.mintral_serviceCode as number;
   const serviceType = task.mintral_serviceType as string;
   const name = `${serviceCode}-${serviceType.toUpperCase()}`;
@@ -77,8 +106,10 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     mintral_delegacionOrigen: task.mintral_delegacionOrigen as string,
     expectedDepartureDate,
     serviceKind: task.mintral_serviceKind as string,
+    serviceType,
     executionType: task.mintral_executionType as string,
     members: [],
+    candidateGroup: toCandidateGroup(task),
     hoReference: task.mintral_hoReference as string,
     departureDate,
     arrivalDate: task.mintral_arrivalDate as string,

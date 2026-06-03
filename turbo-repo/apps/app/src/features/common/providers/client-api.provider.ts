@@ -62,6 +62,7 @@ import type {
   SlotListResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
+import type { ObservationTypeItem } from "./alfresco-api/observation-types.types";
 
 export function useMyTasks(
   columns: string[],
@@ -906,6 +907,65 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
   });
 }
 
+export async function renameBentoFile(
+  nodeId: string,
+  name: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher("/app/api/bento/rename", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, name }),
+  });
+}
+
+export async function updateBentoCategory(
+  nodeId: string,
+  category: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher("/app/api/bento/properties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, properties: { "mintral:contentType": category } }),
+  });
+}
+
+export async function updateBentoReviewState(
+  nodeId: string,
+  state: "PENDING" | "APPROVED" | "REJECTED",
+  reviewedBy?: string,
+  reviewedAt?: string,
+  reviewComment?: string
+): Promise<{ success: boolean; message: string }> {
+  const properties: Record<string, string> = { "mintral:reviewStatus": state };
+  if (reviewedBy) properties["mintral:reviewedBy"] = reviewedBy;
+  if (reviewedAt) properties["mintral:reviewedAt"] = reviewedAt;
+  if (reviewComment) properties["mintral:reviewComment"] = reviewComment;
+  return fetcher("/app/api/bento/properties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, properties }),
+  });
+}
+
+export async function moveBentoFile(
+  nodeId: string,
+  targetTaskId: string
+): Promise<{ success: boolean }> {
+  return fetcher("/app/api/bento/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, targetTaskId }),
+  });
+}
+
+export async function deleteBentoMultimedia(
+  nodeId: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher(`/app/api/bento/delete?nodeId=${encodeURIComponent(nodeId)}`, {
+    method: "DELETE",
+  });
+}
+
 export async function putBentoMultimedia(
   nodeId: string,
   file: File
@@ -919,6 +979,65 @@ export async function putBentoMultimedia(
   return fetcher(url, {
     method: "PUT",
     body: formData,
+  });
+}
+
+// Content-level forum (per-node discussions)
+
+export function useGetContentDiscussion(contentNodeRef: string | undefined) {
+  const { data, error, isLoading, mutate } = useSWR<ForumDiscussionResponse, FetcherError>(
+    contentNodeRef
+      ? `/app/api/forum/content?contentNodeRef=${encodeURIComponent(contentNodeRef)}`
+      : null,
+    fetcher
+  );
+
+  return { data, error, isLoading, mutate };
+}
+
+export async function createContentForumTopic(
+  contentNodeRef: string,
+  title: string,
+  content?: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "topic/create", contentNodeRef, title, content }),
+  });
+}
+
+export async function replyContentForumPost(
+  topic: string,
+  parentPost: string,
+  content: string,
+  author?: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "post/reply", topic, parentPost, title: content, content, author }),
+  });
+}
+
+export async function deleteContentForumPost(
+  topic: string,
+  post: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "post/delete", topic, post }),
+  });
+}
+
+export async function deleteContentForumTopic(
+  topic: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "topic/delete", topic }),
   });
 }
 
@@ -1723,6 +1842,50 @@ export function useCalendarSlots(
 // ============================================================================
 
 /**
+ * Process-scope variable tuple set on the workflow before completing the
+ * task — populated by the planner's task-driven ASSIGN move so the
+ * `OnCreatePresentDriverBinding` ECM listener can read the resource tuple
+ * from process scope on the `presentDriver` create. Mirrors the assigned-
+ * stage binding payload field set (snake_case). See
+ * `docs/plans/calendar-task-driven-frontend-P0-spike.md` §2.2.
+ */
+export type AssignProcessVariables = {
+  carrier_id: string;
+  driver_id: string;
+  driver2_id: string | null;
+  truck_id: string;
+  trailer_id: string | null;
+  carrier_external_id: string | null;
+  tipo_servicio: string;
+};
+
+/**
+ * Process-scope variable tuple set on the workflow before completing the
+ * task — populated by the planner's task-driven PLAN move so ECM's
+ * `OnCreateAssignDriverBinding` listener can write the `cld_bookings` row
+ * itself on the `assignDriver` create (ecm-coordinator#266 E2). All values
+ * are strings to match the `processVariables` body shape that
+ * `POST /alfresco/s/mintral/tasks/end` validates (ecm-coordinator#262).
+ */
+export type PlanProcessVariables = {
+  calendar_id: string;
+  slot_date: string;
+  slot_hour: string;
+  slot_minutes: string;
+  /**
+   * Optional category from the planner sidebar form. ECM's
+   * `EndTaskPostWebscript` accepts the key (ecm-coordinator#270) and
+   * `OnCreateAssignDriverBinding` then persists it onto the booking row
+   * (#268). Omitted when blank.
+   */
+  mintral_serviceCategory?: string;
+};
+
+export type TaskMoveProcessVariables =
+  | AssignProcessVariables
+  | PlanProcessVariables;
+
+/**
  * Optional Alfresco workflow advance to bundle with a booking write. The
  * server runs the booking and the task transition as one operation and rolls
  * back the just-created booking if the transition fails.
@@ -1730,6 +1893,16 @@ export function useCalendarSlots(
 export type BookingTaskAdvance = {
   taskId: string;
   transitionId: string;
+  /**
+   * Optional process-scope variables to set on the workflow before the task
+   * is completed: the ASSIGN tuple on the assignDriver → presentDriver move,
+   * or the SLOT tuple on the planService → assignDriver move. For task-
+   * driven origins both tuples also signal the FE to skip the booking
+   * POST/PUT — ECM owns the `cld_bookings` row (created on assignDriver,
+   * updated on presentDriver). When omitted the task advance is a plain
+   * GET as today.
+   */
+  processVariables?: TaskMoveProcessVariables;
 };
 
 export type CreateBookingRequest = BookingRequest & {
@@ -1757,16 +1930,25 @@ export async function createBooking(
 /**
  * Advance an Alfresco workflow task to the next stage via the given transition.
  * Called after booking and service-category sync are confirmed so that the
- * workflow only moves when both writes have succeeded.
+ * workflow only moves when both writes have succeeded. When
+ * `processVariables` is supplied the call sets the workflow's PROCESS-scope
+ * variables before completing the task — used by the planner's task-driven
+ * ASSIGN move (assignDriver → presentDriver) so the
+ * `OnCreatePresentDriverBinding` listener can read the resource tuple.
  */
 export async function advanceWorkflowTask(
   taskId: string,
-  transitionId: string
+  transitionId: string,
+  processVariables?: TaskMoveProcessVariables
 ): Promise<void> {
+  const body: Record<string, unknown> = { taskId, transitionId };
+  if (processVariables) {
+    body.processVariables = processVariables;
+  }
   const response = await fetch("/app/api/task/end", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ taskId, transitionId }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = (await response.json().catch(() => ({}))) as {
@@ -1955,6 +2137,36 @@ export function useServiceTypes() {
     error,
     isLoading,
   };
+}
+
+/**
+ * Active content-review observation reasons, ordered by `position` (missing
+ * positions last) then name. Backed by the Alfresco "Tipos de Observación"
+ * data list via the BFF route. Consumers fall back to the static
+ * OBSERVATION_TYPE_KEYS when this returns empty (loading / error).
+ */
+export function useObservationTypes(category?: string | null) {
+  const key = category
+    ? `/app/api/observation-types?appliesTo=${encodeURIComponent(category)}`
+    : "/app/api/observation-types";
+  const { data, error, isLoading } = useSWR<ObservationTypeItem[], FetcherError>(
+    key,
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  const observationTypes = useMemo(
+    () =>
+      (data ?? [])
+        .filter((t) => t.isActive)
+        .sort(
+          (a, b) =>
+            (a.position ?? Number.MAX_SAFE_INTEGER) -
+              (b.position ?? Number.MAX_SAFE_INTEGER) ||
+            a.name.localeCompare(b.name)
+        ),
+    [data]
+  );
+  return { observationTypes, error, isLoading };
 }
 
 /**

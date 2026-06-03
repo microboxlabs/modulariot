@@ -4,7 +4,10 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSWRConfig } from "swr";
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import { DynamicFormField, useDynamicFormState } from "@/features/dynamic-forms";
+import {
+  DynamicFormField,
+  useDynamicFormState,
+} from "@/features/dynamic-forms";
 import {
   useCalendarGroups,
   createCalendar,
@@ -16,9 +19,12 @@ import type {
 } from "@microboxlabs/miot-calendar-client";
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import { CREATE_CALENDAR_FORM_CONFIG, normalizeCode } from "./create-calendar-modal.config";
+import {
+  CREATE_CALENDAR_FORM_CONFIG,
+  normalizeCode,
+} from "./create-calendar-modal.config";
 import { GroupAutocompleteField } from "./group-autocomplete-field";
 
 interface CreateCalendarModalProps {
@@ -74,7 +80,9 @@ export function CreateCalendarModal({
     try {
       const filter: CalendarFilter = {};
       const filterOrigin = (formValues.filterOrigin as string)?.trim();
-      const filterDestination = (formValues.filterDestination as string)?.trim();
+      const filterDestination = (
+        formValues.filterDestination as string
+      )?.trim();
       if (filterOrigin) filter.origin = filterOrigin;
       if (filterDestination) filter.destination = filterDestination;
 
@@ -98,17 +106,33 @@ export function CreateCalendarModal({
       });
       handleClose();
       onCreated?.();
-      const groupQuery = selectedGroupCode ? `?groupCode=${selectedGroupCode}` : "";
-      router.push(`/${params.lang}/calendar/${calendar.id}/planning${groupQuery}`);
+      const groupQuery = selectedGroupCode
+        ? `?groupCode=${selectedGroupCode}`
+        : "";
+      router.push(
+        `/${params.lang}/calendar/${calendar.id}/planning${groupQuery}`
+      );
     } catch (err) {
       ShowNotification({
         type: "error",
-        message: err instanceof Error ? err.message : tr("create.errorNotification", dict),
+        message:
+          err instanceof Error
+            ? err.message
+            : tr("create.errorNotification", dict),
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [formValues, selectedGroupCode, mutate, dict, handleClose, onCreated, router, params.lang]);
+  }, [
+    formValues,
+    selectedGroupCode,
+    mutate,
+    dict,
+    handleClose,
+    onCreated,
+    router,
+    params.lang,
+  ]);
 
   // Fields rendered via DynamicFormField (all except "groups" handled by GroupAutocompleteField)
   const standardFields = CREATE_CALENDAR_FORM_CONFIG.fields;
@@ -140,7 +164,7 @@ export function CreateCalendarModal({
               value={formValues[field.name] ?? field.defaultValue ?? ""}
               onChange={(value) => setFormValue(field.name, value)}
               isVisible={isFieldVisible(field)}
-              translate={(key) => tr(key, dict)}
+              translate={(key) => trDynamic(key, dict)}
             />
           ))}
 
@@ -157,8 +181,7 @@ export function CreateCalendarModal({
         <div className="flex gap-3">
           {standardFields
             .filter(
-              (f) =>
-                f.name === "filterOrigin" || f.name === "filterDestination"
+              (f) => f.name === "filterOrigin" || f.name === "filterDestination"
             )
             .map((field) => (
               <div key={field.name} className="flex-1">
@@ -167,7 +190,7 @@ export function CreateCalendarModal({
                   value={formValues[field.name] ?? field.defaultValue ?? ""}
                   onChange={(value) => setFormValue(field.name, value)}
                   isVisible={isFieldVisible(field)}
-                  translate={(key) => tr(key, dict)}
+                  translate={(key) => trDynamic(key, dict)}
                 />
               </div>
             ))}
@@ -183,7 +206,7 @@ export function CreateCalendarModal({
               value={formValues[field.name] ?? field.defaultValue ?? ""}
               onChange={(value) => setFormValue(field.name, value)}
               isVisible={isFieldVisible(field)}
-              translate={(key) => tr(key, dict)}
+              translate={(key) => trDynamic(key, dict)}
             />
           ))}
       </div>

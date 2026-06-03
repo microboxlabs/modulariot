@@ -10,7 +10,7 @@ import type {
   AuthMethod,
 } from "../types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useEffect, useMemo } from "react";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 
@@ -111,14 +111,11 @@ export function DataSourceModal({
       onClose={onClose}
       size="4xl"
       title={
-        editingSource
-          ? tr("modal.editTitle", dict)
-          : tr("modal.addTitle", dict)
+        editingSource ? tr("modal.editTitle", dict) : tr("modal.addTitle", dict)
       }
       submitLabel={submitLabel}
       isProcessing={loading}
       onSubmit={handleSubmit(onSubmit)}
-
     >
       <div className="flex flex-col gap-4">
         <div>
@@ -129,7 +126,9 @@ export function DataSourceModal({
             color={errors.name ? "failure" : undefined}
           />
           {errors.name?.message && (
-            <p className="mt-1 text-sm text-red-600">{tr(errors.name.message, dict)}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {trDynamic(errors.name.message, dict)}
+            </p>
           )}
         </div>
 
@@ -142,11 +141,7 @@ export function DataSourceModal({
 
         <div>
           <Label htmlFor="description">{tr("modal.description", dict)}</Label>
-          <Textarea
-            id="description"
-            {...register("description")}
-            rows={2}
-          />
+          <Textarea id="description" {...register("description")} rows={2} />
         </div>
 
         <div>
@@ -160,7 +155,9 @@ export function DataSourceModal({
             color={errors.url ? "failure" : undefined}
           />
           {errors.url?.message && (
-            <p className="mt-1 text-sm text-red-600">{tr(errors.url.message, dict)}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {trDynamic(errors.url.message, dict)}
+            </p>
           )}
         </div>
 
@@ -196,10 +193,14 @@ export function DataSourceModal({
               color={errors.token ? "failure" : undefined}
             />
             {errors.token?.message && (
-              <p className="mt-1 text-sm text-red-600">{tr(errors.token.message, dict)}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {trDynamic(errors.token.message, dict)}
+              </p>
             )}
             {!errors.token?.message && editingSource && (
-              <p className="mt-1 text-sm text-gray-500">{tr("modal.tokenHint", dict)}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {tr("modal.tokenHint", dict)}
+              </p>
             )}
           </div>
         )}
@@ -214,12 +215,16 @@ export function DataSourceModal({
                 color={errors.clientId ? "failure" : undefined}
               />
               {errors.clientId?.message && (
-                <p className="mt-1 text-sm text-red-600">{tr(errors.clientId.message, dict)}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {trDynamic(errors.clientId.message, dict)}
+                </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="clientSecret">{tr("modal.clientSecret", dict)}</Label>
+              <Label htmlFor="clientSecret">
+                {tr("modal.clientSecret", dict)}
+              </Label>
               <TextInput
                 id="clientSecret"
                 type="password"
@@ -233,10 +238,14 @@ export function DataSourceModal({
                 color={errors.clientSecret ? "failure" : undefined}
               />
               {errors.clientSecret?.message && (
-                <p className="mt-1 text-sm text-red-600">{tr(errors.clientSecret.message, dict)}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {trDynamic(errors.clientSecret.message, dict)}
+                </p>
               )}
               {!errors.clientSecret?.message && editingSource && (
-                <p className="mt-1 text-sm text-gray-500">{tr("modal.secretHint", dict)}</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {tr("modal.secretHint", dict)}
+                </p>
               )}
             </div>
 
@@ -250,7 +259,9 @@ export function DataSourceModal({
                 color={errors.tokenUrl ? "failure" : undefined}
               />
               {errors.tokenUrl?.message && (
-                <p className="mt-1 text-sm text-red-600">{tr(errors.tokenUrl.message, dict)}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {trDynamic(errors.tokenUrl.message, dict)}
+                </p>
               )}
             </div>
 
@@ -261,7 +272,9 @@ export function DataSourceModal({
                 placeholder={tr("modal.scopePlaceholder", dict)}
                 {...register("scope")}
               />
-              <p className="mt-1 text-sm text-gray-500">{tr("modal.scopeHint", dict)}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {tr("modal.scopeHint", dict)}
+              </p>
             </div>
 
             <div>
@@ -271,7 +284,9 @@ export function DataSourceModal({
                 placeholder={tr("modal.audiencePlaceholder", dict)}
                 {...register("audience")}
               />
-              <p className="mt-1 text-sm text-gray-500">{tr("modal.audienceHint", dict)}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {tr("modal.audienceHint", dict)}
+              </p>
             </div>
           </>
         )}

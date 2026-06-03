@@ -13,7 +13,6 @@ import { toast } from "sonner";
 
 import { findNextUndecided } from "./viewer-utils";
 import { useDocBlob } from "./use-doc-blob";
-import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import { MoveToTaskModal } from "./modals/move-to-task-modal";
 import { DeleteConfirmModal } from "./modals/delete-confirm-modal";
 import { UnsentReplyModal } from "./modals/unsent-reply-modal";
@@ -210,13 +209,6 @@ export default function MediaInlineViewer({
 
         {/* Desktop: original single-row layout (hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-2 min-w-0 flex-1 basis-auto">
-          <SelectorDropdown
-            categories={Object.values(categories)}
-            baseCategory={currentCategory}
-            selectCategory={handleCategoryChange}
-            dictionary={dictionary}
-            fitWidth
-          />
           <ViewerHeaderBadges
             entry={current.file.entry}
             status={status}
@@ -243,7 +235,9 @@ export default function MediaInlineViewer({
           onDelete={handleDeleteClick}
           onDecision={handleDecision}
           onClose={handleClose}
-          reviewEnabled={isCurrentReviewable}
+          categories={Object.values(categories)}
+          currentCategory={currentCategory}
+          onCategoryChange={handleCategoryChange}
           dictionary={dictionary}
         />
       </div>

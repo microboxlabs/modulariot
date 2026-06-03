@@ -16,6 +16,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import SplitButton from "@/features/common/components/split-button/split-button";
 import { SharePopover } from "./header/share-popover";
+import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import type { ReviewStatus } from "../gallery/media-row";
 
 export default function ViewerToolbar({
@@ -34,7 +35,9 @@ export default function ViewerToolbar({
   onDelete,
   onDecision,
   onClose,
-  reviewEnabled = true,
+  categories,
+  currentCategory,
+  onCategoryChange,
   dictionary,
 }: Readonly<{
   fileUrl: string;
@@ -52,7 +55,9 @@ export default function ViewerToolbar({
   onDelete?: () => void;
   onDecision: (decision: ReviewStatus) => void;
   onClose: () => void;
-  reviewEnabled?: boolean;
+  categories: { value: string; label: string }[];
+  currentCategory: string | null;
+  onCategoryChange: (category: string) => void;
   dictionary: I18nRecord;
 }>) {
   return (
@@ -128,6 +133,18 @@ export default function ViewerToolbar({
         <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
       </button>
 
+      {/* Category selector — left of review actions */}
+      {isReviewable && (
+        <SelectorDropdown
+          categories={categories}
+          baseCategory={currentCategory}
+          selectCategory={onCategoryChange}
+          dictionary={dictionary}
+          fitWidth
+          triggerClassName="h-7 sm:h-9 !py-0 !px-2 text-xs sm:text-sm"
+        />
+      )}
+
       {/* Review actions — only for reviewable content */}
       {isReviewable && status !== "approved" && (
         <SplitButton
@@ -161,7 +178,7 @@ export default function ViewerToolbar({
           renderTrigger={() => (
             <button
               type="button"
-              className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-fit"
+              className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 rounded-lg text-xs sm:text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-fit h-7 sm:h-9"
             >
               <span className="text-sm font-light whitespace-nowrap">
                 {tr("bento.multimedia.btn_change_status", dictionary)}

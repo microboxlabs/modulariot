@@ -37,7 +37,7 @@ export function PropertiesGrid({ entry, categoryLabel, onRename, dictionary }: P
               variant="inline"
               onSave={onRename}
               inputClassName="text-xs bg-transparent border-b border-blue-500 dark:border-blue-400 outline-none w-full"
-              displayClassName="text-xs text-gray-900 dark:text-white cursor-text hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              displayClassName="text-xs text-gray-900 dark:text-white cursor-text hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
             />
           ) : entry.name
         }

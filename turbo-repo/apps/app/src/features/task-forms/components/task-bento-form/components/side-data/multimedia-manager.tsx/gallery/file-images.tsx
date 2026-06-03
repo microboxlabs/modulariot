@@ -1107,9 +1107,6 @@ export default function FileImages({
             <div className="flex flex-wrap items-center gap-2 p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide truncate min-w-0">
                 {tr("bento.multimedia.title", dictionary)}
-                <span className="ml-1 text-sm text-gray-400 dark:text-gray-500 normal-case tracking-normal">
-                  ({reviewSummary.ready}/{allIds.length})
-                </span>
               </span>
 
               <div className="flex items-center justify-between gap-2 ml-auto flex-1">
@@ -1124,7 +1121,7 @@ export default function FileImages({
                         : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
-                    {tr("bento.multimedia.tab_ready", dictionary)}
+                    {tr("bento.multimedia.tab_ready", dictionary)} <span className="font-light">({reviewSummary.ready})</span>
                   </button>
                   <button
                     type="button"
@@ -1135,7 +1132,7 @@ export default function FileImages({
                         : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
-                    {tr("bento.multimedia.tab_review", dictionary)}
+                    {tr("bento.multimedia.tab_review", dictionary)} <span className="font-light">({reviewSummary.pending + reviewSummary.rejected})</span>
                     {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || reviewableDraftDecisions.length > 0) && (
                       <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
                     )}

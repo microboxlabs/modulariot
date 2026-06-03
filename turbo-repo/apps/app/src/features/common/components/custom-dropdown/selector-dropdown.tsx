@@ -11,6 +11,7 @@ export default function SelectorDropdown({
   disabled = false,
   dictionary,
   fitWidth = false,
+  triggerClassName,
 }: {
   categories: { value: string; label: string }[];
   selectCategory?: (category: string) => void;
@@ -18,6 +19,7 @@ export default function SelectorDropdown({
   disabled?: boolean;
   dictionary: I18nRecord;
   fitWidth?: boolean;
+  triggerClassName?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<{
@@ -69,7 +71,7 @@ export default function SelectorDropdown({
         renderTrigger={() => (
           <Button
             color="alternative"
-            className={`flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover ${fitWidth ? "w-fit" : "w-full"}`}
+            className={`flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover ${fitWidth ? "w-fit" : "w-full"} ${triggerClassName ?? ""}`}
             disabled={disabled}
           >
             <a

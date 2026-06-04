@@ -4,9 +4,10 @@ import {
   readDotfile,
   removeProfile,
   resolveOutputMode,
+  upsertProfile,
 } from "../../config.js";
 import { printDetail, printJson, printSuccess } from "../../output.js";
-import { browserLogin } from "../../auth/browser-oauth.js";
+import { browserLogin } from "@microboxlabs/miot-auth/browser-oauth";
 
 export function registerAuthCommand(program: Command): void {
   const auth = program
@@ -63,18 +64,36 @@ export function registerAuthCommand(program: Command): void {
           organizationId: opts.clientId
             ? (globals.organization ?? profile?.organizationId)
             : undefined,
-          profile: profileName,
           callbackHost: opts.callbackHost,
           callbackPort: opts.callbackPort,
           timeoutSeconds: opts.timeout,
           openBrowser: opts.open,
         });
 
+        const savedProfile = profileName ?? "default";
+        upsertProfile(savedProfile, {
+          baseUrl,
+          token: result.accessToken,
+          ...(result.organizationId !== undefined && {
+            organizationId: result.organizationId,
+          }),
+        });
+
+        const summary = {
+          profile: savedProfile,
+          baseUrl: result.baseUrl,
+          ...(result.organizationId !== undefined && {
+            organizationId: result.organizationId,
+          }),
+          ...(result.expiresIn !== undefined && { expiresIn: result.expiresIn }),
+          ...(result.scope !== undefined && { scope: result.scope }),
+        };
+
         if (outputMode === "json") {
-          printJson(result);
+          printJson(summary);
         } else {
           printSuccess(`Logged in. Saved credentials to ${getDotfilePath()}`);
-          printDetail(result);
+          printDetail(summary);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

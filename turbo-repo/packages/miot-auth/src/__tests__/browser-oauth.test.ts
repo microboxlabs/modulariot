@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAuthorizationUrl,
   buildPlatformLoginUrl,
-} from "../auth/browser-oauth.js";
+} from "../browser-oauth.js";
 
 describe("buildPlatformLoginUrl", () => {
   it("builds a platform session handoff URL", () => {

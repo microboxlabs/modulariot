@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import SecondaryPanelHeader from "./secondary-panel-header";
@@ -40,7 +40,7 @@ export default function SecondaryPanelContent({
     >
       <SecondaryPanelHeader
         icon={section.icon}
-        label={tr(section.label, dict)}
+        label={trDynamic(section.label, dict)}
       />
 
       {section.searchable && (
@@ -52,7 +52,7 @@ export default function SecondaryPanelContent({
             section.createAction
               ? {
                   href: section.createAction.href,
-                  label: tr(section.createAction.label, dict),
+                  label: trDynamic(section.createAction.label, dict),
                 }
               : undefined
           }

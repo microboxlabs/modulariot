@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
     const fileName = formData.get("prop_cm_name") as string;
     const mimeType = formData.get("prop_mimetype") as string;
     const destination = formData.get("alf_destination") as string;
-
     if (!file || !contentType || !fileName || !mimeType || !destination) {
       return NextResponse.json(
         { error: "Missing required fields" },

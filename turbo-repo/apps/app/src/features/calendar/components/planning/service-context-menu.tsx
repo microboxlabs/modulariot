@@ -11,7 +11,7 @@ import {
 } from "./planning-selection-context";
 import { Button } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 
 export interface ContextMenuPosition {
@@ -296,7 +296,7 @@ export function ServiceContextMenu({
           >
             <HiEye className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <span>
-              {tr(
+              {trDynamic(
                 forceViewer
                   ? "pages.planning.sidebar.contextMenu.exitPreview"
                   : "pages.planning.sidebar.contextMenu.previewAsViewer",

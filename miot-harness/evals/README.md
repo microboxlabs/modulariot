@@ -1,24 +1,35 @@
 # Harness evals
 
-The harness runs an AI agent ("Nexo") that answers operational questions
-by calling tools and reading data. An eval suite is the agent's test
-harness — it feeds the agent a set of known questions and checks
-whether it behaved correctly (picked the right tool, cited fresh data,
-refused when it should, didn't make things up). Think of it as a report
-card for the AI, run automatically so you catch quality regressions
-before users do.
+## What an "eval" is
 
-Two independent eval families live under `evals/`:
+The harness runs an AI agent ("Nexo") that answers operational questions by calling tools and reading data. An eval suite is the agent's test
+harness — it feeds the agent a set of known questions and checks whether it behaved correctly (picked the right tool, cited fresh data, refused
+when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you catch quality regressions before
+users do.
 
-| Family | What it measures | Entry point |
+Three independent suites live under `evals/`. They share a directory but never
+share a runner; their exit codes mean different things.
+
+| Suite | What it measures | Entry point |
 |---|---|---|
-| **Golden** (this directory + `src/miot_harness/evals/run_golden.py`) | Agent quality on the Nexo conversational graph — tool routing, freshness, refusals, KPI grounding, cost, drift vs baseline | `miot-harness-evals` |
-| **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory | prompt, run out-of-band |
+| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the Nexo conversational graph — tool routing, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
+| **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory. | prompt, run out-of-band |
+| **Deploy** (`deploy/`) | Operational checks that the harness packages and runs as a container. | `deploy/run-all.sh` (see `deploy/README.md`) |
 
 ## Golden suite — three modes
 
-```
-uv run miot-harness-evals --mode <static|fake|real>
+`miot-harness-evals` reads `evals/golden/nexo/examples.yaml` and runs each entry
+through the Nexo graph in one of three modes:
+
+```bash
+# YAML schema validation only — no graph runs, no LLMs.
+uv run miot-harness-evals --mode static
+
+# Scripted FakeListChatModel run — deterministic; the default.
+uv run miot-harness-evals --mode fake
+
+# Live Anthropic + live Nexo DB. Requires credentials (see below).
+uv run miot-harness-evals --mode real
 ```
 
 - **`static`** — validate `evals/golden/nexo/examples.yaml` schema only.
@@ -27,11 +38,64 @@ uv run miot-harness-evals --mode <static|fake|real>
   registry returning canned data. Deterministic; catches routing /
   structural regressions without burning real model spend.
 - **`real`** — live Anthropic + live Nexo DB via the introspected
-  registry. Requires credentials (see below). Captures real cost
-  + drift vs the fake-mode baseline.
+  registry. Captures real cost + drift vs the fake-mode baseline.
 
 Both `fake` and `real` write JSON to `evals/results/<HEAD-sha>.json`
 (real adds a `-real` suffix to avoid clobbering the fake baseline).
+
+### Scored axes (deterministic)
+
+Every case is scored on deterministic axes:
+
+| Axis | Meaning |
+|---|---|
+| `tool_selection` | Did the chosen tool intersect `expected_tools`? |
+| `filter_sanity` | Were any `forbidden_tools` called? |
+| `freshness_citation` | Does the answer mention `refreshed_at` / "snapshot" / "hace"? |
+| `refusal` | Did the run refuse cleanly when `expected_refusal: true`? |
+| `no_hallucination` | Did `expected_kpis_mentioned` substrings appear? |
+| `step_economy` | Was the plan's tool count within `[expected_min_turns, expected_max_turns]`? The over-engineering guard; `null` for refusal cases (no plan is built). |
+| `latency_ms` | Wall-clock time per case |
+
+`refusal` is scored only for refusals fake mode can deterministically produce —
+the **structural** tenant gate. For cases whose `refusal_mechanism` is
+**semantic** (prompt injection, mutation, out-of-scope, …) `refusal` is `null`
+in fake mode (with a `refusal: semantic — real-mode-only` note) because a
+scripted model cannot make that judgment; those are validated in real mode.
+
+Real mode adds:
+
+| Axis | Meaning |
+|---|---|
+| `cost_usd` | Total spend on this case's LLM calls |
+| `tokens_input` / `tokens_output` | Per-case totals |
+| `cache_hit_pct` | Prompt-cache reads as a fraction of all input tokens |
+| `per_agent_costs` | `{agent_name: cost_usd}` breakdown |
+| `drift` / `drift_detail` | Diff against the fake baseline |
+
+### Dataset contract (fake mode)
+
+Fake mode is intentionally deterministic so it catches routing/structural
+regressions without spending tokens. When authoring `examples.yaml`:
+
+- The scripted synthesizer always emits
+  `"Resultado al snapshot <ts>: 2 servicios críticos, 3 ETA en riesgo."`, so
+  `expected_kpis_mentioned` must be lowercase substrings of that line.
+- The fake `filter_expert` emits exactly **one** tool call, so every fake run
+  produces a 1-step plan. `expected_min_turns`/`expected_max_turns` therefore
+  document the *real-mode* envelope; in fake mode keep `min ≤ 1 ≤ max` for a
+  green baseline. The `max` cap is the part that catches over-engineering once
+  real mode lands.
+- `expected_tools` must be `coordinador_*` names (the fake registry only stubs
+  those). Adversarial cases use `[]`; a non-`mintral` `tenant_id` exercises the
+  tenant gate and produces the canonical `"…is mintral-only…"` refusal.
+- `category: adversarial` requires `expected_refusal: true` (enforced by
+  `validate_entries`).
+- Every `expected_refusal: true` case must declare `refusal_mechanism:
+  structural | semantic` (enforced by `validate_entries`). `structural` means a
+  deterministic harness gate produces the refusal (today: a non-`mintral`
+  `tenant_id` hitting the tenant gate); `semantic` means it needs a real LLM and
+  is therefore `null` in fake mode.
 
 ## Running real mode
 
@@ -105,25 +169,32 @@ remains the canonical artifact for automated diffing in CI.
 real baselines and documents how to pin a new one when intentional
 changes shift the score.
 
-## What gets scored
+## Reproducibility (infrastructure noise)
 
-Every case is scored on deterministic axes:
+Anthropic's *Quantifying infrastructure noise in agentic coding evals*
+(https://www.anthropic.com/engineering/infrastructure-noise) shows that resource
+configuration — CPU/RAM headroom, concurrency, even time of day — can swing
+agentic benchmark scores by several percentage points, sometimes more than the
+gap between top models. So a bare score is not comparable across machines.
 
-| Axis | Meaning |
+To make runs comparable, every results file carries an `env` block recording the
+Python version, platform, CPU count, the resolved model ids, and whether the run
+was deterministic (`fake`) or noise-prone (`real`). When comparing two `real`
+runs, match the `env` block (and the pod's resource budget) before trusting a
+delta — and document the config alongside the number.
+
+## Verified Anthropic references
+
+Checked May 2026. Titles are all real; one URL that had been circulating
+(`/engineering/quantifying-infrastructure-noise-in-agentic-coding-evals`) is
+**wrong** — the article lives at `/engineering/infrastructure-noise`.
+
+| Article | URL |
 |---|---|
-| `tool_selection` | Did the chosen tool intersect `expected_tools`? |
-| `filter_sanity` | Were any `forbidden_tools` called? |
-| `freshness_citation` | Does the answer mention `refreshed_at` / "snapshot" / "hace"? |
-| `refusal` | Did the run refuse cleanly when `expected_refusal: true`? |
-| `no_hallucination` | Did `expected_kpis_mentioned` substrings appear? |
-| `latency_ms` | Wall-clock time per case |
+| Demystifying evals for AI agents | https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents |
+| Quantifying infrastructure noise in agentic coding evals | https://www.anthropic.com/engineering/infrastructure-noise |
+| Effective harnesses for long-running agents | https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents |
+| Harness design for long-running application development | https://www.anthropic.com/engineering/harness-design-long-running-apps |
 
-Real mode adds:
-
-| Axis | Meaning |
-|---|---|
-| `cost_usd` | Total spend on this case's LLM calls |
-| `tokens_input` / `tokens_output` | Per-case totals |
-| `cache_hit_pct` | Prompt-cache reads as a fraction of all input tokens |
-| `per_agent_costs` | `{agent_name: cost_usd}` breakdown |
-| `drift` / `drift_detail` | Diff against the fake baseline |
+Publication dates quoted elsewhere (Jan 2026 / Nov 2025 / Mar 2026) were **not**
+independently confirmed — treat them as unverified.

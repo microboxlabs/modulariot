@@ -1,7 +1,7 @@
 "use client";
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type {
   ColorRule,
   ColorRuleItem,
@@ -103,7 +103,7 @@ export function createValueColorRulesUtils<
   function getTargetOptions(dictionary: I18nRecord): TargetOption<TTarget>[] {
     return factoryConfig.targets.map((t) => ({
       value: t.value,
-      label: tr(t.labelKey, dictionary),
+      label: trDynamic(t.labelKey, dictionary),
     }));
   }
 
@@ -130,7 +130,7 @@ export function createValueColorRulesUtils<
     onToggleTarget,
   }: Readonly<ValueColorRulesEditorProps<TTarget, TCompareField>>) {
     const label = factoryConfig.labelKey
-      ? tr(factoryConfig.labelKey, dictionary)
+      ? trDynamic(factoryConfig.labelKey, dictionary)
       : tr("dashboard.settings.valueColorRules", dictionary);
 
     return (

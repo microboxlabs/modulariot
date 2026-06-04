@@ -5,7 +5,7 @@ import {
 } from "flowbite-react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import { SidebarItemProps } from "./sidebar-item.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
@@ -71,7 +71,7 @@ export default function SidebarItem({
             return (
               <SidebarCollapse
                 key={item.label}
-                label={tr(item.label, dict)}
+                label={trDynamic(item.label, dict)}
                 open={isGroupOpen}
                 theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
               >
@@ -89,7 +89,7 @@ export default function SidebarItem({
                         "bg-gray-100 dark:bg-gray-700"
                     )}
                   >
-                    {tr(child.label, dict)}
+                    {trDynamic(child.label, dict)}
                   </FlowbiteSidebarItem>
                 ))}
               </SidebarCollapse>
@@ -123,7 +123,7 @@ export default function SidebarItem({
               )}
               {...badgeProps}
             >
-              {tr(item.label, dict)}
+              {trDynamic(item.label, dict)}
             </FlowbiteSidebarItem>
           );
         })}

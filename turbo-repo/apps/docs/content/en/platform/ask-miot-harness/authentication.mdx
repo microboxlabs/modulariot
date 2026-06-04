@@ -1,0 +1,75 @@
+# Authentication
+
+The harness lives behind a Quarkus reverse proxy in `quarkus-srv` and rejects unauthenticated requests on every `/runs*` route. Health probes stay open so kubelet can still check readiness.
+
+## Trust model
+
+Requests reach the harness through two doors, in this order:
+
+1. **Quarkus front door** at `/api/v1/orgs/{slug}/harness/*`.
+
+   Quarkus terminates the user-facing Auth0 token (RS256 for web users, HS256 for M2M services), runs the existing organization-membership filter (verifies the caller is a member of the target org through Alfresco), and forwards the request to the harness with the resolved tenant in an `X-Miot-Tenant-Client-Id` header.
+
+2. **Harness defense-in-depth.**
+
+   The harness re-verifies the same Auth0 RS256 token against the configured JWKS. A caller that bypasses Quarkus and hits the harness port directly is rejected at this layer too — there is no path to a `/runs*` endpoint without a valid token, even from inside the cluster.
+
+The body's `tenant_id` field is silently overridden by the verified header value before dispatch; a body claiming `tenant_id="evil-tenant"` ends up persisted as the header tenant. The field will be removed from the public schema entirely in a future release.
+
+`/runs/{id}` and `/runs/{id}/stream` add a cross-tenant replay check: a token for tenant B cannot fetch or subscribe to a run that originated under tenant A, whether the run is still in flight or already terminal.
+
+## What gets gated
+
+| Route | Auth required | Notes |
+|---|---|---|
+| `GET /health` | no | kubelet liveness |
+| `GET /health/ready` | no | kubelet readiness; reports Nexo boot state |
+| `POST /runs` | yes | synchronous run; tenant from header overrides body |
+| `POST /runs:start` | yes | async dispatch + 202; tenant from header overrides body |
+| `GET /runs/{id}` | yes | refuses 403 on cross-tenant replay |
+| `GET /runs/{id}/stream` | yes | SSE; refuses 403 on cross-tenant replay |
+
+## Configuration
+
+Auth is **off by default** so unit tests and local dev see the legacy unauthenticated surface. Flip it on in production by setting:
+
+| Env var                       | Required when            | Purpose                                       |
+|-------------------------------|--------------------------|-----------------------------------------------|
+| `MIOT_HARNESS_AUTH_ENABLED`   | always (default `false`) | Gate `/runs*` on a valid Bearer token         |
+| `AUTH0_ISSUER`                | `AUTH_ENABLED=true`      | `iss` claim must equal this exact string      |
+| `AUTH0_JWKS_URL`              | `AUTH_ENABLED=true`      | RS256 public-key set (Auth0 well-known URL)   |
+| `AUTH0_RS256_AUDIENCE`        | `AUTH_ENABLED=true`      | `aud` claim must contain this exact string    |
+
+Env-var names mirror `quarkus-srv`'s `miot.auth.*` config so a single Helm-values block can render both services. The lifespan fails fast on incomplete configuration — a missing issuer crashes the pod at startup rather than silently accepting any RS256 token.
+
+## Curl example
+
+Through the Quarkus proxy:
+
+```bash
+TOKEN="<Auth0 access token>"
+curl -X POST "https://api.miot.example.com/api/v1/orgs/gama-mobility/harness/runs:start" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "what is the truck status?", "mode": "agentic"}'
+```
+
+The proxy injects `X-Miot-Tenant-Client-Id` from the verified org membership; the harness uses that value, not anything the body declared.
+
+## Failure modes
+
+The harness surfaces a machine-readable reason on every 401:
+
+| Detail                              | Meaning                                              |
+|-------------------------------------|------------------------------------------------------|
+| `missing Bearer token`              | No `Authorization: Bearer …` header                  |
+| `empty Bearer token`                | Header present but value is empty                    |
+| `auth_failed:malformed`             | Header parses but token is not a JWT, or `alg` ≠ RS256 |
+| `auth_failed:invalid_signature`     | Signature does not verify against any cached JWK     |
+| `auth_failed:expired`               | `exp` claim is in the past (with 30 s leeway)        |
+| `auth_failed:wrong_issuer`          | `iss` claim does not equal `AUTH0_ISSUER`            |
+| `auth_failed:wrong_audience`        | `aud` claim does not include `AUTH0_RS256_AUDIENCE`  |
+| `auth_failed:tenant_unresolved`     | Token valid but `X-Miot-Tenant-Client-Id` is missing |
+| `cross_tenant_replay:run …`         | (403) Token's tenant ≠ run's tenant                  |
+
+Operators can `curl` any failure to triage without needing to read logs.

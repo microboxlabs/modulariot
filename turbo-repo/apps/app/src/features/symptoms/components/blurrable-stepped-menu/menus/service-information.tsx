@@ -1,6 +1,6 @@
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 export default function ServiceInformation({
   dict,
@@ -50,7 +50,7 @@ export default function ServiceInformation({
         <p className="text-xs font-light text-gray-900 dark:text-gray-200">
           {tr("symptoms.recommended_prescription", dict)}:{" "}
           <span className="font-light text-gray-500 dark:text-gray-400">
-            {tr(prescriptionKey, dict)}
+            {trDynamic(prescriptionKey, dict)}
           </span>
         </p>
       </div>

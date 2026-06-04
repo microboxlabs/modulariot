@@ -1,0 +1,33 @@
+# 🔔 Release Notes v1.31.2 — ModularIoT
+
+### Fecha: 28/05/2026
+
+**Objetivo**: Esta versión concentra el cierre operativo de MIOT-0.5.4 en correcciones puntuales de experiencia para `apps/app`: el logout vuelve a una ruta real de inicio de sesión y la gestión de colaboradores recupera vistas, estilos y localización consistentes. El milestone privado `1.31.2` no contiene issues asociados, por lo que la entrega queda documentada como una integración OSS enfocada exclusivamente en fixes cerrados.
+
+## 🐛 Correcciones
+
+- **🐛 Logout Localizado sin 404**
+  - **Impacto**: Al cerrar sesión, usuarios Auth0 quedaban en `/app`, una ruta base que renderizaba 404 para sesiones cerradas. *(Integración OSS — MIOT-0.5.4)*
+  - **Solución**: El flujo de logout redirige a `/app/{lang}/sign-in`, preservando el idioma activo y llevando al usuario a una página real de reingreso.
+  - **Cobertura de rutas**: El ajuste contempla tanto el logout federado de Auth0 como el camino ECM-only cuando Auth0 no está configurado.
+  - **Operación Auth0**: Las URLs de sign-in usadas como `returnTo` deben quedar incluidas en Allowed Logout URLs por ambiente.
+
+- **🐛 Frontend de Gestión de Colaboradores**
+  - **Vista específica**: Se corrige la apertura de la vista de colaborador/conductor específico, evitando que el usuario quede sin detalle navegable. *(Integración OSS — MIOT-0.5.4)*
+  - **Historial de comportamiento**: Se elimina duplicidad en categorías y se estabiliza el render del historial para que los comportamientos aparezcan una sola vez.
+  - **Estilo numérico**: El componente `CircularProgress` ajusta tamaño y estilo del número central para mejorar legibilidad visual.
+  - **Localización EN/ES**: Se agregan claves faltantes para roles ocupacionales y la nueva categoría de comportamiento `Efficiency`.
+
+## 📊 Beneficios
+
+- 🧭 **Salida de sesión predecible**: Cerrar sesión devuelve al usuario a la pantalla de ingreso localizada, eliminando el 404 post-logout en producción.
+- 👥 **Gestión de colaboradores más usable**: Las vistas específicas, el historial y las categorías localizadas vuelven a comportarse de forma consistente.
+- 🎯 **Menos fricción diaria**: Dos recorridos frecuentes — salir de sesión y revisar un colaborador — dejan de depender de rutas rotas o estados visuales inconsistentes.
+- 🌐 **Localización más completa**: Nuevos roles y categorías se muestran de forma coherente en inglés y español.
+- 🧩 **UI más coherente**: El ajuste de `CircularProgress` y la limpieza de duplicados en historial reducen ruido visual en pantallas de seguimiento.
+
+## 📌 Conclusión
+
+La versión 1.31.2 es una entrega corta y deliberadamente acotada: se concentra en dos bugs cerrados de MIOT-0.5.4 que afectaban recorridos visibles del frontend. El logout localizado elimina un fallo básico para usuarios Auth0, evitando que una sesión correctamente cerrada termine en una página 404 sin camino evidente de regreso.
+
+La gestión de colaboradores también queda más estable: las vistas específicas vuelven a abrir correctamente, el historial deja de duplicar categorías, los números de progreso ganan legibilidad y las nuevas etiquetas se presentan en inglés y español. Aunque el milestone privado `1.31.2` no aporta issues propios, esta release deja una integración OSS limpia y verificable para cerrar el ciclo de correcciones de experiencia de la 1.31.x.

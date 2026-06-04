@@ -11,6 +11,7 @@ import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { DriverOption } from "./assignment-form";
+import { AccreditationBadge, accreditationLabel } from "./accreditation";
 import {
   BaseSearchDropdown,
   type FieldConfig,
@@ -24,7 +25,7 @@ import {
 type DriverMatchType =
   | "name"
   | "rut"
-  | "estado"
+  | "acreditacion"
   | "viajesPrevios"
   | "ultimoViaje";
 
@@ -69,11 +70,8 @@ const DRIVER_FIELDS: readonly FieldConfig<DriverOption, DriverMatchType>[] =
       getIcon: () => <HiIdentification className={ICON_CLASS} />,
     },
     {
-      field: "estado",
-      getValue: (driver, dict) =>
-        driver.estado === "habilitado"
-          ? tr("pages.planning.sidebar.assignment.enabled", dict)
-          : tr("pages.planning.sidebar.assignment.notEnabled", dict),
+      field: "acreditacion",
+      getValue: (driver, dict) => accreditationLabel(driver.acreditacion, dict),
       getLabel: (dict) =>
         tr("pages.planning.sidebar.assignment.searchFields.status", dict),
       getIcon: () => <HiCheck className={ICON_CLASS} />,
@@ -106,8 +104,6 @@ function DriverCard({
   onClick,
   onMouseEnter,
 }: CardRenderProps<DriverOption>) {
-  const isEnabled = driver.estado === "habilitado";
-
   return (
     <button
       type="button"
@@ -133,18 +129,7 @@ function DriverCard({
         <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
           {driver.rut}
         </span>
-        {isEnabled ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-            <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-200 dark:bg-green-800/50">
-              <HiCheck className="w-2.5 h-2.5" />
-            </span>
-            {tr("pages.planning.sidebar.assignment.enabled", dict)}
-          </span>
-        ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            {tr("pages.planning.sidebar.assignment.notEnabled", dict)}
-          </span>
-        )}
+        <AccreditationBadge level={driver.acreditacion} dict={dict} />
       </div>
 
       {/* Stats Column */}
@@ -195,8 +180,6 @@ function DriverCard({
 // ============================================================================
 
 function renderSelectedDriverButton(driver: DriverOption, dict: I18nRecord) {
-  const isEnabled = driver.estado === "habilitado";
-
   return (
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-1.5 min-w-0">
@@ -209,18 +192,7 @@ function renderSelectedDriverButton(driver: DriverOption, dict: I18nRecord) {
         <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
           {driver.rut}
         </span>
-        {isEnabled ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shrink-0">
-            <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-200 dark:bg-green-800/50">
-              <HiCheck className="w-2.5 h-2.5" />
-            </span>
-            {tr("pages.planning.sidebar.assignment.enabled", dict)}
-          </span>
-        ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
-            {tr("pages.planning.sidebar.assignment.notEnabled", dict)}
-          </span>
-        )}
+        <AccreditationBadge level={driver.acreditacion} dict={dict} />
       </div>
     </div>
   );

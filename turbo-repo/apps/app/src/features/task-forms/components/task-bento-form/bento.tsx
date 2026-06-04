@@ -1,16 +1,16 @@
 import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
+import { BentoReviewProvider } from "./bento-review-context";
 
 import TripInformation from "./components/trip-information/trip-information";
 import DriverInfo from "./components/driver/driver";
 import KpisCard from "./components/kpis/kpis-card";
 
 import ValidationsInfo from "./components/driver/validations";
-import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
 import SymptomsCard from "./components/side-data/symptoms-card";
 import BentoHead from "./bento-head";
+import BentoMediaSection from "./bento-media-section";
 // import Forum from "./components/forum/forum";
 import Forum from "./components/forum/forum";
 
@@ -39,6 +39,7 @@ export default function Bento({
 
   return (
     <div className="flex flex-col w-full h-full ">
+      <BentoReviewProvider>
       {/* Head */}
       <BentoHead
         task={task}
@@ -87,22 +88,9 @@ export default function Bento({
           />
         </div>
 
-        {/* Geographic + File Images container - full width with custom grid */}
-        <div className="col-span-1 lg:col-span-5 grid grid-cols-1 lg:grid-cols-6 gap-2">
-          {/* Geographic - spans 4/6 columns */}
-          <div className="col-span-1 lg:col-span-4 bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit hidden lg:flex">
-            <div className="h-full w-full">
-              <Geographic
-                task={task}
-                dictionary={dict as unknown as Record<string, string>}
-              />
-            </div>
-          </div>
-
-          {/* File Images - spans 2/6 columns */}
-          <div className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
-            <FileImages task={task} dictionary={dict as I18nRecord} />
-          </div>
+        {/* Geographic + File Images container */}
+        <div className="col-span-1 lg:col-span-5">
+          <BentoMediaSection task={task} dict={dict} />
         </div>
 
         {/* Historic Loads + Symptoms container - full width with custom grid */}
@@ -128,6 +116,7 @@ export default function Bento({
         </div>
         {/* Content */}
       </div>
+      </BentoReviewProvider>
     </div>
   );
 }

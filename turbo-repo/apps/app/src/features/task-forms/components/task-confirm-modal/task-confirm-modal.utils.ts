@@ -68,12 +68,9 @@ export function prepareFormData({
     });
   }
 
-  // Add extra data if provided
-  // if (extraData) {
-  //   Object.entries(extraData).forEach(([key, value]) => {
-  //     formData.append(key, value as string);
-  //   });
-  // }
+  if (extraData?.bpm_package) {
+    formData.append("bpm_package", extraData.bpm_package as string);
+  }
 
   return formData;
 }

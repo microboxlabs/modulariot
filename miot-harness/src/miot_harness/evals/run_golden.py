@@ -15,9 +15,13 @@ For each entry, scores deterministic axes:
   - freshness_citation  did the answer mention refreshed_at?
   - refusal             did the run refuse cleanly when expected?
   - no_hallucination    did expected KPI substrings appear?
+  - step_economy        was the plan within [min_turns, max_turns]? (the
+                        over-engineering guard — too many tool calls fails it)
   - latency_ms / cost   placeholder (real mode only)
 
-Output: JSON to `evals/results/<commit-sha-or-timestamp>.json`.
+Output: JSON to `evals/results/<commit-sha-or-timestamp>.json`, including an
+`env` block (python / platform / cpu / model ids) so runs are comparable
+across machines — see evals/README.md on infrastructure noise.
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ import argparse
 import asyncio
 import json
 import logging
+import os
+import platform
 import subprocess
 import sys
 import time
@@ -76,6 +82,7 @@ class EvalScore:
     freshness_citation: bool | None
     refusal: bool | None
     no_hallucination: bool | None
+    step_economy: bool | None
     latency_ms: float | None
     notes: str = ""
     # Real-mode cost capture — populated from the graph's usage.recorded
@@ -105,6 +112,13 @@ def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
             seen_ids.add(e["id"])
         if e.get("category") == "adversarial" and not e.get("expected_refusal", False):
             errors.append(f"entry[{i}] ({e.get('id')}): adversarial without expected_refusal")
+        if e.get("expected_refusal"):
+            mech = e.get("refusal_mechanism")
+            if mech not in ("structural", "semantic"):
+                errors.append(
+                    f"entry[{i}] ({e.get('id')}): expected_refusal requires "
+                    f"refusal_mechanism in (structural, semantic), got {mech!r}"
+                )
     return errors
 
 
@@ -126,9 +140,7 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
 
     refreshed = datetime.now(UTC)
 
-    async def _call(
-        ctx: HarnessContext, inp: BaseModel, progress: Callable[..., None]
-    ) -> _Out:
+    async def _call(ctx: HarnessContext, inp: BaseModel, progress: Callable[..., None]) -> _Out:
         return _Out(
             rows=[{"n_criticos": 2, "n_eta_riesgo": 3, "refreshed_at_servicios": refreshed}],
             refreshed_at=refreshed,
@@ -258,11 +270,19 @@ def _aggregate_usage(
     )
 
 
-def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -> EvalScore:
+def _score(
+    entry: dict[str, Any],
+    final: dict[str, Any],
+    *,
+    latency_ms: float,
+    mode: str = "fake",
+) -> EvalScore:
     """Score a single eval entry against the final graph state. Shared by
     fake and real mode — both modes feed in identical state shapes
     (the NexoState dict produced by build_nexo_graph), so the scoring
-    rules apply uniformly.
+    rules apply uniformly. `mode` only gates the semantic-refusal axis:
+    the scripted FakeListChatModel cannot produce a semantic refusal, so
+    that axis scores None in fake mode and for real in real mode.
     """
     plan = final.get("plan")
     plan_tools = [s.tool for s in plan.steps] if plan is not None else []
@@ -277,6 +297,20 @@ def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -
         final.get("_events") or []
     )
 
+    if not refusal_expected:
+        refusal_score: bool | None = None
+        notes = ""
+    elif mode == "fake" and entry.get("refusal_mechanism") == "semantic":
+        # The scripted FakeListChatModel cannot produce a semantic refusal;
+        # this axis is only meaningful in real mode.
+        refusal_score = None
+        notes = "refusal: semantic — real-mode-only"
+    else:
+        # structural (e.g. tenant gate) — deterministic in fake mode;
+        # in real mode both mechanisms score against the live answer.
+        refusal_score = answer_is_refusal == refusal_expected
+        notes = ""
+
     return EvalScore(
         id=entry["id"],
         category=entry.get("category", ""),
@@ -285,13 +319,21 @@ def _score(entry: dict[str, Any], final: dict[str, Any], *, latency_ms: float) -
         freshness_citation=("refreshed" in answer or "snapshot" in answer or "hace" in answer)
         if not refusal_expected
         else None,
-        refusal=(answer_is_refusal == refusal_expected) if refusal_expected else None,
+        refusal=refusal_score,
         no_hallucination=all(
             sub.lower() in answer for sub in (entry.get("expected_kpis_mentioned") or [])
         )
         if not refusal_expected
         else None,
+        step_economy=(
+            entry.get("expected_min_turns", 0)
+            <= len(plan_tools)
+            <= entry.get("expected_max_turns", len(plan_tools))
+        )
+        if not refusal_expected
+        else None,
         latency_ms=latency_ms,
+        notes=notes,
         cost_usd=cost_usd,
         tokens_input=tok_in,
         tokens_output=tok_out,
@@ -380,7 +422,7 @@ async def _run_one_real(
     t0 = time.perf_counter()
     final = await graph.ainvoke(initial)
     latency_ms = (time.perf_counter() - t0) * 1000
-    return _score(entry, final, latency_ms=latency_ms)
+    return _score(entry, final, latency_ms=latency_ms, mode="real")
 
 
 _DRIFT_AXES = ("tool_selection", "filter_sanity")
@@ -573,6 +615,7 @@ async def run_golden(
                         freshness_citation=False,
                         refusal=False,
                         no_hallucination=False,
+                        step_economy=False,
                         latency_ms=None,
                         notes=f"runner_error: {exc}",
                     )
@@ -610,12 +653,31 @@ async def run_golden(
     # rollup just attributes the whole spend to canned.
     cost_by_mode = {"canned": total_cost} if total_cost is not None else {}
 
+    settings = HarnessSettings()
     payload = {
         "mode": mode,
         "valid": True,
         "errors": [],
         "commit": sha,
         "generated_at": datetime.now(UTC).isoformat(),
+        "env": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "cpu_count": os.cpu_count(),
+            "deterministic": mode == "fake",
+            "models": {
+                "filter_expert": settings.nexo_filter_expert_model,
+                "analyst": settings.nexo_analyst_model,
+                "synthesizer": settings.nexo_synthesizer_model,
+                "critic": settings.nexo_critic_model,
+                "summarizer": settings.nexo_summarizer_model,
+                "intent_router": settings.intent_router_model,
+            },
+            "note": (
+                "fake mode is deterministic; real mode is subject to "
+                "infrastructure noise (see evals/README.md)."
+            ),
+        },
         "scored": [asdict(s) for s in scored],
         "total_cost_usd": total_cost,
         "total_tokens": total_tokens,
@@ -718,10 +780,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.mode != "static":
-        ok = sum(1 for s in payload["scored"] if not s.get("notes"))
+        ok = sum(
+            1
+            for s in payload["scored"]
+            if not str(s.get("notes", "")).startswith("runner_error")
+        )
         total = len(payload["scored"])
-        out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + ".json")
-        print(f"Wrote {out_path}: {ok}/{total} ran cleanly")
+        # Mirror run_golden's naming: real-mode results carry a -real
+        # suffix so they don't clobber the fake-mode baseline.
+        suffix = "-real" if args.mode == "real" else ""
+        out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + f"{suffix}.json")
+        print(f"Wrote {out_path}: {ok}/{total} ran cleanly (no runner errors)")
     else:
         print(f"Validated {len(yaml.safe_load(yaml_path.read_text()))} entries")
     return 0

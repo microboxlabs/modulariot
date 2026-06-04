@@ -10,7 +10,7 @@ import {
 } from "react";
 import { HiSearch, HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
-import { useCalendarHost } from "../../context/calendar-provider";
+import { useCalendarHostOptional } from "../../context/calendar-provider";
 
 /**
  * A searchable attribute the autocomplete groups matches by. The host supplies
@@ -43,6 +43,13 @@ export interface PlanningSearchAutocompleteProps<T extends { id: string }> {
   // reaches items beyond the current page.
   onQueryChange?: (q: string) => void;
   isLoading?: boolean;
+  /**
+   * Translate the box's chrome strings (placeholder, hint, loading/empty
+   * states). Optional so the box stays usable standalone: when omitted it falls
+   * back to the CalendarProvider host i18n. Passing it lets a host mount the box
+   * OUTSIDE a CalendarProvider (e.g. a move-file modal) without a calendar host.
+   */
+  t?: (path: string) => string;
 }
 
 const DEBOUNCE_MS = 300;
@@ -163,11 +170,18 @@ export function PlanningSearchAutocomplete<T extends { id: string }>({
   onClear,
   onQueryChange,
   isLoading: externalIsLoading = false,
+  t: translate,
 }: Readonly<PlanningSearchAutocompleteProps<T>>) {
-  const host = useCalendarHost();
+  // Prefer the injected translator; fall back to the host i18n when mounted
+  // inside a CalendarProvider. With neither, render raw keys rather than crash.
+  const host = useCalendarHostOptional();
   const t = useCallback(
-    (path: string) => host.i18n.tr(path, host.i18n.dict),
-    [host]
+    (path: string): string => {
+      if (translate) return translate(path);
+      if (host) return host.i18n.tr(path, host.i18n.dict);
+      return path;
+    },
+    [translate, host]
   );
 
   const [query, setQuery] = useState("");

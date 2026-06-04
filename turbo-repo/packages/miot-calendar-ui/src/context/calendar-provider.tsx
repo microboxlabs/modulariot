@@ -99,3 +99,12 @@ export function useCalendarHost(): CalendarHost {
   }
   return ctx;
 }
+
+/**
+ * Read the injected host contract if present, else null — never throws. For
+ * generic, reusable pieces (e.g. the search box) that a host may mount OUTSIDE
+ * a CalendarProvider while feeding what they need (i18n) directly via props.
+ */
+export function useCalendarHostOptional(): CalendarHost | null {
+  return useContext(CalendarHostContext);
+}

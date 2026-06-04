@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { FaTruck, FaMapMarkerAlt, FaCalendarAlt } from "react-icons/fa";
 import {
   PlanningSearchAutocomplete as GenericSearchAutocomplete,
   type SearchAutocompleteField,
 } from "@microboxlabs/miot-calendar-ui";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { SelectedService } from "./planning-selection-context";
 
 type MatchType =
@@ -84,10 +84,15 @@ export function PlanningSearchAutocomplete({
     [dict]
   );
 
+  // Translate the box's chrome strings from our own dict so it works both inside
+  // the calendar (CalendarProvider) and standalone (e.g. the move-file modal).
+  const t = useCallback((path: string) => trDynamic(path, dict), [dict]);
+
   return (
     <GenericSearchAutocomplete
       services={services}
       fields={fields}
+      t={t}
       onMatchTypeSelect={(matchType, query) =>
         onMatchTypeSelect?.(matchType as MatchType, query)
       }

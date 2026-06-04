@@ -9,6 +9,11 @@ export interface MiotChatProfile {
   tenantId: string;
   userId: string;
   mode?: RunMode;
+  /**
+   * Organization slug; when set, runs route through the quarkus-srv harness
+   * proxy at {baseUrl}/api/v1/orgs/{orgSlug}/harness.
+   */
+  orgSlug?: string;
 }
 
 // Theme value persisted in config.json. The TUI's loadUserTheme() in
@@ -38,6 +43,14 @@ export interface ResolvedConfig {
    * the server-side allow-list to permit the tenant.
    */
   debug: boolean;
+  /** Org slug resolved from flag > env > profile, or null when not set. */
+  orgSlug: string | null;
+  /**
+   * Effective base URL for the harness client — the quarkus proxy prefix
+   * ({baseUrl}/api/v1/orgs/{orgSlug}/harness) when orgSlug is set,
+   * otherwise baseUrl unchanged.
+   */
+  harnessBaseUrl: string;
 }
 
 export interface CliFlags {
@@ -48,6 +61,7 @@ export interface CliFlags {
   mode?: string;
   profile?: string;
   debug?: boolean;
+  org?: string;
 }
 
 export interface ResolveOptions {
@@ -131,6 +145,11 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     flags.debug ?? (env.MIOT_CHAT_DEBUG ? env.MIOT_CHAT_DEBUG !== "0" : false),
   );
 
+  const orgSlug = flags.org ?? env.MIOT_CHAT_ORG ?? profile.orgSlug ?? null;
+  const harnessBaseUrl = orgSlug
+    ? `${trimTrailingSlashes(baseUrl)}/api/v1/orgs/${encodeURIComponent(orgSlug)}/harness`
+    : baseUrl;
+
   return {
     baseUrl,
     token,
@@ -140,11 +159,19 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     profileName,
     theme: cfg.theme ?? null,
     debug,
+    orgSlug,
+    harnessBaseUrl,
   };
 }
 
 function cloneDefault(): MiotChatConfig {
   return JSON.parse(JSON.stringify(DEFAULT_CONFIG)) as MiotChatConfig;
+}
+
+function trimTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 0x2f /* '/' */) end--;
+  return end === s.length ? s : s.slice(0, end);
 }
 
 function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
@@ -159,6 +186,9 @@ function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
       mode: VALID_MODES.has(p.mode as RunMode)
         ? (p.mode as RunMode)
         : undefined,
+      ...(typeof p.orgSlug === "string" && p.orgSlug !== ""
+        ? { orgSlug: p.orgSlug }
+        : undefined),
     };
   }
   if (Object.keys(profiles).length === 0) {

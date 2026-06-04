@@ -190,3 +190,102 @@ describe("resolveConfig precedence", () => {
     expect(flagBeatsEnvOff.debug).toBe(true);
   });
 });
+
+describe("resolveConfig org-aware harness base URL", () => {
+  it("no org slug → orgSlug is null and harnessBaseUrl equals baseUrl", () => {
+    const r = resolveConfig({ configDir: dir, env: {} });
+    expect(r.orgSlug).toBeNull();
+    expect(r.harnessBaseUrl).toBe(r.baseUrl);
+  });
+
+  it("org slug via flag → builds quarkus proxy URL, trailing slash trimmed", () => {
+    const r = resolveConfig({
+      configDir: dir,
+      env: {},
+      flags: { baseUrl: "https://miot.example.com/", org: "acme" },
+    });
+    expect(r.orgSlug).toBe("acme");
+    expect(r.harnessBaseUrl).toBe(
+      "https://miot.example.com/api/v1/orgs/acme/harness",
+    );
+  });
+
+  it("org slug via env MIOT_CHAT_ORG → builds proxy URL", () => {
+    const r = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_ORG: "env-org" },
+    });
+    expect(r.orgSlug).toBe("env-org");
+    expect(r.harnessBaseUrl).toBe(
+      "http://localhost:8000/api/v1/orgs/env-org/harness",
+    );
+  });
+
+  it("org slug via profile field orgSlug → builds proxy URL", () => {
+    writeConfig(
+      {
+        defaultProfile: "prod",
+        profiles: {
+          prod: {
+            baseUrl: "https://prod.example.com",
+            token: null,
+            tenantId: "t-prod",
+            userId: "u-prod",
+            orgSlug: "profile-org",
+          },
+        },
+      },
+      { configDir: dir },
+    );
+    const r = resolveConfig({ configDir: dir, env: {} });
+    expect(r.orgSlug).toBe("profile-org");
+    expect(r.harnessBaseUrl).toBe(
+      "https://prod.example.com/api/v1/orgs/profile-org/harness",
+    );
+  });
+
+  it("flag beats env beats profile for org slug", () => {
+    writeConfig(
+      {
+        defaultProfile: "p",
+        profiles: {
+          p: {
+            baseUrl: "https://base.example.com",
+            token: null,
+            tenantId: "t",
+            userId: "u",
+            orgSlug: "profile-org",
+          },
+        },
+      },
+      { configDir: dir },
+    );
+
+    // env beats profile
+    const byEnv = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_ORG: "env-org" },
+    });
+    expect(byEnv.orgSlug).toBe("env-org");
+
+    // flag beats env
+    const byFlag = resolveConfig({
+      configDir: dir,
+      env: { MIOT_CHAT_ORG: "env-org" },
+      flags: { org: "flag-org" },
+    });
+    expect(byFlag.orgSlug).toBe("flag-org");
+  });
+
+  it("org slug containing a slash is URL-encoded in harnessBaseUrl", () => {
+    const r = resolveConfig({
+      configDir: dir,
+      env: {},
+      flags: { baseUrl: "https://miot.example.com", org: "a/b" },
+    });
+    expect(r.orgSlug).toBe("a/b");
+    expect(r.harnessBaseUrl).toBe(
+      "https://miot.example.com/api/v1/orgs/a%2Fb/harness",
+    );
+  });
+});

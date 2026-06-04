@@ -15,9 +15,13 @@ For each entry, scores deterministic axes:
   - freshness_citation  did the answer mention refreshed_at?
   - refusal             did the run refuse cleanly when expected?
   - no_hallucination    did expected KPI substrings appear?
+  - step_economy        was the plan within [min_turns, max_turns]? (the
+                        over-engineering guard — too many tool calls fails it)
   - latency_ms / cost   placeholder (real mode only)
 
-Output: JSON to `evals/results/<commit-sha-or-timestamp>.json`.
+Output: JSON to `evals/results/<commit-sha-or-timestamp>.json`, including an
+`env` block (python / platform / cpu / model ids) so runs are comparable
+across machines — see evals/README.md on infrastructure noise.
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ import argparse
 import asyncio
 import json
 import logging
+import os
+import platform
 import subprocess
 import sys
 import time
@@ -73,6 +79,7 @@ class EvalScore:
     freshness_citation: bool | None
     refusal: bool | None
     no_hallucination: bool | None
+    step_economy: bool | None
     latency_ms: float | None
     notes: str = ""
 
@@ -90,6 +97,13 @@ def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
             seen_ids.add(e["id"])
         if e.get("category") == "adversarial" and not e.get("expected_refusal", False):
             errors.append(f"entry[{i}] ({e.get('id')}): adversarial without expected_refusal")
+        if e.get("expected_refusal"):
+            mech = e.get("refusal_mechanism")
+            if mech not in ("structural", "semantic"):
+                errors.append(
+                    f"entry[{i}] ({e.get('id')}): expected_refusal requires "
+                    f"refusal_mechanism in (structural, semantic), got {mech!r}"
+                )
     return errors
 
 
@@ -111,9 +125,7 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
 
     refreshed = datetime.now(UTC)
 
-    async def _call(
-        ctx: HarnessContext, inp: BaseModel, progress: Callable[..., None]
-    ) -> _Out:
+    async def _call(ctx: HarnessContext, inp: BaseModel, progress: Callable[..., None]) -> _Out:
         return _Out(
             rows=[{"n_criticos": 2, "n_eta_riesgo": 3, "refreshed_at_servicios": refreshed}],
             refreshed_at=refreshed,
@@ -210,6 +222,18 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
     refusal_expected = bool(entry.get("expected_refusal"))
     answer_is_refusal = "mintral-only" in answer or "no puedo responder" in answer
 
+    if not refusal_expected:
+        refusal_score: bool | None = None
+        notes = ""
+    elif entry.get("refusal_mechanism") == "semantic":
+        # The scripted FakeListChatModel cannot produce a semantic refusal;
+        # this axis is only meaningful in real mode.
+        refusal_score = None
+        notes = "refusal: semantic — real-mode-only"
+    else:  # structural (e.g. tenant gate) — deterministic in fake mode
+        refusal_score = answer_is_refusal == refusal_expected
+        notes = ""
+
     return EvalScore(
         id=entry["id"],
         category=entry.get("category", ""),
@@ -218,13 +242,21 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
         freshness_citation=("refreshed" in answer or "snapshot" in answer or "hace" in answer)
         if not refusal_expected
         else None,
-        refusal=(answer_is_refusal == refusal_expected) if refusal_expected else None,
+        refusal=refusal_score,
         no_hallucination=all(
             sub.lower() in answer for sub in (entry.get("expected_kpis_mentioned") or [])
         )
         if not refusal_expected
         else None,
+        step_economy=(
+            entry.get("expected_min_turns", 0)
+            <= len(plan_tools)
+            <= entry.get("expected_max_turns", len(plan_tools))
+        )
+        if not refusal_expected
+        else None,
         latency_ms=latency_ms,
+        notes=notes,
     )
 
 
@@ -276,6 +308,7 @@ async def run_golden(
                     freshness_citation=False,
                     refusal=False,
                     no_hallucination=False,
+                    step_economy=False,
                     latency_ms=None,
                     notes=f"runner_error: {exc}",
                 )
@@ -284,12 +317,31 @@ async def run_golden(
     out_dir.mkdir(parents=True, exist_ok=True)
     sha = _commit_sha()
     out_path = out_dir / f"{sha}.json"
+    settings = HarnessSettings()
     payload = {
         "mode": mode,
         "valid": True,
         "errors": [],
         "commit": sha,
         "generated_at": datetime.now(UTC).isoformat(),
+        "env": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "cpu_count": os.cpu_count(),
+            "deterministic": mode == "fake",
+            "models": {
+                "filter_expert": settings.nexo_filter_expert_model,
+                "analyst": settings.nexo_analyst_model,
+                "synthesizer": settings.nexo_synthesizer_model,
+                "critic": settings.nexo_critic_model,
+                "summarizer": settings.nexo_summarizer_model,
+                "intent_router": settings.intent_router_model,
+            },
+            "note": (
+                "fake mode is deterministic; real mode is subject to "
+                "infrastructure noise (see evals/README.md)."
+            ),
+        },
         "scored": [asdict(s) for s in scored],
     }
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -332,10 +384,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.mode != "static":
-        ok = sum(1 for s in payload["scored"] if not s.get("notes"))
+        ok = sum(
+            1
+            for s in payload["scored"]
+            if not str(s.get("notes", "")).startswith("runner_error")
+        )
         total = len(payload["scored"])
         out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + ".json")
-        print(f"Wrote {out_path}: {ok}/{total} ran cleanly")
+        print(f"Wrote {out_path}: {ok}/{total} ran cleanly (no runner errors)")
     else:
         print(f"Validated {len(yaml.safe_load(yaml_path.read_text()))} entries")
     return 0

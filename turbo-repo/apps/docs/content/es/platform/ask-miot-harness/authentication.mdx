@@ -1,0 +1,75 @@
+# Autenticación
+
+El harness vive detrás de un proxy reverso Quarkus en `quarkus-srv` y rechaza solicitudes no autenticadas en cada ruta `/runs*`. Los probes de salud permanecen abiertos para que kubelet pueda seguir verificando readiness.
+
+## Modelo de confianza
+
+Las solicitudes llegan al harness por dos puertas, en este orden:
+
+1. **Puerta frontal de Quarkus** en `/api/v1/orgs/{slug}/harness/*`.
+
+   Quarkus termina el token Auth0 del usuario (RS256 para usuarios web, HS256 para servicios M2M), ejecuta el filtro existente de membresía organizacional (verifica que el llamador sea miembro de la organización objetivo a través de Alfresco), y reenvía la solicitud al harness con el tenant resuelto en un header `X-Miot-Tenant-Client-Id`.
+
+2. **Defensa en profundidad del harness.**
+
+   El harness reverifica el mismo token Auth0 RS256 contra el JWKS configurado. Un llamador que evade Quarkus y golpea el puerto del harness directamente es rechazado también en esta capa — no hay camino a un endpoint `/runs*` sin un token válido, incluso desde dentro del cluster.
+
+El campo `tenant_id` del cuerpo es sobrescrito silenciosamente por el valor verificado del header antes del despacho; un cuerpo que declara `tenant_id="evil-tenant"` termina persistido como el tenant del header. El campo será eliminado por completo del esquema público en una versión futura.
+
+`/runs/{id}` y `/runs/{id}/stream` agregan una verificación de replay entre tenants: un token para el tenant B no puede obtener ni suscribirse a una ejecución que se originó bajo el tenant A, ya sea que la ejecución esté en vuelo o ya terminal.
+
+## Qué se protege
+
+| Ruta | Auth requerida | Notas |
+|---|---|---|
+| `GET /health` | no | kubelet liveness |
+| `GET /health/ready` | no | kubelet readiness; reporta estado de boot de Nexo |
+| `POST /runs` | sí | ejecución sincrónica; el tenant del header sobrescribe el cuerpo |
+| `POST /runs:start` | sí | despacho asíncrono + 202; el tenant del header sobrescribe el cuerpo |
+| `GET /runs/{id}` | sí | 403 en replay entre tenants |
+| `GET /runs/{id}/stream` | sí | SSE; 403 en replay entre tenants |
+
+## Configuración
+
+Auth está **deshabilitado por defecto** para que los tests unitarios y el desarrollo local vean la superficie legacy no autenticada. Actívalo en producción con:
+
+| Variable de entorno           | Requerida cuando         | Propósito                                            |
+|-------------------------------|--------------------------|------------------------------------------------------|
+| `MIOT_HARNESS_AUTH_ENABLED`   | siempre (default `false`)| Protege `/runs*` con un Bearer token válido          |
+| `AUTH0_ISSUER`                | `AUTH_ENABLED=true`      | El claim `iss` debe ser exactamente esta cadena      |
+| `AUTH0_JWKS_URL`              | `AUTH_ENABLED=true`      | Conjunto de claves públicas RS256 (URL well-known)   |
+| `AUTH0_RS256_AUDIENCE`        | `AUTH_ENABLED=true`      | El claim `aud` debe incluir exactamente esta cadena  |
+
+Los nombres reflejan la configuración `miot.auth.*` de `quarkus-srv` para que un único bloque de valores de Helm pueda renderizar ambos servicios. El lifespan falla rápido en configuración incompleta — un issuer faltante hace crash del pod al arranque en lugar de aceptar silenciosamente cualquier token RS256.
+
+## Ejemplo curl
+
+A través del proxy Quarkus:
+
+```bash
+TOKEN="<token de acceso Auth0>"
+curl -X POST "https://api.miot.example.com/api/v1/orgs/gama-mobility/harness/runs:start" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "¿cuál es el estado de los camiones?", "mode": "agentic"}'
+```
+
+El proxy inyecta `X-Miot-Tenant-Client-Id` desde la membresía organizacional verificada; el harness usa ese valor, no lo que el cuerpo declaró.
+
+## Modos de falla
+
+El harness expone una razón legible por máquina en cada 401:
+
+| Detalle                             | Significado                                            |
+|-------------------------------------|--------------------------------------------------------|
+| `missing Bearer token`              | Sin header `Authorization: Bearer …`                   |
+| `empty Bearer token`                | Header presente pero valor vacío                       |
+| `auth_failed:malformed`             | El header parsea pero el token no es JWT, o `alg` ≠ RS256 |
+| `auth_failed:invalid_signature`     | La firma no verifica contra ningún JWK en caché        |
+| `auth_failed:expired`               | El claim `exp` está en el pasado (con 30 s de leeway)  |
+| `auth_failed:wrong_issuer`          | El claim `iss` no equivale a `AUTH0_ISSUER`            |
+| `auth_failed:wrong_audience`        | El claim `aud` no incluye `AUTH0_RS256_AUDIENCE`       |
+| `auth_failed:tenant_unresolved`     | Token válido pero `X-Miot-Tenant-Client-Id` ausente    |
+| `cross_tenant_replay:run …`         | (403) El tenant del token ≠ tenant de la ejecución     |
+
+Operadores pueden `curl` cualquier falla para triajear sin necesidad de leer logs.

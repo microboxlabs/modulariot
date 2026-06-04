@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { HiChevronDown } from "react-icons/hi";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import { isSegmentPrefix } from "../../utils/utils";
@@ -60,7 +60,7 @@ function ChildItem({
   totals: Record<string, number | string>;
   onNavigate: () => void;
 }>) {
-  const translatedLabel = tr(child.label, dict);
+  const translatedLabel = trDynamic(child.label, dict);
   const itemTotal = child.totals?.[child.label] ?? totals[child.label];
   const showBadge = itemTotal !== undefined && typeof itemTotal === "number";
 
@@ -124,7 +124,7 @@ function NestedGroup({
   return (
     <li>
       <div className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        {tr(group.label, dict)}
+        {trDynamic(group.label, dict)}
       </div>
       <ul className="space-y-0.5">
         {visibleChildren.map((child) => (
@@ -203,7 +203,7 @@ export default function MobileSidebarSection({
             )}
           />
         )}
-        <span className="flex-1 truncate">{tr(item.label, dict)}</span>
+        <span className="flex-1 truncate">{trDynamic(item.label, dict)}</span>
       </Link>
     </li>
   );
@@ -270,7 +270,7 @@ function ExpandableSection({
           />
         )}
         <span className="flex-1 truncate text-left">
-          {tr(item.label, dict)}
+          {trDynamic(item.label, dict)}
         </span>
         <HiChevronDown
           className={twMerge(

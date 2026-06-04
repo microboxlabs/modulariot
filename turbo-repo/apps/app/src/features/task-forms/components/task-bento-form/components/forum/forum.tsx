@@ -1,7 +1,7 @@
 "use client";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { Button, Textarea } from "flowbite-react";
 import { IoMdSend } from "react-icons/io";
 import Message from "./message";
@@ -255,12 +255,15 @@ function normalizeTitle(title: string, dict: I18nRecord): string | null {
   }
 
   if (reasons.includes(title)) {
-    return tr(title, (dict.bento as I18nRecord).forum_reasons as I18nRecord);
+    return trDynamic(
+      title,
+      (dict.bento as I18nRecord).forum_reasons as I18nRecord
+    );
   }
 
   const fixed_title = title.replace("wfship2_", "").replace("Outcome", "");
 
-  return tr(
+  return trDynamic(
     fixed_title as string,
     ((dict.pages as I18nRecord).shipping as I18nRecord).kanban as I18nRecord
   );

@@ -14,7 +14,7 @@ import {
   type DynamicFieldConfig,
 } from "@/features/dynamic-forms";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import { LiveFormField } from "./live-form-field";
 import { DisplayField } from "./display-field";
 
@@ -37,7 +37,7 @@ export function CustomFormField({
 }: CustomFormFieldProps) {
   if (!isVisible) return null;
 
-  const labelText = tr(field.labelKey, dict);
+  const labelText = trDynamic(field.labelKey, dict);
 
   // Handle live fields - task-specific with ETA logic
   if (field.type === "live") {
@@ -74,7 +74,7 @@ export function CustomFormField({
       value={value}
       onChange={onChange}
       isVisible={isVisible}
-      translate={(key) => tr(key, dict)}
+      translate={(key) => trDynamic(key, dict)}
       allValues={allValues}
     />
   );

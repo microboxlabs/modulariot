@@ -1,7 +1,7 @@
 "use client";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 export type ParamType =
   | string
@@ -47,7 +47,7 @@ function fleet_params(searchbarDict: I18nRecord): ParamType[] {
     ]),
   ];
 }
-  
+
 const collaborators_management_params: ParamType[] = [
   setParam("name", "text"),
   setParam("rut", "text"),
@@ -120,7 +120,7 @@ function getParamsFixed(
     const paramType = typeof param === "string" ? "text" : param.type;
 
     return {
-      label: tr(paramKey, dict.searchbar as I18nRecord),
+      label: trDynamic(paramKey, dict.searchbar as I18nRecord),
       param: {
         key: paramKey,
         type: paramType,

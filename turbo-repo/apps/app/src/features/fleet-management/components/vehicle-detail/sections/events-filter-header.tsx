@@ -4,7 +4,7 @@ import { Select } from "flowbite-react";
 import dynamic from "next/dynamic";
 import dayjs from "dayjs";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 const DateRangePicker = dynamic(
   () => import("@/features/common/components/date-picker/date-range-picker"),
@@ -42,7 +42,7 @@ const TIPO_EVENTO_I18N: Record<string, string> = {
 
 function getTipoEventoLabel(tipo: string, dict: I18nRecord): string {
   const key = TIPO_EVENTO_I18N[tipo];
-  if (key) return tr(key, dict);
+  if (key) return trDynamic(key, dict);
   return tr("vehicleDetail.sections.events.filters.allTypes", dict);
 }
 

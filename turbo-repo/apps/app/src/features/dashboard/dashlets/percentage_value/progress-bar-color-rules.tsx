@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Label } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   type ColorRule,
   type ColorRuleItem,
@@ -167,7 +167,7 @@ export function ProgressBarColorRulesEditor({
                   : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
               )}
             >
-              {opt.labelKey === "%" ? "%" : tr(opt.labelKey, dictionary)}
+              {opt.labelKey === "%" ? "%" : trDynamic(opt.labelKey, dictionary)}
             </button>
           ))}
         </div>

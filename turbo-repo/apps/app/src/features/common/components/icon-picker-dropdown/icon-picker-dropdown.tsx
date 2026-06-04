@@ -11,7 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { HiMagnifyingGlass } from "react-icons/hi2";
-import { usePickerDropdown } from "../../hooks";
+import { usePickerDropdown } from "../../hooks/use-picker-dropdown";
 import { ICON_REGISTRY, ICON_KEYS, type IconKey } from "./icon-registry";
 
 /** @deprecated Use IconKey from icon-registry instead */

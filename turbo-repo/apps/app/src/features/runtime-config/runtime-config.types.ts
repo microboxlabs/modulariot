@@ -5,6 +5,10 @@
 export interface RuntimeConfig {
   ECM_PUBLIC_URL: string;
   /**
+   * Public Mapbox token loaded from the server runtime environment.
+   */
+  MAPBOX_API_KEY: string;
+  /**
    * If "true", geographic view will filter by "Con viaje" (with trip) by default.
    * If "false" or empty, no default trip filter will be applied.
    */

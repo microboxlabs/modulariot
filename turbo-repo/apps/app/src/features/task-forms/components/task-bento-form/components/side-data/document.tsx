@@ -11,11 +11,13 @@ export default function Document({
   setSelected,
   dictionary,
   modified = false,
+  onDirectClick,
 }: {
   document: any;
   setSelected: (selected: any) => void;
   dictionary: I18nRecord;
   modified?: boolean;
+  onDirectClick?: () => void;
 }) {
   const [thumbnail, setThumbnail] = useState<any>(null);
   const [thumbnailError, setThumbnailError] = useState<boolean>(false);
@@ -50,6 +52,10 @@ export default function Document({
   const handleViewDocument = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     if (isLoadingContent) return;
+    if (onDirectClick) {
+      onDirectClick();
+      return;
+    }
     setIsLoadingContent(true);
     const contentUrl = `/app/api/bento/content?nodeId=${document.file.entry.id}`;
     try {

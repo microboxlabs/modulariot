@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { TextInput, Button } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
-import { usePickerDropdown } from "../../hooks";
+import { usePickerDropdown } from "../../hooks/use-picker-dropdown";
 
 /** Preset color options */
 export interface PresetColor {

@@ -16,6 +16,8 @@ interface PgrestResolvedFieldsConfig {
   plannerVariableName?: string;
   dataSourceId?: string;
   refreshIntervalMs?: number;
+  /** JSON string used as static data row when dataMode is "static" */
+  staticData?: string;
 }
 
 export interface PgrestResolvedFieldsResult {
@@ -40,6 +42,7 @@ export function usePgrestResolvedFields({
   plannerVariableName,
   dataSourceId,
   refreshIntervalMs = 0,
+  staticData,
 }: PgrestResolvedFieldsConfig): PgrestResolvedFieldsResult {
   const { activeFilters } = useDashboardFilters();
 
@@ -68,7 +71,25 @@ export function usePgrestResolvedFields({
   const loading = dataMode === "planner" ? plannerLoading : pgrestLoading;
   const fetchError = dataMode === "planner" ? plannerError : pgrestError;
 
-  const firstRow = rows[0];
+  // Parse static JSON when in static mode — used as the data row for HB resolution
+  const staticRow = useMemo(() => {
+    if (dataMode !== "static" || !staticData) return undefined;
+    try {
+      const parsed: unknown = JSON.parse(staticData);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, string>;
+      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const first = parsed[0];
+        if (typeof first === "object" && first !== null && !Array.isArray(first)) {
+          return first as Record<string, string>;
+        }
+      }
+    } catch { /* invalid JSON — treat as no data */ }
+    return undefined;
+  }, [dataMode, staticData]);
+
+  const firstRow = dataMode === "static" ? staticRow : rows[0];
 
   const resolved = useMemo(() => {
     const context = firstRow

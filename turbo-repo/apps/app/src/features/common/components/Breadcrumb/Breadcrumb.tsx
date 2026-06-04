@@ -5,7 +5,7 @@ import {
   BreadcrumbItem,
 } from "flowbite-react";
 import { HiHome } from "react-icons/hi";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface BreadcrumbProps {
@@ -23,7 +23,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   rightContent = [],
   dict,
 }) => {
-  const translatedPath = path.map((item) => tr(item, dict));
+  const translatedPath = path.map((item) => trDynamic(item, dict));
 
   return (
     <div className="flex justify-between items-center">

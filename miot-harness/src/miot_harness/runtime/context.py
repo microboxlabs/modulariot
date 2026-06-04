@@ -2,7 +2,9 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from miot_harness.runtime.approvals import ApprovalRegistry
 
 # The four explicit dispatch surfaces a caller can request. "auto" is the
 # default (LLM intent router decides). The other three bypass the router
@@ -12,6 +14,10 @@ RunMode = Literal["auto", "canned", "meta", "agentic"]
 
 
 class HarnessContext(BaseModel):
+    # ApprovalRegistry is a process-local handle, not a serializable
+    # field — needs arbitrary_types_allowed + manual exclude on dump.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     run_id: str = Field(default_factory=lambda: f"run_{uuid4().hex}")
     thread_id: str
     tenant_id: str
@@ -29,13 +35,35 @@ class HarnessContext(BaseModel):
     # contain customer/fleet data that should not leak to unauthenticated
     # stream consumers.
     debug: bool = False
+    # Plan 07 gap 3: per-run handle to the in-process approval registry.
+    # The API layer injects this from app.state; CLI/eval paths leave it
+    # None and the tool layer treats "ask" as deny when it's unset.
+    approval_registry: ApprovalRegistry | None = Field(default=None, exclude=True)
 
 
 class UserRequest(BaseModel):
     message: str
     thread_id: str = "demo-thread"
-    tenant_id: str = "demo-tenant"
-    user_id: str = "demo-user"
+    # Issue #522 R6: `tenant_id` and `user_id` are deprecated body
+    # fields. In production they are silently overridden in
+    # `api.server` from the `X-Miot-Tenant-Client-Id` header set by
+    # the Quarkus proxy — `api.server.require_auth` makes the header
+    # mandatory whenever `MIOT_HARNESS_AUTH_ENABLED=true`, so body
+    # values are inert in any deployment that has auth on. They
+    # remain on the schema only to keep the CLI demo, eval harness,
+    # and the existing unit-test fleet (~30 call sites) working
+    # while the dev escape hatch is being phased out. A follow-up
+    # release will remove both fields once staging soak confirms no
+    # remaining caller relies on them. Do NOT build new logic that
+    # trusts these values.
+    tenant_id: str = Field(
+        default="demo-tenant",
+        json_schema_extra={"deprecated": True},
+    )
+    user_id: str = Field(
+        default="demo-user",
+        json_schema_extra={"deprecated": True},
+    )
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
     conversation_id: str | None = None

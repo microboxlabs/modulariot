@@ -33,6 +33,13 @@ const TASK_TYPES_REQUIRING_VALIDATION = [
   TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
 ] as const;
 
+// A delivery document can arrive classified either as PROOF_OF_DELIVERY or
+// PROOF_OF_LOAD_RECEIPT, so both satisfy the document gate.
+const ACCEPTED_POD_CONTENT_TYPES = new Set([
+  "PROOF_OF_DELIVERY",
+  "PROOF_OF_LOAD_RECEIPT",
+]);
+
 function requiresValidation(taskType: TaskType): boolean {
   return (TASK_TYPES_REQUIRING_VALIDATION as readonly string[]).includes(
     taskType
@@ -68,9 +75,10 @@ export function useDocumentValidation(
 
   const entries: NodeEntry[] = data?.data?.list?.entries || [];
 
-  const hasPOD = entries.some(
-    (file) =>
-      file.entry.properties?.["mintral:contentType"] === "PROOF_OF_DELIVERY"
+  const hasPOD = entries.some((file) =>
+    ACCEPTED_POD_CONTENT_TYPES.has(
+      file.entry.properties?.["mintral:contentType"] ?? ""
+    )
   );
 
   const hasPOLF = false;

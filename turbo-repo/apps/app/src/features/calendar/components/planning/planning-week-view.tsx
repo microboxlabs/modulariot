@@ -18,21 +18,20 @@ import type { PlannedService } from "./planning-selection-context";
 import {
   computeSlotState,
   getSlotCellClassName,
+  SlotCellContent,
+  TimeLabelCell,
+  BASE_ROW_HEIGHT_PX,
+  buildShiftLayout,
+  computeStretchedRowLayout,
+  rowOffsetsFromHeights,
   type SlotState,
-} from "./planning-slot-utils";
-import { SlotCellContent, TimeLabelCell } from "./slot-cell-shared";
+  type PositionedShift,
+} from "@microboxlabs/miot-calendar-ui";
 import { usePlanningGrid } from "./use-planning-grid";
 import {
   PlanningGridShell,
   buildPlanningGridShellProps,
 } from "./planning-grid-shell";
-import {
-  BASE_ROW_HEIGHT_PX,
-  buildShiftLayout,
-  computeStretchedRowLayout,
-  rowOffsetsFromHeights,
-  type PositionedShift,
-} from "./shift-layout";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 

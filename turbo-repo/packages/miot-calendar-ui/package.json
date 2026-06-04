@@ -1,0 +1,53 @@
+{
+  "name": "@microboxlabs/miot-calendar-ui",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "packages/miot-calendar-ui"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./styles.css"
+  },
+  "files": [
+    "dist",
+    "styles.css"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "next": ">=15",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@microboxlabs/miot-calendar-client": "*",
+    "dayjs": "^1.11.12",
+    "flowbite-react": "^0.12.10",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/react": "19.2.10",
+    "@types/react-dom": "19.2.3",
+    "tsup": "^8.0.0",
+    "typescript": "5.8.2",
+    "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

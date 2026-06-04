@@ -1,0 +1,49 @@
+# 🔔 Release Notes v1.31.4 — ModularIoT
+
+### Fecha: 02/06/2026
+
+**Objetivo**: Entregar mejoras del frontend y de la cadena de entrega (CI/CD), reforzar la seguridad de configuración en tiempo de ejecución y corregir regresiones de UI móviles; además incorporar un módulo avanzado de gestión documental integrado con Alfresco.
+
+## 🚀 Evolutivos
+
+- **📍 Cargar token de Mapbox desde configuración en tiempo de ejecución**
+  - **Punto clave**: El token de Mapbox se expone como `MAPBOX_API_KEY` vía la ruta de runtime-config y se lee desde `RuntimeConfigProvider` en componentes Mapbox; ya no se referencia `NEXT_PUBLIC_MAPBOX_API_KEY`.
+  - **Detalle técnico**: Actualización de la whitelist `/app/api/runtime-config`, pruebas focalizadas de runtime-config y cambios de despliegue Helm para tomar `MAPBOX_API_KEY` desde el secreto Kubernetes existente. (Integración OSS — MIOT-0.5.6)
+
+- **📍 Automatizar workflows de release y de imágenes preview de la app**
+  - **Punto clave**: Reorganización de las workflows para separar validación CI, builds nocturnos, imágenes por PR y el release train que realiza tagging y despliegue versionado.
+  - **Detalle técnico**: PR previews publican imágenes inmutables por PR; nightly builds publican imágenes de desarrollo; el release train coordina etiqueta/sha-tagging y cierre de milestones. (Integración OSS — MIOT-0.5.6)
+
+- **📍 Redirigir raíz a /app en desarrollo local**
+  - **Punto clave**: Añadida una redirección solo en desarrollo para que `http://localhost:3050/` vaya a `/app`, evitando 404s al abrir la raíz en dev.
+  - **Detalle técnico**: `next.config.mjs` incluye `redirects()` condicionada a `NODE_ENV === "development"` con `basePath: false` y `permanent: false`. (Integración OSS — MIOT-0.5.6)
+
+- **📍 Verificar tipos de claves i18n para tr() contra JSON de locales**
+  - **Punto clave**: `tr()` ahora está tipado contra el JSON de locales (fuente canonical `es.json`), evitando que claves faltantes o renombradas se muestren como rutas crudas en producción.
+  - **Detalle técnico**: `tr` genérico + `trDynamic` para casos dinámicos, prueba CI que asegura paridad de leaf-keys entre `en` y `es`, y `tsc --noEmit` como puerta dura en CI. (Integración OSS — MIOT-0.5.6)
+
+- **📍 Módulo de administración de documentos dentro del formulario bento de tareas**
+  - **Punto clave**: Implementación completa para subir, clasificar, revisar y comentar documentos, con visor inline (imágenes y PDF), flujos de revisión y anotaciones por documento.
+  - **Detalle técnico**: Integración con Alfresco ECM (nodos, propiedades, foros) y nuevas APIs Next.js (`/api/bento/*`, `/api/forum/*`, `/api/alfresco/*`) para operaciones de upload, thumbnails, metadata, revisiones y foro de auditoría. (Integración OSS — MIOT-0.5.6)
+
+## 🐛 Correcciones
+
+- **🐛 Encabezado sticky del Kanban solapa el sidebar móvil y el menú de lane**
+  - **Impacto**: En vistas móviles los títulos de columna `sticky` se pintaban por encima del drawer lateral y podían tapar menús de acciones abiertos, rompiendo la jerarquía visual.
+  - **Solución**: El contenedor del board ahora crea su propio contexto de apilamiento (`isolate`) y se eleva el header activo cuando el menú está abierto (`has-[[role=menu]]:z-30`) para mantener la correcta superposición. Archivos afectados: `content.tsx`, `lane-column.tsx`. (Integración OSS — MIOT-0.5.6)
+
+## 📊 Beneficios
+
+- Mejor manejo de secretos en tiempo de ejecución: tokens sensibles ya no quedan embebidos en el bundle cliente.
+- Flujos de release más seguros y trazables: imágenes por PR, nightly builds y release train separados reducen riesgo de fugas de env-vars y errores de despliegue.
+- Mejor experiencia de desarrollo local al evitar 404 en la raíz durante `next dev`.
+- Mayor robustez de la internacionalización: errores en claves i18n detectados en tiempo de compilación y paridad en CI entre locales.
+- Funcionalidad documental empresarial: carga, clasificación, revisión y auditoría de documentos integrados con Alfresco.
+- UI móvil más fiable: corrección de z-index en Kanban mejora accesibilidad y usabilidad en dispositivos pequeños.
+- Operaciones: despliegues Helm configurables para leer `MAPBOX_API_KEY` desde secretos Kubernetes existentes.
+
+## 📌 Conclusión
+
+La versión 1.31.4 consolida mejoras importantes en la seguridad de configuración, en la fiabilidad del pipeline de releases y en la experiencia tanto de desarrolladores como de usuarios finales. La migración de claves i18n a verificaciones tipadas y las nuevas pruebas CI reducen la probabilidad de regresiones de traducción en producción.
+
+Además, la incorporación del módulo de administración documental y las mejoras en despliegue (runtime config para Mapbox, automatización de imágenes) fortalecen la posición de la plataforma para integraciones empresariales (Alfresco) y despliegues multi-entorno. Se recomienda monitorizar despliegues y alertas post-release para validar secretos en runtime y el comportamiento del board Kanban en vistas móviles.

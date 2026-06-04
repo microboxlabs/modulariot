@@ -5,14 +5,13 @@ import { HiExclamation, HiCheck, HiX, HiMinus } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
+import { usePlanningSelection, formatPercent } from "@microboxlabs/miot-calendar-ui";
 import {
-  usePlanningSelection,
   type SelectedService,
   type LeadTimeData,
   getLeadTimeStatus,
-} from "./planning-selection-context";
+} from "./planning-selection-types";
 import { categorizeIncidencias } from "./incidencias.types";
-import { formatPercent } from "./planning-format";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
@@ -78,7 +77,8 @@ function getOccupancyColor(percentage: number): string {
  * 3. Static (Cliente, Origen → Destino)
  */
 export function ServiceEvent({ service, dict, className }: ServiceEventProps) {
-  const { selectedService, selectService } = usePlanningSelection();
+  const { selectedService, selectService } =
+    usePlanningSelection<SelectedService>();
 
   const isSelected = selectedService?.id === service.id;
   const leadTimeStyles = getLeadTimeStyles(service.leadTime);

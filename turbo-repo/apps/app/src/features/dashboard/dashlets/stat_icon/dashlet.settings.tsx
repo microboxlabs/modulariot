@@ -15,7 +15,7 @@ import {
   AdvancedColorPicker,
   type PresetColor,
 } from "@/features/common/components/advanced-color-picker";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   useValueColorSettings,
   ValueColorRulesEditor,
@@ -61,6 +61,8 @@ const FIELDS = [
     state: "subtitle",
     hbPlaceholder: "{{row.subtitle}}",
     staticPlaceholder: "Last 24 hours",
+    multiline: true,
+    rows: 3,
   },
 ] as const;
 
@@ -148,7 +150,7 @@ export function DashletSettings(
                       : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                   )}
                 >
-                  {tr(opt.labelKey, dictionary)}
+                  {trDynamic(opt.labelKey, dictionary)}
                 </button>
               ))}
             </div>
@@ -196,7 +198,10 @@ export function DashletSettings(
                 value={icon}
                 onChange={setIcon}
                 title={tr("dashboard.settings.selectIcon", dictionary)}
-                searchPlaceholder={tr("dashboard.settings.searchIcons", dictionary)}
+                searchPlaceholder={tr(
+                  "dashboard.settings.searchIcons",
+                  dictionary
+                )}
                 emptyMessage={tr("dashboard.settings.noIconsFound", dictionary)}
               />
               <AdvancedColorPicker

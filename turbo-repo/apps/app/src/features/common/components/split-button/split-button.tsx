@@ -61,7 +61,8 @@ export default function SplitButton({
         </MaybeTooltip>
       )}
 
-      {(secondaryActions.length > 1 || secondaryLabel) && (
+      {secondaryActions.length > 0 &&
+        (secondaryActions.length > 1 || secondaryLabel) && (
         <MaybeTooltip content={disabled ? tooltip : undefined}>
           <Dropdown
             label=""
@@ -113,7 +114,7 @@ export default function SplitButton({
           size={btnSize}
           disabled={disabled || primaryDisabled}
           onClick={primary.onClick}
-          className={"gap-1 " + (secondaryActions.length > 0 || secondaryLabel ? "rounded-l-none focus:ring-0" : "focus:ring-0")}
+          className={"gap-1 " + (secondaryActions.length > 0 ? "rounded-l-none focus:ring-0" : "focus:ring-0")}
         >
           {primary.icon}
           {primary.label}

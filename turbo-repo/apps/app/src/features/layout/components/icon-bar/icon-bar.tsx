@@ -5,7 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
 import { pathNameWithoutLanguage, isSegmentPrefix } from "../../utils/utils";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import IconBarItem from "./icon-bar-item";
@@ -63,7 +63,7 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
                 key={item.label}
                 icon={item.icon}
                 label={item.label}
-                translatedLabel={tr(item.label, dict)}
+                translatedLabel={trDynamic(item.label, dict)}
                 href={item.href}
                 hasChildren={hasChildren}
                 isActive={active}

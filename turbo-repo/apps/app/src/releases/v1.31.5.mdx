@@ -1,0 +1,51 @@
+# 🔔 Release Notes v1.31.5 — ModularIoT
+
+### Fecha: 02/06/2026
+
+**Objetivo**: Entregar mejoras de interfaz y plataforma para la app Next.js, fortalecer la internacionalización y automatizar flujos de publicación y despliegue para reducir errores de configuración entre entornos.
+
+## 🚀 Evolutivos
+
+- **Carga del token de Mapbox desde runtime config**
+  - **Punto clave**: La app ahora obtiene `MAPBOX_API_KEY` desde la ruta de configuración en tiempo de ejecución y ya no referencia `NEXT_PUBLIC_MAPBOX_API_KEY`.
+  - **Detalle técnico**: `RuntimeConfigProvider` provee el token a los componentes que usan Mapbox; se actualizó el despliegue para pasar `MAPBOX_API_KEY` y se añadió una prueba enfocada para la ruta de runtime-config. (Integración OSS — MIOT-0.5.6)
+
+- **Redirección del root a `/app` en desarrollo local**
+  - **Punto clave**: Desarrollo local ahora redirige `/` → `/app` para evitar 404 al usar `next dev`.
+  - **Detalle técnico**: Redirects dev-only en `next.config.mjs` (gated por `NODE_ENV === "development"`) con `basePath: false` y `permanent: false`. (Integración OSS — MIOT-0.5.6)
+
+- **I18n: comprobación de tipos para claves `tr()`**
+  - **Punto clave**: `tr()` fue tipado contra los JSON de locales para detectar claves faltantes o duplicadas en tiempo de compilación.
+  - **Detalle técnico**: `tr` ahora es genérico, se añadieron `trDynamic`/`_trDynamic` como casos dinámicos, y una prueba CI que asegura paridad de claves entre `en` y `es`. (Integración OSS — MIOT-0.5.6)
+
+- **Módulo de administración de documentos en el formulario bento**
+  - **Punto clave**: Nuevo conjunto de funcionalidades para subir, clasificar, revisar y discutir documentos (integración con Alfresco ECM).
+  - **Detalle técnico**: Uploads (drag & drop), clasificación por categorías, flujo de revisión (pending/approved/rejected), observaciones por documento, visor inline multimedia, rutas API `/api/bento/*` y `/api/forum/*`. (Integración OSS — MIOT-0.5.6)
+
+## 🔧 Integraciones
+
+- **Automatización de releases y build images de la app**
+  - **Alcance**: Nueva organización de workflows CI para separar validación, builds nocturnos, previews por PR y el release train final.
+  - **Detalle técnico**: PR previews generan imágenes por PR con digest inmutable; nightly builds publican imágenes de desarrollo; el release train coordina tagging y evita filtrar variables públicas de build en jobs de despliegue. (Integración OSS — MIOT-0.5.6)
+
+## 🐛 Correcciones
+
+- **Z-index en encabezados del Kanban que solapan la barra lateral móvil y menús**
+  - **Impacto**: En vistas móviles, los encabezados sticky de columnas pintaban por encima del drawer lateral y podían ocultar menús de acciones abiertos.
+  - **Solución**: El contenedor de scroll del tablero ahora crea su propio contexto de apilamiento (`isolate`) y se elevan dinámicamente los encabezados con menú abierto (`has-[[role=menu]]:z-30`) para que el menú quede por encima de columnas vecinas. Archivos afectados: `content.tsx`, `lane-column.tsx`. (Integración OSS — MIOT-0.5.6)
+
+## 📊 Beneficios
+
+- Mejora de la experiencia de desarrollo local (redirect `/` → `/app`) y reducción de fricción para desarrolladores.
+- Traducciones más confiables: errores de claves de i18n detectados en CI antes de release.
+- Configuración de Mapbox robusta entre entornos: evita bake-in de keys en el bundle cliente y facilita despliegues multi-entorno.
+- Flujos de CI/CD más predecibles: previews por PR y builds nocturnos reducen incertidumbre en QA y despliegues.
+- Gestión documental enriquecida: subida, revisión y auditoría (foro) integradas con Alfresco para trazabilidad operativa.
+- UI corregida en Kanban móvil mejora accesibilidad y usabilidad en dispositivos pequeños.
+- Menor riesgo operacional al evitar filtrar variables públicas de build en jobs de despliegue.
+
+## 📌 Conclusión
+
+Esta versión consolida mejoras visibles en la aplicación y refuerza la infraestructura de entrega. La internacionalización tipada y las pruebas de paridad reducen fallos silenciosos en producción; la migración del token de Mapbox a runtime-config y las correcciones UI solucionan problemas de despliegue y de experiencia en clientes móviles.
+
+La automatización de imágenes y releases moderniza el pipeline de entrega, aportando builds reproducibles y previews por PR que facilitan QA. En conjunto, v1.31.5 reduce fricción operativa y mejora la confiabilidad del producto en entornos de desarrollo y producción.

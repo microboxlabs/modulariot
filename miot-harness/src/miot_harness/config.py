@@ -134,6 +134,23 @@ class HarnessSettings(BaseSettings):
         allowed = {t.strip() for t in raw.split(",") if t.strip()}
         return tenant_id in allowed
 
+    # Plan 07 gap 8: signed identity header. When `identity_signing_key`
+    # is set, requests must carry a valid `X-MIOT-Identity` header
+    # (HMAC-SHA256 of `{tenant_id, user_id, exp}`) and tenant_id/user_id
+    # from the request body are ignored — the verified values from the
+    # header win. When unset (the default for local dev / evals), the
+    # body values are accepted and requests pass through without a
+    # header. Production must set this.
+    #
+    # `min_length=1` rejects the empty string at boot. The middleware
+    # otherwise treats "" as "set" (it's not None) and would enable
+    # signed mode with a trivially-guessable HMAC key — a far worse
+    # failure mode than refusing to start.
+    identity_signing_key: str | None = Field(default=None, min_length=1)
+    # Skew tolerance for `exp` claims, in seconds. Tighter is better;
+    # 60s accounts for routine clock drift in a docker-compose stack.
+    identity_skew_seconds: int = Field(default=60, ge=0)
+
     # Provider API keys (unprefixed, standard provider env names)
     anthropic_api_key: str | None = Field(
         default=None,
@@ -143,6 +160,57 @@ class HarnessSettings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
     )
+
+    # Auth0 / JWT verification (defense-in-depth in front of the
+    # Quarkus proxy). Off by default so unit tests and local dev see
+    # the legacy unauthenticated surface; production deploys flip
+    # `auth_enabled` and supply the issuer/JWKS/audience. Env-var
+    # names mirror `quarkus-srv`'s `miot.auth.*` config so a single
+    # block in Helm values can render both services.
+    auth_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AUTH_ENABLED", "auth_enabled"
+        ),
+    )
+    auth0_issuer: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTH0_ISSUER", "auth0_issuer"),
+    )
+    auth0_jwks_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTH0_JWKS_URL", "auth0_jwks_url"),
+    )
+    auth0_rs256_audience: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUTH0_RS256_AUDIENCE", "auth0_rs256_audience"
+        ),
+    )
+    def validate_auth_config(self) -> None:
+        """Raise ``ValueError`` if the auth settings are internally
+        inconsistent. Call once at startup (lifespan).
+
+        When ``auth_enabled`` is true, all three of ``auth0_issuer``,
+        ``auth0_jwks_url``, and ``auth0_rs256_audience`` must be set.
+        Otherwise ``verify_token`` would have nothing to compare
+        against and would silently accept any well-formed RS256 token.
+        """
+        if self.auth_enabled:
+            missing = [
+                name
+                for name, value in (
+                    ("auth0_issuer", self.auth0_issuer),
+                    ("auth0_jwks_url", self.auth0_jwks_url),
+                    ("auth0_rs256_audience", self.auth0_rs256_audience),
+                )
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "auth_enabled=True but the following settings are unset: "
+                    + ", ".join(missing)
+                )
 
 
 @lru_cache(maxsize=1)

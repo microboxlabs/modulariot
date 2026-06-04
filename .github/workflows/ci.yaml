@@ -1,35 +1,14 @@
 # =============================================================================
-# Build and Publish - ModularIoT Monorepo
+# CI - ModularIoT Monorepo
 # =============================================================================
-# This workflow builds and publishes Docker images for multiple applications
-# in the monorepo.
-#
-# Docker Images published to:
-#   - GitHub Container Registry (GHCR) - Primary registry
-#   - Docker Hub - Secondary mirror (non-PR builds only)
-#
-# Applications built:
-#   - docs: Documentation site (miot-docs)
-#   - app: Main application (miot-app)
-#   - web: Marketing website (miot-web)
-#
-# Tagging Strategy:
-#   - PRs:        ghcr.io/microboxlabs/<image>:pr-<number>
-#   - trunk:      ghcr.io/microboxlabs/<image>:latest
-#   - Tags:       ghcr.io/microboxlabs/<image>:<version>
-#
-# Required Secrets:
-#   Docker Hub:
-#     - DOCKERHUB_USERNAME: Docker Hub username
-#     - DOCKERHUB_TOKEN: Docker Hub access token
-#
-# Required Variables:
-#   - NEXT_PUBLIC_INGEST_URL: Ingest URL for the app
+# This workflow validates Turbo repo changes on pull requests, trunk/main pushes,
+# and manual dispatches. Release tagging, image publishing, and deployment are
+# handled by app-release-train.yml.
 # =============================================================================
 
-name: Build and Publish
+name: CI
 
-run-name: ${{ github.actor }} is building ${{ github.repository }} 🚀
+run-name: ${{ github.actor }} is validating ${{ github.repository }}
 
 on:
   push:
@@ -38,8 +17,6 @@ on:
     branches:
       - trunk
       - main
-    tags:
-      - "v*"
   pull_request:
     paths:
       - 'turbo-repo/**'
@@ -48,25 +25,23 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
-  # Registry configuration
-  GHCR_REGISTRY: ghcr.io
-  DOCKERHUB_REGISTRY: docker.io
-  # Organization/owner for images
-  IMAGE_OWNER: microboxlabs
-  # Build configuration
   NODE_VERSION: "22"
-  # Application environment
   NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
   NEXT_PUBLIC_MAPBOX_API_KEY: ${{ secrets.NEXT_PUBLIC_MAPBOX_API_KEY }}
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
   NEXT_PUBLIC_AUTENTIA_PATH: ${{ secrets.NEXT_PUBLIC_AUTENTIA_PATH }}
 
-
-
 jobs:
   # ===========================================================================
-  # Changed paths - Detect which areas of the monorepo changed
+  # Changed paths - Detect whether app build inputs changed
   # ===========================================================================
   changes:
     name: Detect Changes
@@ -78,6 +53,7 @@ jobs:
       apps: ${{ steps.filter.outputs.apps }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -98,14 +74,8 @@ jobs:
     name: Install Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     permissions:
       contents: read
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      is-release: ${{ steps.version.outputs.is-release }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -116,21 +86,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
           cache-dependency-path: turbo-repo/package-lock.json
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "is-release=true" >> $GITHUB_OUTPUT
-            echo "📦 Release version: $VERSION"
-          else
-            VERSION="0.0.0-$(echo $GITHUB_SHA | cut -c1-7)"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "is-release=false" >> $GITHUB_OUTPUT
-            echo "📦 Development version: $VERSION"
-          fi
 
       - name: Cache node_modules
         id: cache-modules
@@ -155,10 +110,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     timeout-minutes: 10
-
     permissions:
       contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -187,19 +140,21 @@ jobs:
         run: npx turbo run check-types --filter='!@modulariot/web-admin'
         working-directory: turbo-repo
 
+      - name: Check i18n locale integrity (en/es parity + no duplicate keys)
+        run: npx vitest run src/test/i18n/locale-parity.test.ts
+        working-directory: turbo-repo/apps/app
+
   # ===========================================================================
-  # Build - Turbo build all Next.js apps and upload standalone artifacts
+  # Build - Validate the Next.js apps that participate in release/deploy flows
   # ===========================================================================
   build:
     name: Build Apps
     runs-on: ubuntu-latest
     needs: [install, changes]
-    if: needs.changes.outputs.apps == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.apps == 'true'
     timeout-minutes: 15
-
     permissions:
       contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -222,237 +177,25 @@ jobs:
         run: npx turbo run build --filter=@modulariot/docs --filter=@modulariot/app --filter=@modulariot/web
         working-directory: turbo-repo
 
-      - name: Stage docs artifacts
-        run: |
-          mkdir -p /tmp/build-docs/.next
-          cp -r turbo-repo/apps/docs/.next/standalone /tmp/build-docs/.next/standalone
-          cp -r turbo-repo/apps/docs/.next/static /tmp/build-docs/.next/static
-          cp -r turbo-repo/apps/docs/public /tmp/build-docs/public
-
-      - name: Stage app artifacts
-        run: |
-          mkdir -p /tmp/build-app/.next
-          cp -r turbo-repo/apps/app/.next/standalone /tmp/build-app/.next/standalone
-          cp -r turbo-repo/apps/app/.next/static /tmp/build-app/.next/static
-          cp -r turbo-repo/apps/app/public /tmp/build-app/public
-
-      - name: Stage web artifacts
-        run: |
-          mkdir -p /tmp/build-web/.next
-          cp -r turbo-repo/apps/web/.next/standalone /tmp/build-web/.next/standalone
-          cp -r turbo-repo/apps/web/.next/static /tmp/build-web/.next/static
-          cp -r turbo-repo/apps/web/public /tmp/build-web/public
-
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-docs
-          path: /tmp/build-docs/
-          include-hidden-files: true
-          retention-days: 1
-
-      - name: Upload app artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-app
-          path: /tmp/build-app/
-          include-hidden-files: true
-          retention-days: 1
-
-      - name: Upload web artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-web
-          path: /tmp/build-web/
-          include-hidden-files: true
-          retention-days: 1
-
-  # ===========================================================================
-  # Publish Docker Images - Package pre-built standalone output
-  # ===========================================================================
-  publish-docker:
-    name: Publish ${{ matrix.app }} Image
-    runs-on: ubuntu-latest
-    needs: [lint, build, changes]
-    if: needs.changes.outputs.apps == 'true'
-    timeout-minutes: 15
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - app: docs
-            image-name: miot-docs
-          - app: app
-            image-name: miot-app
-          - app: web
-            image-name: miot-web
-
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-      security-events: write
-
-    outputs:
-      image-tags: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build-push.outputs.digest }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: turbo-repo/docker
-
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-${{ matrix.app }}
-          path: build-context/
-
-      - name: Copy Dockerfile into build context
-        run: cp turbo-repo/docker/nextjs.standalone.Dockerfile build-context/
-
-      # =========================================================================
-      # Docker Build Setup
-      # =========================================================================
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # =========================================================================
-      # Registry Authentication
-      # =========================================================================
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.GHCR_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.DOCKERHUB_REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # =========================================================================
-      # Image Metadata and Tags
-      # =========================================================================
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}
-            ${{ github.event_name != 'pull_request' && format('{0}/{1}/{2}', env.DOCKERHUB_REGISTRY, env.IMAGE_OWNER, matrix.image-name) || '' }}
-          tags: |
-            type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=sha,prefix=sha-,format=short
-          labels: |
-            org.opencontainers.image.title=${{ matrix.image-name }}
-            org.opencontainers.image.description=ModularIoT ${{ matrix.app }} application
-            org.opencontainers.image.vendor=MicroboxLabs
-            org.opencontainers.image.licenses=Apache-2.0
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
-
-      # =========================================================================
-      # Build and Push - Package pre-built standalone output
-      # =========================================================================
-      - name: Build and push Docker image
-        id: build-push
-        uses: docker/build-push-action@v6
-        with:
-          context: build-context/
-          file: build-context/nextjs.standalone.Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            APP_NAME=${{ matrix.app }}
-          provenance: true
-          sbom: true
-
-      # =========================================================================
-      # Post-build Information
-      # =========================================================================
-      - name: Output image information
-        run: |
-          echo "## 🐳 Docker Image Published: ${{ matrix.image-name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Digest" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.build-push.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "# From GitHub Container Registry (primary)" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}:sha-${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "# From Docker Hub (mirror)" >> $GITHUB_STEP_SUMMARY
-            echo "docker pull ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}:sha-${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      # =========================================================================
-      # Security Scan
-      # =========================================================================
-      - name: Run Trivy vulnerability scanner
-        if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
-        with:
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}@${{ steps.build-push.outputs.digest }}"
-          format: "sarif"
-          output: "trivy-results-${{ matrix.app }}.sarif"
-        continue-on-error: true
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        if: github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: "trivy-results-${{ matrix.app }}.sarif"
-          category: "${{ matrix.app }}-security"
-        continue-on-error: true
-
   # ===========================================================================
   # Summary Job - Aggregate results
   # ===========================================================================
   summary:
-    name: Build Summary
+    name: CI Summary
     runs-on: ubuntu-latest
-    needs: [install, lint, build, publish-docker, changes]
+    needs: [install, lint, build, changes]
     if: always()
-
+    permissions: {}
     steps:
       - name: Create summary
         run: |
-          echo "# 📊 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "# CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Install | ${{ needs.install.result == 'success' && '✅ Cached' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Lint & Types | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Apps | ${{ needs.build.result == 'success' && '✅ Built' || needs.build.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Publish | ${{ needs.publish-docker.result == 'success' && '✅ Published' || needs.publish-docker.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Install | ${{ needs.install.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Types | ${{ needs.lint.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Apps | ${{ needs.build.result == 'success' && 'Built' || needs.build.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ needs.install.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release:** ${{ needs.install.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Release publishing: handled by \`app-release-train.yml\`" >> $GITHUB_STEP_SUMMARY

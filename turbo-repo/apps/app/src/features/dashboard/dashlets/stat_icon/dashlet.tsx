@@ -67,10 +67,11 @@ export interface DashletConfig extends PgrestDashletFields {
 }
 
 export const defaultConfig: DashletConfig = {
-  title: "Orders",
-  value: "156",
-  unit: "",
-  subtitle: "Last 24 hours",
+  title: "{{row.title}}",
+  value: "{{row.value}}",
+  unit: "{{row.unit}}",
+  subtitle: "{{row.value}} {{row.unit}}",
+  staticData: '{\n  "title": "Orders",\n  "value": "156",\n  "unit": "items"\n}',
   cardVariant: "horizontal",
   showIcon: true,
   icon: "cart",
@@ -294,7 +295,7 @@ export function Dashlet({ widget, editMode }: Readonly<DashletComponentProps>) {
     ? { text: title, style: titleStyle }
     : undefined;
   const descriptionConfig = subtitle.trim()
-    ? { text: subtitle, style: descriptionStyle }
+    ? { text: subtitle, style: descriptionStyle, markdown: true }
     : undefined;
 
   // Build common KpiStat props

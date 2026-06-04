@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import { Label, Textarea } from "flowbite-react";
 import { SettingsSelectField } from "./settings-fields";
 import { PgrestSettingsSection } from "./pgrest-settings-section";
 import { PlannerVariableSelector } from "./planner-variable-selector";
@@ -26,6 +28,8 @@ interface PgrestDataTabProps {
   dataSourceId?: string;
   onDataSourceIdChange?: (id: string) => void;
   activeProviders?: DataSourceOption[];
+  staticData?: string;
+  onStaticDataChange?: (v: string) => void;
 }
 
 /**
@@ -45,8 +49,23 @@ export function PgrestDataTab({
   dataSourceId,
   onDataSourceIdChange,
   activeProviders,
+  staticData = "",
+  onStaticDataChange,
 }: Readonly<PgrestDataTabProps>) {
   const labels = buildPgrestContentLabels(dictionary);
+
+  const jsonError = useMemo((): "parse" | "shape" | null => {
+    if (!staticData.trim()) return null;
+    let parsed: unknown;
+    try { parsed = JSON.parse(staticData); }
+    catch { return "parse"; }
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) return null;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const first = parsed[0];
+      if (typeof first === "object" && first !== null && !Array.isArray(first)) return null;
+    }
+    return "shape";
+  }, [staticData]);
 
   return (
     <>
@@ -70,6 +89,33 @@ export function PgrestDataTab({
           },
         ]}
       />
+      {dataMode === "static" && onStaticDataChange && (
+        <div>
+          <Label className="mb-1 block text-xs font-normal text-gray-500 dark:text-gray-400">
+            {tr("dashboard.settings.staticJson", dictionary)}
+          </Label>
+          <Textarea
+            value={staticData}
+            onChange={(e) => onStaticDataChange(e.target.value)}
+            placeholder={'{\n  "value": "156",\n  "label": "Orders"\n}'}
+            rows={6}
+            className="font-mono text-xs"
+            color={jsonError ? "failure" : "gray"}
+          />
+          {jsonError && (
+            <p className="mt-1 text-xs text-red-500">
+              {jsonError === "shape"
+                ? tr("dashboard.settings.invalidJsonShape", dictionary)
+                : tr("dashboard.settings.invalidJson", dictionary)}
+            </p>
+          )}
+          {!jsonError && staticData.trim() && (
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              {tr("dashboard.settings.staticDataHelper", dictionary, { example: "{{row.key}}" })}
+            </p>
+          )}
+        </div>
+      )}
       {dataMode === "pgrest" && (
         <PgrestSettingsSection
           pgrest={pgrest}

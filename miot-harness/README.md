@@ -77,6 +77,37 @@ Add a runtime dependency with `uv add <pkg>` (e.g. `uv add tavily-python` if
 you wire up a Tavily-backed search tool, per the LangChain Deep Agents
 quickstart). Add a dev-only dependency with `uv add --dev <pkg>`.
 
+## Authentication
+
+The harness sits behind a Quarkus proxy (`quarkus-srv`) which is the
+production front door for all `/runs*` traffic. Quarkus terminates the
+user-facing Auth0 token (RS256 for web users, HS256 for M2M), runs the
+existing `OrganizationRequestFilter` (Alfresco group membership + parent
+→ child org fan-out), and forwards to the harness with the resolved
+tenant in a header. The harness re-verifies the same Auth0 RS256 token
+as **defense in depth** — anyone reaching the harness port without
+going through the proxy is rejected.
+
+Auth is **off by default** so unit tests and local dev see the legacy
+unauthenticated surface. Flip it on in prod by setting
+`MIOT_HARNESS_AUTH_ENABLED=true` and the three Auth0 settings:
+
+| Env var                   | Required when            | Purpose                                       |
+|---------------------------|--------------------------|-----------------------------------------------|
+| `MIOT_HARNESS_AUTH_ENABLED` | always (default `false`) | Gate `/runs*` on a valid Bearer token         |
+| `AUTH0_ISSUER`            | `AUTH_ENABLED=true`      | `iss` claim must equal this exact string      |
+| `AUTH0_JWKS_URL`          | `AUTH_ENABLED=true`      | RS256 public-key set (Auth0 well-known URL)   |
+| `AUTH0_RS256_AUDIENCE`    | `AUTH_ENABLED=true`      | `aud` claim must contain this exact string    |
+
+Env-var names mirror `quarkus-srv`'s `miot.auth.*` config so a single
+Helm-values block can render both services. Lifespan boot fails fast on
+incomplete config (`validate_auth_config`), so a missing issuer is a
+crash at startup, not a silent accept-anything.
+
+`/health` and `/health/ready` are **always** unauthenticated (kubelet
+probes don't auth). Only `POST /runs`, `POST /runs:start`,
+`GET /runs/{id}`, and `GET /runs/{id}/stream` are gated.
+
 ## Design Defaults
 
 - Read-only tools can execute without approval.

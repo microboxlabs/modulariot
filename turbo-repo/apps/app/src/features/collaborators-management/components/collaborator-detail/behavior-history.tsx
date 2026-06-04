@@ -5,10 +5,9 @@ import { HiOutlineClock, HiMapPin, HiTruck } from "react-icons/hi2";
 import { CustomBadge } from "@/features/common/components/custom-badge";
 import { TimelineEvent } from "@/features/common/components/timeline-event";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type {
   BehaviorEvent,
-  BehaviorCategory,
   FilterType,
 } from "../../types/collaborators.types";
 
@@ -21,19 +20,25 @@ const urgencyLabelKeys: Record<string, string> = {
   info: "behaviorHistory.urgency.info",
 };
 
-const categoryLabelKeys: Record<BehaviorCategory, string> = {
+const categoryLabelKeys: Record<string, string> = {
   seguridad: "behaviorHistory.category.safety",
   uso: "behaviorHistory.category.usage",
   normativo: "behaviorHistory.category.regulatory",
+  eficiencia: "behaviorHistory.category.efficiency",
 };
 
-const categoryBadgeClasses: Record<BehaviorCategory, string> = {
+const categoryBadgeClasses: Record<string, string> = {
   seguridad:
     "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   uso: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
   normativo:
     "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  eficiencia:
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
 };
+
+const DEFAULT_BADGE_CLASS =
+  "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400";
 
 interface BehaviorTimelineEventProps {
   readonly event: BehaviorEvent;
@@ -46,16 +51,19 @@ function BehaviorTimelineEvent({
   isLast,
   dict,
 }: BehaviorTimelineEventProps) {
+  const urgencyKey = urgencyLabelKeys[event.urgency] ?? event.urgency;
+  const categoryKey = categoryLabelKeys[event.category] ?? event.category;
+
   return (
     <TimelineEvent
       title={event.title}
       urgency={event.urgency}
-      urgencyLabel={tr(urgencyLabelKeys[event.urgency], dict)}
+      urgencyLabel={trDynamic(urgencyKey, dict)}
       isLast={isLast}
       extraBadges={
         <CustomBadge
-          text={tr(categoryLabelKeys[event.category], dict)}
-          className={categoryBadgeClasses[event.category]}
+          text={trDynamic(categoryKey, dict)}
+          className={categoryBadgeClasses[event.category] ?? DEFAULT_BADGE_CLASS}
         />
       }
     >
@@ -79,6 +87,15 @@ function BehaviorTimelineEvent({
   );
 }
 
+const FILTER_BUTTONS: { value: FilterType; labelKey: string }[] = [
+  { value: "todos", labelKey: "behaviorHistory.filter.all" },
+  { value: "seguridad", labelKey: "behaviorHistory.filter.safety" },
+  { value: "uso", labelKey: "behaviorHistory.filter.usage" },
+  { value: "normativo", labelKey: "behaviorHistory.filter.regulatory" },
+  { value: "eficiencia", labelKey: "behaviorHistory.filter.efficiency" },
+  { value: "criticos", labelKey: "behaviorHistory.filter.critical" },
+];
+
 interface BehaviorHistoryProps {
   readonly activeFilter?: FilterType;
   readonly onFilterChange?: (filter: FilterType) => void;
@@ -101,18 +118,9 @@ export default function BehaviorHistory({
   };
 
   const filteredEvents = useMemo(() => {
-    switch (filter) {
-      case "seguridad":
-        return events.filter((e) => e.category === "seguridad");
-      case "uso":
-        return events.filter((e) => e.category === "uso");
-      case "normativo":
-        return events.filter((e) => e.category === "normativo");
-      case "criticos":
-        return events.filter((e) => e.urgency === "critical");
-      default:
-        return [...events];
-    }
+    if (filter === "todos") return [...events];
+    if (filter === "criticos") return events.filter((e) => e.urgency === "critical");
+    return events.filter((e) => e.category === filter);
   }, [filter, events]);
 
   const getFilterButtonClass = (filterType: FilterType) => {
@@ -131,41 +139,16 @@ export default function BehaviorHistory({
           {tr("behaviorHistory.title", dict)}
         </h3>
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => handleFilterChange("todos")}
-            className={getFilterButtonClass("todos")}
-          >
-            {tr("behaviorHistory.filter.all", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("seguridad")}
-            className={getFilterButtonClass("seguridad")}
-          >
-            {tr("behaviorHistory.filter.safety", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("uso")}
-            className={getFilterButtonClass("uso")}
-          >
-            {tr("behaviorHistory.filter.usage", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("normativo")}
-            className={getFilterButtonClass("normativo")}
-          >
-            {tr("behaviorHistory.filter.regulatory", dict)}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFilterChange("criticos")}
-            className={getFilterButtonClass("criticos")}
-          >
-            {tr("behaviorHistory.filter.critical", dict)}
-          </button>
+          {FILTER_BUTTONS.map(({ value, labelKey }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => handleFilterChange(value)}
+              className={getFilterButtonClass(value)}
+            >
+              {tr(labelKey, dict)}
+            </button>
+          ))}
         </div>
       </div>
 

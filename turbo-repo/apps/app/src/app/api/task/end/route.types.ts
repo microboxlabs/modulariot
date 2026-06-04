@@ -11,6 +11,7 @@ export type EndTaskProcessVariablesField = {
 export type EndTaskRequest = {
   taskId: string;
   transitionId?: string;
+  bpm_package?: string;
   comments?: string;
   nativeGenerationEnabled?: string;
   reason?: string;

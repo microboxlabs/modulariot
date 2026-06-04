@@ -13,7 +13,7 @@ import { Label } from "flowbite-react";
 import { HiSearch, HiChevronDown, HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 const DEBOUNCE_MS = 300;
 const MIN_CHARACTERS = 2;
@@ -784,7 +784,7 @@ export function BaseSearchDropdown<
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={tr(translations.search, dict)}
+            placeholder={trDynamic(translations.search, dict)}
             className={twMerge(
               "block w-full pl-10 pr-3 py-2 text-sm",
               "border border-gray-300 dark:border-gray-600",
@@ -819,7 +819,7 @@ export function BaseSearchDropdown<
             selectedIndex={highlightedIndex}
             debouncedQuery={debouncedQuery}
             dict={dict}
-            noResultsText={tr(translations.noResults, dict)}
+            noResultsText={trDynamic(translations.noResults, dict)}
             fields={fields as readonly FieldConfig<BaseOption, TMatchType>[]}
             onMatchTypeSelect={handleMatchTypeSelect}
             onMouseEnter={setHighlightedIndex}
@@ -831,7 +831,7 @@ export function BaseSearchDropdown<
               selectedId={selectedId}
               highlightedIndex={highlightedIndex}
               dict={dict}
-              noResultsText={tr(translations.noResults, dict)}
+              noResultsText={trDynamic(translations.noResults, dict)}
               canSelect={canSelect}
               renderCard={renderCard}
               onSelect={handleSelect}

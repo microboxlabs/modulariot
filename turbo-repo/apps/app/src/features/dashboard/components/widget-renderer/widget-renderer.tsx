@@ -12,7 +12,7 @@ import { useDashboard } from "../../context/dashboard-context";
 import { getDashlet } from "../../dashlets";
 import { DeleteWidgetModal } from "../delete-widget-modal";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // WidgetControls - Extracted component for edit mode buttons
@@ -217,7 +217,7 @@ export function WidgetRenderer({
           config={widget.config}
           onSave={handleSaveSettings}
           dictionary={dictionary}
-          dashletName={tr(meta.name, dictionary)}
+          dashletName={trDynamic(meta.name, dictionary)}
           widgetId={widget.id}
         />
       )}

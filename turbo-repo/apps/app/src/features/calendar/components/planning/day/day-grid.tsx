@@ -11,21 +11,20 @@ import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import {
   computeSlotState,
   getSlotCellClassName,
+  SlotCellContent,
+  TimeLabelCell,
+  BASE_ROW_HEIGHT_PX,
+  buildShiftLayout,
+  computeStretchedRowLayout,
+  rowOffsetsFromHeights,
   type SlotState,
-} from "../planning-slot-utils";
-import { SlotCellContent, TimeLabelCell } from "../slot-cell-shared";
+  type PositionedShift,
+} from "@microboxlabs/miot-calendar-ui";
 import { usePlanningGrid } from "../use-planning-grid";
 import {
   PlanningGridShell,
   buildPlanningGridShellProps,
 } from "../planning-grid-shell";
-import {
-  BASE_ROW_HEIGHT_PX,
-  buildShiftLayout,
-  computeStretchedRowLayout,
-  rowOffsetsFromHeights,
-  type PositionedShift,
-} from "../shift-layout";
 
 interface DayGridProps {
   lang: string;

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   // Audit params are server-injected by /bulk; user data shouldn't be forced
   // to provide them, so filter them out before building the Zod schema.
   const params = (introspected?.parameters ?? []).filter(
-    (p) => !isAuditField(p.name),
+    (p) => !isAuditField(p.name)
   );
   // Prefer the explicit `lang` query (sent by clients that know their UI
   // locale via the URL `[lang]` segment) over Accept-Language, which reflects
@@ -53,8 +53,10 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     queryLang && locales.includes(queryLang)
       ? queryLang
       : getLocaleFromRequest(req);
-  const [tr] = await getDictionary(locale);
-  const errors = validateRows(rows, params, makeValidationErrorMap(tr));
+  // The validator builds keys dynamically (validation.${issueCode}), so it uses
+  // the dynamic (unchecked) translator from the third tuple slot.
+  const [, , trDyn] = await getDictionary(locale);
+  const errors = validateRows(rows, params, makeValidationErrorMap(trDyn));
 
   return NextResponse.json({
     allowedFields: params.map((p) => p.name),

@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { HiCheck } from "react-icons/hi";
 import { Button } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
-import { usePickerDropdown } from "../../hooks";
+import { usePickerDropdown } from "../../hooks/use-picker-dropdown";
 
 export interface ColorOption<T extends string = string> {
   /** The color value/key */

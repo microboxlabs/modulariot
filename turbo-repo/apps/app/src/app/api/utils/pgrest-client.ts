@@ -475,9 +475,9 @@ export async function fetchTruckCatalogByIdOrPlate(
 /**
  * Row shape returned by `ams.fn_rd_accredited_resources`. One row per
  * resource (driver / truck / trailer / carrier) known to the tenant for the
- * given (rut_mandante, delegacion) pair. The `is_acredited` column flags
- * whether that resource actually holds an ACCREDITED record — the function
- * also returns NOT ACCREDITED rows so the UI can surface both states.
+ * given (rut_mandante, delegacion) pair. The `is_acredited` column flags the
+ * resource's accreditation state — `ACCREDITED`, `NOT_ACCREDITED` or
+ * `SUPER_ACCREDITED` — so the UI can surface all three.
  *
  * `trip_count` / `last_trip` are derived from `public.historical_trip`,
  * `symptoms` is a JSON rollup of `public.symptoms` over the last 90 days
@@ -500,7 +500,7 @@ export interface PgrestAccreditedResourceRow {
   external_id: string | null;
   faena: string | null;
   rut_mandante: string | null;
-  is_acredited: "ACREDITED" | "NOT ACREDITED";
+  is_acredited: "ACCREDITED" | "NOT_ACCREDITED" | "SUPER_ACCREDITED";
   trip_count: number | null;
   last_trip: string | null;
   /**

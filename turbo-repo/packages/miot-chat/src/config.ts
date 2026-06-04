@@ -117,10 +117,20 @@ export function writeConfig(
   writeFileSync(path, JSON.stringify(cfg, null, 2), { mode: 0o600 });
 }
 
+/**
+ * Persists `profile` under `name` in the config file.
+ *
+ * Default-selection rules:
+ * - If `opts.makeDefault` is true, the profile is always promoted to
+ *   `defaultProfile` (used by `login` so the fresh token is immediately active).
+ * - Otherwise the existing default is preserved, except when the config file
+ *   didn't exist yet or the current `defaultProfile` key is missing — in those
+ *   cases `name` becomes the default (legacy / first-run behaviour).
+ */
 export function upsertProfile(
   name: string,
   profile: MiotChatProfile,
-  opts?: { configDir?: string },
+  opts?: { configDir?: string; makeDefault?: boolean },
 ): void {
   const dir = opts?.configDir ?? getConfigDir();
   const path = join(dir, "config.json");
@@ -131,7 +141,7 @@ export function upsertProfile(
     cfg.profiles = {};
   }
   cfg.profiles[name] = profile;
-  if (!existed || !cfg.profiles[cfg.defaultProfile]) {
+  if (opts?.makeDefault || !existed || !cfg.profiles[cfg.defaultProfile]) {
     cfg.defaultProfile = name;
   }
   writeConfig(cfg, { configDir: dir });

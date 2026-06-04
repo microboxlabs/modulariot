@@ -94,7 +94,8 @@ describe("login command", () => {
       expect.not.objectContaining({ profile: expect.anything() }),
     );
 
-    // upsertProfile should receive the token and orgSlug under "platform"
+    // upsertProfile should receive the token and orgSlug under "platform",
+    // and always set makeDefault: true so the profile becomes active
     expect(mockUpsertProfile).toHaveBeenCalledWith(
       "platform",
       expect.objectContaining({
@@ -102,6 +103,7 @@ describe("login command", () => {
         token: "tok-123",
         orgSlug: "acme",
       }),
+      expect.objectContaining({ makeDefault: true }),
     );
 
     // stderr should confirm the saved profile name
@@ -131,6 +133,44 @@ describe("login command", () => {
     expect(mockUpsertProfile).toHaveBeenCalledWith(
       "my-profile",
       expect.objectContaining({ token: "tok-123" }),
+      expect.objectContaining({ makeDefault: true }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it("preserves tenantId, userId, and mode from an existing profile", async () => {
+    mockReadConfig.mockReturnValue({
+      defaultProfile: "platform",
+      profiles: {
+        platform: {
+          baseUrl: BASE_URL,
+          token: null,
+          tenantId: "real-tenant",
+          userId: "real-user",
+          mode: "agentic",
+        },
+      },
+    });
+
+    const program = createProgram();
+
+    await program.parseAsync([
+      "node",
+      "miot-chat",
+      "--base-url",
+      BASE_URL,
+      "login",
+      "--no-open",
+    ]);
+
+    expect(mockUpsertProfile).toHaveBeenCalledWith(
+      "platform",
+      expect.objectContaining({
+        tenantId: "real-tenant",
+        userId: "real-user",
+        mode: "agentic",
+      }),
+      expect.objectContaining({ makeDefault: true }),
     );
     expect(exitSpy).toHaveBeenCalledWith(0);
   });

@@ -41,18 +41,22 @@ export function registerLoginCommand(program: Command): void {
         });
         const profileName = flags.profile ?? "platform";
         const existing = readConfig().profiles[profileName];
-        upsertProfile(profileName, {
-          baseUrl,
-          token: result.accessToken,
-          tenantId: existing?.tenantId ?? "demo-tenant",
-          userId: existing?.userId ?? "demo-user",
-          ...(existing?.mode !== undefined && { mode: existing.mode }),
-          ...(result.organizationId !== undefined && {
-            orgSlug: result.organizationId,
-          }),
-        });
+        upsertProfile(
+          profileName,
+          {
+            baseUrl,
+            token: result.accessToken,
+            tenantId: existing?.tenantId ?? "demo-tenant",
+            userId: existing?.userId ?? "demo-user",
+            ...(existing?.mode !== undefined && { mode: existing.mode }),
+            ...(result.organizationId !== undefined && {
+              orgSlug: result.organizationId,
+            }),
+          },
+          { makeDefault: true },
+        );
         process.stderr.write(
-          `Logged in. Saved profile "${profileName}" (org: ${result.organizationId ?? "n/a"}).\n`,
+          `Logged in. Saved profile "${profileName}" (org: ${result.organizationId ?? "n/a"}) and set it as default.\n`,
         );
         process.exit(0);
       } catch (err) {

@@ -230,6 +230,30 @@ describe("upsertProfile", () => {
     expect(cfg.profiles.a?.token).toBe("tok-a");
     expect(cfg.profiles.b?.token).toBe("tok-b");
   });
+
+  it("promotes the upserted profile to default when makeDefault is true", () => {
+    const profileA = {
+      baseUrl: "https://a.example.com",
+      token: "tok-a",
+      tenantId: "ta",
+      userId: "ua",
+    };
+    const profileB = {
+      baseUrl: "https://b.example.com",
+      token: "tok-b",
+      tenantId: "tb",
+      userId: "ub",
+    };
+    // Establish "a" as the default first
+    upsertProfile("a", profileA, { configDir: dir });
+    // Upsert "b" with makeDefault: true — should override the existing default
+    upsertProfile("b", profileB, { configDir: dir, makeDefault: true });
+    const cfg = readConfig({ configDir: dir });
+    expect(cfg.defaultProfile).toBe("b");
+    // Profile "a" must still be present
+    expect(cfg.profiles.a?.token).toBe("tok-a");
+    expect(cfg.profiles.b?.token).toBe("tok-b");
+  });
 });
 
 describe("resolveConfig org-aware harness base URL", () => {

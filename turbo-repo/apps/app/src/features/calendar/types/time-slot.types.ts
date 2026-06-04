@@ -1,14 +1,15 @@
-import type { TimeWindowColor } from "../components/planning/planning-selection-context";
+import type { TimeWindowColor } from "@microboxlabs/miot-calendar-ui";
 
 /**
- * Re-export the canonical TimeSlot/TimeWindow/TimeBlock from the planning-selection context so there
- * is a single source of truth — the two definitions can't drift apart (and aren't flagged as duplicate code).
+ * Re-export the canonical TimeSlot/TimeWindow/TimeBlock from the calendar UI
+ * package so there is a single source of truth — the definitions can't drift
+ * apart (and aren't flagged as duplicate code).
  */
 export type {
   TimeSlot,
   TimeWindow,
   TimeBlock,
-} from "../components/planning/planning-selection-context";
+} from "@microboxlabs/miot-calendar-ui";
 
 /**
  * Request/Response types for API operations

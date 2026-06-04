@@ -62,6 +62,7 @@ import type {
   SlotListResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
+import type { ObservationTypeItem } from "./alfresco-api/observation-types.types";
 
 export function useMyTasks(
   columns: string[],
@@ -906,6 +907,65 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
   });
 }
 
+export async function renameBentoFile(
+  nodeId: string,
+  name: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher("/app/api/bento/rename", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, name }),
+  });
+}
+
+export async function updateBentoCategory(
+  nodeId: string,
+  category: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher("/app/api/bento/properties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, properties: { "mintral:contentType": category } }),
+  });
+}
+
+export async function updateBentoReviewState(
+  nodeId: string,
+  state: "PENDING" | "APPROVED" | "REJECTED",
+  reviewedBy?: string,
+  reviewedAt?: string,
+  reviewComment?: string
+): Promise<{ success: boolean; message: string }> {
+  const properties: Record<string, string> = { "mintral:reviewStatus": state };
+  if (reviewedBy) properties["mintral:reviewedBy"] = reviewedBy;
+  if (reviewedAt) properties["mintral:reviewedAt"] = reviewedAt;
+  if (reviewComment) properties["mintral:reviewComment"] = reviewComment;
+  return fetcher("/app/api/bento/properties", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, properties }),
+  });
+}
+
+export async function moveBentoFile(
+  nodeId: string,
+  targetTaskId: string
+): Promise<{ success: boolean }> {
+  return fetcher("/app/api/bento/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nodeId, targetTaskId }),
+  });
+}
+
+export async function deleteBentoMultimedia(
+  nodeId: string
+): Promise<{ success: boolean; message: string }> {
+  return fetcher(`/app/api/bento/delete?nodeId=${encodeURIComponent(nodeId)}`, {
+    method: "DELETE",
+  });
+}
+
 export async function putBentoMultimedia(
   nodeId: string,
   file: File
@@ -919,6 +979,65 @@ export async function putBentoMultimedia(
   return fetcher(url, {
     method: "PUT",
     body: formData,
+  });
+}
+
+// Content-level forum (per-node discussions)
+
+export function useGetContentDiscussion(contentNodeRef: string | undefined) {
+  const { data, error, isLoading, mutate } = useSWR<ForumDiscussionResponse, FetcherError>(
+    contentNodeRef
+      ? `/app/api/forum/content?contentNodeRef=${encodeURIComponent(contentNodeRef)}`
+      : null,
+    fetcher
+  );
+
+  return { data, error, isLoading, mutate };
+}
+
+export async function createContentForumTopic(
+  contentNodeRef: string,
+  title: string,
+  content?: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "topic/create", contentNodeRef, title, content }),
+  });
+}
+
+export async function replyContentForumPost(
+  topic: string,
+  parentPost: string,
+  content: string,
+  author?: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "post/reply", topic, parentPost, title: content, content, author }),
+  });
+}
+
+export async function deleteContentForumPost(
+  topic: string,
+  post: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "post/delete", topic, post }),
+  });
+}
+
+export async function deleteContentForumTopic(
+  topic: string
+): Promise<unknown> {
+  return fetcher("/app/api/forum/content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "topic/delete", topic }),
   });
 }
 
@@ -2018,6 +2137,36 @@ export function useServiceTypes() {
     error,
     isLoading,
   };
+}
+
+/**
+ * Active content-review observation reasons, ordered by `position` (missing
+ * positions last) then name. Backed by the Alfresco "Tipos de Observación"
+ * data list via the BFF route. Consumers fall back to the static
+ * OBSERVATION_TYPE_KEYS when this returns empty (loading / error).
+ */
+export function useObservationTypes(category?: string | null) {
+  const key = category
+    ? `/app/api/observation-types?appliesTo=${encodeURIComponent(category)}`
+    : "/app/api/observation-types";
+  const { data, error, isLoading } = useSWR<ObservationTypeItem[], FetcherError>(
+    key,
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  const observationTypes = useMemo(
+    () =>
+      (data ?? [])
+        .filter((t) => t.isActive)
+        .sort(
+          (a, b) =>
+            (a.position ?? Number.MAX_SAFE_INTEGER) -
+              (b.position ?? Number.MAX_SAFE_INTEGER) ||
+            a.name.localeCompare(b.name)
+        ),
+    [data]
+  );
+  return { observationTypes, error, isLoading };
 }
 
 /**

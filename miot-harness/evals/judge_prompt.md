@@ -32,6 +32,13 @@ and *trustworthy* for an ops engineer.
 3. **conciseness** — Is the answer tight? ≤200 words preferred.
    No filler. KPIs cited as numbers, not paragraphs.
 
+4. **tool_economy** — Did the agent avoid over-engineering? Penalize
+   calling more tools / `tool.completed` events than the question
+   needs, re-fetching the same evidence, or padding the answer with
+   data the user never asked for. A single-KPI question answered with
+   one tool call scores 5; the same answer reached via three redundant
+   tool calls scores lower even if the final prose is correct.
+
 ## Rubric
 
 For each axis, output a 1–5 integer plus a one-sentence rationale.
@@ -59,6 +66,7 @@ Special cases:
   "operational_helpfulness": {"score": 4, "reason": "..."},
   "domain_fidelity": {"score": 5, "reason": "..."},
   "conciseness": {"score": 3, "reason": "..."},
+  "tool_economy": {"score": 4, "reason": "..."},
   "overall": "..."
 }
 ```

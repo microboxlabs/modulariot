@@ -1,7 +1,7 @@
 "use client";
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { CircularProgress } from "@/features/common/components/circular-progress";
 import MessageBanner from "@/features/common/components/message-banner/message-banner";
@@ -29,29 +29,32 @@ function getHealthTitleKey(score: number): string {
   return "vehicleDetail.sections.health.poorHealth";
 }
 
-const statusStyles: Record<SectionStatus, { 
-  bg: string; 
-  text: string; 
-  border: string;
-  statusIcon: typeof HiOutlineCheckCircle;
-  statusIconClass: string;
-}> = {
-  ok: { 
-    bg: "bg-green-50 dark:bg-green-900/20", 
+const statusStyles: Record<
+  SectionStatus,
+  {
+    bg: string;
+    text: string;
+    border: string;
+    statusIcon: typeof HiOutlineCheckCircle;
+    statusIconClass: string;
+  }
+> = {
+  ok: {
+    bg: "bg-green-50 dark:bg-green-900/20",
     text: "text-green-700 dark:text-green-400",
     border: "border-green-200 dark:border-green-800",
     statusIcon: HiOutlineCheckCircle,
     statusIconClass: "text-green-500",
   },
-  warning: { 
-    bg: "bg-yellow-50 dark:bg-yellow-900/20", 
+  warning: {
+    bg: "bg-yellow-50 dark:bg-yellow-900/20",
     text: "text-yellow-700 dark:text-yellow-400",
     border: "border-yellow-200 dark:border-yellow-800",
     statusIcon: HiOutlineExclamationCircle,
     statusIconClass: "text-yellow-500",
   },
-  critical: { 
-    bg: "bg-red-50 dark:bg-red-900/20", 
+  critical: {
+    bg: "bg-red-50 dark:bg-red-900/20",
     text: "text-red-700 dark:text-red-400",
     border: "border-red-200 dark:border-red-800",
     statusIcon: HiOutlineExclamationCircle,
@@ -60,11 +63,31 @@ const statusStyles: Record<SectionStatus, {
 };
 
 const sectionConfig = [
-  { key: "maintenance" as const, icon: HiOutlineWrenchScrewdriver, labelKey: "vehicleDetail.sections.maintenance.title" },
-  { key: "technicalHealth" as const, icon: HiOutlineShieldCheck, labelKey: "vehicleDetail.sections.technicalHealth.title" },
-  { key: "telemetry" as const, icon: HiOutlineSignal, labelKey: "vehicleDetail.sections.telemetry.title" },
-  { key: "events" as const, icon: HiOutlineExclamationTriangle, labelKey: "vehicleDetail.sections.events.title" },
-  { key: "usage" as const, icon: HiOutlineArrowPath, labelKey: "vehicleDetail.sections.usage.title" },
+  {
+    key: "maintenance" as const,
+    icon: HiOutlineWrenchScrewdriver,
+    labelKey: "vehicleDetail.sections.maintenance.title",
+  },
+  {
+    key: "technicalHealth" as const,
+    icon: HiOutlineShieldCheck,
+    labelKey: "vehicleDetail.sections.technicalHealth.title",
+  },
+  {
+    key: "telemetry" as const,
+    icon: HiOutlineSignal,
+    labelKey: "vehicleDetail.sections.telemetry.title",
+  },
+  {
+    key: "events" as const,
+    icon: HiOutlineExclamationTriangle,
+    labelKey: "vehicleDetail.sections.events.title",
+  },
+  {
+    key: "usage" as const,
+    icon: HiOutlineArrowPath,
+    labelKey: "vehicleDetail.sections.usage.title",
+  },
 ];
 
 interface HealthSectionProps {
@@ -78,15 +101,19 @@ export default function HealthSection({
   healthScore,
   statuses,
 }: HealthSectionProps) {
-  const criticalSections = sectionConfig.filter(s => statuses[s.key] === "critical");
-  const warningSections = sectionConfig.filter(s => statuses[s.key] === "warning");
-  
+  const criticalSections = sectionConfig.filter(
+    (s) => statuses[s.key] === "critical"
+  );
+  const warningSections = sectionConfig.filter(
+    (s) => statuses[s.key] === "warning"
+  );
+
   return (
     <ExpandableSection
       customIcon={<CircularProgress value={healthScore} size={72} max={1000} />}
       title={
         <span className={getHealthTitleClass(healthScore)}>
-          {tr(getHealthTitleKey(healthScore), dict)}
+          {trDynamic(getHealthTitleKey(healthScore), dict)}
         </span>
       }
       description={tr("vehicleDetail.sections.health.description", dict)}
@@ -100,18 +127,22 @@ export default function HealthSection({
             const styles = statusStyles[status];
             const Icon = section.icon;
             const StatusIcon = styles.statusIcon;
-            
+
             return (
-              <div 
+              <div
                 key={section.key}
                 className={`flex flex-col items-center p-3 rounded-lg border ${styles.bg} ${styles.border} transition-all hover:shadow-sm`}
               >
                 <div className="relative">
                   <Icon className={`w-6 h-6 ${styles.text}`} />
-                  <StatusIcon className={`w-3 h-3 ${styles.statusIconClass} absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full`} />
+                  <StatusIcon
+                    className={`w-3 h-3 ${styles.statusIconClass} absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full`}
+                  />
                 </div>
-                <span className={`text-[10px] font-medium mt-2 text-center leading-tight ${styles.text}`}>
-                  {tr(section.labelKey, dict)}
+                <span
+                  className={`text-[10px] font-medium mt-2 text-center leading-tight ${styles.text}`}
+                >
+                  {trDynamic(section.labelKey, dict)}
                 </span>
               </div>
             );
@@ -123,7 +154,9 @@ export default function HealthSection({
           <MessageBanner
             icon={GoAlert}
             title={`${criticalSections.length} ${tr("vehicleDetail.sections.health.criticalIssues", dict) || "problema(s) crítico(s)"}`}
-            description={criticalSections.map(s => tr(s.labelKey, dict)).join(" • ")}
+            description={criticalSections
+              .map((s) => trDynamic(s.labelKey, dict))
+              .join(" • ")}
             variant="error"
           />
         )}
@@ -133,7 +166,9 @@ export default function HealthSection({
           <MessageBanner
             icon={GoAlert}
             title={`${warningSections.length} ${tr("vehicleDetail.sections.health.warningIssues", dict) || "alerta(s)"}`}
-            description={warningSections.map(s => tr(s.labelKey, dict)).join(" • ")}
+            description={warningSections
+              .map((s) => trDynamic(s.labelKey, dict))
+              .join(" • ")}
             variant="warning"
           />
         )}
@@ -142,8 +177,14 @@ export default function HealthSection({
         {criticalSections.length === 0 && warningSections.length === 0 && (
           <MessageBanner
             icon={GoCheckCircle}
-            title={tr("vehicleDetail.sections.health.allSystemsOk", dict) || "Todos los sistemas operando normalmente"}
-            description={tr("vehicleDetail.sections.health.allSystemsOkDesc", dict) || "No se detectaron problemas en ninguna sección"}
+            title={
+              tr("vehicleDetail.sections.health.allSystemsOk", dict) ||
+              "Todos los sistemas operando normalmente"
+            }
+            description={
+              tr("vehicleDetail.sections.health.allSystemsOkDesc", dict) ||
+              "No se detectaron problemas en ninguna sección"
+            }
             variant="success"
           />
         )}

@@ -4,7 +4,7 @@ import { HiOutlineShieldCheck } from "react-icons/hi2";
 import { TbDroplet, TbFilter, TbEngine } from "react-icons/tb";
 import type { IconType } from "react-icons";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import ExpandableSection from "../expandable-section";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 import { CustomBadge } from "@/features/common/components/custom-badge";
@@ -67,7 +67,7 @@ export default function TechnicalHealthSection({
                 "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30",
             }}
             title={{
-              text: tr(indicator.titleKey, dict),
+              text: trDynamic(indicator.titleKey, dict),
             }}
             value={{
               text: tr("vehicleDetail.sections.technicalHealth.ok", dict),

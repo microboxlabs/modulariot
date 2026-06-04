@@ -161,6 +161,57 @@ class HarnessSettings(BaseSettings):
         validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
     )
 
+    # Auth0 / JWT verification (defense-in-depth in front of the
+    # Quarkus proxy). Off by default so unit tests and local dev see
+    # the legacy unauthenticated surface; production deploys flip
+    # `auth_enabled` and supply the issuer/JWKS/audience. Env-var
+    # names mirror `quarkus-srv`'s `miot.auth.*` config so a single
+    # block in Helm values can render both services.
+    auth_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AUTH_ENABLED", "auth_enabled"
+        ),
+    )
+    auth0_issuer: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTH0_ISSUER", "auth0_issuer"),
+    )
+    auth0_jwks_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AUTH0_JWKS_URL", "auth0_jwks_url"),
+    )
+    auth0_rs256_audience: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUTH0_RS256_AUDIENCE", "auth0_rs256_audience"
+        ),
+    )
+    def validate_auth_config(self) -> None:
+        """Raise ``ValueError`` if the auth settings are internally
+        inconsistent. Call once at startup (lifespan).
+
+        When ``auth_enabled`` is true, all three of ``auth0_issuer``,
+        ``auth0_jwks_url``, and ``auth0_rs256_audience`` must be set.
+        Otherwise ``verify_token`` would have nothing to compare
+        against and would silently accept any well-formed RS256 token.
+        """
+        if self.auth_enabled:
+            missing = [
+                name
+                for name, value in (
+                    ("auth0_issuer", self.auth0_issuer),
+                    ("auth0_jwks_url", self.auth0_jwks_url),
+                    ("auth0_rs256_audience", self.auth0_rs256_audience),
+                )
+                if not value
+            ]
+            if missing:
+                raise ValueError(
+                    "auth_enabled=True but the following settings are unset: "
+                    + ", ".join(missing)
+                )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> HarnessSettings:

@@ -62,8 +62,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // console.log(await response.json());
-
     const apiData = (await response.json()) as LoadSearchResponse;
     return NextResponse.json(apiData);
   } catch (error) {

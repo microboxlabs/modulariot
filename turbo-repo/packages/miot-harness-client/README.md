@@ -50,6 +50,34 @@ Workspace consumers reference it as `"@microboxlabs/miot-harness-client": "*"`. 
 npm install @microboxlabs/miot-harness-client
 ```
 
+## Authentication
+
+In production the harness sits behind the Quarkus reverse proxy at
+`/api/v1/orgs/{slug}/harness` and rejects unauthenticated `/runs*`
+requests. The Quarkus side terminates the user-facing Auth0 token
+and resolves the caller's tenant from Alfresco; the harness
+re-verifies the token as defense in depth. See the
+[Authentication doc](https://modulariot.com/platform/ask-miot-harness/authentication)
+for the full trust model.
+
+Practical implications for this client:
+
+- Point `baseUrl` at the proxy:
+  `https://api.miot.example.com/api/v1/orgs/{slug}/harness`. Hitting
+  the harness directly only works for local dev, where the harness
+  defaults to its legacy unauthenticated mode.
+- `token` is the Auth0 access token from the rest of the MIOT API.
+  It must carry the harness audience and be unexpired; the client
+  sends it as `Authorization: Bearer <token>`. With auth enabled
+  on the harness, missing or invalid tokens surface as
+  `MiotHarnessApiError` with `code: "http_401"`.
+- `tenant_id` in the request body is **ignored** in production —
+  the proxy injects an `X-Miot-Tenant-Client-Id` header from the
+  verified org membership, and the harness uses that value. The
+  field is kept on the wire for now to preserve local-dev
+  ergonomics; it will be removed from the schema in a follow-up
+  release (issue #522).
+
 ## Quickstart
 
 ```ts
@@ -59,14 +87,18 @@ import {
 } from "@microboxlabs/miot-harness-client";
 
 const client = createMiotHarnessClient({
-  baseUrl: "http://localhost:8000",
-  token: process.env.MIOT_HARNESS_TOKEN ?? undefined,
+  // Production: hit the Quarkus proxy for the target org.
+  // Local dev: "http://localhost:8000" hits the harness directly
+  // (legacy unauthenticated mode).
+  baseUrl: "https://api.miot.example.com/api/v1/orgs/gama-mobility/harness",
+  token: process.env.MIOT_HARNESS_TOKEN, // Auth0 access token
 });
 
-// 1. Dispatch a run (async; returns immediately with the id)
+// 1. Dispatch a run (async; returns immediately with the id).
+//    `tenant_id` is overridden server-side from the verified
+//    proxy header — pass anything in dev, ignore in prod.
 const { run_id } = await client.runs.create({
   message: "what's in stock?",
-  tenant_id: "mintral",
   mode: "agentic",
   conversation_id: crypto.randomUUID(),
 });
@@ -106,8 +138,8 @@ createMiotHarnessClient(config: ClientConfig) => MiotHarnessClient
 
 | Field | Type | Default |
 |---|---|---|
-| `baseUrl` | `string` | required |
-| `token` | `string \| null` | undefined — no `Authorization` header sent |
+| `baseUrl` | `string` | required. In prod set it to the Quarkus proxy path: `…/api/v1/orgs/{slug}/harness` |
+| `token` | `string \| null` | undefined — no `Authorization` header sent. Required when targeting an auth-enabled harness (any production deployment); send the Auth0 access token from the rest of the MIOT API |
 | `headers` | `Record<string, string>` | merged into every request (request-level headers win) |
 | `fetch` | `typeof globalThis.fetch` | `globalThis.fetch` — pass a custom impl for testing or polyfills |
 

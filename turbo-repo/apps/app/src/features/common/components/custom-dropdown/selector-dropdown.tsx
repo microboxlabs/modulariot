@@ -10,12 +10,14 @@ export default function SelectorDropdown({
   baseCategory = null,
   disabled = false,
   dictionary,
+  fitWidth = false,
 }: {
   categories: { value: string; label: string }[];
   selectCategory?: (category: string) => void;
   baseCategory?: string | null;
   disabled?: boolean;
   dictionary: I18nRecord;
+  fitWidth?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<{
@@ -49,15 +51,15 @@ export default function SelectorDropdown({
   }, [baseCategory]);
 
   return (
-    <div ref={dropdownRef}>
+    <div ref={dropdownRef} className={fitWidth ? "w-fit" : undefined}>
       <Dropdown
         label="Opciones"
         theme={{
-          content: "w-full",
+          content: fitWidth ? "" : "w-full",
           floating: {
             base: "overflow-hidden rounded-lg z-10",
             item: {
-              container: "w-full ",
+              container: fitWidth ? "" : "w-full ",
             },
             style: {
               auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
@@ -67,7 +69,7 @@ export default function SelectorDropdown({
         renderTrigger={() => (
           <Button
             color="alternative"
-            className="flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer w-full border border-gray-200 dark:border-gray-500 hover"
+            className={`flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover ${fitWidth ? "w-fit" : "w-full"}`}
             disabled={disabled}
           >
             <a
@@ -93,8 +95,8 @@ export default function SelectorDropdown({
             </a>
           </Button>
         )}
-        className="w-full"
-        style={{ width: "100%" }}
+        className={fitWidth ? "w-fit" : "w-full"}
+        style={fitWidth ? undefined : { width: "100%" }}
       >
         {categories.map((category) => (
           <DropdownItem

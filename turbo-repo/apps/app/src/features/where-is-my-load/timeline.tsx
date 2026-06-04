@@ -7,7 +7,7 @@ import { Button, Spinner } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import EmptyAnimation from "../symptoms/components/empty-animation";
 import { I18nRecord } from "../i18n/i18n.service.types";
-import { tr } from "../i18n/tr.service";
+import { tr, trDynamic } from "../i18n/tr.service";
 //import { ShowNotification } from "../notifications/notification";
 import { useSearchLoad } from "../common/providers/client-api.provider";
 import SearchScreen from "./search-screen";
@@ -448,7 +448,7 @@ function SideInfo({
             )}
             {actualDeliveryDate && (
               <LoadableLabel
-                label={tr(
+                label={trDynamic(
                   isDelivered
                     ? "wheres_my_load.actual_delivery_date"
                     : "wheres_my_load.projected_delivery_date",

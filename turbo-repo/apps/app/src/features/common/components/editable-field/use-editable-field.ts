@@ -12,6 +12,7 @@ type UseEditableFieldProps = {
   fieldName: string;
   initialValue: string;
   onUpdate?: (newValue: string) => void;
+  onSave?: (newValue: string) => Promise<void>;
   disabled?: boolean;
 };
 
@@ -20,6 +21,7 @@ export function useEditableField({
   fieldName,
   initialValue,
   onUpdate,
+  onSave,
   disabled = false,
 }: UseEditableFieldProps): UseEditableFieldReturn {
   const [state, setState] = useState<EditableFieldState>("display");
@@ -50,22 +52,27 @@ export function useEditableField({
     setError(null);
 
     try {
-      const result = await updateTaskProperties(taskId, {
-        [fieldName]: editValue,
-      });
-
-      if (result.success) {
-        setState("display");
-        onUpdate?.(editValue);
+      if (onSave) {
+        await onSave(editValue);
       } else {
-        setState("error");
-        setError(result.error || "Failed to save changes");
+        const result = await updateTaskProperties(taskId, {
+          [fieldName]: editValue,
+        });
+
+        if (!result.success) {
+          setState("error");
+          setError(result.error || "Failed to save changes");
+          return;
+        }
       }
+
+      setState("display");
+      onUpdate?.(editValue);
     } catch (err) {
       setState("error");
       setError(err instanceof Error ? err.message : "An error occurred");
     }
-  }, [taskId, fieldName, editValue, initialValue, onUpdate]);
+  }, [taskId, fieldName, editValue, initialValue, onUpdate, onSave]);
 
   const handleMouseEnter = useCallback(() => {
     if (!disabled && state === "display") {

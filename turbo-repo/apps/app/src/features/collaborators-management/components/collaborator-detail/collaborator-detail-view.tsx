@@ -13,7 +13,7 @@ import CollaboratorDetailHeader from "./collaborator-detail-header";
 import KpiStat from "@/features/common/components/kpi-stat/kpi-stat";
 import { HiClock, HiBolt, HiDocumentText, HiTruck } from "react-icons/hi2";
 import { IoShieldOutline, IoPulseOutline } from "react-icons/io5";
-import { tr } from "@/features/i18n/tr.service";
+import { trDynamic } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
 import CollaboratorSummary from "./collaborator-summary";
 
@@ -159,7 +159,7 @@ export default function CollaboratorDetailView({
             >
               <KpiStat
                 icon={{ icon: card.icon, className: card.iconClass }}
-                title={{ text: tr(card.titleKey, dict) }}
+                title={{ text: trDynamic(card.titleKey, dict) }}
                 value={{ text: String(card.score), className: card.valueClass }}
                 variant="horizontal"
                 className="border-0"

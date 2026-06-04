@@ -75,12 +75,12 @@ export function getPerformanceStatus(
 import type { EventUrgency } from "@/features/common/components/timeline-event";
 
 export type { EventUrgency } from "@/features/common/components/timeline-event";
-export type BehaviorCategory = "seguridad" | "uso" | "normativo";
 export type FilterType =
   | "todos"
   | "seguridad"
   | "uso"
   | "normativo"
+  | "eficiencia"
   | "criticos";
 
 export interface BehaviorEvent {
@@ -90,7 +90,7 @@ export interface BehaviorEvent {
   location: string;
   date: string;
   urgency: EventUrgency;
-  category: BehaviorCategory;
+  category: string;
 }
 
 /** One month of evolution data (dynamic — comes from backend) */

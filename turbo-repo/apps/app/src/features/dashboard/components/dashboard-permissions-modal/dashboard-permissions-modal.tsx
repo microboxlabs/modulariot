@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Button, Select, ToggleSwitch } from "flowbite-react";
-import { HiOutlineTrash, HiOutlineUserGroup, HiOutlineUser } from "react-icons/hi2";
+import {
+  HiOutlineTrash,
+  HiOutlineUserGroup,
+  HiOutlineUser,
+} from "react-icons/hi2";
 import useSWR from "swr";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import fetcher from "@/features/common/providers/fetcher";
 import type { FetcherError } from "@/features/common/providers/fetcher.types";
 import { ShowNotification } from "@/features/notifications/notification";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type {
   AlfrescoNodePermissions,
@@ -100,7 +104,9 @@ export function DashboardPermissionsModal({
   });
 
   const [isInheritanceEnabled, setIsInheritanceEnabled] = useState(true);
-  const [localEntries, setLocalEntries] = useState<AlfrescoPermissionEntry[]>([]);
+  const [localEntries, setLocalEntries] = useState<AlfrescoPermissionEntry[]>(
+    []
+  );
   const [activeTab, setActiveTab] = useState<"user" | "group">("user");
   const [pendingRole, setPendingRole] = useState<DashboardRole>("Consumer");
   const [saving, setSaving] = useState(false);
@@ -207,11 +213,7 @@ export function DashboardPermissionsModal({
       ShowNotification({ type: "success", message: t("saveSuccess") });
       onClose();
     } catch (err) {
-      console.error(
-        "Failed to save permissions for node",
-        data?.nodeId,
-        err
-      );
+      console.error("Failed to save permissions for node", data?.nodeId, err);
       ShowNotification({ type: "error", message: t("saveError") });
     } finally {
       setSaving(false);
@@ -252,7 +254,9 @@ export function DashboardPermissionsModal({
           defaultCount={inheritedDefaultCount}
           emptyLabel={t("noInherited")}
           badgeLabel={t("inheritedBadge")}
-          roleLabel={(role) => tr(ROLE_LABEL_KEYS[fallbackRole(role)], dictionary)}
+          roleLabel={(role) =>
+            trDynamic(ROLE_LABEL_KEYS[fallbackRole(role)], dictionary)
+          }
         />
 
         <LocalList
@@ -426,13 +430,16 @@ function LocalList({
                   sizing="sm"
                   value={fallbackRole(entry.name)}
                   onChange={(e) =>
-                    onChangeRole(entry.authorityId, e.target.value as DashboardRole)
+                    onChangeRole(
+                      entry.authorityId,
+                      e.target.value as DashboardRole
+                    )
                   }
                   className="w-40 shrink-0"
                 >
                   {DASHBOARD_ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {tr(ROLE_LABEL_KEYS[role], dictionary)}
+                      {trDynamic(ROLE_LABEL_KEYS[role], dictionary)}
                     </option>
                   ))}
                 </Select>
@@ -513,7 +520,7 @@ function AddAuthoritySection({
         >
           {DASHBOARD_ROLES.map((role) => (
             <option key={role} value={role}>
-              {tr(ROLE_LABEL_KEYS[role], dictionary)}
+              {trDynamic(ROLE_LABEL_KEYS[role], dictionary)}
             </option>
           ))}
         </Select>

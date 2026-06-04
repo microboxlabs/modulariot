@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+import httpx
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel
@@ -16,6 +18,7 @@ from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
+from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
     IdentityVerificationError,
     verify_signed_identity,
@@ -64,6 +67,34 @@ def _make_lifespan(
         app.state.harness = harness
         app.state.event_bus = harness.event_bus
         app.state.in_flight = {}
+        # Parallel map from in-flight run_id → tenant_id, populated by
+        # /runs:start and cleared in the task's done-callback. Lets
+        # /stream refuse a cross-tenant subscriber before the record
+        # ever lands on disk.
+        app.state.in_flight_tenants = {}
+
+        # Auth (defense-in-depth behind the Quarkus proxy): instantiate
+        # a JwksCache when enabled; require_auth reads it from
+        # app.state. validate_auth_config has the explicit checks —
+        # call it here so any misconfig surfaces at boot, not on the
+        # first request. When auth is disabled in prod, log loudly so
+        # the operator notices the open surface.
+        settings.validate_auth_config()
+        if settings.auth_enabled:
+            assert settings.auth0_jwks_url is not None  # narrowed by validate
+            app.state.jwks = JwksCache(settings.auth0_jwks_url)
+            logger.info(
+                "Auth: enabled (issuer=%s, audience=%s)",
+                settings.auth0_issuer,
+                settings.auth0_rs256_audience,
+            )
+        else:
+            app.state.jwks = None
+            if settings.env == "production":
+                logger.warning(
+                    "Auth: DISABLED in production env — /runs* is "
+                    "unauthenticated. Set MIOT_HARNESS_AUTH_ENABLED=true."
+                )
 
         # Telemetry: configure_tracing installs the global TracerProvider so
         # NexoTelemetryCallback's spans (per-agent) and Traceloop's
@@ -272,6 +303,112 @@ def create_app() -> FastAPI:
             )
         return body
 
+    async def require_auth(request: Request) -> Mapping[str, Any]:
+        """Auth0 RS256 verification gate for /runs* endpoints.
+
+        Short-circuits to a blank context when auth is disabled (the
+        legacy unauthenticated mode used by unit tests and local
+        dev). When enabled:
+
+        - Enforces Bearer-token + JWKS RS256 sig/iss/aud/exp checks.
+        - Resolves the caller's tenant from the
+          `X-Miot-Tenant-Client-Id` header set by the Quarkus proxy.
+        - Refuses requests missing that header, no exceptions —
+          the proxy is the only trusted source of tenancy in prod.
+
+        Returns ``{"claims": <decoded JWT>, "tenant_id": <header value
+        or None>}``. Handlers use the tenant to override the body's
+        deprecated `UserRequest.tenant_id`; a future release removes
+        the body field entirely once staging soak confirms no caller
+        still depends on it.
+        """
+        if not settings.auth_enabled:
+            return {"claims": {}, "tenant_id": None}
+
+        auth_header = request.headers.get("Authorization") or ""
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="missing Bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token = auth_header[len("Bearer ") :].strip()
+        if not token:
+            raise HTTPException(
+                status_code=401,
+                detail="empty Bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        jwks: JwksCache | None = request.app.state.jwks
+        if jwks is None:  # pragma: no cover — guarded by validate_auth_config
+            raise HTTPException(
+                status_code=500,
+                detail="auth enabled but JwksCache not configured",
+            )
+
+        # `auth0_issuer` and `auth0_rs256_audience` are guaranteed
+        # non-None when `auth_enabled` is true (validated at startup).
+        # The cast is just so mypy understands the narrowing.
+        assert settings.auth0_issuer is not None
+        assert settings.auth0_rs256_audience is not None
+
+        try:
+            claims = await verify_token(
+                token,
+                issuer=settings.auth0_issuer,
+                audiences=[settings.auth0_rs256_audience],
+                jwks=jwks,
+            )
+        except AuthError as exc:
+            raise HTTPException(
+                status_code=401,
+                detail=f"auth_failed:{exc.code}",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+        except httpx.HTTPError as exc:
+            # JWKS endpoint unreachable / erroring: verification could
+            # not run, so this is "auth temporarily unavailable", not
+            # "token rejected". Return a retryable 503 instead of leaking
+            # an opaque 500 (which also carries no Retry-After signal).
+            raise HTTPException(
+                status_code=503,
+                detail="auth_unavailable:jwks_fetch_failed",
+                headers={"Retry-After": "5"},
+            ) from exc
+
+        header_tenant = (
+            request.headers.get("X-Miot-Tenant-Client-Id") or ""
+        ).strip() or None
+        if header_tenant is None:
+            raise HTTPException(
+                status_code=401,
+                detail="auth_failed:tenant_unresolved",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"claims": claims, "tenant_id": header_tenant}
+
+    def _apply_tenant_override(
+        user_request: UserRequest, auth: Mapping[str, Any]
+    ) -> UserRequest:
+        """If the verified header carried a tenant, that value wins
+        over whatever the body declared. Body-only flow (auth
+        disabled, i.e. local dev / unit tests) keeps the body value.
+        The body field itself is deprecated; a future release will
+        delete it from the schema once staging soak confirms no
+        caller still depends on it.
+        """
+        header_tenant = auth.get("tenant_id")
+        if not header_tenant:
+            return user_request
+        if user_request.tenant_id != header_tenant:
+            logger.info(
+                "Auth: overriding body tenant %r with header tenant %r",
+                user_request.tenant_id,
+                header_tenant,
+            )
+        return user_request.model_copy(update={"tenant_id": header_tenant})
+
     @app.get("/health")
     async def health() -> dict[str, object]:
         return {
@@ -312,6 +449,7 @@ def create_app() -> FastAPI:
         request: UserRequest,
         http_request: Request,
         debug: bool = Query(False),
+        auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
         # Read harness from app.state so tests that inject a controlled
         # graph (via app.state.harness.nexo_graph = ...) see their patch.
@@ -320,40 +458,69 @@ def create_app() -> FastAPI:
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
+        request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
-    async def get_run(run_id: str) -> HarnessRunRecord:
+    async def get_run(
+        run_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> HarnessRunRecord:
         harness: HarnessSupervisor = app.state.harness
-        return harness.run_store.load(run_id)
+        try:
+            record = harness.run_store.load(run_id)
+        except FileNotFoundError as exc:
+            # An unknown run is a 404, not a 500 leaked from the store.
+            raise HTTPException(
+                status_code=404, detail=f"unknown run_id {run_id!r}"
+            ) from exc
+        _enforce_tenant_owns_run(record, auth, run_id)
+        return record
 
     @app.post("/runs:start", status_code=202)
     async def start_run(
         request: UserRequest,
         http_request: Request,
         debug: bool = Query(False),
+        auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, str]:
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
+        request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)
         )
         app.state.in_flight[run_id] = task
+        # Track the tenant for in-flight runs so /stream can reject
+        # cross-tenant subscribers even before the record lands on
+        # disk. Cleared in the done-callback alongside in_flight.
+        app.state.in_flight_tenants[run_id] = request.tenant_id
 
         def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
             app.state.in_flight.pop(run_id, None)
+            app.state.in_flight_tenants.pop(run_id, None)
 
         task.add_done_callback(_cleanup)
         return {"run_id": run_id}
 
     @app.post("/runs/{run_id}/approvals/{approval_id}", status_code=204)
     async def resolve_approval(
-        run_id: str, approval_id: str, body: ApprovalDecision
+        run_id: str,
+        approval_id: str,
+        body: ApprovalDecision,
+        auth: Mapping[str, Any] = Depends(require_auth),
     ) -> Response:
+        # Tenant scoping (#522): a pending approval only exists while
+        # its run is in flight, so the in-flight tenant tracker is the
+        # authoritative owner map. A cross-tenant caller gets the same
+        # 404 as an unknown approval — no ownership leak.
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Approval not pending")
         # Run-scoped lookup: registry.resolve refuses to set the decision
         # if the approval was registered for a different run. A 404 here
         # means the approval is unknown OR belongs to another run —
@@ -367,19 +534,31 @@ def create_app() -> FastAPI:
         return Response(status_code=204)
 
     @app.post("/runs/{run_id}/cancel", status_code=204)
-    async def cancel_run(run_id: str) -> Response:
+    async def cancel_run(
+        run_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
         # The in-flight registry is populated by POST /runs:start. A
         # caller can't cancel a synchronous POST /runs (it never enters
         # in_flight). Missing entry → 404 is the right answer; the run
         # either never started, already terminated, or was cancelled.
+        # Tenant scoping (#522): a cross-tenant caller gets the same
+        # 404 as a missing run — no existence leak.
         task = app.state.in_flight.get(run_id)
-        if task is None:
+        caller = auth.get("tenant_id")
+        if task is None or (
+            caller and app.state.in_flight_tenants.get(run_id) != caller
+        ):
             raise HTTPException(status_code=404, detail="Run not in flight")
         task.cancel()
         return Response(status_code=204)
 
     @app.get("/runs/{run_id}/stream")
-    async def stream_run(run_id: str, request: Request) -> StreamingResponse:
+    async def stream_run(
+        run_id: str,
+        request: Request,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> StreamingResponse:
         # `event_bus` is the live channel for in-flight runs; without it
         # _sse_iterator can only ship the disk record and would close the
         # stream silently, which the client can't distinguish from a real
@@ -390,6 +569,7 @@ def create_app() -> FastAPI:
                 status_code=501,
                 detail="SSE streaming is not configured on this harness instance.",
             )
+        _enforce_tenant_owns_stream(app, run_id, auth)
         last_event_id = request.headers.get("Last-Event-ID")
         return StreamingResponse(
             _sse_iterator(app, run_id, last_event_id),
@@ -403,6 +583,64 @@ def create_app() -> FastAPI:
         )
 
     return app
+
+
+def _enforce_tenant_owns_run(
+    record: HarnessRunRecord, auth: Mapping[str, Any], run_id: str
+) -> None:
+    """Refuse to return a persisted run that belongs to a different
+    tenant than the verified caller. No-op when auth resolved no
+    tenant (auth disabled — local dev / unit tests).
+
+    Older records persisted before #522 don't carry `tenant_id` —
+    those are treated as legacy and allowed through; the new field
+    only forbids new cross-tenant attempts.
+    """
+    caller = auth.get("tenant_id")
+    if not caller:
+        return
+    if record.tenant_id is None:
+        return
+    if record.tenant_id != caller:
+        raise HTTPException(
+            status_code=403,
+            detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+        )
+
+
+def _enforce_tenant_owns_stream(
+    app: FastAPI, run_id: str, auth: Mapping[str, Any]
+) -> None:
+    """SSE-side counterpart to ``_enforce_tenant_owns_run``: checks
+    the in-flight tenant tracker first (for runs that have not yet
+    persisted) and falls back to the on-disk record. An unknown
+    run_id is left to ``_sse_iterator`` to handle with its own
+    `unknown_run_id` SSE error — replay protection only triggers
+    when we actually know who the run belongs to.
+    """
+    caller = auth.get("tenant_id")
+    if not caller:
+        return
+    in_flight_tenant = app.state.in_flight_tenants.get(run_id)
+    if in_flight_tenant is not None:
+        if in_flight_tenant != caller:
+            raise HTTPException(
+                status_code=403,
+                detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+            )
+        return
+    harness: HarnessSupervisor = app.state.harness
+    try:
+        record = harness.run_store.load(run_id)
+    except FileNotFoundError:
+        return
+    if record.tenant_id is None:
+        return
+    if record.tenant_id != caller:
+        raise HTTPException(
+            status_code=403,
+            detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+        )
 
 
 def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) -> None:
@@ -435,7 +673,11 @@ def _format_sse_event(evt: HarnessEvent) -> bytes:
 
 
 def _format_sse_error(run_id: str, error: str) -> bytes:
-    payload = f'{{"error": "{error}", "run_id": "{run_id}"}}'
+    # Serialize with json.dumps: run_id is URL-derived (Starlette
+    # percent-decodes path params, so it can contain `"` or `\n`).
+    # Hand-building this JSON would let a crafted run_id break out of the
+    # payload or inject a forged SSE frame; json.dumps escapes both.
+    payload = json.dumps({"error": error, "run_id": run_id})
     return f"event: error\ndata: {payload}\n\n".encode()
 
 

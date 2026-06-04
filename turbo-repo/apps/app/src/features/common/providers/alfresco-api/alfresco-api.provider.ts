@@ -7,6 +7,7 @@ import {
   AlfrescoApi,
 } from "@alfresco/js-api";
 import type { ServiceType } from "./service-types.types";
+import type { ObservationTypeItem } from "./observation-types.types";
 import type {
   EndTaskResponse,
   FastTasksResponse,
@@ -43,6 +44,16 @@ import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.type
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
 import { z } from "zod";
+
+/** Alfresco node IDs are UUIDs or well-known aliases like -root-, -my-, -shared-. */
+const alfrescoNodeIdSchema = z.string().regex(
+  /^(-root-|-my-|-shared-|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  "Invalid Alfresco node ID"
+);
+
+function validateNodeId(nodeId: string): string {
+  return alfrescoNodeIdSchema.parse(nodeId);
+}
 
 const alfrescoApiLogger = createManagedLogger(
   "alfresco-api",
@@ -507,6 +518,117 @@ export async function updateNodeContent(
       "Update node content failed with exception"
     );
     return null;
+  }
+}
+
+export async function updateNodeProperties(
+  session: Session,
+  nodeId: string,
+  properties: Record<string, string>
+): Promise<boolean> {
+  try {
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ properties }),
+    });
+    if (!result.ok) {
+      const body = await result.text().catch(() => "(unreadable)");
+      throw new Error(`Alfresco ${result.status} ${result.statusText}: ${body}`);
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Update node properties failed with exception"
+    );
+    return false;
+  }
+}
+
+export async function updateNodeName(
+  session: Session,
+  nodeId: string,
+  name: string
+): Promise<boolean> {
+  try {
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!result.ok) {
+      logError(
+        new Error(`Rename node failed with HTTP error: ${result.status} ${result.statusText}`)
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Rename node failed with exception"
+    );
+    return false;
+  }
+}
+
+export async function moveNode(
+  session: Session,
+  nodeId: string,
+  targetParentId: string
+): Promise<boolean> {
+  try {
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}/move`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ targetParentId }),
+    });
+    if (!result.ok) {
+      const body = await result.text().catch(() => "(unreadable)");
+      throw new Error(`Move node failed: ${result.status} ${result.statusText}: ${body}`);
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Move node failed with exception"
+    );
+    throw error;
+  }
+}
+
+export async function deleteNode(
+  session: Session,
+  nodeId: string
+): Promise<boolean> {
+  try {
+    const safeNodeId = validateNodeId(nodeId);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+    const result = await fetch(url, { method: "DELETE", headers });
+    if (!result.ok) {
+      logError(
+        new Error(`Delete node failed with HTTP error: ${result.status} ${result.statusText}`)
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Delete node failed with exception"
+    );
+    return false;
   }
 }
 
@@ -1312,7 +1434,11 @@ type ForumAction =
   | "post/create"
   | "post/reply"
   | "post/edit"
-  | "post/delete";
+  | "post/delete"
+  | "content/discussion/get"
+  | "content/topic/create"
+  | "content/topic/list"
+  | "content/discussion/ensure";
 
 async function callForumAction<TResponse = unknown>(
   session: Session,
@@ -1397,6 +1523,40 @@ export async function deleteForumTopic(
   data: { bpmPackage: string; topic: string }
 ): Promise<unknown> {
   return callForumAction(session, "topic/delete", { body: data });
+}
+
+// Content-level forum (per-node discussions)
+
+export async function getContentDiscussion(
+  session: Session,
+  contentNodeRef: string
+): Promise<ForumDiscussionResponse> {
+  return callForumAction<ForumDiscussionResponse>(session, "content/discussion/get", {
+    body: { contentNodeRef },
+  });
+}
+
+export async function createContentTopic(
+  session: Session,
+  data: { contentNodeRef: string; title: string; content?: string }
+): Promise<unknown> {
+  return callForumAction(session, "content/topic/create", { body: data });
+}
+
+export async function listContentTopics(
+  session: Session,
+  contentNodeRef: string
+): Promise<ForumDiscussionResponse> {
+  return callForumAction<ForumDiscussionResponse>(session, "content/topic/list", {
+    body: { contentNodeRef },
+  });
+}
+
+export async function ensureContentDiscussion(
+  session: Session,
+  data: { contentNodeRef: string; topicTitleIfCreate?: string }
+): Promise<unknown> {
+  return callForumAction(session, "content/discussion/ensure", { body: data });
 }
 
 // Message Templates API
@@ -1748,6 +1908,31 @@ export async function getServiceTypes(
   const response = await fetch(url, { headers });
   if (!response.ok) throw new Error(`service-types: ${response.status}`);
   return serviceTypesSchema.parse(await response.json());
+}
+
+const observationTypeSchema = z.object({
+  nodeRef: z.string(),
+  code: z.string(),
+  name: z.string(),
+  // Alfresco's JSONObject(Map) omits null-valued keys, so optional/nullish props
+  // may be absent for items created without a description or position.
+  description: z.string().nullish(),
+  isActive: z.boolean(),
+  position: z.number().nullish(),
+  appliesTo: z.array(z.string()).nullish(),
+});
+const observationTypesSchema = z.array(observationTypeSchema);
+
+export async function getObservationTypes(
+  session: Session,
+  appliesTo?: string | null
+): Promise<ObservationTypeItem[]> {
+  const qs = appliesTo ? `?appliesTo=${encodeURIComponent(appliesTo)}` : "";
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/observation-types${qs}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(`observation-types: ${response.status}`);
+  return observationTypesSchema.parse(await response.json());
 }
 
 export const timelapseMetadataSchema = z.object({

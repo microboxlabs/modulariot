@@ -26,7 +26,7 @@ import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import Markdown from "react-markdown";
 
 // ============================================================================
@@ -652,7 +652,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     <div className="flex h-full flex-col gap-3">
       <DashletTitleBar
         {...titleBarData}
-        rowCountLabel={tr(
+        rowCountLabel={trDynamic(
           displayRows.length === 1
             ? "dashboard.settings.totalItemsSingular"
             : "dashboard.settings.totalItems",

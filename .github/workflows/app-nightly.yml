@@ -1,0 +1,157 @@
+name: App Nightly
+
+on:
+  push:
+    branches:
+      - trunk
+      - main
+    paths:
+      - 'turbo-repo/apps/app/**'
+      - 'turbo-repo/packages/ui/**'
+      - 'turbo-repo/packages/db/**'
+      - 'turbo-repo/packages/typescript-config/**'
+      - 'turbo-repo/package-lock.json'
+      - 'turbo-repo/docker/**'
+      - 'ops/deploy-app-nightly.sh'
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      deploy_environments:
+        description: "Comma-separated development environment names consumed by deploy hook."
+        required: false
+        default: "development"
+        type: string
+
+concurrency:
+  group: app-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_OWNER: microboxlabs
+  IMAGE_NAME: miot-app
+
+jobs:
+  build:
+    name: Build and publish nightly app image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
+      NEXT_PUBLIC_MAPBOX_API_KEY: ${{ secrets.NEXT_PUBLIC_MAPBOX_API_KEY }}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      NEXT_PUBLIC_AUTENTIA_PATH: ${{ secrets.NEXT_PUBLIC_AUTENTIA_PATH }}
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+      nightly_date: ${{ steps.vars.outputs.nightly_date }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Resolve image metadata
+        id: vars
+        run: |
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "nightly_date=$(date -u +'%Y%m%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build app
+        run: npx turbo run build --filter=@modulariot/app
+        working-directory: turbo-repo
+
+      - name: Prepare Docker context
+        run: |
+          mkdir -p /tmp/build-app/.next
+          cp -r turbo-repo/apps/app/.next/standalone /tmp/build-app/.next/standalone
+          cp -r turbo-repo/apps/app/.next/static /tmp/build-app/.next/static
+          cp -r turbo-repo/apps/app/public /tmp/build-app/public
+          cp turbo-repo/docker/nextjs.standalone.Dockerfile /tmp/build-app/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: docker
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: /tmp/build-app/
+          file: /tmp/build-app/nextjs.standalone.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:nightly
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:nightly-${{ steps.vars.outputs.nightly_date }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=ModularIoT app nightly build
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          build-args: |
+            APP_NAME=app
+          provenance: true
+          sbom: true
+
+      - name: Resolve immutable image reference
+        id: image
+        run: echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Nightly summary
+        run: |
+          echo "# App Nightly" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ steps.image.outputs.image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Tags: \`nightly\`, \`nightly-${{ steps.vars.outputs.nightly_date }}\`, \`sha-${{ steps.vars.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy development environments
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+    environment:
+      name: app-nightly-development
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Deploy nightly image
+        env:
+          IMAGE_REF: ${{ needs.build.outputs.image }}
+          IMAGE_TAG: nightly
+          GIT_SHA: ${{ github.sha }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+          NIGHTLY_DATE: ${{ needs.build.outputs.nightly_date }}
+          DEPLOY_ENVIRONMENTS: ${{ inputs.deploy_environments || 'development' }}
+        run: |
+          if [[ -x "./ops/deploy-app-nightly.sh" ]]; then
+            ./ops/deploy-app-nightly.sh
+          else
+            echo "No ./ops/deploy-app-nightly.sh hook found."
+            echo "Create it to deploy IMAGE_REF=$IMAGE_REF to: $DEPLOY_ENVIRONMENTS."
+            exit 1
+          fi

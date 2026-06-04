@@ -12,7 +12,13 @@ import {
   DropdownItem,
   Tooltip,
 } from "flowbite-react";
-import { HiPlus, HiChevronDown, HiCheck, HiXMark, HiQuestionMarkCircle } from "react-icons/hi2";
+import {
+  HiPlus,
+  HiChevronDown,
+  HiCheck,
+  HiXMark,
+  HiQuestionMarkCircle,
+} from "react-icons/hi2";
 import type { DashletSettingsProps, DataProviderEntry } from "../types";
 import type { DashletConfig } from "./dashlet";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
@@ -33,7 +39,7 @@ import { useOptionalPlannerContext } from "../../context/planner-context";
 import { useDashboardFilters } from "../../context/dashboard-filters-context";
 import { useDataProvider } from "../common/use-data-provider";
 import { DataProviderEntries } from "../common/data-provider-entries";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { resolveUrlTemplate } from "@/features/map-visualization/use-map-data-provider";
 import { buildPgrestFetch } from "../common/pgrest-utils";
 import { resolveFilterParams } from "../common/resolve-filter-params";
@@ -260,7 +266,10 @@ function buildProvider(item: LayerSettingsItem): MapDataProvider | undefined {
     return {
       type: "api",
       url: item.apiUrl.trim(),
-      refreshInterval: item.refreshIntervalSec > 0 ? item.refreshIntervalSec * 1000 : undefined,
+      refreshInterval:
+        item.refreshIntervalSec > 0
+          ? item.refreshIntervalSec * 1000
+          : undefined,
       transformWkb: item.transformWkb || undefined,
       ...geoFields,
     };
@@ -282,7 +291,10 @@ function buildProvider(item: LayerSettingsItem): MapDataProvider | undefined {
         .filter((p) => p.key.trim())
         .map((p) => ({ key: p.key, value: p.value })),
       dataSourceId: item.dataSourceId || undefined,
-      refreshInterval: item.refreshIntervalSec > 0 ? item.refreshIntervalSec * 1000 : undefined,
+      refreshInterval:
+        item.refreshIntervalSec > 0
+          ? item.refreshIntervalSec * 1000
+          : undefined,
       transformWkb: item.transformWkb || undefined,
       ...geoFields,
     };
@@ -300,13 +312,16 @@ function buildProvider(item: LayerSettingsItem): MapDataProvider | undefined {
 
 function buildGeoFields(provider: NonNullable<MapLayer["provider"]>) {
   return {
-    transformWkb: "transformWkb" in provider ? (provider.transformWkb ?? false) : false,
-    geometryField: "geometryField" in provider ? (provider.geometryField ?? "") : "",
+    transformWkb:
+      "transformWkb" in provider ? (provider.transformWkb ?? false) : false,
+    geometryField:
+      "geometryField" in provider ? (provider.geometryField ?? "") : "",
     latField: "latField" in provider ? (provider.latField ?? "") : "",
     lngField: "lngField" in provider ? (provider.lngField ?? "") : "",
-    responsePath: "responsePath" in provider
-      ? ((provider as { responsePath?: string }).responsePath ?? "")
-      : "",
+    responsePath:
+      "responsePath" in provider
+        ? ((provider as { responsePath?: string }).responsePath ?? "")
+        : "",
   };
 }
 
@@ -326,7 +341,21 @@ function buildProviderFields(provider: MapLayer["provider"]) {
   let responsePath = "";
 
   if (!provider || provider.type === "static") {
-    return { apiUrl, sseUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, plannerVariableName, refreshIntervalSec, transformWkb, geometryField, latField, lngField, responsePath };
+    return {
+      apiUrl,
+      sseUrl,
+      pgrestFunctionName,
+      pgrestParams,
+      pgrestHttpMethod,
+      dataSourceId,
+      plannerVariableName,
+      refreshIntervalSec,
+      transformWkb,
+      geometryField,
+      latField,
+      lngField,
+      responsePath,
+    };
   }
 
   const geo = buildGeoFields(provider);
@@ -343,7 +372,10 @@ function buildProviderFields(provider: MapLayer["provider"]) {
     sseUrl = provider.url;
   } else if (provider.type === "pgrest") {
     pgrestFunctionName = provider.functionName;
-    pgrestParams = provider.params.map((p) => ({ ...p, _id: crypto.randomUUID() }));
+    pgrestParams = provider.params.map((p) => ({
+      ...p,
+      _id: crypto.randomUUID(),
+    }));
     pgrestHttpMethod = provider.method;
     dataSourceId = provider.dataSourceId ?? "";
     refreshIntervalSec = (provider.refreshInterval ?? 0) / 1000;
@@ -351,7 +383,21 @@ function buildProviderFields(provider: MapLayer["provider"]) {
     plannerVariableName = provider.variableName;
   }
 
-  return { apiUrl, sseUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, plannerVariableName, refreshIntervalSec, transformWkb, geometryField, latField, lngField, responsePath };
+  return {
+    apiUrl,
+    sseUrl,
+    pgrestFunctionName,
+    pgrestParams,
+    pgrestHttpMethod,
+    dataSourceId,
+    plannerVariableName,
+    refreshIntervalSec,
+    transformWkb,
+    geometryField,
+    latField,
+    lngField,
+    responsePath,
+  };
 }
 
 function mapLayerToSettingsItem(layer: MapLayer): LayerSettingsItem {
@@ -421,7 +467,9 @@ function ApiStatusIndicator({ url }: { readonly url: string }) {
     () => resolveUrlTemplate(url, searchParams),
     [url, searchParams]
   );
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
 
   useEffect(() => {
     if (!resolvedUrl.trim()) {
@@ -462,12 +510,8 @@ function ApiStatusIndicator({ url }: { readonly url: string }) {
       {status === "loading" && (
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
       )}
-      {status === "success" && (
-        <HiCheck className="h-5 w-5 text-green-500" />
-      )}
-      {status === "error" && (
-        <HiXMark className="h-5 w-5 text-red-500" />
-      )}
+      {status === "success" && <HiCheck className="h-5 w-5 text-green-500" />}
+      {status === "error" && <HiXMark className="h-5 w-5 text-red-500" />}
     </div>
   );
 }
@@ -478,7 +522,10 @@ function ApiStatusIndicator({ url }: { readonly url: string }) {
 
 interface PgrestLayerSectionProps {
   item: LayerSettingsItem;
-  set: <K extends keyof LayerSettingsItem>(key: K, value: LayerSettingsItem[K]) => void;
+  set: <K extends keyof LayerSettingsItem>(
+    key: K,
+    value: LayerSettingsItem[K]
+  ) => void;
   onChange: (updated: LayerSettingsItem) => void;
   dictionary: DashletSettingsProps<DashletConfig>["dictionary"];
 }
@@ -505,7 +552,11 @@ function PgrestLayerSection({
           sizing="sm"
           value={item.dataSourceId}
           onChange={(e) => {
-            onChange({ ...item, dataSourceId: e.target.value, pgrestFunctionName: "" });
+            onChange({
+              ...item,
+              dataSourceId: e.target.value,
+              pgrestFunctionName: "",
+            });
           }}
           className="[&>select]:cursor-pointer"
         >
@@ -561,16 +612,22 @@ function PgrestLayerSection({
                     {"{{filter.<key>}}"}
                   </code>
                 </p>
-                <p className="font-semibold">{tr("dashboard.settings.parametersHintExamples", dictionary)}</p>
+                <p className="font-semibold">
+                  {tr("dashboard.settings.parametersHintExamples", dictionary)}
+                </p>
                 <ul className="list-inside list-disc space-y-0.5">
                   <li>
                     <code className="font-mono">eq.{"{{filter.status}}"}</code>
                   </li>
                   <li>
-                    <code className="font-mono">gte.{"{{filter.date_range_from}}"}</code>
+                    <code className="font-mono">
+                      gte.{"{{filter.date_range_from}}"}
+                    </code>
                   </li>
                   <li>
-                    <code className="font-mono">{"{{filter.organization_id}}"}</code>
+                    <code className="font-mono">
+                      {"{{filter.organization_id}}"}
+                    </code>
                   </li>
                 </ul>
               </div>
@@ -611,7 +668,10 @@ function PgrestLayerSection({
               </div>
               <DeleteItemButton
                 onClick={() => {
-                  set("pgrestParams", item.pgrestParams.filter((pp) => pp._id !== p._id));
+                  set(
+                    "pgrestParams",
+                    item.pgrestParams.filter((pp) => pp._id !== p._id)
+                  );
                 }}
                 ariaLabel={tr("dashboard.settings.deleteParameter", dictionary)}
               />
@@ -722,7 +782,10 @@ function LayerCard({
           onChange={(t) => set("geometryType", t)}
           dictionary={dictionary}
         />
-        <DeleteItemButton onClick={onDelete} ariaLabel={tr("dashboard.settings.deleteOrigin", dictionary)} />
+        <DeleteItemButton
+          onClick={onDelete}
+          ariaLabel={tr("dashboard.settings.deleteOrigin", dictionary)}
+        />
       </div>
 
       {/* Body */}
@@ -850,7 +913,6 @@ function LayerCard({
             onChange={(v) => set("plannerVariableName", v)}
           />
         )}
-
       </div>
     </div>
   );
@@ -897,7 +959,7 @@ function GeometryBadge({
     <span
       className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
     >
-      {tr(labelKey, dictionary)}
+      {trDynamic(labelKey, dictionary)}
     </span>
   );
 }
@@ -922,14 +984,14 @@ function GeometryBadgeSelector({
           type="button"
           className="no-drag flex h-7 shrink-0 cursor-pointer items-center justify-between gap-1 rounded-lg border border-gray-300 bg-gray-50 px-2 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
         >
-          {tr(labelKey, dictionary)}
+          {trDynamic(labelKey, dictionary)}
           <HiChevronDown className="h-3 w-3 shrink-0" />
         </button>
       )}
     >
       {GEOMETRY_ORDER.map((t) => (
         <DropdownItem key={t} onClick={() => onChange(t)} className="text-xs">
-          {tr(GEOMETRY_CONFIG[t].labelKey, dictionary)}
+          {trDynamic(GEOMETRY_CONFIG[t].labelKey, dictionary)}
         </DropdownItem>
       ))}
     </Dropdown>
@@ -1047,7 +1109,11 @@ function applyResponsePath(text: string, responsePath: string): string {
   try {
     let extracted: unknown = JSON.parse(text);
     for (const key of path.split(".")) {
-      if (extracted === null || extracted === undefined || typeof extracted !== "object") {
+      if (
+        extracted === null ||
+        extracted === undefined ||
+        typeof extracted !== "object"
+      ) {
         return text;
       }
       extracted = (extracted as Record<string, unknown>)[key];
@@ -1064,7 +1130,10 @@ function applyResponsePath(text: string, responsePath: string): string {
  */
 function getPlannerPreview(
   item: LayerSettingsItem,
-  plannerResults: Map<string, { rows: Record<string, string>[]; loading: boolean; error: string | null }>,
+  plannerResults: Map<
+    string,
+    { rows: Record<string, string>[]; loading: boolean; error: string | null }
+  >
 ): string | null {
   if (item.dataMode !== "planner") return null;
   if (!(item.plannerVariableName ?? "").trim()) return null;
@@ -1081,7 +1150,7 @@ function getPlannerPreview(
 function getRawPreviewText(
   item: LayerSettingsItem,
   plannerPreview: string | null,
-  fetchedData: string | null,
+  fetchedData: string | null
 ): string | null {
   switch (item.dataMode) {
     case "static":
@@ -1121,14 +1190,16 @@ function DataPreviewSection({
       fetchUrl = resolvedApiUrl.trim();
     } else if (item.dataMode === "pgrest" && item.pgrestFunctionName.trim()) {
       const resolvedParams = resolveFilterParams(
-        item.pgrestParams.filter((p) => p.key.trim()).map((p) => ({ key: p.key, value: p.value })),
-        activeFilters,
+        item.pgrestParams
+          .filter((p) => p.key.trim())
+          .map((p) => ({ key: p.key, value: p.value })),
+        activeFilters
       );
       const built = buildPgrestFetch(
         item.pgrestFunctionName.trim(),
         item.pgrestHttpMethod,
         resolvedParams,
-        item.dataSourceId || undefined,
+        item.dataSourceId || undefined
       );
       fetchUrl = built.url;
       fetchInit = built.init ?? {};
@@ -1157,7 +1228,16 @@ function DataPreviewSection({
       });
 
     return () => controller.abort();
-  }, [open, item.dataMode, resolvedApiUrl, item.pgrestFunctionName, item.pgrestHttpMethod, item.pgrestParams, item.dataSourceId, activeFilters]);
+  }, [
+    open,
+    item.dataMode,
+    resolvedApiUrl,
+    item.pgrestFunctionName,
+    item.pgrestHttpMethod,
+    item.pgrestParams,
+    item.dataSourceId,
+    activeFilters,
+  ]);
 
   const plannerPreview = useMemo(
     () => getPlannerPreview(item, plannerResults),
@@ -1168,7 +1248,8 @@ function DataPreviewSection({
 
   // Apply responsePath extraction to the preview
   const previewText = useMemo(() => {
-    if (!rawPreviewText || rawPreviewText === "__loading__") return rawPreviewText;
+    if (!rawPreviewText || rawPreviewText === "__loading__")
+      return rawPreviewText;
     return applyResponsePath(rawPreviewText, item.responsePath ?? "");
   }, [rawPreviewText, item.responsePath]);
 
@@ -1193,11 +1274,11 @@ function DataPreviewSection({
       {open && (
         <div className="mt-2">
           {(loading || previewText === "__loading__") && (
-            <p className="text-xs text-gray-400">{tr("dashboard.settings.previewLoading", dictionary)}</p>
+            <p className="text-xs text-gray-400">
+              {tr("dashboard.settings.previewLoading", dictionary)}
+            </p>
           )}
-          {error && (
-            <p className="text-xs text-red-500">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500">{error}</p>}
           {item.dataMode === "sse" && (
             <p className="text-xs text-gray-400 italic">
               {tr("dashboard.settings.ssePreviewUnavailable", dictionary)}
@@ -1262,7 +1343,7 @@ function LayerStyleCard({
               onChange={(v) => setStyle("pointMode", v as PointRenderMode)}
               options={POINT_MODE_KEYS.map((opt) => ({
                 value: opt.value,
-                label: tr(opt.labelKey, dictionary),
+                label: trDynamic(opt.labelKey, dictionary),
               }))}
             />
             {!isPinMode && (
@@ -1304,7 +1385,10 @@ function LayerStyleCard({
               <div className="flex-1">
                 <SettingsNumberField
                   id={`vis-opacity-${item.id}`}
-                  label={tr("dashboard.settings.polygonFillOpacity", dictionary)}
+                  label={tr(
+                    "dashboard.settings.polygonFillOpacity",
+                    dictionary
+                  )}
                   value={item.style.opacity ?? 0.35}
                   onChange={(v) => setStyle("opacity", v)}
                   step="0.05"
@@ -1324,7 +1408,10 @@ function LayerStyleCard({
               <div className="flex-1">
                 <SettingsNumberField
                   id={`vis-lw-${item.id}`}
-                  label={tr("dashboard.settings.polygonStrokeWidth", dictionary)}
+                  label={tr(
+                    "dashboard.settings.polygonStrokeWidth",
+                    dictionary
+                  )}
                   value={item.style.lineWidth ?? 3}
                   onChange={(v) => setStyle("lineWidth", v)}
                 />
@@ -1398,7 +1485,11 @@ function LayerStyleCard({
           />
         )}
       </div>
-      <TooltipLayerSection item={item} onChange={onChange} dictionary={dictionary} />
+      <TooltipLayerSection
+        item={item}
+        onChange={onChange}
+        dictionary={dictionary}
+      />
       <DataPreviewSection item={item} dictionary={dictionary} />
     </div>
   );
@@ -1482,7 +1573,7 @@ function VisualizationTab({
           onChange={(v) => onPointModeChange(v as PointRenderMode)}
           options={POINT_MODE_KEYS.map((opt) => ({
             value: opt.value,
-            label: tr(opt.labelKey, dictionary),
+            label: trDynamic(opt.labelKey, dictionary),
           }))}
         />
       )}
@@ -1630,7 +1721,11 @@ export function DashletSettings({
     );
     if (invalidLayers.length > 0) {
       const names = invalidLayers
-        .map((item) => item.name.trim() || tr("dashboard.settings.unnamedOrigin", dictionary))
+        .map(
+          (item) =>
+            item.name.trim() ||
+            tr("dashboard.settings.unnamedOrigin", dictionary)
+        )
         .join(", ");
       setSaveError(
         `${tr("dashboard.settings.layerSaveError", dictionary)}: ${names}`
@@ -1680,7 +1775,10 @@ export function DashletSettings({
           )}
           <DataProviderTab
             layers={layers}
-            onLayersChange={(next) => { setSaveError(null); setLayers(next); }}
+            onLayersChange={(next) => {
+              setSaveError(null);
+              setLayers(next);
+            }}
             dictionary={dictionary}
           />
           <hr className="my-3 border-gray-200 dark:border-gray-700" />

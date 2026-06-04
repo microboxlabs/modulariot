@@ -12,6 +12,7 @@ interface ReplaceImageModalProps {
   onReplace: (file: File) => void;
   dictionary: I18nRecord;
   imageName?: string;
+  accept?: string;
 }
 
 export default function ReplaceImageModal({
@@ -20,6 +21,7 @@ export default function ReplaceImageModal({
   onReplace,
   dictionary,
   imageName,
+  accept = ".jpg,.jpeg,.png",
 }: Readonly<ReplaceImageModalProps>) {
   const [replaceFile, setReplaceFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -48,6 +50,10 @@ export default function ReplaceImageModal({
       size="xl"
       className="z-[900]"
       theme={{
+        content: {
+          base: "relative w-full p-4 md:h-auto",
+          inner: "relative flex max-h-[90dvh] flex-col rounded-lg bg-white dark:bg-gray-800 dark:border dark:border-gray-600 shadow",
+        },
         header: {
           base: "flex items-center justify-between rounded-t border-b p-5 dark:border-gray-600",
           close: {
@@ -99,11 +105,15 @@ export default function ReplaceImageModal({
               e.stopPropagation();
               setIsDragOver(false);
               const files = Array.from(e.dataTransfer.files);
-              const allowedTypes = new Set([
-                "image/jpeg",
-                "image/jpg",
-                "image/png",
-              ]);
+              const allowedTypes = new Set(
+                accept.split(",").flatMap((ext) => {
+                  const e = ext.trim().replace(".", "").toLowerCase();
+                  if (e === "pdf") return ["application/pdf"];
+                  if (e === "jpg" || e === "jpeg") return ["image/jpeg", "image/jpg"];
+                  if (e === "png") return ["image/png"];
+                  return [];
+                })
+              );
               const validFile = files.find((file) =>
                 allowedTypes.has(file.type)
               );
@@ -129,7 +139,7 @@ export default function ReplaceImageModal({
                 type="file"
                 id="replace-file-input"
                 className="hidden"
-                accept=".jpg,.jpeg,.png"
+                accept={accept}
                 aria-label={tr("bento.multimedia.selectFile", dictionary)}
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {

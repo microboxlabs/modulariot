@@ -25,6 +25,8 @@ import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
+import { HbTextField, SettingsToggleRow } from "../common/settings-fields";
+import { Select } from "flowbite-react";
 
 export function DashletSettings({
   isOpen,
@@ -53,6 +55,9 @@ export function DashletSettings({
     config.showColumnDividers ?? true
   );
   const [showExport, setShowExport] = useState(config.showExport ?? true);
+  const [rowClickEnabled, setRowClickEnabled] = useState(config.rowClickEnabled ?? false);
+  const [rowClickLink, setRowClickLink] = useState(config.rowClickLink ?? "");
+  const [rowClickTarget, setRowClickTarget] = useState<"_self" | "_blank">(config.rowClickTarget ?? "_self");
 
   const s = useSettingsState({
     title: config.title,
@@ -97,6 +102,9 @@ export function DashletSettings({
     actionItems: s.actionItems,
     showColumnDividers,
     showExport,
+    rowClickEnabled,
+    rowClickLink,
+    rowClickTarget,
     dataSourceId,
     plannerVariableName,
     pgFn: pg.pgrestFunctionName,
@@ -120,6 +128,9 @@ export function DashletSettings({
       showRowCount: s.showRowCount,
       showColumnDividers,
       showExport,
+      rowClickEnabled,
+      rowClickLink: rowClickEnabled ? rowClickLink : undefined,
+      rowClickTarget: rowClickEnabled ? rowClickTarget : undefined,
       dataMode: s.dataMode as "static" | "pgrest" | "planner",
       columns: savedColumns,
       rows,
@@ -160,28 +171,44 @@ export function DashletSettings({
 
   const displayOptions = (
     <>
-      <div className="flex items-center justify-between py-0.5">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {tr("dashboard.settings.showColumnDividers", dictionary)}
-        </label>
-        <input
-          type="checkbox"
-          checked={showColumnDividers}
-          onChange={(e) => setShowColumnDividers(e.target.checked)}
-          className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
-        />
-      </div>
-      <div className="flex items-center justify-between py-0.5">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {tr("dashboard.settings.showExport", dictionary)}
-        </label>
-        <input
-          type="checkbox"
-          checked={showExport}
-          onChange={(e) => setShowExport(e.target.checked)}
-          className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
-        />
-      </div>
+      <SettingsToggleRow
+        label={tr("dashboard.settings.showColumnDividers", dictionary)}
+        checked={showColumnDividers}
+        onChange={setShowColumnDividers}
+      />
+      <SettingsToggleRow
+        label={tr("dashboard.settings.showExport", dictionary)}
+        checked={showExport}
+        onChange={setShowExport}
+      />
+
+      {/* Row click action */}
+      <hr className="border-gray-200 dark:border-gray-700" />
+      <SettingsToggleRow
+        label="Row click action"
+        checked={rowClickEnabled}
+        onChange={setRowClickEnabled}
+      />
+      {rowClickEnabled && (
+        <div className="space-y-2 pt-1">
+          <HbTextField
+            id="row-click-link"
+            label="URL"
+            placeholder="https://example.com/{{row.id}}"
+            value={rowClickLink}
+            onChange={setRowClickLink}
+            schemaSuggestions={s.columns.map((c) => c.key)}
+          />
+          <Select
+            sizing="sm"
+            value={rowClickTarget}
+            onChange={(e) => setRowClickTarget(e.target.value as "_self" | "_blank")}
+          >
+            <option value="_self">Same tab</option>
+            <option value="_blank">New tab</option>
+          </Select>
+        </div>
+      )}
     </>
   );
 

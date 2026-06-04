@@ -4,6 +4,7 @@ import type { IconType } from "react-icons";
 import type { CSSProperties, ReactNode } from "react";
 import { Tooltip } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
+import Markdown from "react-markdown";
 
 type KpiStatVariant = "horizontal" | "vertical";
 
@@ -33,6 +34,8 @@ export interface DescriptionConfig {
   readonly text: string;
   readonly className?: string;
   readonly style?: CSSProperties;
+  /** Render text as Markdown instead of plain string */
+  readonly markdown?: boolean;
 }
 
 export interface IconConfig {
@@ -150,6 +153,18 @@ function getScalableStyles(scalable: boolean) {
   };
 }
 
+// Stable component map for Markdown — strips block wrappers to keep text inline-compact
+const MD_P = ({ children }: { children?: ReactNode }) => <span className="block">{children}</span>;
+const MD_STRONG = ({ children }: { children?: ReactNode }) => <strong className="font-semibold">{children}</strong>;
+const MD_EM = ({ children }: { children?: ReactNode }) => <em className="italic">{children}</em>;
+const MD_A = ({ children, href }: { children?: ReactNode; href?: string }) => (
+  <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>
+);
+const MD_CODE = ({ children }: { children?: ReactNode }) => (
+  <code className="rounded bg-black/10 px-0.5 font-mono dark:bg-white/10">{children}</code>
+);
+const MD_COMPONENTS = { p: MD_P, strong: MD_STRONG, em: MD_EM, a: MD_A, code: MD_CODE };
+
 /** Icon section sub-component */
 function IconSection({
   icon,
@@ -225,7 +240,7 @@ function TitleElement({
   );
 }
 
-/** Description element */
+/** Description element — renders plain text or Markdown based on description.markdown */
 function DescriptionElement({
   description,
   textClasses,
@@ -238,6 +253,22 @@ function DescriptionElement({
   scalableStyles: ReturnType<typeof getScalableStyles>;
 }>) {
   if (!description) return null;
+
+  if (description.markdown) {
+    return (
+      <div
+        className={twMerge(
+          scalable ? "" : "text-xs",
+          textClasses.description,
+          description.className,
+          "[&>span:not(:last-child)]:mb-0.5"
+        )}
+        style={{ ...description.style, ...scalableStyles.description }}
+      >
+        <Markdown components={MD_COMPONENTS}>{description.text}</Markdown>
+      </div>
+    );
+  }
 
   return (
     <span
@@ -400,19 +431,8 @@ export default function KpiStat({
             style={{ ...value.style, ...scalableStyles.value }}
           >
             {displayValue}
+            {unitElement}
           </span>
-          {unit && (
-            <span
-              className={twMerge(
-                scalable ? "" : "text-base",
-                "font-normal",
-                textClasses.unit
-              )}
-              style={scalableStyles.unit}
-            >
-              {unit}
-            </span>
-          )}
         </div>
         {children}
       </div>

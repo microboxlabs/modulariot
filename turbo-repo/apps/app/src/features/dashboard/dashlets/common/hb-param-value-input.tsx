@@ -55,7 +55,7 @@ export function HbParamValueInput({
   return (
     <div ref={ac.containerRef} className={`relative ${className ?? ""}`}>
       <TextInput
-        ref={ac.inputRef}
+        ref={ac.inputRef as React.RefObject<HTMLInputElement>}
         value={value}
         onChange={ac.handleChange}
         onClick={ac.handleClick}

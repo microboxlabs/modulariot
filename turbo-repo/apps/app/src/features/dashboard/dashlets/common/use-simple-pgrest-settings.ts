@@ -23,6 +23,7 @@ interface PgrestConfigFields {
   pgrestParams?: PgrestParam[];
   pgrestHttpMethod?: PgrestHttpMethod;
   plannerVariableName?: string;
+  staticData?: string;
 }
 
 interface UseSimplePgrestSettingsOptions<F extends string> {
@@ -45,6 +46,8 @@ interface UseSimplePgrestSettingsReturn<F extends string> {
   activeProviders: { id: string; name: string }[];
   pg: ReturnType<typeof usePgrestSettingsState>;
   handleDataModeChange: (mode: SimpleDataMode) => void;
+  staticData: string;
+  setStaticData: (v: string) => void;
   /** Spread into onSave to include all pgrest-related config fields */
   pgrestSaveFields: {
     dataMode: SimpleDataMode;
@@ -53,6 +56,7 @@ interface UseSimplePgrestSettingsReturn<F extends string> {
     pgrestHttpMethod: PgrestHttpMethod;
     dataSourceId: string | undefined;
     plannerVariableName: string | undefined;
+    staticData: string | undefined;
   };
   /** Setter for dataSourceId state */
   setDataSourceId: (id: string) => void;
@@ -101,6 +105,7 @@ export function useSimplePgrestSettings<F extends string>({
   const [plannerVariableName, setPlannerVariableName] = useState<string>(
     config.plannerVariableName ?? "",
   );
+  const [staticData, setStaticData] = useState<string>(config.staticData ?? "");
 
   // Snapshot of field values when entering pgrest mode
   const staticSnapshot = useRef({ ...fieldValues });
@@ -136,6 +141,7 @@ export function useSimplePgrestSettings<F extends string>({
     pgrestHttpMethod: pg.pgrestHttpMethod,
     dataSourceId: dataSourceId || undefined,
     plannerVariableName: dataMode === "planner" ? plannerVariableName : undefined,
+    staticData: dataMode === "static" ? (staticData || undefined) : undefined,
   };
 
   /** Props ready to spread onto <PgrestDataTab> (add id & dictionary). */
@@ -156,6 +162,8 @@ export function useSimplePgrestSettings<F extends string>({
     setDataSourceId,
     plannerVariableName,
     setPlannerVariableName,
+    staticData,
+    setStaticData,
     isPgrest,
     activeProviders,
     pg,

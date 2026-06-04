@@ -61,6 +61,8 @@ const FIELDS = [
     state: "subtitle",
     hbPlaceholder: "{{row.subtitle}}",
     staticPlaceholder: "Last 24 hours",
+    multiline: true,
+    rows: 3,
   },
 ] as const;
 

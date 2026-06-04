@@ -1,6 +1,6 @@
 "use client";
 
-import { Dropdown, DropdownItem, Tooltip } from "flowbite-react";
+import { Button, Dropdown, DropdownItem, Tooltip } from "flowbite-react";
 import {
   HiChevronDown,
   HiOutlineChevronLeft,
@@ -63,75 +63,51 @@ export default function ViewerToolbar({
   return (
     <div className="hidden sm:flex items-center gap-1 xl:gap-1.5 shrink-0">
       <SharePopover fileUrl={fileUrl} fileName={fileName} dictionary={dictionary} />
+
       <Tooltip content={tr("bento.multimedia.viewer_download", dictionary)} placement="bottom">
-        <button
-          type="button"
-          onClick={onDownload}
-          className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-        >
-          <HiArrowDownTray className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-        </button>
+        <Button color="light" size="sm" onClick={onDownload} className="p-2!">
+          <HiArrowDownTray className="w-4 h-4" />
+        </Button>
       </Tooltip>
+
       {onEdit && (
         <div className="inline-flex lg:hidden xl:inline-flex">
           <Tooltip content={tr("bento.multimedia.viewer_replace", dictionary)} placement="bottom">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-            >
-              <HiPencilSquare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            </button>
+            <Button color="light" size="sm" onClick={onEdit} className="p-2!">
+              <HiPencilSquare className="w-4 h-4" />
+            </Button>
           </Tooltip>
         </div>
       )}
+
       <div className="inline-flex lg:hidden xl:inline-flex">
         <Tooltip content={tr("bento.multimedia.viewer_move", dictionary)} placement="bottom">
-          <button
-            type="button"
-            onClick={onMove}
-            className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-          >
-            <HiArrowsRightLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          </button>
+          <Button color="light" size="sm" onClick={onMove} className="p-2!">
+            <HiArrowsRightLeft className="w-4 h-4" />
+          </Button>
         </Tooltip>
       </div>
+
       {onDelete && (
         <Tooltip content={tr("bento.multimedia.viewer_delete", dictionary)} placement="bottom">
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-colors cursor-pointer group"
-          >
-            <HiTrash className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors" />
-          </button>
+          <Button color="light" size="sm" onClick={onDelete} className="p-2! hover:text-red-500 hover:border-red-300 dark:hover:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+            <HiTrash className="w-4 h-4" />
+          </Button>
         </Tooltip>
       )}
 
       <div className="w-px h-5 bg-gray-200 dark:bg-gray-600" />
 
       {/* Navigation */}
-      <button
-        type="button"
-        disabled={currentIndex === 0}
-        onClick={onPrev}
-        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-        aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
-      >
-        <HiOutlineChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-      </button>
+      <Button color="light" size="sm" disabled={currentIndex === 0} onClick={onPrev} aria-label={tr("bento.multimedia.viewer_prev", dictionary)} className="p-2!">
+        <HiOutlineChevronLeft className="w-4 h-4" />
+      </Button>
       <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums px-1 min-w-8 xl:min-w-10 text-center">
         {currentIndex + 1}/{totalItems}
       </span>
-      <button
-        type="button"
-        disabled={currentIndex === totalItems - 1}
-        onClick={onNext}
-        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-        aria-label={tr("bento.multimedia.viewer_next", dictionary)}
-      >
-        <HiOutlineChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-      </button>
+      <Button color="light" size="sm" disabled={currentIndex === totalItems - 1} onClick={onNext} aria-label={tr("bento.multimedia.viewer_next", dictionary)} className="p-2!">
+        <HiOutlineChevronRight className="w-4 h-4" />
+      </Button>
 
       {/* Category selector — left of review actions */}
       {isReviewable && (
@@ -145,7 +121,7 @@ export default function ViewerToolbar({
         />
       )}
 
-      {/* Review actions — only for reviewable content */}
+      {/* Review actions */}
       {isReviewable && status !== "approved" && (
         <SplitButton
           primary={{
@@ -164,6 +140,7 @@ export default function ViewerToolbar({
           ]}
         />
       )}
+
       {isReviewable && status === "approved" && (
         <Dropdown
           label=""
@@ -176,15 +153,10 @@ export default function ViewerToolbar({
             },
           }}
           renderTrigger={() => (
-            <button
-              type="button"
-              className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 rounded-lg text-xs sm:text-sm font-light cursor-pointer border border-gray-200 dark:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 w-fit h-7 sm:h-9"
-            >
-              <span className="text-sm font-light whitespace-nowrap">
-                {tr("bento.multimedia.btn_change_status", dictionary)}
-              </span>
-              <HiChevronDown className="w-4 h-4" />
-            </button>
+            <Button color="light" size="sm" className="whitespace-nowrap">
+              {tr("bento.multimedia.btn_change_status", dictionary)}
+              <HiChevronDown className="w-4 h-4 ml-1.5" />
+            </Button>
           )}
         >
           {draftDecision !== null && (
@@ -202,14 +174,11 @@ export default function ViewerToolbar({
       )}
 
       {/* Close */}
-      <button
-        type="button"
-        onClick={onClose}
-        className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 cursor-pointer"
-        aria-label={tr("bento.multimedia.viewer_close", dictionary)}
-      >
-        <HiXMark className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-      </button>
+      <Tooltip content={tr("bento.multimedia.viewer_close", dictionary)} placement="bottom">
+        <Button color="light" size="sm" className="w-9 h-9 p-0" onClick={onClose} aria-label={tr("bento.multimedia.viewer_close", dictionary)}>
+          <HiXMark className="w-4 h-4" />
+        </Button>
+      </Tooltip>
     </div>
   );
 }

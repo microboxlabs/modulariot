@@ -236,6 +236,10 @@ export interface DashletConfig {
   actions?: ActionsConfig;
   /** Show the export dropdown in the title bar */
   showExport?: boolean;
+  /** Navigate to a URL when a row is clicked. Supports Handlebars ({{row.id}}). */
+  rowClickEnabled?: boolean;
+  rowClickLink?: string;
+  rowClickTarget?: "_self" | "_blank";
 }
 
 // ============================================================================
@@ -495,6 +499,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataSourceId,
     plannerVariableName,
     showExport = true,
+    rowClickEnabled = false,
+    rowClickLink = "",
+    rowClickTarget = "_self",
   } = config;
   const filter = useMemo(
     () => normalizeFilterConfig(config.filter, defaultFilter),
@@ -952,8 +959,31 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     ? getRowColorClasses(rowColor)
                     : "bg-white dark:bg-gray-800";
 
+                  const rowHref =
+                    rowClickEnabled && rowClickLink
+                      ? (() => {
+                          const ctx = { ...row, row };
+                          const href = resolveHandlebarsField(rowClickLink, ctx);
+                          return isSafeActionUrl(href) ? href : null;
+                        })()
+                      : null;
+
                   return (
-                    <tr key={row.id ?? row._id ?? rowIdx} className={rowBgClass}>
+                    <tr
+                      key={row.id ?? row._id ?? rowIdx}
+                      className={`${rowBgClass}${rowHref ? " cursor-pointer hover:brightness-95 dark:hover:brightness-110" : ""}`}
+                      onClick={
+                        rowHref
+                          ? () => {
+                              if (rowClickTarget === "_blank") {
+                                window.open(rowHref, "_blank", "noopener,noreferrer");
+                              } else {
+                                window.location.href = rowHref;
+                              }
+                            }
+                          : undefined
+                      }
+                    >
                       {columns.map((col, colIdx) => (
                         <td
                           key={col.key}

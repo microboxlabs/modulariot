@@ -33,6 +33,7 @@ export default function ViewerMetadataSidebar({
   onRemoveCommittedObservation,
   onAddReply,
   onRemoveReply,
+  onRename,
   pendingReplyRef,
   dictionary,
 }: Readonly<{
@@ -52,6 +53,7 @@ export default function ViewerMetadataSidebar({
   onRemoveCommittedObservation?: (fileId: string, obsId: string) => void;
   onAddReply?: (fileId: string, obsId: string, description: string) => void;
   onRemoveReply?: (fileId: string, obsId: string, replyId: string) => void;
+  onRename?: (newName: string) => Promise<void>;
   pendingReplyRef: RefObject<{ text: string; send: () => void }>;
   dictionary: I18nRecord;
 }>) {
@@ -98,6 +100,7 @@ export default function ViewerMetadataSidebar({
             <PropertiesGrid
               entry={entry}
               categoryLabel={categoryLabel}
+              onRename={onRename}
               dictionary={dictionary}
             />
           </SidebarSection>

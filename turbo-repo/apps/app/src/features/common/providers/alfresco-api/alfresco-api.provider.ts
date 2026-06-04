@@ -610,25 +610,22 @@ export async function moveNode(
 export async function deleteNode(
   session: Session,
   nodeId: string
-): Promise<boolean> {
+): Promise<{ ok: true } | { ok: false; status: number; reason: string }> {
   try {
     const safeNodeId = validateNodeId(nodeId);
     const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     const result = await fetch(url, { method: "DELETE", headers });
     if (!result.ok) {
-      logError(
-        new Error(`Delete node failed with HTTP error: ${result.status} ${result.statusText}`)
-      );
-      return false;
+      const reason = `Alfresco responded ${result.status} ${result.statusText}`;
+      logError(new Error(`Delete node failed: ${reason}`));
+      return { ok: false, status: result.status, reason };
     }
-    return true;
+    return { ok: true };
   } catch (error) {
-    alfrescoApiLogger.error(
-      { error: error instanceof Error ? error.message : String(error) },
-      "Delete node failed with exception"
-    );
-    return false;
+    const reason = error instanceof Error ? error.message : String(error);
+    alfrescoApiLogger.error({ error: reason }, "Delete node failed with exception");
+    return { ok: false, status: 500, reason };
   }
 }
 

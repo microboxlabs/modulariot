@@ -344,7 +344,7 @@ function MediaSection({
         <button
           type="button"
           onClick={onToggleExpanded}
-          className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0 border-b border-b border-gray-200 dark:border-gray-600"
+          className="flex items-center gap-2 flex-1 px-2 py-2 text-left group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0 border-b border-b border-gray-200 dark:border-gray-600 cursor-pointer"
         >
           <div className="flex items-center gap-2 flex-1 text-left group transition-colors min-w-0">
             <HiChevronDown
@@ -483,10 +483,29 @@ export default function FileImages({
     return { approved, rejected, pending, ready };
   }, [allIds, reviewStatuses, reviewableIds]);
 
+  const rejectedItems = useMemo(() => {
+    return allIds
+      .filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "rejected")
+      .map((id) => {
+        const file = ([...images, ...documents] as { file: AlfrescoFileEntry }[])
+          .find((item) => item.file?.entry?.id === id);
+        const fileName = file?.file?.entry?.name ?? id;
+        // Find the last state_change entry with status "rejected" for this file
+        const timeline = committedTimeline.get(id) ?? [];
+        const lastRejection = [...timeline]
+          .reverse()
+          .find((e) => e.kind === "state_change" && e.status === "rejected");
+        const observations = lastRejection?.kind === "state_change"
+          ? lastRejection.observations
+          : [];
+        return { fileName, observations };
+      });
+  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline]);
+
   const { dispatch: dispatchReviewState } = useBentoReview();
   useEffect(() => {
-    dispatchReviewState({ pending: reviewSummary.pending, rejected: reviewSummary.rejected });
-  }, [reviewSummary.pending, reviewSummary.rejected, dispatchReviewState]);
+    dispatchReviewState({ pending: reviewSummary.pending, rejected: reviewSummary.rejected, rejectedItems });
+  }, [reviewSummary.pending, reviewSummary.rejected, rejectedItems, dispatchReviewState]);
 
   useEffect(() => {
     if (viewModeInitialized.current) return;
@@ -1088,9 +1107,6 @@ export default function FileImages({
             <div className="flex flex-wrap items-center gap-2 p-2 shrink-0 bg-gray-50 dark:bg-gray-700/60 border-b border-gray-200 dark:border-gray-700">
               <span className="text-sm text-gray-600 dark:text-gray-300 uppercase tracking-wide truncate min-w-0">
                 {tr("bento.multimedia.title", dictionary)}
-                <span className="ml-1 text-sm text-gray-400 dark:text-gray-500 normal-case tracking-normal">
-                  ({reviewSummary.ready}/{allIds.length})
-                </span>
               </span>
 
               <div className="flex items-center justify-between gap-2 ml-auto flex-1">
@@ -1105,7 +1121,7 @@ export default function FileImages({
                         : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
-                    {tr("bento.multimedia.tab_ready", dictionary)}
+                    {tr("bento.multimedia.tab_ready", dictionary)} <span className="font-light">({reviewSummary.ready})</span>
                   </button>
                   <button
                     type="button"
@@ -1116,7 +1132,7 @@ export default function FileImages({
                         : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
-                    {tr("bento.multimedia.tab_review", dictionary)}
+                    {tr("bento.multimedia.tab_review", dictionary)} <span className="font-light">({reviewSummary.pending + reviewSummary.rejected})</span>
                     {(reviewSummary.pending > 0 || reviewSummary.rejected > 0 || reviewableDraftDecisions.length > 0) && (
                       <span className={`w-2 h-2 rounded-full shrink-0 ${viewMode === "review" ? "bg-amber-300" : "bg-amber-400"}`} />
                     )}
@@ -1246,13 +1262,13 @@ export default function FileImages({
                     </span>
                   )}
                 </div>
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsCommitModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  className="flex items-center gap-1.5 px-3 h-8 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer"
                 >
                   {tr("bento.multimedia.btn_commit_review", dictionary)}
-                </button>
+                </Button>
               </div>
             )}
           </div>

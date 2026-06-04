@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Tooltip } from "flowbite-react";
+import { Tooltip, Button } from "flowbite-react";
 import {
   HiShare,
   HiLink,
@@ -51,13 +51,15 @@ export function SharePopover({
   return (
     <div ref={ref} className="relative">
       <Tooltip content={tr("bento.multimedia.viewer_share", dictionary)} placement="bottom">
-        <button
-          type="button"
+        <Button
+          color="light"
+          size="sm"
           onClick={() => setIsOpen((p) => !p)}
-          className="p-1.5 xl:p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+          aria-label={tr("bento.multimedia.viewer_prev", dictionary)}
+          className="p-2!"
         >
-          <HiShare className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-        </button>
+          <HiShare className="w-4 h-4" />
+        </Button>        
       </Tooltip>
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">

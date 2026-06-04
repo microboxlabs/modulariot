@@ -62,7 +62,7 @@ describe("writeConfig", () => {
 
 describe("resolveConfig precedence", () => {
   it("uses profile values when no flags or env are set", () => {
-    const r = resolveConfig({ configDir: dir, env: {} });
+    const r = resolveConfig({ configDir: dir, env: { HOME: dir } as NodeJS.ProcessEnv });
     expect(r.baseUrl).toBe("http://localhost:8000");
     expect(r.tenantId).toBe("demo-tenant");
     expect(r.userId).toBe("demo-user");
@@ -74,9 +74,10 @@ describe("resolveConfig precedence", () => {
     const r = resolveConfig({
       configDir: dir,
       env: {
+        HOME: dir,
         MIOT_CHAT_BASE_URL: "http://env.example.com",
         MIOT_CHAT_TENANT_ID: "env-tenant",
-      },
+      } as NodeJS.ProcessEnv,
     });
     expect(r.baseUrl).toBe("http://env.example.com");
     expect(r.tenantId).toBe("env-tenant");
@@ -86,9 +87,10 @@ describe("resolveConfig precedence", () => {
     const r = resolveConfig({
       configDir: dir,
       env: {
+        HOME: dir,
         MIOT_CHAT_BASE_URL: "http://env.example.com",
         MIOT_CHAT_TENANT_ID: "env-tenant",
-      },
+      } as NodeJS.ProcessEnv,
       flags: { baseUrl: "http://flag.example.com", tenant: "flag-tenant" },
     });
     expect(r.baseUrl).toBe("http://flag.example.com");
@@ -119,7 +121,7 @@ describe("resolveConfig precedence", () => {
 
     const byFlag = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_PROFILE: "local" },
+      env: { HOME: dir, MIOT_CHAT_PROFILE: "local" } as NodeJS.ProcessEnv,
       flags: { profile: "staging" },
     });
     expect(byFlag.profileName).toBe("staging");
@@ -128,18 +130,18 @@ describe("resolveConfig precedence", () => {
 
     const byEnv = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_PROFILE: "staging" },
+      env: { HOME: dir, MIOT_CHAT_PROFILE: "staging" } as NodeJS.ProcessEnv,
     });
     expect(byEnv.profileName).toBe("staging");
 
-    const byDefault = resolveConfig({ configDir: dir, env: {} });
+    const byDefault = resolveConfig({ configDir: dir, env: { HOME: dir } as NodeJS.ProcessEnv });
     expect(byDefault.profileName).toBe("local");
   });
 
   it("falls back to 'auto' for invalid mode values", () => {
     const r = resolveConfig({
       configDir: dir,
-      env: {},
+      env: { HOME: dir } as NodeJS.ProcessEnv,
       flags: { mode: "bogus" },
     });
     expect(r.mode).toBe("auto");
@@ -149,7 +151,7 @@ describe("resolveConfig precedence", () => {
     for (const m of ["auto", "canned", "meta", "agentic"]) {
       const r = resolveConfig({
         configDir: dir,
-        env: {},
+        env: { HOME: dir } as NodeJS.ProcessEnv,
         flags: { mode: m },
       });
       expect(r.mode).toBe(m);
@@ -157,25 +159,25 @@ describe("resolveConfig precedence", () => {
   });
 
   it("defaults debug to false; --debug flag wins over env", () => {
-    const off = resolveConfig({ configDir: dir, env: {} });
+    const off = resolveConfig({ configDir: dir, env: { HOME: dir } as NodeJS.ProcessEnv });
     expect(off.debug).toBe(false);
 
     const byFlag = resolveConfig({
       configDir: dir,
-      env: {},
+      env: { HOME: dir } as NodeJS.ProcessEnv,
       flags: { debug: true },
     });
     expect(byFlag.debug).toBe(true);
 
     const byEnv = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_DEBUG: "1" },
+      env: { HOME: dir, MIOT_CHAT_DEBUG: "1" } as NodeJS.ProcessEnv,
     });
     expect(byEnv.debug).toBe(true);
 
     const envOff = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_DEBUG: "0" },
+      env: { HOME: dir, MIOT_CHAT_DEBUG: "0" } as NodeJS.ProcessEnv,
     });
     expect(envOff.debug).toBe(false);
 
@@ -184,7 +186,7 @@ describe("resolveConfig precedence", () => {
     // the title's claim with the actual conflicting input.
     const flagBeatsEnvOff = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_DEBUG: "0" },
+      env: { HOME: dir, MIOT_CHAT_DEBUG: "0" } as NodeJS.ProcessEnv,
       flags: { debug: true },
     });
     expect(flagBeatsEnvOff.debug).toBe(true);
@@ -193,7 +195,7 @@ describe("resolveConfig precedence", () => {
 
 describe("resolveConfig org-aware harness base URL", () => {
   it("no org slug → orgSlug is null and harnessBaseUrl equals baseUrl", () => {
-    const r = resolveConfig({ configDir: dir, env: {} });
+    const r = resolveConfig({ configDir: dir, env: { HOME: dir } as NodeJS.ProcessEnv });
     expect(r.orgSlug).toBeNull();
     expect(r.harnessBaseUrl).toBe(r.baseUrl);
   });
@@ -201,7 +203,7 @@ describe("resolveConfig org-aware harness base URL", () => {
   it("org slug via flag → builds quarkus proxy URL, trailing slash trimmed", () => {
     const r = resolveConfig({
       configDir: dir,
-      env: {},
+      env: { HOME: dir } as NodeJS.ProcessEnv,
       flags: { baseUrl: "https://miot.example.com/", org: "acme" },
     });
     expect(r.orgSlug).toBe("acme");
@@ -213,7 +215,7 @@ describe("resolveConfig org-aware harness base URL", () => {
   it("org slug via env MIOT_CHAT_ORG → builds proxy URL", () => {
     const r = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_ORG: "env-org" },
+      env: { HOME: dir, MIOT_CHAT_ORG: "env-org" } as NodeJS.ProcessEnv,
     });
     expect(r.orgSlug).toBe("env-org");
     expect(r.harnessBaseUrl).toBe(
@@ -237,7 +239,7 @@ describe("resolveConfig org-aware harness base URL", () => {
       },
       { configDir: dir },
     );
-    const r = resolveConfig({ configDir: dir, env: {} });
+    const r = resolveConfig({ configDir: dir, env: { HOME: dir } as NodeJS.ProcessEnv });
     expect(r.orgSlug).toBe("profile-org");
     expect(r.harnessBaseUrl).toBe(
       "https://prod.example.com/api/v1/orgs/profile-org/harness",
@@ -264,14 +266,14 @@ describe("resolveConfig org-aware harness base URL", () => {
     // env beats profile
     const byEnv = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_ORG: "env-org" },
+      env: { HOME: dir, MIOT_CHAT_ORG: "env-org" } as NodeJS.ProcessEnv,
     });
     expect(byEnv.orgSlug).toBe("env-org");
 
     // flag beats env
     const byFlag = resolveConfig({
       configDir: dir,
-      env: { MIOT_CHAT_ORG: "env-org" },
+      env: { HOME: dir, MIOT_CHAT_ORG: "env-org" } as NodeJS.ProcessEnv,
       flags: { org: "flag-org" },
     });
     expect(byFlag.orgSlug).toBe("flag-org");
@@ -280,7 +282,7 @@ describe("resolveConfig org-aware harness base URL", () => {
   it("org slug containing a slash is URL-encoded in harnessBaseUrl", () => {
     const r = resolveConfig({
       configDir: dir,
-      env: {},
+      env: { HOME: dir } as NodeJS.ProcessEnv,
       flags: { baseUrl: "https://miot.example.com", org: "a/b" },
     });
     expect(r.orgSlug).toBe("a/b");

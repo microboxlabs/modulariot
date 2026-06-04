@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { RunMode } from "@microboxlabs/miot-harness-client";
+import { readMiotrcProfile } from "./miotrc.js";
 
 export interface MiotChatProfile {
   baseUrl: string;
@@ -129,10 +130,19 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
   const profile =
     cfg.profiles[profileName] ?? cfg.profiles[cfg.defaultProfile] ?? DEFAULT_CONFIG.profiles["local"]!;
 
-  const baseUrl =
-    flags.baseUrl ?? env.MIOT_CHAT_BASE_URL ?? profile.baseUrl;
   const tokenFlag = flags.token ?? env.MIOT_CHAT_TOKEN;
-  const token = tokenFlag ?? profile.token ?? null;
+  // Platform fallback: reuse the miot-cli login session (~/.miotrc.json)
+  // only when neither flags/env nor the chat profile carry a token.
+  const platform =
+    tokenFlag === undefined && (profile.token ?? null) === null
+      ? readMiotrcProfile({ env })
+      : null;
+
+  const baseUrl =
+    flags.baseUrl ??
+    env.MIOT_CHAT_BASE_URL ??
+    (platform ? platform.baseUrl : profile.baseUrl);
+  const token = tokenFlag ?? profile.token ?? platform?.token ?? null;
   const tenantId =
     flags.tenant ?? env.MIOT_CHAT_TENANT_ID ?? profile.tenantId;
   const userId = flags.user ?? env.MIOT_CHAT_USER_ID ?? profile.userId;
@@ -145,7 +155,12 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     flags.debug ?? (env.MIOT_CHAT_DEBUG ? env.MIOT_CHAT_DEBUG !== "0" : false),
   );
 
-  const orgSlug = flags.org ?? env.MIOT_CHAT_ORG ?? profile.orgSlug ?? null;
+  const orgSlug =
+    nonEmpty(flags.org) ??
+    nonEmpty(env.MIOT_CHAT_ORG) ??
+    nonEmpty(profile.orgSlug) ??
+    nonEmpty(platform?.organizationId) ??
+    null;
   const harnessBaseUrl = orgSlug
     ? `${trimTrailingSlashes(baseUrl)}/api/v1/orgs/${encodeURIComponent(orgSlug)}/harness`
     : baseUrl;
@@ -162,6 +177,13 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     orgSlug,
     harnessBaseUrl,
   };
+}
+
+/** Returns the value unchanged if non-empty, otherwise undefined.
+ * Treats empty strings as unset so `MIOT_CHAT_ORG=""` or `--org ""`
+ * falls through to the next source in the resolution chain. */
+function nonEmpty(v: string | undefined): string | undefined {
+  return v === undefined || v === "" ? undefined : v;
 }
 
 function cloneDefault(): MiotChatConfig {

@@ -253,7 +253,6 @@ export default function TaskActions({
   const splitBtn = (
     <SplitButton
       size="md"
-      overlay
       secondaryLabel={tr("outcome.moreOptions", dict)}
       disabled={showDocumentWarning || reviewBlocksAll}
       primaryDisabled={reviewBlocksContinue}

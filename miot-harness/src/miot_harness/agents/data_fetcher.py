@@ -23,13 +23,27 @@ from miot_harness.tools.registry import ToolRegistry
 logger = logging.getLogger(__name__)
 
 
-def _emit_failed(progress: Progress, ctx: HarnessContext, tool: str, reason: str) -> None:
+def _emit_failed(
+    progress: Progress,
+    ctx: HarnessContext,
+    tool: str,
+    error: str,
+    error_type: str,
+) -> None:
+    # Schema mirrors runtime/tool.py:_emit_failed so SSE consumers see the
+    # same tool.failed shape regardless of which emitter ran (registry
+    # KeyError here, HarnessTool.invoke for every other exception).
     progress(
         HarnessEvent(
             run_id=ctx.run_id,
             type="tool.failed",
             message=f"Tool {tool} failed",
-            data={"tool": tool, "reason": reason},
+            data={
+                "tool": tool,
+                "error": error,
+                "error_type": error_type,
+                "reason": error,
+            },
         )
     )
 
@@ -102,12 +116,23 @@ async def data_fetcher_node(
 
     try:
         output = await registry.invoke(step.tool, ctx, step.args, progress)
+    except KeyError as exc:
+        # registry.get(name) couldn't find the tool — HarnessTool.invoke
+        # never ran, so no tool.failed was emitted on its behalf.
+        error = f"tool {step.tool!r} is not registered"
+        error_type = type(exc).__name__
+        _emit_failed(progress, ctx, step.tool, error, error_type)
+        return {
+            "failure": f"{error}: {exc}",
+            "error": error,
+            "error_type": error_type,
+        }
     except PermissionError as exc:
-        _emit_failed(progress, ctx, step.tool, str(exc))
+        # HarnessTool.invoke already emitted tool.failed; don't double-emit.
         return {"failure": f"permission denied for {step.tool}: {exc}"}
     except Exception as exc:  # noqa: BLE001 — fetcher must not propagate
         logger.exception("data_fetcher: %s raised", step.tool)
-        _emit_failed(progress, ctx, step.tool, str(exc))
+        # HarnessTool.invoke already emitted tool.failed; don't double-emit.
         return {"failure": f"{step.tool} raised: {exc}"}
 
     evidence = _evidence_from_output(

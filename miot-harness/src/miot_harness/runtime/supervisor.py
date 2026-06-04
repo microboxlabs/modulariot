@@ -19,6 +19,7 @@ multi-turn chats accumulate context across `/runs` calls.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -30,6 +31,7 @@ from miot_harness.agents.meta_agent import (
     meta_agent_node,
 )
 from miot_harness.observability.spans import agent_span
+from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.conversation import (
     ConversationStore,
@@ -68,6 +70,7 @@ class HarnessSupervisor:
         tenant_lock: str = "mintral",
         event_bus: RunEventBus | None = None,
         checkpoint_every_n_events: int = 10,
+        approval_registry: ApprovalRegistry | None = None,
     ) -> None:
         self.router = router
         self.tools = tools
@@ -84,6 +87,7 @@ class HarnessSupervisor:
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
+        self.approval_registry = approval_registry
 
     async def run(
         self,
@@ -97,11 +101,19 @@ class HarnessSupervisor:
             # immediately and the caller can subscribe to
             # /runs/{id}/stream before any events are emitted.
             ctx = ctx.model_copy(update={"run_id": run_id_override})
+        if self.approval_registry is not None:
+            # Plumb the in-process approval registry into the context
+            # so HarnessTool.invoke can await on it when a tool's
+            # check_permission returns "ask".
+            ctx = ctx.model_copy(
+                update={"approval_registry": self.approval_registry}
+            )
         record = HarnessRunRecord(
             run_id=ctx.run_id,
             status="running",
             conversation_id=request.conversation_id,
             tenant_id=ctx.tenant_id,
+            user_id=ctx.user_id,
         )
 
         def progress(event: HarnessEvent) -> None:
@@ -163,6 +175,24 @@ class HarnessSupervisor:
             elif route.route == HarnessRoute.STORYTELLING_RUN:
                 await self._run_storytelling(ctx, record, progress)
             # DIRECT / OTHER: nothing to do; client renders.
+        except asyncio.CancelledError:
+            # POST /runs/{id}/cancel cancelled this task. Surface a
+            # terminal `run.failed` with `reason=cancelled` so SSE
+            # subscribers get an explicit terminator (not a silent close),
+            # persist the partial record, then re-raise so the asyncio
+            # task transitions to CANCELLED.
+            record.status = "failed"
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="run.failed",
+                    message="Run cancelled",
+                    data={"error": "cancelled", "reason": "cancelled"},
+                )
+            )
+            self.run_store.save(record)
+            self._close_bus(ctx.run_id)
+            raise
         except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
             logger.exception("HarnessSupervisor.run failed")
             record.status = "failed"

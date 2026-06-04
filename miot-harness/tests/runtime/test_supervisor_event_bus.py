@@ -214,6 +214,43 @@ async def test_bus_closed_on_run_failure(tmp_path: Any) -> None:
 
 
 @pytest.mark.asyncio
+async def test_bus_emits_cancelled_run_failed_on_task_cancel(tmp_path: Any) -> None:
+    """When POST /runs/{id}/cancel cancels the supervisor's task, the
+    supervisor must emit a terminal `run.failed` with
+    `data={error: "cancelled", reason: "cancelled"}` before re-raising
+    CancelledError. Without this, SSE subscribers see a silent close
+    that they can't distinguish from a network drop. Plan 07 gap 7.
+    """
+
+    bus = RunEventBus()
+    nexo_graph = AsyncMock()
+    nexo_graph.ainvoke = AsyncMock(side_effect=asyncio.CancelledError())
+    sup = _supervisor(
+        tmp_path,
+        nexo_graph=nexo_graph,
+        llm_router=_scripted_router("NEXO_QUERY"),
+        event_bus=bus,
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await sup.run(
+            UserRequest(message="q", tenant_id="mintral"),
+            run_id_override="run_cancel_test",
+        )
+
+    # The run record persists with status=failed and the terminal event
+    # is run.failed with the cancellation reason.
+    record = sup.run_store.load("run_cancel_test")
+    assert record.status == "failed"
+    failed_events = [e for e in record.events if e.type == "run.failed"]
+    assert len(failed_events) == 1
+    assert failed_events[0].data["error"] == "cancelled"
+    assert failed_events[0].data["reason"] == "cancelled"
+    # And the bus's subscriber table has been cleared for this run.
+    assert "run_cancel_test" not in bus._subscribers  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
 async def test_supervisor_without_bus_behaves_unchanged(tmp_path: Any) -> None:
     """Backwards compat: no event_bus → no observable difference. This is
     the eval / demo-CLI path.

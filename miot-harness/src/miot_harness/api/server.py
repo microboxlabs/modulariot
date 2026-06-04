@@ -6,18 +6,23 @@ import logging
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from pydantic import BaseModel
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
+from miot_harness.api.identity import (
+    IdentityVerificationError,
+    verify_signed_identity,
+)
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.integrations.nexo.boot import load_nexo_tools
 from miot_harness.integrations.nexo.pool import create_nexo_pool
@@ -34,6 +39,16 @@ from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
 
 logger = logging.getLogger(__name__)
+
+
+class ApprovalDecision(BaseModel):
+    """Body schema for POST /runs/{run_id}/approvals/{approval_id}.
+
+    Only `approve` and `deny` are valid; the Pydantic Literal validation
+    rejects anything else with a 422 before the route handler runs.
+    """
+
+    decision: Literal["approve", "deny"]
 
 
 def _make_lifespan(
@@ -238,6 +253,56 @@ def create_app() -> FastAPI:
         lifespan=_make_lifespan(harness, settings),
     )
 
+    @app.middleware("http")
+    async def identity_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+        # Plan 07 gap 8. When `identity_signing_key` is set, an
+        # `X-MIOT-Identity` header is verified and the parsed claims are
+        # attached to request.state for the run handlers to consume.
+        # When the key is unset (dev / evals) the middleware is a no-op
+        # and body-supplied tenant_id/user_id pass through unchanged.
+        request.state.identity = None
+        if settings.identity_signing_key is not None:
+            header = request.headers.get("X-MIOT-Identity")
+            if header is not None:
+                try:
+                    request.state.identity = verify_signed_identity(
+                        header,
+                        settings.identity_signing_key,
+                        skew_seconds=settings.identity_skew_seconds,
+                    )
+                except IdentityVerificationError:
+                    # 401 with a generic message: don't leak whether the
+                    # header was expired, malformed, or signed with the
+                    # wrong key — those are all "not authenticated".
+                    return Response(status_code=401, content="invalid identity")
+        return await call_next(request)
+
+    def _resolve_request_identity(
+        request: Request, body: UserRequest
+    ) -> UserRequest:
+        """Reconcile the verified header (if any) with the request body.
+
+        - Header present and verified: header wins, body-supplied
+          tenant_id/user_id are overwritten.
+        - No header but signing key configured: 401. The middleware
+          only rejects malformed headers — *missing* headers fail
+          here so callers can't omit identity entirely.
+        - Signing key unset (dev / evals): body values pass through.
+        """
+        identity = getattr(request.state, "identity", None)
+        if identity is not None:
+            return body.model_copy(
+                update={
+                    "tenant_id": identity.tenant_id,
+                    "user_id": identity.user_id,
+                }
+            )
+        if settings.identity_signing_key is not None:
+            raise HTTPException(
+                status_code=401, detail="X-MIOT-Identity required"
+            )
+        return body
+
     async def require_auth(request: Request) -> Mapping[str, Any]:
         """Auth0 RS256 verification gate for /runs* endpoints.
 
@@ -382,6 +447,7 @@ def create_app() -> FastAPI:
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(
         request: UserRequest,
+        http_request: Request,
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
@@ -389,6 +455,7 @@ def create_app() -> FastAPI:
         # graph (via app.state.harness.nexo_graph = ...) see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
+        request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
@@ -414,9 +481,11 @@ def create_app() -> FastAPI:
     @app.post("/runs:start", status_code=202)
     async def start_run(
         request: UserRequest,
+        http_request: Request,
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, str]:
+        request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
@@ -437,6 +506,52 @@ def create_app() -> FastAPI:
 
         task.add_done_callback(_cleanup)
         return {"run_id": run_id}
+
+    @app.post("/runs/{run_id}/approvals/{approval_id}", status_code=204)
+    async def resolve_approval(
+        run_id: str,
+        approval_id: str,
+        body: ApprovalDecision,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        # Tenant scoping (#522): a pending approval only exists while
+        # its run is in flight, so the in-flight tenant tracker is the
+        # authoritative owner map. A cross-tenant caller gets the same
+        # 404 as an unknown approval — no ownership leak.
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Approval not pending")
+        # Run-scoped lookup: registry.resolve refuses to set the decision
+        # if the approval was registered for a different run. A 404 here
+        # means the approval is unknown OR belongs to another run —
+        # collapsed into the same response so leaked approval_ids don't
+        # leak ownership through differential 403/404 responses.
+        registry = app.state.harness.approval_registry
+        if registry is None or not registry.resolve(
+            approval_id, body.decision, run_id
+        ):
+            raise HTTPException(status_code=404, detail="Approval not pending")
+        return Response(status_code=204)
+
+    @app.post("/runs/{run_id}/cancel", status_code=204)
+    async def cancel_run(
+        run_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        # The in-flight registry is populated by POST /runs:start. A
+        # caller can't cancel a synchronous POST /runs (it never enters
+        # in_flight). Missing entry → 404 is the right answer; the run
+        # either never started, already terminated, or was cancelled.
+        # Tenant scoping (#522): a cross-tenant caller gets the same
+        # 404 as a missing run — no existence leak.
+        task = app.state.in_flight.get(run_id)
+        caller = auth.get("tenant_id")
+        if task is None or (
+            caller and app.state.in_flight_tenants.get(run_id) != caller
+        ):
+            raise HTTPException(status_code=404, detail="Run not in flight")
+        task.cancel()
+        return Response(status_code=204)
 
     @app.get("/runs/{run_id}/stream")
     async def stream_run(

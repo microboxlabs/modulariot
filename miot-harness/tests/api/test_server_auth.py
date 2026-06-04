@@ -585,3 +585,122 @@ def test_format_sse_error_escapes_injection() -> None:
         "error": "unknown_run_id",
         "run_id": malicious,
     }
+
+
+# ---------------------------------------------------------------------------
+# Plan 07 endpoints (approvals / cancel) — gated the same as the rest
+# of /runs* when auth is enabled, tenant-scoped via the in-flight map
+# ---------------------------------------------------------------------------
+
+
+def test_auth_enabled_cancel_rejects_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """POST /runs/{id}/cancel is gated the same as POST /runs."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post("/runs/some_id/cancel")
+    assert resp.status_code == 401
+
+
+def test_auth_enabled_approvals_rejects_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """POST /runs/{id}/approvals/{aid} is gated the same as POST /runs."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post(
+            "/runs/some_id/approvals/some_aid",
+            json={"decision": "approve"},
+        )
+    assert resp.status_code == 401
+
+
+def test_cross_tenant_cancel_returns_404(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """A run started by alice-corp cannot be cancelled by a bob-corp
+    caller — collapsed to the same 404 as a missing run so the
+    endpoint leaks neither existence nor ownership. The in-flight
+    task must NOT be cancelled."""
+    from unittest.mock import Mock
+
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        task = Mock()
+        app.state.in_flight["run_alice"] = task
+        app.state.in_flight_tenants["run_alice"] = "alice-corp"
+        resp = client.post(
+            "/runs/run_alice/cancel",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "bob-corp",
+            },
+        )
+    assert resp.status_code == 404
+    task.cancel.assert_not_called()
+
+
+def test_same_tenant_cancel_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """The owning tenant can still cancel its own in-flight run."""
+    from unittest.mock import Mock
+
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        task = Mock()
+        app.state.in_flight["run_alice"] = task
+        app.state.in_flight_tenants["run_alice"] = "alice-corp"
+        resp = client.post(
+            "/runs/run_alice/cancel",
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "alice-corp",
+            },
+        )
+    assert resp.status_code == 204
+    task.cancel.assert_called_once()
+
+
+def test_cross_tenant_approval_returns_404(
+    monkeypatch: pytest.MonkeyPatch,
+    keypair: RSAPrivateKey,
+    jwks_document: dict[str, Any],
+) -> None:
+    """An approval pending on alice-corp's run cannot be resolved by a
+    bob-corp caller — same 404 as an unknown approval, checked against
+    the in-flight tenant map before the registry is consulted."""
+    _enable_auth(monkeypatch)
+    app = create_app()
+    with TestClient(app) as client:
+        _swap_jwks(app, jwks_document)
+        token = _make_token(keypair)
+        app.state.in_flight_tenants["run_alice"] = "alice-corp"
+        registry = app.state.harness.approval_registry
+        approval_id = "aid_alice_test"
+        registry.register(approval_id, "run_alice")
+        resp = client.post(
+            f"/runs/run_alice/approvals/{approval_id}",
+            json={"decision": "approve"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                TENANT_HEADER: "bob-corp",
+            },
+        )
+        assert resp.status_code == 404
+        # The decision must not have been recorded by the rejected call.
+        assert registry.decision(approval_id) is None
+        registry.discard(approval_id)

@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { registerAskCommand } from "./commands/ask.js";
+import { registerLoginCommand } from "./commands/login.js";
 import { registerResumeCommand } from "./commands/resume.js";
 import { registerRunsCommand } from "./commands/runs.js";
 import { resolveConfig, type CliFlags } from "./config.js";
@@ -54,6 +55,7 @@ program
   });
 
 registerAskCommand(program);
+registerLoginCommand(program);
 registerResumeCommand(program);
 registerRunsCommand(program);
 

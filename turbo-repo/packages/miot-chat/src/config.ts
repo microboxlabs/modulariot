@@ -117,6 +117,26 @@ export function writeConfig(
   writeFileSync(path, JSON.stringify(cfg, null, 2), { mode: 0o600 });
 }
 
+export function upsertProfile(
+  name: string,
+  profile: MiotChatProfile,
+  opts?: { configDir?: string },
+): void {
+  const dir = opts?.configDir ?? getConfigDir();
+  const path = join(dir, "config.json");
+  // Distinguish "file existed" from the in-memory default readConfig fabricates.
+  const existed = existsSync(path);
+  const cfg = readConfig({ configDir: dir });
+  if (!existed) {
+    cfg.profiles = {};
+  }
+  cfg.profiles[name] = profile;
+  if (!existed || !cfg.profiles[cfg.defaultProfile]) {
+    cfg.defaultProfile = name;
+  }
+  writeConfig(cfg, { configDir: dir });
+}
+
 export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
   const env = opts.env ?? process.env;
   const flags = opts.flags ?? {};

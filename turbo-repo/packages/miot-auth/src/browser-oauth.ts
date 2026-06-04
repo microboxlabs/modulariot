@@ -1,3 +1,12 @@
+/**
+ * Shared browser OAuth flow for ModularIoT CLI packages.
+ * Supports two paths: platform session handoff (redirect via /app/cli/auth/login)
+ * and Auth0 PKCE (when a clientId is supplied).
+ * Acquires an access token via a local callback server; never persists it —
+ * callers are responsible for storage.
+ * Env vars: MIOT_OAUTH_CLIENT_ID, MIOT_OAUTH_AUTHORIZE_URL, MIOT_OAUTH_TOKEN_URL,
+ * MIOT_OAUTH_AUDIENCE, MIOT_OAUTH_SCOPE, MIOT_LOGIN_URL.
+ */
 import crypto from "node:crypto";
 import http from "node:http";
 import { spawn } from "node:child_process";

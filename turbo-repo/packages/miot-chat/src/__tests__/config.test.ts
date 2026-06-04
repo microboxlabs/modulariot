@@ -6,6 +6,7 @@ import {
   DEFAULT_CONFIG,
   readConfig,
   resolveConfig,
+  upsertProfile,
   writeConfig,
   type MiotChatConfig,
 } from "../config.js";
@@ -190,6 +191,44 @@ describe("resolveConfig precedence", () => {
       flags: { debug: true },
     });
     expect(flagBeatsEnvOff.debug).toBe(true);
+  });
+});
+
+describe("upsertProfile", () => {
+  it("creates the config file when missing and sets defaultProfile", () => {
+    const profile = {
+      baseUrl: "https://platform.example.com",
+      token: "tok-abc",
+      tenantId: "t1",
+      userId: "u1",
+      orgSlug: "acme",
+    };
+    upsertProfile("platform", profile, { configDir: dir });
+    const cfg = readConfig({ configDir: dir });
+    expect(cfg.defaultProfile).toBe("platform");
+    expect(cfg.profiles.platform?.token).toBe("tok-abc");
+    expect(cfg.profiles.platform?.orgSlug).toBe("acme");
+  });
+
+  it("preserves other profiles and the existing default when upserting a second profile", () => {
+    const profileA = {
+      baseUrl: "https://a.example.com",
+      token: "tok-a",
+      tenantId: "ta",
+      userId: "ua",
+    };
+    const profileB = {
+      baseUrl: "https://b.example.com",
+      token: "tok-b",
+      tenantId: "tb",
+      userId: "ub",
+    };
+    upsertProfile("a", profileA, { configDir: dir });
+    upsertProfile("b", profileB, { configDir: dir });
+    const cfg = readConfig({ configDir: dir });
+    expect(cfg.defaultProfile).toBe("a");
+    expect(cfg.profiles.a?.token).toBe("tok-a");
+    expect(cfg.profiles.b?.token).toBe("tok-b");
   });
 });
 

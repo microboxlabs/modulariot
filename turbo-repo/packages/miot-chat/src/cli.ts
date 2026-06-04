@@ -27,6 +27,10 @@ program
   .option("--tenant <id>", "Tenant ID (or MIOT_CHAT_TENANT_ID env)")
   .option("--user <id>", "User ID (or MIOT_CHAT_USER_ID env)")
   .option(
+    "--org <slug>",
+    "Organization slug; routes runs through the quarkus harness proxy (or MIOT_CHAT_ORG env)",
+  )
+  .option(
     "--mode <mode>",
     "Dispatch mode: auto | canned | meta | agentic (or MIOT_CHAT_MODE env)",
   )
@@ -42,7 +46,7 @@ program
     const flags = program.opts<CliFlags>();
     const config = resolveConfig({ flags });
     const client = createMiotHarnessClient({
-      baseUrl: config.baseUrl,
+      baseUrl: config.harnessBaseUrl,
       token: config.token,
     });
     const code = await runMiotChat({ config, client });

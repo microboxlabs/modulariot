@@ -133,6 +133,8 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
   const tokenFlag = flags.token ?? env.MIOT_CHAT_TOKEN;
   // Platform fallback: reuse the miot-cli login session (~/.miotrc.json)
   // only when neither flags/env nor the chat profile carry a token.
+  // Only the baseUrl/token/org trio is adopted from ~/.miotrc.json;
+  // tenantId and userId always stay with the chat profile.
   const platform =
     tokenFlag === undefined && (profile.token ?? null) === null
       ? readMiotrcProfile({ env })

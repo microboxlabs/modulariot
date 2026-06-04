@@ -17,7 +17,7 @@ export function registerResumeCommand(program: Command): void {
       const flags = program.opts<CliFlags>();
       const config = resolveConfig({ flags });
       const client = createMiotHarnessClient({
-        baseUrl: config.baseUrl,
+        baseUrl: config.harnessBaseUrl,
         token: config.token,
       });
 

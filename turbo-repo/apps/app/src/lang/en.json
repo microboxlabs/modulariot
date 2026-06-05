@@ -3672,6 +3672,14 @@
         }
       }
     },
+    "lastSignalMap": {
+      "title": "Last Signal",
+      "openInMaps": "Open in Maps",
+      "snapshot": "Snapshot",
+      "share": "Share",
+      "copyLink": "Copy link",
+      "copied": "Copied!"
+    },
     "gamification": {
       "healthScore": "Health",
       "healthStatus": "Health Status",

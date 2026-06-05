@@ -8,7 +8,17 @@ interface CliAuthHandoff {
 }
 
 const HANDOFF_TTL_MS = 5 * 60 * 1000;
-const handoffs = new Map<string, CliAuthHandoff>();
+
+// Anchor the store on globalThis so the login page (server component) and
+// the token route handler share one Map even when the bundler compiles them
+// into separate module graphs (Next dev/Turbopack) or HMR re-evaluates this
+// module. Still single-process only — multi-instance deployments need a
+// shared store (see PR #384 review).
+const globalStore = globalThis as typeof globalThis & {
+  __cliAuthHandoffs?: Map<string, CliAuthHandoff>;
+};
+globalStore.__cliAuthHandoffs ??= new Map<string, CliAuthHandoff>();
+const handoffs = globalStore.__cliAuthHandoffs;
 
 function pruneExpired(): void {
   const now = Date.now();

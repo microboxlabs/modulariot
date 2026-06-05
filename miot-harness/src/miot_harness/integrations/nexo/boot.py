@@ -5,7 +5,7 @@ Steps:
   1. ACL check — embedded equivalent of `check-harness-role.sql`
      `fn_refresh_direct_leak` MUST be 0; any leak disables Nexo.
   2. Connectivity + freshness — call `nexo.fn_dx_centro_control` and
-     verify `refreshed_at_servicios` is within `nexo_freshness_refuse_minutes`.
+     verify `refreshed_at_servicios` is within the effective refuse threshold.
   3. Introspect — `pg_proc` query → list[FunctionDescriptor].
   4. Build + register — one `coordinador_*` tool per surviving descriptor.
 
@@ -24,7 +24,6 @@ from typing import Any
 
 import asyncpg
 
-from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.introspect import introspect_nexo_functions
 from miot_harness.integrations.nexo.tool_factory import build_nexo_tool
 from miot_harness.tools.registry import ToolRegistry
@@ -60,9 +59,18 @@ SELECT * FROM {schema}.fn_dx_centro_control() LIMIT 1
 async def load_nexo_tools(
     registry: ToolRegistry,
     *,
-    settings: HarnessSettings,
+    schema: str,
+    tenant_lock: str,
+    refuse_minutes: int,
     pool: asyncpg.Pool | None,
 ) -> NexoBootResult:
+    """Boot the Nexo tools.
+
+    The provider-private knobs are passed in already resolved:
+    ``schema`` from :class:`NexoSettings`, and ``tenant_lock`` /
+    ``refuse_minutes`` as the effective values (env override over the
+    NEXO profile default), resolved once in :meth:`NexoProvider.boot`.
+    """
     if pool is None:
         logger.warning("Nexo: disabled (no asyncpg pool — tunnel may be down)")
         return NexoBootResult(
@@ -71,7 +79,6 @@ async def load_nexo_tools(
             reason="No asyncpg pool provided; tunnel/connection unavailable.",
         )
 
-    schema = settings.nexo_search_path
     if not _SCHEMA_NAME_RE.match(schema):
         logger.critical(
             "Nexo: refusing to boot with invalid schema name %r (must match [a-z_][a-z0-9_]*)",
@@ -122,19 +129,19 @@ async def load_nexo_tools(
             logger.warning("Nexo: centro_control probe returned no refreshed_at; continuing")
         else:
             age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
-            if age_minutes > settings.nexo_freshness_refuse_minutes:
+            if age_minutes > refuse_minutes:
                 logger.critical(
                     "Nexo: centro_control snapshot is %.0f min old "
                     "(refuse threshold %d). Disabling.",
                     age_minutes,
-                    settings.nexo_freshness_refuse_minutes,
+                    refuse_minutes,
                 )
                 return NexoBootResult(
                     enabled=False,
                     registered=[],
                     reason=(
                         f"Snapshot stale: refreshed_at age {age_minutes:.0f}min "
-                        f"> refuse threshold {settings.nexo_freshness_refuse_minutes}min."
+                        f"> refuse threshold {refuse_minutes}min."
                     ),
                     snapshot_age_minutes=age_minutes,
                 )
@@ -166,7 +173,7 @@ async def load_nexo_tools(
             tool = build_nexo_tool(
                 descriptor,
                 pool=pool,
-                tenant_lock=settings.nexo_tenant_lock,
+                tenant_lock=tenant_lock,
                 schema=schema,
             )
             registry.register(tool)

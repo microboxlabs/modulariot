@@ -17,7 +17,7 @@ def _ctx() -> HarnessContext:
 
 @pytest.mark.asyncio
 async def test_critic_disabled_passes_through_without_llm():
-    """Default config: nexo_critic_enabled=False. The critic returns
+    """Default config: agents_critic_enabled=False. The critic returns
     state delta without invoking the model."""
     state: dict[str, Any] = {
         "user_message": "?",
@@ -31,7 +31,7 @@ async def test_critic_disabled_passes_through_without_llm():
 
     update = await critic_node(
         state,
-        settings=HarnessSettings(nexo_critic_enabled=False),
+        settings=HarnessSettings(agents_critic_enabled=False),
         model=model,
         profile=NEXO_PROFILE,
     )
@@ -55,7 +55,7 @@ async def test_critic_enabled_runs_check_and_can_pass_answer():
 
     update = await critic_node(
         state,
-        settings=HarnessSettings(nexo_critic_enabled=True),
+        settings=HarnessSettings(agents_critic_enabled=True),
         model=model,
         profile=NEXO_PROFILE,
     )
@@ -80,7 +80,7 @@ async def test_critic_enabled_flags_concerns_in_state():
 
     update = await critic_node(
         state,
-        settings=HarnessSettings(nexo_critic_enabled=True),
+        settings=HarnessSettings(agents_critic_enabled=True),
         model=model,
         profile=NEXO_PROFILE,
     )

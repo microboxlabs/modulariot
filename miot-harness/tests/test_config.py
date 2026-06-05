@@ -13,46 +13,68 @@ def _clear_settings_cache():
     get_settings.cache_clear()
 
 
-def test_default_nexo_settings():
+def test_default_datasource_and_agents_settings():
     settings = HarnessSettings()
 
-    assert settings.nexo_dsn is None
-    assert settings.nexo_tenant_lock == "mintral"
-    assert settings.nexo_search_path == "nexo"
-    assert settings.nexo_freshness_warn_minutes == 30
-    assert settings.nexo_freshness_refuse_minutes == 240
-    assert settings.nexo_max_turns == 8
-    assert settings.nexo_critic_enabled is False
-    assert settings.nexo_supervisor_mode == "rule"
-    assert settings.nexo_filter_expert_model == "claude-haiku-4-5"
-    assert settings.nexo_analyst_model == "claude-sonnet-4-6"
-    assert settings.nexo_synthesizer_model == "claude-sonnet-4-6"
-    assert settings.nexo_critic_model == "claude-sonnet-4-6"
-    assert settings.nexo_summarizer_model == "claude-haiku-4-5"
+    assert settings.datasource_kind == "nexo"
+    assert settings.datasource_dsn is None
+    assert settings.datasource_application_name == "miot-harness"
+    # None → profile default; the provider resolves the effective values.
+    assert settings.datasource_tenant_lock is None
+    assert settings.datasource_freshness_warn_minutes is None
+    assert settings.datasource_freshness_refuse_minutes is None
+    assert settings.agents_max_turns == 8
+    assert settings.agents_critic_enabled is False
+    assert settings.agents_supervisor_mode == "rule"
+    assert settings.agents_filter_expert_model == "claude-haiku-4-5"
+    assert settings.agents_analyst_model == "claude-sonnet-4-6"
+    assert settings.agents_synthesizer_model == "claude-sonnet-4-6"
+    assert settings.agents_critic_model == "claude-sonnet-4-6"
+    assert settings.agents_summarizer_model == "claude-haiku-4-5"
 
 
-def test_nexo_settings_from_env(monkeypatch):
+def test_datasource_and_agents_settings_from_env(monkeypatch):
     monkeypatch.setenv(
-        "MIOT_HARNESS_NEXO_DSN", "postgresql://harness:secret@db:6432/citus"
+        "MIOT_HARNESS_DATASOURCE_DSN", "postgresql://harness:secret@db:6432/citus"
     )
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_TENANT_LOCK", "mintral")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_FRESHNESS_WARN_MINUTES", "15")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES", "60")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_MAX_TURNS", "12")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_CRITIC_ENABLED", "true")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_FILTER_EXPERT_MODEL", "claude-haiku-4-5")
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_ANALYST_MODEL", "gpt-4o")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "mintral")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES", "15")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES", "60")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_MAX_TURNS", "12")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_CRITIC_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_FILTER_EXPERT_MODEL", "claude-haiku-4-5")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_ANALYST_MODEL", "gpt-4o")
 
     settings = HarnessSettings()
 
-    assert settings.nexo_dsn == "postgresql://harness:secret@db:6432/citus"
-    assert settings.nexo_tenant_lock == "mintral"
-    assert settings.nexo_freshness_warn_minutes == 15
-    assert settings.nexo_freshness_refuse_minutes == 60
-    assert settings.nexo_max_turns == 12
-    assert settings.nexo_critic_enabled is True
-    assert settings.nexo_filter_expert_model == "claude-haiku-4-5"
-    assert settings.nexo_analyst_model == "gpt-4o"
+    assert settings.datasource_dsn == "postgresql://harness:secret@db:6432/citus"
+    assert settings.datasource_tenant_lock == "mintral"
+    assert settings.datasource_freshness_warn_minutes == 15
+    assert settings.datasource_freshness_refuse_minutes == 60
+    assert settings.agents_max_turns == 12
+    assert settings.agents_critic_enabled is True
+    assert settings.agents_filter_expert_model == "claude-haiku-4-5"
+    assert settings.agents_analyst_model == "gpt-4o"
+
+
+def test_datasource_and_agents_settings_env_names(monkeypatch) -> None:
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_KIND", "nexo")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@h:5432/db")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_MAX_TURNS", "5")
+    s = HarnessSettings()
+    assert s.datasource_kind == "nexo"
+    assert s.datasource_dsn == "postgresql://u:p@h:5432/db"
+    assert s.agents_max_turns == 5
+    assert not hasattr(s, "nexo_dsn")  # clean break — old name is gone
+
+
+def test_nexo_provider_private_settings(monkeypatch) -> None:
+    from miot_harness.integrations.nexo.settings import NexoSettings
+
+    monkeypatch.setenv("MIOT_HARNESS_NEXO_SEARCH_PATH", "custom_schema")
+    ns = NexoSettings()
+    assert ns.nexo_search_path == "custom_schema"
+    assert ns.nexo_explain_cost_threshold == 10000.0
 
 
 def test_provider_api_keys_read_from_env(monkeypatch):
@@ -66,7 +88,7 @@ def test_provider_api_keys_read_from_env(monkeypatch):
 
 
 def test_supervisor_mode_validates_literal(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_SUPERVISOR_MODE", "bogus")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_SUPERVISOR_MODE", "bogus")
     with pytest.raises(ValidationError):
         HarnessSettings()
 

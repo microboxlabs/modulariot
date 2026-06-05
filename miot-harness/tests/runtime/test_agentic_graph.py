@@ -156,7 +156,7 @@ async def test_agentic_synthesizer_includes_prior_messages_in_llm_call() -> None
 
     # Disable streaming so this test's ainvoke recorder works. Streaming
     # path uses astream_events which the recorder doesn't intercept.
-    settings = HarnessSettings(nexo_synthesizer_stream=False)
+    settings = HarnessSettings(agents_synthesizer_stream=False)
     graph = build_agentic_graph(
         settings=settings, models=models, provenance_log=None, profile=NEXO_PROFILE
     )
@@ -208,7 +208,7 @@ async def test_agentic_synthesizer_handles_empty_prior_messages() -> None:
     models = _models(plan_response="{}", synthesizer_text="ok")
     models["synthesizer"] = _RecordingModel(responses=["first-turn"])
 
-    settings = HarnessSettings(nexo_synthesizer_stream=False)
+    settings = HarnessSettings(agents_synthesizer_stream=False)
     graph = build_agentic_graph(
         settings=settings, models=models, provenance_log=None, profile=NEXO_PROFILE
     )

@@ -353,10 +353,10 @@ async def test_meta_agent_sees_prior_turn_via_history(
     # Force the legacy ainvoke path so the recorder below intercepts.
     # The streaming code path goes through astream_events which the
     # FakeListChatModel doesn't surface to a simple ainvoke override.
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_SYNTHESIZER_STREAM", "0")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM", "0")
     get_settings.cache_clear()
     # Re-clear after the test body so the cached settings (which still
-    # reflect MIOT_HARNESS_NEXO_SYNTHESIZER_STREAM=0) don't leak into
+    # reflect MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM=0) don't leak into
     # the next test. monkeypatch reverts the env var on teardown but
     # doesn't know about the lru_cache; without this finalizer the
     # next get_settings() call would hand back the stale, stream=False

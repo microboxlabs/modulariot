@@ -48,7 +48,7 @@ def _clean_env_and_workspace(
         "AUTH0_RS256_AUDIENCE",
         "MIOT_HARNESS_AUTH_ENABLED",
         "MIOT_HARNESS_AUTH_DIRECT_ALLOWED",
-        "MIOT_HARNESS_NEXO_DSN",
+        "MIOT_HARNESS_DATASOURCE_DSN",
     ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))

@@ -89,7 +89,7 @@ async def test_graph_emits_per_agent_spans_with_run_attribution(
     registry = ToolRegistry()
     registry.register(_stub_tool(refreshed))
     settings = HarnessSettings(
-        nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
+        datasource_freshness_warn_minutes=30, datasource_freshness_refuse_minutes=240
     )
     graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
@@ -143,7 +143,7 @@ async def test_root_nexo_run_span_parents_per_agent_spans(
     registry = ToolRegistry()
     registry.register(_stub_tool(refreshed))
     settings = HarnessSettings(
-        nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
+        datasource_freshness_warn_minutes=30, datasource_freshness_refuse_minutes=240
     )
     graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE

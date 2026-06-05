@@ -36,12 +36,19 @@ def freshness_judge_node(
     progress: Progress,
     profile: DataSourceProfile,
 ) -> dict[str, Any]:
-    # Thresholds come from the profile now. The env-override layering (where
-    # settings.nexo_freshness_* could differ) arrives in the settings stage;
-    # today the settings defaults (30 / 240) equal the NEXO profile values,
-    # so behavior is identical.
-    warn = profile.freshness_warn_minutes
-    refuse = profile.freshness_refuse_minutes
+    # Effective thresholds: env override wins (including an explicit 0),
+    # else the profile default. This is the single resolution point that
+    # data_fetcher mirrors when it stamps is_stale.
+    warn = (
+        settings.datasource_freshness_warn_minutes
+        if settings.datasource_freshness_warn_minutes is not None
+        else profile.freshness_warn_minutes
+    )
+    refuse = (
+        settings.datasource_freshness_refuse_minutes
+        if settings.datasource_freshness_refuse_minutes is not None
+        else profile.freshness_refuse_minutes
+    )
 
     evidence: list[DataEvidence] = list(state.get("evidence", []))
     if not evidence:

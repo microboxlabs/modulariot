@@ -65,7 +65,7 @@ async def test_create_nexo_pool_default_sizes(monkeypatch):
 @pytest.mark.asyncio
 async def test_create_nexo_pool_with_dsn(monkeypatch):
     """The harness sources Nexo credentials from a single standard
-    Postgres connection string (`MIOT_HARNESS_NEXO_DSN`)."""
+    Postgres connection string (`MIOT_HARNESS_DATASOURCE_DSN`)."""
     captured: dict = {}
 
     async def fake_create_pool(dsn=None, **kwargs):

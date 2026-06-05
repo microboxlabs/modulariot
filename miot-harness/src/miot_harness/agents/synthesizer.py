@@ -145,7 +145,10 @@ async def synthesizer_node(
     ctx: HarnessContext = state["ctx"]
     failure = state.get("failure")
     evidence: list[DataEvidence] = list(state.get("evidence", []))
-    tenant_lock = settings.nexo_tenant_lock if settings is not None else "mintral"
+    # Effective lock: env override wins, else the profile's lock.
+    tenant_lock = (
+        settings.datasource_tenant_lock if settings is not None else None
+    ) or profile.tenant_lock
 
     if failure:
         answer = _render_failure(
@@ -154,7 +157,7 @@ async def synthesizer_node(
         _emit(progress, ctx.run_id, answer)
         return {"answer": answer}
 
-    if ctx.tenant_id != tenant_lock and not evidence:
+    if tenant_lock is not None and ctx.tenant_id != tenant_lock and not evidence:
         refusal = _tenant_refusal(profile, tenant_lock)
         _emit(progress, ctx.run_id, refusal)
         return {"answer": refusal}
@@ -175,7 +178,7 @@ async def synthesizer_node(
     messages.extend(prior_messages)
     messages.append(HumanMessage(content=human))
 
-    stream_enabled = bool(settings and settings.nexo_synthesizer_stream)
+    stream_enabled = bool(settings and settings.agents_synthesizer_stream)
     if stream_enabled:
         answer = await stream_llm_with_thinking(
             model=model,

@@ -91,7 +91,10 @@ def _models(filter_step_tool: str = "coordinador_centro_control") -> dict[str, A
 @pytest.mark.asyncio
 async def test_happy_path_mintral_run_emits_answer():
     registry, _refreshed = _registry_with_centro()
-    settings = HarnessSettings(nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240)
+    settings = HarnessSettings(
+        datasource_freshness_warn_minutes=30,
+        datasource_freshness_refuse_minutes=240,
+    )
     graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
     )
@@ -149,7 +152,7 @@ async def test_stale_data_routes_through_synth_failure_path():
     refreshed = datetime(2026, 5, 1, tzinfo=UTC)  # 7+ days stale vs default 240min refuse
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", refreshed))
-    settings = HarnessSettings(nexo_freshness_refuse_minutes=240)
+    settings = HarnessSettings(datasource_freshness_refuse_minutes=240)
     graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
     )

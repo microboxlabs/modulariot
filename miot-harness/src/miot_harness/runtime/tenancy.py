@@ -55,14 +55,18 @@ def tenancy_gate_decision(
 ) -> TenancyDecision:
     """Evaluate tenancy for *route* and return a :class:`TenancyDecision`.
 
-    Lock resolution order (env-override layering arrives in a later stage):
+    Effective lock = the env override when set, else the profile's lock:
 
-    1. ``profile.tenant_lock`` when a :class:`~miot_harness.datasource.provider.DataSourceProfile`
-       is supplied.
-    2. ``settings.nexo_tenant_lock`` otherwise (legacy / no-profile path).
+        ``settings.datasource_tenant_lock or profile.tenant_lock``
+
+    When both are None (no override, no/None-lock profile) the gate
+    behaves as "no lock" — every tenant matches and data routes are
+    allowed.
     """
-    lock = profile.tenant_lock if profile is not None else settings.nexo_tenant_lock
-    tenant_matches = ctx.tenant_id == lock
+    lock = settings.datasource_tenant_lock or (
+        profile.tenant_lock if profile is not None else None
+    )
+    tenant_matches = lock is None or ctx.tenant_id == lock
 
     if route in _DATA_ROUTES:
         if tenant_matches:

@@ -109,7 +109,7 @@ async def test_per_agent_callback_emits_mode_attribute(
     registry = ToolRegistry()
     registry.register(_stub_tool(refreshed))
     settings = HarnessSettings(
-        nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
+        datasource_freshness_warn_minutes=30, datasource_freshness_refuse_minutes=240
     )
     graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE

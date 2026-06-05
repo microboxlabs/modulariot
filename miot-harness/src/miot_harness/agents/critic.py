@@ -1,6 +1,6 @@
 """Critic agent (Sonnet tier; wired but off by default).
 
-When `settings.nexo_critic_enabled` is False, the node is a no-op.
+When `settings.agents_critic_enabled` is False, the node is a no-op.
 When enabled, it asks the model whether the synthesizer's answer
 adequately cites refreshed_at, flags stale data, and avoids
 hallucination. v1 surfaces concerns into state but does not loop
@@ -45,7 +45,7 @@ async def critic_node(
     model: BaseChatModel,
     profile: DataSourceProfile,
 ) -> dict[str, Any]:
-    if not settings.nexo_critic_enabled:
+    if not settings.agents_critic_enabled:
         return {}
 
     answer = state.get("answer", "")

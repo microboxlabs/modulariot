@@ -151,7 +151,7 @@ def main() -> None:
                 "MIOT_HARNESS_WORKSPACE_DIR": workdir,
             }
         )
-        os.environ.pop("MIOT_HARNESS_NEXO_DSN", None)
+        os.environ.pop("MIOT_HARNESS_DATASOURCE_DSN", None)
         _seed_record(workdir)
 
         from miot_harness.api.server import create_app

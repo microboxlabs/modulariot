@@ -91,7 +91,7 @@ def _streaming_events() -> list[dict[str, Any]]:
 async def test_streaming_synthesizer_emits_thinking_then_text() -> None:
     events: list[HarnessEvent] = []
     model = _FakeStreamingModel(_streaming_events())
-    settings = HarnessSettings(nexo_synthesizer_stream=True)
+    settings = HarnessSettings(agents_synthesizer_stream=True)
     state = {
         "ctx": HarnessContext(thread_id="t", tenant_id="mintral", user_id="u"),
         "user_message": "hola",
@@ -141,7 +141,7 @@ async def test_streaming_synthesizer_disabled_falls_back_to_ainvoke() -> None:
             yield  # pragma: no cover
 
     events: list[HarnessEvent] = []
-    settings = HarnessSettings(nexo_synthesizer_stream=False)
+    settings = HarnessSettings(agents_synthesizer_stream=False)
     state = {
         "ctx": HarnessContext(thread_id="t", tenant_id="mintral", user_id="u"),
         "user_message": "hola",

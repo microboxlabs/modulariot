@@ -468,7 +468,7 @@ class HarnessSupervisor:
         from miot_harness.config import get_settings
 
         settings = get_settings()
-        stream_enabled = settings.nexo_synthesizer_stream
+        stream_enabled = settings.agents_synthesizer_stream
         from time import monotonic
 
         progress(

@@ -145,7 +145,7 @@ def test_turn_cap_forces_synthesizer():
         "turn_count": 8,
         "next_action": "need_more_tools",
     }
-    assert next_agent(state, _settings(nexo_max_turns=8)) == "synthesizer"
+    assert next_agent(state, _settings(agents_max_turns=8)) == "synthesizer"
 
 
 def test_summarizer_triggered_when_messages_exceed_threshold():

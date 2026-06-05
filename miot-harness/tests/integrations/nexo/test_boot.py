@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.boot import (
     NexoBootResult,
     load_nexo_tools,
@@ -31,12 +30,19 @@ def _descriptor(name: str = "fn_dx_centro_control") -> FunctionDescriptor:
     )
 
 
-def _settings(**overrides) -> HarnessSettings:
+def _boot_kwargs(**overrides) -> dict:
+    """Resolved provider-private kwargs for ``load_nexo_tools``.
+
+    Mirrors what ``NexoProvider.boot`` passes in: schema from
+    NexoSettings, effective tenant_lock / refuse_minutes.
+    """
     base = {
-        "nexo_freshness_refuse_minutes": 240,
+        "schema": "nexo",
+        "tenant_lock": "mintral",
+        "refuse_minutes": 240,
     }
     base.update(overrides)
-    return HarnessSettings(**base)
+    return base
 
 
 def _mock_pool(centro_refreshed: datetime, fn_refresh_leak: int = 0) -> MagicMock:
@@ -79,7 +85,7 @@ async def test_happy_path_registers_tools(monkeypatch):
     registry = ToolRegistry()
     pool = _mock_pool(centro_refreshed=datetime.now(UTC) - timedelta(minutes=5))
 
-    result = await load_nexo_tools(registry, settings=_settings(), pool=pool)
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=pool)
 
     assert isinstance(result, NexoBootResult)
     assert result.enabled is True
@@ -96,7 +102,7 @@ async def test_fn_refresh_leak_disables_nexo(monkeypatch):
     registry = ToolRegistry()
     pool = _mock_pool(centro_refreshed=datetime.now(UTC), fn_refresh_leak=3)
 
-    result = await load_nexo_tools(registry, settings=_settings(), pool=pool)
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=pool)
 
     assert result.enabled is False
     assert "fn_refresh" in (result.reason or "").lower()
@@ -115,7 +121,7 @@ async def test_stale_centro_control_disables_nexo(monkeypatch):
 
     result = await load_nexo_tools(
         registry,
-        settings=_settings(nexo_freshness_refuse_minutes=240),
+        **_boot_kwargs(refuse_minutes=240),
         pool=pool,
     )
 
@@ -126,7 +132,7 @@ async def test_stale_centro_control_disables_nexo(monkeypatch):
 @pytest.mark.asyncio
 async def test_no_pool_disables_nexo_without_raising():
     registry = ToolRegistry()
-    result = await load_nexo_tools(registry, settings=_settings(), pool=None)
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=None)
     assert result.enabled is False
     assert registry.names() == []
     assert (
@@ -146,7 +152,7 @@ async def test_connection_failure_disables_nexo_without_raising(monkeypatch):
     registry = ToolRegistry()
     pool = _mock_pool(centro_refreshed=datetime.now(UTC))
 
-    result = await load_nexo_tools(registry, settings=_settings(), pool=pool)
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=pool)
     assert result.enabled is False
 
 
@@ -155,9 +161,9 @@ async def test_invalid_schema_name_disables_nexo():
     """Operator-supplied schema must match [a-z_][a-z0-9_]* — refuse otherwise."""
     registry = ToolRegistry()
     pool = _mock_pool(centro_refreshed=datetime.now(UTC))
-    bad_settings = _settings(nexo_search_path="public; DROP TABLE x")
-
-    result = await load_nexo_tools(registry, settings=bad_settings, pool=pool)
+    result = await load_nexo_tools(
+        registry, **_boot_kwargs(schema="public; DROP TABLE x"), pool=pool
+    )
 
     assert result.enabled is False
     assert "schema" in (result.reason or "").lower()

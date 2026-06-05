@@ -142,7 +142,13 @@ async def data_fetcher_node(
         step.id,
         step.tool,
         output,
-        warn_minutes=settings.nexo_freshness_warn_minutes,
+        # Effective threshold: env override wins (including an explicit 0),
+        # else the profile default. Mirrors freshness_judge's resolution.
+        warn_minutes=(
+            settings.datasource_freshness_warn_minutes
+            if settings.datasource_freshness_warn_minutes is not None
+            else profile.freshness_warn_minutes
+        ),
         source_label=profile.source_label,
     )
     return {

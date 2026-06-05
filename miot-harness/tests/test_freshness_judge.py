@@ -59,7 +59,9 @@ def test_warn_zone_marks_is_stale_and_emits_warning_event():
         "turn_count": 1,
     }
     events: list[HarnessEvent] = []
-    settings = HarnessSettings(nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240)
+    settings = HarnessSettings(
+        datasource_freshness_warn_minutes=30, datasource_freshness_refuse_minutes=240
+    )
 
     update = freshness_judge_node(
         state, settings=settings, progress=events.append, profile=NEXO_PROFILE
@@ -78,7 +80,7 @@ def test_refuse_zone_blocks_synthesizer():
         "turn_count": 1,
     }
     events: list[HarnessEvent] = []
-    settings = HarnessSettings(nexo_freshness_refuse_minutes=240)
+    settings = HarnessSettings(datasource_freshness_refuse_minutes=240)
 
     update = freshness_judge_node(
         state, settings=settings, progress=events.append, profile=NEXO_PROFILE
@@ -87,6 +89,37 @@ def test_refuse_zone_blocks_synthesizer():
     assert update.get("freshness") == FRESHNESS_REFUSE
     assert update.get("failure")  # synth will render the refusal
     assert update["next_action"] == "ready_to_synthesize"
+    assert "freshness.warning" in {e.type for e in events}
+
+
+def test_settings_warn_override_beats_profile_default():
+    """`datasource_freshness_warn_minutes` overrides the profile's 30.
+
+    Evidence aged 10 min is FRESH under the profile default (30) but
+    WARN once the env override tightens warn to 5 — proving the
+    settings layer wins over the profile in the resolution.
+    """
+    state: dict[str, Any] = {
+        "ctx": _ctx(),
+        "evidence": [_ev(datetime.now(UTC) - timedelta(minutes=10))],
+        "turn_count": 1,
+    }
+
+    # Profile default (warn=30): 10-min-old evidence is fresh.
+    fresh_update = freshness_judge_node(
+        state, settings=HarnessSettings(), progress=lambda e: None, profile=NEXO_PROFILE
+    )
+    assert fresh_update.get("freshness") == FRESHNESS_FRESH
+
+    # Override warn=5: the same evidence is now in the warn zone.
+    events: list[HarnessEvent] = []
+    warn_update = freshness_judge_node(
+        state,
+        settings=HarnessSettings(datasource_freshness_warn_minutes=5),
+        progress=events.append,
+        profile=NEXO_PROFILE,
+    )
+    assert warn_update.get("freshness") == FRESHNESS_WARN
     assert "freshness.warning" in {e.type for e in events}
 
 

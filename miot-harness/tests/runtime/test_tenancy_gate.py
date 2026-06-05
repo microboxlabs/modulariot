@@ -7,6 +7,12 @@ The plan's matrix:
 
 Plus: when meta is allowed for a non-locked tenant, emit an audit
 attribute `tenant.bypass: meta_route` on the gate's emitted event.
+
+The effective lock is ``settings.datasource_tenant_lock or
+profile.tenant_lock``. With no profile, the no-profile tests below set
+the lock via the env override; the profile-based tests at the bottom
+exercise the profile-default path. When neither is set the gate has no
+lock and allows every tenant.
 """
 
 from __future__ import annotations
@@ -31,7 +37,7 @@ def test_data_routes_refuse_non_mintral(route: HarnessRoute) -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="other-tenant"),
         route=route,
-        settings=HarnessSettings(),
+        settings=HarnessSettings(datasource_tenant_lock="mintral"),
     )
     assert decision.allowed is False
     assert "mintral" in (decision.refusal_message or "").lower()
@@ -57,7 +63,7 @@ def test_data_meta_allows_any_tenant_with_audit_attr() -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="ams-customer"),
         route=HarnessRoute.DATA_META,
-        settings=HarnessSettings(),
+        settings=HarnessSettings(datasource_tenant_lock="mintral"),
     )
     assert decision.allowed is True
     # Audit attr fires only when the gate is "bypassed" for a non-locked tenant.
@@ -80,7 +86,7 @@ def test_unknown_route_defaults_to_strict_refuse_for_safety() -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="other"),
         route=HarnessRoute.OTHER,
-        settings=HarnessSettings(),
+        settings=HarnessSettings(datasource_tenant_lock="mintral"),
     )
     assert decision.allowed is False
 
@@ -108,5 +114,19 @@ def test_gate_profile_lock_allows_matching_tenant() -> None:
         route=HarnessRoute.DATA_QUERY,
         settings=HarnessSettings(),
         profile=FAKE_PROFILE,
+    )
+    assert decision.allowed is True
+
+
+def test_gate_without_lock_or_profile_allows_any_tenant() -> None:
+    """No profile and no env override means no lock — allowed. Pins the
+    Stage-4 semantics so a future re-introduction of a default lock
+    can't regress silently: production locks come from the provider's
+    profile (or the env override), never from a settings default."""
+    decision = tenancy_gate_decision(
+        ctx=_ctx(tenant="anyone"),
+        route=HarnessRoute.DATA_QUERY,
+        settings=HarnessSettings(),
+        profile=None,
     )
     assert decision.allowed is True

@@ -135,7 +135,7 @@ def build_agentic_graph(
         messages.extend(prior_messages)
         messages.append(HumanMessage(content=snapshot.get("user_message", "")))
 
-        if settings.nexo_synthesizer_stream:
+        if settings.agents_synthesizer_stream:
             events: list[HarnessEvent] = []
             answer = await stream_llm_with_thinking(
                 model=model,

@@ -32,7 +32,7 @@ def test_profile_values_match_legacy_hardcodes() -> None:
 @pytest.mark.asyncio
 async def test_boot_without_dsn_returns_disabled() -> None:
     provider = NexoProvider()
-    settings = HarnessSettings(nexo_dsn=None)
+    settings = HarnessSettings(datasource_dsn=None)
     result = await provider.boot(ToolRegistry(), settings)
     assert result.enabled is False
     assert result.registered == ()
@@ -52,7 +52,7 @@ async def test_boot_pool_failure_returns_disabled_and_no_leak(
     )
     provider = NexoProvider()
     result = await provider.boot(
-        ToolRegistry(), HarnessSettings(nexo_dsn="postgresql://u:p@h:5/db")
+        ToolRegistry(), HarnessSettings(datasource_dsn="postgresql://u:p@h:5/db")
     )
     assert result.enabled is False
     assert "connection refused" in (result.reason or "")

@@ -29,7 +29,7 @@ from miot_harness.runtime.events import HarnessEvent
 def _clean_settings_and_workspace(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[None]:
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))
     get_settings.cache_clear()
     yield
@@ -209,7 +209,7 @@ async def test_stream_receives_live_events_during_in_flight(
 
     import httpx
 
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))
     get_settings.cache_clear()
 

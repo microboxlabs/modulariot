@@ -123,7 +123,7 @@ def _make_lifespan(
             )
         app.state.tracer_provider = tracer_provider
 
-        provider = resolve_datasource("nexo")  # TODO(stage-4): settings.datasource_kind
+        provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
         result = await provider.boot(harness.tools, settings)
@@ -140,19 +140,19 @@ def _make_lifespan(
             # supervisor. Per-agent models come from settings.
             try:
                 synth_thinking_budget = (
-                    settings.nexo_synthesizer_thinking_budget
-                    if settings.nexo_synthesizer_stream
+                    settings.agents_synthesizer_thinking_budget
+                    if settings.agents_synthesizer_stream
                     else None
                 )
                 models = {
-                    "filter_expert": get_chat_model(settings.nexo_filter_expert_model),
-                    "domain_analyst": get_chat_model(settings.nexo_analyst_model),
+                    "filter_expert": get_chat_model(settings.agents_filter_expert_model),
+                    "domain_analyst": get_chat_model(settings.agents_analyst_model),
                     "synthesizer": get_chat_model(
-                        settings.nexo_synthesizer_model,
+                        settings.agents_synthesizer_model,
                         thinking_budget_tokens=synth_thinking_budget,
                     ),
-                    "critic": get_chat_model(settings.nexo_critic_model),
-                    "summarizer": get_chat_model(settings.nexo_summarizer_model),
+                    "critic": get_chat_model(settings.agents_critic_model),
+                    "summarizer": get_chat_model(settings.agents_summarizer_model),
                 }
                 harness.data_graph = build_data_graph(
                     registry=harness.tools,
@@ -165,14 +165,18 @@ def _make_lifespan(
                 # agent + LLM intent router. All optional on the
                 # supervisor — falling back to keyword routing if any
                 # of these aren't injected.
-                harness.tenant_lock = settings.nexo_tenant_lock
+                resolved_lock = (
+                    settings.datasource_tenant_lock or provider.profile.tenant_lock
+                )
+                if resolved_lock is not None:
+                    harness.tenant_lock = resolved_lock
                 harness.agentic_graph = build_agentic_graph(
                     settings=settings,
                     models={
                         **models,
                         # Agentic graph uses the analyst model as its
                         # planner; same model pool, same callbacks.
-                        "planner": get_chat_model(settings.nexo_analyst_model),
+                        "planner": get_chat_model(settings.agents_analyst_model),
                     },
                     provenance_log=None,  # wired in F-phase when executor lands
                     profile=provider.profile,
@@ -421,7 +425,7 @@ def create_app() -> FastAPI:
         # the lifespan logs critical and continues serving, but the pod
         # should not receive traffic until tools register and the snapshot
         # passes the refuse-gate.
-        required = settings.nexo_dsn is not None
+        required = settings.datasource_dsn is not None
         enabled = bool(app.state.datasource_enabled)
         ready = (not required) or enabled
         if not ready:

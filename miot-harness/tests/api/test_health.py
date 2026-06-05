@@ -15,14 +15,14 @@ from miot_harness.config import get_settings
 @pytest.fixture(autouse=True)
 def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     # The "Nexo disabled" assumption requires the DSN to be unset.
-    monkeypatch.delenv("MIOT_HARNESS_NEXO_DSN", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
 
 
 def test_health_default_nexo_disabled() -> None:
-    """Without MIOT_HARNESS_NEXO_DSN, lifespan disables Nexo and
+    """Without MIOT_HARNESS_DATASOURCE_DSN, lifespan disables Nexo and
     /health reports the deploy-readable shape with datasource state defaults."""
     app = create_app()
     with TestClient(app) as client:
@@ -66,7 +66,7 @@ def test_health_reflects_simulated_nexo_enabled_state() -> None:
     }
 
 
-def test_health_ready_without_nexo_dsn_is_ready() -> None:
+def test_health_ready_without_datasource_dsn_is_ready() -> None:
     """No DSN configured -> Nexo not required -> readiness probe passes."""
     app = create_app()
     with TestClient(app) as client:
@@ -89,7 +89,7 @@ def test_health_ready_with_dsn_but_nexo_disabled_returns_503(
     """DSN configured but lifespan failed to enable Nexo (tunnel down,
     tools didn't register, snapshot too stale, etc.) -> readiness MUST
     fail so the Service doesn't route traffic to a half-booted pod."""
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
     get_settings.cache_clear()
 
     # Mirror tests/test_server_lifespan.py — mock pool creation to raise
@@ -120,7 +120,7 @@ def test_health_ready_reflects_simulated_nexo_enabled_state(
     lifespan mutation of app.state, identical to how
     `test_health_reflects_simulated_nexo_enabled_state` exercises /health.
     """
-    monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
     get_settings.cache_clear()
     with patch(
         "miot_harness.integrations.nexo.provider.create_nexo_pool",

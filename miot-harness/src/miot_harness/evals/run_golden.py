@@ -336,11 +336,11 @@ async def run_golden(
             "cpu_count": os.cpu_count(),
             "deterministic": mode == "fake",
             "models": {
-                "filter_expert": settings.nexo_filter_expert_model,
-                "analyst": settings.nexo_analyst_model,
-                "synthesizer": settings.nexo_synthesizer_model,
-                "critic": settings.nexo_critic_model,
-                "summarizer": settings.nexo_summarizer_model,
+                "filter_expert": settings.agents_filter_expert_model,
+                "analyst": settings.agents_analyst_model,
+                "synthesizer": settings.agents_synthesizer_model,
+                "critic": settings.agents_critic_model,
+                "summarizer": settings.agents_summarizer_model,
                 "intent_router": settings.intent_router_model,
             },
             "note": (

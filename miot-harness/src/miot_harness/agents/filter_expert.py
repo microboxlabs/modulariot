@@ -9,7 +9,7 @@ when the analyst signals "need_more_tools" repeatedly.
 
 One LLM call per turn. Given the user message and a catalog of
 coordinador_* tools (with @meta / Layer hints), emits a single
-NexoStep representing the next tool call. The supervisor then routes
+DataStep representing the next tool call. The supervisor then routes
 to data_fetcher; on return, freshness_judge + domain_analyst decide
 whether to ask for another step.
 
@@ -33,7 +33,7 @@ from pydantic import ValidationError
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoPlan, NexoStep
+from miot_harness.runtime.plan import DataPlan, DataStep
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -95,14 +95,14 @@ def build_tool_catalog(registry: ToolRegistry, *, profile: DataSourceProfile) ->
     )
 
 
-def _parse_step(text: str) -> NexoStep | None:
+def _parse_step(text: str) -> DataStep | None:
     cleaned = _strip_fences(text)
     try:
         payload = json.loads(cleaned)
     except json.JSONDecodeError:
         return None
     try:
-        return NexoStep(
+        return DataStep(
             intent=payload.get("intent", ""),
             tool=payload.get("tool", ""),
             args=payload.get("args", {}) or {},
@@ -173,14 +173,14 @@ async def filter_expert_node(
     plan = state.get("plan")
     try:
         if plan is None:
-            new_plan = NexoPlan(steps=[step])
+            new_plan = DataPlan(steps=[step])
         else:
-            new_plan = NexoPlan(
+            new_plan = DataPlan(
                 steps=[*plan.steps, step],
                 final_format=plan.final_format,
             )
     except ValidationError as exc:
-        # NexoPlan caps steps at max_length=4 (review item N13).
+        # DataPlan caps steps at max_length=4 (review item N13).
         logger.warning("filter_expert: plan capped at max steps; routing to synth (%s)", exc)
         return {
             "failure": "plan reached max step cap; synthesizing with current evidence",

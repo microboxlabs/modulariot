@@ -12,7 +12,7 @@ from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 
 
-class NexoStep(BaseModel):
+class DataStep(BaseModel):
     id: str = Field(default_factory=lambda: f"step_{uuid4().hex[:8]}")
     intent: str
     tool: str
@@ -20,12 +20,12 @@ class NexoStep(BaseModel):
     rationale: str
 
 
-class NexoPlan(BaseModel):
-    steps: list[NexoStep] = Field(default_factory=list, max_length=4)
+class DataPlan(BaseModel):
+    steps: list[DataStep] = Field(default_factory=list, max_length=4)
     final_format: Literal["answer", "story"] = "answer"
 
 
-class NexoEvidence(BaseModel):
+class DataEvidence(BaseModel):
     step_id: str
     tool: str
     source: str
@@ -35,11 +35,11 @@ class NexoEvidence(BaseModel):
     is_stale: bool = False
 
 
-class NexoState(TypedDict, total=False):
+class DataState(TypedDict, total=False):
     user_message: str
     ctx: HarnessContext
-    plan: NexoPlan | None
-    evidence: Annotated[list[NexoEvidence], operator.add]
+    plan: DataPlan | None
+    evidence: Annotated[list[DataEvidence], operator.add]
     pending_step_index: int
     answer: str | None
     failure: str | None

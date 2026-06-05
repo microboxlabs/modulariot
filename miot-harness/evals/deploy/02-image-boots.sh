@@ -2,7 +2,7 @@
 # 02-image-boots.sh — Category A.2
 # Asserts: a freshly-started container responds 200 on /health within
 # BOOT_TIMEOUT_S, and the response payload has the deploy-readable
-# shape ({status, env, nexo:{enabled, tools[], snapshot_age_minutes}}).
+# shape ({status, env, datasource:{name, enabled, tools[], snapshot_age_minutes}}).
 #
 # Race-condition note: `docker run -d` returns BEFORE uvicorn binds the
 # port. We poll `curl` in a bounded loop instead of `sleep N + curl` so
@@ -62,7 +62,7 @@ fi
 
 # Shape check: tolerate missing jq by using grep fallbacks. We don't
 # parse fully — just confirm the deploy-readable keys are present.
-required_keys=("status" "env" "enabled" "tools" "snapshot_age_minutes")
+required_keys=("status" "env" "datasource" "name" "enabled" "tools" "snapshot_age_minutes")
 for key in "${required_keys[@]}"; do
   if ! echo "$RESPONSE" | grep -q "\"$key\""; then
     fail "/health payload missing key \"$key\" — got: $RESPONSE"

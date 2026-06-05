@@ -21,7 +21,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
 
 FRESHNESS_FRESH = "fresh"
@@ -43,7 +43,7 @@ def freshness_judge_node(
     warn = profile.freshness_warn_minutes
     refuse = profile.freshness_refuse_minutes
 
-    evidence: list[NexoEvidence] = list(state.get("evidence", []))
+    evidence: list[DataEvidence] = list(state.get("evidence", []))
     if not evidence:
         return {"next_action": "analyze", "freshness": FRESHNESS_FRESH}
 
@@ -81,7 +81,7 @@ def freshness_judge_node(
             )
         )
 
-    # NOTE: is_stale is set by data_fetcher when it constructs NexoEvidence
+    # NOTE: is_stale is set by data_fetcher when it constructs DataEvidence
     # (using the same warn_minutes threshold). The judge classifies + emits
     # but does not mutate evidence, because the LangGraph reducer is
     # operator.add — returning an "evidence" key here would APPEND to the

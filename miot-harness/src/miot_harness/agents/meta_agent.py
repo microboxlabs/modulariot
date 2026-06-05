@@ -6,7 +6,7 @@ the structural guarantee lives in the function signature (no
 ``registry`` / ``tools`` / ``pool`` parameter; nothing to call).
 
 Cheap path for "what data do you have?", "what does fn_dx_eta_hoy
-return?", "how is es_critico calculated?". Falls through to NEXO_QUERY
+return?", "how is es_critico calculated?". Falls through to DATA_QUERY
 upstream if the intent router confused a data question with a meta one.
 """
 

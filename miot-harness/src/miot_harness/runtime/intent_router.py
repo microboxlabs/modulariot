@@ -1,7 +1,7 @@
 """LLM-driven intent router (plan 13, E1).
 
 Classifies a free-form user message into one of six routes:
-NEXO_QUERY, NEXO_META, NEXO_AGENTIC, STORYTELLING_RUN, DIRECT, OTHER.
+DATA_QUERY, DATA_META, DATA_AGENTIC, STORYTELLING_RUN, DIRECT, OTHER.
 
 When the LLM's reported confidence is below the configured threshold, we
 fall back to the keyword router (`runtime/router.IntentRouter`) — this is
@@ -22,25 +22,31 @@ from dataclasses import dataclass
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 
 logger = logging.getLogger(__name__)
 
 
-_SYSTEM_PROMPT = """You are the intent router for the ModularIoT harness.
+# Defaults used when no profile is threaded in (legacy / unit-test paths).
+# They preserve the historical Coordinador routing semantics.
+_DEFAULT_DISPLAY_NAME = "the data source"
+_DEFAULT_KEYWORD_EXAMPLES = "centro de control, ETA en riesgo, cola crítica"
+
+_SYSTEM_PROMPT_TEMPLATE = """You are the intent router for the ModularIoT harness.
 
 Classify the user's message into EXACTLY ONE of these routes:
 
-- NEXO_QUERY: A canned data question about Coordinador/Mintral that maps
-  cleanly to a curated `fn_dx_*` function. Examples: "estado del centro
-  de control", "ETA en riesgo hoy", "cola crítica del turno".
-- NEXO_META: A schema/primer/introspection question that needs no SQL.
-  Examples: "what data do you have?", "how is es_critico calculated?",
-  "what does fn_dx_centro_control return?".
-- NEXO_AGENTIC: A free-form exploration of Coordinador data that may
-  need composable primitives (nexo_describe/select/grep) — the canned
-  catalog doesn't cover it. Examples: "show me services where
-  delta_eta_horas > 6", "tell me more about that", multi-turn drilldowns.
+- DATA_QUERY: A canned data question about {display_name} that maps
+  cleanly to a curated data function. Examples are phrased around its
+  vocabulary: {keyword_examples}.
+- DATA_META: A schema/primer/introspection question that needs no SQL.
+  Examples: "what data do you have?", "how is this field calculated?",
+  "what does this function return?".
+- DATA_AGENTIC: A free-form exploration of {display_name} data that may
+  need composable primitives (describe/select/grep) — the canned
+  catalog doesn't cover it. Examples: "show me rows where some_metric
+  > 6", "tell me more about that", multi-turn drilldowns.
 - STORYTELLING_RUN: User wants a written narrative or dashboard draft.
   Examples: "write a story about", "draft a status update".
 - DIRECT: Greetings, small talk, simple chat where no data or narrative
@@ -48,11 +54,35 @@ Classify the user's message into EXACTLY ONE of these routes:
 - OTHER: Anything else (out-of-scope, abusive, malformed).
 
 Reply with a single JSON object, no prose:
-{"route": "<ROUTE_NAME>", "confidence": <0..1>, "reasoning": "<one short sentence>"}
+{{"route": "<ROUTE_NAME>", "confidence": <0..1>, "reasoning": "<one short sentence>"}}
 
 `confidence` is your subjective certainty in the label, calibrated honestly
 — if the message could plausibly be two routes, drop confidence below 0.7.
 """
+
+
+def _render_system_prompt(profile: DataSourceProfile | None) -> str:
+    """Render the router prompt for a given datasource profile.
+
+    The route vocabulary is profile-agnostic; only the example wording is
+    parameterized via the profile's `display_name` and `router_keywords`
+    so the prompt names the active datasource (e.g. "Coordinador") instead
+    of hardcoding it.
+    """
+
+    if profile is None:
+        display_name = _DEFAULT_DISPLAY_NAME
+        keyword_examples = _DEFAULT_KEYWORD_EXAMPLES
+    else:
+        display_name = profile.display_name
+        # Sorted for deterministic rendering; the full keyword set keeps
+        # distinctive literals (e.g. tenant names) visible to the LLM.
+        keyword_examples = ", ".join(sorted(profile.router_keywords)) or (
+            _DEFAULT_KEYWORD_EXAMPLES
+        )
+    return _SYSTEM_PROMPT_TEMPLATE.format(
+        display_name=display_name, keyword_examples=keyword_examples
+    )
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
@@ -111,16 +141,18 @@ class LLMIntentRouter:
         *,
         confidence_threshold: float = 0.7,
         keyword_fallback: IntentRouter | None = None,
+        profile: DataSourceProfile | None = None,
     ) -> None:
         self._model = model
         self._threshold = confidence_threshold
         self._fallback = keyword_fallback or IntentRouter()
+        self._system_prompt = _render_system_prompt(profile)
 
     async def route(self, message: str) -> RouteResult:
         try:
             response = await self._model.ainvoke(
                 [
-                    SystemMessage(content=_SYSTEM_PROMPT),
+                    SystemMessage(content=self._system_prompt),
                     HumanMessage(content=message),
                 ]
             )

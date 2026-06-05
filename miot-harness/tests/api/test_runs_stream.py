@@ -202,7 +202,7 @@ async def test_stream_receives_live_events_during_in_flight(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """While a run is in-flight, GET /stream subscribes to the RunEventBus
-    and yields events live. We slot a controllable nexo_graph onto the
+    and yields events live. We slot a controllable data_graph onto the
     harness after lifespan starts, then start a run via /runs:start and
     immediately consume the stream.
     """
@@ -218,7 +218,7 @@ async def test_stream_receives_live_events_during_in_flight(
     # Drive lifespan via TestClient, then run the actual stream test
     # against httpx.AsyncClient(transport=ASGITransport) on the same app.
     with TestClient(app):
-        # Force route to NEXO_QUERY via a scripted llm_router, and inject
+        # Force route to DATA_QUERY via a scripted llm_router, and inject
         # a slow graph that emits 2 events and blocks until released.
         gate = asyncio.Event()
 
@@ -235,16 +235,16 @@ async def test_stream_receives_live_events_during_in_flight(
             await gate.wait()
             return {"answer": "released", "_events": events}
 
-        nexo_graph = AsyncMock()
-        nexo_graph.ainvoke = slow_ainvoke
+        data_graph = AsyncMock()
+        data_graph.ainvoke = slow_ainvoke
 
-        # Attach controllable graph + force NEXO_QUERY routing keyword.
+        # Attach controllable graph + force DATA_QUERY routing keyword.
         harness = app.state.harness
-        harness.nexo_graph = nexo_graph
-        # No LLM router → keyword router picks NEXO_QUERY when the message
+        harness.data_graph = data_graph
+        # No LLM router → keyword router picks DATA_QUERY when the message
         # contains a keyword. Easiest: use a Mintral-related keyword.
-        # Looking at router.py for an actual NEXO_QUERY trigger word.
-        message = "mintral status"  # keyword router routes this to NEXO_QUERY
+        # Looking at router.py for an actual DATA_QUERY trigger word.
+        message = "mintral status"  # keyword router routes this to DATA_QUERY
 
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),

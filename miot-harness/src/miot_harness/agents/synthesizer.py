@@ -29,7 +29,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ def _render_failure(reason: str, *, snapshot_stale_prefix: str) -> str:
     )
 
 
-def _render_evidence_for_synth(evidence: list[NexoEvidence]) -> str:
+def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
     if not evidence:
         return "(sin evidencia)"
     lines: list[str] = []
@@ -144,7 +144,7 @@ async def synthesizer_node(
 ) -> dict[str, Any]:
     ctx: HarnessContext = state["ctx"]
     failure = state.get("failure")
-    evidence: list[NexoEvidence] = list(state.get("evidence", []))
+    evidence: list[DataEvidence] = list(state.get("evidence", []))
     tenant_lock = settings.nexo_tenant_lock if settings is not None else "mintral"
 
     if failure:

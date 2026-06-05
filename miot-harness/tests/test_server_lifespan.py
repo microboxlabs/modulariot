@@ -26,7 +26,7 @@ def test_app_boots_without_nexo_when_dsn_unset(monkeypatch, tmp_path):
         resp = client.get("/health")
         assert resp.status_code == 200
         # Without env var, Nexo state is disabled
-        assert getattr(app.state, "nexo_enabled", False) is False
+        assert getattr(app.state, "datasource_enabled", False) is False
 
 
 def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):
@@ -57,7 +57,7 @@ def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):
         with TestClient(app) as client:
             resp = client.get("/health")
             assert resp.status_code == 200
-            assert app.state.nexo_enabled is True
+            assert app.state.datasource_enabled is True
             assert app.state.datasource_provider is not None
 
     fake_pool.close.assert_awaited_once()
@@ -87,7 +87,7 @@ def test_app_boots_when_load_nexo_returns_disabled(monkeypatch, tmp_path):
         with TestClient(app) as client:
             resp = client.get("/health")
             assert resp.status_code == 200
-            assert app.state.nexo_enabled is False
+            assert app.state.datasource_enabled is False
     fake_pool.close.assert_awaited_once()
 
 
@@ -104,4 +104,4 @@ def test_app_boots_when_pool_creation_raises(monkeypatch, tmp_path):
         with TestClient(app) as client:
             resp = client.get("/health")
             assert resp.status_code == 200
-            assert app.state.nexo_enabled is False
+            assert app.state.datasource_enabled is False

@@ -1,9 +1,9 @@
 """E7 — tenancy gate behavior matrix.
 
 The plan's matrix:
-- NEXO_QUERY  → refuse non-Mintral.
-- NEXO_AGENTIC → refuse non-Mintral (composable primitives touch data).
-- NEXO_META   → allow ANY tenant (meta-info is non-confidential).
+- DATA_QUERY  → refuse non-Mintral.
+- DATA_AGENTIC → refuse non-Mintral (composable primitives touch data).
+- DATA_META   → allow ANY tenant (meta-info is non-confidential).
 
 Plus: when meta is allowed for a non-locked tenant, emit an audit
 attribute `tenant.bypass: meta_route` on the gate's emitted event.
@@ -25,7 +25,7 @@ def _ctx(tenant: str = "mintral") -> HarnessContext:
 
 @pytest.mark.parametrize(
     "route",
-    [HarnessRoute.NEXO_QUERY, HarnessRoute.NEXO_AGENTIC],
+    [HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC],
 )
 def test_data_routes_refuse_non_mintral(route: HarnessRoute) -> None:
     decision = tenancy_gate_decision(
@@ -40,7 +40,7 @@ def test_data_routes_refuse_non_mintral(route: HarnessRoute) -> None:
 
 @pytest.mark.parametrize(
     "route",
-    [HarnessRoute.NEXO_QUERY, HarnessRoute.NEXO_AGENTIC],
+    [HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC],
 )
 def test_data_routes_allow_locked_tenant(route: HarnessRoute) -> None:
     decision = tenancy_gate_decision(
@@ -53,10 +53,10 @@ def test_data_routes_allow_locked_tenant(route: HarnessRoute) -> None:
     assert decision.audit_attr is None
 
 
-def test_nexo_meta_allows_any_tenant_with_audit_attr() -> None:
+def test_data_meta_allows_any_tenant_with_audit_attr() -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="ams-customer"),
-        route=HarnessRoute.NEXO_META,
+        route=HarnessRoute.DATA_META,
         settings=HarnessSettings(),
     )
     assert decision.allowed is True
@@ -64,10 +64,10 @@ def test_nexo_meta_allows_any_tenant_with_audit_attr() -> None:
     assert decision.audit_attr == {"tenant.bypass": "meta_route"}
 
 
-def test_nexo_meta_for_locked_tenant_does_not_emit_bypass_attr() -> None:
+def test_data_meta_for_locked_tenant_does_not_emit_bypass_attr() -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="mintral"),
-        route=HarnessRoute.NEXO_META,
+        route=HarnessRoute.DATA_META,
         settings=HarnessSettings(),
     )
     assert decision.allowed is True
@@ -90,7 +90,7 @@ def test_gate_uses_profile_lock_and_template() -> None:
 
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="intruder"),
-        route=HarnessRoute.NEXO_QUERY,
+        route=HarnessRoute.DATA_QUERY,
         settings=HarnessSettings(),
         profile=FAKE_PROFILE,
     )
@@ -105,7 +105,7 @@ def test_gate_profile_lock_allows_matching_tenant() -> None:
 
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="acme"),
-        route=HarnessRoute.NEXO_QUERY,
+        route=HarnessRoute.DATA_QUERY,
         settings=HarnessSettings(),
         profile=FAKE_PROFILE,
     )

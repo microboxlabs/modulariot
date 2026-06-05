@@ -1,7 +1,7 @@
 """Data Fetcher (deterministic; no LLM).
 
-Reads the next pending NexoStep, invokes the corresponding tool via
-ToolRegistry, wraps the typed output as NexoEvidence, and returns a
+Reads the next pending DataStep, invokes the corresponding tool via
+ToolRegistry, wraps the typed output as DataEvidence, and returns a
 state delta. Failures (raised exceptions, permission denials) are
 caught and surface as `state["failure"]` so the supervisor can route
 the synthesizer for graceful refusal — no double-fetching.
@@ -17,7 +17,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
 
@@ -56,7 +56,7 @@ def _evidence_from_output(
     *,
     warn_minutes: int,
     source_label: str,
-) -> NexoEvidence:
+) -> DataEvidence:
     if hasattr(output, "model_dump"):
         dump = output.model_dump()
     elif isinstance(output, dict):
@@ -90,7 +90,7 @@ def _evidence_from_output(
         # Tool returned data but no refreshed_at — treat as unverified
         is_stale = True
 
-    return NexoEvidence(
+    return DataEvidence(
         step_id=step_id,
         tool=tool,
         source=str(dump.get("source", source_label)),
@@ -146,7 +146,7 @@ async def data_fetcher_node(
         source_label=profile.source_label,
     )
     return {
-        "evidence": [evidence],  # appended by NexoState's operator.add reducer
+        "evidence": [evidence],  # appended by DataState's operator.add reducer
         "pending_step_index": pending + 1,
         "next_action": "judge_freshness",
     }

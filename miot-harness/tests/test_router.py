@@ -24,9 +24,9 @@ def router() -> IntentRouter:
         "ETA en riesgo",
     ],
 )
-def test_nexo_keywords_route_to_nexo_query(router: IntentRouter, message: str):
+def test_default_keywords_route_to_data_query(router: IntentRouter, message: str):
     result = router.route(message)
-    assert result.route == HarnessRoute.NEXO_QUERY
+    assert result.route == HarnessRoute.DATA_QUERY
 
 
 def test_eta_word_boundary_does_not_match_etapa(router: IntentRouter):
@@ -34,7 +34,7 @@ def test_eta_word_boundary_does_not_match_etapa(router: IntentRouter):
     'etapa', 'meta', and 'completada' don't trigger the Nexo path."""
     for false_positive in ("etapa siguiente", "meta cumplida", "completada"):
         result = router.route(false_positive)
-        assert result.route != HarnessRoute.NEXO_QUERY, (
+        assert result.route != HarnessRoute.DATA_QUERY, (
             f"unexpected NEXO match for {false_positive!r}"
         )
 
@@ -44,10 +44,10 @@ def test_storytelling_still_routes_correctly(router: IntentRouter):
     assert result.route == HarnessRoute.STORYTELLING_RUN
 
 
-def test_storytelling_with_nexo_keyword_resolves_to_nexo_first(router: IntentRouter):
+def test_storytelling_with_data_keyword_resolves_to_data_first(router: IntentRouter):
     """Plan resolution: when both keywords appear, Nexo wins."""
     result = router.route("write a story about Mintral coordinador status")
-    assert result.route == HarnessRoute.NEXO_QUERY
+    assert result.route == HarnessRoute.DATA_QUERY
 
 
 def test_unrelated_message_routes_direct(router: IntentRouter):
@@ -59,18 +59,18 @@ def test_etapa_with_eta_word_doesnt_match():
     """Lowercase 'eta' inside other words must NOT trigger; the regex is
     \\bETA\\b (uppercase, word boundary)."""
     router = IntentRouter()
-    assert router.route("la etapa siguiente").route != HarnessRoute.NEXO_QUERY
+    assert router.route("la etapa siguiente").route != HarnessRoute.DATA_QUERY
 
 
 def test_uppercase_eta_matches():
     router = IntentRouter()
-    assert router.route("¿qué ETA tenemos?").route == HarnessRoute.NEXO_QUERY
+    assert router.route("¿qué ETA tenemos?").route == HarnessRoute.DATA_QUERY
 
 
 def test_router_accepts_custom_keywords() -> None:
     router = IntentRouter(data_keywords=frozenset({"fakesource"}))
     result = router.route("estado de fakesource hoy")
-    assert result.route == HarnessRoute.NEXO_QUERY
+    assert result.route == HarnessRoute.DATA_QUERY
 
 
 def test_router_custom_keywords_replace_defaults() -> None:

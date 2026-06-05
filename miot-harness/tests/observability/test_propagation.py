@@ -4,7 +4,7 @@ Known late-2025 issue: when LangGraph fans out into parallel branches, OTel
 context propagation can break — child LLM spans from one branch may land
 under a sibling, and `usage_metadata` may be misattributed.
 
-Our defense (built into `NexoTelemetryCallback`): every span carries
+Our defense (built into `AgentTelemetryCallback`): every span carries
 `modular.agent` AND `modular.run_id` set from the callback's init args at
 callback-construction time, BEFORE the LLM call's context is captured. Even
 if OTel's parent-context propagation breaks, Langfuse can regroup by these
@@ -30,7 +30,7 @@ from langgraph.graph import END, StateGraph
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from typing_extensions import TypedDict
 
-from miot_harness.observability.callbacks import NexoTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback
 
 
 class _State(TypedDict, total=False):
@@ -48,14 +48,14 @@ def _build_parallel_graph(run_id: str) -> Any:
     """3-node graph: planner → (branch_a ∥ branch_b) → joiner.
 
     Branches run in parallel via LangGraph fan-out. Each branch's model
-    invocation is wired to its own `NexoTelemetryCallback`.
+    invocation is wired to its own `AgentTelemetryCallback`.
     """
 
     async def planner(state: _State) -> dict[str, Any]:
         return {"run_id": run_id}
 
     async def branch_a(state: _State) -> dict[str, Any]:
-        cb = NexoTelemetryCallback(
+        cb = AgentTelemetryCallback(
             agent_name="branch_a", run_id=run_id, tenant_id="mintral"
         )
         model = _model("a-answer").with_config(callbacks=[cb])
@@ -65,7 +65,7 @@ def _build_parallel_graph(run_id: str) -> Any:
         return {"answer_a": resp.content}
 
     async def branch_b(state: _State) -> dict[str, Any]:
-        cb = NexoTelemetryCallback(
+        cb = AgentTelemetryCallback(
             agent_name="branch_b", run_id=run_id, tenant_id="mintral"
         )
         model = _model("b-answer").with_config(callbacks=[cb])
@@ -129,7 +129,7 @@ async def test_callback_attribution_survives_high_concurrency() -> None:
     """
 
     async def emit(run_id: str, agent: str) -> str:
-        cb = NexoTelemetryCallback(
+        cb = AgentTelemetryCallback(
             agent_name=agent, run_id=run_id, tenant_id="mintral"
         )
         model = _model(f"resp-{run_id}").with_config(callbacks=[cb])

@@ -1,4 +1,4 @@
-"""Verifies NexoTelemetryCallback emits a usage.recorded SSE event when
+"""Verifies AgentTelemetryCallback emits a usage.recorded SSE event when
 a `progress` sink is wired (plan: SSE rich events §B5).
 """
 
@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from miot_harness.observability.callbacks import NexoTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback
 from miot_harness.runtime.events import HarnessEvent
 
 
@@ -44,7 +44,7 @@ def test_callback_emits_usage_recorded_when_progress_wired(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
     events: list[HarnessEvent] = []
-    cb = NexoTelemetryCallback(
+    cb = AgentTelemetryCallback(
         agent_name="filter_expert",
         run_id="run_abc",
         progress=events.append,
@@ -73,7 +73,7 @@ def test_callback_emits_usage_recorded_when_progress_wired(
 def test_callback_skips_usage_event_when_no_progress(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    cb = NexoTelemetryCallback(agent_name="critic", run_id="run_xyz")
+    cb = AgentTelemetryCallback(agent_name="critic", run_id="run_xyz")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
     cb.on_llm_end(_llm_result(), run_id=rid)
@@ -95,7 +95,7 @@ def test_callback_swallows_progress_sink_failure(
     def _exploding(_event: HarnessEvent) -> None:
         raise RuntimeError("event bus is on fire")
 
-    cb = NexoTelemetryCallback(
+    cb = AgentTelemetryCallback(
         agent_name="filter_expert",
         run_id="run_boom",
         progress=_exploding,
@@ -116,7 +116,7 @@ def test_callback_omits_cost_usd_when_model_unknown(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
     events: list[HarnessEvent] = []
-    cb = NexoTelemetryCallback(
+    cb = AgentTelemetryCallback(
         agent_name="planner",
         run_id="run_unknown",
         progress=events.append,

@@ -29,10 +29,10 @@ from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.intent_router import LLMIntentRouter
-from miot_harness.runtime.nexo_graph import build_nexo_graph
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
@@ -55,9 +55,9 @@ def _make_lifespan(
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.nexo_enabled = False
-        app.state.nexo_registered = []
-        app.state.nexo_snapshot_age_minutes = None
+        app.state.datasource_enabled = False
+        app.state.datasource_registered = []
+        app.state.datasource_snapshot_age_minutes = None
         app.state.datasource_provider = None
         # Streaming state: harness ref for endpoint access (tests inject
         # controlled graphs by mutating this), event bus the SSE handler
@@ -96,7 +96,7 @@ def _make_lifespan(
                 )
 
         # Telemetry: configure_tracing installs the global TracerProvider so
-        # NexoTelemetryCallback's spans (per-agent) and Traceloop's
+        # AgentTelemetryCallback's spans (per-agent) and Traceloop's
         # auto-instrumented child spans (per LLM SDK call) flow to the same
         # collector. No-op when MIOT_HARNESS_OTEL_ENABLED is false.
         tracer_provider = configure_tracing(
@@ -127,9 +127,9 @@ def _make_lifespan(
         app.state.datasource_provider = provider
         harness.profile = provider.profile
         result = await provider.boot(harness.tools, settings)
-        app.state.nexo_enabled = result.enabled
-        app.state.nexo_registered = list(result.registered)
-        app.state.nexo_snapshot_age_minutes = result.snapshot_age_minutes
+        app.state.datasource_enabled = result.enabled
+        app.state.datasource_registered = list(result.registered)
+        app.state.datasource_snapshot_age_minutes = result.snapshot_age_minutes
         if not result.enabled:
             logger.info(
                 "Datasource %s: disabled (%s)", provider.profile.name, result.reason
@@ -154,7 +154,7 @@ def _make_lifespan(
                     "critic": get_chat_model(settings.nexo_critic_model),
                     "summarizer": get_chat_model(settings.nexo_summarizer_model),
                 }
-                harness.nexo_graph = build_nexo_graph(
+                harness.data_graph = build_data_graph(
                     registry=harness.tools,
                     settings=settings,
                     models=models,
@@ -195,6 +195,7 @@ def _make_lifespan(
                     get_chat_model(settings.intent_router_model),
                     confidence_threshold=settings.intent_router_confidence_threshold,
                     keyword_fallback=IntentRouter(data_keywords=provider.profile.router_keywords),
+                    profile=provider.profile,
                 )
                 logger.info(
                     "Nexo: Phase E wired (LLM router=%s, agentic_graph, meta_agent)",
@@ -212,10 +213,10 @@ def _make_lifespan(
                 # tool list that is unreachable. The provider is closed by
                 # the outer `finally` below; we just drop the public
                 # references here.
-                app.state.nexo_enabled = False
-                app.state.nexo_registered = []
-                app.state.nexo_snapshot_age_minutes = None
-                harness.nexo_graph = None
+                app.state.datasource_enabled = False
+                app.state.datasource_registered = []
+                app.state.datasource_snapshot_age_minutes = None
+                harness.data_graph = None
 
         try:
             yield
@@ -400,13 +401,16 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict[str, object]:
+        provider = getattr(app.state, "datasource_provider", None)
+        ds_name = provider.profile.name if provider is not None else "nexo"
         return {
             "status": "ok",
             "env": settings.env,
-            "nexo": {
-                "enabled": app.state.nexo_enabled,
-                "tools": list(app.state.nexo_registered),
-                "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
+            "datasource": {
+                "name": ds_name,
+                "enabled": app.state.datasource_enabled,
+                "tools": list(app.state.datasource_registered),
+                "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
             },
         }
 
@@ -417,19 +421,22 @@ def create_app() -> FastAPI:
         # the lifespan logs critical and continues serving, but the pod
         # should not receive traffic until tools register and the snapshot
         # passes the refuse-gate.
-        nexo_required = settings.nexo_dsn is not None
-        nexo_enabled = bool(app.state.nexo_enabled)
-        ready = (not nexo_required) or nexo_enabled
+        required = settings.nexo_dsn is not None
+        enabled = bool(app.state.datasource_enabled)
+        ready = (not required) or enabled
         if not ready:
             response.status_code = 503
+        provider = getattr(app.state, "datasource_provider", None)
+        ds_name = provider.profile.name if provider is not None else "nexo"
         return {
             "status": "ready" if ready else "not_ready",
             "env": settings.env,
-            "nexo": {
-                "required": nexo_required,
-                "enabled": nexo_enabled,
-                "tools": list(app.state.nexo_registered),
-                "snapshot_age_minutes": app.state.nexo_snapshot_age_minutes,
+            "datasource": {
+                "name": ds_name,
+                "required": required,
+                "enabled": enabled,
+                "tools": list(app.state.datasource_registered),
+                "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
             },
         }
 
@@ -441,7 +448,7 @@ def create_app() -> FastAPI:
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
         # Read harness from app.state so tests that inject a controlled
-        # graph (via app.state.harness.nexo_graph = ...) see their patch.
+        # graph (via app.state.harness.data_graph = ...) see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
         request = _resolve_request_identity(http_request, request)

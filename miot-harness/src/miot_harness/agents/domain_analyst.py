@@ -25,7 +25,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from miot_harness.datasource.provider import DataSourceProfile
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ Output ONLY a JSON object:
 """
 
 
-def _render_evidence(evidence: list[NexoEvidence]) -> str:
+def _render_evidence(evidence: list[DataEvidence]) -> str:
     if not evidence:
         return "(no evidence collected yet)"
     lines: list[str] = []
@@ -82,7 +82,7 @@ async def domain_analyst_node(
     model: BaseChatModel,
     profile: DataSourceProfile,
 ) -> dict[str, Any]:
-    evidence: list[NexoEvidence] = list(state.get("evidence", []))
+    evidence: list[DataEvidence] = list(state.get("evidence", []))
     if not evidence:
         # Nothing to analyze — bounce back to filter_expert via supervisor
         return {"next_action": "need_more_tools"}

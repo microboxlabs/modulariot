@@ -7,15 +7,15 @@ import pytest
 from pydantic import ValidationError
 
 from miot_harness.runtime.plan import (
-    NexoEvidence,
-    NexoPlan,
-    NexoState,
-    NexoStep,
+    DataEvidence,
+    DataPlan,
+    DataState,
+    DataStep,
 )
 
 
-def test_nexo_step_auto_id():
-    step = NexoStep(
+def test_data_step_auto_id():
+    step = DataStep(
         intent="fetch today's KPIs",
         tool="coordinador_centro_control",
         args={},
@@ -25,27 +25,27 @@ def test_nexo_step_auto_id():
     assert len(step.id) == len("step_") + 8
 
 
-def test_nexo_plan_steps_max_length_four():
-    steps = [NexoStep(intent=f"i{i}", tool="t", args={}, rationale="r") for i in range(4)]
-    plan = NexoPlan(steps=steps)
+def test_data_plan_steps_max_length_four():
+    steps = [DataStep(intent=f"i{i}", tool="t", args={}, rationale="r") for i in range(4)]
+    plan = DataPlan(steps=steps)
     assert len(plan.steps) == 4
     assert plan.final_format == "answer"
 
     with pytest.raises(ValidationError):
-        NexoPlan(
-            steps=[NexoStep(intent=f"i{i}", tool="t", args={}, rationale="r") for i in range(5)]
+        DataPlan(
+            steps=[DataStep(intent=f"i{i}", tool="t", args={}, rationale="r") for i in range(5)]
         )
 
 
-def test_nexo_plan_final_format_literal():
-    plan = NexoPlan(steps=[], final_format="story")
+def test_data_plan_final_format_literal():
+    plan = DataPlan(steps=[], final_format="story")
     assert plan.final_format == "story"
     with pytest.raises(ValidationError):
-        NexoPlan(steps=[], final_format="bogus")
+        DataPlan(steps=[], final_format="bogus")
 
 
-def test_nexo_evidence_fields():
-    ev = NexoEvidence(
+def test_data_evidence_fields():
+    ev = DataEvidence(
         step_id="step_abc",
         tool="coordinador_centro_control",
         source="Coordinador · nexo (Citus DB)",
@@ -58,8 +58,8 @@ def test_nexo_evidence_fields():
     assert ev.is_stale is False
 
 
-def test_nexo_evidence_refreshed_at_optional():
-    ev = NexoEvidence(
+def test_data_evidence_refreshed_at_optional():
+    ev = DataEvidence(
         step_id="step_abc",
         tool="t",
         source="Coordinador · nexo (Citus DB)",
@@ -71,13 +71,13 @@ def test_nexo_evidence_refreshed_at_optional():
     assert ev.refreshed_at is None
 
 
-def test_nexo_state_evidence_uses_add_reducer():
+def test_data_state_evidence_uses_add_reducer():
     """C3: LangGraph requires Annotated[..., operator.add] for accumulating lists."""
     import operator
 
-    hints = get_type_hints(NexoState, include_extras=True)
+    hints = get_type_hints(DataState, include_extras=True)
     evidence_hint = hints["evidence"]
-    # Annotated[list[NexoEvidence], operator.add]
+    # Annotated[list[DataEvidence], operator.add]
     assert getattr(evidence_hint, "__metadata__", None) is not None, (
         "evidence field must be Annotated to provide a LangGraph reducer"
     )
@@ -85,8 +85,8 @@ def test_nexo_state_evidence_uses_add_reducer():
     assert operator.add in metadata, "evidence reducer must be operator.add (or list_append alias)"
 
 
-def test_nexo_state_required_fields_present():
-    hints = get_type_hints(NexoState)
+def test_data_state_required_fields_present():
+    hints = get_type_hints(DataState)
     for field in (
         "user_message",
         "ctx",
@@ -96,4 +96,4 @@ def test_nexo_state_required_fields_present():
         "answer",
         "failure",
     ):
-        assert field in hints, f"NexoState missing field: {field}"
+        assert field in hints, f"DataState missing field: {field}"

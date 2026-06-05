@@ -1,6 +1,6 @@
 """A3 — telemetry callbacks wired into every LLM-bearing node of the Nexo graph.
 
-Invokes the real `build_nexo_graph(...)` with scripted `FakeListChatModel`s
+Invokes the real `build_data_graph(...)` with scripted `FakeListChatModel`s
 and asserts that running it emits one ``nexo.<agent>`` span per agent seat
 with the correct ``modular.agent``/``modular.run_id``/``modular.tenant_id``
 attribution. The 3-node propagation gotcha test (A6) is separate.
@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.nexo_graph import build_nexo_graph
+from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry
@@ -91,7 +91,7 @@ async def test_graph_emits_per_agent_spans_with_run_attribution(
     settings = HarnessSettings(
         nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
     )
-    graph = build_nexo_graph(
+    graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
     )
 
@@ -145,7 +145,7 @@ async def test_root_nexo_run_span_parents_per_agent_spans(
     settings = HarnessSettings(
         nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
     )
-    graph = build_nexo_graph(
+    graph = build_data_graph(
         registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
     )
     ctx = _ctx(run_id="run_root_span_test")

@@ -22,13 +22,13 @@ from pydantic import BaseModel
 class HarnessRoute(StrEnum):
     DIRECT = "direct"
     STORYTELLING_RUN = "storytelling_run"
-    NEXO_QUERY = "nexo_query"
-    # Phase E (plan 13): three Nexo modes give cost/quality tiers and
-    # let the operator dashboard split per-mode behavior. NEXO_META is
+    DATA_QUERY = "data_query"
+    # Phase E (plan 13): three data modes give cost/quality tiers and
+    # let the operator dashboard split per-mode behavior. DATA_META is
     # the only mode allowed for non-Mintral tenants (meta-info is
     # non-confidential per `decisions made -> tenant gate behavior`).
-    NEXO_META = "nexo_meta"
-    NEXO_AGENTIC = "nexo_agentic"
+    DATA_META = "data_meta"
+    DATA_AGENTIC = "data_agentic"
     OTHER = "other"
 
 
@@ -75,7 +75,7 @@ class IntentRouter:
 
         if data_match:
             return RouteResult(
-                route=HarnessRoute.NEXO_QUERY,
+                route=HarnessRoute.DATA_QUERY,
                 reason=f"Nexo keyword matched: {data_match!r}",
             )
 

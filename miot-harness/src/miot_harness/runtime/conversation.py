@@ -109,7 +109,7 @@ def to_messages(
 ) -> list[BaseMessage]:
     """Project history into a LangChain message list, trimmed to a token budget.
 
-    Used by the supervisor to hydrate `NexoState.prior_messages` before graph
+    Used by the supervisor to hydrate `DataState.prior_messages` before graph
     dispatch. Each `ConversationTurn(user_message, assistant_answer)` expands
     to a `[HumanMessage, AIMessage]` pair (chronological order); we then
     delegate to `langchain_core.messages.trim_messages` with

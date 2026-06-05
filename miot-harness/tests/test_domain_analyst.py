@@ -10,15 +10,15 @@ from langchain_core.language_models import FakeListChatModel
 from miot_harness.agents.domain_analyst import domain_analyst_node
 from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 
 
 def _ctx() -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
 
 
-def _ev(output: dict[str, Any] | None = None, is_stale: bool = False) -> NexoEvidence:
-    return NexoEvidence(
+def _ev(output: dict[str, Any] | None = None, is_stale: bool = False) -> DataEvidence:
+    return DataEvidence(
         step_id="s",
         tool="coordinador_centro_control",
         source="src",

@@ -1,6 +1,6 @@
 """LangChain callback that emits per-agent OTel GenAI spans for each LLM call.
 
-Bound to each LangGraph node in ``runtime/nexo_graph.py`` (A3) via the
+Bound to each LangGraph node in ``runtime/data_graph.py`` (A3) via the
 ``callbacks`` field of ``RunnableConfig``. One callback instance per node
 invocation; the instance tracks per-run-id span handles so concurrent LLM
 calls under the same node do not cross-talk.
@@ -102,7 +102,7 @@ def _extract_usage(response: LLMResult) -> TokenUsage:
     )
 
 
-class NexoTelemetryCallback(BaseCallbackHandler):
+class AgentTelemetryCallback(BaseCallbackHandler):
     """Emits one OTel span per LLM call, attributed to the owning agent."""
 
     def __init__(

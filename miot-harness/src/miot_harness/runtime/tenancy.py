@@ -1,8 +1,8 @@
 """Route-aware tenancy gate (plan 13, E7).
 
 Refactor of plan 12's per-graph `tenant_gate_node` into a single
-decision function shared by `nexo_graph.py` (NEXO_QUERY) and
-`agentic_graph.py` (NEXO_AGENTIC). NEXO_META is allowed for any
+decision function shared by `data_graph.py` (DATA_QUERY) and
+`agentic_graph.py` (DATA_AGENTIC). DATA_META is allowed for any
 authenticated tenant — meta-info is non-confidential.
 
 The decision function is pure (no I/O, no LLM call) so the graphs can
@@ -24,11 +24,11 @@ from miot_harness.runtime.router import HarnessRoute
 
 # Routes that touch tenant DATA (must match the tenant lock).
 _DATA_ROUTES: frozenset[HarnessRoute] = frozenset(
-    {HarnessRoute.NEXO_QUERY, HarnessRoute.NEXO_AGENTIC}
+    {HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC}
 )
 
 # Routes that return non-confidential meta information (allow any tenant).
-_META_ROUTES: frozenset[HarnessRoute] = frozenset({HarnessRoute.NEXO_META})
+_META_ROUTES: frozenset[HarnessRoute] = frozenset({HarnessRoute.DATA_META})
 
 
 @dataclass(frozen=True, slots=True)

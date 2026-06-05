@@ -23,7 +23,7 @@ def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 def test_health_default_nexo_disabled() -> None:
     """Without MIOT_HARNESS_NEXO_DSN, lifespan disables Nexo and
-    /health reports the deploy-readable shape with Nexo state defaults."""
+    /health reports the deploy-readable shape with datasource state defaults."""
     app = create_app()
     with TestClient(app) as client:
         resp = client.get("/health")
@@ -31,10 +31,12 @@ def test_health_default_nexo_disabled() -> None:
     body = resp.json()
     assert body["status"] == "ok"
     assert "env" in body
-    nexo = body["nexo"]
-    assert nexo["enabled"] is False
-    assert nexo["tools"] == []
-    assert nexo["snapshot_age_minutes"] is None
+    assert body["datasource"] == {
+        "name": "nexo",
+        "enabled": False,
+        "tools": [],
+        "snapshot_age_minutes": None,
+    }
 
 
 def test_health_reflects_simulated_nexo_enabled_state() -> None:
@@ -45,21 +47,23 @@ def test_health_reflects_simulated_nexo_enabled_state() -> None:
     with TestClient(app) as client:
         # First call confirms baseline.
         baseline = client.get("/health").json()
-        assert baseline["nexo"]["enabled"] is False
+        assert baseline["datasource"]["enabled"] is False
 
         # Simulate post-boot state mutation as if Nexo had enabled.
-        app.state.nexo_enabled = True
-        app.state.nexo_registered = ["coordinador_centro_control", "coordinador_servicios"]
-        app.state.nexo_snapshot_age_minutes = 12.5
+        app.state.datasource_enabled = True
+        app.state.datasource_registered = ["coordinador_centro_control", "coordinador_servicios"]
+        app.state.datasource_snapshot_age_minutes = 12.5
 
         body = client.get("/health").json()
-    nexo = body["nexo"]
-    assert nexo["enabled"] is True
-    assert nexo["tools"] == [
-        "coordinador_centro_control",
-        "coordinador_servicios",
-    ]
-    assert nexo["snapshot_age_minutes"] == 12.5
+    assert body["datasource"] == {
+        "name": "nexo",
+        "enabled": True,
+        "tools": [
+            "coordinador_centro_control",
+            "coordinador_servicios",
+        ],
+        "snapshot_age_minutes": 12.5,
+    }
 
 
 def test_health_ready_without_nexo_dsn_is_ready() -> None:
@@ -70,11 +74,13 @@ def test_health_ready_without_nexo_dsn_is_ready() -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ready"
-    nexo = body["nexo"]
-    assert nexo["required"] is False
-    assert nexo["enabled"] is False
-    assert nexo["tools"] == []
-    assert nexo["snapshot_age_minutes"] is None
+    assert body["datasource"] == {
+        "name": "nexo",
+        "required": False,
+        "enabled": False,
+        "tools": [],
+        "snapshot_age_minutes": None,
+    }
 
 
 def test_health_ready_with_dsn_but_nexo_disabled_returns_503(
@@ -99,9 +105,9 @@ def test_health_ready_with_dsn_but_nexo_disabled_returns_503(
     assert resp.status_code == 503
     body = resp.json()
     assert body["status"] == "not_ready"
-    nexo = body["nexo"]
-    assert nexo["required"] is True
-    assert nexo["enabled"] is False
+    ds = body["datasource"]
+    assert ds["required"] is True
+    assert ds["enabled"] is False
 
 
 def test_health_ready_reflects_simulated_nexo_enabled_state(
@@ -122,15 +128,17 @@ def test_health_ready_reflects_simulated_nexo_enabled_state(
     ):
         app = create_app()
         with TestClient(app) as client:
-            app.state.nexo_enabled = True
-            app.state.nexo_registered = ["coordinador_centro_control"]
-            app.state.nexo_snapshot_age_minutes = 7.5
+            app.state.datasource_enabled = True
+            app.state.datasource_registered = ["coordinador_centro_control"]
+            app.state.datasource_snapshot_age_minutes = 7.5
             resp = client.get("/health/ready")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ready"
-    nexo = body["nexo"]
-    assert nexo["required"] is True
-    assert nexo["enabled"] is True
-    assert nexo["tools"] == ["coordinador_centro_control"]
-    assert nexo["snapshot_age_minutes"] == 7.5
+    assert body["datasource"] == {
+        "name": "nexo",
+        "required": True,
+        "enabled": True,
+        "tools": ["coordinador_centro_control"],
+        "snapshot_age_minutes": 7.5,
+    }

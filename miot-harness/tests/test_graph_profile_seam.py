@@ -6,7 +6,7 @@ from __future__ import annotations
 from langchain_core.language_models import FakeListChatModel
 
 from miot_harness.config import HarnessSettings
-from miot_harness.runtime.nexo_graph import build_nexo_graph
+from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.fake_provider import FAKE_PROFILE
 
@@ -14,7 +14,7 @@ from tests.fixtures.fake_provider import FAKE_PROFILE
 def _models() -> dict[str, FakeListChatModel]:
     """Cheapest model pool: one empty FakeListChatModel per LLM seat. The
     seam test only compiles the graph (no ainvoke), so no responses needed.
-    Mirrors the seat list used by tests/test_nexo_graph.py::_models.
+    Mirrors the seat list used by tests/integrations/nexo/test_graph.py::_models.
     """
     return {
         "filter_expert": FakeListChatModel(responses=[]),
@@ -25,8 +25,8 @@ def _models() -> dict[str, FakeListChatModel]:
     }
 
 
-def test_build_nexo_graph_with_fake_profile_compiles() -> None:
-    graph = build_nexo_graph(
+def test_build_data_graph_with_fake_profile_compiles() -> None:
+    graph = build_data_graph(
         registry=ToolRegistry(),
         settings=HarnessSettings(),
         models=_models(),

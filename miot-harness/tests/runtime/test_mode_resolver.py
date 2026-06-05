@@ -34,7 +34,7 @@ async def test_explicit_canned_mode_bypasses_router() -> None:
     result = await resolve_mode(
         request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="mintral"
     )
-    assert result.route is HarnessRoute.NEXO_QUERY
+    assert result.route is HarnessRoute.DATA_QUERY
     assert "canned" in result.reason
 
 
@@ -45,7 +45,7 @@ async def test_explicit_meta_mode_bypasses_router() -> None:
         request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="mintral"
     )
     # Meta is allowed for any tenant — non-confidential by spec.
-    assert result.route is HarnessRoute.NEXO_META
+    assert result.route is HarnessRoute.DATA_META
 
 
 @pytest.mark.asyncio
@@ -54,7 +54,7 @@ async def test_explicit_agentic_mode_for_mintral_tenant() -> None:
     result = await resolve_mode(
         request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="mintral"
     )
-    assert result.route is HarnessRoute.NEXO_AGENTIC
+    assert result.route is HarnessRoute.DATA_AGENTIC
 
 
 @pytest.mark.asyncio
@@ -88,12 +88,12 @@ async def test_explicit_canned_mode_rejected_for_non_mintral_tenant() -> None:
 @pytest.mark.asyncio
 async def test_auto_mode_delegates_to_llm_router() -> None:
     model = FakeListChatModel(
-        responses=[json.dumps({"route": "NEXO_AGENTIC", "confidence": 0.95})]
+        responses=[json.dumps({"route": "DATA_AGENTIC", "confidence": 0.95})]
     )
     router = LLMIntentRouter(model, confidence_threshold=0.7, keyword_fallback=IntentRouter())
     request = UserRequest(message="show me services", tenant_id="mintral")  # mode default "auto"
     result = await resolve_mode(request, llm_router=router, tenant_lock="mintral")
-    assert result.route is HarnessRoute.NEXO_AGENTIC
+    assert result.route is HarnessRoute.DATA_AGENTIC
 
 
 def test_user_request_rejects_unknown_mode() -> None:

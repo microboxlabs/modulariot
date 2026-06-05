@@ -1,4 +1,4 @@
-"""NexoTelemetryCallback span emission (A2)."""
+"""AgentTelemetryCallback span emission (A2)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from miot_harness.observability.callbacks import NexoTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback
 
 
 def _serialized_anthropic(model: str = "claude-haiku-4-5") -> dict[str, object]:
@@ -45,7 +45,7 @@ def _llm_result(
 def test_callback_opens_and_closes_span_with_token_attrs(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    cb = NexoTelemetryCallback(agent_name="filter_expert", run_id="root-1", tenant_id="mintral")
+    cb = AgentTelemetryCallback(agent_name="filter_expert", run_id="root-1", tenant_id="mintral")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
     cb.on_llm_end(_llm_result(input_tokens=200, output_tokens=80), run_id=rid)
@@ -70,7 +70,7 @@ def test_callback_opens_and_closes_span_with_token_attrs(
 def test_callback_emits_cache_token_attrs_when_present(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    cb = NexoTelemetryCallback(agent_name="domain_analyst", run_id="root-2")
+    cb = AgentTelemetryCallback(agent_name="domain_analyst", run_id="root-2")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
     cb.on_llm_end(
@@ -89,7 +89,7 @@ def test_callback_handles_multiple_concurrent_runs(
 ) -> None:
     """Each run_id gets its own span — no cross-talk between concurrent calls."""
 
-    cb = NexoTelemetryCallback(agent_name="executor", run_id="root-3")
+    cb = AgentTelemetryCallback(agent_name="executor", run_id="root-3")
     a, b = uuid4(), uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="a")]], run_id=a)
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="b")]], run_id=b)
@@ -108,7 +108,7 @@ def test_callback_records_error_status_on_llm_error(
 ) -> None:
     from opentelemetry.trace import StatusCode
 
-    cb = NexoTelemetryCallback(agent_name="critic", run_id="root-4")
+    cb = AgentTelemetryCallback(agent_name="critic", run_id="root-4")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="x")]], run_id=rid)
     cb.on_llm_error(RuntimeError("provider 5xx"), run_id=rid)
@@ -121,7 +121,7 @@ def test_callback_records_error_status_on_llm_error(
 def test_callback_infers_openai_provider_from_model_name(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    cb = NexoTelemetryCallback(agent_name="meta_agent", run_id="root-5")
+    cb = AgentTelemetryCallback(agent_name="meta_agent", run_id="root-5")
     rid = uuid4()
     serialized = {
         "lc": 1,
@@ -142,7 +142,7 @@ def test_callback_span_prefix_overrides_nexo_default(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
     """When span_prefix='fake', emitted span names start with 'fake.' not 'nexo.'."""
-    cb = NexoTelemetryCallback(agent_name="filter_expert", run_id="root-6", span_prefix="fake")
+    cb = AgentTelemetryCallback(agent_name="filter_expert", run_id="root-6", span_prefix="fake")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
     cb.on_llm_end(_llm_result(input_tokens=10, output_tokens=5), run_id=rid)

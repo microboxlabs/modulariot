@@ -1,4 +1,4 @@
-"""Agentic graph (plan 13, E6) — looser variant of `nexo_graph` for free
+"""Agentic graph (plan 13, E6) — looser variant of `data_graph` for free
 exploration of the datasource via the composable primitives.
 
 Differences from the plan-execute graph:
@@ -32,7 +32,7 @@ from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.node_lifecycle import wrap_node_with_lifecycle
-from miot_harness.runtime.plan import NexoState
+from miot_harness.runtime.plan import DataState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 
@@ -84,18 +84,18 @@ def build_agentic_graph(
     Pass None for tests that don't need provenance recording.
     """
 
-    graph = StateGraph(NexoState)
+    graph = StateGraph(DataState)
 
-    async def tenancy_gate(state: NexoState) -> dict[str, Any]:
+    async def tenancy_gate(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         decision = tenancy_gate_decision(
-            ctx=ctx, route=HarnessRoute.NEXO_AGENTIC, settings=settings, profile=profile
+            ctx=ctx, route=HarnessRoute.DATA_AGENTIC, settings=settings, profile=profile
         )
         if not decision.allowed:
             return {"answer": decision.refusal_message}
         return {}
 
-    async def planner(state: NexoState) -> dict[str, Any]:
+    async def planner(state: DataState) -> dict[str, Any]:
         # Stub planner: bumps turn count, exits if at cap. The real
         # planner (live LLM call) constructs a plan with curated tools
         # and/or composable primitives. Tests assert wiring; F3 covers
@@ -113,7 +113,7 @@ def build_agentic_graph(
             return {"failure": "agentic turn cap exceeded"}
         return {"turn_count": turn_count + 1}
 
-    async def synthesizer(state: NexoState) -> dict[str, Any]:
+    async def synthesizer(state: DataState) -> dict[str, Any]:
         # Fire the synthesizer model with: SystemMessage(primer + rules)
         # + prior_messages (E5 hydration) + current user HumanMessage.
         # The SystemMessage is load-bearing in stub state — without it,
@@ -160,12 +160,12 @@ def build_agentic_graph(
         text = response.content if hasattr(response, "content") else str(response)
         return {"answer": text if isinstance(text, str) else str(text)}
 
-    async def critic(state: NexoState) -> dict[str, Any]:
+    async def critic(state: DataState) -> dict[str, Any]:
         # Critic ON by default in agentic mode (plan 12 §line 245). For
         # the wiring tests we approve and pass through.
         return {}
 
-    async def summarizer(state: NexoState) -> dict[str, Any]:
+    async def summarizer(state: DataState) -> dict[str, Any]:
         return {}
 
     graph.add_node(
@@ -179,7 +179,7 @@ def build_agentic_graph(
 
     graph.set_entry_point("tenancy_gate")
 
-    def route_from_gate(state: NexoState) -> str:
+    def route_from_gate(state: DataState) -> str:
         if cast(dict[str, Any], state).get("answer"):
             return END
         return "planner"

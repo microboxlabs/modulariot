@@ -38,7 +38,7 @@ def _scripted_router(route: str) -> LLMIntentRouter:
 def _supervisor(
     tmp_path: Any,
     *,
-    nexo_graph: Any = None,
+    data_graph: Any = None,
     agentic_graph: Any = None,
     llm_router: LLMIntentRouter | None = None,
     event_bus: RunEventBus | None = None,
@@ -48,7 +48,7 @@ def _supervisor(
         tools=ToolRegistry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
-        nexo_graph=nexo_graph,
+        data_graph=data_graph,
         agentic_graph=agentic_graph,
         llm_router=llm_router,
         tenant_lock="mintral",
@@ -66,8 +66,8 @@ async def test_events_published_to_bus_match_record_events(tmp_path: Any) -> Non
     bus = RunEventBus()
     received: list[HarnessEvent] = []
 
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(
         return_value={
             "answer": "ok",
             "_events": [
@@ -78,8 +78,8 @@ async def test_events_published_to_bus_match_record_events(tmp_path: Any) -> Non
     )
     sup = _supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=bus,
     )
 
@@ -128,12 +128,12 @@ async def test_bus_closed_on_happy_completion(tmp_path: Any) -> None:
     """
 
     bus = RunEventBus()
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
     sup = _supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=bus,
     )
 
@@ -199,12 +199,12 @@ async def test_bus_closed_on_run_failure(tmp_path: Any) -> None:
     """
 
     bus = RunEventBus()
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(side_effect=RuntimeError("boom"))
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(side_effect=RuntimeError("boom"))
     sup = _supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=bus,
     )
 
@@ -223,12 +223,12 @@ async def test_bus_emits_cancelled_run_failed_on_task_cancel(tmp_path: Any) -> N
     """
 
     bus = RunEventBus()
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(side_effect=asyncio.CancelledError())
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(side_effect=asyncio.CancelledError())
     sup = _supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=bus,
     )
 
@@ -256,12 +256,12 @@ async def test_supervisor_without_bus_behaves_unchanged(tmp_path: Any) -> None:
     the eval / demo-CLI path.
     """
 
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
     sup = _supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=None,
     )
     record = await sup.run(UserRequest(message="q", tenant_id="mintral"))
@@ -277,12 +277,12 @@ async def test_supervisor_honors_run_id_override(tmp_path: Any) -> None:
     any events. `run_id_override` is the seam.
     """
 
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
     sup = _supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
     )
     record = await sup.run(
         UserRequest(message="q", tenant_id="mintral"),
@@ -316,8 +316,8 @@ async def test_supervisor_checkpoints_during_long_run(tmp_path: Any) -> None:
         HarnessEvent(run_id="x", type="agent.turn", message=f"m{i}")
         for i in range(5)
     ]
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(
         return_value={"answer": "ok", "_events": graph_events}
     )
     sup = HarnessSupervisor(
@@ -325,8 +325,8 @@ async def test_supervisor_checkpoints_during_long_run(tmp_path: Any) -> None:
         tools=ToolRegistry(),
         stories=StorytellingModule(),
         run_store=CountingStore(tmp_path),
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=RunEventBus(),
         checkpoint_every_n_events=2,
         tenant_lock="mintral",
@@ -359,8 +359,8 @@ async def test_supervisor_skips_checkpoint_when_no_event_bus(tmp_path: Any) -> N
         HarnessEvent(run_id="x", type="agent.turn", message=f"m{i}")
         for i in range(5)
     ]
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(
         return_value={"answer": "ok", "_events": graph_events}
     )
     sup = HarnessSupervisor(
@@ -368,8 +368,8 @@ async def test_supervisor_skips_checkpoint_when_no_event_bus(tmp_path: Any) -> N
         tools=ToolRegistry(),
         stories=StorytellingModule(),
         run_store=CountingStore(tmp_path),
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_router("DATA_QUERY"),
         event_bus=None,  # eval path
         checkpoint_every_n_events=2,
         tenant_lock="mintral",

@@ -12,7 +12,7 @@ from miot_harness.agents.filter_expert import (
 )
 from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.plan import NexoPlan, NexoStep
+from miot_harness.runtime.plan import DataPlan, DataStep
 from miot_harness.runtime.tool import HarnessTool  # noqa: F401
 from miot_harness.tools.registry import ToolRegistry
 
@@ -74,7 +74,7 @@ def test_build_tool_catalog_includes_layer_hint():
 @pytest.mark.asyncio
 async def test_filter_expert_produces_single_step():
     """Given a user message and a tool catalog, filter_expert returns a
-    state update with a NexoStep added to the plan."""
+    state update with a DataStep added to the plan."""
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI summary"))
 
@@ -100,10 +100,10 @@ async def test_filter_expert_produces_single_step():
     )
 
     plan = update["plan"]
-    assert isinstance(plan, NexoPlan)
+    assert isinstance(plan, DataPlan)
     assert len(plan.steps) == 1
     step = plan.steps[0]
-    assert isinstance(step, NexoStep)
+    assert isinstance(step, DataStep)
     assert step.tool == "coordinador_centro_control"
     assert step.intent
     assert step.rationale
@@ -127,9 +127,9 @@ async def test_filter_expert_appends_to_existing_plan():
     )
     model = FakeListChatModel(responses=[fake_response])
 
-    existing_plan = NexoPlan(
+    existing_plan = DataPlan(
         steps=[
-            NexoStep(intent="initial", tool="coordinador_centro_control", args={}, rationale="r")
+            DataStep(intent="initial", tool="coordinador_centro_control", args={}, rationale="r")
         ]
     )
     state = {
@@ -202,7 +202,7 @@ async def test_filter_expert_handles_json_fenced_response():
 
 @pytest.mark.asyncio
 async def test_filter_expert_handles_plan_max_steps():
-    """When NexoPlan's max_length=4 cap is hit, fail soft → route to synth."""
+    """When DataPlan's max_length=4 cap is hit, fail soft → route to synth."""
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
     fake_response = json.dumps(
@@ -214,9 +214,9 @@ async def test_filter_expert_handles_plan_max_steps():
         }
     )
     model = FakeListChatModel(responses=[fake_response])
-    full_plan = NexoPlan(
+    full_plan = DataPlan(
         steps=[
-            NexoStep(intent=f"i{i}", tool="coordinador_centro_control", args={}, rationale="r")
+            DataStep(intent=f"i{i}", tool="coordinador_centro_control", args={}, rationale="r")
             for i in range(4)
         ]
     )

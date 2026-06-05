@@ -54,7 +54,7 @@ def _meta_catalog() -> list[MetaAgentCatalogEntry]:
 def _build_supervisor(
     tmp_path: Any,
     *,
-    nexo_graph: Any = None,
+    data_graph: Any = None,
     llm_router: LLMIntentRouter | None = None,
     agentic_graph: Any = None,
     meta_model: Any = None,
@@ -65,7 +65,7 @@ def _build_supervisor(
         tools=ToolRegistry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
-        nexo_graph=nexo_graph,
+        data_graph=data_graph,
         llm_router=llm_router,
         agentic_graph=agentic_graph,
         meta_model=meta_model,
@@ -77,19 +77,19 @@ def _build_supervisor(
 
 
 @pytest.mark.asyncio
-async def test_explicit_canned_mode_dispatches_to_nexo_graph(tmp_path: Any) -> None:
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "canned answer", "_events": []})
+async def test_explicit_canned_mode_dispatches_to_data_graph(tmp_path: Any) -> None:
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "canned answer", "_events": []})
     supervisor = _build_supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
+        data_graph=data_graph,
         llm_router=_scripted_llm_router("DIRECT"),  # should NOT be consulted
     )
 
     record = await supervisor.run(
         UserRequest(message="anything", tenant_id="mintral", mode="canned")
     )
-    nexo_graph.ainvoke.assert_awaited_once()
+    data_graph.ainvoke.assert_awaited_once()
     assert record.answer == "canned answer"
 
 
@@ -111,13 +111,13 @@ async def test_explicit_meta_mode_calls_meta_agent(tmp_path: Any) -> None:
 async def test_meta_mode_per_agent_span_carries_tenant_tag(
     tmp_path: Any, memory_exporter: Any
 ) -> None:
-    """NEXO_META observation-level attribution: the harness-emitted
+    """DATA_META observation-level attribution: the harness-emitted
     per-agent ``nexo.meta_agent`` span carries the same
     ``modular.{agent, tenant_id, mode}`` + ``langfuse.tags`` attrs as
     canned/agentic paths.
 
     Scope: covers the harness-side wrap (the per-agent span emitted by
-    ``NexoTelemetryCallback`` when ``_run_nexo_meta`` calls
+    ``AgentTelemetryCallback`` when ``_run_data_meta`` calls
     ``instrument_model(self.meta_model, "meta_agent", ctx)``). It does
     NOT exercise Traceloop's auto-instrumented ``anthropic.chat`` child
     observation — ``FakeListChatModel`` doesn't trigger the Anthropic
@@ -205,8 +205,8 @@ async def test_auto_mode_uses_llm_router_to_pick_route(tmp_path: Any) -> None:
     supervisor = _build_supervisor(
         tmp_path,
         agentic_graph=agentic_graph,
-        # LLM router classifies any message as NEXO_AGENTIC.
-        llm_router=_scripted_llm_router("NEXO_AGENTIC"),
+        # LLM router classifies any message as DATA_AGENTIC.
+        llm_router=_scripted_llm_router("DATA_AGENTIC"),
     )
     record = await supervisor.run(
         UserRequest(message="show me stuff", tenant_id="mintral")  # mode default "auto"
@@ -223,12 +223,12 @@ async def test_conversation_id_round_trips_via_store(tmp_path: Any) -> None:
     """
 
     store = InMemoryConversationStore()
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "first answer", "_events": []})
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "first answer", "_events": []})
     supervisor = _build_supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_llm_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
         conversation_store=store,
     )
     record = await supervisor.run(
@@ -249,21 +249,21 @@ async def test_conversation_id_round_trips_via_store(tmp_path: Any) -> None:
 async def test_backward_compatibility_when_llm_router_not_provided(tmp_path: Any) -> None:
     """Existing call sites that pass only the keyword router must still work."""
 
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(return_value={"answer": "via keyword", "_events": []})
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "via keyword", "_events": []})
     # No llm_router, no agentic_graph, no meta_model — the original Plan 12 surface.
     supervisor = HarnessSupervisor(
         router=IntentRouter(),
         tools=ToolRegistry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
-        nexo_graph=nexo_graph,
+        data_graph=data_graph,
     )
-    # "Mintral" keyword triggers NEXO_QUERY in the keyword router.
+    # "Mintral" keyword triggers DATA_QUERY in the keyword router.
     record = await supervisor.run(
         UserRequest(message="Mintral fleet status", tenant_id="mintral")
     )
-    nexo_graph.ainvoke.assert_awaited_once()
+    data_graph.ainvoke.assert_awaited_once()
     assert record.answer == "via keyword"
 
 
@@ -271,7 +271,7 @@ async def test_backward_compatibility_when_llm_router_not_provided(tmp_path: Any
 
 
 @pytest.mark.asyncio
-async def test_supervisor_hydrates_prior_messages_into_nexo_graph_state(
+async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     tmp_path: Any,
 ) -> None:
     """Two `/runs` calls with the same `conversation_id`: turn-2's graph
@@ -286,14 +286,14 @@ async def test_supervisor_hydrates_prior_messages_into_nexo_graph_state(
     from langchain_core.messages import AIMessage, HumanMessage
 
     store = InMemoryConversationStore()
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(
         return_value={"answer": "first-turn answer", "_events": []}
     )
     supervisor = _build_supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_llm_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
         conversation_store=store,
     )
 
@@ -305,19 +305,19 @@ async def test_supervisor_hydrates_prior_messages_into_nexo_graph_state(
             conversation_id="conv-hydrate-1",
         )
     )
-    turn1_state = nexo_graph.ainvoke.call_args[0][0]
+    turn1_state = data_graph.ainvoke.call_args[0][0]
     assert turn1_state.get("prior_messages") == []
 
     # Turn 2: the store now has turn-1's append → prior_messages must
     # carry [HumanMessage("estado del coordinador"), AIMessage("first-turn answer")].
-    nexo_graph.ainvoke.reset_mock()
-    nexo_graph.ainvoke = AsyncMock(
+    data_graph.ainvoke.reset_mock()
+    data_graph.ainvoke = AsyncMock(
         return_value={"answer": "second-turn answer", "_events": []}
     )
-    supervisor.nexo_graph = nexo_graph
+    supervisor.data_graph = data_graph
     # New scripted LLM router response so the second run's "auto" mode
-    # still classifies as NEXO_QUERY.
-    supervisor.llm_router = _scripted_llm_router("NEXO_QUERY")
+    # still classifies as DATA_QUERY.
+    supervisor.llm_router = _scripted_llm_router("DATA_QUERY")
     await supervisor.run(
         UserRequest(
             message="tell me more about that",
@@ -325,7 +325,7 @@ async def test_supervisor_hydrates_prior_messages_into_nexo_graph_state(
             conversation_id="conv-hydrate-1",
         )
     )
-    turn2_state = nexo_graph.ainvoke.call_args[0][0]
+    turn2_state = data_graph.ainvoke.call_args[0][0]
     prior = turn2_state.get("prior_messages")
     assert prior is not None and len(prior) == 2
     assert isinstance(prior[0], HumanMessage)
@@ -436,14 +436,14 @@ async def test_run_record_events_have_contiguous_monotonic_seq(tmp_path: Any) ->
         HarnessEvent(run_id="ignored", type="agent.turn", message="planner"),
         HarnessEvent(run_id="ignored", type="tool.completed", message="done"),
     ]
-    nexo_graph = AsyncMock()
-    nexo_graph.ainvoke = AsyncMock(
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(
         return_value={"answer": "result", "_events": graph_events}
     )
     supervisor = _build_supervisor(
         tmp_path,
-        nexo_graph=nexo_graph,
-        llm_router=_scripted_llm_router("NEXO_QUERY"),
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
     )
 
     record = await supervisor.run(
@@ -455,13 +455,13 @@ async def test_run_record_events_have_contiguous_monotonic_seq(tmp_path: Any) ->
         f"expected contiguous seq from 0, got {seqs}"
     )
     # Sanity: at least run.started + route.selected + 3 graph events +
-    # run.completed = 6 events on the happy NEXO_QUERY path.
+    # run.completed = 6 events on the happy DATA_QUERY path.
     assert len(seqs) >= 6
 
 
 @pytest.mark.asyncio
 async def test_seq_monotonic_across_agentic_path(tmp_path: Any) -> None:
-    """Same contract on the NEXO_AGENTIC drain — events from the agentic
+    """Same contract on the DATA_AGENTIC drain — events from the agentic
     graph also get stamped with monotonic seq when appended.
     """
 

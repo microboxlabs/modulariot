@@ -41,11 +41,11 @@ from miot_harness.agents.supervisor import next_agent
 from miot_harness.agents.synthesizer import synthesizer_node
 from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
-from miot_harness.observability.callbacks import NexoTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.node_lifecycle import GraphLabel, wrap_node_with_lifecycle
-from miot_harness.runtime.plan import NexoState
+from miot_harness.runtime.plan import DataState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 from miot_harness.tools.registry import ToolRegistry
@@ -81,7 +81,7 @@ def instrument_model(
     # set so one-shot requests still group under a session key.
     session_id = ctx.conversation_id or ctx.thread_id
     tags = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}", f"agent:{agent_name}"]
-    cb = NexoTelemetryCallback(
+    cb = AgentTelemetryCallback(
         agent_name=agent_name,
         run_id=ctx.run_id,
         tenant_id=ctx.tenant_id,
@@ -97,7 +97,7 @@ def instrument_model(
 
 def _make_event_buffer() -> tuple[list[HarnessEvent], Any]:
     """Return (buffer, append) — nodes push events into the buffer, then
-    return them in their state delta as `_events`. NexoState declares
+    return them in their state delta as `_events`. DataState declares
     `_events` with a list/operator.add reducer so events accumulate in
     order across supersteps without relying on in-place mutation
     of state (which is not part of the LangGraph contract).
@@ -118,7 +118,7 @@ async def _tenant_gate_node(
     """
     ctx: HarnessContext = state["ctx"]
     decision = tenancy_gate_decision(
-        ctx=ctx, route=HarnessRoute.NEXO_QUERY, settings=settings, profile=profile
+        ctx=ctx, route=HarnessRoute.DATA_QUERY, settings=settings, profile=profile
     )
     if not decision.allowed:
         # Skip every LLM call; supervisor sees `answer` set and ends.
@@ -141,14 +141,14 @@ _ROUTE_MAP = {
 }
 
 
-def build_nexo_graph(
+def build_data_graph(
     *,
     registry: ToolRegistry,
     settings: HarnessSettings,
     models: dict[str, BaseChatModel],
     profile: DataSourceProfile,
 ) -> Any:
-    graph = StateGraph(NexoState)
+    graph = StateGraph(DataState)
     # Graph label for node-lifecycle spans. For NEXO_PROFILE this is "nexo",
     # byte-identical to the former literal on the wire. GraphLabel is a
     # constrained Literal today; widening it to accept any profile.name is a
@@ -161,7 +161,7 @@ def build_nexo_graph(
             delta["_events"] = [*existing, *events]
         return delta
 
-    async def _filter_expert(state: NexoState) -> dict[str, Any]:
+    async def _filter_expert(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await filter_expert_node(
@@ -175,7 +175,7 @@ def build_nexo_graph(
         )
         return _merge_events(delta, buf)
 
-    async def _data_fetcher(state: NexoState) -> dict[str, Any]:
+    async def _data_fetcher(state: DataState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
         delta = await data_fetcher_node(
             cast(dict[str, Any], state),
@@ -186,14 +186,14 @@ def build_nexo_graph(
         )
         return _merge_events(delta, buf)
 
-    def _freshness_judge(state: NexoState) -> dict[str, Any]:
+    def _freshness_judge(state: DataState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
         delta = freshness_judge_node(
             cast(dict[str, Any], state), settings=settings, progress=progress, profile=profile
         )
         return _merge_events(delta, buf)
 
-    async def _domain_analyst(state: NexoState) -> dict[str, Any]:
+    async def _domain_analyst(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await domain_analyst_node(
@@ -206,7 +206,7 @@ def build_nexo_graph(
         )
         return _merge_events(delta, buf)
 
-    async def _synthesizer(state: NexoState) -> dict[str, Any]:
+    async def _synthesizer(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await synthesizer_node(
@@ -221,7 +221,7 @@ def build_nexo_graph(
         )
         return _merge_events(delta, buf)
 
-    async def _critic(state: NexoState) -> dict[str, Any]:
+    async def _critic(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await critic_node(
@@ -235,7 +235,7 @@ def build_nexo_graph(
         )
         return _merge_events(delta, buf)
 
-    async def _summarizer(state: NexoState) -> dict[str, Any]:
+    async def _summarizer(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
         delta = await summarizer_node(
@@ -247,7 +247,7 @@ def build_nexo_graph(
         )
         return _merge_events(delta, buf)
 
-    async def _tenant_gate(state: NexoState) -> dict[str, Any]:
+    async def _tenant_gate(state: DataState) -> dict[str, Any]:
         return await _tenant_gate_node(
             cast(dict[str, Any], state), settings=settings, profile=profile
         )
@@ -280,7 +280,7 @@ def build_nexo_graph(
 
     graph.set_entry_point("tenant_gate")
 
-    def route(state: NexoState) -> str:
+    def route(state: DataState) -> str:
         return _route(cast(dict[str, Any], state), settings)
 
     # Most nodes route via the supervisor; synthesizer always flows

@@ -130,7 +130,7 @@ describe("<App /> smoke", () => {
   });
 
   it(
-    "renders the final record.answer when answer.completed has no data.text (nexo_meta case)",
+    "renders the final record.answer when answer.completed has no data.text (data_meta case)",
     { timeout: 15000 },
     async () => {
       // Reproduces the user-reported flow: harness emits
@@ -141,7 +141,7 @@ describe("<App /> smoke", () => {
       const ctx = deterministicCtx();
       const events: HarnessEvent[] = [
         evt("run.started"),
-        evt("route.selected", { data: { route: "nexo_meta" } }),
+        evt("route.selected", { data: { route: "data_meta" } }),
         evt("answer.completed", {
           message: "Meta agent answered",
           data: { length: 42 },
@@ -192,7 +192,7 @@ describe("<App /> smoke", () => {
     { timeout: 15000 },
     async () => {
       // Matches the screenshot the user reported:
-      //   route.selected nexo_query
+      //   route.selected data_query
       //   plan.created
       //   tool.started "Starting coordinador_eta_riesgo_hoy"
       //   tool.completed "Completed coordinador_eta_riesgo_hoy"
@@ -202,7 +202,7 @@ describe("<App /> smoke", () => {
       const ctx = deterministicCtx();
       const events: HarnessEvent[] = [
         evt("run.started"),
-        evt("route.selected", { data: { route: "nexo_query" } }),
+        evt("route.selected", { data: { route: "data_query" } }),
         evt("plan.created", { message: "Initial plan created by filter_expert" }),
         evt("tool.started", {
           data: { name: "Starting coordinador_eta_riesgo_hoy" },

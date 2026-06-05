@@ -3,7 +3,7 @@
 The supervisor opens a ``nexo.run`` root span around the whole graph
 invocation (see ``runtime/supervisor.py``). LangGraph node bodies do not
 wrap themselves in ``agent_span`` — instead, the per-agent
-``NexoTelemetryCallback`` emits one ``nexo.<agent>`` span per LLM call
+``AgentTelemetryCallback`` emits one ``nexo.<agent>`` span per LLM call
 (in ``observability/callbacks.py``). Both layers share the
 ``modular.run_id`` attribute so Langfuse can regroup spans even when
 LangGraph's parallel branches break OTel context propagation.

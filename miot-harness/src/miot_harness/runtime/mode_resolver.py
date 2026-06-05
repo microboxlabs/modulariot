@@ -22,9 +22,9 @@ class ModeAccessDenied(PermissionError):
 
 
 _EXPLICIT_MODE_ROUTES: dict[str, HarnessRoute] = {
-    "canned": HarnessRoute.NEXO_QUERY,
-    "meta": HarnessRoute.NEXO_META,
-    "agentic": HarnessRoute.NEXO_AGENTIC,
+    "canned": HarnessRoute.DATA_QUERY,
+    "meta": HarnessRoute.DATA_META,
+    "agentic": HarnessRoute.DATA_AGENTIC,
 }
 
 

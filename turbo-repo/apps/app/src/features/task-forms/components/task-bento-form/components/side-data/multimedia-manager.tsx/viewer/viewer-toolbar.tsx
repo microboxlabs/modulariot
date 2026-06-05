@@ -110,16 +110,14 @@ export default function ViewerToolbar({
       </Button>
 
       {/* Category selector — left of review actions */}
-      {isReviewable && (
-        <SelectorDropdown
-          categories={categories}
-          baseCategory={currentCategory}
-          selectCategory={onCategoryChange}
-          dictionary={dictionary}
-          fitWidth
-          triggerClassName="h-7 sm:h-9 !py-0 !px-2 text-xs sm:text-sm"
-        />
-      )}
+      <SelectorDropdown
+        categories={categories}
+        baseCategory={currentCategory}
+        selectCategory={onCategoryChange}
+        dictionary={dictionary}
+        fitWidth
+        triggerClassName="h-7 sm:h-9 !py-0 !px-2 text-xs sm:text-sm"
+      />
 
       {/* Review actions */}
       {isReviewable && status !== "approved" && (

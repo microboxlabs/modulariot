@@ -45,7 +45,7 @@ def _llm_result(
 def test_callback_opens_and_closes_span_with_token_attrs(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    cb = AgentTelemetryCallback(agent_name="filter_expert", run_id="root-1", tenant_id="mintral")
+    cb = AgentTelemetryCallback(agent_name="filter_expert", run_id="root-1", tenant_id="acme")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
     cb.on_llm_end(_llm_result(input_tokens=200, output_tokens=80), run_id=rid)
@@ -53,16 +53,17 @@ def test_callback_opens_and_closes_span_with_token_attrs(
     spans = memory_exporter.get_finished_spans()
     assert len(spans) == 1
     span = spans[0]
-    assert span.name == "nexo.filter_expert"
+    # No span_prefix passed → the neutral "datasource" default.
+    assert span.name == "datasource.filter_expert"
     attrs = dict(span.attributes)
-    assert attrs["gen_ai.operation.name"] == "nexo.filter_expert"
+    assert attrs["gen_ai.operation.name"] == "datasource.filter_expert"
     assert attrs["gen_ai.system"] == "anthropic"
     assert attrs["gen_ai.request.model"] == "claude-haiku-4-5"
     assert attrs["gen_ai.usage.input_tokens"] == 200
     assert attrs["gen_ai.usage.output_tokens"] == 80
     assert attrs["modular.agent"] == "filter_expert"
     assert attrs["modular.run_id"] == "root-1"
-    assert attrs["modular.tenant_id"] == "mintral"
+    assert attrs["modular.tenant_id"] == "acme"
     # Cost is recorded at run-time (float seconds-since pricing.compute_cost).
     assert attrs["gen_ai.usage.cost_usd"] > 0
 
@@ -138,10 +139,10 @@ def test_callback_infers_openai_provider_from_model_name(
     assert attrs["gen_ai.request.model"] == "gpt-4o-mini"
 
 
-def test_callback_span_prefix_overrides_nexo_default(
+def test_callback_span_prefix_overrides_default(
     memory_exporter: InMemorySpanExporter,
 ) -> None:
-    """When span_prefix='fake', emitted span names start with 'fake.' not 'nexo.'."""
+    """When span_prefix='fake', emitted span names start with 'fake.' not the default."""
     cb = AgentTelemetryCallback(agent_name="filter_expert", run_id="root-6", span_prefix="fake")
     rid = uuid4()
     cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)

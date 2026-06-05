@@ -4,10 +4,10 @@ Produces the final user-facing answer. Three modes:
 
   1. Failure mode: state['failure'] is set → render a graceful
      refusal locally (no LLM call). Cheaper, deterministic.
-  2. Tenant refusal: ctx.tenant_id != 'mintral' AND no evidence →
-     render the canonical "Coordinador is Mintral-only" line.
-     Defense-in-depth; tenant_gate_node should have caught this
-     earlier in the graph.
+  2. Tenant refusal: ctx.tenant_id is off the datasource lock AND no
+     evidence → render the canonical "<datasource> is <tenant>-only" line
+     from the profile template. Defense-in-depth; tenant_gate_node should
+     have caught this earlier in the graph.
   3. Normal: format primer + evidence, ask the model for prose
      that cites refreshed_at and flags stale data.
 
@@ -37,16 +37,15 @@ logger = logging.getLogger(__name__)
 
 def _tenant_refusal(profile: DataSourceProfile, tenant_lock: str) -> str:
     # Render the canonical refusal from the profile template. The lock is
-    # capitalized so it reads "Mintral-only" (matches the former local copy
-    # "Coordinador is Mintral-only."); display_name comes straight from the
-    # profile. Renders byte-identically to the former hardcode for NEXO.
+    # capitalized (e.g. "<Tenant>-only"); display_name comes straight from
+    # the profile.
     label = tenant_lock.capitalize() if tenant_lock else "the locked tenant"
     return profile.tenant_refusal_template.format(
         display_name=profile.display_name, lock=label
     )
 
 
-# {display_name} → profile.display_name; byte-identical to "Coordinador" for NEXO.
+# {display_name} → profile.display_name (the active datasource's human name).
 _SYNTH_SYSTEM_TEMPLATE = """\
 You are the {display_name} synthesizer. Write the final answer for the user
 in the same language as their question. Be concise (≤200 words).
@@ -64,8 +63,7 @@ Rules:
 
 def _snapshot_stale_prefix(profile: DataSourceProfile) -> str:
     # Must match the prefix freshness_judge emits: f"{display_name} snapshot
-    # is stale". For NEXO display_name == "Coordinador" so this renders the
-    # former hardcode "Coordinador snapshot is stale" byte-identically.
+    # is stale" — display_name is the active datasource's human name.
     return f"{profile.display_name} snapshot is stale"
 
 

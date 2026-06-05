@@ -1,4 +1,4 @@
-"""Rule-based supervisor for the Nexo conversational graph.
+"""Rule-based supervisor for the datasource conversational graph.
 
 v1 ships without an LLM in this seat — `next_agent(state)` is a small
 state machine that reads from the state set by the previous node and

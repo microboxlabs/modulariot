@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import pytest
 
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.router import HarnessRoute, IntentRouter
 
 
 @pytest.fixture
 def router() -> IntentRouter:
-    return IntentRouter()
+    # The core router ships no built-in vocabulary; keywords come from the
+    # active datasource profile. These tests exercise the nexo profile's
+    # keyword set (the provider-under-test's own domain vocabulary).
+    return IntentRouter(data_keywords=NEXO_PROFILE.router_keywords)
 
 
 @pytest.mark.parametrize(
@@ -24,7 +28,7 @@ def router() -> IntentRouter:
         "ETA en riesgo",
     ],
 )
-def test_default_keywords_route_to_data_query(router: IntentRouter, message: str):
+def test_profile_keywords_route_to_data_query(router: IntentRouter, message: str):
     result = router.route(message)
     assert result.route == HarnessRoute.DATA_QUERY
 

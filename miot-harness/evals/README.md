@@ -2,24 +2,25 @@
 
 ## What an "eval" is
 
-The harness runs an AI agent ("Nexo") that answers operational questions by calling tools and reading data. An eval suite is the agent's test
-harness — it feeds the agent a set of known questions and checks whether it behaved correctly (picked the right tool, cited fresh data, refused
-when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you catch quality regressions before
-users do.
+The harness runs an AI agent over a configured **datasource** that answers operational questions by calling tools and reading data. An eval
+suite is the agent's test harness — it feeds the agent a set of known questions and checks whether it behaved correctly (picked the right
+tool, cited fresh data, refused when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you
+catch quality regressions before users do. The golden dataset shipped here targets the default **nexo** provider.
 
 Two independent suites live under `evals/`. They share a directory but never
 share a runner; their exit codes mean different things.
 
 | Suite | What it measures | Entry point |
 |---|---|---|
-| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the Nexo conversational graph — tool routing, freshness, refusals, KPI grounding, step economy. | `miot-harness-evals` |
+| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the datasource conversational graph — tool routing, freshness, refusals, KPI grounding, step economy. | `miot-harness-evals` |
 | **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory. | prompt, run out-of-band |
 | **Deploy** (`deploy/`) | Operational checks that the harness packages and runs as a container. | `deploy/run-all.sh` (see `deploy/README.md`) |
 
 ## Golden suite
 
-`miot-harness-evals` reads `evals/golden/nexo/examples.yaml` and runs each entry
-through the Nexo graph in one of three modes:
+`miot-harness-evals` reads `evals/golden/<datasource-kind>/examples.yaml`
+(default `evals/golden/nexo/examples.yaml`, override with `--yaml`) and runs
+each entry through the datasource graph in one of three modes:
 
 ```bash
 # YAML schema validation only — no graph runs, no LLMs.
@@ -28,11 +29,15 @@ uv run miot-harness-evals --mode static
 # Scripted FakeListChatModel run — deterministic; the default.
 uv run miot-harness-evals --mode fake
 
-# Live Anthropic + live Nexo DB (NotImplementedError today; needs env vars).
+# Live Anthropic + live datasource. Needs MIOT_HARNESS_DATASOURCE_DSN and
+# ANTHROPIC_API_KEY; refuses (exit 1) when either is missing. The provider is
+# selected by MIOT_HARNESS_DATASOURCE_KIND via the registry path.
 uv run miot-harness-evals --mode real
 ```
 
-Results are written to `evals/results/<commit-sha>.json`.
+Results are written to `evals/results/<commit-sha>.json` (fake/static) or
+`evals/results/<commit-sha>-real.json` (real, so it never clobbers the
+canonical fake baseline).
 
 ### Scored axes (deterministic)
 
@@ -50,7 +55,9 @@ scripted model cannot make that judgment; those are validated in real mode.
 ### Dataset contract (fake mode)
 
 Fake mode is intentionally deterministic so it catches routing/structural
-regressions without spending tokens. When authoring `examples.yaml`:
+regressions without spending tokens. The values below (`coordinador_*` tool
+names, the `mintral` tenant lock) are the **nexo** profile's, since the
+shipped dataset targets the nexo provider. When authoring `examples.yaml`:
 
 - The scripted synthesizer always emits
   `"Resultado al snapshot <ts>: 2 servicios críticos, 3 ETA en riesgo."`, so
@@ -60,9 +67,11 @@ regressions without spending tokens. When authoring `examples.yaml`:
   document the *real-mode* envelope; in fake mode keep `min ≤ 1 ≤ max` for a
   green baseline. The `max` cap is the part that catches over-engineering once
   real mode lands.
-- `expected_tools` must be `coordinador_*` names (the fake registry only stubs
-  those). Adversarial cases use `[]`; a non-`mintral` `tenant_id` exercises the
-  tenant gate and produces the canonical `"…is mintral-only…"` refusal.
+- `expected_tools` may be any tool names — the fake registry now stubs every
+  name in `expected_tools` verbatim (plus a `<prefix>centro_control` fallback).
+  For the nexo dataset these are `coordinador_*` names. Adversarial cases use
+  `[]`; an off-lock `tenant_id` (≠ `mintral` for nexo) exercises the tenant gate
+  and produces the canonical `"…is mintral-only…"` refusal.
 - `category: adversarial` requires `expected_refusal: true` (enforced by
   `validate_entries`).
 - Every `expected_refusal: true` case must declare `refusal_mechanism:

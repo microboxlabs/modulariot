@@ -13,7 +13,7 @@ def test_agent_span_emits_required_attributes(
     with agent_span(
         "filter_expert",
         run_id="run-123",
-        tenant_id="mintral",
+        tenant_id="acme",
         mode="agentic",
     ):
         pass
@@ -21,10 +21,11 @@ def test_agent_span_emits_required_attributes(
     finished = memory_exporter.get_finished_spans()
     assert len(finished) == 1
     span = finished[0]
-    assert span.name == "nexo.filter_expert"
-    assert span.attributes["gen_ai.operation.name"] == "nexo.filter_expert"
+    # No span_prefix passed → the neutral "datasource" default.
+    assert span.name == "datasource.filter_expert"
+    assert span.attributes["gen_ai.operation.name"] == "datasource.filter_expert"
     assert span.attributes["modular.run_id"] == "run-123"
-    assert span.attributes["modular.tenant_id"] == "mintral"
+    assert span.attributes["modular.tenant_id"] == "acme"
     assert span.attributes["modular.mode"] == "agentic"
 
 
@@ -34,7 +35,7 @@ def test_agent_span_omits_optional_attrs_when_unset(
     with agent_span("synthesizer", run_id="run-9"):
         pass
     finished = memory_exporter.get_finished_spans()
-    assert finished[0].name == "nexo.synthesizer"
+    assert finished[0].name == "datasource.synthesizer"
     attrs = dict(finished[0].attributes)
     assert "modular.tenant_id" not in attrs
     assert "modular.mode" not in attrs
@@ -50,7 +51,7 @@ def test_agent_span_nests_under_parent(memory_exporter: InMemorySpanExporter) ->
 
     spans = memory_exporter.get_finished_spans()
     # SimpleSpanProcessor emits in finish order: child first, then parent.
-    child = next(s for s in spans if s.name == "nexo.filter_expert")
-    parent = next(s for s in spans if s.name == "nexo.supervisor")
+    child = next(s for s in spans if s.name == "datasource.filter_expert")
+    parent = next(s for s in spans if s.name == "datasource.supervisor")
     assert child.parent is not None
     assert child.parent.span_id == parent.context.span_id

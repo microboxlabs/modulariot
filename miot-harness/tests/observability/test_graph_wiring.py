@@ -150,7 +150,9 @@ async def test_root_nexo_run_span_parents_per_agent_spans(
     )
     ctx = _ctx(run_id="run_root_span_test")
 
-    with agent_span("run", run_id=ctx.run_id, tenant_id=ctx.tenant_id):
+    with agent_span(
+        "run", run_id=ctx.run_id, tenant_id=ctx.tenant_id, span_prefix=NEXO_PROFILE.name
+    ):
         await graph.ainvoke(
             {
                 "user_message": "estado operativo",

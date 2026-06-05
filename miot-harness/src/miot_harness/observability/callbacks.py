@@ -117,7 +117,7 @@ class AgentTelemetryCallback(BaseCallbackHandler):
         tags: Sequence[str] | None = None,
         environment: str | None = None,
         progress: Progress | None = None,
-        span_prefix: str = "nexo",
+        span_prefix: str = "datasource",
     ) -> None:
         self._agent_name = agent_name
         self._run_id = run_id

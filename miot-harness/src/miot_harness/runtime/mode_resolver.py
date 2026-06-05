@@ -3,7 +3,7 @@
 When `request.mode == "auto"` the LLM intent router decides. When it's
 one of `canned` / `meta` / `agentic`, we skip the router entirely and
 dispatch directly. Validation rejects data-touching modes (`canned`,
-`agentic`) for non-Mintral tenants at request-validation time so
+`agentic`) for off-lock tenants at request-validation time so
 unauthorized callers never reach an LLM, graph node, or a tool call
 that would emit billable telemetry. `meta` is allowed for any tenant
 (non-confidential schema/primer info per the plan's tenant-gate

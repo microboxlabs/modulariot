@@ -31,6 +31,7 @@ from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
+from tests.fixtures.fake_provider import FAKE_PROFILE
 
 
 def _scripted_llm_router(route: str, confidence: float = 0.95) -> LLMIntentRouter:
@@ -252,16 +253,18 @@ async def test_backward_compatibility_when_llm_router_not_provided(tmp_path: Any
     data_graph = AsyncMock()
     data_graph.ainvoke = AsyncMock(return_value={"answer": "via keyword", "_events": []})
     # No llm_router, no agentic_graph, no meta_model — the original Plan 12 surface.
+    # The core router ships no built-in vocabulary; route on the neutral
+    # FakeProvider profile keywords.
     supervisor = HarnessSupervisor(
-        router=IntentRouter(),
+        router=IntentRouter(data_keywords=FAKE_PROFILE.router_keywords),
         tools=ToolRegistry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
         data_graph=data_graph,
     )
-    # "Mintral" keyword triggers DATA_QUERY in the keyword router.
+    # A "fakesource" keyword triggers DATA_QUERY in the keyword router.
     record = await supervisor.run(
-        UserRequest(message="Mintral fleet status", tenant_id="mintral")
+        UserRequest(message="fakesource fleet status", tenant_id="acme")
     )
     data_graph.ainvoke.assert_awaited_once()
     assert record.answer == "via keyword"

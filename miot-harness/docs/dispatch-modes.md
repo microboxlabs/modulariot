@@ -12,13 +12,14 @@ Sources of truth:
 - `miot-harness/src/miot_harness/runtime/router.py` — `HarnessRoute` enum and
   the keyword router used by `auto`.
 - `miot-harness/src/miot_harness/runtime/supervisor.py` — dispatch in
-  `HarnessSupervisor.run()` (`_run_nexo` / `_run_nexo_meta` / `_run_nexo_agentic`).
+  `HarnessSupervisor.run()` (`_run_data_query` / `_run_data_meta` /
+  `_run_data_agentic`).
 
 ## `auto` — let the harness pick
 
 - **What it does:** runs the LLM intent router if injected, else the keyword
-  router (`IntentRouter`). The router returns one of `NEXO_QUERY`,
-  `NEXO_META`, `NEXO_AGENTIC`, `STORYTELLING_RUN`, `DIRECT`, or `OTHER`.
+  router (`IntentRouter`). The router returns one of `DATA_QUERY`,
+  `DATA_META`, `DATA_AGENTIC`, `STORYTELLING_RUN`, `DIRECT`, or `OTHER`.
 - **When to use:** day-to-day chat. You don't know — or don't care — which
   path is appropriate.
 - **Example questions:**
@@ -26,14 +27,15 @@ Sources of truth:
   - "How does `fn_dx_cola_critica` work?" → routes to meta.
   - "Hi, what can you do?" → routes to direct.
 
-## `canned` — `NEXO_QUERY` → `nexo_graph`
+## `canned` — `DATA_QUERY` → data graph
 
-- **What it does:** dispatches directly to the curated `nexo_graph`, which
-  invokes the `fn_dx_*` Coordinador analytical functions. Deterministic SQL,
-  real data, tenant-gated.
-- **Tenant rule:** data-touching, gated by `tenant_lock` (defaults to
-  `mintral`). The mode itself isn't refused at validation, but the underlying
-  tools enforce the tenant lock.
+- **What it does:** dispatches directly to the curated data graph
+  (`runtime/data_graph.py`), which invokes the datasource's curated analytical
+  functions (for **nexo**: the `fn_dx_*` Coordinador functions). Deterministic
+  SQL, real data, tenant-gated.
+- **Tenant rule:** data-touching, gated by `tenant_lock` (the datasource
+  profile's default; `mintral` for nexo). The mode itself isn't refused at
+  validation, but the underlying tools enforce the tenant lock.
 - **When to use:** you know the answer lives in a curated analytical function
   and you want to skip the router.
 - **Example questions:**
@@ -42,11 +44,11 @@ Sources of truth:
   - "Resumen del dimensionamiento de hoy."
   - "Auditoría POD de la última hora."
 
-## `meta` — `NEXO_META` → `meta_agent_node`
+## `meta` — `DATA_META` → `meta_agent_node`
 
-- **What it does:** answers from the **cached `pg_proc` catalog + Coordinador
-  primer text**. No SQL, no tool invocation, no data access — pure
-  schema/introspection.
+- **What it does:** answers from the **cached catalog + the active datasource's
+  primer text** (for **nexo**: the `pg_proc` catalog + Coordinador primer). No
+  SQL, no tool invocation, no data access — pure schema/introspection.
 - **Tenant rule:** allowed for **any tenant** — meta-info is non-confidential
   per the plan's tenant-gate decision.
 - **When to use:** "what does this function do / what's in the catalog /
@@ -57,15 +59,15 @@ Sources of truth:
   - "Which function should I use to look up a POD audit?"
   - "Describe the inputs and outputs of `fn_dx_cola_critica`."
 
-## `agentic` — `NEXO_AGENTIC` → `agentic_graph`
+## `agentic` — `DATA_AGENTIC` → `agentic_graph`
 
 - **What it does:** planner Sonnet + **composable primitives** for open-ended
   exploration. Turn cap is 12 (vs 8 in `canned`), critic is ON by default.
-- **Tenant rule:** **Mintral-only**. `resolve_mode()` raises
-  `ModeAccessDenied` at request-validation time for any other tenant; the
-  supervisor records a `mode_access_denied` answer and emits
-  `answer.completed`. The `miot-chat` TUI header bar warns in yellow if you
-  set `mode=agentic` on a non-`mintral` tenant.
+- **Tenant rule:** **locked-tenant-only** (the datasource's `tenant_lock`;
+  `mintral` for nexo). `resolve_mode()` raises `ModeAccessDenied` at
+  request-validation time for any off-lock tenant; the supervisor records a
+  `mode_access_denied` answer and emits `answer.completed`. The `miot-chat` TUI
+  header bar warns in yellow if you set `mode=agentic` on an off-lock tenant.
 - **When to use:** multi-step exploration where no single canned function
   answers the question — combine primitives, hypothesize, iterate.
 - **Example questions:**
@@ -79,9 +81,9 @@ Sources of truth:
 | Mode      | Route          | Backend            | SQL?       | Tenant gate     | Best for                          |
 |-----------|----------------|--------------------|------------|-----------------|-----------------------------------|
 | `auto`    | router-decided | any                | maybe      | inherits route  | normal use                        |
-| `canned`  | `NEXO_QUERY`   | `nexo_graph`       | yes, curated | mintral-only* | known operational questions       |
-| `meta`    | `NEXO_META`    | `meta_agent_node`  | **no**     | any tenant      | schema, primer, "how does X work" |
-| `agentic` | `NEXO_AGENTIC` | `agentic_graph`    | yes, via primitives | **mintral-only** (rejected at validation) | exploratory analysis |
+| `canned`  | `DATA_QUERY`   | data graph         | yes, curated | locked-tenant-only* | known operational questions   |
+| `meta`    | `DATA_META`    | `meta_agent_node`  | **no**     | any tenant      | schema, primer, "how does X work" |
+| `agentic` | `DATA_AGENTIC` | `agentic_graph`    | yes, via primitives | **locked-tenant-only** (rejected at validation) | exploratory analysis |
 
 \* `canned` data access is enforced inside the tools via `tenant_lock`; the
 mode itself is not rejected by `resolve_mode()`.

@@ -46,9 +46,8 @@ _AGENTIC_TURN_CAP = 12
 # apology mode. The primer + the "prior turns are authoritative" rule
 # below stops that.
 # {display_name} → profile.display_name; {tenant_display} → the tenant the
-# datasource is locked to (profile.tenant_lock, capitalized). For NEXO_PROFILE
-# these render byte-identically to the former hardcodes ("Coordinador",
-# "Mintral").
+# datasource is locked to (profile.tenant_lock, capitalized). Both come
+# straight from the active datasource profile.
 _AGENTIC_SYNTH_SYSTEM_TEMPLATE = """\
 You are the {display_name} agentic synthesizer for {tenant_display} fleet operations.
 Answer the user's question in the same language they used. Be concise

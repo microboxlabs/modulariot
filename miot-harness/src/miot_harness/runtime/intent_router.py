@@ -29,9 +29,9 @@ logger = logging.getLogger(__name__)
 
 
 # Defaults used when no profile is threaded in (legacy / unit-test paths).
-# They preserve the historical Coordinador routing semantics.
+# Generic, datasource-agnostic placeholders; a real profile overrides both.
 _DEFAULT_DISPLAY_NAME = "the data source"
-_DEFAULT_KEYWORD_EXAMPLES = "centro de control, ETA en riesgo, cola crítica"
+_DEFAULT_KEYWORD_EXAMPLES = "operational status, KPIs, fleet metrics"
 
 _SYSTEM_PROMPT_TEMPLATE = """You are the intent router for the ModularIoT harness.
 
@@ -66,8 +66,7 @@ def _render_system_prompt(profile: DataSourceProfile | None) -> str:
 
     The route vocabulary is profile-agnostic; only the example wording is
     parameterized via the profile's `display_name` and `router_keywords`
-    so the prompt names the active datasource (e.g. "Coordinador") instead
-    of hardcoding it.
+    so the prompt names the active datasource instead of hardcoding it.
     """
 
     if profile is None:

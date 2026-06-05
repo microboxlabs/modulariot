@@ -1,4 +1,4 @@
-"""LangGraph wiring for the Nexo conversational graph (staged Option C).
+"""LangGraph wiring for the datasource conversational graph (staged Option C).
 
 Node layout::
 
@@ -57,7 +57,7 @@ def instrument_model(
     ctx: HarnessContext,
     *,
     progress: Any = None,
-    span_prefix: str = "nexo",
+    span_prefix: str = "datasource",
 ) -> Any:
     """Wrap a chat model with a per-agent telemetry callback for this run.
 
@@ -66,8 +66,8 @@ def instrument_model(
     ``modular.*`` attrs we group by, AND the ``langfuse.*`` attrs the
     Langfuse UI promotes to first-class filter columns (E10).
 
-    ``span_prefix`` defaults to ``"nexo"`` so existing callers are unchanged.
-    Pass ``profile.name`` when a profile is in scope.
+    ``span_prefix`` defaults to ``"datasource"`` as a neutral fallback; pass
+    ``profile.name`` when a profile is in scope (every in-tree caller does).
 
     When `progress` is set, the callback ALSO emits a `usage.recorded`
     HarnessEvent per LLM call so SSE consumers (curl, miot-chat) see
@@ -149,11 +149,10 @@ def build_data_graph(
     profile: DataSourceProfile,
 ) -> Any:
     graph = StateGraph(DataState)
-    # Graph label for node-lifecycle spans. For NEXO_PROFILE this is "nexo",
-    # byte-identical to the former literal on the wire. GraphLabel is a
-    # constrained Literal today; widening it to accept any profile.name is a
-    # later-stage telemetry change, so we cast at this boundary for now.
-    graph_label = cast(GraphLabel, profile.name)
+    # Graph label for node-lifecycle spans: the datasource profile name.
+    # GraphLabel is a plain `str` alias so any profile.name flows through
+    # directly.
+    graph_label: GraphLabel = profile.name
 
     def _merge_events(delta: dict[str, Any], events: list[HarnessEvent]) -> dict[str, Any]:
         if events:

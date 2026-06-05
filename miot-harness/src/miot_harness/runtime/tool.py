@@ -30,9 +30,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     read_only: bool = True
     destructive: bool = False
     # Trace badge — propagated into tool.started.data.source so the frontend
-    # can render "Coordinador · nexo" / "ModularIoT AMS" / etc. without
-    # waiting for the per-row metadata that _lift_metadata pulls from the
-    # tool output on tool.completed.
+    # can render the datasource provenance label (e.g. "ModularIoT AMS")
+    # without waiting for the per-row metadata that _lift_metadata pulls from
+    # the tool output on tool.completed.
     source: str = ""
     check_permission: Callable[[HarnessContext, InputT], Awaitable[PermissionResult]]
     call: Callable[[HarnessContext, InputT, Progress], Awaitable[OutputT]]
@@ -152,7 +152,7 @@ _METADATA_KEYS = ("source", "refreshed_at", "layer", "domain", "truncated")
 def _lift_metadata(output: Any) -> dict[str, Any]:
     """Surface a fixed set of metadata fields from the tool output into the
     tool.completed event payload. Tools that do not expose these fields get
-    a bare event; tools that do (e.g. Nexo coordinador_*) carry the
+    a bare event; tools that do (e.g. a datasource's data tools) carry the
     structured trace metadata downstream consumers (analyst, run record)
     rely on.
     """

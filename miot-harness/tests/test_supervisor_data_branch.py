@@ -17,8 +17,10 @@ from tests.fixtures.fake_provider import FAKE_PROFILE
 def _supervisor(
     tmp_path, data_graph=None, *, registry: ToolRegistry | None = None
 ) -> HarnessSupervisor:
+    # Neutral FakeProvider vocabulary: the core router ships no built-in
+    # keywords, so route on the FakeProvider profile's keywords here.
     return HarnessSupervisor(
-        router=IntentRouter(),
+        router=IntentRouter(data_keywords=FAKE_PROFILE.router_keywords),
         tools=registry if registry is not None else ToolRegistry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
@@ -40,7 +42,7 @@ async def test_data_route_invokes_graph_when_present(tmp_path):
     )
     sup = _supervisor(tmp_path, data_graph=fake_graph)
 
-    record = await sup.run(UserRequest(message="estado coordinador?", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="estado fakesource?", tenant_id="acme"))
 
     assert record.answer == "Operativo OK"
     assert any(e.type == "answer.completed" for e in record.events)
@@ -54,7 +56,7 @@ async def test_data_route_handles_disabled_graph(tmp_path):
     """When the datasource is disabled (graph=None), the supervisor must
     produce a graceful refusal without raising."""
     sup = _supervisor(tmp_path, data_graph=None)
-    record = await sup.run(UserRequest(message="coordinador status?", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="fakesource status?", tenant_id="acme"))
     assert record.status == "completed"
     assert record.answer
     assert "disabled" in record.answer.lower() or "unavailable" in record.answer.lower()
@@ -62,7 +64,7 @@ async def test_data_route_handles_disabled_graph(tmp_path):
 
 @pytest.mark.asyncio
 async def test_storytelling_path_unchanged(tmp_path):
-    """Existing storytelling flow must still work — no nexo keywords trigger
+    """Existing storytelling flow must still work — no data keywords trigger
     the legacy path with the default tool registry."""
     sup = _supervisor(tmp_path, data_graph=None, registry=build_default_registry())
     record = await sup.run(UserRequest(message="write a story about delivery"))
@@ -77,7 +79,7 @@ async def test_data_route_handles_graph_exception(tmp_path):
     fake_graph.ainvoke = AsyncMock(side_effect=RuntimeError("graph blew up"))
     sup = _supervisor(tmp_path, data_graph=fake_graph)
 
-    record = await sup.run(UserRequest(message="coordinador?", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="fakesource?", tenant_id="acme"))
     assert record.status == "failed"
     failed = [e for e in record.events if e.type == "run.failed"]
     assert failed
@@ -86,11 +88,11 @@ async def test_data_route_handles_graph_exception(tmp_path):
 @pytest.mark.asyncio
 async def test_disabled_message_uses_profile_display_name(tmp_path):
     """When profile is set on the supervisor, the disabled message uses
-    profile.display_name instead of the legacy "Coordinador" literal."""
+    profile.display_name rather than any hardcoded datasource name."""
     sup = _supervisor(tmp_path, data_graph=None)
     sup.profile = FAKE_PROFILE
 
-    record = await sup.run(UserRequest(message="coordinador status?", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="fakesource status?", tenant_id="acme"))
     assert record.status == "completed"
     assert record.answer is not None
     assert "FakeSource integration is currently disabled" in record.answer

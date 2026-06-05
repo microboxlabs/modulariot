@@ -90,7 +90,13 @@ async def test_root_run_span_carries_mode_attribute(
     """`agent_span("run", mode=...)` must surface mode on the root span."""
 
     ctx = _ctx(mode="agentic")
-    with agent_span("run", run_id=ctx.run_id, tenant_id=ctx.tenant_id, mode=ctx.mode):
+    with agent_span(
+        "run",
+        run_id=ctx.run_id,
+        tenant_id=ctx.tenant_id,
+        mode=ctx.mode,
+        span_prefix=NEXO_PROFILE.name,
+    ):
         pass
     root = next(
         s for s in memory_exporter.get_finished_spans() if s.name == "nexo.run"

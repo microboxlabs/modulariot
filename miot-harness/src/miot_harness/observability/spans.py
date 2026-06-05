@@ -1,10 +1,11 @@
 """Run-level span context manager.
 
-The supervisor opens a ``nexo.run`` root span around the whole graph
-invocation (see ``runtime/supervisor.py``). LangGraph node bodies do not
-wrap themselves in ``agent_span`` — instead, the per-agent
-``AgentTelemetryCallback`` emits one ``nexo.<agent>`` span per LLM call
-(in ``observability/callbacks.py``). Both layers share the
+The supervisor opens a ``<datasource>.run`` root span around the whole
+graph invocation (see ``runtime/supervisor.py``). LangGraph node bodies
+do not wrap themselves in ``agent_span`` — instead, the per-agent
+``AgentTelemetryCallback`` emits one ``<datasource>.<agent>`` span per LLM
+call (in ``observability/callbacks.py``). The span prefix is the active
+datasource profile name. Both layers share the
 ``modular.run_id`` attribute so Langfuse can regroup spans even when
 LangGraph's parallel branches break OTel context propagation.
 
@@ -40,11 +41,11 @@ def agent_span(
     session_id: str | None = None,
     tags: Sequence[str] | None = None,
     environment: str | None = None,
-    span_prefix: str = "nexo",
+    span_prefix: str = "datasource",
 ) -> Iterator[Span]:
     """Open a ``<span_prefix>.<name>`` span carrying the run/tenant/mode attribution.
 
-    ``span_prefix`` defaults to ``"nexo"`` so existing callers are unchanged.
+    ``span_prefix`` defaults to ``"datasource"`` as a neutral fallback.
     Pass ``profile.name`` when a profile is in scope to make telemetry
     datasource-agnostic.
 

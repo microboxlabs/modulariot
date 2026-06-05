@@ -42,8 +42,8 @@ def _strip_fences(text: str) -> str:
 
 # {display_name} → profile.display_name; {tenant_display} → the tenant the
 # datasource is locked to (profile.tenant_lock, capitalized); {prefix_label}
-# → profile.tool_prefix + "*". Render byte-identically to the former
-# hardcodes for NEXO_PROFILE ("Coordinador", "Mintral", "coordinador_*").
+# → profile.tool_prefix + "*". All come straight from the active datasource
+# profile.
 _ANALYST_SYSTEM_TEMPLATE = """\
 You are the {display_name} Domain Analyst. Your job is to decide whether the
 collected evidence is enough to answer the user's question.

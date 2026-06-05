@@ -25,7 +25,6 @@ from miot_harness.api.identity import (
 )
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.datasource.registry import resolve as resolve_datasource
-from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
@@ -112,8 +111,8 @@ def _make_lifespan(
                 disable_batch=False,
                 telemetry_enabled=False,  # do not phone home; we self-host
             )
-            # HTTP request spans parent the per-run `nexo.run` span so the
-            # full request → graph → LLM tree shows up in Langfuse.
+            # HTTP request spans parent the per-run `<datasource>.run` span so
+            # the full request → graph → LLM tree shows up in Langfuse.
             FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
             logger.info(
                 "OTel: tracing enabled (service=%s, env=%s, endpoint=%s)",
@@ -126,6 +125,21 @@ def _make_lifespan(
         provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
+        # The base keyword router ships with no vocabulary; the profile
+        # supplies it. Wired BEFORE boot so that a disabled datasource
+        # still routes its keywords to the data path (where the
+        # "integration disabled" answer lives) instead of DIRECT/OTHER.
+        harness.router = IntentRouter(
+            data_keywords=provider.profile.router_keywords
+        )
+        # Tenant lock likewise resolves regardless of boot outcome so
+        # mode gating (mode_resolver) keeps refusing off-lock tenants
+        # even while the datasource is disabled.
+        resolved_lock = (
+            settings.datasource_tenant_lock or provider.profile.tenant_lock
+        )
+        if resolved_lock is not None:
+            harness.tenant_lock = resolved_lock
         result = await provider.boot(harness.tools, settings)
         app.state.datasource_enabled = result.enabled
         app.state.datasource_registered = list(result.registered)
@@ -135,7 +149,11 @@ def _make_lifespan(
                 "Datasource %s: disabled (%s)", provider.profile.name, result.reason
             )
         else:
-            logger.info("Nexo: %d tools registered", len(result.registered))
+            logger.info(
+                "Datasource %s: %d tools registered",
+                provider.profile.name,
+                len(result.registered),
+            )
             # Build the conversational graph and inject into the
             # supervisor. Per-agent models come from settings.
             try:
@@ -161,15 +179,12 @@ def _make_lifespan(
                     profile=provider.profile,
                 )
 
-                # Phase E wiring: tenant_lock + agentic_graph + meta
-                # agent + LLM intent router. All optional on the
-                # supervisor — falling back to keyword routing if any
-                # of these aren't injected.
-                resolved_lock = (
-                    settings.datasource_tenant_lock or provider.profile.tenant_lock
-                )
-                if resolved_lock is not None:
-                    harness.tenant_lock = resolved_lock
+                # Phase E wiring: agentic_graph + meta agent + LLM
+                # intent router. All optional on the supervisor —
+                # falling back to keyword routing if any of these
+                # aren't injected. (tenant_lock + keyword router are
+                # wired above, before boot, so the disabled path keeps
+                # routing and mode gating intact.)
                 harness.agentic_graph = build_agentic_graph(
                     settings=settings,
                     models={
@@ -185,7 +200,7 @@ def _make_lifespan(
                     settings.intent_router_model,
                     thinking_budget_tokens=synth_thinking_budget,
                 )
-                harness.meta_primer = COORDINADOR_PRIMER
+                harness.meta_primer = provider.profile.primer
                 harness.meta_catalog = [
                     MetaAgentCatalogEntry(
                         name=name,
@@ -202,13 +217,16 @@ def _make_lifespan(
                     profile=provider.profile,
                 )
                 logger.info(
-                    "Nexo: Phase E wired (LLM router=%s, agentic_graph, meta_agent)",
+                    "Datasource %s: Phase E wired "
+                    "(LLM router=%s, agentic_graph, meta_agent)",
+                    provider.profile.name,
                     settings.intent_router_model,
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.critical(
-                    "Nexo: failed to build chat models / graph (%s); "
-                    "falling back to Nexo disabled",
+                    "Datasource %s: failed to build chat models / graph (%s); "
+                    "falling back to datasource disabled",
+                    provider.profile.name,
                     exc,
                 )
                 # Tools registered fine but the supervisor can't reach
@@ -229,7 +247,7 @@ def _make_lifespan(
                 try:
                     await provider.close()
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("Nexo: provider close raised %s", exc)
+                    logger.warning("Datasource: provider close raised %s", exc)
             try:
                 shutdown_tracing(tracer_provider)
             except Exception as exc:  # noqa: BLE001
@@ -406,7 +424,9 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, object]:
         provider = getattr(app.state, "datasource_provider", None)
-        ds_name = provider.profile.name if provider is not None else "nexo"
+        ds_name = (
+            provider.profile.name if provider is not None else settings.datasource_kind
+        )
         return {
             "status": "ok",
             "env": settings.env,
@@ -420,8 +440,8 @@ def create_app() -> FastAPI:
 
     @app.get("/health/ready")
     async def health_ready(response: Response) -> dict[str, object]:
-        # Readiness contract (kubelet readinessProbe target): Nexo is
-        # "required" iff a DSN is configured. When required-but-not-enabled
+        # Readiness contract (kubelet readinessProbe target): the datasource
+        # is "required" iff a DSN is configured. When required-but-not-enabled
         # the lifespan logs critical and continues serving, but the pod
         # should not receive traffic until tools register and the snapshot
         # passes the refuse-gate.
@@ -431,7 +451,9 @@ def create_app() -> FastAPI:
         if not ready:
             response.status_code = 503
         provider = getattr(app.state, "datasource_provider", None)
-        ds_name = provider.profile.name if provider is not None else "nexo"
+        ds_name = (
+            provider.profile.name if provider is not None else settings.datasource_kind
+        )
         return {
             "status": "ready" if ready else "not_ready",
             "env": settings.env,
@@ -647,8 +669,8 @@ def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) ->
     """Refuse debug=true for tenants that aren't on the allow-list.
 
     Debug-flagged runs surface full tool inputs and truncated outputs over
-    the SSE stream. On coordinador-touching routes that exposes real
-    Mintral fleet data, so the gate is secure-by-default: with no
+    the SSE stream. On data-touching routes that exposes real tenant
+    data, so the gate is secure-by-default: with no
     `MIOT_HARNESS_ALLOW_DEBUG_TENANTS` configured, no tenant can opt in.
     """
     if not request.debug:

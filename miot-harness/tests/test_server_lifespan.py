@@ -27,6 +27,14 @@ def test_app_boots_without_nexo_when_dsn_unset(monkeypatch, tmp_path):
         assert resp.status_code == 200
         # Without env var, Nexo state is disabled
         assert getattr(app.state, "datasource_enabled", False) is False
+        # The profile's keyword vocabulary and tenant lock are wired
+        # even when the datasource is disabled: a data-keyword message
+        # must still route to DATA_QUERY (where the "integration
+        # disabled" answer lives), not fall through to DIRECT/OTHER.
+        harness = app.state.harness
+        route = harness.router.route("estado del coordinador?")
+        assert route.route.value == "data_query"
+        assert harness.tenant_lock == "mintral"
 
 
 def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):

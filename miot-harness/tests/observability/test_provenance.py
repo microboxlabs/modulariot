@@ -19,12 +19,12 @@ def test_provenance_entry_contains_all_required_fields(tmp_path: Path) -> None:
     refreshed_at = datetime(2026, 5, 12, 10, 0, tzinfo=UTC)
     entry = ProvenanceEntry(
         question="show services with delta_eta_horas > 6",
-        sql="SELECT * FROM nexo.dx_servicios WHERE delta_eta_horas > 6",
+        sql="SELECT * FROM analytics.dx_servicios WHERE delta_eta_horas > 6",
         plan_cost=42.5,
         rows_returned=37,
         refreshed_at=refreshed_at,
         run_id="run_abc",
-        tenant_id="mintral",
+        tenant_id="acme",
     )
     log.append(entry, now=datetime(2026, 5, 12, 12, 30, tzinfo=UTC))
 
@@ -33,12 +33,12 @@ def test_provenance_entry_contains_all_required_fields(tmp_path: Path) -> None:
     line = written.read_text().strip()
     payload = json.loads(line)
     assert payload["question"] == "show services with delta_eta_horas > 6"
-    assert payload["sql"].startswith("SELECT * FROM nexo.dx_servicios")
+    assert payload["sql"].startswith("SELECT * FROM analytics.dx_servicios")
     assert payload["plan_cost"] == 42.5
     assert payload["rows_returned"] == 37
     assert payload["refreshed_at"] == refreshed_at.isoformat()
     assert payload["run_id"] == "run_abc"
-    assert payload["tenant_id"] == "mintral"
+    assert payload["tenant_id"] == "acme"
     assert "logged_at" in payload
 
 
@@ -49,12 +49,12 @@ def test_provenance_log_appends_one_line_per_call(tmp_path: Path) -> None:
         log.append(
             ProvenanceEntry(
                 question=f"q{i}",
-                sql="SELECT * FROM nexo.dx_servicios LIMIT 1",
+                sql="SELECT * FROM analytics.dx_servicios LIMIT 1",
                 plan_cost=10.0 + i,
                 rows_returned=i,
                 refreshed_at=now,
                 run_id=f"run_{i}",
-                tenant_id="mintral",
+                tenant_id="acme",
             ),
             now=now,
         )
@@ -71,12 +71,12 @@ def test_provenance_partitions_by_date(tmp_path: Path) -> None:
         log.append(
             ProvenanceEntry(
                 question=f"q-{suffix}",
-                sql="SELECT 1 FROM nexo.dx_servicios LIMIT 1",
+                sql="SELECT 1 FROM analytics.dx_servicios LIMIT 1",
                 plan_cost=1.0,
                 rows_returned=0,
                 refreshed_at=ts,
                 run_id=f"r-{suffix}",
-                tenant_id="mintral",
+                tenant_id="acme",
             ),
             now=ts,
         )
@@ -94,12 +94,12 @@ def test_provenance_creates_parent_dir_if_missing(tmp_path: Path) -> None:
     log.append(
         ProvenanceEntry(
             question="q",
-            sql="SELECT 1 FROM nexo.dx_servicios LIMIT 1",
+            sql="SELECT 1 FROM analytics.dx_servicios LIMIT 1",
             plan_cost=1.0,
             rows_returned=0,
             refreshed_at=now,
             run_id="r",
-            tenant_id="mintral",
+            tenant_id="acme",
         ),
         now=now,
     )
@@ -114,12 +114,12 @@ def test_provenance_no_op_when_disabled(tmp_path: Path) -> None:
     log.append(
         ProvenanceEntry(
             question="q",
-            sql="SELECT 1 FROM nexo.dx_servicios LIMIT 1",
+            sql="SELECT 1 FROM analytics.dx_servicios LIMIT 1",
             plan_cost=1.0,
             rows_returned=0,
             refreshed_at=datetime(2026, 5, 12, tzinfo=UTC),
             run_id="r",
-            tenant_id="mintral",
+            tenant_id="acme",
         ),
         now=datetime(2026, 5, 12, 9, 0, tzinfo=UTC),
     )
@@ -136,12 +136,12 @@ def test_provenance_handles_missing_refreshed_at(
     log.append(
         ProvenanceEntry(
             question="q",
-            sql="SELECT 1 FROM nexo.dx_servicios LIMIT 1",
+            sql="SELECT 1 FROM analytics.dx_servicios LIMIT 1",
             plan_cost=1.0,
             rows_returned=0,
             refreshed_at=refreshed_at,
             run_id="r",
-            tenant_id="mintral",
+            tenant_id="acme",
         ),
         now=datetime(2026, 5, 12, 9, 0, tzinfo=UTC),
     )

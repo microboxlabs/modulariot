@@ -31,8 +31,10 @@ from miot_harness.config import HarnessSettings
 
 _HARNESS_SPAN_PREFIXES = (
     "nexo.",
-    # Alternate datasource prefixes (e.g. "fake." used by FakeProvider tests).
+    # Alternate datasource prefixes: "fake." for FakeProvider tests, and
+    # "datasource." — the neutral default span_prefix when no profile is set.
     "fake.",
+    "datasource.",
     # Traceloop / OpenLLMetry auto-instrumentation emits spans like
     # `anthropic.chat`, `openai.chat`, `gen_ai.completion`.
     "gen_ai.",

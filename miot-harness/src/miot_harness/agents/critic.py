@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 # {display_name} → profile.display_name; {tenant_display} → the tenant the
-# datasource is locked to (profile.tenant_lock, capitalized). Render
-# byte-identically to the former hardcodes for NEXO ("Coordinador", "Mintral").
+# datasource is locked to (profile.tenant_lock, capitalized). Both come
+# straight from the active datasource profile.
 _CRITIC_SYSTEM_TEMPLATE = """\
 You are the {display_name} critic. Inspect the proposed answer against the
 collected evidence. Output ONLY a JSON object:

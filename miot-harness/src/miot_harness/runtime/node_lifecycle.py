@@ -26,7 +26,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from time import monotonic
-from typing import Any, Literal, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 # Private langgraph types — used so the wrapper return satisfies
 # `StateGraph[DataState].add_node` without per-call `# type: ignore`.
@@ -42,7 +42,10 @@ from langgraph.graph._node import _Node
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 
-GraphLabel = Literal["nexo", "agentic"]
+# Graph-node-lifecycle span label: the datasource profile name for the data
+# graph or "agentic" for the agentic graph. Plain `str` so any profile.name
+# flows through without a per-call cast.
+GraphLabel = str
 
 # Generic over the graph state type so `StateGraph[DataState].add_node`
 # accepts the wrapped node without per-call `# type: ignore`. Bounded

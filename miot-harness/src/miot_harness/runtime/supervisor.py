@@ -68,7 +68,11 @@ class HarnessSupervisor:
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
         conversation_token_budget: int = 24_000,
-        tenant_lock: str = "mintral",
+        # Empty default = no lock configured yet; the lifespan overwrites
+        # this from the active datasource profile at boot. An empty lock
+        # refuses gated (agentic/canned) modes until configured — secure by
+        # default rather than hardcoding any one datasource's tenant here.
+        tenant_lock: str = "",
         event_bus: RunEventBus | None = None,
         checkpoint_every_n_events: int = 10,
         approval_registry: ApprovalRegistry | None = None,
@@ -307,8 +311,8 @@ class HarnessSupervisor:
         identically. `tags` includes the resolved route when known.
 
         When a profile is set on the supervisor, ``span_prefix`` is taken
-        from ``profile.name``; otherwise it falls back to ``"nexo"`` so
-        existing deployments are unaffected.
+        from ``profile.name``; otherwise it falls back to ``"datasource"``
+        as a neutral default.
         """
 
         tags: list[str] = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}"]
@@ -321,7 +325,7 @@ class HarnessSupervisor:
             "user_id": ctx.user_id,
             "session_id": ctx.conversation_id or ctx.thread_id,
             "tags": tags,
-            "span_prefix": self.profile.name if self.profile is not None else "nexo",
+            "span_prefix": self.profile.name if self.profile is not None else "datasource",
         }
 
     async def _resolve_route(self, request: UserRequest) -> RouteResult:
@@ -368,7 +372,9 @@ class HarnessSupervisor:
         prior_messages: list[BaseMessage] | None = None,
     ) -> None:
         if self.data_graph is None:
-            display_name = self.profile.display_name if self.profile is not None else "Coordinador"
+            display_name = (
+                self.profile.display_name if self.profile is not None else "Datasource"
+            )
             answer = (
                 f"{display_name} integration is currently disabled "
                 "(no DB tunnel or boot failed). Try again once it's restored."
@@ -378,7 +384,7 @@ class HarnessSupervisor:
                 HarnessEvent(
                     run_id=ctx.run_id,
                     type="answer.completed",
-                    message="Nexo integration disabled",
+                    message="datasource integration disabled",
                     data={"length": len(answer)},
                 )
             )
@@ -402,7 +408,10 @@ class HarnessSupervisor:
         if answer:
             record.answer = answer
         else:
-            record.answer = "(no answer produced by Coordinador graph)"
+            display_name = (
+                self.profile.display_name if self.profile is not None else "datasource"
+            )
+            record.answer = f"(no answer produced by {display_name} graph)"
 
         # Persist DataPlan in artifacts (review item N12)
         plan = final_state.get("plan")
@@ -489,7 +498,7 @@ class HarnessSupervisor:
         # granularity (the root trace carries them, but the child
         # observation doesn't). The progress sink wires `usage.recorded`
         # too so SSE clients see token counts for the meta call.
-        _meta_span_prefix = self.profile.name if self.profile is not None else "nexo"
+        _meta_span_prefix = self.profile.name if self.profile is not None else "datasource"
         instrumented_meta_model = instrument_model(
             self.meta_model, "meta_agent", ctx,
             progress=progress, span_prefix=_meta_span_prefix,

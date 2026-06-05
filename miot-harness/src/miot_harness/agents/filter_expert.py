@@ -7,8 +7,8 @@ when the analyst signals "need_more_tools" repeatedly.
 
 
 
-One LLM call per turn. Given the user message and a catalog of
-coordinador_* tools (with @meta / Layer hints), emits a single
+One LLM call per turn. Given the user message and a catalog of the
+datasource's tools (with @meta / Layer hints), emits a single
 DataStep representing the next tool call. The supervisor then routes
 to data_fetcher; on return, freshness_judge + domain_analyst decide
 whether to ask for another step.
@@ -54,8 +54,7 @@ def _strip_fences(text: str) -> str:
 # datasource is locked to (profile.tenant_lock, capitalized), {tool_prefix}
 # → profile.tool_prefix, {prefix_label} → the prefix with its trailing
 # underscore turned into a "*" glob the way the prompt names the naming
-# convention. For NEXO_PROFILE these render byte-identically to the former
-# hardcodes ("Coordinador", "Mintral", "coordinador_", "coordinador_*").
+# convention. All come straight from the active datasource profile.
 _FILTER_EXPERT_SYSTEM_TEMPLATE = """\
 You are the Filter Expert for {display_name} ({tenant_display} fleet operations).
 You pick the SINGLE next {prefix_label} tool call to advance the user's
@@ -127,7 +126,7 @@ async def filter_expert_node(
     about that" can be resolved against context (plan 13 §E5 hydration).
     """
     catalog = build_tool_catalog(registry, profile=profile)
-    # "coordinador_" → "coordinador_*" for the naming-convention phrasing.
+    # e.g. "<prefix>_" → "<prefix>_*" for the naming-convention phrasing.
     prefix_label = f"{profile.tool_prefix}*"
     system = _FILTER_EXPERT_SYSTEM_TEMPLATE.format(
         display_name=profile.display_name,

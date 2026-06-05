@@ -1,10 +1,11 @@
-"""Provenance log for composable Nexo primitive calls (plan 13, E4).
+"""Provenance log for composable datasource primitive calls (plan 13, E4).
 
-Every call to `nexo_select` / `nexo_grep` / `nexo_explain` writes one
-JSONL line under `evals/provenance/YYYY-MM-DD.jsonl`. The weekly
-`scripts/provenance-curate.py` pass reads these to surface candidates:
+Every call to a datasource's composable primitives (e.g. select / grep /
+explain) writes one JSONL line under `evals/provenance/YYYY-MM-DD.jsonl`.
+The weekly `scripts/provenance-curate.py` pass reads these to surface
+candidates:
 
-- Repeated `(table, where_pattern)` combos → new curated `fn_dx_*` candidate.
+- Repeated `(table, where_pattern)` combos → new curated function candidate.
 - Cross-tenant volume → multi-tenant indexing candidate.
 - Plan-cost outliers → index or denial candidate.
 

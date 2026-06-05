@@ -76,7 +76,9 @@ def tenancy_gate_decision(
                 display_name=profile.display_name, lock=lock
             )
         else:
-            refusal = f"Coordinador is {lock}-only. I can't answer for other tenants."
+            refusal = (
+                f"This datasource is {lock}-only. I can't answer for other tenants."
+            )
         return TenancyDecision(
             allowed=False,
             refusal_message=refusal,

@@ -8,9 +8,17 @@ from collections.abc import Iterable
 import pytest
 from langchain_core.language_models import FakeListChatModel
 
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.intent_router import LLMIntentRouter, _render_system_prompt
 from miot_harness.runtime.router import HarnessRoute, IntentRouter
 from tests.fixtures.fake_provider import FAKE_PROFILE
+
+
+def _nexo_fallback() -> IntentRouter:
+    # The core router ships no built-in vocabulary; the keyword fallback in
+    # these tests uses the nexo profile keyword set (the provider-under-test's
+    # own vocabulary) so the "Mintral status" fallback prompts route to data.
+    return IntentRouter(data_keywords=NEXO_PROFILE.router_keywords)
 
 
 def _scripted_json(route: str, confidence: float = 0.9, reasoning: str = "test") -> str:
@@ -66,7 +74,7 @@ _FIXTURES: tuple[tuple[str, str, float, HarnessRoute], ...] = (
     ("forecast tomorrow's weather", "OTHER", 0.82, HarnessRoute.OTHER),
     ("translate this to Klingon", "OTHER", 0.80, HarnessRoute.OTHER),
     ("solve x^2 + 2x + 1 = 0", "OTHER", 0.79, HarnessRoute.OTHER),
-    # Low confidence → keyword fallback (this message has no Nexo keyword
+    # Low confidence → keyword fallback (this message has no data keyword
     # so the deterministic router returns DIRECT).
     ("ambiguous something", "DATA_QUERY", 0.50, HarnessRoute.DIRECT),
     ("eep doop", "OTHER", 0.30, HarnessRoute.DIRECT),
@@ -75,7 +83,7 @@ _FIXTURES: tuple[tuple[str, str, float, HarnessRoute], ...] = (
 
 def _build_router(responses: Iterable[str]) -> LLMIntentRouter:
     model = FakeListChatModel(responses=list(responses))
-    return LLMIntentRouter(model, confidence_threshold=0.7, keyword_fallback=IntentRouter())
+    return LLMIntentRouter(model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback())
 
 
 @pytest.mark.asyncio
@@ -106,12 +114,12 @@ async def test_low_confidence_falls_back_to_keyword_router() -> None:
     """Below the threshold the LLM label is dropped; keyword router decides."""
 
     # LLM says DATA_AGENTIC with low confidence; keyword router sees no
-    # Nexo keyword in "hola amigo", so the final route is DIRECT.
+    # data keyword in "hola amigo", so the final route is DIRECT.
     model = FakeListChatModel(
         responses=[_scripted_json("DATA_AGENTIC", confidence=0.3, reasoning="unsure")]
     )
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
 
     result = await router.route("hola amigo")
@@ -125,7 +133,7 @@ async def test_unparseable_llm_response_falls_back_to_keyword() -> None:
 
     model = FakeListChatModel(responses=["I'm not sure honestly..."])
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     result = await router.route("Mintral fleet status")  # contains 'mintral'
     assert result.route is HarnessRoute.DATA_QUERY
@@ -138,7 +146,7 @@ async def test_router_accepts_fenced_json_response() -> None:
     fenced = "```json\n" + _scripted_json("DATA_META", confidence=0.9) + "\n```"
     model = FakeListChatModel(responses=[fenced])
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     result = await router.route("what is fn_dx_eta_hoy?")
     assert result.route is HarnessRoute.DATA_META
@@ -152,7 +160,7 @@ async def test_invalid_route_name_falls_back_to_keyword() -> None:
         responses=[json.dumps({"route": "MAGIC_ROUTE", "confidence": 0.99})]
     )
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     result = await router.route("Mintral status")  # mintral keyword
     assert result.route is HarnessRoute.DATA_QUERY
@@ -179,7 +187,7 @@ async def test_non_dict_json_falls_back_to_keyword(raw_response: str) -> None:
 
     model = FakeListChatModel(responses=[raw_response])
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     # "Mintral status" has the `mintral` keyword so the fallback returns DATA_QUERY.
     result = await router.route("Mintral status")

@@ -26,8 +26,9 @@ class HarnessSettings(BaseSettings):
     datasource_kind: str = "nexo"
     # Standard Postgres connection string, e.g.
     # `postgresql://user:password@host:port/database`. This is the sole
-    # source of Nexo DB credentials — when unset, Nexo is disabled at boot
-    # and the harness still serves non-Nexo runs with mocked tools.
+    # source of the datasource's DB credentials — when unset, the datasource
+    # is disabled at boot and the harness still serves non-data runs with
+    # mocked tools.
     datasource_dsn: str | None = None
     # Surfaces in Postgres `pg_stat_activity.application_name` so DBAs
     # can attribute connections to the harness without log correlation.
@@ -108,9 +109,9 @@ class HarnessSettings(BaseSettings):
 
     # Tenants permitted to request `debug=true` runs. Debug runs surface
     # full tool inputs and truncated tool outputs over SSE, which on a
-    # coordinador-touching path means real Mintral fleet data. None / empty
+    # data-touching path means real tenant data. None / empty
     # (default) blocks debug for ALL tenants — debug requests get a 403.
-    # Comma-separated env var: `MIOT_HARNESS_ALLOW_DEBUG_TENANTS=mintral-dev,mintral-stg`.
+    # Comma-separated env var: `MIOT_HARNESS_ALLOW_DEBUG_TENANTS=acme-dev,acme-stg`.
     # Kept as a raw string so pydantic-settings doesn't try to parse it
     # as JSON; `debug_tenant_allowed()` below does the split.
     allow_debug_tenants: str | None = None

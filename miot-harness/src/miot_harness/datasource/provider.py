@@ -30,14 +30,14 @@ if TYPE_CHECKING:
 class DataSourceProfile:
     """Declarative domain values the core reads instead of hardcoding.
 
-    - name:            machine id ("nexo") — /health block, graph label,
-                       OTel span prefix.
-    - display_name:    human name ("Coordinador") — agent prompt templating.
+    - name:            machine id (lowercase slug) — /health block, graph
+                       label, OTel span prefix.
+    - display_name:    human-facing name — agent prompt templating.
     - source_label:    provenance string shown on SSE tool events and
                        evidence rows.
-    - tool_prefix:     prefix of tools this datasource registers
-                       ("coordinador_") — used by the filter expert to
-                       scope tool selection.
+    - tool_prefix:     prefix of tools this datasource registers (e.g.
+                       "<slug>_") — used by the filter expert to scope tool
+                       selection.
     - primer:          grounding text injected into analyst / synthesizer /
                        meta-agent system prompts.
     - router_keywords: lowercase literals that route a message to the
@@ -72,7 +72,7 @@ class BootResult:
     registered: tuple[str, ...]
     reason: str | None = None
     # float is intentional: sub-minute precision from timestamp arithmetic
-    # (parity with the legacy NexoBootResult).
+    # (sub-minute precision is required by the freshness SLA checks).
     snapshot_age_minutes: float | None = None
 
 

@@ -90,7 +90,7 @@ def test_health_ready_with_dsn_but_nexo_disabled_returns_503(
     # so lifespan exercises the "Nexo disabled despite DSN" path without
     # attempting a real connect.
     with patch(
-        "miot_harness.api.server.create_nexo_pool",
+        "miot_harness.integrations.nexo.provider.create_nexo_pool",
         new=AsyncMock(side_effect=ConnectionRefusedError("tunnel down")),
     ):
         app = create_app()
@@ -117,7 +117,7 @@ def test_health_ready_reflects_simulated_nexo_enabled_state(
     monkeypatch.setenv("MIOT_HARNESS_NEXO_DSN", "postgresql://u:p@localhost:5432/d")
     get_settings.cache_clear()
     with patch(
-        "miot_harness.api.server.create_nexo_pool",
+        "miot_harness.integrations.nexo.provider.create_nexo_pool",
         new=AsyncMock(side_effect=ConnectionRefusedError("tunnel down")),
     ):
         app = create_app()

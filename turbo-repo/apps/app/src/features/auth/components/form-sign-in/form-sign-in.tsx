@@ -7,6 +7,7 @@ import {
 } from "@/features/auth/services/auth.service";
 import { FormSignInProps } from "./form-sign-in.types";
 import React, { useActionState, useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
@@ -28,6 +29,8 @@ export default function FormSignIn({
   });
 
   const { register } = form;
+  // Preserve the post-sign-in destination (e.g. the CLI auth handoff page)
+  const callbackUrl = useSearchParams().get("callbackUrl");
   const [_state, formAction] = useActionState(authenticateAction, {});
   const [pending, setPending] = useState(false);
   const [showCredentialsForm, setShowCredentialsForm] = useState(false);
@@ -67,9 +70,12 @@ export default function FormSignIn({
   const needsDivider = oauthProviders.length > 0 && hasSamlOrCredentials;
 
   // Create sign-in action for OAuth provider
-  const createOAuthAction = useCallback((providerId: string) => {
-    return () => signInWithProvider(providerId);
-  }, []);
+  const createOAuthAction = useCallback(
+    (providerId: string) => {
+      return () => signInWithProvider(providerId, callbackUrl);
+    },
+    [callbackUrl]
+  );
 
   // Handle SAML sign-in with two-step flow
   // First click: reveal the team slug input

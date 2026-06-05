@@ -18,19 +18,23 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 
 logger = logging.getLogger(__name__)
 
 
-_CRITIC_SYSTEM = """\
-You are the Coordinador critic. Inspect the proposed answer against the
+# {display_name} → profile.display_name; {tenant_display} → the tenant the
+# datasource is locked to (profile.tenant_lock, capitalized). Render
+# byte-identically to the former hardcodes for NEXO ("Coordinador", "Mintral").
+_CRITIC_SYSTEM_TEMPLATE = """\
+You are the {display_name} critic. Inspect the proposed answer against the
 collected evidence. Output ONLY a JSON object:
-{"verdict": "pass" | "fail", "concerns": "..."}
+{{"verdict": "pass" | "fail", "concerns": "..."}}
 Fail if the answer:
 - invents numbers not in the evidence,
 - omits refreshed_at when the evidence has it,
 - claims data is fresh when is_stale=true,
-- answers a non-Mintral question with anything other than "Mintral-only".
+- answers a non-{tenant_display} question with anything other than "{tenant_display}-only".
 """
 
 
@@ -39,6 +43,7 @@ async def critic_node(
     *,
     settings: HarnessSettings,
     model: BaseChatModel,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
     if not settings.nexo_critic_enabled:
         return {}
@@ -54,9 +59,13 @@ async def critic_node(
     )[:2000]
     human = f"User question: {user_message}\n\nProposed answer:\n{answer}\n\nEvidence:\n{rendered}"
 
+    system = _CRITIC_SYSTEM_TEMPLATE.format(
+        display_name=profile.display_name,
+        tenant_display=(profile.tenant_lock or profile.display_name).capitalize(),
+    )
     response = await model.ainvoke(
         [
-            SystemMessage(content=_CRITIC_SYSTEM),
+            SystemMessage(content=system),
             HumanMessage(content=human),
         ]
     )

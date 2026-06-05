@@ -65,3 +65,16 @@ def test_etapa_with_eta_word_doesnt_match():
 def test_uppercase_eta_matches():
     router = IntentRouter()
     assert router.route("¿qué ETA tenemos?").route == HarnessRoute.NEXO_QUERY
+
+
+def test_router_accepts_custom_keywords() -> None:
+    router = IntentRouter(data_keywords=frozenset({"fakesource"}))
+    result = router.route("estado de fakesource hoy")
+    assert result.route == HarnessRoute.NEXO_QUERY
+
+
+def test_router_custom_keywords_replace_defaults() -> None:
+    # With custom keywords, the default nexo literals must NOT route to data.
+    router = IntentRouter(data_keywords=frozenset({"fakesource"}))
+    result = router.route("estado del coordinador?")
+    assert result.route == HarnessRoute.DIRECT

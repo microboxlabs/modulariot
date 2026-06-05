@@ -125,6 +125,7 @@ def _make_lifespan(
 
         provider = resolve_datasource("nexo")  # TODO(stage-4): settings.datasource_kind
         app.state.datasource_provider = provider
+        harness.profile = provider.profile
         result = await provider.boot(harness.tools, settings)
         app.state.nexo_enabled = result.enabled
         app.state.nexo_registered = list(result.registered)
@@ -154,7 +155,10 @@ def _make_lifespan(
                     "summarizer": get_chat_model(settings.nexo_summarizer_model),
                 }
                 harness.nexo_graph = build_nexo_graph(
-                    registry=harness.tools, settings=settings, models=models
+                    registry=harness.tools,
+                    settings=settings,
+                    models=models,
+                    profile=provider.profile,
                 )
 
                 # Phase E wiring: tenant_lock + agentic_graph + meta
@@ -171,6 +175,7 @@ def _make_lifespan(
                         "planner": get_chat_model(settings.nexo_analyst_model),
                     },
                     provenance_log=None,  # wired in F-phase when executor lands
+                    profile=provider.profile,
                 )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
@@ -189,7 +194,7 @@ def _make_lifespan(
                 harness.llm_router = LLMIntentRouter(
                     get_chat_model(settings.intent_router_model),
                     confidence_threshold=settings.intent_router_confidence_threshold,
-                    keyword_fallback=IntentRouter(),
+                    keyword_fallback=IntentRouter(data_keywords=provider.profile.router_keywords),
                 )
                 logger.info(
                     "Nexo: Phase E wired (LLM router=%s, agentic_graph, meta_agent)",

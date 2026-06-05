@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from miot_harness.agents.data_fetcher import data_fetcher_node
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import PermissionResult
@@ -76,7 +77,11 @@ async def test_fetcher_invokes_pending_step_and_appends_evidence():
     events: list[HarnessEvent] = []
 
     update = await data_fetcher_node(
-        state, registry=registry, settings=HarnessSettings(), progress=events.append
+        state,
+        registry=registry,
+        settings=HarnessSettings(),
+        progress=events.append,
+        profile=NEXO_PROFILE,
     )
 
     assert update["pending_step_index"] == 1
@@ -129,7 +134,11 @@ async def test_fetcher_records_failure_on_tool_error():
     events: list[HarnessEvent] = []
 
     update = await data_fetcher_node(
-        state, registry=registry, settings=HarnessSettings(), progress=events.append
+        state,
+        registry=registry,
+        settings=HarnessSettings(),
+        progress=events.append,
+        profile=NEXO_PROFILE,
     )
 
     assert update.get("failure")
@@ -175,7 +184,11 @@ async def test_fetcher_denied_permission_records_failure():
     }
 
     update = await data_fetcher_node(
-        state, registry=registry, settings=HarnessSettings(), progress=lambda e: None
+        state,
+        registry=registry,
+        settings=HarnessSettings(),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
     )
     assert update.get("failure")
     assert "Mintral" in update["failure"] or "permission" in update["failure"].lower()
@@ -211,6 +224,7 @@ async def test_fetcher_unregistered_tool_emits_canonical_failure_schema():
         registry=ToolRegistry(),
         settings=HarnessSettings(),
         progress=events.append,
+        profile=NEXO_PROFILE,
     )
 
     # State delta carries the structured fields.
@@ -242,6 +256,10 @@ async def test_fetcher_no_pending_step_is_noop():
         "turn_count": 2,
     }
     update = await data_fetcher_node(
-        state, registry=ToolRegistry(), settings=HarnessSettings(), progress=lambda e: None
+        state,
+        registry=ToolRegistry(),
+        settings=HarnessSettings(),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
     )
     assert update.get("next_action") == "ready_to_synthesize"

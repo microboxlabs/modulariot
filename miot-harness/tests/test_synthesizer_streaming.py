@@ -11,6 +11,7 @@ import pytest
 
 from miot_harness.agents.synthesizer import synthesizer_node
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 
@@ -98,7 +99,11 @@ async def test_streaming_synthesizer_emits_thinking_then_text() -> None:
         "failure": None,
     }
     delta = await synthesizer_node(
-        state, model=model, progress=events.append, settings=settings  # type: ignore[arg-type]
+        state,
+        model=model,
+        progress=events.append,
+        settings=settings,  # type: ignore[arg-type]
+        profile=NEXO_PROFILE,
     )
 
     types = [e.type for e in events]
@@ -144,7 +149,11 @@ async def test_streaming_synthesizer_disabled_falls_back_to_ainvoke() -> None:
         "failure": None,
     }
     delta = await synthesizer_node(
-        state, model=_AinvokeOnlyModel(), progress=events.append, settings=settings  # type: ignore[arg-type]
+        state,
+        model=_AinvokeOnlyModel(),
+        progress=events.append,
+        settings=settings,  # type: ignore[arg-type]
+        profile=NEXO_PROFILE,
     )
     assert delta == {"answer": "ainvoke path."}
     assert "thinking.delta" not in {e.type for e in events}

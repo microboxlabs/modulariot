@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.router import HarnessRoute
 
@@ -50,24 +51,37 @@ def tenancy_gate_decision(
     ctx: HarnessContext,
     route: HarnessRoute,
     settings: HarnessSettings,
+    profile: DataSourceProfile | None = None,
 ) -> TenancyDecision:
-    lock = settings.nexo_tenant_lock
+    """Evaluate tenancy for *route* and return a :class:`TenancyDecision`.
+
+    Lock resolution order (env-override layering arrives in a later stage):
+
+    1. ``profile.tenant_lock`` when a :class:`~miot_harness.datasource.provider.DataSourceProfile`
+       is supplied.
+    2. ``settings.nexo_tenant_lock`` otherwise (legacy / no-profile path).
+    """
+    lock = profile.tenant_lock if profile is not None else settings.nexo_tenant_lock
     tenant_matches = ctx.tenant_id == lock
 
     if route in _DATA_ROUTES:
         if tenant_matches:
             return TenancyDecision(allowed=True)
+        if profile is not None:
+            refusal = profile.tenant_refusal_template.format(
+                display_name=profile.display_name, lock=lock
+            )
+        else:
+            refusal = f"Coordinador is {lock}-only. I can't answer for other tenants."
         return TenancyDecision(
             allowed=False,
-            refusal_message=(
-                f"Coordinador is {lock}-only. I can't answer for other tenants."
-            ),
+            refusal_message=refusal,
         )
 
     if route in _META_ROUTES:
         # Always allowed; emit an audit attribute when the tenant is
         # off-lock so the Langfuse panel can spot "meta route used for
-        # non-Mintral tenant" patterns.
+        # non-locked tenant" patterns.
         if tenant_matches:
             return TenancyDecision(allowed=True)
         return TenancyDecision(

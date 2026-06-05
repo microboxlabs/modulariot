@@ -10,6 +10,7 @@ from miot_harness.agents.filter_expert import (
     build_tool_catalog,
     filter_expert_node,
 )
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.plan import NexoPlan, NexoStep
 from miot_harness.runtime.tool import HarnessTool  # noqa: F401
@@ -54,7 +55,7 @@ def test_build_tool_catalog_includes_all_coordinador_tools():
     registry.register(_stub_tool("coordinador_kpi_servicio", "[Layer L3] per-service KPI"))
     registry.register(_stub_tool("get_delivery_compliance_metrics", "non-Nexo"))
 
-    catalog = build_tool_catalog(registry)
+    catalog = build_tool_catalog(registry, profile=NEXO_PROFILE)
 
     assert "coordinador_centro_control" in catalog
     assert "coordinador_kpi_servicio" in catalog
@@ -65,7 +66,7 @@ def test_build_tool_catalog_includes_all_coordinador_tools():
 def test_build_tool_catalog_includes_layer_hint():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI summary text"))
-    catalog = build_tool_catalog(registry)
+    catalog = build_tool_catalog(registry, profile=NEXO_PROFILE)
     assert "L1" in catalog
     assert "KPI summary text" in catalog
 
@@ -94,7 +95,9 @@ async def test_filter_expert_produces_single_step():
         "turn_count": 0,
     }
 
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
 
     plan = update["plan"]
     assert isinstance(plan, NexoPlan)
@@ -138,7 +141,9 @@ async def test_filter_expert_appends_to_existing_plan():
         "turn_count": 1,
     }
 
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     new_plan = update["plan"]
 
     assert len(new_plan.steps) == 2
@@ -169,7 +174,9 @@ async def test_filter_expert_clears_next_action():
         "turn_count": 1,
         "next_action": "need_more_tools",
     }
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     assert update.get("next_action") is None
 
 
@@ -186,7 +193,9 @@ async def test_filter_expert_handles_json_fenced_response():
     )
     model = FakeListChatModel(responses=[fenced])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     assert "plan" in update
     assert update["plan"].steps[0].tool == "coordinador_centro_control"
 
@@ -219,7 +228,9 @@ async def test_filter_expert_handles_plan_max_steps():
         "evidence": [],
         "turn_count": 4,
     }
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     assert update.get("failure")
     assert update.get("next_action") == "ready_to_synthesize"
 
@@ -240,7 +251,9 @@ async def test_filter_expert_refuses_non_coordinador_tool():
     )
     model = FakeListChatModel(responses=[fake_response])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     assert update.get("failure")
     assert "out-of-scope" in update["failure"] or "scope" in update["failure"].lower()
 
@@ -259,7 +272,9 @@ async def test_filter_expert_emits_plan_created_event_on_first_step():
     )
     model = FakeListChatModel(responses=[fake_response])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     events = update.get("_events") or []
     assert any(e.type == "plan.created" for e in events)
 
@@ -288,5 +303,7 @@ async def test_filter_expert_refuses_unknown_tool():
         "turn_count": 0,
     }
 
-    update = await filter_expert_node(state, registry=registry, model=model)
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
     assert update.get("failure")

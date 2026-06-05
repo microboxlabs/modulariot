@@ -17,6 +17,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.nexo_graph import build_nexo_graph
@@ -110,7 +111,9 @@ async def test_per_agent_callback_emits_mode_attribute(
     settings = HarnessSettings(
         nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
     )
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_models())
+    graph = build_nexo_graph(
+        registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
+    )
 
     ctx = _ctx(mode="canned")
     await graph.ainvoke(

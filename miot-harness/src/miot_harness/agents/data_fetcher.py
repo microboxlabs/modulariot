@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoEvidence
@@ -54,6 +55,7 @@ def _evidence_from_output(
     output: Any,
     *,
     warn_minutes: int,
+    source_label: str,
 ) -> NexoEvidence:
     if hasattr(output, "model_dump"):
         dump = output.model_dump()
@@ -91,7 +93,7 @@ def _evidence_from_output(
     return NexoEvidence(
         step_id=step_id,
         tool=tool,
-        source=str(dump.get("source", "Coordinador · nexo (Citus DB)")),
+        source=str(dump.get("source", source_label)),
         refreshed_at=refreshed_at if isinstance(refreshed_at, datetime) else None,
         output=dump,
         sample_size=sample_size,
@@ -105,6 +107,7 @@ async def data_fetcher_node(
     registry: ToolRegistry,
     settings: HarnessSettings,
     progress: Progress,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
     plan = state.get("plan")
     pending = int(state.get("pending_step_index", 0))
@@ -140,6 +143,7 @@ async def data_fetcher_node(
         step.tool,
         output,
         warn_minutes=settings.nexo_freshness_warn_minutes,
+        source_label=profile.source_label,
     )
     return {
         "evidence": [evidence],  # appended by NexoState's operator.add reducer

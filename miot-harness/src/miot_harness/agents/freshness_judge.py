@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoEvidence
@@ -33,7 +34,15 @@ def freshness_judge_node(
     *,
     settings: HarnessSettings,
     progress: Progress,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
+    # Thresholds come from the profile now. The env-override layering (where
+    # settings.nexo_freshness_* could differ) arrives in the settings stage;
+    # today the settings defaults (30 / 240) equal the NEXO profile values,
+    # so behavior is identical.
+    warn = profile.freshness_warn_minutes
+    refuse = profile.freshness_refuse_minutes
+
     evidence: list[NexoEvidence] = list(state.get("evidence", []))
     if not evidence:
         return {"next_action": "analyze", "freshness": FRESHNESS_FRESH}
@@ -47,9 +56,9 @@ def freshness_judge_node(
         verdict = FRESHNESS_WARN
     else:
         age_minutes = (datetime.now(UTC) - last.refreshed_at).total_seconds() / 60
-        if age_minutes <= settings.nexo_freshness_warn_minutes:
+        if age_minutes <= warn:
             verdict = FRESHNESS_FRESH
-        elif age_minutes <= settings.nexo_freshness_refuse_minutes:
+        elif age_minutes <= refuse:
             verdict = FRESHNESS_WARN
         else:
             verdict = FRESHNESS_REFUSE
@@ -83,8 +92,8 @@ def freshness_judge_node(
             "freshness": verdict,
             "next_action": "ready_to_synthesize",
             "failure": (
-                f"Coordinador snapshot is stale (age {age_minutes:.0f}min > "
-                f"refuse threshold {settings.nexo_freshness_refuse_minutes}min)."
+                f"{profile.display_name} snapshot is stale (age {age_minutes:.0f}min > "
+                f"refuse threshold {refuse}min)."
             ),
         }
 

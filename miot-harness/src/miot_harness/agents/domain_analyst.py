@@ -24,7 +24,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.plan import NexoEvidence
 
 logger = logging.getLogger(__name__)
@@ -40,8 +40,12 @@ def _strip_fences(text: str) -> str:
     return text
 
 
+# {display_name} → profile.display_name; {tenant_display} → the tenant the
+# datasource is locked to (profile.tenant_lock, capitalized); {prefix_label}
+# → profile.tool_prefix + "*". Render byte-identically to the former
+# hardcodes for NEXO_PROFILE ("Coordinador", "Mintral", "coordinador_*").
 _ANALYST_SYSTEM_TEMPLATE = """\
-You are the Coordinador Domain Analyst. Your job is to decide whether the
+You are the {display_name} Domain Analyst. Your job is to decide whether the
 collected evidence is enough to answer the user's question.
 
 You DO NOT write the final answer. The synthesizer does that.
@@ -53,8 +57,8 @@ Output ONLY a JSON object:
 {{"verdict": "ready" | "need_more", "reasoning": "..."}}
 
 - "ready" means the evidence is sufficient to answer (or to refuse
-  gracefully if the question is out of scope or non-Mintral).
-- "need_more" means another coordinador_* tool call would help.
+  gracefully if the question is out of scope or non-{tenant_display}).
+- "need_more" means another {prefix_label} tool call would help.
 """
 
 
@@ -76,6 +80,7 @@ async def domain_analyst_node(
     state: dict[str, Any],
     *,
     model: BaseChatModel,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
     evidence: list[NexoEvidence] = list(state.get("evidence", []))
     if not evidence:
@@ -83,7 +88,12 @@ async def domain_analyst_node(
         return {"next_action": "need_more_tools"}
 
     user_message = state.get("user_message", "")
-    system = _ANALYST_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
+    system = _ANALYST_SYSTEM_TEMPLATE.format(
+        display_name=profile.display_name,
+        tenant_display=(profile.tenant_lock or profile.display_name).capitalize(),
+        prefix_label=f"{profile.tool_prefix}*",
+        primer=profile.primer,
+    )
     rendered = _render_evidence(evidence)
     human = f"User question:\n{user_message}\n\nEvidence collected so far:\n{rendered}"
 

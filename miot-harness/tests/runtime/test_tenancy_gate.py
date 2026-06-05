@@ -83,3 +83,30 @@ def test_unknown_route_defaults_to_strict_refuse_for_safety() -> None:
         settings=HarnessSettings(),
     )
     assert decision.allowed is False
+
+
+def test_gate_uses_profile_lock_and_template() -> None:
+    from tests.fixtures.fake_provider import FAKE_PROFILE
+
+    decision = tenancy_gate_decision(
+        ctx=_ctx(tenant="intruder"),
+        route=HarnessRoute.NEXO_QUERY,
+        settings=HarnessSettings(),
+        profile=FAKE_PROFILE,
+    )
+    assert decision.allowed is False
+    assert decision.refusal_message == (
+        "FakeSource is acme-only. I can't answer for other tenants."
+    )
+
+
+def test_gate_profile_lock_allows_matching_tenant() -> None:
+    from tests.fixtures.fake_provider import FAKE_PROFILE
+
+    decision = tenancy_gate_decision(
+        ctx=_ctx(tenant="acme"),
+        route=HarnessRoute.NEXO_QUERY,
+        settings=HarnessSettings(),
+        profile=FAKE_PROFILE,
+    )
+    assert decision.allowed is True

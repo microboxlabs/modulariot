@@ -40,8 +40,13 @@ def agent_span(
     session_id: str | None = None,
     tags: Sequence[str] | None = None,
     environment: str | None = None,
+    span_prefix: str = "nexo",
 ) -> Iterator[Span]:
-    """Open a ``nexo.<name>`` span carrying the run/tenant/mode attribution.
+    """Open a ``<span_prefix>.<name>`` span carrying the run/tenant/mode attribution.
+
+    ``span_prefix`` defaults to ``"nexo"`` so existing callers are unchanged.
+    Pass ``profile.name`` when a profile is in scope to make telemetry
+    datasource-agnostic.
 
     Optional ``user_id`` / ``session_id`` / ``tags`` / ``environment``
     arguments populate Langfuse's first-class trace fields (E10).
@@ -54,7 +59,7 @@ def agent_span(
     # AttributeValue is `str | bool | int | float | Sequence[...]` — a
     # bare `object` value type is too loose for that contract.
     attributes: dict[str, str] = {
-        "gen_ai.operation.name": f"nexo.{name}",
+        "gen_ai.operation.name": f"{span_prefix}.{name}",
         "modular.run_id": run_id,
     }
     if tenant_id is not None:
@@ -73,5 +78,5 @@ def agent_span(
         # the Langfuse ingest, so we serialise as JSON for portability.
         attributes["langfuse.tags"] = json.dumps(list(tags))
 
-    with tracer.start_as_current_span(f"nexo.{name}", attributes=attributes) as span:
+    with tracer.start_as_current_span(f"{span_prefix}.{name}", attributes=attributes) as span:
         yield span

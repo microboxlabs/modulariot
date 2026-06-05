@@ -10,6 +10,7 @@ from miot_harness.agents.freshness_judge import (
     freshness_judge_node,
 )
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import NexoEvidence
@@ -39,7 +40,9 @@ def test_fresh_evidence_passes_through():
     }
     events: list[HarnessEvent] = []
 
-    update = freshness_judge_node(state, settings=HarnessSettings(), progress=events.append)
+    update = freshness_judge_node(
+        state, settings=HarnessSettings(), progress=events.append, profile=NEXO_PROFILE
+    )
 
     assert update["next_action"] == "analyze"
     assert "evidence" not in update  # judge does not mutate evidence (operator.add reducer)
@@ -58,7 +61,9 @@ def test_warn_zone_marks_is_stale_and_emits_warning_event():
     events: list[HarnessEvent] = []
     settings = HarnessSettings(nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240)
 
-    update = freshness_judge_node(state, settings=settings, progress=events.append)
+    update = freshness_judge_node(
+        state, settings=settings, progress=events.append, profile=NEXO_PROFILE
+    )
 
     assert update["next_action"] == "analyze"
     assert "evidence" not in update  # judge does not mutate evidence
@@ -75,7 +80,9 @@ def test_refuse_zone_blocks_synthesizer():
     events: list[HarnessEvent] = []
     settings = HarnessSettings(nexo_freshness_refuse_minutes=240)
 
-    update = freshness_judge_node(state, settings=settings, progress=events.append)
+    update = freshness_judge_node(
+        state, settings=settings, progress=events.append, profile=NEXO_PROFILE
+    )
 
     assert update.get("freshness") == FRESHNESS_REFUSE
     assert update.get("failure")  # synth will render the refusal
@@ -90,6 +97,8 @@ def test_no_refreshed_at_treated_as_warn_not_refuse():
         "evidence": [_ev(None)],
         "turn_count": 1,
     }
-    update = freshness_judge_node(state, settings=HarnessSettings(), progress=lambda e: None)
+    update = freshness_judge_node(
+        state, settings=HarnessSettings(), progress=lambda e: None, profile=NEXO_PROFILE
+    )
     assert update.get("freshness") == FRESHNESS_WARN
     assert update["next_action"] == "analyze"

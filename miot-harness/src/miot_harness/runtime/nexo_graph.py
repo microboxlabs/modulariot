@@ -40,10 +40,11 @@ from miot_harness.agents.summarizer import summarizer_node
 from miot_harness.agents.supervisor import next_agent
 from miot_harness.agents.synthesizer import synthesizer_node
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.callbacks import NexoTelemetryCallback
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.node_lifecycle import wrap_node_with_lifecycle
+from miot_harness.runtime.node_lifecycle import GraphLabel, wrap_node_with_lifecycle
 from miot_harness.runtime.plan import NexoState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
@@ -56,13 +57,17 @@ def instrument_model(
     ctx: HarnessContext,
     *,
     progress: Any = None,
+    span_prefix: str = "nexo",
 ) -> Any:
     """Wrap a chat model with a per-agent telemetry callback for this run.
 
-    The callback emits one ``nexo.<agent>`` span per LLM call with full
-    GenAI semconv attribution (tokens, cache split, cost), the internal
+    The callback emits one ``<span_prefix>.<agent>`` span per LLM call with
+    full GenAI semconv attribution (tokens, cache split, cost), the internal
     ``modular.*`` attrs we group by, AND the ``langfuse.*`` attrs the
     Langfuse UI promotes to first-class filter columns (E10).
+
+    ``span_prefix`` defaults to ``"nexo"`` so existing callers are unchanged.
+    Pass ``profile.name`` when a profile is in scope.
 
     When `progress` is set, the callback ALSO emits a `usage.recorded`
     HarnessEvent per LLM call so SSE consumers (curl, miot-chat) see
@@ -85,6 +90,7 @@ def instrument_model(
         session_id=session_id,
         tags=tags,
         progress=progress,
+        span_prefix=span_prefix,
     )
     return model.with_config(callbacks=[cb])
 
@@ -100,14 +106,19 @@ def _make_event_buffer() -> tuple[list[HarnessEvent], Any]:
     return buf, buf.append
 
 
-async def _tenant_gate_node(state: dict[str, Any], *, settings: HarnessSettings) -> dict[str, Any]:
+async def _tenant_gate_node(
+    state: dict[str, Any],
+    *,
+    settings: HarnessSettings,
+    profile: DataSourceProfile,
+) -> dict[str, Any]:
     """Defense-in-depth gate: the mode resolver should have already gated this,
     but the graph entry re-checks so a future direct-graph caller can't slip
-    past with a non-Mintral tenant.
+    past with an off-lock datasource tenant.
     """
     ctx: HarnessContext = state["ctx"]
     decision = tenancy_gate_decision(
-        ctx=ctx, route=HarnessRoute.NEXO_QUERY, settings=settings
+        ctx=ctx, route=HarnessRoute.NEXO_QUERY, settings=settings, profile=profile
     )
     if not decision.allowed:
         # Skip every LLM call; supervisor sees `answer` set and ends.
@@ -135,8 +146,14 @@ def build_nexo_graph(
     registry: ToolRegistry,
     settings: HarnessSettings,
     models: dict[str, BaseChatModel],
+    profile: DataSourceProfile,
 ) -> Any:
     graph = StateGraph(NexoState)
+    # Graph label for node-lifecycle spans. For NEXO_PROFILE this is "nexo",
+    # byte-identical to the former literal on the wire. GraphLabel is a
+    # constrained Literal today; widening it to accept any profile.name is a
+    # later-stage telemetry change, so we cast at this boundary for now.
+    graph_label = cast(GraphLabel, profile.name)
 
     def _merge_events(delta: dict[str, Any], events: list[HarnessEvent]) -> dict[str, Any]:
         if events:
@@ -151,8 +168,10 @@ def build_nexo_graph(
             cast(dict[str, Any], state),
             registry=registry,
             model=instrument_model(
-                models["filter_expert"], "filter_expert", ctx, progress=progress
+                models["filter_expert"], "filter_expert", ctx,
+                progress=progress, span_prefix=profile.name,
             ),
+            profile=profile,
         )
         return _merge_events(delta, buf)
 
@@ -163,13 +182,14 @@ def build_nexo_graph(
             registry=registry,
             settings=settings,
             progress=progress,
+            profile=profile,
         )
         return _merge_events(delta, buf)
 
     def _freshness_judge(state: NexoState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
         delta = freshness_judge_node(
-            cast(dict[str, Any], state), settings=settings, progress=progress
+            cast(dict[str, Any], state), settings=settings, progress=progress, profile=profile
         )
         return _merge_events(delta, buf)
 
@@ -179,8 +199,10 @@ def build_nexo_graph(
         delta = await domain_analyst_node(
             cast(dict[str, Any], state),
             model=instrument_model(
-                models["domain_analyst"], "domain_analyst", ctx, progress=progress
+                models["domain_analyst"], "domain_analyst", ctx,
+                progress=progress, span_prefix=profile.name,
             ),
+            profile=profile,
         )
         return _merge_events(delta, buf)
 
@@ -190,10 +212,12 @@ def build_nexo_graph(
         delta = await synthesizer_node(
             cast(dict[str, Any], state),
             model=instrument_model(
-                models["synthesizer"], "synthesizer", ctx, progress=progress
+                models["synthesizer"], "synthesizer", ctx,
+                progress=progress, span_prefix=profile.name,
             ),
             progress=progress,
             settings=settings,
+            profile=profile,
         )
         return _merge_events(delta, buf)
 
@@ -204,8 +228,10 @@ def build_nexo_graph(
             cast(dict[str, Any], state),
             settings=settings,
             model=instrument_model(
-                models["critic"], "critic", ctx, progress=progress
+                models["critic"], "critic", ctx,
+                progress=progress, span_prefix=profile.name,
             ),
+            profile=profile,
         )
         return _merge_events(delta, buf)
 
@@ -215,31 +241,42 @@ def build_nexo_graph(
         delta = await summarizer_node(
             cast(dict[str, Any], state),
             model=instrument_model(
-                models["summarizer"], "summarizer", ctx, progress=progress
+                models["summarizer"], "summarizer", ctx,
+                progress=progress, span_prefix=profile.name,
             ),
         )
         return _merge_events(delta, buf)
 
     async def _tenant_gate(state: NexoState) -> dict[str, Any]:
-        return await _tenant_gate_node(cast(dict[str, Any], state), settings=settings)
+        return await _tenant_gate_node(
+            cast(dict[str, Any], state), settings=settings, profile=profile
+        )
 
-    graph.add_node("tenant_gate", wrap_node_with_lifecycle("tenant_gate", _tenant_gate, "nexo"))
+    graph.add_node(
+        "tenant_gate", wrap_node_with_lifecycle("tenant_gate", _tenant_gate, graph_label)
+    )
     graph.add_node(
         "filter_expert",
-        wrap_node_with_lifecycle("filter_expert", _filter_expert, "nexo"),
+        wrap_node_with_lifecycle("filter_expert", _filter_expert, graph_label),
     )
-    graph.add_node("data_fetcher", wrap_node_with_lifecycle("data_fetcher", _data_fetcher, "nexo"))
+    graph.add_node(
+        "data_fetcher", wrap_node_with_lifecycle("data_fetcher", _data_fetcher, graph_label)
+    )
     graph.add_node(
         "freshness_judge",
-        wrap_node_with_lifecycle("freshness_judge", _freshness_judge, "nexo"),
+        wrap_node_with_lifecycle("freshness_judge", _freshness_judge, graph_label),
     )
     graph.add_node(
         "domain_analyst",
-        wrap_node_with_lifecycle("domain_analyst", _domain_analyst, "nexo"),
+        wrap_node_with_lifecycle("domain_analyst", _domain_analyst, graph_label),
     )
-    graph.add_node("synthesizer", wrap_node_with_lifecycle("synthesizer", _synthesizer, "nexo"))
-    graph.add_node("critic", wrap_node_with_lifecycle("critic", _critic, "nexo"))
-    graph.add_node("summarizer", wrap_node_with_lifecycle("summarizer", _summarizer, "nexo"))
+    graph.add_node(
+        "synthesizer", wrap_node_with_lifecycle("synthesizer", _synthesizer, graph_label)
+    )
+    graph.add_node("critic", wrap_node_with_lifecycle("critic", _critic, graph_label))
+    graph.add_node(
+        "summarizer", wrap_node_with_lifecycle("summarizer", _summarizer, graph_label)
+    )
 
     graph.set_entry_point("tenant_gate")
 

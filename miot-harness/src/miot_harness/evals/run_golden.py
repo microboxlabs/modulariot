@@ -46,6 +46,7 @@ from langchain_core.language_models import FakeListChatModel
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.nexo_graph import build_nexo_graph
 from miot_harness.runtime.permissions import PermissionResult
@@ -199,7 +200,12 @@ def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
 async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
     settings = HarnessSettings()
     registry = _build_fake_registry(entry)
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_fake_models(entry))
+    graph = build_nexo_graph(
+        registry=registry,
+        settings=settings,
+        models=_fake_models(entry),
+        profile=NEXO_PROFILE,
+    )
     ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
 
     initial: dict[str, Any] = {

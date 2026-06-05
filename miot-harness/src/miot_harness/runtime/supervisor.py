@@ -30,6 +30,7 @@ from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
 )
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
@@ -88,6 +89,8 @@ class HarnessSupervisor:
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
         self.approval_registry = approval_registry
+        # Set by the lifespan after boot; None = legacy defaults.
+        self.profile: DataSourceProfile | None = None
 
     async def run(
         self,
@@ -302,6 +305,10 @@ class HarnessSupervisor:
         Centralizes the Langfuse first-class field mapping (E10) so every
         route's root span carries `user_id`, `session_id`, and `tags`
         identically. `tags` includes the resolved route when known.
+
+        When a profile is set on the supervisor, ``span_prefix`` is taken
+        from ``profile.name``; otherwise it falls back to ``"nexo"`` so
+        existing deployments are unaffected.
         """
 
         tags: list[str] = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}"]
@@ -314,6 +321,7 @@ class HarnessSupervisor:
             "user_id": ctx.user_id,
             "session_id": ctx.conversation_id or ctx.thread_id,
             "tags": tags,
+            "span_prefix": self.profile.name if self.profile is not None else "nexo",
         }
 
     async def _resolve_route(self, request: UserRequest) -> RouteResult:
@@ -360,8 +368,9 @@ class HarnessSupervisor:
         prior_messages: list[BaseMessage] | None = None,
     ) -> None:
         if self.nexo_graph is None:
+            display_name = self.profile.display_name if self.profile is not None else "Coordinador"
             answer = (
-                "Coordinador integration is currently disabled "
+                f"{display_name} integration is currently disabled "
                 "(no DB tunnel or boot failed). Try again once it's restored."
             )
             record.answer = answer
@@ -480,8 +489,10 @@ class HarnessSupervisor:
         # granularity (the root trace carries them, but the child
         # observation doesn't). The progress sink wires `usage.recorded`
         # too so SSE clients see token counts for the meta call.
+        _meta_span_prefix = self.profile.name if self.profile is not None else "nexo"
         instrumented_meta_model = instrument_model(
-            self.meta_model, "meta_agent", ctx, progress=progress
+            self.meta_model, "meta_agent", ctx,
+            progress=progress, span_prefix=_meta_span_prefix,
         )
 
         try:

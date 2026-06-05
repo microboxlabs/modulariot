@@ -11,6 +11,7 @@ from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry, build_default_registry
+from tests.fixtures.fake_provider import FAKE_PROFILE
 
 
 def _supervisor(
@@ -80,3 +81,16 @@ async def test_nexo_route_handles_graph_exception(tmp_path):
     assert record.status == "failed"
     failed = [e for e in record.events if e.type == "run.failed"]
     assert failed
+
+
+@pytest.mark.asyncio
+async def test_disabled_message_uses_profile_display_name(tmp_path):
+    """When profile is set on the supervisor, the disabled message uses
+    profile.display_name instead of the legacy "Coordinador" literal."""
+    sup = _supervisor(tmp_path, nexo_graph=None)
+    sup.profile = FAKE_PROFILE
+
+    record = await sup.run(UserRequest(message="coordinador status?", tenant_id="mintral"))
+    assert record.status == "completed"
+    assert record.answer is not None
+    assert "FakeSource integration is currently disabled" in record.answer

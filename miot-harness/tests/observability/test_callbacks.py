@@ -136,3 +136,20 @@ def test_callback_infers_openai_provider_from_model_name(
     attrs = dict(memory_exporter.get_finished_spans()[0].attributes)
     assert attrs["gen_ai.system"] == "openai"
     assert attrs["gen_ai.request.model"] == "gpt-4o-mini"
+
+
+def test_callback_span_prefix_overrides_nexo_default(
+    memory_exporter: InMemorySpanExporter,
+) -> None:
+    """When span_prefix='fake', emitted span names start with 'fake.' not 'nexo.'."""
+    cb = NexoTelemetryCallback(agent_name="filter_expert", run_id="root-6", span_prefix="fake")
+    rid = uuid4()
+    cb.on_chat_model_start(_serialized_anthropic(), [[HumanMessage(content="hi")]], run_id=rid)
+    cb.on_llm_end(_llm_result(input_tokens=10, output_tokens=5), run_id=rid)
+
+    spans = memory_exporter.get_finished_spans()
+    assert len(spans) == 1
+    span = spans[0]
+    assert span.name == "fake.filter_expert"
+    attrs = dict(span.attributes)
+    assert attrs["gen_ai.operation.name"] == "fake.filter_expert"

@@ -37,9 +37,10 @@ class RouteResult(BaseModel):
     reason: str
 
 
-# High-precision Nexo tokens. Lowercased messages are searched against
-# the lowercase forms; ETA stays uppercase and word-bounded.
-_NEXO_LITERAL_TOKENS = (
+# High-precision data-route tokens (nexo defaults during the seam transition).
+# Lowercased messages are searched against the lowercase forms; ETA stays
+# uppercase and word-bounded.
+_DEFAULT_DATA_TOKENS = (
     "coordinador",
     "mintral",
     "centro de control",
@@ -56,20 +57,26 @@ _STORYTELLING_TOKENS = ("story", "dashboard widget")
 
 
 class IntentRouter:
+    def __init__(self, data_keywords: frozenset[str] | None = None) -> None:
+        self._data_keywords = (
+            data_keywords if data_keywords is not None else frozenset(_DEFAULT_DATA_TOKENS)
+        )
+
     def route(self, message: str) -> RouteResult:
         normalized = message.lower()
 
-        nexo_match = next(
-            (token for token in _NEXO_LITERAL_TOKENS if token in normalized),
+        data_match = next(
+            (token for token in self._data_keywords if token in normalized),
             None,
         )
-        if nexo_match is None and _ETA_RE.search(message):
-            nexo_match = "ETA"
+        # ETA regex is coordinador-specific; folded into profile keywords in a follow-up.
+        if data_match is None and _ETA_RE.search(message):
+            data_match = "ETA"
 
-        if nexo_match:
+        if data_match:
             return RouteResult(
                 route=HarnessRoute.NEXO_QUERY,
-                reason=f"Nexo keyword matched: {nexo_match!r}",
+                reason=f"Nexo keyword matched: {data_match!r}",
             )
 
         if any(token in normalized for token in _STORYTELLING_TOKENS):

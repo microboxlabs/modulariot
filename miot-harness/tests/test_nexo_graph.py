@@ -9,6 +9,7 @@ from langchain_core.language_models import FakeListChatModel
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.nexo_graph import build_nexo_graph
 from miot_harness.runtime.permissions import PermissionResult
@@ -91,7 +92,9 @@ def _models(filter_step_tool: str = "coordinador_centro_control") -> dict[str, A
 async def test_happy_path_mintral_run_emits_answer():
     registry, _refreshed = _registry_with_centro()
     settings = HarnessSettings(nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240)
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_models())
+    graph = build_nexo_graph(
+        registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
+    )
 
     initial: dict[str, Any] = {
         "user_message": "¿estado operativo de hoy?",
@@ -123,7 +126,9 @@ async def test_non_mintral_tenant_short_circuits_at_tenant_gate():
         "critic": FakeListChatModel(responses=[]),
         "summarizer": FakeListChatModel(responses=[]),
     }
-    graph = build_nexo_graph(registry=registry, settings=settings, models=bare_models)
+    graph = build_nexo_graph(
+        registry=registry, settings=settings, models=bare_models, profile=NEXO_PROFILE
+    )
 
     initial = {
         "user_message": "for client X?",
@@ -145,7 +150,9 @@ async def test_stale_data_routes_through_synth_failure_path():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", refreshed))
     settings = HarnessSettings(nexo_freshness_refuse_minutes=240)
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_models())
+    graph = build_nexo_graph(
+        registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
+    )
 
     initial = {
         "user_message": "?",

@@ -232,13 +232,31 @@ def _make_lifespan(
                 # Tools registered fine but the supervisor can't reach
                 # them without the graph — clear the public state so
                 # /health reports the disabled-and-empty truth, not a
-                # tool list that is unreachable. The provider is closed by
-                # the outer `finally` below; we just drop the public
-                # references here.
+                # tool list that is unreachable. Every graph/meta entry
+                # point is cleared (the failure may have struck after
+                # some were already wired — a live agentic_graph behind
+                # a disabled /health would silently keep serving), and
+                # the provider is closed NOW so its pool doesn't stay
+                # allocated for an app that can't use it (close() is
+                # idempotent; the outer `finally` re-close is a no-op).
+                # harness.router (keyword routing) is intentionally
+                # kept: it powers the disabled-path "integration
+                # disabled" answer.
                 app.state.datasource_enabled = False
                 app.state.datasource_registered = []
                 app.state.datasource_snapshot_age_minutes = None
                 harness.data_graph = None
+                harness.agentic_graph = None
+                harness.meta_model = None
+                harness.meta_primer = ""  # meta path gates on meta_model
+                harness.meta_catalog = []
+                harness.llm_router = None
+                try:
+                    await provider.close()
+                except Exception as close_exc:  # noqa: BLE001
+                    logger.warning(
+                        "Datasource: provider close raised %s", close_exc
+                    )
 
         try:
             yield

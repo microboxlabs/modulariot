@@ -113,3 +113,54 @@ def test_app_boots_when_pool_creation_raises(monkeypatch, tmp_path):
             resp = client.get("/health")
             assert resp.status_code == 200
             assert app.state.datasource_enabled is False
+
+
+def test_graph_build_failure_tears_down_partial_wiring(monkeypatch, tmp_path):
+    """If graph/model wiring fails AFTER a successful boot, every graph
+    and meta entry point must be cleared (a live agentic_graph behind a
+    disabled /health would silently keep serving) and the provider's
+    pool must be closed immediately, not at app shutdown."""
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    fake_pool = MagicMock()
+    fake_pool.close = AsyncMock()
+
+    with (
+        patch(
+            "miot_harness.integrations.nexo.provider.create_nexo_pool",
+            new=AsyncMock(return_value=fake_pool),
+        ),
+        patch(
+            "miot_harness.integrations.nexo.provider.load_nexo_tools",
+            new=AsyncMock(
+                return_value=NexoBootResult(
+                    enabled=True,
+                    registered=["coordinador_centro_control"],
+                )
+            ),
+        ),
+        # Late failure: data_graph builds fine, agentic_graph raises —
+        # exercising the partial-wiring branch of the except handler.
+        patch(
+            "miot_harness.api.server.build_agentic_graph",
+            side_effect=RuntimeError("boom"),
+        ),
+    ):
+        app = create_app()
+        with TestClient(app) as client:
+            resp = client.get("/health")
+            assert resp.status_code == 200
+            assert app.state.datasource_enabled is False
+            assert resp.json()["datasource"]["tools"] == []
+            harness = app.state.harness
+            assert harness.data_graph is None
+            assert harness.agentic_graph is None
+            assert harness.meta_model is None
+            assert harness.llm_router is None
+            # Keyword routing survives so the data routes can still
+            # serve the "integration disabled" answer.
+            assert harness.router.route("estado del coordinador?").route.value == "data_query"
+            # Pool released during boot, not deferred to shutdown.
+            fake_pool.close.assert_awaited_once()

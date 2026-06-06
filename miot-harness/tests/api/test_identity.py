@@ -33,6 +33,8 @@ def _clean_settings_and_workspace(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[None]:
     monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
+    # Pin provider selection to the default kind for deterministic boots.
+    monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_KIND", raising=False)
     monkeypatch.delenv("MIOT_HARNESS_IDENTITY_SIGNING_KEY", raising=False)
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))
     get_settings.cache_clear()

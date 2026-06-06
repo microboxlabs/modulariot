@@ -329,8 +329,20 @@ async def _build_real_setup(
         raise RuntimeError(
             "real mode requires MIOT_HARNESS_DATASOURCE_DSN (datasource credentials)"
         )
-    if not settings.anthropic_api_key:
-        raise RuntimeError("real mode requires ANTHROPIC_API_KEY")
+    # Only required when the configured model mix actually uses Anthropic —
+    # mirrors get_chat_model's "claude-*" provider dispatch.
+    agent_models = (
+        settings.agents_filter_expert_model,
+        settings.agents_analyst_model,
+        settings.agents_synthesizer_model,
+        settings.agents_critic_model,
+        settings.agents_summarizer_model,
+    )
+    if any(m.startswith("claude-") for m in agent_models) and not settings.anthropic_api_key:
+        raise RuntimeError(
+            "real mode requires ANTHROPIC_API_KEY (the configured agent "
+            "models include claude-*)"
+        )
 
     from miot_harness.tools.registry import build_default_registry
 

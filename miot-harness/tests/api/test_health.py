@@ -14,8 +14,11 @@ from miot_harness.config import get_settings
 
 @pytest.fixture(autouse=True)
 def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    # The "Nexo disabled" assumption requires the DSN to be unset.
+    # The "Nexo disabled" assumption requires the DSN to be unset, and
+    # the provider assertions require the default kind regardless of the
+    # outer environment.
     monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_KIND", raising=False)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

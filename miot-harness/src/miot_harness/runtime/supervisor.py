@@ -472,6 +472,17 @@ class HarnessSupervisor:
                 "(no meta_model wired). Try again once it's restored."
             )
             record.answer = answer
+            # Terminal event mirrors the disabled-datasource branch in
+            # _run_data_query: SSE subscribers need answer.completed, not
+            # a silent close.
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="answer.completed",
+                    message="meta agent disabled",
+                    data={"length": len(answer)},
+                )
+            )
             return
 
         from miot_harness.config import get_settings

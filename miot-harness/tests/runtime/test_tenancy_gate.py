@@ -49,10 +49,12 @@ def test_data_routes_refuse_non_mintral(route: HarnessRoute) -> None:
     [HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC],
 )
 def test_data_routes_allow_locked_tenant(route: HarnessRoute) -> None:
+    # The lock must be SET for this to test "locked tenant allowed";
+    # default settings carry no lock and would pass vacuously.
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="mintral"),
         route=route,
-        settings=HarnessSettings(),
+        settings=HarnessSettings(datasource_tenant_lock="mintral"),
     )
     assert decision.allowed is True
     assert decision.refusal_message is None
@@ -71,10 +73,12 @@ def test_data_meta_allows_any_tenant_with_audit_attr() -> None:
 
 
 def test_data_meta_for_locked_tenant_does_not_emit_bypass_attr() -> None:
+    # Lock set explicitly: with no lock, tenant_matches is trivially True
+    # and the no-bypass assertion would pass vacuously.
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="mintral"),
         route=HarnessRoute.DATA_META,
-        settings=HarnessSettings(),
+        settings=HarnessSettings(datasource_tenant_lock="mintral"),
     )
     assert decision.allowed is True
     assert decision.audit_attr is None

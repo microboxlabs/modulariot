@@ -96,3 +96,26 @@ async def test_disabled_message_uses_profile_display_name(tmp_path):
     assert record.status == "completed"
     assert record.answer is not None
     assert "FakeSource integration is currently disabled" in record.answer
+
+
+@pytest.mark.asyncio
+async def test_meta_disabled_emits_answer_completed(tmp_path):
+    """The meta-disabled early return must emit answer.completed (like the
+    disabled-datasource branch) so SSE subscribers get a terminal event,
+    not a silent close. Driven directly: DATA_META is only reachable via
+    the LLM router, which unit tests don't wire."""
+    from miot_harness.runtime.run_store import HarnessRunRecord
+
+    sup = _supervisor(tmp_path, data_graph=None)
+    sup.profile = FAKE_PROFILE  # meta_model stays None
+
+    request = UserRequest(message="what can you do?", mode="meta")
+    ctx = request.to_context()
+    record = HarnessRunRecord(run_id=ctx.run_id, status="running")
+    events = []
+
+    await sup._run_data_meta(request, ctx, record, events.append, None, [])
+
+    assert record.answer is not None
+    assert "Meta agent is currently disabled" in record.answer
+    assert any(e.type == "answer.completed" for e in events)

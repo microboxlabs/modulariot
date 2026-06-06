@@ -100,6 +100,10 @@ def _parse_step(text: str) -> DataStep | None:
         payload = json.loads(cleaned)
     except json.JSONDecodeError:
         return None
+    if not isinstance(payload, dict):
+        # Valid JSON but not an object (e.g. "[]" or "42") — same
+        # malformed-step fallback as undecodable text.
+        return None
     try:
         return DataStep(
             intent=payload.get("intent", ""),

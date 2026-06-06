@@ -82,3 +82,11 @@ def test_router_custom_keywords_replace_defaults() -> None:
     router = IntentRouter(data_keywords=frozenset({"fakesource"}))
     result = router.route("estado del coordinador?")
     assert result.route == HarnessRoute.DIRECT
+
+
+def test_router_lowercases_mixed_case_keywords() -> None:
+    """Profile keywords are normalized on intake — route() matches against
+    the lowercased message, so a mixed-case keyword must still fire."""
+    router = IntentRouter(data_keywords=frozenset({"FakeSource"}))
+    result = router.route("estado de fakesource?")
+    assert result.route is HarnessRoute.DATA_QUERY

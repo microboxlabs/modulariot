@@ -52,8 +52,14 @@ class IntentRouter:
         # No built-in domain vocabulary: keywords come from the active
         # datasource profile (server.py passes profile.router_keywords). A
         # bare IntentRouter() routes only on the generic ETA token until a
-        # datasource is wired.
-        self._data_keywords = data_keywords if data_keywords is not None else frozenset()
+        # datasource is wired. Lowercased on intake: route() matches against
+        # the lowercased message, so mixed-case profile keywords would
+        # otherwise never fire.
+        self._data_keywords = (
+            frozenset(k.lower() for k in data_keywords)
+            if data_keywords is not None
+            else frozenset()
+        )
 
     def route(self, message: str) -> RouteResult:
         normalized = message.lower()

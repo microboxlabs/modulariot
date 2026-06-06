@@ -307,3 +307,23 @@ async def test_filter_expert_refuses_unknown_tool():
         state, registry=registry, model=model, profile=NEXO_PROFILE
     )
     assert update.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_non_object_json_is_malformed_step():
+    """Valid JSON that isn't an object (e.g. "[]") must hit the
+    malformed-step fallback, not raise AttributeError on payload.get."""
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI summary"))
+    model = FakeListChatModel(responses=["[]"])
+
+    state: dict[str, Any] = {
+        "user_message": "¿estado operativo de hoy?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "turn_count": 0,
+    }
+    update = await filter_expert_node(
+        state, registry=registry, model=model, profile=NEXO_PROFILE
+    )
+    assert update.get("failure") == "filter_expert returned malformed step"

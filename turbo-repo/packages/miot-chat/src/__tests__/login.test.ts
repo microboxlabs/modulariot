@@ -240,4 +240,42 @@ describe("login command", () => {
     );
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
+
+  it("rejects a non-numeric --timeout before any OAuth work", async () => {
+    const program = createProgram();
+
+    await expect(
+      program.parseAsync([
+        "node",
+        "miot-chat",
+        "--base-url",
+        BASE_URL,
+        "login",
+        "--timeout",
+        "abc",
+        "--no-open",
+      ]),
+    ).rejects.toThrow(/positive number of seconds/i);
+
+    expect(mockBrowserLogin).not.toHaveBeenCalled();
+  });
+
+  it("rejects a zero or negative --timeout before any OAuth work", async () => {
+    const program = createProgram();
+
+    await expect(
+      program.parseAsync([
+        "node",
+        "miot-chat",
+        "--base-url",
+        BASE_URL,
+        "login",
+        "--timeout",
+        "0",
+        "--no-open",
+      ]),
+    ).rejects.toThrow(/positive number of seconds/i);
+
+    expect(mockBrowserLogin).not.toHaveBeenCalled();
+  });
 });

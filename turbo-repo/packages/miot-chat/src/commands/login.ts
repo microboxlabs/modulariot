@@ -1,6 +1,16 @@
-import type { Command } from "commander";
+import { InvalidArgumentError, type Command } from "commander";
 import { browserLogin } from "@microboxlabs/miot-auth/browser-oauth";
 import { readConfig, upsertProfile, type CliFlags } from "../config.js";
+
+/** Parses --timeout; rejects non-numeric, zero, or negative values so an
+ * unusable timeout (NaN coerces to a 0ms timer) never reaches browserLogin. */
+function parseTimeoutSeconds(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new InvalidArgumentError("Expected a positive number of seconds.");
+  }
+  return parsed;
+}
 
 export function registerLoginCommand(program: Command): void {
   program
@@ -14,9 +24,7 @@ export function registerLoginCommand(program: Command): void {
     .option("--client-id <id>", "OAuth public client ID")
     .option("--audience <audience>", "OAuth audience/API identifier")
     .option("--scope <scope>", "OAuth scopes to request")
-    .option("--timeout <seconds>", "Login timeout in seconds", (v) =>
-      Number.parseInt(v, 10),
-    )
+    .option("--timeout <seconds>", "Login timeout in seconds", parseTimeoutSeconds)
     .option("--no-open", "Print the login URL without opening the browser")
     .action(async (opts: LoginOptions) => {
       const flags = program.opts<CliFlags>();

@@ -74,24 +74,46 @@ const AUTH0_CONNECTION_MAP: Record<string, string> = {
 };
 
 /**
+ * Resolves a post-sign-in redirect target from an optional callbackUrl.
+ * Only same-origin relative paths are honored (open-redirect guard); the
+ * app's basePath is prefixed when missing so NextAuth lands on the right
+ * route (e.g. the CLI auth handoff at /app/cli/auth/login?...).
+ */
+function resolveRedirectTarget(redirectTo?: string | null): string {
+  if (!redirectTo?.startsWith("/") || redirectTo.startsWith("//")) {
+    return "/app";
+  }
+  return redirectTo === "/app" || redirectTo.startsWith("/app/")
+    ? redirectTo
+    : `/app${redirectTo}`;
+}
+
+/**
  * Generic sign-in function that routes to the appropriate provider.
  *
  * When Auth0 is configured (AUTH_AUTH0_ID is set), social providers like
  * "google" and "github" are routed through Auth0 with the appropriate connection.
  * Otherwise, falls back to direct OAuth provider sign-in.
+ *
+ * @param redirectTo - Optional same-origin path to return to after sign-in
+ *   (e.g. the sign-in page's callbackUrl). Defaults to the app home.
  */
-export async function signInWithProvider(providerId: string): Promise<void> {
+export async function signInWithProvider(
+  providerId: string,
+  redirectTo?: string | null
+): Promise<void> {
   const auth0Connection = AUTH0_CONNECTION_MAP[providerId];
+  const target = resolveRedirectTarget(redirectTo);
 
   // If Auth0 is configured and we have a connection mapping, use Auth0 as broker
   if (auth0Connection) {
     // Third argument passes authorization params to Auth0 (connection skips Universal Login)
-    await signIn("auth0", { redirectTo: "/app" }, { connection: auth0Connection });
+    await signIn("auth0", { redirectTo: target }, { connection: auth0Connection });
     return;
   }
 
   // Fallback to direct provider sign-in (for providers not brokered through Auth0)
-  await signIn(providerId, { redirectTo: "/app" });
+  await signIn(providerId, { redirectTo: target });
 }
 
 /**

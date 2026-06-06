@@ -14,11 +14,11 @@ export {
   browserLogin,
   buildAuthorizationUrl,
   buildPlatformLoginUrl,
-} from "./auth/browser-oauth.js";
+} from "@microboxlabs/miot-auth/browser-oauth";
 export type {
   BrowserLoginOptions,
   BrowserLoginResult,
-} from "./auth/browser-oauth.js";
+} from "@microboxlabs/miot-auth/browser-oauth";
 export { printJson, printTable, printDetail, printSuccess } from "./output.js";
 export type { Column } from "./output.js";
 export { handleError } from "./utils/error.js";

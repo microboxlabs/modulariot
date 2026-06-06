@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { RunMode } from "@microboxlabs/miot-harness-client";
+import { readMiotrcProfile } from "./miotrc.js";
 
 export interface MiotChatProfile {
   baseUrl: string;
@@ -9,6 +10,11 @@ export interface MiotChatProfile {
   tenantId: string;
   userId: string;
   mode?: RunMode;
+  /**
+   * Organization slug; when set, runs route through the quarkus-srv harness
+   * proxy at {baseUrl}/api/v1/orgs/{orgSlug}/harness.
+   */
+  orgSlug?: string;
 }
 
 // Theme value persisted in config.json. The TUI's loadUserTheme() in
@@ -38,6 +44,14 @@ export interface ResolvedConfig {
    * the server-side allow-list to permit the tenant.
    */
   debug: boolean;
+  /** Org slug resolved from flag > env > profile, or null when not set. */
+  orgSlug: string | null;
+  /**
+   * Effective base URL for the harness client — the quarkus proxy prefix
+   * ({baseUrl}/api/v1/orgs/{orgSlug}/harness) when orgSlug is set,
+   * otherwise baseUrl unchanged.
+   */
+  harnessBaseUrl: string;
 }
 
 export interface CliFlags {
@@ -48,6 +62,7 @@ export interface CliFlags {
   mode?: string;
   profile?: string;
   debug?: boolean;
+  org?: string;
 }
 
 export interface ResolveOptions {
@@ -102,6 +117,36 @@ export function writeConfig(
   writeFileSync(path, JSON.stringify(cfg, null, 2), { mode: 0o600 });
 }
 
+/**
+ * Persists `profile` under `name` in the config file.
+ *
+ * Default-selection rules:
+ * - If `opts.makeDefault` is true, the profile is always promoted to
+ *   `defaultProfile` (used by `login` so the fresh token is immediately active).
+ * - Otherwise the existing default is preserved, except when the config file
+ *   didn't exist yet or the current `defaultProfile` key is missing — in those
+ *   cases `name` becomes the default (legacy / first-run behaviour).
+ */
+export function upsertProfile(
+  name: string,
+  profile: MiotChatProfile,
+  opts?: { configDir?: string; makeDefault?: boolean },
+): void {
+  const dir = opts?.configDir ?? getConfigDir();
+  const path = join(dir, "config.json");
+  // Distinguish "file existed" from the in-memory default readConfig fabricates.
+  const existed = existsSync(path);
+  const cfg = readConfig({ configDir: dir });
+  if (!existed) {
+    cfg.profiles = {};
+  }
+  cfg.profiles[name] = profile;
+  if (opts?.makeDefault || !existed || !cfg.profiles[cfg.defaultProfile]) {
+    cfg.defaultProfile = name;
+  }
+  writeConfig(cfg, { configDir: dir });
+}
+
 export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
   const env = opts.env ?? process.env;
   const flags = opts.flags ?? {};
@@ -115,10 +160,21 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
   const profile =
     cfg.profiles[profileName] ?? cfg.profiles[cfg.defaultProfile] ?? DEFAULT_CONFIG.profiles["local"]!;
 
-  const baseUrl =
-    flags.baseUrl ?? env.MIOT_CHAT_BASE_URL ?? profile.baseUrl;
   const tokenFlag = flags.token ?? env.MIOT_CHAT_TOKEN;
-  const token = tokenFlag ?? profile.token ?? null;
+  // Platform fallback: reuse the miot-cli login session (~/.miotrc.json)
+  // only when neither flags/env nor the chat profile carry a token.
+  // Only the baseUrl/token/org trio is adopted from ~/.miotrc.json;
+  // tenantId and userId always stay with the chat profile.
+  const platform =
+    tokenFlag === undefined && (profile.token ?? null) === null
+      ? readMiotrcProfile({ env })
+      : null;
+
+  const baseUrl =
+    flags.baseUrl ??
+    env.MIOT_CHAT_BASE_URL ??
+    (platform ? platform.baseUrl : profile.baseUrl);
+  const token = tokenFlag ?? profile.token ?? platform?.token ?? null;
   const tenantId =
     flags.tenant ?? env.MIOT_CHAT_TENANT_ID ?? profile.tenantId;
   const userId = flags.user ?? env.MIOT_CHAT_USER_ID ?? profile.userId;
@@ -131,6 +187,16 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     flags.debug ?? (env.MIOT_CHAT_DEBUG ? env.MIOT_CHAT_DEBUG !== "0" : false),
   );
 
+  const orgSlug =
+    nonEmpty(flags.org) ??
+    nonEmpty(env.MIOT_CHAT_ORG) ??
+    nonEmpty(profile.orgSlug) ??
+    nonEmpty(platform?.organizationId) ??
+    null;
+  const harnessBaseUrl = orgSlug
+    ? `${trimTrailingSlashes(baseUrl)}/api/v1/orgs/${encodeURIComponent(orgSlug)}/harness`
+    : baseUrl;
+
   return {
     baseUrl,
     token,
@@ -140,11 +206,26 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     profileName,
     theme: cfg.theme ?? null,
     debug,
+    orgSlug,
+    harnessBaseUrl,
   };
+}
+
+/** Returns the value unchanged if non-empty, otherwise undefined.
+ * Treats empty strings as unset so `MIOT_CHAT_ORG=""` or `--org ""`
+ * falls through to the next source in the resolution chain. */
+function nonEmpty(v: string | undefined): string | undefined {
+  return v === undefined || v === "" ? undefined : v;
 }
 
 function cloneDefault(): MiotChatConfig {
   return JSON.parse(JSON.stringify(DEFAULT_CONFIG)) as MiotChatConfig;
+}
+
+function trimTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 0x2f /* '/' */) end--;
+  return end === s.length ? s : s.slice(0, end);
 }
 
 function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
@@ -159,6 +240,9 @@ function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
       mode: VALID_MODES.has(p.mode as RunMode)
         ? (p.mode as RunMode)
         : undefined,
+      ...(typeof p.orgSlug === "string" && p.orgSlug !== ""
+        ? { orgSlug: p.orgSlug }
+        : undefined),
     };
   }
   if (Object.keys(profiles).length === 0) {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Command } from "commander";
 import { registerAuthCommand } from "../../commands/auth/index.js";
 
-vi.mock("../../auth/browser-oauth.js", () => ({
+vi.mock("@microboxlabs/miot-auth/browser-oauth", () => ({
   browserLogin: vi.fn(),
 }));
 
@@ -11,14 +11,16 @@ vi.mock("../../config.js", async (importOriginal) => {
   return {
     ...actual,
     readDotfile: vi.fn(),
+    upsertProfile: vi.fn(),
   };
 });
 
-import { browserLogin } from "../../auth/browser-oauth.js";
-import { readDotfile } from "../../config.js";
+import { browserLogin } from "@microboxlabs/miot-auth/browser-oauth";
+import { readDotfile, upsertProfile } from "../../config.js";
 
 const mockBrowserLogin = vi.mocked(browserLogin);
 const mockReadDotfile = vi.mocked(readDotfile);
+const mockUpsertProfile = vi.mocked(upsertProfile);
 
 function createProgram(): Command {
   const program = new Command();
@@ -39,7 +41,7 @@ describe("auth", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     mockBrowserLogin.mockResolvedValue({
-      profile: "staging",
+      accessToken: "new-token",
       baseUrl: "https://staging.example.com",
     });
     mockReadDotfile.mockReturnValue({
@@ -74,9 +76,15 @@ describe("auth", () => {
       expect.objectContaining({
         baseUrl: "https://staging.example.com",
         organizationId: undefined,
-        profile: "staging",
         openBrowser: false,
       }),
+    );
+    expect(mockBrowserLogin).toHaveBeenCalledWith(
+      expect.not.objectContaining({ profile: expect.anything() }),
+    );
+    expect(mockUpsertProfile).toHaveBeenCalledWith(
+      "staging",
+      expect.objectContaining({ token: "new-token" }),
     );
   });
 
@@ -95,9 +103,33 @@ describe("auth", () => {
       expect.objectContaining({
         baseUrl: "https://staging.example.com",
         organizationId: undefined,
-        profile: "staging",
         openBrowser: false,
       }),
+    );
+  });
+
+  it("persists the returned access token and prints a summary with the profile", async () => {
+    const program = createProgram();
+
+    await program.parseAsync([
+      "node",
+      "miot",
+      "--output",
+      "json",
+      "auth",
+      "login",
+      "--no-open",
+    ]);
+
+    expect(mockUpsertProfile).toHaveBeenCalledWith(
+      "staging",
+      expect.objectContaining({
+        baseUrl: "https://staging.example.com",
+        token: "new-token",
+      }),
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('"profile": "staging"'),
     );
   });
 

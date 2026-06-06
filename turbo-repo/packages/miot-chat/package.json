@@ -26,6 +26,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@microboxlabs/miot-auth": "*",
     "@microboxlabs/miot-harness-client": "*",
     "commander": "^14.0.0",
     "ink": "^7.0.3",

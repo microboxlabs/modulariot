@@ -1,8 +1,16 @@
+/**
+ * Shared browser OAuth flow for ModularIoT CLI packages.
+ * Supports two paths: platform session handoff (redirect via /app/cli/auth/login)
+ * and Auth0 PKCE (when a clientId is supplied).
+ * Acquires an access token via a local callback server; never persists it —
+ * callers are responsible for storage.
+ * Env vars: MIOT_OAUTH_CLIENT_ID, MIOT_OAUTH_AUTHORIZE_URL, MIOT_OAUTH_TOKEN_URL,
+ * MIOT_OAUTH_AUDIENCE, MIOT_OAUTH_SCOPE, MIOT_LOGIN_URL.
+ */
 import crypto from "node:crypto";
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { URL } from "node:url";
-import { upsertProfile } from "../config.js";
 
 export interface BrowserLoginOptions {
   baseUrl: string;
@@ -13,7 +21,6 @@ export interface BrowserLoginOptions {
   audience?: string;
   scope?: string;
   organizationId?: string;
-  profile?: string;
   callbackHost?: string;
   callbackPort?: number;
   timeoutSeconds?: number;
@@ -21,8 +28,10 @@ export interface BrowserLoginOptions {
 }
 
 export interface BrowserLoginResult {
-  profile: string;
+  /** The Auth0 access token to send as `Authorization: Bearer …`. */
+  accessToken: string;
   baseUrl: string;
+  /** Org slug resolved by the platform handoff (activeOrg.slug). */
   organizationId?: string;
   expiresIn?: number;
   scope?: string;
@@ -346,7 +355,6 @@ export async function browserLogin(
     options.scope ??
     process.env["MIOT_OAUTH_SCOPE"] ??
     "openid profile email offline_access";
-  const profile = options.profile ?? "default";
   const host = options.callbackHost ?? "127.0.0.1";
   const port = options.callbackPort ?? 0;
   const timeoutSeconds = options.timeoutSeconds ?? 180;
@@ -422,14 +430,9 @@ export async function browserLogin(
 
     const organizationId =
       token.organizationId ?? token.organization_id ?? options.organizationId;
-    upsertProfile(profile, {
-      baseUrl: options.baseUrl,
-      token: token.access_token,
-      ...(organizationId !== undefined && { organizationId }),
-    });
 
     return {
-      profile,
+      accessToken: token.access_token,
       baseUrl: options.baseUrl,
       ...(organizationId !== undefined && { organizationId }),
       ...(token.expires_in !== undefined && { expiresIn: token.expires_in }),

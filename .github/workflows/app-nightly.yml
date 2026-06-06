@@ -12,16 +12,9 @@ on:
       - 'turbo-repo/packages/typescript-config/**'
       - 'turbo-repo/package-lock.json'
       - 'turbo-repo/docker/**'
-      - 'ops/deploy-app-nightly.sh'
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
-    inputs:
-      deploy_environments:
-        description: "Comma-separated development environment names consumed by deploy hook."
-        required: false
-        default: "development"
-        type: string
 
 concurrency:
   group: app-nightly-${{ github.ref }}
@@ -129,7 +122,7 @@ jobs:
           echo "- Tags: \`nightly\`, \`nightly-${{ steps.vars.outputs.nightly_date }}\`, \`sha-${{ steps.vars.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
 
   deploy:
-    name: Deploy development environments
+    name: Dispatch development environment deploys
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -137,21 +130,51 @@ jobs:
     environment:
       name: app-nightly-development
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-
-      - name: Deploy nightly image
+      - name: Dispatch private deployment workflow
         env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
+          APP_VERSION: nightly-${{ needs.build.outputs.nightly_date }}
+          APP_TAG: nightly-${{ needs.build.outputs.nightly_date }}-${{ needs.build.outputs.short_sha }}
+          IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
+          IMAGE_TAG: sha-${{ needs.build.outputs.short_sha }}
           IMAGE_REF: ${{ needs.build.outputs.image }}
-          IMAGE_TAG: nightly
           GIT_SHA: ${{ github.sha }}
           SHORT_SHA: ${{ needs.build.outputs.short_sha }}
           NIGHTLY_DATE: ${{ needs.build.outputs.nightly_date }}
-          DEPLOY_ENVIRONMENTS: ${{ inputs.deploy_environments || 'development' }}
         run: |
-          if [[ -x "./ops/deploy-app-nightly.sh" ]]; then
-            ./ops/deploy-app-nightly.sh
-          else
-            echo "No ./ops/deploy-app-nightly.sh hook found."
-            echo "Create it to deploy IMAGE_REF=$IMAGE_REF to: $DEPLOY_ENVIRONMENTS."
+          DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
+
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
             exit 1
           fi
+
+          jq -n \
+            --arg app_version "$APP_VERSION" \
+            --arg app_tag "$APP_TAG" \
+            --arg image_repository "$IMAGE_REPOSITORY" \
+            --arg image_tag "$IMAGE_TAG" \
+            --arg image_ref "$IMAGE_REF" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg nightly_date "$NIGHTLY_DATE" \
+            '{
+              event_type: "miot-app-nightly",
+              client_payload: {
+                deploy_kind: "nightly",
+                app_version: $app_version,
+                app_tag: $app_tag,
+                image_repository: $image_repository,
+                image_tag: $image_tag,
+                image_ref: $image_ref,
+                git_sha: $git_sha,
+                short_sha: $short_sha,
+                nightly_date: $nightly_date
+              }
+            }' |
+            gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
+              --method POST \
+              --input -
+
+          echo "Dispatched nightly deployment ${APP_TAG} to ${DEPLOY_DISPATCH_REPO}."

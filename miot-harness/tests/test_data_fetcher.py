@@ -263,3 +263,27 @@ async def test_fetcher_no_pending_step_is_noop():
         profile=NEXO_PROFILE,
     )
     assert update.get("next_action") == "ready_to_synthesize"
+
+
+def test_evidence_source_none_falls_back_to_profile_label() -> None:
+    """A tool payload carrying source=None (or "") must fall back to the
+    profile's source label instead of stringifying to the literal "None"."""
+    from miot_harness.agents.data_fetcher import _evidence_from_output
+
+    evidence = _evidence_from_output(
+        "step_1",
+        "fake_lookup",
+        {"rows": [], "source": None},
+        warn_minutes=30,
+        source_label=NEXO_PROFILE.source_label,
+    )
+    assert evidence.source == NEXO_PROFILE.source_label
+
+    evidence = _evidence_from_output(
+        "step_1",
+        "fake_lookup",
+        {"rows": [], "source": ""},
+        warn_minutes=30,
+        source_label=NEXO_PROFILE.source_label,
+    )
+    assert evidence.source == NEXO_PROFILE.source_label

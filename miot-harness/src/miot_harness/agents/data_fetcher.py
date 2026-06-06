@@ -93,7 +93,9 @@ def _evidence_from_output(
     return DataEvidence(
         step_id=step_id,
         tool=tool,
-        source=str(dump.get("source", source_label)),
+        # `or` (not a .get default) so a payload carrying source=None or ""
+        # falls back to the profile label instead of stringifying to "None".
+        source=str(dump.get("source") or source_label),
         refreshed_at=refreshed_at if isinstance(refreshed_at, datetime) else None,
         output=dump,
         sample_size=sample_size,

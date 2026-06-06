@@ -46,12 +46,8 @@ from langchain_core.language_models import FakeListChatModel
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings, get_settings
-
-# NOTE: the golden dataset under evals/golden/nexo IS the nexo provider's own
-# dataset, so importing the provider-under-test (NEXO_PROFILE) here is correct:
-# the eval fixture and the profile it asserts against must come from the same
-# source. This is the single deliberate provider import in the eval runner.
-from miot_harness.integrations.nexo.provider import NEXO_PROFILE
+from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.permissions import PermissionResult
@@ -60,11 +56,21 @@ from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
-# The always-registered fallback tool for refusal cases (empty
-# expected_tools): the centro_control coordinator under the profile's
-# tool prefix. Sourced from NEXO_PROFILE because the golden dataset is
-# the nexo provider's own.
-DEFAULT_FALLBACK_TOOL = NEXO_PROFILE.tool_prefix + "centro_control"
+def _active_profile() -> DataSourceProfile:
+    """Profile of the datasource under test, per MIOT_HARNESS_DATASOURCE_KIND.
+
+    The golden dataset, the fake stubs, and the refusal scoring must all
+    derive from the SAME provider — resolving it here keeps the runner
+    datasource-agnostic (registry resolution instantiates the provider
+    without connecting to anything).
+    """
+    return resolve_datasource(get_settings().datasource_kind).profile
+
+
+def default_fallback_tool(profile: DataSourceProfile) -> str:
+    """The always-registered fallback tool for refusal cases (empty
+    expected_tools): centro_control under the profile's tool prefix."""
+    return profile.tool_prefix + "centro_control"
 
 
 _REQUIRED_FIELDS = (
@@ -119,7 +125,9 @@ def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
-def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
+def _build_fake_registry(
+    entry: dict[str, Any], profile: DataSourceProfile
+) -> ToolRegistry:
     """Build a stub registry with one tool per entry's expected_tools."""
 
     class _In(BaseModel):
@@ -128,11 +136,11 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
     class _Out(BaseModel):
         rows: list[dict[str, Any]] = []
         refreshed_at: datetime | None = None
-        source: str = NEXO_PROFILE.source_label
+        source: str = profile.source_label
 
     async def _check(ctx: HarnessContext, inp: BaseModel) -> PermissionResult:
-        if ctx.tenant_id != NEXO_PROFILE.tenant_lock:
-            return PermissionResult.deny(f"{NEXO_PROFILE.tenant_lock}-only")
+        if ctx.tenant_id != profile.tenant_lock:
+            return PermissionResult.deny(f"{profile.tenant_lock}-only")
         return PermissionResult.allow()
 
     refreshed = datetime.now(UTC)
@@ -161,13 +169,14 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
         registry.register(_stub(tool_name))
     # Always register the fallback tool so empty expected_tools (refusal
     # cases) still resolve.
-    if DEFAULT_FALLBACK_TOOL not in registry.names():
-        registry.register(_stub(DEFAULT_FALLBACK_TOOL))
+    fallback = default_fallback_tool(profile)
+    if fallback not in registry.names():
+        registry.register(_stub(fallback))
     return registry
 
 
-def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
-    expected = entry.get("expected_tools") or [DEFAULT_FALLBACK_TOOL]
+def _fake_models(entry: dict[str, Any], profile: DataSourceProfile) -> dict[str, Any]:
+    expected = entry.get("expected_tools") or [default_fallback_tool(profile)]
     chosen = expected[0]
     return {
         "filter_expert": FakeListChatModel(
@@ -202,12 +211,13 @@ def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
 
 async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
     settings = HarnessSettings()
-    registry = _build_fake_registry(entry)
+    profile = _active_profile()
+    registry = _build_fake_registry(entry, profile)
     graph = build_data_graph(
         registry=registry,
         settings=settings,
-        models=_fake_models(entry),
-        profile=NEXO_PROFILE,
+        models=_fake_models(entry, profile),
+        profile=profile,
     )
     ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
 
@@ -220,10 +230,16 @@ async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
     t0 = time.perf_counter()
     final = await graph.ainvoke(initial)
     latency_ms = (time.perf_counter() - t0) * 1000
-    return _score(entry, final, latency_ms)
+    return _score(entry, final, latency_ms, profile=profile)
 
 
-def _score(entry: dict[str, Any], final: dict[str, Any], latency_ms: float) -> EvalScore:
+def _score(
+    entry: dict[str, Any],
+    final: dict[str, Any],
+    latency_ms: float,
+    *,
+    profile: DataSourceProfile,
+) -> EvalScore:
     """Deterministic scoring shared by fake and real modes — identical rules
     applied to the same final-state shape."""
     plan = final.get("plan")
@@ -237,7 +253,7 @@ def _score(entry: dict[str, Any], final: dict[str, Any], latency_ms: float) -> E
     # responder" is the synthesizer's literal copy, not a domain name, so it
     # stays hardcoded.
     answer_is_refusal = (
-        f"{NEXO_PROFILE.tenant_lock}-only" in answer or "no puedo responder" in answer
+        f"{profile.tenant_lock}-only" in answer or "no puedo responder" in answer
     )
 
     if not refusal_expected:
@@ -316,7 +332,6 @@ async def _build_real_setup(
     if not settings.anthropic_api_key:
         raise RuntimeError("real mode requires ANTHROPIC_API_KEY")
 
-    from miot_harness.datasource.registry import resolve as resolve_datasource
     from miot_harness.tools.registry import build_default_registry
 
     registry = build_default_registry()
@@ -351,7 +366,7 @@ async def _run_one_real(
     t0 = time.perf_counter()
     final = await graph.ainvoke(initial)
     latency_ms = (time.perf_counter() - t0) * 1000
-    return _score(entry, final, latency_ms)
+    return _score(entry, final, latency_ms, profile=provider.profile)
 
 
 def _commit_sha() -> str:

@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from miot_harness.evals.run_golden import (
-    DEFAULT_FALLBACK_TOOL,
+    _active_profile,
     _build_fake_registry,
+    default_fallback_tool,
     run_golden,
     validate_entries,
 )
@@ -98,17 +99,21 @@ def test_build_fake_registry_stubs_arbitrary_expected_tools() -> None:
         "tenant_id": "mintral",
         "expected_tools": ["weather_lookup", "ams_inventory", "totally_custom"],
     }
-    registry = _build_fake_registry(entry)
+    profile = _active_profile()
+    registry = _build_fake_registry(entry, profile)
     names = set(registry.names())
     assert {"weather_lookup", "ams_inventory", "totally_custom"} <= names
     # The fallback is always present so refusal cases still resolve.
-    assert DEFAULT_FALLBACK_TOOL in names
+    assert default_fallback_tool(profile) in names
 
 
 def test_build_fake_registry_empty_expected_uses_fallback() -> None:
     """Refusal cases (empty expected_tools) still get the fallback tool."""
-    registry = _build_fake_registry({"id": "x", "tenant_id": "mintral", "expected_tools": []})
-    assert registry.names() == [DEFAULT_FALLBACK_TOOL]
+    profile = _active_profile()
+    registry = _build_fake_registry(
+        {"id": "x", "tenant_id": "mintral", "expected_tools": []}, profile
+    )
+    assert registry.names() == [default_fallback_tool(profile)]
 
 
 def test_fake_mode_nulls_semantic_refusals(tmp_path: Path) -> None:

@@ -1,0 +1,35 @@
+{
+  "name": "@microboxlabs/miot-auth",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "packages/miot-auth"
+  },
+  "type": "module",
+  "exports": {
+    "./browser-oauth": {
+      "types": "./dist/browser-oauth.d.ts",
+      "import": "./dist/browser-oauth.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/node": "^20.19.41",
+    "tsup": "^8.0.0",
+    "typescript": "5.8.2",
+    "vitest": "^3.0.0"
+  },
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public" }
+}

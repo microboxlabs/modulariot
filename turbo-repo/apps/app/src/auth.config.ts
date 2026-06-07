@@ -83,6 +83,8 @@ export const authConfig: NextAuthConfig = {
           nextUrl.pathname.endsWith("/totem") ||
           nextUrl.pathname.endsWith("/favicon.ico") ||
           nextUrl.pathname.includes("/cli/auth/login") ||
+          // Dev-only Auth0 sign-in helper (the route itself 404s in production)
+          nextUrl.pathname.includes("/dev/auth0") ||
           nextUrl.pathname.endsWith("/app/release") ||
           nextUrl.pathname.includes("/release/") ||
           nextUrl.pathname.includes("/ext/")

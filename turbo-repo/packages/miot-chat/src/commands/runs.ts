@@ -26,7 +26,7 @@ export function registerRunsCommand(program: Command): void {
       };
 
       const client = createMiotHarnessClient({
-        baseUrl: config.baseUrl,
+        baseUrl: config.harnessBaseUrl,
         token: config.token,
       });
 

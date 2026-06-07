@@ -33,6 +33,8 @@ function mkConfig(): ResolvedConfig {
     profileName: "test",
     theme: null,
     debug: false,
+    orgSlug: null,
+    harnessBaseUrl: "http://localhost:8000",
   };
 }
 

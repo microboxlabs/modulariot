@@ -26,6 +26,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@microboxlabs/miot-auth": "*",
     "@microboxlabs/miot-calendar-client": "*",
     "@microboxlabs/miot-chat": "*",
     "@microboxlabs/miot-connection-client": "*",

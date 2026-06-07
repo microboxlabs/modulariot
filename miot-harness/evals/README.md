@@ -7,16 +7,16 @@ suite is the agent's test harness — it feeds the agent a set of known question
 tool, cited fresh data, refused when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you
 catch quality regressions before users do. The golden dataset shipped here targets the default **nexo** provider.
 
-Two independent suites live under `evals/`. They share a directory but never
+Three independent suites live under `evals/`. They share a directory but never
 share a runner; their exit codes mean different things.
 
 | Suite | What it measures | Entry point |
 |---|---|---|
-| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the datasource conversational graph — tool routing, freshness, refusals, KPI grounding, step economy. | `miot-harness-evals` |
+| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the datasource conversational graph — tool routing, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
 | **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory. | prompt, run out-of-band |
 | **Deploy** (`deploy/`) | Operational checks that the harness packages and runs as a container. | `deploy/run-all.sh` (see `deploy/README.md`) |
 
-## Golden suite
+## Golden suite — three modes
 
 `miot-harness-evals` reads `evals/golden/<datasource-kind>/examples.yaml`
 (default `evals/golden/nexo/examples.yaml`, override with `--yaml`) and runs
@@ -35,22 +35,47 @@ uv run miot-harness-evals --mode fake
 uv run miot-harness-evals --mode real
 ```
 
+- **`static`** — validate the dataset YAML schema only. No graph runs,
+  no LLM calls. Fastest; used in CI as a YAML linter.
+- **`fake`** (default) — scripted `FakeListChatModel` per case + stub
+  registry returning canned data. Deterministic; catches routing /
+  structural regressions without burning real model spend.
+- **`real`** — live Anthropic + the live datasource via the provider
+  registry. Captures real cost + drift vs the fake-mode baseline.
+
 Results are written to `evals/results/<commit-sha>.json` (fake/static) or
 `evals/results/<commit-sha>-real.json` (real, so it never clobbers the
 canonical fake baseline).
 
 ### Scored axes (deterministic)
 
-`tool_selection`, `filter_sanity`, `freshness_citation`, `refusal`,
-`no_hallucination`, and `step_economy` — the over-engineering guard: the plan's
-tool count must fall within each case's `[expected_min_turns, expected_max_turns]`.
-`step_economy` is `null` for refusal cases (no plan is built).
+Every case is scored on deterministic axes:
+
+| Axis | Meaning |
+|---|---|
+| `tool_selection` | Did the chosen tool intersect `expected_tools`? |
+| `filter_sanity` | Were any `forbidden_tools` called? |
+| `freshness_citation` | Does the answer mention `refreshed_at` / "snapshot" / "hace"? |
+| `refusal` | Did the run refuse cleanly when `expected_refusal: true`? |
+| `no_hallucination` | Did `expected_kpis_mentioned` substrings appear? |
+| `step_economy` | Was the plan's tool count within `[expected_min_turns, expected_max_turns]`? The over-engineering guard; `null` for refusal cases (no plan is built). |
+| `latency_ms` | Wall-clock time per case |
 
 `refusal` is scored only for refusals fake mode can deterministically produce —
 the **structural** tenant gate. For cases whose `refusal_mechanism` is
 **semantic** (prompt injection, mutation, out-of-scope, …) `refusal` is `null`
 in fake mode (with a `refusal: semantic — real-mode-only` note) because a
 scripted model cannot make that judgment; those are validated in real mode.
+
+Real mode adds:
+
+| Axis | Meaning |
+|---|---|
+| `cost_usd` | Total spend on this case's LLM calls |
+| `tokens_input` / `tokens_output` | Per-case totals |
+| `cache_hit_pct` | Prompt-cache reads as a fraction of all input tokens |
+| `per_agent_costs` | `{agent_name: cost_usd}` breakdown |
+| `drift` / `drift_detail` | Diff against the fake baseline |
 
 ### Dataset contract (fake mode)
 
@@ -79,6 +104,80 @@ shipped dataset targets the nexo provider. When authoring `examples.yaml`:
   deterministic harness gate produces the refusal (today: a non-`mintral`
   `tenant_id` hitting the tenant gate); `semantic` means it needs a real LLM and
   is therefore `null` in fake mode.
+
+## Running real mode
+
+### Preflight
+
+1. **Tunnel up** — Nexo lives behind a bastion. Open the tunnel via
+   `db-scripts/bin/tunnel.sh` (see that repo's README) before running.
+2. **Credentials** — export:
+   ```
+   export ANTHROPIC_API_KEY=sk-…
+   export MIOT_HARNESS_DATASOURCE_DSN=postgresql://harness:…@localhost:<tunnel-port>/coordinador
+   ```
+3. **Cost expectation** — ~6 LLM calls × 25 cases on a mix of Haiku
+   ($0.80 / $4 per Mtok) and Sonnet ($3 / $15 per Mtok). Typical
+   spend is well under $5. Agentic-mode cases (if added later) are
+   pricier because the critic runs on every step.
+
+### Cost-budget guard
+
+The runner has a `--cost-cap <USD>` flag (default `$10`). Cumulative
+real-mode cost is summed across cases as they run; when the running
+total crosses the cap, the suite aborts after the current case and
+records `"cost_cap_tripped": true` in the result JSON. Raise the cap
+when you intentionally want a full run; the default exists to make
+"oops I just spent $50 on a typo" impossible.
+
+### Refusals
+
+Real mode refuses to start when:
+- `MIOT_HARNESS_DATASOURCE_DSN` is unset → "real mode requires MIOT_HARNESS_DATASOURCE_DSN; …"
+- `ANTHROPIC_API_KEY` is unset while the configured agent models include
+  `claude-*` → "real mode requires ANTHROPIC_API_KEY; …"
+- Provider boot reports `enabled=False` (introspection failure, no `fn_dx_*`
+  discovered for nexo) → "Datasource boot failed: …"
+
+Each refusal exits non-zero with the reason on stderr. Better to find
+a missing credential at startup than mid-suite.
+
+### Drift comparison
+
+After scoring, each real-mode case is compared against the same-id
+entry in a fake-mode baseline. Flipped `tool_selection` /
+`filter_sanity` are surfaced as:
+
+```json
+{
+  "id": "nexo-single-001-status-summary",
+  "tool_selection": true,
+  "drift": true,
+  "drift_detail": {
+    "tool_selection": {"baseline": true, "real": false}
+  }
+}
+```
+
+Drift is a **soft signal** — it does not fail the suite. A flipped
+axis tells the reviewer "the real model diverged from the scripted
+fake here, decide whether that's a regression or an improvement."
+
+Default baseline path: `evals/results/<HEAD-sha>.json`. Override
+with `--baseline <path>`.
+
+### Reading the result
+
+`miot-harness-evals --report <result.json>` prints a terminal-friendly
+summary: total cost, per-mode rollup, drift list, and (when combined
+with `--baseline`) a Δ-cost / Δ-tokens diff. The JSON file itself
+remains the canonical artifact for automated diffing in CI.
+
+## Baselines
+
+`evals/results/BASELINES.md` records the currently-canonical fake and
+real baselines and documents how to pin a new one when intentional
+changes shift the score.
 
 ## Reproducibility (infrastructure noise)
 

@@ -100,9 +100,12 @@ public class HarnessProxyTestProfile implements QuarkusTestProfile {
         public Map<String, String> start() {
             server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
             server.start();
+            String url = "http://localhost:" + server.port();
+            // Both the JSON rest-client (POST/GET routes) and the SSE relay's
+            // raw Vert.x streaming client must point at the same WireMock.
             return Map.of(
-                    "quarkus.rest-client.\"harness\".url",
-                    "http://localhost:" + server.port());
+                    "quarkus.rest-client.\"harness\".url", url,
+                    "miot.harness.base-url", url);
         }
 
         @Override

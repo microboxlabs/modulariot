@@ -58,6 +58,11 @@ const middleware = auth(async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Dev-only Auth0 sign-in helper route (404s in production builds).
+  if (pathname.startsWith("/dev/auth0")) {
+    return NextResponse.next();
+  }
+
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
     pathname = "/shipping";
   }

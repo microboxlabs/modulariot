@@ -16,7 +16,7 @@ export default async function VehicleDetailRoute({
   return (
     <RouteGuard path="/fleet-management" fallbackPath={`/${lang}/home`}>
       <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900 overflow-y-auto">
-        <VehicleDetailPage dict={dict} plate={decodedPlate} />
+        <VehicleDetailPage key={decodedPlate} dict={dict} plate={decodedPlate} />
       </div>
     </RouteGuard>
   );

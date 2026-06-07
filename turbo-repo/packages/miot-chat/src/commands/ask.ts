@@ -35,7 +35,7 @@ export async function runAsk(opts: AskOptions): Promise<number> {
   };
 
   const client = createMiotHarnessClient({
-    baseUrl: opts.config.baseUrl,
+    baseUrl: opts.config.harnessBaseUrl,
     token: opts.config.token,
   });
 
@@ -49,7 +49,7 @@ export async function runAsk(opts: AskOptions): Promise<number> {
   };
 
   stdout.write(
-    `${dim(`miot-chat → ${opts.config.baseUrl} (${opts.config.mode} / ${opts.config.tenantId})`, color)}\n`,
+    `${dim(`miot-chat → ${opts.config.harnessBaseUrl} (${opts.config.mode} / ${opts.config.tenantId})`, color)}\n`,
   );
 
   let state: RenderState = initialState(color);

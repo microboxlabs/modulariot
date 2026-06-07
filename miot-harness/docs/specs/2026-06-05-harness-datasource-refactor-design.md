@@ -37,7 +37,7 @@ server. Core code must not name any specific connection system.
 
 ## Architecture
 
-```
+```text
 src/miot_harness/
 ├── datasource/
 │   ├── provider.py      # DataSourceProvider ABC + DataSourceProfile + BootResult

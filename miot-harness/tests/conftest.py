@@ -48,7 +48,9 @@ class _HarnessSpanExporter(InMemorySpanExporter):
 
     pytest-opentelemetry attaches a TracerProvider that emits one span per
     test item / fixture / runtest call. We keep only spans produced by the
-    harness (`nexo.*`) and by the auto-instrumented LLM SDKs.
+    harness datasource providers (`nexo.*`, plus the alternate prefixes
+    `fake.*` for FakeProvider tests and `datasource.*`, the neutral default
+    span_prefix when no profile is set) and by the auto-instrumented LLM SDKs.
     """
 
     def export(self, spans: tuple[ReadableSpan, ...]) -> SpanExportResult:  # type: ignore[override]

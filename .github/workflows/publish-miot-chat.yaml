@@ -1,0 +1,70 @@
+name: Publish miot-chat
+
+on:
+  push:
+    tags:
+      - "miot-chat@v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-chat@v0.1.0)"
+        required: true
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  publish:
+    name: Publish to npmjs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write          # OIDC for npm trusted publishers
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Cache node_modules
+        id: cache-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            turbo-repo/node_modules
+            turbo-repo/packages/*/node_modules
+            turbo-repo/apps/*/node_modules
+          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-modules.outputs.cache-hit != 'true'
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build package
+        run: npx turbo run build --filter=@microboxlabs/miot-chat
+        working-directory: turbo-repo
+
+      - name: Run lint
+        run: npx turbo run lint --filter=@microboxlabs/miot-chat
+        working-directory: turbo-repo
+
+      - name: Run type check
+        run: npx turbo run check-types --filter=@microboxlabs/miot-chat
+        working-directory: turbo-repo
+
+      - name: Run tests
+        run: npx turbo run test --filter=@microboxlabs/miot-chat
+        working-directory: turbo-repo
+
+      - name: Publish to npm
+        run: npm publish --workspace=packages/miot-chat --access public
+        working-directory: turbo-repo

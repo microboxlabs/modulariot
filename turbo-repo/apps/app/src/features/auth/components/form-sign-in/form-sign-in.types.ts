@@ -38,4 +38,8 @@ export type FormSignInProps = Readonly<{
   dividerText: string;
   /** SAML-specific labels (only needed if SAML provider is configured) */
   samlLabels?: SamlLabels;
+  /** Post-sign-in destination (e.g. the CLI auth handoff page), passed
+   * down from the page's searchParams so the client component doesn't
+   * need useSearchParams (which requires a Suspense boundary). */
+  callbackUrl?: string | null;
 }>;

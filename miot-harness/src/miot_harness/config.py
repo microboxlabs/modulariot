@@ -34,7 +34,12 @@ class HarnessSettings(BaseSettings):
     # can attribute connections to the harness without log correlation.
     datasource_application_name: str = "miot-harness"
     # None → profile default (the provider's DataSourceProfile.tenant_lock).
-    datasource_tenant_lock: str | None = None
+    # `min_length=1` rejects the empty string at boot (same rationale as
+    # `identity_signing_key`): "" is ambiguous — truthiness resolution
+    # would silently fall back to the profile lock, while a strict
+    # is-not-None reading would make it an unmatchable lock refusing
+    # every tenant. Refusing to start beats either silent behavior.
+    datasource_tenant_lock: str | None = Field(default=None, min_length=1)
     # None → profile default. An explicit 0 is honored ("anything older
     # than now is stale"); negatives are rejected at boot.
     datasource_freshness_warn_minutes: int | None = Field(default=None, ge=0)

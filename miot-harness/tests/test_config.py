@@ -173,3 +173,14 @@ def test_debug_tenant_allowed_trims_both_sides():
 def test_debug_tenant_allowed_denies_when_unset():
     settings = HarnessSettings(allow_debug_tenants=None)
     assert settings.debug_tenant_allowed("mintral-dev") is False
+
+
+def test_empty_tenant_lock_rejected_at_boot(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty MIOT_HARNESS_DATASOURCE_TENANT_LOCK is ambiguous (silently
+    fall back to the profile lock vs an unmatchable refuse-everyone lock) —
+    reject at boot instead, same pattern as identity_signing_key."""
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "")
+    with pytest.raises(ValidationError):
+        HarnessSettings()

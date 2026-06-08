@@ -11,7 +11,6 @@ import type {
   SortConfig,
 } from "@/features/dashboard/dashlets/common/column-types";
 import type {
-  FilterItemConfig,
   FilterConfig,
 } from "@/features/dashboard/dashlets/common/filter-types";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
@@ -418,8 +417,12 @@ function MarkdownTooltip({
       <span
         ref={triggerRef}
         className="inline-flex"
+        tabIndex={0}
+        role="button"
         onMouseEnter={show}
         onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
       >
         {children}
       </span>
@@ -427,6 +430,7 @@ function MarkdownTooltip({
         createPortal(
           <div
             ref={clampToViewport}
+            role="tooltip"
             className="fixed z-9999 w-max max-w-sm pt-1"
             style={{ transform: "translateX(-50%)" }}
             onMouseEnter={show}
@@ -477,6 +481,8 @@ interface ResizeHandleProps {
 function ResizeHandle({ onMouseDown, onDoubleClick }: Readonly<ResizeHandleProps>) {
   return (
     <div
+      role="separator"
+      aria-orientation="vertical"
       className="group/rh absolute inset-y-0 -right-1.5 z-10 flex w-4 cursor-col-resize select-none items-center justify-center"
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
@@ -775,7 +781,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     table.style.width = "max-content";
 
     // Synchronous reflow: browser computes content-based widths.
-    void table.offsetWidth;
+    table.offsetWidth;
     const contentWidth = thEl.offsetWidth;
 
     // Restore all other columns and table state.
@@ -787,7 +793,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     });
     table.style.tableLayout = prevLayout;
     table.style.width = prevWidth;
-    void table.offsetWidth;
+    table.offsetWidth;
 
     // Apply the measured width to the target column.
     thEl.style.width = `${contentWidth}px`;
@@ -957,11 +963,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         displayRows.length
                       )
                     : null;
-                  const rowBgClass = rowColor
-                    ? getRowColorClasses(rowColor)
-                    : striped && rowIdx % 2 === 1
-                      ? "bg-gray-50 dark:bg-gray-700/50"
-                      : "bg-white dark:bg-gray-800";
+                  let rowBgClass: string;
+                  if (rowColor) {
+                    rowBgClass = getRowColorClasses(rowColor);
+                  } else if (striped && rowIdx % 2 === 1) {
+                    rowBgClass = "bg-gray-50 dark:bg-gray-700/50";
+                  } else {
+                    rowBgClass = "bg-white dark:bg-gray-800";
+                  }
 
                   const ctx = { ...row, row };
                   const clickAction = safeRowActions[0];
@@ -990,9 +999,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         clickHref
                           ? () => {
                               if (clickAction?.target === "_blank") {
-                                window.open(clickHref, "_blank", "noopener,noreferrer");
+                                globalThis.open(clickHref, "_blank", "noopener,noreferrer");
                               } else {
-                                window.location.href = clickHref;
+                                globalThis.location.href = clickHref;
                               }
                             }
                           : undefined

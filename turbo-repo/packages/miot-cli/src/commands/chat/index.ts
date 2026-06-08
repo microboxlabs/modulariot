@@ -89,13 +89,24 @@ export function registerChatCommand(program: Command): void {
           globals.organization ??
           process.env["MIOT_ORGANIZATION_ID"] ??
           profile?.organizationId;
+        // Default the run's tenant to the org and the user to the login email
+        // (decoded from the JWT) so the header reflects the signed-in identity
+        // instead of the demo placeholders. Explicit --tenant/--user or
+        // MIOT_CHAT_* env still win; the harness front door overrides the
+        // tenant server-side regardless, so these are display-only.
+        const tenant =
+          opts.tenant ?? process.env["MIOT_CHAT_TENANT_ID"] ?? org;
+        const user =
+          opts.user ??
+          process.env["MIOT_CHAT_USER_ID"] ??
+          (token ? emailFromJwt(token) : undefined);
 
         flags = {
           ...(baseUrl !== undefined && { baseUrl }),
           ...(token !== undefined && { token }),
           ...(org !== undefined && { org }),
-          ...(opts.tenant !== undefined && { tenant: opts.tenant }),
-          ...(opts.user !== undefined && { user: opts.user }),
+          ...(tenant !== undefined && { tenant }),
+          ...(user !== undefined && { user }),
           ...(opts.mode !== undefined && { mode: opts.mode }),
           ...(globals.profile !== undefined && { profile: globals.profile }),
         };
@@ -114,6 +125,24 @@ export function registerChatCommand(program: Command): void {
       const code = await runMiotChat({ config, client });
       process.exit(code);
     });
+}
+
+/** Best-effort decode of the `email` claim from a JWT access token, for use
+ *  as a display-only default user id. Returns undefined for non-JWT tokens
+ *  (e.g. an Alfresco ticket) or when the claim is absent. No signature check —
+ *  this is cosmetic, never an authorization decision. */
+function emailFromJwt(token: string): string | undefined {
+  const payloadSegment = token.split(".")[1];
+  if (!payloadSegment) return undefined;
+  try {
+    const json = Buffer.from(payloadSegment, "base64url").toString("utf8");
+    const claims = JSON.parse(json) as { email?: unknown };
+    return typeof claims.email === "string" && claims.email.length > 0
+      ? claims.email
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 interface ChatOptions {

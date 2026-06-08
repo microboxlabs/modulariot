@@ -25,6 +25,14 @@ const mockRunMiotChat = vi.mocked(runMiotChat);
 const mockCreateClient = vi.mocked(createMiotHarnessClient);
 const mockReadDotfile = vi.mocked(readDotfile);
 
+const EMAIL = "oscar@vialabs.net";
+function makeJwt(payload: Record<string, unknown>): string {
+  const b64 = (o: unknown) =>
+    Buffer.from(JSON.stringify(o)).toString("base64url");
+  return `${b64({ alg: "none", typ: "JWT" })}.${b64(payload)}.sig`;
+}
+const JWT = makeJwt({ email: EMAIL, sub: "google-oauth2|123" });
+
 function createProgram(): Command {
   const program = new Command();
   program
@@ -61,7 +69,7 @@ describe("chat", () => {
       profiles: {
         default: {
           baseUrl: "http://localhost:8180",
-          token: "miotrc-token",
+          token: JWT,
           organizationId: "mintral",
         },
       },
@@ -91,9 +99,37 @@ describe("chat", () => {
     expect(mockResolveConfig).toHaveBeenCalledWith({
       flags: expect.objectContaining({
         baseUrl: "http://localhost:8180",
-        token: "miotrc-token",
+        token: JWT,
         org: "mintral",
       }),
+    });
+  });
+
+  it("defaults tenant to the org and user to the JWT email", async () => {
+    const program = createProgram();
+
+    await program.parseAsync(["node", "miot", "chat"]);
+
+    expect(mockResolveConfig).toHaveBeenCalledWith({
+      flags: expect.objectContaining({ tenant: "mintral", user: EMAIL }),
+    });
+  });
+
+  it("lets explicit --tenant/--user win over the org/email defaults", async () => {
+    const program = createProgram();
+
+    await program.parseAsync([
+      "node",
+      "miot",
+      "chat",
+      "--tenant",
+      "custom-tenant",
+      "--user",
+      "alice",
+    ]);
+
+    expect(mockResolveConfig).toHaveBeenCalledWith({
+      flags: expect.objectContaining({ tenant: "custom-tenant", user: "alice" }),
     });
   });
 

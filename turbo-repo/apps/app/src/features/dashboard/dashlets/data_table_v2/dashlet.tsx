@@ -781,7 +781,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     table.style.width = "max-content";
 
     // Synchronous reflow: browser computes content-based widths.
-    table.offsetWidth;
+    const _reflow = table.offsetWidth;
     const contentWidth = thEl.offsetWidth;
 
     // Restore all other columns and table state.
@@ -793,7 +793,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     });
     table.style.tableLayout = prevLayout;
     table.style.width = prevWidth;
-    table.offsetWidth;
+    const _reflow = table.offsetWidth;
 
     // Apply the measured width to the target column.
     thEl.style.width = `${contentWidth}px`;

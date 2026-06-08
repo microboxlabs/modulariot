@@ -5,33 +5,44 @@ import {
   type CliFlags as MiotChatFlags,
 } from "@microboxlabs/miot-chat";
 import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
+import { readDotfile } from "../../config.js";
 
 /**
- * `miot chat` — open the miot-chat TUI against a harness. Mirrors the
- * standalone `miot-chat` binary's default action; uses the same
- * ~/.miot-chat/config.json + MIOT_CHAT_* env vars + flag precedence.
+ * `miot chat` — open the miot-chat TUI/REPL against a harness, reusing the
+ * credentials saved by `miot auth login` in ~/.miotrc.json.
  *
- * In a TTY this mounts the Ink TUI. On piped stdin (or with
- * MIOT_CHAT_NO_TUI=1) it falls back to the headless line REPL.
+ * Two modes:
+ *  - Front-door (default): auth (baseUrl/token/org) comes from ~/.miotrc.json
+ *    — the same single source of truth the rest of the `miot` commands use.
+ *    When an org is known, runs are routed through the quarkus front door at
+ *    `{baseUrl}/api/v1/orgs/{org}/harness` (miot-chat derives this as
+ *    `config.harnessBaseUrl`). Org precedence: --org > global --organization >
+ *    MIOT_ORGANIZATION_ID > the saved profile's organizationId.
+ *  - Direct (--harness-base-url): point straight at a harness with no
+ *    front-door prefix — handy for a local harness on :8000.
  *
- * The chat-local flag names match the standalone binary so muscle
- * memory transfers (--tenant, --user, --mode, --profile). For the
- * harness URL/token we prefix with --harness- to match the
- * convention used by `miot harness`.
+ * Chat-specific prefs (tenant/user/mode/theme) still come from
+ * ~/.miot-chat/config.json + MIOT_CHAT_* env + the flags below. In a TTY this
+ * mounts the Ink TUI; on piped stdin (or MIOT_CHAT_NO_TUI=1) it falls back to
+ * the headless line REPL.
  */
 export function registerChatCommand(program: Command): void {
   program
     .command("chat")
     .description(
-      "Open the interactive miot-chat TUI (or headless REPL on piped stdin)",
+      "Open the miot-chat TUI/REPL, reusing `miot auth login` credentials and routing through the org front door",
+    )
+    .option(
+      "--org <slug>",
+      "Organization slug for front-door routing (overrides the saved login org and --organization)",
     )
     .option(
       "--harness-base-url <url>",
-      "Harness base URL (or MIOT_CHAT_BASE_URL env, default http://localhost:8000)",
+      "Talk to a harness directly at this URL (skips the org front door)",
     )
     .option(
       "--harness-token <token>",
-      "Harness auth bearer token (or MIOT_CHAT_TOKEN env)",
+      "Bearer token for direct --harness-base-url mode",
     )
     .option("--tenant <id>", "Tenant ID (or MIOT_CHAT_TENANT_ID env)")
     .option("--user <id>", "User ID (or MIOT_CHAT_USER_ID env)")
@@ -41,32 +52,76 @@ export function registerChatCommand(program: Command): void {
     )
     .option(
       "--profile <name>",
-      "Named profile from ~/.miot-chat/config.json (or MIOT_CHAT_PROFILE env)",
+      "Profile name (auth from ~/.miotrc.json, prefs from ~/.miot-chat/config.json)",
     )
-    .action(
-      async (opts: {
-        harnessBaseUrl?: string;
-        harnessToken?: string;
-        tenant?: string;
-        user?: string;
-        mode?: string;
+    .action(async (opts: ChatOptions, cmd: Command) => {
+      const globals = cmd.optsWithGlobals<{
+        baseUrl?: string;
+        token?: string;
+        organization?: string;
         profile?: string;
-      }) => {
-        const flags: MiotChatFlags = {
+      }>();
+
+      let flags: MiotChatFlags;
+      if (opts.harnessBaseUrl) {
+        // Direct mode: hit the harness URL as-is, no org/front-door prefix.
+        flags = {
           baseUrl: opts.harnessBaseUrl,
-          token: opts.harnessToken,
-          tenant: opts.tenant,
-          user: opts.user,
-          mode: opts.mode,
-          profile: opts.profile,
+          ...(opts.harnessToken !== undefined && { token: opts.harnessToken }),
+          ...(opts.tenant !== undefined && { tenant: opts.tenant }),
+          ...(opts.user !== undefined && { user: opts.user }),
+          ...(opts.mode !== undefined && { mode: opts.mode }),
+          ...(globals.profile !== undefined && { profile: globals.profile }),
         };
-        const config = resolveConfig({ flags });
-        const client = createMiotHarnessClient({
-          baseUrl: config.baseUrl,
-          token: config.token,
-        });
-        const code = await runMiotChat({ config, client });
-        process.exit(code);
-      },
-    );
+      } else {
+        // Front-door mode: auth from ~/.miotrc.json (single source of truth).
+        const dotfile = readDotfile();
+        const profileName = globals.profile ?? dotfile?.defaultProfile;
+        const profile = profileName
+          ? dotfile?.profiles[profileName]
+          : undefined;
+        const baseUrl =
+          globals.baseUrl ?? process.env["MIOT_BASE_URL"] ?? profile?.baseUrl;
+        const token =
+          globals.token ?? process.env["MIOT_TOKEN"] ?? profile?.token;
+        const org =
+          opts.org ??
+          globals.organization ??
+          process.env["MIOT_ORGANIZATION_ID"] ??
+          profile?.organizationId;
+
+        flags = {
+          ...(baseUrl !== undefined && { baseUrl }),
+          ...(token !== undefined && { token }),
+          ...(org !== undefined && { org }),
+          ...(opts.tenant !== undefined && { tenant: opts.tenant }),
+          ...(opts.user !== undefined && { user: opts.user }),
+          ...(opts.mode !== undefined && { mode: opts.mode }),
+          ...(globals.profile !== undefined && { profile: globals.profile }),
+        };
+      }
+
+      const resolved = resolveConfig({ flags });
+      // Direct mode pins the harness URL verbatim — never let an org slug from
+      // ~/.miot-chat/config.json sneak a front-door prefix onto it.
+      const config = opts.harnessBaseUrl
+        ? { ...resolved, harnessBaseUrl: opts.harnessBaseUrl }
+        : resolved;
+      const client = createMiotHarnessClient({
+        baseUrl: config.harnessBaseUrl,
+        token: config.token,
+      });
+      const code = await runMiotChat({ config, client });
+      process.exit(code);
+    });
+}
+
+interface ChatOptions {
+  org?: string;
+  harnessBaseUrl?: string;
+  harnessToken?: string;
+  tenant?: string;
+  user?: string;
+  mode?: string;
+  profile?: string;
 }

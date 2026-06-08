@@ -96,7 +96,7 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
 
   if (opts.greet !== false) {
     stdout.write(
-      `${dim(`miot-chat → ${opts.config.baseUrl} (${session.mode} / ${session.tenant})`, color)}\n`,
+      `${dim(`miot-chat → ${opts.config.harnessBaseUrl} (${session.mode} / ${session.tenant})`, color)}\n`,
     );
     stdout.write(`${dim(`conversation: ${session.conversationId}`, color)}\n`);
     warnIfAgenticMismatch(session, color, stdout);

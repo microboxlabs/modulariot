@@ -31,7 +31,7 @@ class HarnessContext(BaseModel):
     # Used as the Langfuse `session_id` (falls back to `thread_id`).
     conversation_id: str | None = None
     # When true, the SSE stream carries full tool inputs and truncated
-    # tool outputs (~2KB cap). Off by default; coordinador outputs
+    # tool outputs (~2KB cap). Off by default; datasource tool outputs
     # contain customer/fleet data that should not leak to unauthenticated
     # stream consumers.
     debug: bool = False

@@ -18,9 +18,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
 
 FRESHNESS_FRESH = "fresh"
@@ -33,8 +34,23 @@ def freshness_judge_node(
     *,
     settings: HarnessSettings,
     progress: Progress,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
-    evidence: list[NexoEvidence] = list(state.get("evidence", []))
+    # Effective thresholds: env override wins (including an explicit 0),
+    # else the profile default. This is the single resolution point that
+    # data_fetcher mirrors when it stamps is_stale.
+    warn = (
+        settings.datasource_freshness_warn_minutes
+        if settings.datasource_freshness_warn_minutes is not None
+        else profile.freshness_warn_minutes
+    )
+    refuse = (
+        settings.datasource_freshness_refuse_minutes
+        if settings.datasource_freshness_refuse_minutes is not None
+        else profile.freshness_refuse_minutes
+    )
+
+    evidence: list[DataEvidence] = list(state.get("evidence", []))
     if not evidence:
         return {"next_action": "analyze", "freshness": FRESHNESS_FRESH}
 
@@ -47,9 +63,9 @@ def freshness_judge_node(
         verdict = FRESHNESS_WARN
     else:
         age_minutes = (datetime.now(UTC) - last.refreshed_at).total_seconds() / 60
-        if age_minutes <= settings.nexo_freshness_warn_minutes:
+        if age_minutes <= warn:
             verdict = FRESHNESS_FRESH
-        elif age_minutes <= settings.nexo_freshness_refuse_minutes:
+        elif age_minutes <= refuse:
             verdict = FRESHNESS_WARN
         else:
             verdict = FRESHNESS_REFUSE
@@ -72,7 +88,7 @@ def freshness_judge_node(
             )
         )
 
-    # NOTE: is_stale is set by data_fetcher when it constructs NexoEvidence
+    # NOTE: is_stale is set by data_fetcher when it constructs DataEvidence
     # (using the same warn_minutes threshold). The judge classifies + emits
     # but does not mutate evidence, because the LangGraph reducer is
     # operator.add — returning an "evidence" key here would APPEND to the
@@ -83,8 +99,8 @@ def freshness_judge_node(
             "freshness": verdict,
             "next_action": "ready_to_synthesize",
             "failure": (
-                f"Coordinador snapshot is stale (age {age_minutes:.0f}min > "
-                f"refuse threshold {settings.nexo_freshness_refuse_minutes}min)."
+                f"{profile.display_name} snapshot is stale (age {age_minutes:.0f}min > "
+                f"refuse threshold {refuse}min)."
             ),
         }
 

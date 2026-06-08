@@ -4,10 +4,10 @@ Produces the final user-facing answer. Three modes:
 
   1. Failure mode: state['failure'] is set → render a graceful
      refusal locally (no LLM call). Cheaper, deterministic.
-  2. Tenant refusal: ctx.tenant_id != 'mintral' AND no evidence →
-     render the canonical "Coordinador is Mintral-only" line.
-     Defense-in-depth; tenant_gate_node should have caught this
-     earlier in the graph.
+  2. Tenant refusal: ctx.tenant_id is off the datasource lock AND no
+     evidence → render the canonical "<datasource> is <tenant>-only" line
+     from the profile template. Defense-in-depth; tenant_gate_node should
+     have caught this earlier in the graph.
   3. Normal: format primer + evidence, ask the model for prose
      that cites refreshed_at and flags stale data.
 
@@ -26,22 +26,28 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from miot_harness.agents.llm_streaming import stream_llm_with_thinking
 from miot_harness.config import HarnessSettings
-from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
 
 logger = logging.getLogger(__name__)
 
 
-def _tenant_refusal(tenant_lock: str) -> str:
+def _tenant_refusal(profile: DataSourceProfile, tenant_lock: str) -> str:
+    # Render the canonical refusal from the profile template. The lock is
+    # capitalized (e.g. "<Tenant>-only"); display_name comes straight from
+    # the profile.
     label = tenant_lock.capitalize() if tenant_lock else "the locked tenant"
-    return f"Coordinador is {label}-only. I can't answer for other tenants."
+    return profile.tenant_refusal_template.format(
+        display_name=profile.display_name, lock=label
+    )
 
 
+# {display_name} → profile.display_name (the active datasource's human name).
 _SYNTH_SYSTEM_TEMPLATE = """\
-You are the Coordinador synthesizer. Write the final answer for the user
+You are the {display_name} synthesizer. Write the final answer for the user
 in the same language as their question. Be concise (≤200 words).
 
 {primer}
@@ -55,11 +61,16 @@ Rules:
 """
 
 
-_SNAPSHOT_STALE_PREFIX = "Coordinador snapshot is stale"
+def _snapshot_stale_prefix(profile: DataSourceProfile) -> str:
+    # Must match the prefix freshness_judge emits: f"{display_name} snapshot
+    # is stale" — display_name is the active datasource's human name.
+    return f"{profile.display_name} snapshot is stale"
+
+
 _SNAPSHOT_AGE_RE = re.compile(r"\(age\s*(\d+)\s*min")
 
 
-def _render_failure(reason: str) -> str:
+def _render_failure(reason: str, *, snapshot_stale_prefix: str) -> str:
     """Render a graceful refusal for the user (Spanish, user-facing).
 
     The previous copy unconditionally suggested waiting for a fresh
@@ -76,7 +87,7 @@ def _render_failure(reason: str) -> str:
       malformed step") is intentionally hidden — it leaks pipeline
       structure with no user value.
     """
-    if reason.startswith(_SNAPSHOT_STALE_PREFIX):
+    if reason.startswith(snapshot_stale_prefix):
         m = _SNAPSHOT_AGE_RE.search(reason)
         if m:
             age = m.group(1)
@@ -96,7 +107,7 @@ def _render_failure(reason: str) -> str:
     )
 
 
-def _render_evidence_for_synth(evidence: list[NexoEvidence]) -> str:
+def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
     if not evidence:
         return "(sin evidencia)"
     lines: list[str] = []
@@ -126,25 +137,33 @@ async def synthesizer_node(
     *,
     model: BaseChatModel,
     progress: Progress,
+    profile: DataSourceProfile,
     settings: HarnessSettings | None = None,
 ) -> dict[str, Any]:
     ctx: HarnessContext = state["ctx"]
     failure = state.get("failure")
-    evidence: list[NexoEvidence] = list(state.get("evidence", []))
-    tenant_lock = settings.nexo_tenant_lock if settings is not None else "mintral"
+    evidence: list[DataEvidence] = list(state.get("evidence", []))
+    # Effective lock: env override wins, else the profile's lock.
+    tenant_lock = (
+        settings.datasource_tenant_lock if settings is not None else None
+    ) or profile.tenant_lock
 
     if failure:
-        answer = _render_failure(failure)
+        answer = _render_failure(
+            failure, snapshot_stale_prefix=_snapshot_stale_prefix(profile)
+        )
         _emit(progress, ctx.run_id, answer)
         return {"answer": answer}
 
-    if ctx.tenant_id != tenant_lock and not evidence:
-        refusal = _tenant_refusal(tenant_lock)
+    if tenant_lock is not None and ctx.tenant_id != tenant_lock and not evidence:
+        refusal = _tenant_refusal(profile, tenant_lock)
         _emit(progress, ctx.run_id, refusal)
         return {"answer": refusal}
 
     user_message = state.get("user_message", "")
-    system = _SYNTH_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
+    system = _SYNTH_SYSTEM_TEMPLATE.format(
+        display_name=profile.display_name, primer=profile.primer
+    )
     rendered = _render_evidence_for_synth(evidence)
     human = f"User question:\n{user_message}\n\nEvidence:\n{rendered}\n\nWrite the answer."
 
@@ -157,7 +176,7 @@ async def synthesizer_node(
     messages.extend(prior_messages)
     messages.append(HumanMessage(content=human))
 
-    stream_enabled = bool(settings and settings.nexo_synthesizer_stream)
+    stream_enabled = bool(settings and settings.agents_synthesizer_stream)
     if stream_enabled:
         answer = await stream_llm_with_thinking(
             model=model,

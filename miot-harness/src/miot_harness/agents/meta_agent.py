@@ -1,12 +1,12 @@
 """Meta-question agent (Haiku tier).
 
-Answers schema/primer/introspection questions from a cached pg_proc
-catalog + the Coordinador primer text. No SQL, no tool invocation —
+Answers schema/primer/introspection questions from a cached catalog +
+the active datasource's primer text. No SQL, no tool invocation —
 the structural guarantee lives in the function signature (no
 ``registry`` / ``tools`` / ``pool`` parameter; nothing to call).
 
-Cheap path for "what data do you have?", "what does fn_dx_eta_hoy
-return?", "how is es_critico calculated?". Falls through to NEXO_QUERY
+Cheap path for "what data do you have?", "what does function X
+return?", "how is metric Y calculated?". Falls through to DATA_QUERY
 upstream if the intent router confused a data question with a meta one.
 """
 
@@ -28,10 +28,10 @@ function does* — never the data itself. You have NO database access
 and NO tools. If the question requires querying data, say so and stop:
 the user can re-ask in agentic or canned mode.
 
-# Coordinador primer
+# Datasource primer
 {primer}
 
-# Curated catalog (each row is one `fn_dx_*` function)
+# Curated catalog (each row is one curated function)
 {catalog}
 
 Be concise. Cite function names by their exact identifier. If the

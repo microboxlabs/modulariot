@@ -1,17 +1,17 @@
-"""Rule-based supervisor for the Nexo conversational graph.
+"""Rule-based supervisor for the datasource conversational graph.
 
 v1 ships without an LLM in this seat — `next_agent(state)` is a small
 state machine that reads from the state set by the previous node and
 returns the next node name. Nodes set `state.next_action` to suggest
 where to go next; the supervisor enforces invariants on top:
 
-  - turn cap (`settings.nexo_max_turns`) → force synthesizer
+  - turn cap (`settings.agents_max_turns`) → force synthesizer
   - failure flag → synthesizer (it renders a graceful refusal)
   - answer set → END
   - long transcript → summarizer (>10 messages)
 
 The intent is to keep cost predictable in v1 while leaving the seat
-open for an LLM-based supervisor (`nexo_supervisor_mode='llm'`) once
+open for an LLM-based supervisor (`agents_supervisor_mode='llm'`) once
 we have observed traffic.
 """
 
@@ -36,7 +36,7 @@ def next_agent(state: dict[str, Any], settings: HarnessSettings) -> str:
         return "synthesizer"
 
     turn_count = int(state.get("turn_count", 0))
-    if turn_count >= settings.nexo_max_turns:
+    if turn_count >= settings.agents_max_turns:
         return "synthesizer"
 
     messages = state.get("messages") or []

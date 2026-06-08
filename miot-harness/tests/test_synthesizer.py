@@ -7,17 +7,18 @@ import pytest
 from langchain_core.language_models import FakeListChatModel
 
 from miot_harness.agents.synthesizer import synthesizer_node
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 
 
 def _ctx() -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
 
 
-def _ev(refreshed=None, is_stale=False) -> NexoEvidence:
-    return NexoEvidence(
+def _ev(refreshed=None, is_stale=False) -> DataEvidence:
+    return DataEvidence(
         step_id="s",
         tool="coordinador_centro_control",
         source="src",
@@ -40,7 +41,9 @@ async def test_synthesizes_answer_from_evidence():
     }
     events: list[HarnessEvent] = []
 
-    update = await synthesizer_node(state, model=model, progress=events.append)
+    update = await synthesizer_node(
+        state, model=model, progress=events.append, profile=NEXO_PROFILE
+    )
 
     assert update["answer"] == fake
     assert "answer.completed" in {e.type for e in events}
@@ -61,7 +64,9 @@ async def test_synthesizes_refusal_when_failure_set():
     events: list[HarnessEvent] = []
     model = FakeListChatModel(responses=[])  # would fail if invoked
 
-    update = await synthesizer_node(state, model=model, progress=events.append)
+    update = await synthesizer_node(
+        state, model=model, progress=events.append, profile=NEXO_PROFILE
+    )
 
     assert update["answer"]
     assert "stale" in update["answer"].lower() or "snapshot" in update["answer"].lower()
@@ -87,7 +92,9 @@ async def test_planning_failure_does_not_leak_snapshot_retry_advice():
     events: list[HarnessEvent] = []
     model = FakeListChatModel(responses=[])
 
-    update = await synthesizer_node(state, model=model, progress=events.append)
+    update = await synthesizer_node(
+        state, model=model, progress=events.append, profile=NEXO_PROFILE
+    )
 
     answer = update["answer"]
     assert answer
@@ -114,7 +121,9 @@ async def test_synthesizes_tenant_refusal_for_non_mintral():
     events: list[HarnessEvent] = []
     model = FakeListChatModel(responses=[])
 
-    update = await synthesizer_node(state, model=model, progress=events.append)
+    update = await synthesizer_node(
+        state, model=model, progress=events.append, profile=NEXO_PROFILE
+    )
     assert update["answer"]
     assert "Mintral" in update["answer"] or "mintral" in update["answer"].lower()
 
@@ -129,5 +138,7 @@ async def test_includes_stale_warning_when_evidence_is_stale():
         "evidence": [_ev(is_stale=True)],
         "turn_count": 1,
     }
-    update = await synthesizer_node(state, model=model, progress=lambda e: None)
+    update = await synthesizer_node(
+        state, model=model, progress=lambda e: None, profile=NEXO_PROFILE
+    )
     assert update["answer"] == fake

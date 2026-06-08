@@ -1,8 +1,8 @@
 """Route-aware tenancy gate (plan 13, E7).
 
 Refactor of plan 12's per-graph `tenant_gate_node` into a single
-decision function shared by `nexo_graph.py` (NEXO_QUERY) and
-`agentic_graph.py` (NEXO_AGENTIC). NEXO_META is allowed for any
+decision function shared by `data_graph.py` (DATA_QUERY) and
+`agentic_graph.py` (DATA_AGENTIC). DATA_META is allowed for any
 authenticated tenant — meta-info is non-confidential.
 
 The decision function is pure (no I/O, no LLM call) so the graphs can
@@ -18,16 +18,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.router import HarnessRoute
 
 # Routes that touch tenant DATA (must match the tenant lock).
 _DATA_ROUTES: frozenset[HarnessRoute] = frozenset(
-    {HarnessRoute.NEXO_QUERY, HarnessRoute.NEXO_AGENTIC}
+    {HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC}
 )
 
 # Routes that return non-confidential meta information (allow any tenant).
-_META_ROUTES: frozenset[HarnessRoute] = frozenset({HarnessRoute.NEXO_META})
+_META_ROUTES: frozenset[HarnessRoute] = frozenset({HarnessRoute.DATA_META})
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,24 +51,43 @@ def tenancy_gate_decision(
     ctx: HarnessContext,
     route: HarnessRoute,
     settings: HarnessSettings,
+    profile: DataSourceProfile | None = None,
 ) -> TenancyDecision:
-    lock = settings.nexo_tenant_lock
-    tenant_matches = ctx.tenant_id == lock
+    """Evaluate tenancy for *route* and return a :class:`TenancyDecision`.
+
+    Effective lock = the env override when set, else the profile's lock:
+
+        ``settings.datasource_tenant_lock or profile.tenant_lock``
+
+    When both are None (no override, no/None-lock profile) the gate
+    behaves as "no lock" — every tenant matches and data routes are
+    allowed.
+    """
+    lock = settings.datasource_tenant_lock or (
+        profile.tenant_lock if profile is not None else None
+    )
+    tenant_matches = lock is None or ctx.tenant_id == lock
 
     if route in _DATA_ROUTES:
         if tenant_matches:
             return TenancyDecision(allowed=True)
+        if profile is not None:
+            refusal = profile.tenant_refusal_template.format(
+                display_name=profile.display_name, lock=lock
+            )
+        else:
+            refusal = (
+                f"This datasource is {lock}-only. I can't answer for other tenants."
+            )
         return TenancyDecision(
             allowed=False,
-            refusal_message=(
-                f"Coordinador is {lock}-only. I can't answer for other tenants."
-            ),
+            refusal_message=refusal,
         )
 
     if route in _META_ROUTES:
         # Always allowed; emit an audit attribute when the tenant is
         # off-lock so the Langfuse panel can spot "meta route used for
-        # non-Mintral tenant" patterns.
+        # non-locked tenant" patterns.
         if tenant_matches:
             return TenancyDecision(allowed=True)
         return TenancyDecision(

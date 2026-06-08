@@ -9,6 +9,7 @@ import pytest
 from langchain_core.language_models import FakeListChatModel
 
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import HarnessContext
 
@@ -42,6 +43,7 @@ async def test_agentic_graph_refuses_non_mintral_tenant() -> None:
         settings=settings,
         models=_models(plan_response="(unused)"),
         provenance_log=None,
+        profile=NEXO_PROFILE,
     )
     state = await graph.ainvoke(
         {
@@ -76,6 +78,7 @@ async def test_agentic_graph_happy_path_runs_to_synthesis() -> None:
         settings=settings,
         models=_models(plan_response, synthesizer_text="Estado operativo: ok."),
         provenance_log=None,
+        profile=NEXO_PROFILE,
     )
     final = await graph.ainvoke(
         {
@@ -97,6 +100,7 @@ async def test_agentic_graph_caps_turns_at_12() -> None:
         settings=settings,
         models=_models(plan_response="{}", synthesizer_text="fallback"),
         provenance_log=None,
+        profile=NEXO_PROFILE,
     )
     final = await graph.ainvoke(
         {
@@ -118,6 +122,7 @@ def test_agentic_graph_topology_has_required_nodes() -> None:
         settings=settings,
         models=_models(plan_response="{}"),
         provenance_log=None,
+        profile=NEXO_PROFILE,
     )
     nodes = set(graph.get_graph().nodes)
     # Plan 13 §E6 names these explicitly. Each must be a node in the graph.
@@ -151,9 +156,9 @@ async def test_agentic_synthesizer_includes_prior_messages_in_llm_call() -> None
 
     # Disable streaming so this test's ainvoke recorder works. Streaming
     # path uses astream_events which the recorder doesn't intercept.
-    settings = HarnessSettings(nexo_synthesizer_stream=False)
+    settings = HarnessSettings(agents_synthesizer_stream=False)
     graph = build_agentic_graph(
-        settings=settings, models=models, provenance_log=None
+        settings=settings, models=models, provenance_log=None, profile=NEXO_PROFILE
     )
 
     prior = [
@@ -203,9 +208,9 @@ async def test_agentic_synthesizer_handles_empty_prior_messages() -> None:
     models = _models(plan_response="{}", synthesizer_text="ok")
     models["synthesizer"] = _RecordingModel(responses=["first-turn"])
 
-    settings = HarnessSettings(nexo_synthesizer_stream=False)
+    settings = HarnessSettings(agents_synthesizer_stream=False)
     graph = build_agentic_graph(
-        settings=settings, models=models, provenance_log=None
+        settings=settings, models=models, provenance_log=None, profile=NEXO_PROFILE
     )
     await graph.ainvoke(
         {

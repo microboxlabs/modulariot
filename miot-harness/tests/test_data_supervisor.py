@@ -5,7 +5,7 @@ from typing import Any
 from miot_harness.agents.supervisor import next_agent
 from miot_harness.config import HarnessSettings
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.plan import NexoEvidence, NexoPlan, NexoStep
+from miot_harness.runtime.plan import DataEvidence, DataPlan, DataStep
 
 
 def _settings(**overrides: Any) -> HarnessSettings:
@@ -22,7 +22,7 @@ def test_no_plan_routes_to_filter_expert():
 
 
 def test_pending_step_routes_to_data_fetcher():
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="t", args={}, rationale="r")])
+    plan = DataPlan(steps=[DataStep(intent="i", tool="t", args={}, rationale="r")])
     state = {
         "user_message": "?",
         "ctx": _ctx(),
@@ -37,8 +37,8 @@ def test_pending_step_routes_to_data_fetcher():
 def test_fresh_evidence_routes_to_freshness_judge():
     """After data_fetcher emits evidence, supervisor routes through
     freshness_judge before the analyst sees it."""
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="t", args={}, rationale="r")])
-    ev = NexoEvidence(
+    plan = DataPlan(steps=[DataStep(intent="i", tool="t", args={}, rationale="r")])
+    ev = DataEvidence(
         step_id="s1",
         tool="t",
         source="src",
@@ -60,14 +60,14 @@ def test_fresh_evidence_routes_to_freshness_judge():
 
 
 def test_analyst_requests_more_data_loops_back_to_filter_expert():
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="t", args={}, rationale="r")])
+    plan = DataPlan(steps=[DataStep(intent="i", tool="t", args={}, rationale="r")])
     state = {
         "user_message": "?",
         "ctx": _ctx(),
         "plan": plan,
         "pending_step_index": 1,
         "evidence": [
-            NexoEvidence(
+            DataEvidence(
                 step_id="s",
                 tool="t",
                 source="x",
@@ -88,7 +88,7 @@ def test_analyst_ready_routes_to_synthesizer():
         "user_message": "?",
         "ctx": _ctx(),
         "evidence": [
-            NexoEvidence(
+            DataEvidence(
                 step_id="s",
                 tool="t",
                 source="x",
@@ -132,7 +132,7 @@ def test_turn_cap_forces_synthesizer():
         "user_message": "?",
         "ctx": _ctx(),
         "evidence": [
-            NexoEvidence(
+            DataEvidence(
                 step_id="s",
                 tool="t",
                 source="x",
@@ -145,7 +145,7 @@ def test_turn_cap_forces_synthesizer():
         "turn_count": 8,
         "next_action": "need_more_tools",
     }
-    assert next_agent(state, _settings(nexo_max_turns=8)) == "synthesizer"
+    assert next_agent(state, _settings(agents_max_turns=8)) == "synthesizer"
 
 
 def test_summarizer_triggered_when_messages_exceed_threshold():
@@ -161,14 +161,14 @@ def test_summarizer_triggered_when_messages_exceed_threshold():
 
 
 def test_default_after_freshness_judge_routes_to_analyst():
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="t", args={}, rationale="r")])
+    plan = DataPlan(steps=[DataStep(intent="i", tool="t", args={}, rationale="r")])
     state = {
         "user_message": "?",
         "ctx": _ctx(),
         "plan": plan,
         "pending_step_index": 1,
         "evidence": [
-            NexoEvidence(
+            DataEvidence(
                 step_id="s",
                 tool="t",
                 source="x",

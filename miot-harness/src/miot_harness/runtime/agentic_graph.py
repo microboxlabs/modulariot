@@ -1,11 +1,11 @@
-"""Agentic graph (plan 13, E6) — looser variant of `nexo_graph` for free
-exploration of Coordinador data via the composable primitives.
+"""Agentic graph (plan 13, E6) — looser variant of `data_graph` for free
+exploration of the datasource via the composable primitives.
 
 Differences from the plan-execute graph:
 - Turn cap is 12 (vs 8) — exploration is the whole point.
 - Critic is ON by default. Composable primitives have more freedom, so
   the critic seat catches hallucinated joins or out-of-bounds reads.
-- `tenancy_gate_node` refuses non-Mintral tenants BEFORE any LLM call.
+- `tenancy_gate_node` refuses off-lock datasource tenants BEFORE any LLM call.
 
 Nodes wired in this iteration: ``tenancy_gate``, ``planner`` (stub —
 turn counter only), ``synthesizer``, ``critic`` (stub — pass-through),
@@ -27,12 +27,12 @@ from langgraph.graph import END, StateGraph
 
 from miot_harness.agents.llm_streaming import stream_llm_with_thinking
 from miot_harness.config import HarnessSettings
-from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.node_lifecycle import wrap_node_with_lifecycle
-from miot_harness.runtime.plan import NexoState
+from miot_harness.runtime.plan import DataState
 from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 
@@ -45,8 +45,11 @@ _AGENTIC_TURN_CAP = 12
 # turns' data came from and defaults to "I must have hallucinated it"
 # apology mode. The primer + the "prior turns are authoritative" rule
 # below stops that.
+# {display_name} → profile.display_name; {tenant_display} → the tenant the
+# datasource is locked to (profile.tenant_lock, capitalized). Both come
+# straight from the active datasource profile.
 _AGENTIC_SYNTH_SYSTEM_TEMPLATE = """\
-You are the Coordinador agentic synthesizer for Mintral fleet operations.
+You are the {display_name} agentic synthesizer for {tenant_display} fleet operations.
 Answer the user's question in the same language they used. Be concise
 (≤200 words).
 
@@ -54,11 +57,11 @@ Answer the user's question in the same language they used. Be concise
 
 Conversational rules:
 - Prior assistant turns in this conversation were produced by real
-  curated Coordinador tools. Treat their numbers, tables, and claims
+  curated {display_name} tools. Treat their numbers, tables, and claims
   as authoritative evidence — do NOT claim you fabricated them.
 - If the user asks for *new* data that would require running fresh
   tools, acknowledge the request and suggest they rephrase as a direct
-  Coordinador question (the agentic data executor is not yet wired in
+  {display_name} question (the agentic data executor is not yet wired in
   this build).
 - Do not invent rows, numbers, or service names that aren't in the
   conversation.
@@ -71,6 +74,7 @@ def build_agentic_graph(
     settings: HarnessSettings,
     models: dict[str, BaseChatModel],
     provenance_log: ProvenanceLog | None,
+    profile: DataSourceProfile,
 ) -> Any:
     """Compile and return the LangGraph agentic StateGraph.
 
@@ -79,18 +83,18 @@ def build_agentic_graph(
     Pass None for tests that don't need provenance recording.
     """
 
-    graph = StateGraph(NexoState)
+    graph = StateGraph(DataState)
 
-    async def tenancy_gate(state: NexoState) -> dict[str, Any]:
+    async def tenancy_gate(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         decision = tenancy_gate_decision(
-            ctx=ctx, route=HarnessRoute.NEXO_AGENTIC, settings=settings
+            ctx=ctx, route=HarnessRoute.DATA_AGENTIC, settings=settings, profile=profile
         )
         if not decision.allowed:
             return {"answer": decision.refusal_message}
         return {}
 
-    async def planner(state: NexoState) -> dict[str, Any]:
+    async def planner(state: DataState) -> dict[str, Any]:
         # Stub planner: bumps turn count, exits if at cap. The real
         # planner (live LLM call) constructs a plan with curated tools
         # and/or composable primitives. Tests assert wiring; F3 covers
@@ -108,25 +112,29 @@ def build_agentic_graph(
             return {"failure": "agentic turn cap exceeded"}
         return {"turn_count": turn_count + 1}
 
-    async def synthesizer(state: NexoState) -> dict[str, Any]:
+    async def synthesizer(state: DataState) -> dict[str, Any]:
         # Fire the synthesizer model with: SystemMessage(primer + rules)
         # + prior_messages (E5 hydration) + current user HumanMessage.
         # The SystemMessage is load-bearing in stub state — without it,
         # the LLM has no grounding for prior turn data and apologizes
-        # for "fabricating" real Coordinador output (see template above).
+        # for "fabricating" real datasource output (see template above).
         snapshot = cast(dict[str, Any], state)
         if snapshot.get("failure"):
             return {"answer": "(no answer — see failure)"}
         model = models["synthesizer"]
         ctx: HarnessContext = snapshot["ctx"]
 
-        system = _AGENTIC_SYNTH_SYSTEM_TEMPLATE.format(primer=COORDINADOR_PRIMER)
+        system = _AGENTIC_SYNTH_SYSTEM_TEMPLATE.format(
+            display_name=profile.display_name,
+            tenant_display=(profile.tenant_lock or profile.display_name).capitalize(),
+            primer=profile.primer,
+        )
         prior_messages = snapshot.get("prior_messages") or []
         messages: list[BaseMessage] = [SystemMessage(content=system)]
         messages.extend(prior_messages)
         messages.append(HumanMessage(content=snapshot.get("user_message", "")))
 
-        if settings.nexo_synthesizer_stream:
+        if settings.agents_synthesizer_stream:
             events: list[HarnessEvent] = []
             answer = await stream_llm_with_thinking(
                 model=model,
@@ -151,12 +159,12 @@ def build_agentic_graph(
         text = response.content if hasattr(response, "content") else str(response)
         return {"answer": text if isinstance(text, str) else str(text)}
 
-    async def critic(state: NexoState) -> dict[str, Any]:
+    async def critic(state: DataState) -> dict[str, Any]:
         # Critic ON by default in agentic mode (plan 12 §line 245). For
         # the wiring tests we approve and pass through.
         return {}
 
-    async def summarizer(state: NexoState) -> dict[str, Any]:
+    async def summarizer(state: DataState) -> dict[str, Any]:
         return {}
 
     graph.add_node(
@@ -170,7 +178,7 @@ def build_agentic_graph(
 
     graph.set_entry_point("tenancy_gate")
 
-    def route_from_gate(state: NexoState) -> str:
+    def route_from_gate(state: DataState) -> str:
         if cast(dict[str, Any], state).get("answer"):
             return END
         return "planner"

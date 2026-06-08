@@ -7,9 +7,9 @@ Routes incoming requests via either:
   fallback for "auto" mode below the LLM's confidence threshold.
 
 Then dispatches to:
-- `nexo_graph` (NEXO_QUERY, canned data path)
-- `agentic_graph` (NEXO_AGENTIC, composable-primitive exploration)
-- `meta_agent_node` (NEXO_META, schema/primer questions; no SQL)
+- `data_graph` (DATA_QUERY, canned data path)
+- `agentic_graph` (DATA_AGENTIC, composable-primitive exploration)
+- `meta_agent_node` (DATA_META, schema/primer questions; no SQL)
 - `storytelling` module (STORYTELLING_RUN, mocked narrative path)
 - direct response (DIRECT / OTHER)
 
@@ -30,6 +30,7 @@ from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
 )
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
@@ -38,11 +39,11 @@ from miot_harness.runtime.conversation import (
     ConversationTurn,
     to_messages,
 )
+from miot_harness.runtime.data_graph import instrument_model
 from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.mode_resolver import ModeAccessDenied, resolve_mode
-from miot_harness.runtime.nexo_graph import instrument_model
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
 from miot_harness.storytelling.module import StorytellingModule
@@ -58,7 +59,7 @@ class HarnessSupervisor:
         tools: ToolRegistry,
         stories: StorytellingModule,
         run_store: JsonRunStore,
-        nexo_graph: Any | None = None,
+        data_graph: Any | None = None,
         *,
         llm_router: LLMIntentRouter | None = None,
         agentic_graph: Any | None = None,
@@ -67,7 +68,11 @@ class HarnessSupervisor:
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
         conversation_token_budget: int = 24_000,
-        tenant_lock: str = "mintral",
+        # Empty default = no lock configured yet; the lifespan overwrites
+        # this from the active datasource profile at boot. An empty lock
+        # refuses gated (agentic/canned) modes until configured — secure by
+        # default rather than hardcoding any one datasource's tenant here.
+        tenant_lock: str = "",
         event_bus: RunEventBus | None = None,
         checkpoint_every_n_events: int = 10,
         approval_registry: ApprovalRegistry | None = None,
@@ -76,7 +81,7 @@ class HarnessSupervisor:
         self.tools = tools
         self.stories = stories
         self.run_store = run_store
-        self.nexo_graph = nexo_graph
+        self.data_graph = data_graph
         self.llm_router = llm_router
         self.agentic_graph = agentic_graph
         self.meta_model = meta_model
@@ -88,6 +93,8 @@ class HarnessSupervisor:
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
         self.approval_registry = approval_registry
+        # Set by the lifespan after boot; None = legacy defaults.
+        self.profile: DataSourceProfile | None = None
 
     async def run(
         self,
@@ -160,16 +167,16 @@ class HarnessSupervisor:
         prior_messages = self._hydrate_history(request)
 
         try:
-            if route.route == HarnessRoute.NEXO_QUERY:
-                await self._run_nexo(
+            if route.route == HarnessRoute.DATA_QUERY:
+                await self._run_data_query(
                     request, ctx, record, progress, route.route, prior_messages
                 )
-            elif route.route == HarnessRoute.NEXO_META:
-                await self._run_nexo_meta(
+            elif route.route == HarnessRoute.DATA_META:
+                await self._run_data_meta(
                     request, ctx, record, progress, route.route, prior_messages
                 )
-            elif route.route == HarnessRoute.NEXO_AGENTIC:
-                await self._run_nexo_agentic(
+            elif route.route == HarnessRoute.DATA_AGENTIC:
+                await self._run_data_agentic(
                     request, ctx, record, progress, route.route, prior_messages
                 )
             elif route.route == HarnessRoute.STORYTELLING_RUN:
@@ -302,6 +309,10 @@ class HarnessSupervisor:
         Centralizes the Langfuse first-class field mapping (E10) so every
         route's root span carries `user_id`, `session_id`, and `tags`
         identically. `tags` includes the resolved route when known.
+
+        When a profile is set on the supervisor, ``span_prefix`` is taken
+        from ``profile.name``; otherwise it falls back to ``"datasource"``
+        as a neutral default.
         """
 
         tags: list[str] = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}"]
@@ -314,6 +325,7 @@ class HarnessSupervisor:
             "user_id": ctx.user_id,
             "session_id": ctx.conversation_id or ctx.thread_id,
             "tags": tags,
+            "span_prefix": self.profile.name if self.profile is not None else "datasource",
         }
 
     async def _resolve_route(self, request: UserRequest) -> RouteResult:
@@ -350,7 +362,7 @@ class HarnessSupervisor:
             )
         )
 
-    async def _run_nexo(
+    async def _run_data_query(
         self,
         request: UserRequest,
         ctx: HarnessContext,
@@ -359,9 +371,12 @@ class HarnessSupervisor:
         route: HarnessRoute | None = None,
         prior_messages: list[BaseMessage] | None = None,
     ) -> None:
-        if self.nexo_graph is None:
+        if self.data_graph is None:
+            display_name = (
+                self.profile.display_name if self.profile is not None else "Datasource"
+            )
             answer = (
-                "Coordinador integration is currently disabled "
+                f"{display_name} integration is currently disabled "
                 "(no DB tunnel or boot failed). Try again once it's restored."
             )
             record.answer = answer
@@ -369,7 +384,7 @@ class HarnessSupervisor:
                 HarnessEvent(
                     run_id=ctx.run_id,
                     type="answer.completed",
-                    message="Nexo integration disabled",
+                    message="datasource integration disabled",
                     data={"length": len(answer)},
                 )
             )
@@ -383,7 +398,7 @@ class HarnessSupervisor:
             "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            final_state = await self.nexo_graph.ainvoke(initial_state)
+            final_state = await self.data_graph.ainvoke(initial_state)
 
         # Drain the graph's _events channel into the run record in order
         for evt in final_state.get("_events") or []:
@@ -393,14 +408,17 @@ class HarnessSupervisor:
         if answer:
             record.answer = answer
         else:
-            record.answer = "(no answer produced by Coordinador graph)"
+            display_name = (
+                self.profile.display_name if self.profile is not None else "datasource"
+            )
+            record.answer = f"(no answer produced by {display_name} graph)"
 
-        # Persist NexoPlan in artifacts (review item N12)
+        # Persist DataPlan in artifacts (review item N12)
         plan = final_state.get("plan")
         if plan is not None and hasattr(plan, "model_dump"):
-            record.artifacts.append({"type": "nexo_plan", **plan.model_dump()})
+            record.artifacts.append({"type": "data_plan", **plan.model_dump()})
 
-    async def _run_nexo_agentic(
+    async def _run_data_agentic(
         self,
         request: UserRequest,
         ctx: HarnessContext,
@@ -439,7 +457,7 @@ class HarnessSupervisor:
             self._emit(record, evt)
         record.answer = final_state.get("answer") or "(no answer produced by agentic graph)"
 
-    async def _run_nexo_meta(
+    async def _run_data_meta(
         self,
         request: UserRequest,
         ctx: HarnessContext,
@@ -454,12 +472,23 @@ class HarnessSupervisor:
                 "(no meta_model wired). Try again once it's restored."
             )
             record.answer = answer
+            # Terminal event mirrors the disabled-datasource branch in
+            # _run_data_query: SSE subscribers need answer.completed, not
+            # a silent close.
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="answer.completed",
+                    message="meta agent disabled",
+                    data={"length": len(answer)},
+                )
+            )
             return
 
         from miot_harness.config import get_settings
 
         settings = get_settings()
-        stream_enabled = settings.nexo_synthesizer_stream
+        stream_enabled = settings.agents_synthesizer_stream
         from time import monotonic
 
         progress(
@@ -480,8 +509,10 @@ class HarnessSupervisor:
         # granularity (the root trace carries them, but the child
         # observation doesn't). The progress sink wires `usage.recorded`
         # too so SSE clients see token counts for the meta call.
+        _meta_span_prefix = self.profile.name if self.profile is not None else "datasource"
         instrumented_meta_model = instrument_model(
-            self.meta_model, "meta_agent", ctx, progress=progress
+            self.meta_model, "meta_agent", ctx,
+            progress=progress, span_prefix=_meta_span_prefix,
         )
 
         try:

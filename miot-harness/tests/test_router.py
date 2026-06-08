@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import pytest
 
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.router import HarnessRoute, IntentRouter
 
 
 @pytest.fixture
 def router() -> IntentRouter:
-    return IntentRouter()
+    # The core router ships no built-in vocabulary; keywords come from the
+    # active datasource profile. These tests exercise the nexo profile's
+    # keyword set (the provider-under-test's own domain vocabulary).
+    return IntentRouter(data_keywords=NEXO_PROFILE.router_keywords)
 
 
 @pytest.mark.parametrize(
@@ -24,9 +28,9 @@ def router() -> IntentRouter:
         "ETA en riesgo",
     ],
 )
-def test_nexo_keywords_route_to_nexo_query(router: IntentRouter, message: str):
+def test_profile_keywords_route_to_data_query(router: IntentRouter, message: str):
     result = router.route(message)
-    assert result.route == HarnessRoute.NEXO_QUERY
+    assert result.route == HarnessRoute.DATA_QUERY
 
 
 def test_eta_word_boundary_does_not_match_etapa(router: IntentRouter):
@@ -34,7 +38,7 @@ def test_eta_word_boundary_does_not_match_etapa(router: IntentRouter):
     'etapa', 'meta', and 'completada' don't trigger the Nexo path."""
     for false_positive in ("etapa siguiente", "meta cumplida", "completada"):
         result = router.route(false_positive)
-        assert result.route != HarnessRoute.NEXO_QUERY, (
+        assert result.route != HarnessRoute.DATA_QUERY, (
             f"unexpected NEXO match for {false_positive!r}"
         )
 
@@ -44,10 +48,10 @@ def test_storytelling_still_routes_correctly(router: IntentRouter):
     assert result.route == HarnessRoute.STORYTELLING_RUN
 
 
-def test_storytelling_with_nexo_keyword_resolves_to_nexo_first(router: IntentRouter):
+def test_storytelling_with_data_keyword_resolves_to_data_first(router: IntentRouter):
     """Plan resolution: when both keywords appear, Nexo wins."""
     result = router.route("write a story about Mintral coordinador status")
-    assert result.route == HarnessRoute.NEXO_QUERY
+    assert result.route == HarnessRoute.DATA_QUERY
 
 
 def test_unrelated_message_routes_direct(router: IntentRouter):
@@ -59,9 +63,30 @@ def test_etapa_with_eta_word_doesnt_match():
     """Lowercase 'eta' inside other words must NOT trigger; the regex is
     \\bETA\\b (uppercase, word boundary)."""
     router = IntentRouter()
-    assert router.route("la etapa siguiente").route != HarnessRoute.NEXO_QUERY
+    assert router.route("la etapa siguiente").route != HarnessRoute.DATA_QUERY
 
 
 def test_uppercase_eta_matches():
     router = IntentRouter()
-    assert router.route("¿qué ETA tenemos?").route == HarnessRoute.NEXO_QUERY
+    assert router.route("¿qué ETA tenemos?").route == HarnessRoute.DATA_QUERY
+
+
+def test_router_accepts_custom_keywords() -> None:
+    router = IntentRouter(data_keywords=frozenset({"fakesource"}))
+    result = router.route("estado de fakesource hoy")
+    assert result.route == HarnessRoute.DATA_QUERY
+
+
+def test_router_custom_keywords_replace_defaults() -> None:
+    # With custom keywords, the default nexo literals must NOT route to data.
+    router = IntentRouter(data_keywords=frozenset({"fakesource"}))
+    result = router.route("estado del coordinador?")
+    assert result.route == HarnessRoute.DIRECT
+
+
+def test_router_lowercases_mixed_case_keywords() -> None:
+    """Profile keywords are normalized on intake — route() matches against
+    the lowercased message, so a mixed-case keyword must still fire."""
+    router = IntentRouter(data_keywords=frozenset({"FakeSource"}))
+    result = router.route("estado de fakesource?")
+    assert result.route is HarnessRoute.DATA_QUERY

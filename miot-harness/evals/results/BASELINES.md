@@ -30,7 +30,7 @@ git commit -m "test(evals): pin fake-mode baseline at <sha>"
 
 Real mode requires:
 - `ANTHROPIC_API_KEY` exported
-- `MIOT_HARNESS_NEXO_DSN` pointing at the Coordinador DB (tunnel up via
+- `MIOT_HARNESS_DATASOURCE_DSN` pointing at the Coordinador DB (tunnel up via
   `db-scripts/bin/tunnel.sh` — see `evals/README.md` for the full
   preflight)
 - Budget for ~6 LLM calls × 25 cases ≈ 150 model invocations against

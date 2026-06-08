@@ -17,9 +17,10 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.nexo_graph import build_nexo_graph
+from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry
@@ -89,7 +90,13 @@ async def test_root_run_span_carries_mode_attribute(
     """`agent_span("run", mode=...)` must surface mode on the root span."""
 
     ctx = _ctx(mode="agentic")
-    with agent_span("run", run_id=ctx.run_id, tenant_id=ctx.tenant_id, mode=ctx.mode):
+    with agent_span(
+        "run",
+        run_id=ctx.run_id,
+        tenant_id=ctx.tenant_id,
+        mode=ctx.mode,
+        span_prefix=NEXO_PROFILE.name,
+    ):
         pass
     root = next(
         s for s in memory_exporter.get_finished_spans() if s.name == "nexo.run"
@@ -108,9 +115,11 @@ async def test_per_agent_callback_emits_mode_attribute(
     registry = ToolRegistry()
     registry.register(_stub_tool(refreshed))
     settings = HarnessSettings(
-        nexo_freshness_warn_minutes=30, nexo_freshness_refuse_minutes=240
+        datasource_freshness_warn_minutes=30, datasource_freshness_refuse_minutes=240
     )
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_models())
+    graph = build_data_graph(
+        registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
+    )
 
     ctx = _ctx(mode="canned")
     await graph.ainvoke(

@@ -8,10 +8,11 @@ from pydantic import BaseModel
 
 from miot_harness.agents.data_fetcher import data_fetcher_node
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import PermissionResult
-from miot_harness.runtime.plan import NexoEvidence, NexoPlan, NexoStep
+from miot_harness.runtime.plan import DataEvidence, DataPlan, DataStep
 from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry
 
@@ -47,7 +48,7 @@ def _stub_tool(name: str, output_payload: dict[str, Any]) -> HarnessTool:
 
 @pytest.mark.asyncio
 async def test_fetcher_invokes_pending_step_and_appends_evidence():
-    """Reads the pending NexoStep from state.plan, invokes via registry,
+    """Reads the pending DataStep from state.plan, invokes via registry,
     appends evidence, advances pending_step_index, sets next_action."""
     refreshed = datetime(2026, 5, 8, 10, 0, tzinfo=UTC)
     registry = ToolRegistry()
@@ -60,9 +61,9 @@ async def test_fetcher_invokes_pending_step_and_appends_evidence():
             },
         )
     )
-    plan = NexoPlan(
+    plan = DataPlan(
         steps=[
-            NexoStep(intent="initial", tool="coordinador_centro_control", args={}, rationale="r"),
+            DataStep(intent="initial", tool="coordinador_centro_control", args={}, rationale="r"),
         ]
     )
     state: dict[str, Any] = {
@@ -76,14 +77,18 @@ async def test_fetcher_invokes_pending_step_and_appends_evidence():
     events: list[HarnessEvent] = []
 
     update = await data_fetcher_node(
-        state, registry=registry, settings=HarnessSettings(), progress=events.append
+        state,
+        registry=registry,
+        settings=HarnessSettings(),
+        progress=events.append,
+        profile=NEXO_PROFILE,
     )
 
     assert update["pending_step_index"] == 1
     assert update["next_action"] == "judge_freshness"
     assert len(update["evidence"]) == 1
     ev = update["evidence"][0]
-    assert isinstance(ev, NexoEvidence)
+    assert isinstance(ev, DataEvidence)
     assert ev.tool == "coordinador_centro_control"
     assert ev.refreshed_at == refreshed
     assert "tool.completed" in {e.type for e in events}
@@ -117,7 +122,7 @@ async def test_fetcher_records_failure_on_tool_error():
     registry = ToolRegistry()
     registry.register(failing_tool)
 
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="coordinador_x", args={}, rationale="r")])
+    plan = DataPlan(steps=[DataStep(intent="i", tool="coordinador_x", args={}, rationale="r")])
     state = {
         "user_message": "?",
         "ctx": _ctx(),
@@ -129,7 +134,11 @@ async def test_fetcher_records_failure_on_tool_error():
     events: list[HarnessEvent] = []
 
     update = await data_fetcher_node(
-        state, registry=registry, settings=HarnessSettings(), progress=events.append
+        state,
+        registry=registry,
+        settings=HarnessSettings(),
+        progress=events.append,
+        profile=NEXO_PROFILE,
     )
 
     assert update.get("failure")
@@ -164,7 +173,7 @@ async def test_fetcher_denied_permission_records_failure():
     registry = ToolRegistry()
     registry.register(locked_tool)
 
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="coordinador_x", args={}, rationale="r")])
+    plan = DataPlan(steps=[DataStep(intent="i", tool="coordinador_x", args={}, rationale="r")])
     state = {
         "user_message": "?",
         "ctx": _ctx(),
@@ -175,7 +184,11 @@ async def test_fetcher_denied_permission_records_failure():
     }
 
     update = await data_fetcher_node(
-        state, registry=registry, settings=HarnessSettings(), progress=lambda e: None
+        state,
+        registry=registry,
+        settings=HarnessSettings(),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
     )
     assert update.get("failure")
     assert "Mintral" in update["failure"] or "permission" in update["failure"].lower()
@@ -193,8 +206,8 @@ async def test_fetcher_unregistered_tool_emits_canonical_failure_schema():
     context, not just a stringified message.
     """
 
-    plan = NexoPlan(
-        steps=[NexoStep(intent="i", tool="not_a_real_tool", args={}, rationale="r")]
+    plan = DataPlan(
+        steps=[DataStep(intent="i", tool="not_a_real_tool", args={}, rationale="r")]
     )
     state = {
         "user_message": "?",
@@ -211,6 +224,7 @@ async def test_fetcher_unregistered_tool_emits_canonical_failure_schema():
         registry=ToolRegistry(),
         settings=HarnessSettings(),
         progress=events.append,
+        profile=NEXO_PROFILE,
     )
 
     # State delta carries the structured fields.
@@ -232,7 +246,7 @@ async def test_fetcher_unregistered_tool_emits_canonical_failure_schema():
 async def test_fetcher_no_pending_step_is_noop():
     """If pending_step_index >= len(steps), fetcher reports done without
     re-running anything."""
-    plan = NexoPlan(steps=[NexoStep(intent="i", tool="coordinador_x", args={}, rationale="r")])
+    plan = DataPlan(steps=[DataStep(intent="i", tool="coordinador_x", args={}, rationale="r")])
     state = {
         "user_message": "?",
         "ctx": _ctx(),
@@ -242,6 +256,34 @@ async def test_fetcher_no_pending_step_is_noop():
         "turn_count": 2,
     }
     update = await data_fetcher_node(
-        state, registry=ToolRegistry(), settings=HarnessSettings(), progress=lambda e: None
+        state,
+        registry=ToolRegistry(),
+        settings=HarnessSettings(),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
     )
     assert update.get("next_action") == "ready_to_synthesize"
+
+
+def test_evidence_source_none_falls_back_to_profile_label() -> None:
+    """A tool payload carrying source=None (or "") must fall back to the
+    profile's source label instead of stringifying to the literal "None"."""
+    from miot_harness.agents.data_fetcher import _evidence_from_output
+
+    evidence = _evidence_from_output(
+        "step_1",
+        "fake_lookup",
+        {"rows": [], "source": None},
+        warn_minutes=30,
+        source_label=NEXO_PROFILE.source_label,
+    )
+    assert evidence.source == NEXO_PROFILE.source_label
+
+    evidence = _evidence_from_output(
+        "step_1",
+        "fake_lookup",
+        {"rows": [], "source": ""},
+        warn_minutes=30,
+        source_label=NEXO_PROFILE.source_label,
+    )
+    assert evidence.source == NEXO_PROFILE.source_label

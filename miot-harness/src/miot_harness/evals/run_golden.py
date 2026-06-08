@@ -1,13 +1,13 @@
-"""Golden eval runner for the Nexo conversational graph.
+"""Golden eval runner for the datasource conversational graph.
 
-Reads `evals/golden/nexo/examples.yaml`, runs each entry through the
-graph in one of three modes:
+Reads `evals/golden/<datasource_kind>/examples.yaml`, runs each entry
+through the graph in one of three modes:
 
   static — validate YAML schema only (no graph runs, no LLMs).
   fake   — use FakeListChatModel scripted to emit each entry's first
            expected_tool; stub registry returns canned data. Default;
            catches routing / structural regressions deterministically.
-  real   — use real Anthropic + the live Nexo DB. Requires env vars.
+  real   — use real Anthropic + the live datasource. Requires env vars.
 
 For each entry, scores deterministic axes:
   - tool_selection      did the chosen tool intersect expected_tools?
@@ -17,7 +17,8 @@ For each entry, scores deterministic axes:
   - no_hallucination    did expected KPI substrings appear?
   - step_economy        was the plan within [min_turns, max_turns]? (the
                         over-engineering guard — too many tool calls fails it)
-  - latency_ms / cost   placeholder (real mode only)
+  - latency_ms always; cost / tokens / cache / drift vs the fake-mode
+    baseline are captured in real mode from usage.recorded events
 
 Output: JSON to `evals/results/<commit-sha-or-timestamp>.json`, including an
 `env` block (python / platform / cpu / model ids) so runs are comparable
@@ -42,20 +43,36 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from langchain_core.language_models import BaseChatModel, FakeListChatModel
+from langchain_core.language_models import FakeListChatModel
 from pydantic import BaseModel
 
-from miot_harness.agents.chat_models import get_chat_model
-from miot_harness.config import HarnessSettings
-from miot_harness.integrations.nexo.boot import load_nexo_tools
-from miot_harness.integrations.nexo.pool import create_nexo_pool
+from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.nexo_graph import build_nexo_graph
+from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry, build_default_registry
 
 logger = logging.getLogger(__name__)
+
+
+def _active_profile() -> DataSourceProfile:
+    """Profile of the datasource under test, per MIOT_HARNESS_DATASOURCE_KIND.
+
+    The golden dataset, the fake stubs, and the refusal scoring must all
+    derive from the SAME provider — resolving it here keeps the runner
+    datasource-agnostic (registry resolution instantiates the provider
+    without connecting to anything).
+    """
+    return resolve_datasource(get_settings().datasource_kind).profile
+
+
+def default_fallback_tool(profile: DataSourceProfile) -> str:
+    """The always-registered fallback tool for refusal cases (empty
+    expected_tools): centro_control under the profile's tool prefix."""
+    return profile.tool_prefix + "centro_control"
 
 
 _REQUIRED_FIELDS = (
@@ -122,7 +139,7 @@ def validate_entries(entries: list[dict[str, Any]]) -> list[str]:
     return errors
 
 
-def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
+def _build_fake_registry(entry: dict[str, Any], profile: DataSourceProfile) -> ToolRegistry:
     """Build a stub registry with one tool per entry's expected_tools."""
 
     class _In(BaseModel):
@@ -131,11 +148,11 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
     class _Out(BaseModel):
         rows: list[dict[str, Any]] = []
         refreshed_at: datetime | None = None
-        source: str = "Coordinador · nexo (Citus DB)"
+        source: str = profile.source_label
 
     async def _check(ctx: HarnessContext, inp: BaseModel) -> PermissionResult:
-        if ctx.tenant_id != "mintral":
-            return PermissionResult.deny("Mintral-only")
+        if ctx.tenant_id != profile.tenant_lock:
+            return PermissionResult.deny(f"{profile.tenant_lock}-only")
         return PermissionResult.allow()
 
     refreshed = datetime.now(UTC)
@@ -146,39 +163,32 @@ def _build_fake_registry(entry: dict[str, Any]) -> ToolRegistry:
             refreshed_at=refreshed,
         )
 
+    def _stub(tool_name: str) -> HarnessTool[_In, _Out]:
+        return HarnessTool(
+            name=tool_name,
+            description="[Layer L1] eval-stub",
+            input_model=_In,
+            output_model=_Out,
+            check_permission=_check,
+            call=_call,
+        )
+
     registry = ToolRegistry()
     expected = entry.get("expected_tools") or []
+    # Build a stub for EVERY expected tool name verbatim — no prefix filter,
+    # so the registry mirrors whatever the dataset asks for.
     for tool_name in expected:
-        if not tool_name.startswith("coordinador_"):
-            continue
-        registry.register(
-            HarnessTool(
-                name=tool_name,
-                description="[Layer L1] eval-stub",
-                input_model=_In,
-                output_model=_Out,
-                check_permission=_check,
-                call=_call,
-            )
-        )
-    # Always register a centro_control fallback so empty expected_tools (refusal cases)
-    # still resolve.
-    if "coordinador_centro_control" not in registry.names() and not expected:
-        registry.register(
-            HarnessTool(
-                name="coordinador_centro_control",
-                description="[Layer L1] eval-stub",
-                input_model=_In,
-                output_model=_Out,
-                check_permission=_check,
-                call=_call,
-            )
-        )
+        registry.register(_stub(tool_name))
+    # Always register the fallback tool so empty expected_tools (refusal
+    # cases) still resolve.
+    fallback = default_fallback_tool(profile)
+    if fallback not in registry.names():
+        registry.register(_stub(fallback))
     return registry
 
 
-def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
-    expected = entry.get("expected_tools") or ["coordinador_centro_control"]
+def _fake_models(entry: dict[str, Any], profile: DataSourceProfile) -> dict[str, Any]:
+    expected = entry.get("expected_tools") or [default_fallback_tool(profile)]
     chosen = expected[0]
     return {
         "filter_expert": FakeListChatModel(
@@ -211,14 +221,36 @@ def _fake_models(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
+    settings = HarnessSettings()
+    profile = _active_profile()
+    registry = _build_fake_registry(entry, profile)
+    graph = build_data_graph(
+        registry=registry,
+        settings=settings,
+        models=_fake_models(entry, profile),
+        profile=profile,
+    )
+    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
+
+    initial: dict[str, Any] = {
+        "user_message": entry["question"],
+        "ctx": ctx,
+        "evidence": [],
+        "turn_count": 0,
+    }
+    t0 = time.perf_counter()
+    final = await graph.ainvoke(initial)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    return _score(entry, final, latency_ms, profile=profile)
+
+
 def _aggregate_usage(
     events: list[Any],
-) -> tuple[
-    float | None, int | None, int | None, float | None, dict[str, float] | None
-]:
+) -> tuple[float | None, int | None, int | None, float | None, dict[str, float] | None]:
     """Aggregate `usage.recorded` events from a graph run.
 
-    The NexoTelemetryCallback (observability/callbacks.py) emits one
+    The AgentTelemetryCallback (observability/callbacks.py) emits one
     per LLM call with `{agent, model, input_tokens, output_tokens,
     cache_read_input_tokens, cache_creation_input_tokens, cost_usd?}`
     in `data`. Returns (total_cost, total_in, total_out, cache_hit_pct,
@@ -273,17 +305,15 @@ def _aggregate_usage(
 def _score(
     entry: dict[str, Any],
     final: dict[str, Any],
-    *,
     latency_ms: float,
+    *,
+    profile: DataSourceProfile,
     mode: str = "fake",
 ) -> EvalScore:
-    """Score a single eval entry against the final graph state. Shared by
-    fake and real mode — both modes feed in identical state shapes
-    (the NexoState dict produced by build_nexo_graph), so the scoring
-    rules apply uniformly. `mode` only gates the semantic-refusal axis:
-    the scripted FakeListChatModel cannot produce a semantic refusal, so
-    that axis scores None in fake mode and for real in real mode.
-    """
+    """Deterministic scoring shared by fake and real modes — identical rules
+    applied to the same final-state shape. `mode` only gates the semantic-
+    refusal axis: the scripted FakeListChatModel cannot produce a semantic
+    refusal, so that axis scores None in fake mode."""
     plan = final.get("plan")
     plan_tools = [s.tool for s in plan.steps] if plan is not None else []
     answer = (final.get("answer") or "").lower()
@@ -291,11 +321,12 @@ def _score(
     forbidden = set(entry.get("forbidden_tools") or [])
 
     refusal_expected = bool(entry.get("expected_refusal"))
-    answer_is_refusal = "mintral-only" in answer or "no puedo responder" in answer
+    # "<lock>-only" is the tenant-gate refusal (profile-derived); "no puedo
+    # responder" is the synthesizer's literal copy, not a domain name, so it
+    # stays hardcoded.
+    answer_is_refusal = f"{profile.tenant_lock}-only" in answer or "no puedo responder" in answer
 
-    cost_usd, tok_in, tok_out, cache_pct, per_agent = _aggregate_usage(
-        final.get("_events") or []
-    )
+    cost_usd, tok_in, tok_out, cache_pct, per_agent = _aggregate_usage(final.get("_events") or [])
 
     if not refusal_expected:
         refusal_score: bool | None = None
@@ -342,76 +373,75 @@ def _score(
     )
 
 
-async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
-    settings = HarnessSettings()
-    registry = _build_fake_registry(entry)
-    graph = build_nexo_graph(registry=registry, settings=settings, models=_fake_models(entry))
-    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
+def _real_models(settings: HarnessSettings) -> dict[str, Any]:
+    """Per-agent live chat models for real mode (built once per suite)."""
+    from miot_harness.agents.chat_models import get_chat_model
 
-    initial: dict[str, Any] = {
-        "user_message": entry["question"],
-        "ctx": ctx,
-        "evidence": [],
-        "turn_count": 0,
+    synth_budget = (
+        settings.agents_synthesizer_thinking_budget if settings.agents_synthesizer_stream else None
+    )
+    return {
+        "filter_expert": get_chat_model(settings.agents_filter_expert_model),
+        "domain_analyst": get_chat_model(settings.agents_analyst_model),
+        "synthesizer": get_chat_model(
+            settings.agents_synthesizer_model, thinking_budget_tokens=synth_budget
+        ),
+        "critic": get_chat_model(settings.agents_critic_model),
+        "summarizer": get_chat_model(settings.agents_summarizer_model),
     }
-    t0 = time.perf_counter()
-    final = await graph.ainvoke(initial)
-    latency_ms = (time.perf_counter() - t0) * 1000
-    return _score(entry, final, latency_ms=latency_ms)
 
 
 async def _build_real_setup(
     settings: HarnessSettings,
-) -> tuple[ToolRegistry, Any, dict[str, BaseChatModel]]:
-    """Build a real harness setup: introspected Coordinador tools on a
-    live asyncpg pool + real chat models from the chat_models factory.
+) -> tuple[ToolRegistry, Any, dict[str, Any]]:
+    """Boot the configured datasource provider and build live models.
 
-    Returns `(registry, pool, models)`. Caller MUST close the pool.
-
-    Raises RuntimeError when settings lack the credentials real mode needs.
-    Refusing up front beats discovering an auth failure mid-suite.
+    Returns (registry, provider, models). The connection pool is owned by
+    the provider now (not returned directly) — the caller closes it via
+    `await provider.close()`.
     """
-    if not settings.nexo_dsn:
+    # Fail-fast on missing credentials with a clear message rather than
+    # discovering the misconfiguration mid-suite or auth-failing per case.
+    if not settings.datasource_dsn:
         raise RuntimeError(
-            "real mode requires MIOT_HARNESS_NEXO_DSN; bring up the "
-            "db-scripts tunnel and export the DSN before running."
+            "real mode requires MIOT_HARNESS_DATASOURCE_DSN (datasource credentials)"
         )
-    if not settings.anthropic_api_key:
-        raise RuntimeError(
-            "real mode requires ANTHROPIC_API_KEY; the chat-model factory "
-            "cannot construct Claude models without it."
-        )
-
-    pool = await create_nexo_pool(
-        settings.nexo_dsn, application_name=settings.nexo_application_name
+    # Only required when the configured model mix actually uses Anthropic —
+    # mirrors get_chat_model's "claude-*" provider dispatch.
+    agent_models = (
+        settings.agents_filter_expert_model,
+        settings.agents_analyst_model,
+        settings.agents_synthesizer_model,
+        settings.agents_critic_model,
+        settings.agents_summarizer_model,
     )
-    registry = build_default_registry()
-    boot = await load_nexo_tools(registry, settings=settings, pool=pool)
-    if not boot.enabled:
-        await pool.close()
-        raise RuntimeError(f"Nexo boot failed: {boot.reason}")
+    if any(m.startswith("claude-") for m in agent_models) and not settings.anthropic_api_key:
+        raise RuntimeError(
+            "real mode requires ANTHROPIC_API_KEY (the configured agent models include claude-*)"
+        )
 
-    models: dict[str, BaseChatModel] = {
-        "filter_expert": get_chat_model(settings.nexo_filter_expert_model),
-        "domain_analyst": get_chat_model(settings.nexo_analyst_model),
-        "synthesizer": get_chat_model(
-            settings.nexo_synthesizer_model,
-            thinking_budget_tokens=settings.nexo_synthesizer_thinking_budget,
-        ),
-        "critic": get_chat_model(settings.nexo_critic_model),
-        "summarizer": get_chat_model(settings.nexo_summarizer_model),
-    }
-    return registry, pool, models
+    registry = build_default_registry()
+    provider = resolve_datasource(settings.datasource_kind)
+    boot = await provider.boot(registry, settings)
+    if not boot.enabled:
+        await provider.close()
+        raise RuntimeError(f"Datasource boot failed: {boot.reason}")
+    return registry, provider, _real_models(settings)
 
 
 async def _run_one_real(
     entry: dict[str, Any],
-    *,
     registry: ToolRegistry,
+    provider: Any,
+    models: dict[str, Any],
     settings: HarnessSettings,
-    models: dict[str, BaseChatModel],
 ) -> EvalScore:
-    graph = build_nexo_graph(registry=registry, settings=settings, models=models)
+    graph = build_data_graph(
+        registry=registry,
+        settings=settings,
+        models=models,
+        profile=provider.profile,
+    )
     ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
     initial: dict[str, Any] = {
         "user_message": entry["question"],
@@ -422,7 +452,7 @@ async def _run_one_real(
     t0 = time.perf_counter()
     final = await graph.ainvoke(initial)
     latency_ms = (time.perf_counter() - t0) * 1000
-    return _score(entry, final, latency_ms=latency_ms, mode="real")
+    return _score(entry, final, latency_ms, profile=provider.profile, mode="real")
 
 
 _DRIFT_AXES = ("tool_selection", "filter_sanity")
@@ -443,9 +473,7 @@ def _load_baseline(path: Path) -> dict[str, dict[str, Any]]:
     return {entry["id"]: entry for entry in raw.get("scored", []) if "id" in entry}
 
 
-def _annotate_drift(
-    scored: list[EvalScore], baseline: dict[str, dict[str, Any]]
-) -> None:
+def _annotate_drift(scored: list[EvalScore], baseline: dict[str, dict[str, Any]]) -> None:
     """Compute drift fields on each EvalScore in-place by comparing the
     real-mode result against the baseline (fake-mode) result for the
     same case id.
@@ -551,86 +579,68 @@ async def run_golden(
         return {"mode": "static", "valid": True, "errors": [], "scored": []}
 
     if mode not in ("fake", "real"):
-        raise NotImplementedError(f"mode {mode!r} not yet supported (static|fake|real only).")
+        raise NotImplementedError(f"mode {mode!r} not yet supported (static|fake|real).")
+
+    settings = HarnessSettings()
+
+    def _error_score(entry: dict[str, Any], exc: Exception) -> EvalScore:
+        logger.exception("eval entry %s raised", entry.get("id"))
+        return EvalScore(
+            id=entry.get("id", "?"),
+            category=entry.get("category", ""),
+            tool_selection=False,
+            filter_sanity=False,
+            freshness_citation=False,
+            refusal=False,
+            no_hallucination=False,
+            step_economy=False,
+            latency_ms=None,
+            notes=f"runner_error: {exc}",
+        )
 
     scored: list[EvalScore] = []
-    real_setup: tuple[ToolRegistry, Any, dict[str, BaseChatModel]] | None = None
-    if mode == "real":
-        # Build the live setup once (introspect + connect + load models)
-        # and reuse it across every entry to avoid re-paying init cost.
-        try:
-            real_setup = await _build_real_setup(HarnessSettings())
-        except RuntimeError as exc:
-            return {
-                "mode": "real",
-                "valid": False,
-                "errors": [str(exc)],
-                "scored": [],
-            }
-
     accumulated_cost = 0.0
     cost_cap_tripped = False
-    try:
+    if mode == "fake":
         for entry in entries:
             try:
-                if mode == "fake":
-                    scored.append(await _run_one_fake(entry))
-                else:
-                    assert real_setup is not None  # narrowing for mypy
-                    registry, _pool, models = real_setup
-                    scored.append(
-                        await _run_one_real(
-                            entry,
-                            registry=registry,
-                            settings=HarnessSettings(),
-                            models=models,
-                        )
-                    )
-                    # Cost-budget guard: when accumulated real-mode cost
-                    # exceeds the cap, abort the rest of the suite. The
-                    # default $10 cap is sized to make a footgun obvious
-                    # (e.g. accidentally running real mode against Sonnet
-                    # on every case), not to actually limit ops budgets.
-                    last_cost = scored[-1].cost_usd
-                    if last_cost is not None:
-                        accumulated_cost += last_cost
-                        if accumulated_cost > cost_cap_usd:
-                            cost_cap_tripped = True
-                            logger.warning(
-                                "cost cap $%.2f exceeded ($%.4f spent); "
-                                "aborting suite after case %s",
-                                cost_cap_usd,
-                                accumulated_cost,
-                                scored[-1].id,
-                            )
-                            break
+                scored.append(await _run_one_fake(entry))
             except Exception as exc:  # noqa: BLE001
-                logger.exception("eval entry %s raised", entry.get("id"))
-                scored.append(
-                    EvalScore(
-                        id=entry.get("id", "?"),
-                        category=entry.get("category", ""),
-                        tool_selection=False,
-                        filter_sanity=False,
-                        freshness_citation=False,
-                        refusal=False,
-                        no_hallucination=False,
-                        step_economy=False,
-                        latency_ms=None,
-                        notes=f"runner_error: {exc}",
-                    )
-                )
-    finally:
-        if real_setup is not None:
-            _registry, pool, _models = real_setup
-            await pool.close()
+                scored.append(_error_score(entry, exc))
+    else:  # real — build the live setup once, then run each entry against it
+        registry, provider, models = await _build_real_setup(settings)
+        try:
+            for entry in entries:
+                try:
+                    scored.append(await _run_one_real(entry, registry, provider, models, settings))
+                except Exception as exc:  # noqa: BLE001
+                    scored.append(_error_score(entry, exc))
+                    continue
+                # Cost-budget guard: when accumulated real-mode cost
+                # exceeds the cap, abort the rest of the suite. The
+                # default $10 cap is sized to make a footgun obvious
+                # (e.g. accidentally running real mode against Sonnet
+                # on every case), not to actually limit ops budgets.
+                last_cost = scored[-1].cost_usd
+                if last_cost is not None:
+                    accumulated_cost += last_cost
+                    if accumulated_cost > cost_cap_usd:
+                        cost_cap_tripped = True
+                        logger.warning(
+                            "cost cap $%.2f exceeded ($%.4f spent); aborting suite after case %s",
+                            cost_cap_usd,
+                            accumulated_cost,
+                            scored[-1].id,
+                        )
+                        break
+        finally:
+            await provider.close()
 
     out_dir.mkdir(parents=True, exist_ok=True)
     sha = _commit_sha()
-    # Real-mode results get a -real suffix so they don't clobber the
-    # canonical fake-mode baseline (which lives at <sha>.json).
-    suffix = "-real" if mode == "real" else ""
-    out_path = out_dir / f"{sha}{suffix}.json"
+    # Real-mode results land at `<sha>-real.json` so they don't clobber the
+    # canonical fake-mode baseline at `<sha>.json`.
+    out_path = out_dir / (f"{sha}-real.json" if mode == "real" else f"{sha}.json")
 
     # Drift annotation — real mode only. Default baseline path is the
     # same-commit fake-mode result; CI / local users can pass an
@@ -643,17 +653,13 @@ async def run_golden(
     # cost_usd is always None and the totals collapse to None / 0.
     case_costs = [s.cost_usd for s in scored if s.cost_usd is not None]
     total_cost = sum(case_costs) if case_costs else None
-    total_tokens = sum(
-        (s.tokens_input or 0) + (s.tokens_output or 0) for s in scored
-    ) or None
+    total_tokens = sum((s.tokens_input or 0) + (s.tokens_output or 0) for s in scored) or None
     cache_pcts = [s.cache_hit_pct for s in scored if s.cache_hit_pct is not None]
     avg_cache_hit = (sum(cache_pcts) / len(cache_pcts)) if cache_pcts else None
-    # Per-mode rollup: today every case in the YAML routes through
-    # nexo_graph (canned). Until multi-route eval seeds exist, the
+    # Per-mode rollup: today every case in the YAML routes through the
+    # data graph (canned). Until multi-route eval seeds exist, the
     # rollup just attributes the whole spend to canned.
     cost_by_mode = {"canned": total_cost} if total_cost is not None else {}
-
-    settings = HarnessSettings()
     payload = {
         "mode": mode,
         "valid": True,
@@ -666,11 +672,11 @@ async def run_golden(
             "cpu_count": os.cpu_count(),
             "deterministic": mode == "fake",
             "models": {
-                "filter_expert": settings.nexo_filter_expert_model,
-                "analyst": settings.nexo_analyst_model,
-                "synthesizer": settings.nexo_synthesizer_model,
-                "critic": settings.nexo_critic_model,
-                "summarizer": settings.nexo_summarizer_model,
+                "filter_expert": settings.agents_filter_expert_model,
+                "analyst": settings.agents_analyst_model,
+                "synthesizer": settings.agents_synthesizer_model,
+                "critic": settings.agents_critic_model,
+                "summarizer": settings.agents_summarizer_model,
                 "intent_router": settings.intent_router_model,
             },
             "note": (
@@ -693,8 +699,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="miot-harness-evals", description=__doc__)
     parser.add_argument(
         "--yaml",
-        default="evals/golden/nexo/examples.yaml",
-        help="Path to the golden eval YAML.",
+        default=None,
+        help=(
+            "Path to the golden eval YAML. Defaults to "
+            "evals/golden/<MIOT_HARNESS_DATASOURCE_KIND>/examples.yaml."
+        ),
     )
     parser.add_argument(
         "--out-dir",
@@ -708,8 +717,8 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "static = YAML validation only; "
             "fake = scripted FakeListChatModel run (deterministic); "
-            "real = live Anthropic + Nexo DB (requires ANTHROPIC_API_KEY + "
-            "MIOT_HARNESS_NEXO_DSN, plus an active db-scripts tunnel)."
+            "real = live LLM + datasource (requires "
+            "MIOT_HARNESS_DATASOURCE_DSN + ANTHROPIC_API_KEY)."
         ),
     )
     parser.add_argument(
@@ -753,27 +762,31 @@ def main(argv: list[str] | None = None) -> int:
         if args.baseline:
             baseline_file = Path(args.baseline)
             if baseline_file.is_file():
-                baseline_payload = json.loads(
-                    baseline_file.read_text(encoding="utf-8")
-                )
+                baseline_payload = json.loads(baseline_file.read_text(encoding="utf-8"))
         _print_report(payload, baseline_payload=baseline_payload)
         return 0
 
-    yaml_path = Path(args.yaml)
+    yaml_path = Path(args.yaml or f"evals/golden/{get_settings().datasource_kind}/examples.yaml")
     if not yaml_path.is_file():
         print(f"Golden YAML not found: {yaml_path}", file=sys.stderr)
         return 2
 
     baseline_path = Path(args.baseline) if args.baseline else None
-    payload = asyncio.run(
-        run_golden(
-            yaml_path,
-            Path(args.out_dir),
-            mode=args.mode,
-            baseline_path=baseline_path,
-            cost_cap_usd=args.cost_cap,
+    try:
+        payload = asyncio.run(
+            run_golden(
+                yaml_path,
+                Path(args.out_dir),
+                mode=args.mode,
+                baseline_path=baseline_path,
+                cost_cap_usd=args.cost_cap,
+            )
         )
-    )
+    except RuntimeError as exc:
+        # Real-mode setup refuses (missing credentials / boot failed) — clean
+        # exit 1 with the reason on stderr instead of a traceback.
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 1
     if not payload["valid"]:
         for err in payload["errors"]:
             print(f"INVALID: {err}", file=sys.stderr)
@@ -781,15 +794,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.mode != "static":
         ok = sum(
-            1
-            for s in payload["scored"]
-            if not str(s.get("notes", "")).startswith("runner_error")
+            1 for s in payload["scored"] if not str(s.get("notes", "")).startswith("runner_error")
         )
         total = len(payload["scored"])
         # Mirror run_golden's naming: real-mode results carry a -real
         # suffix so they don't clobber the fake-mode baseline.
-        suffix = "-real" if args.mode == "real" else ""
-        out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + f"{suffix}.json")
+        suffix = "-real.json" if args.mode == "real" else ".json"
+        out_path = Path(args.out_dir) / (payload.get("commit", "baseline") + suffix)
         print(f"Wrote {out_path}: {ok}/{total} ran cleanly (no runner errors)")
     else:
         print(f"Validated {len(yaml.safe_load(yaml_path.read_text()))} entries")

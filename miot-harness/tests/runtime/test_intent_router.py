@@ -8,8 +8,17 @@ from collections.abc import Iterable
 import pytest
 from langchain_core.language_models import FakeListChatModel
 
-from miot_harness.runtime.intent_router import LLMIntentRouter
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
+from miot_harness.runtime.intent_router import LLMIntentRouter, _render_system_prompt
 from miot_harness.runtime.router import HarnessRoute, IntentRouter
+from tests.fixtures.fake_provider import FAKE_PROFILE
+
+
+def _nexo_fallback() -> IntentRouter:
+    # The core router ships no built-in vocabulary; the keyword fallback in
+    # these tests uses the nexo profile keyword set (the provider-under-test's
+    # own vocabulary) so the "Mintral status" fallback prompts route to data.
+    return IntentRouter(data_keywords=NEXO_PROFILE.router_keywords)
 
 
 def _scripted_json(route: str, confidence: float = 0.9, reasoning: str = "test") -> str:
@@ -21,29 +30,29 @@ def _scripted_json(route: str, confidence: float = 0.9, reasoning: str = "test")
 # When confidence >= 0.7 the LLM label wins; when below 0.7 the keyword
 # fallback takes over (and the expected route reflects that).
 _FIXTURES: tuple[tuple[str, str, float, HarnessRoute], ...] = (
-    # NEXO_QUERY — 5 prompts
-    ("¿estado del centro de control hoy?", "NEXO_QUERY", 0.92, HarnessRoute.NEXO_QUERY),
-    ("dame KPI de cola crítica", "NEXO_QUERY", 0.85, HarnessRoute.NEXO_QUERY),
-    ("ETA en riesgo del turno actual", "NEXO_QUERY", 0.88, HarnessRoute.NEXO_QUERY),
-    ("dimensionamiento para mañana", "NEXO_QUERY", 0.80, HarnessRoute.NEXO_QUERY),
-    ("torre de control: KPIs en vivo", "NEXO_QUERY", 0.78, HarnessRoute.NEXO_QUERY),
-    # NEXO_META — 5 prompts
-    ("what data do you have available?", "NEXO_META", 0.91, HarnessRoute.NEXO_META),
-    ("how is es_critico calculated?", "NEXO_META", 0.86, HarnessRoute.NEXO_META),
-    ("what does fn_dx_centro_control do?", "NEXO_META", 0.84, HarnessRoute.NEXO_META),
-    ("explain the schema of the nexo tables", "NEXO_META", 0.83, HarnessRoute.NEXO_META),
-    ("which fn_dx_* are available?", "NEXO_META", 0.82, HarnessRoute.NEXO_META),
-    # NEXO_AGENTIC — 5 prompts
-    ("show me services where delta_eta_horas > 6", "NEXO_AGENTIC", 0.90, HarnessRoute.NEXO_AGENTIC),
-    ("tell me more about that", "NEXO_AGENTIC", 0.75, HarnessRoute.NEXO_AGENTIC),
+    # DATA_QUERY — 5 prompts
+    ("¿estado del centro de control hoy?", "DATA_QUERY", 0.92, HarnessRoute.DATA_QUERY),
+    ("dame KPI de cola crítica", "DATA_QUERY", 0.85, HarnessRoute.DATA_QUERY),
+    ("ETA en riesgo del turno actual", "DATA_QUERY", 0.88, HarnessRoute.DATA_QUERY),
+    ("dimensionamiento para mañana", "DATA_QUERY", 0.80, HarnessRoute.DATA_QUERY),
+    ("torre de control: KPIs en vivo", "DATA_QUERY", 0.78, HarnessRoute.DATA_QUERY),
+    # DATA_META — 5 prompts
+    ("what data do you have available?", "DATA_META", 0.91, HarnessRoute.DATA_META),
+    ("how is es_critico calculated?", "DATA_META", 0.86, HarnessRoute.DATA_META),
+    ("what does fn_dx_centro_control do?", "DATA_META", 0.84, HarnessRoute.DATA_META),
+    ("explain the schema of the nexo tables", "DATA_META", 0.83, HarnessRoute.DATA_META),
+    ("which fn_dx_* are available?", "DATA_META", 0.82, HarnessRoute.DATA_META),
+    # DATA_AGENTIC — 5 prompts
+    ("show me services where delta_eta_horas > 6", "DATA_AGENTIC", 0.90, HarnessRoute.DATA_AGENTIC),
+    ("tell me more about that", "DATA_AGENTIC", 0.75, HarnessRoute.DATA_AGENTIC),
     (
         "filter by region=norte and order by ETA desc",
-        "NEXO_AGENTIC",
+        "DATA_AGENTIC",
         0.81,
-        HarnessRoute.NEXO_AGENTIC,
+        HarnessRoute.DATA_AGENTIC,
     ),
-    ("any rows with refreshed_at older than 4h?", "NEXO_AGENTIC", 0.79, HarnessRoute.NEXO_AGENTIC),
-    ("explora la tabla dx_servicios", "NEXO_AGENTIC", 0.77, HarnessRoute.NEXO_AGENTIC),
+    ("any rows with refreshed_at older than 4h?", "DATA_AGENTIC", 0.79, HarnessRoute.DATA_AGENTIC),
+    ("explora la tabla dx_servicios", "DATA_AGENTIC", 0.77, HarnessRoute.DATA_AGENTIC),
     # STORYTELLING_RUN — 5 prompts
     (
         "draft a story about today's incident",
@@ -65,16 +74,16 @@ _FIXTURES: tuple[tuple[str, str, float, HarnessRoute], ...] = (
     ("forecast tomorrow's weather", "OTHER", 0.82, HarnessRoute.OTHER),
     ("translate this to Klingon", "OTHER", 0.80, HarnessRoute.OTHER),
     ("solve x^2 + 2x + 1 = 0", "OTHER", 0.79, HarnessRoute.OTHER),
-    # Low confidence → keyword fallback (this message has no Nexo keyword
+    # Low confidence → keyword fallback (this message has no data keyword
     # so the deterministic router returns DIRECT).
-    ("ambiguous something", "NEXO_QUERY", 0.50, HarnessRoute.DIRECT),
+    ("ambiguous something", "DATA_QUERY", 0.50, HarnessRoute.DIRECT),
     ("eep doop", "OTHER", 0.30, HarnessRoute.DIRECT),
 )
 
 
 def _build_router(responses: Iterable[str]) -> LLMIntentRouter:
     model = FakeListChatModel(responses=list(responses))
-    return LLMIntentRouter(model, confidence_threshold=0.7, keyword_fallback=IntentRouter())
+    return LLMIntentRouter(model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback())
 
 
 @pytest.mark.asyncio
@@ -104,13 +113,13 @@ async def test_confusion_matrix_30_prompts() -> None:
 async def test_low_confidence_falls_back_to_keyword_router() -> None:
     """Below the threshold the LLM label is dropped; keyword router decides."""
 
-    # LLM says NEXO_AGENTIC with low confidence; keyword router sees no
-    # Nexo keyword in "hola amigo", so the final route is DIRECT.
+    # LLM says DATA_AGENTIC with low confidence; keyword router sees no
+    # data keyword in "hola amigo", so the final route is DIRECT.
     model = FakeListChatModel(
-        responses=[_scripted_json("NEXO_AGENTIC", confidence=0.3, reasoning="unsure")]
+        responses=[_scripted_json("DATA_AGENTIC", confidence=0.3, reasoning="unsure")]
     )
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
 
     result = await router.route("hola amigo")
@@ -124,23 +133,23 @@ async def test_unparseable_llm_response_falls_back_to_keyword() -> None:
 
     model = FakeListChatModel(responses=["I'm not sure honestly..."])
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     result = await router.route("Mintral fleet status")  # contains 'mintral'
-    assert result.route is HarnessRoute.NEXO_QUERY
+    assert result.route is HarnessRoute.DATA_QUERY
 
 
 @pytest.mark.asyncio
 async def test_router_accepts_fenced_json_response() -> None:
     """LLMs often wrap JSON in ```json fences; we must tolerate that."""
 
-    fenced = "```json\n" + _scripted_json("NEXO_META", confidence=0.9) + "\n```"
+    fenced = "```json\n" + _scripted_json("DATA_META", confidence=0.9) + "\n```"
     model = FakeListChatModel(responses=[fenced])
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     result = await router.route("what is fn_dx_eta_hoy?")
-    assert result.route is HarnessRoute.NEXO_META
+    assert result.route is HarnessRoute.DATA_META
 
 
 @pytest.mark.asyncio
@@ -151,10 +160,10 @@ async def test_invalid_route_name_falls_back_to_keyword() -> None:
         responses=[json.dumps({"route": "MAGIC_ROUTE", "confidence": 0.99})]
     )
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
     result = await router.route("Mintral status")  # mintral keyword
-    assert result.route is HarnessRoute.NEXO_QUERY
+    assert result.route is HarnessRoute.DATA_QUERY
 
 
 @pytest.mark.parametrize(
@@ -164,7 +173,7 @@ async def test_invalid_route_name_falls_back_to_keyword() -> None:
         "42",          # bare number
         "true",        # bare bool
         "null",        # bare null
-        '["NEXO_QUERY", 0.9]',  # array, not an object
+        '["DATA_QUERY", 0.9]',  # array, not an object
     ],
 )
 @pytest.mark.asyncio
@@ -178,8 +187,30 @@ async def test_non_dict_json_falls_back_to_keyword(raw_response: str) -> None:
 
     model = FakeListChatModel(responses=[raw_response])
     router = LLMIntentRouter(
-        model, confidence_threshold=0.7, keyword_fallback=IntentRouter()
+        model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    # "Mintral status" has the `mintral` keyword so the fallback returns NEXO_QUERY.
+    # "Mintral status" has the `mintral` keyword so the fallback returns DATA_QUERY.
     result = await router.route("Mintral status")
-    assert result.route is HarnessRoute.NEXO_QUERY
+    assert result.route is HarnessRoute.DATA_QUERY
+
+
+def test_system_prompt_parameterized_by_profile() -> None:
+    """The rendered prompt names the active datasource and its keywords."""
+
+    prompt = _render_system_prompt(FAKE_PROFILE)
+    # display_name appears (the example wording is profile-driven, not hardcoded).
+    assert FAKE_PROFILE.display_name in prompt
+    # router_keywords seed the DATA_QUERY example list.
+    for keyword in FAKE_PROFILE.router_keywords:
+        assert keyword in prompt
+    # The route vocabulary is profile-agnostic and always present.
+    for route_name in ("DATA_QUERY", "DATA_META", "DATA_AGENTIC"):
+        assert route_name in prompt
+
+
+def test_system_prompt_falls_back_without_profile() -> None:
+    """With no profile, the prompt still renders (legacy default wording)."""
+
+    prompt = _render_system_prompt(None)
+    assert "DATA_QUERY" in prompt
+    assert "the data source" in prompt

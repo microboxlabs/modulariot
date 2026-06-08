@@ -151,7 +151,7 @@ def _langfuse_trace_fixture(**overrides: object) -> dict[str, object]:
         "name": "nexo.run",
         "userId": "odtorres",
         "sessionId": "conv-1",
-        "tags": ["tenant:mintral", "mode:auto", "agent:filter_expert", "route:nexo_query"],
+        "tags": ["tenant:mintral", "mode:auto", "agent:filter_expert", "route:data_query"],
         "metadata": {},
         "totalCost": 0.0521,
         "timestamp": "2026-05-13T10:00:00Z",

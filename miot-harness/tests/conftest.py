@@ -31,6 +31,10 @@ from miot_harness.config import HarnessSettings
 
 _HARNESS_SPAN_PREFIXES = (
     "nexo.",
+    # Alternate datasource prefixes: "fake." for FakeProvider tests, and
+    # "datasource." — the neutral default span_prefix when no profile is set.
+    "fake.",
+    "datasource.",
     # Traceloop / OpenLLMetry auto-instrumentation emits spans like
     # `anthropic.chat`, `openai.chat`, `gen_ai.completion`.
     "gen_ai.",
@@ -44,7 +48,9 @@ class _HarnessSpanExporter(InMemorySpanExporter):
 
     pytest-opentelemetry attaches a TracerProvider that emits one span per
     test item / fixture / runtest call. We keep only spans produced by the
-    harness (`nexo.*`) and by the auto-instrumented LLM SDKs.
+    harness datasource providers (`nexo.*`, plus the alternate prefixes
+    `fake.*` for FakeProvider tests and `datasource.*`, the neutral default
+    span_prefix when no profile is set) and by the auto-instrumented LLM SDKs.
     """
 
     def export(self, spans: tuple[ReadableSpan, ...]) -> SpanExportResult:  # type: ignore[override]

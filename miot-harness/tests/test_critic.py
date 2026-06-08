@@ -7,6 +7,7 @@ from langchain_core.language_models import FakeListChatModel
 
 from miot_harness.agents.critic import critic_node
 from miot_harness.config import HarnessSettings
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 
 
@@ -16,7 +17,7 @@ def _ctx() -> HarnessContext:
 
 @pytest.mark.asyncio
 async def test_critic_disabled_passes_through_without_llm():
-    """Default config: nexo_critic_enabled=False. The critic returns
+    """Default config: agents_critic_enabled=False. The critic returns
     state delta without invoking the model."""
     state: dict[str, Any] = {
         "user_message": "?",
@@ -29,7 +30,10 @@ async def test_critic_disabled_passes_through_without_llm():
     model = FakeListChatModel(responses=[])
 
     update = await critic_node(
-        state, settings=HarnessSettings(nexo_critic_enabled=False), model=model
+        state,
+        settings=HarnessSettings(agents_critic_enabled=False),
+        model=model,
+        profile=NEXO_PROFILE,
     )
 
     # Pass-through: no changes
@@ -50,7 +54,10 @@ async def test_critic_enabled_runs_check_and_can_pass_answer():
     }
 
     update = await critic_node(
-        state, settings=HarnessSettings(nexo_critic_enabled=True), model=model
+        state,
+        settings=HarnessSettings(agents_critic_enabled=True),
+        model=model,
+        profile=NEXO_PROFILE,
     )
     # No state change on pass
     assert update == {} or "answer" not in update or update["answer"] == state["answer"]
@@ -72,7 +79,10 @@ async def test_critic_enabled_flags_concerns_in_state():
     }
 
     update = await critic_node(
-        state, settings=HarnessSettings(nexo_critic_enabled=True), model=model
+        state,
+        settings=HarnessSettings(agents_critic_enabled=True),
+        model=model,
+        profile=NEXO_PROFILE,
     )
     assert "critic_concerns" in update
     assert "refreshed_at" in update["critic_concerns"]

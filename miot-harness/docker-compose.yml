@@ -44,7 +44,7 @@ services:
       - "8000:8000"
     volumes:
       - harness-workspace:/app/.miot-workspace
-    # Resolves `host.docker.internal` on Linux so MIOT_HARNESS_NEXO_DSN
+    # Resolves `host.docker.internal` on Linux so MIOT_HARNESS_DATASOURCE_DSN
     # pointing at host.docker.internal:6434 (a host-side kubectl
     # port-forward) works without --network host. macOS / Windows
     # Docker Desktop already provide this name automatically; the
@@ -84,7 +84,7 @@ services:
             port-forward svc/prod-mintral-pgbouncer 6434:6432 \
             -n <namespace>
 
-        Then point MIOT_HARNESS_NEXO_DSN at host.docker.internal:6434
+        Then point MIOT_HARNESS_DATASOURCE_DSN at host.docker.internal:6434
         (or use --network host on Linux) so the harness container
         reaches the tunnel.
         ===============================================================

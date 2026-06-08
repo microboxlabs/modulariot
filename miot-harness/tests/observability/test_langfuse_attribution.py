@@ -15,7 +15,7 @@ from uuid import uuid4
 from langchain_core.messages import HumanMessage
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from miot_harness.observability.callbacks import NexoTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback
 from miot_harness.observability.spans import agent_span
 
 
@@ -29,7 +29,7 @@ def test_agent_span_emits_langfuse_user_session_tags(
         mode="agentic",
         user_id="odtorres",
         session_id="conv-abc-123",
-        tags=["tenant:mintral", "mode:agentic", "route:nexo_agentic"],
+        tags=["tenant:mintral", "mode:agentic", "route:data_agentic"],
         environment="local",
     ):
         pass
@@ -44,7 +44,7 @@ def test_agent_span_emits_langfuse_user_session_tags(
     assert json.loads(attrs["langfuse.tags"]) == [
         "tenant:mintral",
         "mode:agentic",
-        "route:nexo_agentic",
+        "route:data_agentic",
     ]
 
 
@@ -72,7 +72,7 @@ def test_callback_emits_langfuse_attrs_on_llm_call(
     from langchain_core.messages import AIMessage
     from langchain_core.outputs import ChatGeneration, LLMResult
 
-    cb = NexoTelemetryCallback(
+    cb = AgentTelemetryCallback(
         agent_name="filter_expert",
         run_id="run_e10_002",
         tenant_id="mintral",
@@ -130,7 +130,7 @@ def test_callback_omits_langfuse_attrs_when_not_provided(
     from langchain_core.messages import AIMessage
     from langchain_core.outputs import ChatGeneration, LLMResult
 
-    cb = NexoTelemetryCallback(
+    cb = AgentTelemetryCallback(
         agent_name="critic", run_id="run_old", tenant_id="mintral"
     )
 

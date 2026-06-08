@@ -4,7 +4,13 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from miot_harness.evals.run_golden import run_golden, validate_entries
+from miot_harness.evals.run_golden import (
+    _active_profile,
+    _build_fake_registry,
+    default_fallback_tool,
+    run_golden,
+    validate_entries,
+)
 
 GOLDEN_YAML = Path(__file__).resolve().parents[1] / "evals" / "golden" / "nexo" / "examples.yaml"
 
@@ -83,6 +89,31 @@ def test_validate_rejects_bad_refusal_mechanism() -> None:
 
 def test_validate_accepts_valid_refusal_mechanism() -> None:
     assert validate_entries([_refusal_entry()]) == []
+
+
+def test_build_fake_registry_stubs_arbitrary_expected_tools() -> None:
+    """The fake registry builds a stub for EVERY expected_tools name verbatim,
+    with no prefix filter — so a dataset can ask for any tool name."""
+    entry = {
+        "id": "x",
+        "tenant_id": "mintral",
+        "expected_tools": ["weather_lookup", "ams_inventory", "totally_custom"],
+    }
+    profile = _active_profile()
+    registry = _build_fake_registry(entry, profile)
+    names = set(registry.names())
+    assert {"weather_lookup", "ams_inventory", "totally_custom"} <= names
+    # The fallback is always present so refusal cases still resolve.
+    assert default_fallback_tool(profile) in names
+
+
+def test_build_fake_registry_empty_expected_uses_fallback() -> None:
+    """Refusal cases (empty expected_tools) still get the fallback tool."""
+    profile = _active_profile()
+    registry = _build_fake_registry(
+        {"id": "x", "tenant_id": "mintral", "expected_tools": []}, profile
+    )
+    assert registry.names() == [default_fallback_tool(profile)]
 
 
 def test_fake_mode_nulls_semantic_refusals(tmp_path: Path) -> None:

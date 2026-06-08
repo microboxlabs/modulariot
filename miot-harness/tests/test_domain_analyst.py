@@ -8,16 +8,17 @@ import pytest
 from langchain_core.language_models import FakeListChatModel
 
 from miot_harness.agents.domain_analyst import domain_analyst_node
+from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 
 
 def _ctx() -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
 
 
-def _ev(output: dict[str, Any] | None = None, is_stale: bool = False) -> NexoEvidence:
-    return NexoEvidence(
+def _ev(output: dict[str, Any] | None = None, is_stale: bool = False) -> DataEvidence:
+    return DataEvidence(
         step_id="s",
         tool="coordinador_centro_control",
         source="src",
@@ -47,7 +48,7 @@ async def test_analyst_signals_ready_to_synthesize():
         "turn_count": 1,
     }
 
-    update = await domain_analyst_node(state, model=model)
+    update = await domain_analyst_node(state, model=model, profile=NEXO_PROFILE)
     assert update["next_action"] == "ready_to_synthesize"
     assert update.get("turn_count") == 2
 
@@ -71,7 +72,7 @@ async def test_analyst_requests_more_tools():
         "turn_count": 1,
     }
 
-    update = await domain_analyst_node(state, model=model)
+    update = await domain_analyst_node(state, model=model, profile=NEXO_PROFILE)
     assert update["next_action"] == "need_more_tools"
 
 
@@ -85,7 +86,7 @@ async def test_analyst_handles_malformed_response():
         "turn_count": 1,
     }
 
-    update = await domain_analyst_node(state, model=model)
+    update = await domain_analyst_node(state, model=model, profile=NEXO_PROFILE)
     # Default to ready_to_synthesize so the synthesizer can render with what we have
     assert update["next_action"] == "ready_to_synthesize"
 
@@ -102,5 +103,5 @@ async def test_analyst_no_evidence_routes_to_filter_expert():
     }
     model = FakeListChatModel(responses=[])  # should not be called
 
-    update = await domain_analyst_node(state, model=model)
+    update = await domain_analyst_node(state, model=model, profile=NEXO_PROFILE)
     assert update["next_action"] == "need_more_tools"

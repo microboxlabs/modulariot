@@ -1,6 +1,6 @@
 """LangChain callback that emits per-agent OTel GenAI spans for each LLM call.
 
-Bound to each LangGraph node in ``runtime/nexo_graph.py`` (A3) via the
+Bound to each LangGraph node in ``runtime/data_graph.py`` (A3) via the
 ``callbacks`` field of ``RunnableConfig``. One callback instance per node
 invocation; the instance tracks per-run-id span handles so concurrent LLM
 calls under the same node do not cross-talk.
@@ -102,7 +102,7 @@ def _extract_usage(response: LLMResult) -> TokenUsage:
     )
 
 
-class NexoTelemetryCallback(BaseCallbackHandler):
+class AgentTelemetryCallback(BaseCallbackHandler):
     """Emits one OTel span per LLM call, attributed to the owning agent."""
 
     def __init__(
@@ -117,6 +117,7 @@ class NexoTelemetryCallback(BaseCallbackHandler):
         tags: Sequence[str] | None = None,
         environment: str | None = None,
         progress: Progress | None = None,
+        span_prefix: str = "datasource",
     ) -> None:
         self._agent_name = agent_name
         self._run_id = run_id
@@ -126,6 +127,7 @@ class NexoTelemetryCallback(BaseCallbackHandler):
         self._session_id = session_id
         self._tags = list(tags) if tags else None
         self._environment = environment
+        self._span_prefix = span_prefix
         self._tracer = trace.get_tracer(_TRACER_NAME)
         self._open_spans: dict[UUID, _CallState] = {}
         # Optional SSE event sink. When set, the callback also publishes
@@ -145,10 +147,10 @@ class NexoTelemetryCallback(BaseCallbackHandler):
         metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        span = self._tracer.start_span(f"nexo.{self._agent_name}")
+        span = self._tracer.start_span(f"{self._span_prefix}.{self._agent_name}")
         provider = _provider_from_serialized(serialized)
         model = _model_from_serialized(serialized)
-        span.set_attribute("gen_ai.operation.name", f"nexo.{self._agent_name}")
+        span.set_attribute("gen_ai.operation.name", f"{self._span_prefix}.{self._agent_name}")
         span.set_attribute("gen_ai.system", provider)
         if model:
             span.set_attribute("gen_ai.request.model", model)

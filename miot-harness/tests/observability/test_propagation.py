@@ -4,7 +4,7 @@ Known late-2025 issue: when LangGraph fans out into parallel branches, OTel
 context propagation can break — child LLM spans from one branch may land
 under a sibling, and `usage_metadata` may be misattributed.
 
-Our defense (built into `NexoTelemetryCallback`): every span carries
+Our defense (built into `AgentTelemetryCallback`): every span carries
 `modular.agent` AND `modular.run_id` set from the callback's init args at
 callback-construction time, BEFORE the LLM call's context is captured. Even
 if OTel's parent-context propagation breaks, Langfuse can regroup by these
@@ -30,7 +30,7 @@ from langgraph.graph import END, StateGraph
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from typing_extensions import TypedDict
 
-from miot_harness.observability.callbacks import NexoTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback
 
 
 class _State(TypedDict, total=False):
@@ -48,15 +48,15 @@ def _build_parallel_graph(run_id: str) -> Any:
     """3-node graph: planner → (branch_a ∥ branch_b) → joiner.
 
     Branches run in parallel via LangGraph fan-out. Each branch's model
-    invocation is wired to its own `NexoTelemetryCallback`.
+    invocation is wired to its own `AgentTelemetryCallback`.
     """
 
     async def planner(state: _State) -> dict[str, Any]:
         return {"run_id": run_id}
 
     async def branch_a(state: _State) -> dict[str, Any]:
-        cb = NexoTelemetryCallback(
-            agent_name="branch_a", run_id=run_id, tenant_id="mintral"
+        cb = AgentTelemetryCallback(
+            agent_name="branch_a", run_id=run_id, tenant_id="acme"
         )
         model = _model("a-answer").with_config(callbacks=[cb])
         await asyncio.sleep(0)  # let branch_b interleave
@@ -65,8 +65,8 @@ def _build_parallel_graph(run_id: str) -> Any:
         return {"answer_a": resp.content}
 
     async def branch_b(state: _State) -> dict[str, Any]:
-        cb = NexoTelemetryCallback(
-            agent_name="branch_b", run_id=run_id, tenant_id="mintral"
+        cb = AgentTelemetryCallback(
+            agent_name="branch_b", run_id=run_id, tenant_id="acme"
         )
         model = _model("b-answer").with_config(callbacks=[cb])
         await asyncio.sleep(0)  # let branch_a interleave
@@ -104,7 +104,10 @@ async def test_parallel_branches_keep_per_agent_attribution(
     final = await graph.ainvoke({})
     assert final["final"] == "a-answer|b-answer"
 
-    spans = [s for s in memory_exporter.get_finished_spans() if s.name.startswith("nexo.")]
+    # Callbacks use the neutral default span_prefix ("datasource.") here.
+    spans = [
+        s for s in memory_exporter.get_finished_spans() if s.name.startswith("datasource.")
+    ]
     by_agent = {
         s.attributes["modular.agent"]: s for s in spans if s.attributes.get("modular.agent")
     }
@@ -116,7 +119,7 @@ async def test_parallel_branches_keep_per_agent_attribution(
     for name, span in by_agent.items():
         attrs = dict(span.attributes or {})
         assert attrs["modular.run_id"] == run_id, name
-        assert attrs["modular.tenant_id"] == "mintral", name
+        assert attrs["modular.tenant_id"] == "acme", name
         assert attrs["modular.agent"] == name
 
 
@@ -129,7 +132,7 @@ async def test_callback_attribution_survives_high_concurrency() -> None:
     """
 
     async def emit(run_id: str, agent: str) -> str:
-        cb = NexoTelemetryCallback(
+        cb = AgentTelemetryCallback(
             agent_name=agent, run_id=run_id, tenant_id="mintral"
         )
         model = _model(f"resp-{run_id}").with_config(callbacks=[cb])

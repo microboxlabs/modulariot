@@ -1,7 +1,7 @@
 """Data Fetcher (deterministic; no LLM).
 
-Reads the next pending NexoStep, invokes the corresponding tool via
-ToolRegistry, wraps the typed output as NexoEvidence, and returns a
+Reads the next pending DataStep, invokes the corresponding tool via
+ToolRegistry, wraps the typed output as DataEvidence, and returns a
 state delta. Failures (raised exceptions, permission denials) are
 caught and surface as `state["failure"]` so the supervisor can route
 the synthesizer for graceful refusal — no double-fetching.
@@ -14,9 +14,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from miot_harness.config import HarnessSettings
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoEvidence
+from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
 
@@ -54,7 +55,8 @@ def _evidence_from_output(
     output: Any,
     *,
     warn_minutes: int,
-) -> NexoEvidence:
+    source_label: str,
+) -> DataEvidence:
     if hasattr(output, "model_dump"):
         dump = output.model_dump()
     elif isinstance(output, dict):
@@ -88,10 +90,12 @@ def _evidence_from_output(
         # Tool returned data but no refreshed_at — treat as unverified
         is_stale = True
 
-    return NexoEvidence(
+    return DataEvidence(
         step_id=step_id,
         tool=tool,
-        source=str(dump.get("source", "Coordinador · nexo (Citus DB)")),
+        # `or` (not a .get default) so a payload carrying source=None or ""
+        # falls back to the profile label instead of stringifying to "None".
+        source=str(dump.get("source") or source_label),
         refreshed_at=refreshed_at if isinstance(refreshed_at, datetime) else None,
         output=dump,
         sample_size=sample_size,
@@ -105,6 +109,7 @@ async def data_fetcher_node(
     registry: ToolRegistry,
     settings: HarnessSettings,
     progress: Progress,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
     plan = state.get("plan")
     pending = int(state.get("pending_step_index", 0))
@@ -139,10 +144,17 @@ async def data_fetcher_node(
         step.id,
         step.tool,
         output,
-        warn_minutes=settings.nexo_freshness_warn_minutes,
+        # Effective threshold: env override wins (including an explicit 0),
+        # else the profile default. Mirrors freshness_judge's resolution.
+        warn_minutes=(
+            settings.datasource_freshness_warn_minutes
+            if settings.datasource_freshness_warn_minutes is not None
+            else profile.freshness_warn_minutes
+        ),
+        source_label=profile.source_label,
     )
     return {
-        "evidence": [evidence],  # appended by NexoState's operator.add reducer
+        "evidence": [evidence],  # appended by DataState's operator.add reducer
         "pending_step_index": pending + 1,
         "next_action": "judge_freshness",
     }

@@ -7,9 +7,9 @@ when the analyst signals "need_more_tools" repeatedly.
 
 
 
-One LLM call per turn. Given the user message and a catalog of
-coordinador_* tools (with @meta / Layer hints), emits a single
-NexoStep representing the next tool call. The supervisor then routes
+One LLM call per turn. Given the user message and a catalog of the
+datasource's tools (with @meta / Layer hints), emits a single
+DataStep representing the next tool call. The supervisor then routes
 to data_fetcher; on return, freshness_judge + domain_analyst decide
 whether to ask for another step.
 
@@ -30,9 +30,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
+from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import NexoPlan, NexoStep
+from miot_harness.runtime.plan import DataPlan, DataStep
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -49,9 +50,14 @@ def _strip_fences(text: str) -> str:
     return text
 
 
+# {display_name} → profile.display_name, {tenant_display} → the tenant the
+# datasource is locked to (profile.tenant_lock, capitalized), {tool_prefix}
+# → profile.tool_prefix, {prefix_label} → the prefix with its trailing
+# underscore turned into a "*" glob the way the prompt names the naming
+# convention. All come straight from the active datasource profile.
 _FILTER_EXPERT_SYSTEM_TEMPLATE = """\
-You are the Filter Expert for Coordinador (Mintral fleet operations).
-You pick the SINGLE next coordinador_* tool call to advance the user's
+You are the Filter Expert for {display_name} ({tenant_display} fleet operations).
+You pick the SINGLE next {prefix_label} tool call to advance the user's
 question. You DO NOT answer the question yourself.
 
 Routing hints:
@@ -61,7 +67,7 @@ Routing hints:
 - VT tools support shift-handoff narratives.
 
 Output ONLY a JSON object with this exact shape:
-{{"intent": "...", "tool": "coordinador_xxx", "args": {{}}, "rationale": "..."}}
+{{"intent": "...", "tool": "{tool_prefix}xxx", "args": {{}}, "rationale": "..."}}
 - intent: one short phrase describing what you're trying to learn.
 - tool: must be the exact name of one of the tools in the catalog.
 - args: a JSON object of p_* parameter overrides; empty {{}} is fine
@@ -73,25 +79,33 @@ Available tools:
 """
 
 
-def build_tool_catalog(registry: ToolRegistry) -> str:
+def build_tool_catalog(registry: ToolRegistry, *, profile: DataSourceProfile) -> str:
     lines: list[str] = []
     for name in registry.names():
-        if not name.startswith("coordinador_"):
+        if not name.startswith(profile.tool_prefix):
             continue
         tool = registry.get(name)
         first_line = (tool.description or "").splitlines()[0].strip()
         lines.append(f"- {name}: {first_line}")
-    return "\n".join(lines) if lines else "(no coordinador tools registered)"
+    return (
+        "\n".join(lines)
+        if lines
+        else f"(no {profile.display_name.lower()} tools registered)"
+    )
 
 
-def _parse_step(text: str) -> NexoStep | None:
+def _parse_step(text: str) -> DataStep | None:
     cleaned = _strip_fences(text)
     try:
         payload = json.loads(cleaned)
     except json.JSONDecodeError:
         return None
+    if not isinstance(payload, dict):
+        # Valid JSON but not an object (e.g. "[]" or "42") — same
+        # malformed-step fallback as undecodable text.
+        return None
     try:
-        return NexoStep(
+        return DataStep(
             intent=payload.get("intent", ""),
             tool=payload.get("tool", ""),
             args=payload.get("args", {}) or {},
@@ -106,6 +120,7 @@ async def filter_expert_node(
     *,
     registry: ToolRegistry,
     model: BaseChatModel,
+    profile: DataSourceProfile,
 ) -> dict[str, Any]:
     """LangGraph node: returns a state delta dict.
 
@@ -114,8 +129,16 @@ async def filter_expert_node(
     prompt and the current user message so references like "tell me more
     about that" can be resolved against context (plan 13 §E5 hydration).
     """
-    catalog = build_tool_catalog(registry)
-    system = _FILTER_EXPERT_SYSTEM_TEMPLATE.format(catalog=catalog)
+    catalog = build_tool_catalog(registry, profile=profile)
+    # e.g. "<prefix>_" → "<prefix>_*" for the naming-convention phrasing.
+    prefix_label = f"{profile.tool_prefix}*"
+    system = _FILTER_EXPERT_SYSTEM_TEMPLATE.format(
+        display_name=profile.display_name,
+        tenant_display=(profile.tenant_lock or profile.display_name).capitalize(),
+        tool_prefix=profile.tool_prefix,
+        prefix_label=prefix_label,
+        catalog=catalog,
+    )
 
     user_message = state.get("user_message", "")
     prior_messages = state.get("prior_messages") or []
@@ -136,8 +159,8 @@ async def filter_expert_node(
             "next_action": None,
         }
 
-    if not step.tool.startswith("coordinador_"):
-        logger.error("filter_expert: model picked non-Nexo tool %r", step.tool)
+    if not step.tool.startswith(profile.tool_prefix):
+        logger.error("filter_expert: model picked out-of-scope datasource tool %r", step.tool)
         return {
             "failure": f"filter_expert picked out-of-scope tool: {step.tool}",
             "next_action": None,
@@ -153,14 +176,14 @@ async def filter_expert_node(
     plan = state.get("plan")
     try:
         if plan is None:
-            new_plan = NexoPlan(steps=[step])
+            new_plan = DataPlan(steps=[step])
         else:
-            new_plan = NexoPlan(
+            new_plan = DataPlan(
                 steps=[*plan.steps, step],
                 final_format=plan.final_format,
             )
     except ValidationError as exc:
-        # NexoPlan caps steps at max_length=4 (review item N13).
+        # DataPlan caps steps at max_length=4 (review item N13).
         logger.warning("filter_expert: plan capped at max steps; routing to synth (%s)", exc)
         return {
             "failure": "plan reached max step cap; synthesizing with current evidence",

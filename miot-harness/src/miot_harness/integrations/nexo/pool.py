@@ -44,7 +44,7 @@ async def create_nexo_pool(
 
     `dsn` is a standard Postgres connection string
     (`postgresql://user:password@host:port/database`), sourced from the
-    `MIOT_HARNESS_NEXO_DSN` setting.
+    `MIOT_HARNESS_DATASOURCE_DSN` setting.
 
     Does NOT pass `server_settings` (PgBouncer rejects unknown startup
     parameters in transaction-pooling mode). Read-only enforcement is

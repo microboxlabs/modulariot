@@ -32,15 +32,15 @@ def test_lifecycle_ok_branch_emits_started_then_completed_ok() -> None:
     async def node(_state: dict[str, Any]) -> dict[str, Any]:
         return {"answer": "hi"}
 
-    wrapped = wrap_node_with_lifecycle("synthesizer", node, "nexo")
+    wrapped = wrap_node_with_lifecycle("synthesizer", node, "fake")
     delta = _run(wrapped, _make_state())
 
     assert delta["answer"] == "hi"
     started = _events_of_type(delta, "agent.started")[0]
     completed = _events_of_type(delta, "agent.completed")[0]
-    assert started.data == {"agent": "synthesizer", "graph": "nexo", "turn": 2}
+    assert started.data == {"agent": "synthesizer", "graph": "fake", "turn": 2}
     assert completed.data["agent"] == "synthesizer"
-    assert completed.data["graph"] == "nexo"
+    assert completed.data["graph"] == "fake"
     assert completed.data["exit_reason"] == "ok"
     assert isinstance(completed.data["duration_ms"], int)
 
@@ -49,7 +49,7 @@ def test_lifecycle_failure_branch_overrides_next_action() -> None:
     async def node(_state: dict[str, Any]) -> dict[str, Any]:
         return {"failure": "tunnel down", "next_action": "analyze"}
 
-    wrapped = wrap_node_with_lifecycle("data_fetcher", node, "nexo")
+    wrapped = wrap_node_with_lifecycle("data_fetcher", node, "fake")
     delta = _run(wrapped, _make_state())
 
     completed = _events_of_type(delta, "agent.completed")[0]
@@ -60,7 +60,7 @@ def test_lifecycle_next_action_branch() -> None:
     async def node(_state: dict[str, Any]) -> dict[str, Any]:
         return {"next_action": "need_more_tools"}
 
-    wrapped = wrap_node_with_lifecycle("freshness_judge", node, "nexo")
+    wrapped = wrap_node_with_lifecycle("freshness_judge", node, "fake")
     delta = _run(wrapped, _make_state())
 
     completed = _events_of_type(delta, "agent.completed")[0]
@@ -75,7 +75,7 @@ def test_lifecycle_preserves_node_events_in_order() -> None:
     async def node(_state: dict[str, Any]) -> dict[str, Any]:
         return {"_events": [inner_event]}
 
-    wrapped = wrap_node_with_lifecycle("filter_expert", node, "nexo")
+    wrapped = wrap_node_with_lifecycle("filter_expert", node, "fake")
     delta = _run(wrapped, _make_state())
 
     types = [e.type for e in delta["_events"]]
@@ -97,7 +97,7 @@ def test_lifecycle_handles_empty_delta() -> None:
     async def node(_state: dict[str, Any]) -> dict[str, Any]:
         return {}
 
-    wrapped = wrap_node_with_lifecycle("summarizer", node, "nexo")
+    wrapped = wrap_node_with_lifecycle("summarizer", node, "fake")
     delta = _run(wrapped, _make_state())
 
     completed = _events_of_type(delta, "agent.completed")[0]
@@ -121,7 +121,7 @@ def test_lifecycle_attaches_boundary_events_on_exception() -> None:
     async def node(_state: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("kaboom")
 
-    wrapped = wrap_node_with_lifecycle("filter_expert", node, "nexo")
+    wrapped = wrap_node_with_lifecycle("filter_expert", node, "fake")
     with pytest.raises(RuntimeError, match="kaboom") as excinfo:
         _run(wrapped, _make_state())
 
@@ -131,12 +131,12 @@ def test_lifecycle_attaches_boundary_events_on_exception() -> None:
     assert started.type == "agent.started"
     assert started.data == {
         "agent": "filter_expert",
-        "graph": "nexo",
+        "graph": "fake",
         "turn": 2,
     }
     assert failed.type == "agent.completed"
     assert failed.data["agent"] == "filter_expert"
-    assert failed.data["graph"] == "nexo"
+    assert failed.data["graph"] == "fake"
     assert failed.data["exit_reason"] == "failure"
     assert failed.data["error"] == "kaboom"
     assert isinstance(failed.data["duration_ms"], int)

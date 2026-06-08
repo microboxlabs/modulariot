@@ -2,7 +2,7 @@
 `agent.completed` events around any node function so SSE clients can
 see graph-node transitions in real time.
 
-Shared by `nexo_graph` and `agentic_graph`. Each node returns a state
+Shared by `data_graph` and `agentic_graph`. Each node returns a state
 delta dict; this wrapper:
 
 1. Reads `ctx` from the state (every node has it).
@@ -26,10 +26,10 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from time import monotonic
-from typing import Any, Literal, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 # Private langgraph types — used so the wrapper return satisfies
-# `StateGraph[NexoState].add_node` without per-call `# type: ignore`.
+# `StateGraph[DataState].add_node` without per-call `# type: ignore`.
 # Public symbols don't expose an equivalent today; langgraph's own
 # typing notes acknowledge the limitation ("we cannot use either
 # TypedDict or dataclass directly due to limitations in type
@@ -42,13 +42,16 @@ from langgraph.graph._node import _Node
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 
-GraphLabel = Literal["nexo", "agentic"]
+# Graph-node-lifecycle span label: the datasource profile name for the data
+# graph or "agentic" for the agentic graph. Plain `str` so any profile.name
+# flows through without a per-call cast.
+GraphLabel = str
 
-# Generic over the graph state type so `StateGraph[NexoState].add_node`
+# Generic over the graph state type so `StateGraph[DataState].add_node`
 # accepts the wrapped node without per-call `# type: ignore`. Bounded
 # to `StateLike` (TypedDict / dataclass / pydantic BaseModel) because
 # that's what `_Node[S]` requires; in practice we only ever pass
-# `NexoState` (a `TypedDict`).
+# `DataState` (a `TypedDict`).
 S = TypeVar("S", bound=StateLike)
 
 
@@ -115,7 +118,7 @@ def wrap_node_with_lifecycle(
         merged: dict[str, Any] = dict(delta)
         merged["_events"] = [started_event, *node_events, completed_event]
         # State deltas are dict-shaped at runtime — LangGraph reducers
-        # narrow them back into `S` (NexoState / etc.) when applied.
+        # narrow them back into `S` (DataState / etc.) when applied.
         return cast("S", merged)
 
     wrapped.__name__ = f"_lifecycle_{name}"

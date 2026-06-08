@@ -2,24 +2,25 @@
 
 ## What an "eval" is
 
-The harness runs an AI agent ("Nexo") that answers operational questions by calling tools and reading data. An eval suite is the agent's test
-harness — it feeds the agent a set of known questions and checks whether it behaved correctly (picked the right tool, cited fresh data, refused
-when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you catch quality regressions before
-users do.
+The harness runs an AI agent over a configured **datasource** that answers operational questions by calling tools and reading data. An eval
+suite is the agent's test harness — it feeds the agent a set of known questions and checks whether it behaved correctly (picked the right
+tool, cited fresh data, refused when it should, didn't make things up). Think of it as a report card for the AI, run automatically so you
+catch quality regressions before users do. The golden dataset shipped here targets the default **nexo** provider.
 
 Three independent suites live under `evals/`. They share a directory but never
 share a runner; their exit codes mean different things.
 
 | Suite | What it measures | Entry point |
 |---|---|---|
-| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the Nexo conversational graph — tool routing, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
+| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the datasource conversational graph — tool routing, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
 | **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory. | prompt, run out-of-band |
 | **Deploy** (`deploy/`) | Operational checks that the harness packages and runs as a container. | `deploy/run-all.sh` (see `deploy/README.md`) |
 
 ## Golden suite — three modes
 
-`miot-harness-evals` reads `evals/golden/nexo/examples.yaml` and runs each entry
-through the Nexo graph in one of three modes:
+`miot-harness-evals` reads `evals/golden/<datasource-kind>/examples.yaml`
+(default `evals/golden/nexo/examples.yaml`, override with `--yaml`) and runs
+each entry through the datasource graph in one of three modes:
 
 ```bash
 # YAML schema validation only — no graph runs, no LLMs.
@@ -28,20 +29,23 @@ uv run miot-harness-evals --mode static
 # Scripted FakeListChatModel run — deterministic; the default.
 uv run miot-harness-evals --mode fake
 
-# Live Anthropic + live Nexo DB. Requires credentials (see below).
+# Live Anthropic + live datasource. Needs MIOT_HARNESS_DATASOURCE_DSN and
+# ANTHROPIC_API_KEY; refuses (exit 1) when either is missing. The provider is
+# selected by MIOT_HARNESS_DATASOURCE_KIND via the registry path.
 uv run miot-harness-evals --mode real
 ```
 
-- **`static`** — validate `evals/golden/nexo/examples.yaml` schema only.
-  No graph runs, no LLM calls. Fastest; used in CI as a YAML linter.
+- **`static`** — validate the dataset YAML schema only. No graph runs,
+  no LLM calls. Fastest; used in CI as a YAML linter.
 - **`fake`** (default) — scripted `FakeListChatModel` per case + stub
   registry returning canned data. Deterministic; catches routing /
   structural regressions without burning real model spend.
-- **`real`** — live Anthropic + live Nexo DB via the introspected
+- **`real`** — live Anthropic + the live datasource via the provider
   registry. Captures real cost + drift vs the fake-mode baseline.
 
-Both `fake` and `real` write JSON to `evals/results/<HEAD-sha>.json`
-(real adds a `-real` suffix to avoid clobbering the fake baseline).
+Results are written to `evals/results/<commit-sha>.json` (fake/static) or
+`evals/results/<commit-sha>-real.json` (real, so it never clobbers the
+canonical fake baseline).
 
 ### Scored axes (deterministic)
 
@@ -76,7 +80,9 @@ Real mode adds:
 ### Dataset contract (fake mode)
 
 Fake mode is intentionally deterministic so it catches routing/structural
-regressions without spending tokens. When authoring `examples.yaml`:
+regressions without spending tokens. The values below (`coordinador_*` tool
+names, the `mintral` tenant lock) are the **nexo** profile's, since the
+shipped dataset targets the nexo provider. When authoring `examples.yaml`:
 
 - The scripted synthesizer always emits
   `"Resultado al snapshot <ts>: 2 servicios críticos, 3 ETA en riesgo."`, so
@@ -86,9 +92,11 @@ regressions without spending tokens. When authoring `examples.yaml`:
   document the *real-mode* envelope; in fake mode keep `min ≤ 1 ≤ max` for a
   green baseline. The `max` cap is the part that catches over-engineering once
   real mode lands.
-- `expected_tools` must be `coordinador_*` names (the fake registry only stubs
-  those). Adversarial cases use `[]`; a non-`mintral` `tenant_id` exercises the
-  tenant gate and produces the canonical `"…is mintral-only…"` refusal.
+- `expected_tools` may be any tool names — the fake registry now stubs every
+  name in `expected_tools` verbatim (plus a `<prefix>centro_control` fallback).
+  For the nexo dataset these are `coordinador_*` names. Adversarial cases use
+  `[]`; an off-lock `tenant_id` (≠ `mintral` for nexo) exercises the tenant gate
+  and produces the canonical `"…is mintral-only…"` refusal.
 - `category: adversarial` requires `expected_refusal: true` (enforced by
   `validate_entries`).
 - Every `expected_refusal: true` case must declare `refusal_mechanism:
@@ -106,7 +114,7 @@ regressions without spending tokens. When authoring `examples.yaml`:
 2. **Credentials** — export:
    ```
    export ANTHROPIC_API_KEY=sk-…
-   export MIOT_HARNESS_NEXO_DSN=postgresql://harness:…@localhost:<tunnel-port>/coordinador
+   export MIOT_HARNESS_DATASOURCE_DSN=postgresql://harness:…@localhost:<tunnel-port>/coordinador
    ```
 3. **Cost expectation** — ~6 LLM calls × 25 cases on a mix of Haiku
    ($0.80 / $4 per Mtok) and Sonnet ($3 / $15 per Mtok). Typical
@@ -125,9 +133,11 @@ when you intentionally want a full run; the default exists to make
 ### Refusals
 
 Real mode refuses to start when:
-- `MIOT_HARNESS_NEXO_DSN` is unset → "real mode requires MIOT_HARNESS_NEXO_DSN; …"
-- `ANTHROPIC_API_KEY` is unset → "real mode requires ANTHROPIC_API_KEY; …"
-- Nexo boot reports `enabled=False` (introspection failure, no `fn_dx_*` discovered) → "Nexo boot failed: …"
+- `MIOT_HARNESS_DATASOURCE_DSN` is unset → "real mode requires MIOT_HARNESS_DATASOURCE_DSN; …"
+- `ANTHROPIC_API_KEY` is unset while the configured agent models include
+  `claude-*` → "real mode requires ANTHROPIC_API_KEY; …"
+- Provider boot reports `enabled=False` (introspection failure, no `fn_dx_*`
+  discovered for nexo) → "Datasource boot failed: …"
 
 Each refusal exits non-zero with the reason on stderr. Better to find
 a missing credential at startup than mid-suite.

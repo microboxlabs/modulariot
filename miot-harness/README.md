@@ -119,18 +119,49 @@ probes don't auth). Only `POST /runs`, `POST /runs:start`,
 - Deep Agents integration lives behind an adapter so the MIOT runtime can keep
   its own tool, permission, and audit contracts.
 
+## Datasource
+
+The harness core is datasource-agnostic. A `DataSourceProvider` owns the
+connection lifecycle and registers tools, and a declarative
+`DataSourceProfile` supplies every domain-specific name, prompt keyword,
+and threshold the core reads (display name, tool prefix, primer, router
+keywords, tenant lock, freshness SLA). The core never hardcodes which
+system the tools come from — see `src/miot_harness/datasource/`.
+
+`MIOT_HARNESS_DATASOURCE_KIND` selects the provider at boot from the
+named registry (`datasource/registry.py`). The first (and default)
+provider is **nexo** (Citus/Postgres, Coordinador schema), which lives
+entirely under `src/miot_harness/integrations/nexo/` — the only package
+allowed to say "Nexo", "Coordinador", or "mintral".
+
+| Env var                              | Default        | Purpose                                                             |
+|--------------------------------------|----------------|--------------------------------------------------------------------|
+| `MIOT_HARNESS_DATASOURCE_KIND`       | `nexo`         | Registry key selecting the `DataSourceProvider`.                   |
+| `MIOT_HARNESS_DATASOURCE_DSN`        | _(unset)_      | Datasource connection string; unset → datasource disabled at boot. |
+| `MIOT_HARNESS_DATASOURCE_APPLICATION_NAME` | `miot-harness` | Surfaces in `pg_stat_activity.application_name`.             |
+| `MIOT_HARNESS_DATASOURCE_TENANT_LOCK`| _(profile)_    | Override the profile's tenant lock; unset → profile default.       |
+| `MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES`   | _(profile)_ | Override snapshot-age warn threshold.                        |
+| `MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES` | _(profile)_ | Override snapshot-age refuse threshold.                     |
+| `MIOT_HARNESS_AGENTS_*`              | per-agent      | Per-agent model assignment (filter expert / analyst / etc.).       |
+
+Provider-private knobs keep the `MIOT_HARNESS_NEXO_*` prefix because they
+are genuinely Nexo's (Postgres concepts) — currently
+`MIOT_HARNESS_NEXO_SEARCH_PATH` (schema) and the EXPLAIN cost ceiling.
+
 ## Run Modes
 
 `POST /runs` accepts an optional `mode` field on the request body
 (`Literal["auto", "canned", "meta", "agentic"]`, default `"auto"`).
-Mode picks *which dispatch path* the supervisor takes. The four values:
+Mode picks *which dispatch path* the supervisor takes. The four values
+(route names are the `HarnessRoute` enum; "off-lock" = a tenant other
+than the datasource's `tenant_lock`):
 
-| `mode`     | Route          | DB touch | Non-Mintral?     | LLM calls / run | Best for                                              |
+| `mode`     | Route          | DB touch | Off-lock tenant? | LLM calls / run | Best for                                              |
 |------------|----------------|----------|------------------|-----------------|-------------------------------------------------------|
 | `auto`     | (LLM-decided)  | depends  | depends on route | depends         | default — the intent router picks one of the below.   |
-| `canned`   | `NEXO_QUERY`   | ✅ yes   | ❌ refused       | ~4-5            | "what's the data right now?" — curated `fn_dx_*`.     |
-| `meta`     | `NEXO_META`    | ❌ no    | ✅ allowed       | 1               | "what data exists / how is X calculated?" — no SQL.   |
-| `agentic`  | `NEXO_AGENTIC` | ✅ yes   | ❌ refused       | variable        | free-form exploration via composable primitives.      |
+| `canned`   | `DATA_QUERY`   | ✅ yes   | ❌ refused       | ~4-5            | "what's the data right now?" — curated functions.     |
+| `meta`     | `DATA_META`    | ❌ no    | ✅ allowed       | 1               | "what data exists / how is X calculated?" — no SQL.   |
+| `agentic`  | `DATA_AGENTIC` | ✅ yes   | ❌ refused       | variable        | free-form exploration via composable primitives.      |
 
 The explicit modes (`canned` / `meta` / `agentic`) bypass the LLM
 intent router entirely. They're useful for ops (deterministic
@@ -140,14 +171,14 @@ per run than `canned`).
 
 ### `canned` — answer FROM the data
 
-Routes through the plan-12 `nexo_graph`: `filter_expert` picks one
-curated `fn_dx_*` Postgres function from the registered catalog, the
-harness runs that SQL against the tunneled Coordinador DB,
-`domain_analyst` inspects freshness, `synthesizer` writes the answer,
-`critic` reviews it (when enabled). Refused at the tenant gate for
-non-Mintral tenants because it reads confidential data.
+Routes through the data graph (`runtime/data_graph.py`): `filter_expert`
+picks one curated tool from the registered catalog, the harness runs it
+against the live datasource, `domain_analyst` inspects freshness,
+`synthesizer` writes the answer, `critic` reviews it (when enabled).
+Refused at the tenant gate for off-lock tenants because it reads
+confidential data.
 
-Examples that route here:
+Examples (with the default **nexo** provider) that route here:
 - *"estado del coordinador hoy"* → `coordinador_centro_control`
 - *"cola crítica para hoy"* → `coordinador_cola_critica`
 - *"servicios con ETA en riesgo"* → `coordinador_eta_riesgo_hoy`
@@ -156,10 +187,10 @@ Examples that route here:
 
 Calls `agents/meta_agent.py:meta_agent_node` **directly** — no
 LangGraph, one async LLM call (Haiku tier). The system prompt is the
-Coordinador primer plus the catalog of `fn_dx_*` descriptions; the
-function signature has no `pool` / `registry` / `tools` parameter, so
-"no SQL" is a structural guarantee — not a comment. Allowed for any
-tenant (meta info is non-confidential); emits a
+active datasource's primer plus the catalog of curated-function
+descriptions; the function signature has no `pool` / `registry` /
+`tools` parameter, so "no SQL" is a structural guarantee — not a
+comment. Allowed for any tenant (meta info is non-confidential); emits a
 `tenant.bypass: meta_route` audit attribute when an off-lock tenant
 uses it.
 
@@ -171,12 +202,13 @@ Examples that route here:
 ### `agentic` — explore the data with composable primitives
 
 Routes through `runtime/agentic_graph.py`. Instead of being constrained
-to one curated `fn_dx_*`, the planner can string together
-`nexo_describe` / `nexo_select` / `nexo_grep` / `nexo_explain` calls
-within the sqlglot safety gate (positive function allowlist, LATERAL
-rejection, mutation rejection, EXPLAIN cost ceiling). Critic is ON
-by default in this mode because the agent has more freedom to invent
-joins. Same tenant gate as `canned` — refused for non-Mintral. See
+to one curated function, the planner can string together the
+datasource's composable primitives (for **nexo**: `nexo_describe` /
+`nexo_select` / `nexo_grep` / `nexo_explain`) within the provider's
+safety gate (positive function allowlist, LATERAL rejection, mutation
+rejection, EXPLAIN cost ceiling). Critic is ON by default in this mode
+because the agent has more freedom to invent joins. Same tenant gate as
+`canned` — refused for off-lock tenants. See
 `integrations/nexo/primitives.py`.
 
 ### Cost separation in Langfuse

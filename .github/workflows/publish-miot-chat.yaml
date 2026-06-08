@@ -25,7 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          # Honor a manual-dispatch tag only when it's a real miot-chat@v* tag;
+          # otherwise fall back to the triggering ref (the push tag, or the ref
+          # the dispatch ran from) so an arbitrary ref can't be published.
+          ref: ${{ startsWith(inputs.tag, 'miot-chat@v') && inputs.tag || github.ref }}
           persist-credentials: false
 
       - uses: actions/setup-node@v4

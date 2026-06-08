@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 interface CliAuthHandoff {
   token: string;
   organizationId: string;
+  state: string;
   expiresAt: number;
 }
 
@@ -32,21 +33,32 @@ function pruneExpired(): void {
 export function createCliAuthHandoff(input: {
   token: string;
   organizationId: string;
+  state: string;
 }): { code: string; expiresIn: number } {
   pruneExpired();
   const code = crypto.randomBytes(32).toString("base64url");
   handoffs.set(code, {
     token: input.token,
     organizationId: input.organizationId,
+    state: input.state,
     expiresAt: Date.now() + HANDOFF_TTL_MS,
   });
   return { code, expiresIn: Math.floor(HANDOFF_TTL_MS / 1000) };
 }
 
-export function consumeCliAuthHandoff(code: string): CliAuthHandoff | null {
+export function consumeCliAuthHandoff(
+  code: string,
+  state: string,
+): CliAuthHandoff | null {
   pruneExpired();
   const handoff = handoffs.get(code);
   if (!handoff) return null;
+  // Bind redemption to the state that initiated the login: only the party
+  // that knows the code's state may exchange it. This defends the manual
+  // (out-of-band) flow, where the code is shown in the browser but the state
+  // lives only in the CLI/terminal. A mismatch does NOT delete the code, so a
+  // wrong/missing state can't burn a valid login for the legitimate CLI.
+  if (handoff.state !== state) return null;
   handoffs.delete(code);
   return handoff;
 }

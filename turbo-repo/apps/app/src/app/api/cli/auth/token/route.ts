@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 interface TokenExchangeBody {
   code?: string;
+  state?: string;
 }
 
 export async function POST(request: Request) {
@@ -24,7 +25,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const handoff = consumeCliAuthHandoff(code);
+  const state = body.state?.trim();
+  if (!state) {
+    return NextResponse.json(
+      { error: "invalid_request", error_description: "state is required." },
+      { status: 400 },
+    );
+  }
+
+  const handoff = consumeCliAuthHandoff(code, state);
   if (!handoff) {
     return NextResponse.json(
       {

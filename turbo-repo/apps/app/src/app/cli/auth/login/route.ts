@@ -203,6 +203,7 @@ export async function GET(request: Request): Promise<Response> {
   const { code } = createCliAuthHandoff({
     token,
     organizationId: scopeResult.scope.activeOrg.slug,
+    state,
   });
 
   if (isManual) {

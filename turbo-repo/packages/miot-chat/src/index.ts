@@ -8,6 +8,8 @@ export {
   type RunMiotChatOptions,
 } from "./runMiotChat.js";
 
+export { runAsk, type AskOptions } from "./commands/ask.js";
+
 export {
   resolveConfig,
   readConfig,

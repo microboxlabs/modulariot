@@ -793,7 +793,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     });
     table.style.tableLayout = prevLayout;
     table.style.width = prevWidth;
-    const _reflow = table.offsetWidth;
+    const _reflow2 = table.offsetWidth;
 
     // Apply the measured width to the target column.
     thEl.style.width = `${contentWidth}px`;

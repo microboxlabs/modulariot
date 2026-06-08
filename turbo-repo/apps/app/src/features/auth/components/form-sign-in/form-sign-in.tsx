@@ -7,7 +7,6 @@ import {
 } from "@/features/auth/services/auth.service";
 import { FormSignInProps } from "./form-sign-in.types";
 import React, { useActionState, useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
@@ -22,6 +21,7 @@ export default function FormSignIn({
   providerLabels,
   dividerText,
   samlLabels,
+  callbackUrl,
 }: FormSignInProps) {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -29,8 +29,6 @@ export default function FormSignIn({
   });
 
   const { register } = form;
-  // Preserve the post-sign-in destination (e.g. the CLI auth handoff page)
-  const callbackUrl = useSearchParams().get("callbackUrl");
   const [_state, formAction] = useActionState(authenticateAction, {});
   const [pending, setPending] = useState(false);
   const [showCredentialsForm, setShowCredentialsForm] = useState(false);

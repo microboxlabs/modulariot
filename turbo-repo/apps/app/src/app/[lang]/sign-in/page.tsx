@@ -76,8 +76,16 @@ function buildSamlLabels(
   };
 }
 
-export default async function SignInPage(params: ParamsWithLang) {
+export default async function SignInPage(
+  params: ParamsWithLang & {
+    searchParams?: Promise<{ callbackUrl?: string }>;
+  }
+) {
   const { lang } = await params.params;
+  // Post-sign-in destination (e.g. the CLI auth handoff page). Resolved
+  // server-side and passed as a prop so FormSignIn stays free of
+  // useSearchParams (which would require a Suspense boundary).
+  const callbackUrl = (await params.searchParams)?.callbackUrl ?? null;
   const [dict, , dictDynamic] = await getDictionary(lang);
   const signInMessages = buildSignInFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
@@ -116,6 +124,7 @@ export default async function SignInPage(params: ParamsWithLang) {
               providerLabels={providerLabels}
               dividerText={dividerText}
               samlLabels={samlLabels}
+              callbackUrl={callbackUrl}
             />
           </Card>
         </div>

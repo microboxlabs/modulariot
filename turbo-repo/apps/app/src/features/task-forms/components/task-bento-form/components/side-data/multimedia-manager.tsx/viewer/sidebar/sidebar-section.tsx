@@ -70,6 +70,7 @@ function DescriptionTooltip({ description }: Readonly<{ description: string }>) 
       {visible && createPortal(
         <div
           ref={clampToViewport}
+          role="tooltip"
           className="fixed z-9999 w-max max-w-sm"
           style={{ transform: "translateX(-50%)" }}
           onMouseEnter={show}

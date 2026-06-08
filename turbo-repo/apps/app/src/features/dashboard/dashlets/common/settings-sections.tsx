@@ -6,6 +6,7 @@ import {
   HiChevronDown,
   HiPaintBrush,
   HiQuestionMarkCircle,
+  HiBars3,
 } from "react-icons/hi2";
 import { ReactSortable } from "react-sortablejs";
 import type { ColumnItem } from "./column-helpers";
@@ -28,7 +29,6 @@ import {
 } from "./color-rule-row";
 import type { ActionItemWithId, RowActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
-import { HiBars3 } from "react-icons/hi2";
 
 // ============================================================================
 // ColumnEditor
@@ -353,8 +353,7 @@ export function FilterEditor({
   labels,
 }: Readonly<FilterEditorProps>) {
   return (
-    <>
-      <div className="space-y-2">
+    <div className="space-y-2">
         <ToggleSectionHeader
           label={labels.filter}
           enabled={enabled}
@@ -409,8 +408,7 @@ export function FilterEditor({
             />
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -436,41 +434,38 @@ export function SortEditor({
   labels,
 }: Readonly<SortEditorProps>) {
   return (
-    <>
-      <div className="space-y-2">
-        <ToggleSectionHeader
-          label={labels.sort}
-          enabled={enabled}
-          onToggle={onToggle}
-        />
-
-        {enabled && (
-          <div>
-            <Label className="mb-1.5 block text-sm font-medium">
-              {labels.sortableColumns}
-            </Label>
-            <div className="space-y-1">
-              {columnsWithKeys.map((c) => (
-                <label
-                  key={c._id}
-                  className="flex cursor-pointer items-center gap-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={sortColumns.includes(c.key)}
-                    onChange={(e) => onColumnToggle(e.target.checked, c.key)}
-                    className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {c.label || c.key}
-                  </span>
-                </label>
-              ))}
-            </div>
+    <div className="space-y-2">
+      <ToggleSectionHeader
+        label={labels.sort}
+        enabled={enabled}
+        onToggle={onToggle}
+      />
+      {enabled && (
+        <div>
+          <Label className="mb-1.5 block text-sm font-medium">
+            {labels.sortableColumns}
+          </Label>
+          <div className="space-y-1">
+            {columnsWithKeys.map((c) => (
+              <label
+                key={c._id}
+                className="flex cursor-pointer items-center gap-2"
+              >
+                <input
+                  type="checkbox"
+                  checked={sortColumns.includes(c.key)}
+                  onChange={(e) => onColumnToggle(e.target.checked, c.key)}
+                  className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {c.label || c.key}
+                </span>
+              </label>
+            ))}
           </div>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -674,6 +669,8 @@ export function ColorRuleEditor({
 // ActionsEditor
 // ============================================================================
 
+type ActionField = "name" | "link" | "target";
+
 interface ActionsEditorProps {
   enabled: boolean;
   onToggle: (enabled: boolean) => void;
@@ -682,7 +679,7 @@ interface ActionsEditorProps {
   onRemove: (id: string) => void;
   onUpdate: (
     id: string,
-    field: "name" | "link" | "target",
+    field: ActionField,
     value: string
   ) => void;
   labels: {
@@ -706,81 +703,78 @@ export function ActionsEditor({
   labels,
 }: Readonly<ActionsEditorProps>) {
   return (
-    <>
-      <div className="space-y-2">
-        <ToggleSectionHeader
-          label={labels.actions}
-          enabled={enabled}
-          onToggle={onToggle}
-        />
-
-        {enabled && (
-          <div>
-            <div className="space-y-2">
-              {items.map((item) => (
-                <div
-                  key={item._id}
-                  className="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
-                >
-                  <div className="flex items-center gap-1">
-                    <div className="min-w-0 flex-1">
-                      <TextInput
-                        sizing="sm"
-                        placeholder={labels.actionName}
-                        value={item.name}
-                        onChange={(e) =>
-                          onUpdate(item._id, "name", e.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="w-28 shrink-0">
-                      <Select
-                        sizing="sm"
-                        aria-label={labels.actionTarget}
-                        value={item.target}
-                        onChange={(e) =>
-                          onUpdate(
-                            item._id,
-                            "target",
-                            e.target.value as ActionTarget
-                          )
-                        }
-                        className="[&>select]:cursor-pointer"
-                      >
-                        <option value="_blank">
-                          {labels.actionTargetBlank}
-                        </option>
-                        <option value="_self">{labels.actionTargetSelf}</option>
-                      </Select>
-                    </div>
-                    <DeleteItemButton
-                      onClick={() => onRemove(item._id)}
-                      ariaLabel="Delete action"
-                    />
-                  </div>
-                  <div>
+    <div className="space-y-2">
+      <ToggleSectionHeader
+        label={labels.actions}
+        enabled={enabled}
+        onToggle={onToggle}
+      />
+      {enabled && (
+        <div>
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div
+                key={item._id}
+                className="space-y-1 rounded-lg border border-gray-200 p-2 dark:border-gray-600"
+              >
+                <div className="flex items-center gap-1">
+                  <div className="min-w-0 flex-1">
                     <TextInput
                       sizing="sm"
-                      placeholder={labels.actionLink}
-                      value={item.link}
+                      placeholder={labels.actionName}
+                      value={item.name}
                       onChange={(e) =>
-                        onUpdate(item._id, "link", e.target.value)
+                        onUpdate(item._id, "name", e.target.value)
                       }
-                      color={getFlowbiteColor(getHandlebarsStatus(item.link))}
                     />
                   </div>
+                  <div className="w-28 shrink-0">
+                    <Select
+                      sizing="sm"
+                      aria-label={labels.actionTarget}
+                      value={item.target}
+                      onChange={(e) =>
+                        onUpdate(
+                          item._id,
+                          "target",
+                          e.target.value as ActionTarget
+                        )
+                      }
+                      className="[&>select]:cursor-pointer"
+                    >
+                      <option value="_blank">
+                        {labels.actionTargetBlank}
+                      </option>
+                      <option value="_self">{labels.actionTargetSelf}</option>
+                    </Select>
+                  </div>
+                  <DeleteItemButton
+                    onClick={() => onRemove(item._id)}
+                    ariaLabel="Delete action"
+                  />
                 </div>
-              ))}
-            </div>
-            <AddRuleButton
-              onClick={onAdd}
-              label={labels.addAction}
-              className="mt-2"
-            />
+                <div>
+                  <TextInput
+                    sizing="sm"
+                    placeholder={labels.actionLink}
+                    value={item.link}
+                    onChange={(e) =>
+                      onUpdate(item._id, "link", e.target.value)
+                    }
+                    color={getFlowbiteColor(getHandlebarsStatus(item.link))}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
-    </>
+          <AddRuleButton
+            onClick={onAdd}
+            label={labels.addAction}
+            className="mt-2"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

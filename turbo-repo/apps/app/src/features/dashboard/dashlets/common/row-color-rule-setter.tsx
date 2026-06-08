@@ -76,8 +76,7 @@ export function RowColorRuleSetter({
   const showRules = hideToggle || enabled;
 
   return (
-    <>
-      <div className="space-y-2">
+    <div className="space-y-2">
         {!hideToggle && (
           <ToggleSectionHeader
             label={title}
@@ -128,7 +127,6 @@ export function RowColorRuleSetter({
             />
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }

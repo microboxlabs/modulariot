@@ -54,7 +54,8 @@ interface ColumnEditorProps {
       | "sticky"
       | "descriptionEnabled"
       | "description"
-      | "colorRulesEnabled",
+      | "colorRulesEnabled"
+      | "decorator",
     value: string | boolean | undefined
   ) => void;
   onAddColorMapping?: (colId: string) => void;
@@ -260,6 +261,13 @@ function ColumnCard({
             />
           </div>
         </div>
+
+        <TextInput
+          sizing="sm"
+          placeholder="Sufijo (ej. Días, km, %)"
+          value={col.decorator ?? ""}
+          onChange={(e) => onUpdate(col._id, "decorator", e.target.value)}
+        />
 
         {descEnabled && (
           <Textarea

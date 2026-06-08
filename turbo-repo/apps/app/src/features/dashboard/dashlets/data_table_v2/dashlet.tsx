@@ -1025,21 +1025,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                             firstStickyRightIdx
                           )}
                         >
-                          {renderCell(
-                            resolveValue(
-                              col.key,
-                              row,
-                              rowIdx,
-                              displayRows.length
-                            ),
-                            resolveType(
-                              col.key,
-                              row,
-                              rowIdx,
-                              displayRows.length
-                            ),
-                            col.colorRulesEnabled ? col.colorMap : undefined
-                          )}
+                          {(() => {
+                            const cell = renderCell(
+                              resolveValue(col.key, row, rowIdx, displayRows.length),
+                              resolveType(col.key, row, rowIdx, displayRows.length),
+                              col.colorRulesEnabled ? col.colorMap : undefined
+                            );
+                            return col.decorator ? (
+                              <span className="inline-flex items-baseline gap-1">
+                                {cell}
+                                <span className="text-xs text-gray-400 dark:text-gray-500">{col.decorator}</span>
+                              </span>
+                            ) : cell;
+                          })()}
                         </td>
                       ))}
                       {hasActions && (

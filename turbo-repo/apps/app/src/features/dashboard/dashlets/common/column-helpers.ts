@@ -29,6 +29,7 @@ export function fromColumnItems(items: ColumnItem[]): TableColumn[] {
       sticky,
       descriptionEnabled,
       description,
+      decorator,
     }) => {
       const col: TableColumn = { key, label, type };
       if (dataType && dataType !== "text") {
@@ -52,6 +53,9 @@ export function fromColumnItems(items: ColumnItem[]): TableColumn[] {
       }
       if (description) {
         col.description = description;
+      }
+      if (decorator) {
+        col.decorator = decorator;
       }
       return col;
     }

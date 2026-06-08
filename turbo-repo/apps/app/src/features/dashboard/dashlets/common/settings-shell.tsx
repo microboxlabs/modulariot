@@ -65,6 +65,8 @@ export interface SettingsShellProps {
   widgetId?: string;
   /** Whether the settings form has unsaved changes */
   isDirty?: boolean;
+  /** className applied to the scrollable content area (default: "p-4") */
+  contentClassName?: string;
 }
 
 // ============================================================================
@@ -117,6 +119,7 @@ export function SettingsShell({
   title,
   widgetId,
   isDirty = false,
+  contentClassName,
 }: Readonly<SettingsShellProps>) {
   return (
     <SettingsDrawer
@@ -133,6 +136,7 @@ export function SettingsShell({
         dictionary={dictionary}
         tabs={tabs}
         footer={footer}
+        contentClassName={contentClassName}
       >
         {children}
       </SettingsShellContent>
@@ -150,6 +154,7 @@ interface SettingsShellContentProps {
   tabs?: SettingsTab[];
   children?: ReactNode;
   footer?: ReactNode;
+  contentClassName?: string;
 }
 
 function SettingsShellContent({
@@ -158,6 +163,7 @@ function SettingsShellContent({
   tabs,
   children,
   footer,
+  contentClassName = "p-4",
 }: Readonly<SettingsShellContentProps>) {
   const [activeTabId, setActiveTabId] = useState<string>(
     () => tabs?.[0]?.id ?? ""
@@ -193,7 +199,7 @@ function SettingsShellContent({
       )}
 
       {/* Scrollable content */}
-      <div className="min-h-0 grow overflow-y-auto">
+      <div className={`min-h-0 grow overflow-y-auto ${contentClassName}`}>
         {hasTabs ? activeTab?.content : children}
       </div>
 

@@ -9,9 +9,35 @@
  */
 import crypto from "node:crypto";
 import http from "node:http";
+import readline from "node:readline";
 import { spawn } from "node:child_process";
 import { URL } from "node:url";
 import { ORG_LOGO_SVG } from "./logo.js";
+
+/** Out-of-band redirect URI (RFC 6749 §section "oob"): tells the platform
+ *  handoff to display the one-time code instead of redirecting to a local
+ *  server. Used by manual login when no loopback is reachable. */
+const OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
+
+/** Reads a one-time code pasted by the user. Prompt + echo go to stderr so
+ *  the captured code never pollutes stdout. */
+function promptForCode(): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  return new Promise((resolve, reject) => {
+    rl.question("Paste the code from your browser and press Enter: ", (answer) => {
+      rl.close();
+      const code = answer.trim();
+      if (!code) {
+        reject(new Error("No code entered."));
+        return;
+      }
+      resolve(code);
+    });
+  });
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -102,6 +128,10 @@ export interface BrowserLoginOptions {
   callbackPort?: number;
   timeoutSeconds?: number;
   openBrowser?: boolean;
+  /** Out-of-band login: skip the local loopback server and instead prompt
+   *  for a code the user copies from the browser. For remote/SSH hosts or
+   *  when the browser can't reach 127.0.0.1. Platform login only. */
+  manual?: boolean;
 }
 
 export interface BrowserLoginResult {
@@ -276,7 +306,11 @@ function createCallbackServer(options: {
           settled = true;
           server.close();
           rejectCallback(
-            new Error("Timed out waiting for the browser login callback."),
+            new Error(
+              "Timed out waiting for the browser login callback. If you're on " +
+                "a remote/SSH host or the browser can't reach this machine, " +
+                "re-run with --manual to paste a code instead.",
+            ),
           );
         }, options.timeoutSeconds * 1000);
 
@@ -451,6 +485,46 @@ export async function browserLogin(
   const codeChallenge = codeVerifier
     ? base64Url(crypto.createHash("sha256").update(codeVerifier).digest())
     : undefined;
+
+  // Manual (out-of-band) login: no loopback server. The platform shows the
+  // one-time code in the browser; the user pastes it back here. PKCE/OAuth
+  // client login uses the provider's own flow and isn't supported here.
+  if (options.manual) {
+    if (clientId) {
+      throw new Error(
+        "Manual login is only supported for platform login (omit --client-id).",
+      );
+    }
+    const loginUrl = buildPlatformLoginUrl({
+      loginUrl: platformLoginUrl,
+      redirectUri: OOB_REDIRECT_URI,
+      state,
+    });
+    console.error("To sign in, open this URL in any browser:");
+    console.error(loginUrl);
+    if (options.openBrowser !== false) {
+      await openUrl(loginUrl);
+    }
+    const code = await promptForCode();
+    const token = await exchangePlatformCode({
+      tokenUrl,
+      code,
+      redirectUri: OOB_REDIRECT_URI,
+      state,
+    });
+    if (!token.access_token) {
+      throw new Error("OAuth token response did not include an access token.");
+    }
+    const organizationId =
+      token.organizationId ?? token.organization_id ?? options.organizationId;
+    return {
+      accessToken: token.access_token,
+      baseUrl: options.baseUrl,
+      ...(organizationId !== undefined && { organizationId }),
+      ...(token.expires_in !== undefined && { expiresIn: token.expires_in }),
+      ...(token.scope !== undefined && { scope: token.scope }),
+    };
+  }
 
   const callbackServer = await createCallbackServer({
     host,

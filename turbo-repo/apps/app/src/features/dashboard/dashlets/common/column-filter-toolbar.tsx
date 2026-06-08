@@ -1,7 +1,9 @@
 "use client";
 
-import { HiXMark } from "react-icons/hi2";
 import { tr } from "@/features/i18n/tr.service";
+import { HiXMark } from "react-icons/hi2";
+import { Button } from "flowbite-react";
+import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import type { TableColumn } from "./column-types";
@@ -53,13 +55,15 @@ export function ColumnFilterToolbar({
         );
       })}
 
-      <button
+      <Button
+        size="xs"
+        color="alternative"
         onClick={onClearAll}
-        className="flex items-center gap-1 rounded px-2 py-0.5 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+        icon={HiXMark}
+        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
       >
-        <HiXMark className="h-3 w-3" />
         {tr("dashboard.settings.columnFilterClearAll", dictionary)}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -77,18 +81,7 @@ function FilterChip({
   readonly value: string;
   readonly onRemove: () => void;
 }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
-      <span className="font-medium">{label}:</span>
-      <span className="max-w-[120px] truncate">{value}</span>
-      <button
-        onClick={onRemove}
-        className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-orange-200 dark:hover:bg-orange-800"
-      >
-        <HiXMark className="h-3 w-3" />
-      </button>
-    </span>
-  );
+  return <CustomBadge text={`${label}: ${value}`} onRemove={onRemove} />;
 }
 
 // ============================================================================

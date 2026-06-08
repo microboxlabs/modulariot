@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Textarea, Label, TextInput, Select } from "flowbite-react";
+import React, { useRef, useState } from "react";
+import { Textarea, Label, TextInput, Select, Dropdown, DropdownItem, Button } from "flowbite-react";
 import {
   HiChevronDown,
   HiPaintBrush,
@@ -26,8 +26,9 @@ import {
   AddRuleButton,
   ColumnDropdown,
 } from "./color-rule-row";
-import type { ActionItemWithId } from "./action-helpers";
+import type { ActionItemWithId, RowActionItemWithId } from "./action-helpers";
 import type { ActionTarget } from "./action-types";
+import { HiBars3 } from "react-icons/hi2";
 
 // ============================================================================
 // ColumnEditor
@@ -103,9 +104,6 @@ export function ColumnEditor({
 
   return (
     <div>
-      <Label className="mb-1.5 block text-sm font-medium">
-        {labels.columns}
-      </Label>
       <ReactSortable
         list={sortableColumns}
         setList={handleReorder}
@@ -186,130 +184,59 @@ function ColumnCard({
   const [rulesOpen, setRulesOpen] = useState(false);
   const descEnabled = !!col.descriptionEnabled;
   const colorRulesEnabled = !!col.colorRulesEnabled;
-  const [editingLabel, setEditingLabel] = useState(false);
-  const labelInputRef = useRef<HTMLInputElement>(null);
-
-  const hasColorCallbacks =
-    !!onAddColorMapping && !!onRemoveColorMapping && !!onUpdateColorMapping;
-
+  const hasColorCallbacks = !!onAddColorMapping && !!onRemoveColorMapping && !!onUpdateColorMapping;
   const rulesCount = (col.colorMap ?? []).length;
-
-  function handleLabelClick() {
-    setEditingLabel(true);
-    requestAnimationFrame(() => labelInputRef.current?.focus());
-  }
-
-  function handleLabelBlur() {
-    setEditingLabel(false);
-  }
-
-  const displayName = col.label || col.key || labels.label;
-
   const stickyDisabled = col.sticky ? !canDisableSticky : !canBeSticky;
 
+  const headerButtons = (
+    <>
+      <button
+        type="button"
+        title="Description"
+        onClick={() => onUpdate(col._id, "descriptionEnabled", !descEnabled)}
+        className={`shrink-0 rounded p-1 transition-colors ${descEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
+      >
+        <HiQuestionMarkCircle className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        title={labels.rulesLabel}
+        onClick={() => onUpdate(col._id, "colorRulesEnabled", !colorRulesEnabled)}
+        className={`shrink-0 rounded p-1 transition-colors ${colorRulesEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
+      >
+        <HiPaintBrush className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        title={labels.stickyColumn}
+        disabled={stickyDisabled}
+        onClick={() => onUpdate(col._id, "sticky", !col.sticky)}
+        className={`shrink-0 rounded p-1 transition-colors ${getStickyBtnClass(stickyDisabled, !!col.sticky)}`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+          <path fillRule="evenodd" d="M8.074.945A4.993 4.993 0 0 0 6 5v.032c.004.6.114 1.176.311 1.709.16.428-.204.857-.664.857H2.5c-.88 0-1.601.696-1.497 1.572C1.32 11.8 3.276 14 8 14c4.724 0 6.68-2.2 6.997-4.83.104-.876-.617-1.572-1.497-1.572h-3.147c-.46 0-.824-.43-.664-.857.197-.533.307-1.11.311-1.709V5a4.993 4.993 0 0 0-1.926-4.055Z" clipRule="evenodd" />
+        </svg>
+      </button>
+    </>
+  );
+
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800">
-      {/* Header: drag handle, column name (click-to-edit), sticky, delete */}
-      <div className="flex items-center gap-1 border-b border-gray-200 px-2 py-1.5 dark:border-gray-600">
-        <button
-          type="button"
-          className="drag-handle shrink-0 cursor-grab p-0.5 text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:text-gray-500 dark:hover:text-gray-300"
-          aria-label="Drag to reorder"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="h-3.5 w-3.5"
-          >
-            <path
-              fillRule="evenodd"
-              d="M2 3.75A.75.75 0 0 1 2.75 3h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 3.75ZM2 8a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 8Zm0 4.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-
-        {editingLabel ? (
-          <input
-            ref={labelInputRef}
-            type="text"
-            value={col.label}
-            onChange={(e) => onUpdate(col._id, "label", e.target.value)}
-            onBlur={handleLabelBlur}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === "Escape") handleLabelBlur();
-            }}
-            className="min-w-0 flex-1 rounded border border-blue-400 bg-white px-1.5 py-0.5 text-xs font-medium text-gray-900 outline-none dark:border-blue-500 dark:bg-gray-700 dark:text-white"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={handleLabelClick}
-            className="min-w-0 flex-1 truncate text-left text-xs font-medium text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-            title={labels.label}
-          >
-            {displayName}
-          </button>
-        )}
-
-        <button
-          type="button"
-          title="Description"
-          onClick={() => onUpdate(col._id, "descriptionEnabled", !descEnabled)}
-          className={`shrink-0 rounded p-1 transition-colors ${descEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
-        >
-          <HiQuestionMarkCircle className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title={labels.rulesLabel}
-          onClick={() =>
-            onUpdate(col._id, "colorRulesEnabled", !colorRulesEnabled)
-          }
-          className={`shrink-0 rounded p-1 transition-colors ${colorRulesEnabled ? "text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
-        >
-          <HiPaintBrush className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title={labels.stickyColumn}
-          disabled={stickyDisabled}
-          onClick={() => onUpdate(col._id, "sticky", !col.sticky)}
-          className={`shrink-0 rounded p-1 transition-colors ${getStickyBtnClass(stickyDisabled, !!col.sticky)}`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="h-3.5 w-3.5"
-          >
-            <path
-              fillRule="evenodd"
-              d="M8.074.945A4.993 4.993 0 0 0 6 5v.032c.004.6.114 1.176.311 1.709.16.428-.204.857-.664.857H2.5c-.88 0-1.601.696-1.497 1.572C1.32 11.8 3.276 14 8 14c4.724 0 6.68-2.2 6.997-4.83.104-.876-.617-1.572-1.497-1.572h-3.147c-.46 0-.824-.43-.664-.857.197-.533.307-1.11.311-1.709V5a4.993 4.993 0 0 0-1.926-4.055Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-        <DeleteItemButton
-          onClick={() => onRemove(col._id)}
-          ariaLabel="Delete column"
-        />
-      </div>
-
-      {/* Body: key, type, dataType */}
-      <div className="space-y-1.5 p-2">
+    <SettingsCard
+      title={col.label}
+      titlePlaceholder={col.key || labels.label}
+      onTitleChange={(v) => onUpdate(col._id, "label", v)}
+      dragHandleClass="drag-handle"
+      onRemove={() => onRemove(col._id)}
+      headerButtons={headerButtons}
+    >
+      <div className="space-y-1.5">
         <div className="min-w-0">
           <TextInput
             sizing="sm"
             placeholder={labels.key}
             value={col.key}
             onChange={(e) => onUpdate(col._id, "key", e.target.value)}
-            color={
-              handlebarsColorKeys
-                ? getFlowbiteColor(getHandlebarsStatus(col.key))
-                : undefined
-            }
+            color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
           />
         </div>
         <div className="flex items-center gap-1.5">
@@ -333,11 +260,8 @@ function ColumnCard({
             />
           </div>
         </div>
-      </div>
 
-      {/* Collapsible description textarea */}
-      {descEnabled && (
-        <div className="border-t border-gray-200 px-2 py-1.5 dark:border-gray-600">
+        {descEnabled && (
           <Textarea
             rows={3}
             className="text-sm"
@@ -345,60 +269,48 @@ function ColumnCard({
             value={col.description ?? ""}
             onChange={(e) => onUpdate(col._id, "description", e.target.value)}
           />
-        </div>
-      )}
+        )}
 
-      {/* Color rules collapsible section */}
-      {colorRulesEnabled && hasColorCallbacks && (
-        <div className="border-t border-gray-200 px-2 py-1.5 dark:border-gray-600">
-          <button
-            type="button"
-            onClick={() => setRulesOpen(!rulesOpen)}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <HiChevronDown
-              className={`h-3.5 w-3.5 transition-transform ${rulesOpen ? "" : "-rotate-90"}`}
-            />
-            {labels.rulesLabel}
-            {rulesCount > 0 && (
-              <span className="ml-1 rounded-full bg-gray-200 px-1.5 text-[10px] font-medium text-gray-600 dark:bg-gray-600 dark:text-gray-300">
-                {rulesCount}
-              </span>
+        {colorRulesEnabled && hasColorCallbacks && (
+          <div className="border-t border-gray-200 pt-1.5 dark:border-gray-600">
+            <button
+              type="button"
+              onClick={() => setRulesOpen(!rulesOpen)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <HiChevronDown className={`h-3.5 w-3.5 transition-transform ${rulesOpen ? "" : "-rotate-90"}`} />
+              {labels.rulesLabel}
+              {rulesCount > 0 && (
+                <span className="ml-1 rounded-full bg-gray-200 px-1.5 text-[10px] font-medium text-gray-600 dark:bg-gray-600 dark:text-gray-300">
+                  {rulesCount}
+                </span>
+              )}
+            </button>
+            {rulesOpen && (
+              <div className="mt-1.5 space-y-1.5 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
+                {(col.colorMap ?? []).map((mapping) => (
+                  <ColorRuleRow
+                    key={`${col._id}-cm-${mapping._id}`}
+                    operator={mapping.operator}
+                    value={mapping.value}
+                    color={mapping.color}
+                    onOperatorChange={(op: ColorRuleOperator) => onUpdateColorMapping(col._id, mapping._id!, "operator", op)}
+                    onValueChange={(val: string) => onUpdateColorMapping(col._id, mapping._id!, "value", val)}
+                    onColorChange={(c: string) => onUpdateColorMapping(col._id, mapping._id!, "color", c)}
+                    onDelete={() => onRemoveColorMapping(col._id, mapping._id!)}
+                    valuePlaceholder={labels.valuePlaceholder}
+                    colorPresets={COLOR_RULE_PRESETS}
+                    colorPickerTitle="Select mapping color"
+                    deleteAriaLabel="Delete color mapping"
+                  />
+                ))}
+                <AddRuleButton onClick={() => onAddColorMapping(col._id)} label={labels.addMapping} />
+              </div>
             )}
-          </button>
-          {rulesOpen && (
-            <div className="mt-1.5 space-y-1.5 border-l-2 border-gray-200 pl-3 dark:border-gray-600">
-              {(col.colorMap ?? []).map((mapping) => (
-                <ColorRuleRow
-                  key={`${col._id}-cm-${mapping._id}`}
-                  operator={mapping.operator}
-                  value={mapping.value}
-                  color={mapping.color}
-                  onOperatorChange={(op: ColorRuleOperator) =>
-                    onUpdateColorMapping(col._id, mapping._id!, "operator", op)
-                  }
-                  onValueChange={(val: string) =>
-                    onUpdateColorMapping(col._id, mapping._id!, "value", val)
-                  }
-                  onColorChange={(c: string) =>
-                    onUpdateColorMapping(col._id, mapping._id!, "color", c)
-                  }
-                  onDelete={() => onRemoveColorMapping(col._id, mapping._id!)}
-                  valuePlaceholder={labels.valuePlaceholder}
-                  colorPresets={COLOR_RULE_PRESETS}
-                  colorPickerTitle="Select mapping color"
-                  deleteAriaLabel="Delete color mapping"
-                />
-              ))}
-              <AddRuleButton
-                onClick={() => onAddColorMapping(col._id)}
-                label={labels.addMapping}
-              />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+    </SettingsCard>
   );
 }
 
@@ -434,7 +346,6 @@ export function FilterEditor({
 }: Readonly<FilterEditorProps>) {
   return (
     <>
-      <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
         <ToggleSectionHeader
           label={labels.filter}
@@ -518,7 +429,6 @@ export function SortEditor({
 }: Readonly<SortEditorProps>) {
   return (
     <>
-      <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
         <ToggleSectionHeader
           label={labels.sort}
@@ -789,7 +699,6 @@ export function ActionsEditor({
 }: Readonly<ActionsEditorProps>) {
   return (
     <>
-      <hr className="border-gray-200 dark:border-gray-700" />
       <div className="space-y-2">
         <ToggleSectionHeader
           label={labels.actions}
@@ -902,6 +811,300 @@ export function CheckboxColumnList({
           </label>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// RowActionsEditor
+// ============================================================================
+
+interface SortableRowActionItem extends RowActionItemWithId {
+  id: string;
+}
+
+interface RowActionsEditorLabels {
+  addAction: string;
+  actionName: string;
+  actionLink: string;
+  sameTab: string;
+  newTab: string;
+  primarySection: string;
+  secondarySection: string;
+}
+
+interface RowActionsEditorProps {
+  items: RowActionItemWithId[];
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onReorder: (items: RowActionItemWithId[]) => void;
+  onUpdate: (id: string, field: "name" | "link" | "target", value: string) => void;
+  labels: RowActionsEditorLabels;
+}
+
+// ----------------------------------------------------------------------------
+// SettingsCard — generic card with drag handle, click-to-edit title, delete
+// ----------------------------------------------------------------------------
+
+interface SettingsCardProps {
+  title: string;
+  titlePlaceholder?: string;
+  onTitleChange: (value: string) => void;
+  dragHandleClass: string;
+  onRemove: () => void;
+  headerButtons?: React.ReactNode;
+  children?: React.ReactNode;
+}
+
+function SettingsCard({
+  title,
+  titlePlaceholder,
+  onTitleChange,
+  dragHandleClass,
+  onRemove,
+  headerButtons,
+  children,
+}: Readonly<SettingsCardProps>) {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function startEdit() {
+    setEditing(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  function stopEdit() {
+    setEditing(false);
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800">
+      {/* Header */}
+      <div className="flex items-center gap-1 border-b border-gray-200 px-2 py-1.5 dark:border-gray-600">
+        <button
+          type="button"
+          className={`${dragHandleClass} shrink-0 cursor-grab p-0.5 text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:text-gray-500 dark:hover:text-gray-300`}
+          aria-label="Reordenar"
+        >
+          <HiBars3 className="h-3.5 w-3.5" />
+        </button>
+
+        {editing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={title}
+            placeholder={titlePlaceholder}
+            onChange={(e) => onTitleChange(e.target.value)}
+            onBlur={stopEdit}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") stopEdit(); }}
+            className="min-w-0 flex-1 rounded border border-blue-400 bg-white px-1.5 py-0.5 text-xs font-medium text-gray-900 outline-none dark:border-blue-500 dark:bg-gray-700 dark:text-white"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="min-w-0 flex-1 truncate text-left text-xs font-medium text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+          >
+            {title || <span className="text-gray-400 dark:text-gray-500">{titlePlaceholder}</span>}
+          </button>
+        )}
+
+        {headerButtons}
+
+        <DeleteItemButton onClick={onRemove} ariaLabel="Eliminar" />
+      </div>
+
+      {/* Body */}
+      {children && <div className="p-2">{children}</div>}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// RowActionCard
+// ----------------------------------------------------------------------------
+
+function RowActionCard({
+  item,
+  onRemove,
+  onUpdate,
+  labels,
+}: Readonly<{
+  item: SortableRowActionItem;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, field: "name" | "link" | "target", value: string) => void;
+  labels: Pick<RowActionsEditorLabels, "actionName" | "actionLink" | "sameTab" | "newTab">;
+}>) {
+  const selectorTheme = {
+    floating: {
+      base: "overflow-hidden rounded-lg z-10",
+      style: {
+        auto: "border border-gray-200 dark:border-gray-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
+      },
+    },
+  };
+
+  const methodDropdown = (
+    <Dropdown label="" 
+      theme={selectorTheme}
+      renderTrigger={() => (
+        <button
+          type="button"
+          className="flex items-center gap-1 py-1 px-3 rounded-full border border-gray-200 bg-white text-xs font-light text-gray-900 hover:bg-gray-50 dark:border-gray-500 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
+        >
+          <span>{item.method ?? "goto"}</span>
+          <HiChevronDown className="h-3 w-3" />
+        </button>
+      )}
+    >
+      <DropdownItem>goto</DropdownItem>
+    </Dropdown>
+  );
+
+  return (
+    <SettingsCard
+      title={item.name}
+      titlePlaceholder={labels.actionName}
+      onTitleChange={(v) => onUpdate(item._id, "name", v)}
+      dragHandleClass="ra-drag-handle"
+      onRemove={() => onRemove(item._id)}
+      headerButtons={methodDropdown}
+    >
+      <div className="flex items-center gap-1.5">
+        <Dropdown
+          label=""
+          theme={selectorTheme}
+          renderTrigger={() => (
+            <Button
+              type="button"
+              className="flex items-center gap-1.5 h-8 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm font-light text-gray-900 hover:bg-gray-50 dark:border-gray-500 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
+            >
+              <span className="whitespace-nowrap">{item.target === "_blank" ? labels.newTab : labels.sameTab}</span>
+              <HiChevronDown className="h-4 w-4 shrink-0" />
+            </Button>
+          )}
+          >
+          <DropdownItem onClick={() => onUpdate(item._id, "target", "_self")}>
+            {labels.sameTab}
+          </DropdownItem>
+          <DropdownItem onClick={() => onUpdate(item._id, "target", "_blank")}>
+            {labels.newTab}
+          </DropdownItem>
+        </Dropdown>
+        <div className="min-w-0 flex-1">
+          <TextInput
+            sizing="sm"
+            placeholder={labels.actionLink}
+            value={item.link}
+            onChange={(e) => onUpdate(item._id, "link", e.target.value)}
+            color={getFlowbiteColor(getHandlebarsStatus(item.link))}
+          />
+        </div>
+      </div>
+    </SettingsCard>
+  );
+}
+
+export function RowActionsEditor({
+  items,
+  onAdd,
+  onRemove,
+  onReorder,
+  onUpdate,
+  labels,
+}: Readonly<RowActionsEditorProps>) {
+  const toSortable = (arr: RowActionItemWithId[]): SortableRowActionItem[] =>
+    arr.map((x) => ({ ...x, id: x._id }));
+  const strip = (arr: SortableRowActionItem[]): RowActionItemWithId[] =>
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    arr.map(({ id, ...rest }) => rest);
+
+  // Derive directly from props — no internal state needed
+  const primaryList = toSortable(items.slice(0, 1));
+  const secondaryList = toSortable(items.slice(1));
+
+  // Refs updated every render so cross-list DnD callbacks always read latest values
+  const primaryRef = useRef(primaryList);
+  const secondaryRef = useRef(secondaryList);
+  primaryRef.current = primaryList;
+  secondaryRef.current = secondaryList;
+
+  function handlePrimary(next: SortableRowActionItem[]) {
+    primaryRef.current = next;
+    onReorder(strip([...next, ...secondaryRef.current]));
+  }
+
+  function handleSecondary(next: SortableRowActionItem[]) {
+    secondaryRef.current = next;
+    onReorder(strip([...primaryRef.current, ...next]));
+  }
+
+  const primarySectionLabel = "text-[10px] font-semibold uppercase tracking-wide text-blue-500 dark:text-blue-400 mb-1.5";
+  const secondarySectionLabel = "text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5";
+  const GROUP = "row-actions-dnd";
+
+  const hasAny = primaryList.length > 0 || secondaryList.length > 0;
+
+  return (
+    <div className="space-y-3">
+      {hasAny && (
+        <>
+          {/* Primary action */}
+          <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-2 dark:border-blue-800/50 dark:bg-blue-900/10">
+            <p className={primarySectionLabel}>{labels.primarySection}</p>
+            <ReactSortable
+              group={GROUP}
+              list={primaryList}
+              setList={handlePrimary}
+              animation={150}
+              handle=".ra-drag-handle"
+              className="space-y-2 min-h-1"
+            >
+              {primaryList.map((item) => (
+                <RowActionCard
+                  key={item._id}
+                  item={item}
+                  onRemove={onRemove}
+                  onUpdate={onUpdate}
+                  labels={labels}
+                />
+              ))}
+            </ReactSortable>
+            {primaryList.length === 0 && (
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                Arrastra una acción aquí
+              </p>
+            )}
+          </div>
+
+          {/* Secondary actions — hidden when empty but kept in DOM for cross-list DnD */}
+          <div className={secondaryList.length === 0 ? "hidden" : "rounded-lg border border-gray-200 bg-gray-50/60 p-2 dark:border-gray-600 dark:bg-gray-700/20"}>
+            <p className={secondarySectionLabel}>{labels.secondarySection}</p>
+            <ReactSortable
+              group={GROUP}
+              list={secondaryList}
+              setList={handleSecondary}
+              animation={150}
+              handle=".ra-drag-handle"
+              className="space-y-2 min-h-1"
+            >
+              {secondaryList.map((item) => (
+                <RowActionCard
+                  key={item._id}
+                  item={item}
+                  onRemove={onRemove}
+                  onUpdate={onUpdate}
+                  labels={labels}
+                />
+              ))}
+            </ReactSortable>
+          </div>
+        </>
+      )}
+
+      {/* General add button */}
+      <AddRuleButton onClick={onAdd} label={labels.addAction} className="mt-0" />
     </div>
   );
 }

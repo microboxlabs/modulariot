@@ -309,6 +309,8 @@ function resolveColumnDataTypes(
 // Helpers
 // ---------------------------------------------------------------------------
 
+const TEXT_ENUM_MAX = 50;
+
 function buildEnumValues(
   data: Record<string, string>[],
   columns: TableColumn[],
@@ -317,7 +319,7 @@ function buildEnumValues(
   const result: Record<string, string[]> = {};
   for (const col of columns) {
     const dataType = resolvedTypes[col.key] ?? "text";
-    if (dataType !== "enum") continue;
+    if (dataType !== "enum" && dataType !== "text") continue;
     const prop = resolveDataProperty(col.key);
     if (!prop) continue;
     const values = new Set<string>();
@@ -325,6 +327,7 @@ function buildEnumValues(
       const val = row[prop];
       if (val != null && val !== "") values.add(val);
     }
+    if (dataType === "text" && values.size > TEXT_ENUM_MAX) continue;
     result[col.key] = Array.from(values).sort((a, b) => a.localeCompare(b));
   }
   return result;

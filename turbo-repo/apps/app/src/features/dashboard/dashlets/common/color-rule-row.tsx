@@ -73,7 +73,7 @@ export function AddRuleButton({
       size="xs"
       onClick={onClick}
       onMouseDown={stopPropagation}
-      className={`no-drag ${className}`}
+      className={`no-drag w-full ${className}`}
     >
       <HiPlus className="mr-1 h-3 w-3" />
       {label}

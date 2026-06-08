@@ -22,11 +22,23 @@ import {
   syncColumnsFromKeys,
 } from "../common/pgrest-settings-helpers";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
+import {
+  ColumnEditor,
+  RowActionsEditor,
+} from "../common/settings-sections";
+import { RowColorRuleSetter } from "../common/row-color-rule-setter";
+import { SettingsTextField, SettingsToggleRow } from "../common/settings-fields";
+import type { ColorRuleOperator } from "../common/color-rule-types";
+import type { RowActionItemWithId } from "../common/action-helpers";
+import {
+  toRowActionItems,
+  fromRowActionItems,
+  normalizeRowActions,
+} from "../common/action-helpers";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
-import { HbTextField, SettingsToggleRow } from "../common/settings-fields";
-import { Select } from "flowbite-react";
+import { SidebarSection } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section";
 
 export function DashletSettings({
   isOpen,
@@ -55,9 +67,25 @@ export function DashletSettings({
     config.showColumnDividers ?? true
   );
   const [showExport, setShowExport] = useState(config.showExport ?? true);
-  const [rowClickEnabled, setRowClickEnabled] = useState(config.rowClickEnabled ?? false);
-  const [rowClickLink, setRowClickLink] = useState(config.rowClickLink ?? "");
-  const [rowClickTarget, setRowClickTarget] = useState<"_self" | "_blank">(config.rowClickTarget ?? "_self");
+  const [striped, setStriped] = useState(config.striped ?? false);
+  const [rowActionItems, setRowActionItems] = useState<RowActionItemWithId[]>(
+    () => toRowActionItems(normalizeRowActions(config.rowActions))
+  );
+
+  function addRowAction() {
+    setRowActionItems((prev) => [
+      ...prev,
+      { _id: `ra-new-${Date.now()}`, method: "goto", name: "", link: "", target: "_self" },
+    ]);
+  }
+  function removeRowAction(id: string) {
+    setRowActionItems((prev) => prev.filter((a) => a._id !== id));
+  }
+  function updateRowAction(id: string, field: "name" | "link" | "target", value: string) {
+    setRowActionItems((prev) =>
+      prev.map((a) => (a._id === id ? { ...a, [field]: value } : a))
+    );
+  }
 
   const s = useSettingsState({
     title: config.title,
@@ -75,7 +103,6 @@ export function DashletSettings({
       config.dataMode === "pgrest" ? "pgrest" : (config.dataMode ?? "static"),
     apiUrl: "",
     rowColorRules: config.rowColorRules,
-    actions: config.actions,
   });
 
   const pg = usePgrestSettingsState({
@@ -98,13 +125,10 @@ export function DashletSettings({
     sortColumns: s.sortColumns,
     rowColorRulesEnabled: s.rowColorRulesEnabled,
     rowColorRuleItems: s.rowColorRuleItems,
-    actionsEnabled: s.actionsEnabled,
-    actionItems: s.actionItems,
     showColumnDividers,
     showExport,
-    rowClickEnabled,
-    rowClickLink,
-    rowClickTarget,
+    striped,
+    rowActionItems,
     dataSourceId,
     plannerVariableName,
     pgFn: pg.pgrestFunctionName,
@@ -120,7 +144,7 @@ export function DashletSettings({
     );
     if (!rows) return;
 
-    const { filter, sort, savedColumns, rowColorRules, actions } =
+    const { filter, sort, savedColumns, rowColorRules } =
       s.buildFilterSort();
 
     onSave({
@@ -128,9 +152,7 @@ export function DashletSettings({
       showRowCount: s.showRowCount,
       showColumnDividers,
       showExport,
-      rowClickEnabled,
-      rowClickLink: rowClickEnabled ? rowClickLink : undefined,
-      rowClickTarget: rowClickEnabled ? rowClickTarget : undefined,
+      striped,
       dataMode: s.dataMode as "static" | "pgrest" | "planner",
       columns: savedColumns,
       rows,
@@ -143,7 +165,7 @@ export function DashletSettings({
       plannerVariableName:
         s.dataMode === "planner" ? plannerVariableName : undefined,
       rowColorRules,
-      actions,
+      rowActions: fromRowActionItems(rowActionItems),
       ...refresh.savePayload,
     });
     onClose();
@@ -169,46 +191,119 @@ export function DashletSettings({
     />
   );
 
-  const displayOptions = (
-    <>
-      <SettingsToggleRow
-        label={tr("dashboard.settings.showColumnDividers", dictionary)}
-        checked={showColumnDividers}
-        onChange={setShowColumnDividers}
-      />
-      <SettingsToggleRow
-        label={tr("dashboard.settings.showExport", dictionary)}
-        checked={showExport}
-        onChange={setShowExport}
-      />
+  const operatorLabels: Record<ColorRuleOperator, string> = {
+    equals: tr("dashboard.settings.operatorEquals", dictionary),
+    not_equals: tr("dashboard.settings.operatorNotEquals", dictionary),
+    contains: tr("dashboard.settings.operatorContains", dictionary),
+    not_contains: tr("dashboard.settings.operatorNotContains", dictionary),
+    greater_than: tr("dashboard.settings.operatorGreaterThan", dictionary),
+    less_than: tr("dashboard.settings.operatorLessThan", dictionary),
+    greater_than_or_equal: tr("dashboard.settings.operatorGreaterThanOrEqual", dictionary),
+    less_than_or_equal: tr("dashboard.settings.operatorLessThanOrEqual", dictionary),
+  };
+  const valuePlaceholder = tr("dashboard.settings.value", dictionary);
 
-      {/* Row click action */}
-      <hr className="border-gray-200 dark:border-gray-700" />
-      <SettingsToggleRow
-        label="Row click action"
-        checked={rowClickEnabled}
-        onChange={setRowClickEnabled}
-      />
-      {rowClickEnabled && (
-        <div className="space-y-2 pt-1">
-          <HbTextField
-            id="row-click-link"
-            label="URL"
-            placeholder="https://example.com/{{row.id}}"
-            value={rowClickLink}
-            onChange={setRowClickLink}
-            schemaSuggestions={s.columns.map((c) => c.key)}
+  const visualizationTabContent = (
+    <>
+      <SidebarSection title="General" defaultExpanded>
+        <div className="space-y-3">
+          <SettingsTextField
+            id="dt2-title"
+            label={tr("common.title", dictionary)}
+            value={s.title}
+            onChange={s.setTitle}
           />
-          <Select
-            sizing="sm"
-            value={rowClickTarget}
-            onChange={(e) => setRowClickTarget(e.target.value as "_self" | "_blank")}
-          >
-            <option value="_self">Same tab</option>
-            <option value="_blank">New tab</option>
-          </Select>
+          <SettingsToggleRow
+            label={tr("dashboard.settings.showRowCount", dictionary)}
+            checked={s.showRowCount}
+            onChange={s.setShowRowCount}
+          />
+          <SettingsToggleRow
+            label={tr("dashboard.settings.showColumnDividers", dictionary)}
+            checked={showColumnDividers}
+            onChange={setShowColumnDividers}
+          />
+          <SettingsToggleRow
+            label={tr("dashboard.settings.showExport", dictionary)}
+            checked={showExport}
+            onChange={setShowExport}
+          />
+          <SettingsToggleRow
+            label={tr("dashboard.settings.striped", dictionary)}
+            checked={striped}
+            onChange={setStriped}
+          />
         </div>
-      )}
+      </SidebarSection>
+
+      <SidebarSection title="Utilities" defaultExpanded>
+        <div className="space-y-3">
+          <div>
+            <RowActionsEditor
+              items={rowActionItems}
+              onAdd={addRowAction}
+              onRemove={removeRowAction}
+              onReorder={setRowActionItems}
+              onUpdate={updateRowAction}
+              labels={{
+                addAction: tr("dashboard.settings.addAction", dictionary),
+                actionName: tr("dashboard.settings.actionName", dictionary),
+                actionLink: tr("dashboard.settings.actionLink", dictionary),
+                sameTab: tr("dashboard.settings.actionTargetSelf", dictionary),
+                newTab: tr("dashboard.settings.actionTargetBlank", dictionary),
+                primarySection: "Acción principal",
+                secondarySection: "Acciones secundarias",
+              }}
+            />
+          </div>
+        </div>
+      </SidebarSection>
+
+      <SidebarSection title="Columns" defaultExpanded>
+        <div className="space-y-3">
+          <ColumnEditor
+            columns={s.columns}
+            onAdd={s.addColumn}
+            onRemove={s.removeColumn}
+            onReorder={s.setColumns}
+            onUpdate={s.updateColumn}
+            onAddColorMapping={s.addColorMapping}
+            onRemoveColorMapping={s.removeColorMapping}
+            onUpdateColorMapping={s.updateColorMapping}
+            handlebarsColorKeys
+            labels={{
+              columns: tr("dashboard.settings.columns", dictionary),
+              key: tr("dashboard.settings.key", dictionary),
+              label: tr("dashboard.settings.label", dictionary),
+              addColumn: tr("dashboard.settings.addColumn", dictionary),
+              addMapping: tr("dashboard.settings.addRule", dictionary),
+              stickyColumn: tr("dashboard.settings.stickyColumn", dictionary),
+              rulesLabel: tr("dashboard.settings.colorRules", dictionary),
+              valuePlaceholder,
+              operatorLabels,
+            }}
+          />
+        </div>
+      </SidebarSection>
+
+      <SidebarSection
+        title="Coloring"
+        defaultExpanded
+        description={tr("dashboard.settings.rowColorRulesDescription", dictionary)}
+      >
+        <RowColorRuleSetter
+          title={tr("dashboard.settings.rowColorRules", dictionary)}
+          enabled={s.rowColorRuleItems.length > 0}
+          onToggle={s.setRowColorRulesEnabled}
+          rules={s.rowColorRuleItems}
+          columns={s.columnsWithKeys}
+          dictionary={dictionary}
+          onAdd={s.addRowColorRule}
+          onRemove={s.removeRowColorRule}
+          onUpdate={s.updateRowColorRule}
+          hideToggle
+        />
+      </SidebarSection>
     </>
   );
 
@@ -222,12 +317,11 @@ export function DashletSettings({
       dictionary={dictionary}
       dataTabChildren={pgrestContent}
       plannerContent={plannerContent}
-      handlebarsColorKeys
       refreshSelect={refresh.selectNode}
       title={dashletName}
-      displayOptionsChildren={displayOptions}
       widgetId={widgetId}
       isDirty={isDirty}
+      visualizationTabContent={visualizationTabContent}
     />
   );
 }

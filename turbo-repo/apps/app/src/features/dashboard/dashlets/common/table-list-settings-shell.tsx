@@ -45,6 +45,8 @@ interface TableListSettingsShellProps {
   widgetId?: string;
   /** Whether the settings form has unsaved changes */
   isDirty: boolean;
+  /** When provided, replaces the entire flat visualization tab content */
+  visualizationTabContent?: ReactNode;
 }
 
 // ============================================================================
@@ -67,6 +69,7 @@ export function TableListSettingsShell({
   displayOptionsChildren,
   widgetId,
   isDirty,
+  visualizationTabContent,
 }: Readonly<TableListSettingsShellProps>) {
   const operatorLabels: Record<ColorRuleOperator, string> = {
     equals: tr("dashboard.settings.operatorEquals", dictionary),
@@ -87,7 +90,7 @@ export function TableListSettingsShell({
 
   const valuePlaceholder = tr("dashboard.settings.value", dictionary);
 
-  const visualizationTab = (
+  const visualizationTab = visualizationTabContent ?? (
     <>
       <SettingsTextField
         id={`${id}-title`}

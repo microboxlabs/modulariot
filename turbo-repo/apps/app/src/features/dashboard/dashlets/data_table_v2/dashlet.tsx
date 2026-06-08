@@ -14,10 +14,9 @@ import type {
   FilterItemConfig,
   FilterConfig,
 } from "@/features/dashboard/dashlets/common/filter-types";
+import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
-import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
-import { SortPillRow } from "@/features/dashboard/dashlets/common/sort-pill-row";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { useColumnFilters } from "@/features/dashboard/dashlets/common/use-column-filters";
 import { ColumnFilterPopover } from "@/features/dashboard/dashlets/common/column-filter-popover";
@@ -60,13 +59,16 @@ import {
   getRowColorClasses,
 } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
-import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
+import type { ActionsConfig, RowAction } from "@/features/dashboard/dashlets/common/action-types";
 import {
   normalizeActionsConfig,
+  normalizeRowActions,
   isSafeActionUrl,
 } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
+import { RowContextMenu } from "@/features/dashboard/dashlets/common/row-context-menu";
+import type { ResolvedContextItem } from "@/features/dashboard/dashlets/common/row-context-menu";
 import {
   DashletTitleBar,
   buildTitleBarData,
@@ -234,11 +236,17 @@ export interface DashletConfig {
   plannerVariableName?: string;
   rowColorRules?: ColorRulesConfig;
   actions?: ActionsConfig;
+  /** Unified row actions: first = left-click, rest = right-click context menu */
+  rowActions?: RowAction[];
   /** Show the export dropdown in the title bar */
   showExport?: boolean;
-  /** Navigate to a URL when a row is clicked. Supports Handlebars ({{row.id}}). */
+  /** Alternate row background colors */
+  striped?: boolean;
+  /** @deprecated use rowActions instead */
   rowClickEnabled?: boolean;
+  /** @deprecated use rowActions instead */
   rowClickLink?: string;
+  /** @deprecated use rowActions instead */
   rowClickTarget?: "_self" | "_blank";
 }
 
@@ -478,6 +486,20 @@ function ResizeHandle({ onMouseDown, onDoubleClick }: Readonly<ResizeHandleProps
   );
 }
 
+interface ColumnSortIconProps {
+  colKey: string;
+  sortKey: string | null;
+  sortDir: "asc" | "desc";
+}
+
+function ColumnSortIcon({ colKey, sortKey, sortDir }: Readonly<ColumnSortIconProps>) {
+  if (sortKey !== colKey) return null;
+  if (sortDir === "asc") {
+    return <HiArrowDown className="h-3 w-3 shrink-0 text-blue-500 dark:text-gray-200" />;
+  }
+  return <HiArrowUp className="h-3 w-3 shrink-0 text-blue-500 dark:text-gray-200" />;
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -499,9 +521,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataSourceId,
     plannerVariableName,
     showExport = true,
-    rowClickEnabled = false,
-    rowClickLink = "",
-    rowClickTarget = "_self",
+    striped = false,
   } = config;
   const filter = useMemo(
     () => normalizeFilterConfig(config.filter, defaultFilter),
@@ -520,6 +540,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     [config.actions]
   );
   const hasActions = safeActions.enabled && safeActions.items.length > 0;
+  const safeRowActions = useMemo(
+    () => normalizeRowActions(config.rowActions),
+    [config.rowActions]
+  );
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ResolvedContextItem[] } | null>(null);
 
   // ── Data fetching ───────────────────────────────────────────────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -542,17 +567,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // ── Legacy filter & sort ──────────────────────────────────────────────────
   const {
-    filterValues,
     sortKey,
     sortDir,
-    filterOptionsByColumn,
     displayRows: legacyDisplayRows,
-    validSortColumns,
-    getColumnLabel,
-    handleFilterClear,
-    handleFilterSelect,
     handleSortClick,
-  } = useFilterAndSort(filter, sort, allRows, columns);
+  } = useFilterAndSort(filter, { ...sort, enabled: true }, allRows, columns);
 
   // ── Per-column filters ─────────────────────────────────────────────────────
   const {
@@ -797,7 +816,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const allLabel = tr("common.all", dictionary);
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -812,35 +830,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
       />
 
-      {/* Filter cards */}
-      {filter.enabled &&
-        filter.items.map((item: FilterItemConfig, idx: number) => {
-          const options = filterOptionsByColumn[item.column];
-          if (!options || options.length === 0) return null;
-          return (
-            <FilterPillRow
-              key={`${item.column}-${idx}`}
-              item={item}
-              options={options}
-              selected={filterValues[item.column] ?? ""}
-              allLabel={allLabel}
-              onClear={handleFilterClear}
-              onSelect={handleFilterSelect}
-            />
-          );
-        })}
-
-      {/* Sort card */}
-      {sort.enabled && (
-        <SortPillRow
-          label={tr("dashboard.settings.sortBy", dictionary)}
-          columns={validSortColumns}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          getColumnLabel={getColumnLabel}
-          onSortClick={handleSortClick}
-        />
-      )}
 
       {/* Per-column filter toolbar */}
       {activeFilterCount > 0 && (
@@ -897,15 +886,28 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     }}
                   >
                     <div className="flex items-center gap-1 overflow-hidden">
-                      {col.descriptionEnabled && col.description ? (
-                        <MarkdownTooltip description={col.description}>
-                          <span className="cursor-help truncate border-b border-dashed border-gray-400 dark:border-gray-500">
+                      <button
+                        type="button"
+                        className="group/sort flex min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded px-0.5 transition-colors hover:text-gray-900 dark:hover:text-gray-100"
+                        onClick={() => handleSortClick(col.key)}
+                      >
+                        {col.descriptionEnabled && col.description ? (
+                          <MarkdownTooltip description={col.description}>
+                            <span className="cursor-help truncate border-b border-dashed border-gray-400 group-hover/sort:border-gray-600 dark:border-gray-500 dark:group-hover/sort:border-gray-300">
+                              {resolveLabel(col.key)}
+                            </span>
+                          </MarkdownTooltip>
+                        ) : (
+                          <span className="truncate">
                             {resolveLabel(col.key)}
                           </span>
-                        </MarkdownTooltip>
-                      ) : (
-                        <span className="truncate">{resolveLabel(col.key)}</span>
-                      )}
+                        )}
+                        <ColumnSortIcon
+                          colKey={col.key}
+                          sortKey={sortKey}
+                          sortDir={sortDir}
+                        />
+                      </button>
                       <ColumnFilterPopover
                         columnKey={col.key}
                         columnLabel={resolveLabel(col.key)}
@@ -957,29 +959,49 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     : null;
                   const rowBgClass = rowColor
                     ? getRowColorClasses(rowColor)
-                    : "bg-white dark:bg-gray-800";
+                    : striped && rowIdx % 2 === 1
+                      ? "bg-gray-50 dark:bg-gray-700/50"
+                      : "bg-white dark:bg-gray-800";
 
-                  const rowHref =
-                    rowClickEnabled && rowClickLink
-                      ? (() => {
-                          const ctx = { ...row, row };
-                          const href = resolveHandlebarsField(rowClickLink, ctx);
-                          return isSafeActionUrl(href) ? href : null;
-                        })()
-                      : null;
+                  const ctx = { ...row, row };
+                  const clickAction = safeRowActions[0];
+                  const clickHref = clickAction
+                    ? (() => {
+                        const href = resolveHandlebarsField(clickAction.link, ctx);
+                        return isSafeActionUrl(href) ? href : null;
+                      })()
+                    : null;
+
+                  const rightClickItems: ResolvedContextItem[] = safeRowActions
+                    .slice(1)
+                    .map((action) => {
+                      const href = resolveHandlebarsField(action.link, ctx);
+                      return isSafeActionUrl(href) ? { action, href } : null;
+                    })
+                    .filter((item): item is ResolvedContextItem => item !== null);
+
+                  const hasAnyAction = !!clickHref || rightClickItems.length > 0;
 
                   return (
                     <tr
                       key={row.id ?? row._id ?? rowIdx}
-                      className={`${rowBgClass}${rowHref ? " cursor-pointer hover:brightness-95 dark:hover:brightness-110" : ""}`}
+                      className={`${rowBgClass}${hasAnyAction ? " cursor-pointer hover:brightness-95 dark:hover:brightness-110" : ""}`}
                       onClick={
-                        rowHref
+                        clickHref
                           ? () => {
-                              if (rowClickTarget === "_blank") {
-                                window.open(rowHref, "_blank", "noopener,noreferrer");
+                              if (clickAction?.target === "_blank") {
+                                window.open(clickHref, "_blank", "noopener,noreferrer");
                               } else {
-                                window.location.href = rowHref;
+                                window.location.href = clickHref;
                               }
+                            }
+                          : undefined
+                      }
+                      onContextMenu={
+                        rightClickItems.length > 0
+                          ? (e) => {
+                              e.preventDefault();
+                              setContextMenu({ x: e.clientX, y: e.clientY, items: rightClickItems });
                             }
                           : undefined
                       }
@@ -1055,6 +1077,15 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           </table>
         )}
       </div>
+
+      {contextMenu && (
+        <RowContextMenu
+          items={contextMenu.items}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

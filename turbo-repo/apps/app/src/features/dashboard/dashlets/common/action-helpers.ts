@@ -1,5 +1,5 @@
-import type { ActionItem, ActionsConfig } from "./action-types";
-import { ACTION_TARGETS } from "./action-types";
+import type { ActionItem, ActionsConfig, RowAction } from "./action-types";
+import { ACTION_TARGETS, ROW_ACTION_METHODS } from "./action-types";
 
 export interface ActionItemWithId extends ActionItem {
   _id: string;
@@ -42,4 +42,36 @@ export function normalizeActionsConfig(
   if (!Array.isArray(obj.items)) return fallback;
   if (!obj.items.every(isValidActionItem)) return fallback;
   return { enabled: obj.enabled, items: obj.items };
+}
+
+// ── Row actions ──────────────────────────────────────────────────────────────
+
+export interface RowActionItemWithId extends RowAction {
+  _id: string;
+}
+
+export function toRowActionItems(items: RowAction[]): RowActionItemWithId[] {
+  return items.map((item, i) => ({ ...item, _id: `ra-${i}-${item.name}` }));
+}
+
+export function fromRowActionItems(items: RowActionItemWithId[]): RowAction[] {
+  return items.map(({ method, name, link, target }) => ({ method, name, link, target }));
+}
+
+function isValidRowAction(item: unknown): item is RowAction {
+  if (item == null || typeof item !== "object") return false;
+  const obj = item as Record<string, unknown>;
+  return (
+    typeof obj.name === "string" &&
+    typeof obj.link === "string" &&
+    typeof obj.method === "string" &&
+    (ROW_ACTION_METHODS as string[]).includes(obj.method) &&
+    typeof obj.target === "string" &&
+    (ACTION_TARGETS as string[]).includes(obj.target)
+  );
+}
+
+export function normalizeRowActions(raw: unknown): RowAction[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isValidRowAction);
 }

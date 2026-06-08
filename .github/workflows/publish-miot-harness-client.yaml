@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -34,18 +35,11 @@ jobs:
           cache: npm
           cache-dependency-path: turbo-repo/package-lock.json
 
-      - name: Cache node_modules
-        id: cache-modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            turbo-repo/node_modules
-            turbo-repo/packages/*/node_modules
-            turbo-repo/apps/*/node_modules
-          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
-
+      # Publish from a fresh, lockfile-verified install. No restorable
+      # node_modules cache — one populated by any branch's CI could poison the
+      # published tarball. setup-node's `cache: npm` still keeps this fast by
+      # caching the integrity-checked download tarballs.
       - name: Install dependencies
-        if: steps.cache-modules.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: turbo-repo
 

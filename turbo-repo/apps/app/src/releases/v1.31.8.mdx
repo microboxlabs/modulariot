@@ -1,0 +1,25 @@
+# 🔔 Release Notes v1.31.8 — ModularIoT
+
+### Fecha: 09/06/2026
+
+**Objetivo**: Habilitar una vía de distribución y publicación para `miot-chat` como CLI instalable vía npm, incluyendo empaquetado, automatización de publicación, documentación de uso rápido y pruebas locales del ciclo publish→install→run.
+
+## 🚀 Evolutivos
+
+- **📍 Distribuir miot-chat como CLI instalable por npm**
+  - **Punto clave**: Se preparó `@microboxlabs/miot-chat` y sus dependencias (`miot-auth`, `miot-harness-client`) para ser publicables e instalables desde npm, con el bin ejecutable y las declaraciones de tipo incluidas.
+  - **Detalle técnico**: Se definieron flujos de publicación que siguen la convención del repositorio (workflows por paquete, gate de build/lint/tipos/tests), empaquetado que incluye solo artefactos compilados (`dist/`, `package.json`, `README`, `LICENSE`), y se preserva la obligación de especificar el host objetivo mediante `--base-url` o `MIOT_CHAT_BASE_URL` (no hay URL por defecto). La documentación incorpora el quickstart (install → login → ask) y las banderas de login; además el ciclo de publish→install→run fue ensayado contra un registro local para validar la resolución de dependencias y la derivación de la URL de login. (Integración OSS — MIOT-0.5.9)
+
+## 📊 Beneficios
+
+- Permite a ingenieros y clientes obtener `miot-chat` en tres pasos: instalar, iniciar sesión y preguntar, reduciendo la fricción de uso local.
+- Mejora la trazabilidad y seguridad de publicaciones mediante workflows con gates y OIDC (paridad con prácticas del repositorio).
+- Evita publicar artefactos de desarrollo: los paquetes contienen únicamente artefactos compilados y documentación necesaria.
+- Mantiene la flexibilidad de entornos al exigir `--base-url`/`MIOT_CHAT_BASE_URL`, evitando supuestos sobre entornos de producción.
+- Reduce la carga de soporte al documentar el flujo de instalación y las opciones de login, y al validar el flujo frente a un registro local.
+
+## 📌 Conclusión
+
+Esta versión entrega la historia de distribución para `miot-chat`, facilitando que colaboradores y clientes instalen y utilicen el cliente CLI sin clonar ni construir el monorepo. La implementación se centra en empaquetado correcto, automatización de publicación y documentación operativa, sin forzar una URL por defecto para respetar entornos múltiples.
+
+A nivel operativo, las pruebas contra un registro local aseguran que la resolución de dependencias y el bin instalado funcionen antes de cualquier publicación real a npmjs; la publicación final a npm continúa siendo una acción mantenedora controlada.

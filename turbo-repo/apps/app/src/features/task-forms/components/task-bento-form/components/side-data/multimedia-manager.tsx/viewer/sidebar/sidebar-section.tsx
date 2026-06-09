@@ -60,9 +60,13 @@ function DescriptionTooltip({ description }: Readonly<{ description: string }>) 
       <button
         ref={triggerRef}
         type="button"
+        aria-label="More information"
         onClick={(e) => e.stopPropagation()}
         onMouseEnter={show}
         onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        onKeyDown={(e) => { if (e.key === "Escape") hide(); }}
         className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
       >
         <HiQuestionMarkCircle className="w-3.5 h-3.5" />
@@ -140,7 +144,7 @@ export function SidebarSection({
       </button>
       <div
         className={`overflow-hidden transition-all duration-200 ${
-          isExpanded ? "max-h-2499.75 opacity-100" : "max-h-0 opacity-0"
+          isExpanded ? "max-h-[2499.75px] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
         <div className="px-4 py-2 pb-4">{children}</div>

@@ -37,7 +37,7 @@ export function RowContextMenu({ items, x, y, onClose }: Readonly<RowContextMenu
     };
   }, [onClose]);
 
-  // clamp to viewport after render
+  // clamp to viewport after render or when position changes
   useEffect(() => {
     const el = menuRef.current;
     if (!el) return;
@@ -49,7 +49,7 @@ export function RowContextMenu({ items, x, y, onClose }: Readonly<RowContextMenu
     if (rect.bottom > window.innerHeight - pad) {
       el.style.top = `${window.innerHeight - rect.height - pad}px`;
     }
-  }, []);
+  }, [x, y]);
 
   if (items.length === 0) return null;
 

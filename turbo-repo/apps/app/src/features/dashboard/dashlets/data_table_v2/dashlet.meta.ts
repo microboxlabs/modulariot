@@ -3,8 +3,8 @@ import type { DashletMeta } from "../types";
 
 export const dashletMeta: DashletMeta = {
   id: "data_table_v2",
-  name: "Data Table V2",
-  description: "Displays tabular data with resizable columns and static or dynamic (API) sources",
+  name: "dashlets.data_table_v2.name",
+  description: "dashlets.data_table_v2.description",
   icon: HiTableCells,
   category: "data-display",
   canNestIn: [],

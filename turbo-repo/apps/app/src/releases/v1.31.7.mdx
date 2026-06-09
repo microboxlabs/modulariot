@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.7 — ModularIoT
+
+### Fecha: 09/06/2026
+
+**Objetivo**: Corregir una falla de estabilidad en el visor documental y multimedia integrado con Alfresco, asegurando que la interfaz procese correctamente archivos sin metadatos opcionales.
+
+## 🚀 Evolutivos
+
+- **📍 Robustez del visor multimedia ante metadatos opcionales**
+  - **Punto clave**: Los componentes de revisión documental ahora toleran nodos de Alfresco que no incluyen el objeto `properties`.
+  - **Detalle técnico**: `AlfrescoFileEntry.properties` pasa a ser opcional y las lecturas de `mintral:reviewStatus`, `mintral:contentType`, `cm:versionLabel`, `exif:*`, `mintral:reviewedBy` y `mintral:reviewedAt` usan acceso seguro con optional chaining. (Integración OSS — MIOT-0.5.8)
+
+## 🔧 Integraciones
+
+- **🔌 Alineación con respuestas reales de Alfresco ECM**
+  - **Alcance**: La UI queda alineada con el comportamiento de Alfresco cuando un nodo `cm:content` no tiene propiedades custom y el servidor omite completamente `entry.properties`.
+  - **Detalle técnico**: La ruta `bento/multimedia` ya solicitaba `include: ["properties", "aspectNames"]`; la corrección reconoce que la ausencia del campo ocurre del lado servidor y no por un problema de request. (Integración OSS — MIOT-0.5.8)
+
+## 🐛 Correcciones
+
+- **🐛 Crash al abrir archivos Alfresco sin `entry.properties`**
+  - **Impacto**: Archivos recién subidos o con solo aspectos auditables podían romper la vista de revisión multimedia con `TypeError: Cannot read properties of undefined`.
+  - **Solución**: Se protegieron las lecturas de metadatos en galería, filas multimedia, visor inline, panel de propiedades, conector de visor de imagen y documento lateral. Archivos afectados: `file-images.tsx`, `properties-grid.tsx`, `media-row.tsx`, `image-element.tsx`, `media-inline-viewer.tsx`, `image-viewer-connector.tsx`, `document.tsx` e `image.types.ts`. (Integración OSS — MIOT-0.5.8)
+
+## 📊 Beneficios
+
+- Mayor estabilidad al revisar documentos y multimedia provenientes de Alfresco.
+- Menos interrupciones para usuarios que trabajan con archivos recién cargados o sin metadatos custom.
+- Manejo más fiel del contrato real de Alfresco, que puede omitir `properties` en vez de devolver un objeto vacío.
+- Reducción de errores de runtime en componentes críticos del flujo bento.
+- Mejora de mantenibilidad al reflejar en tipos TypeScript que `properties` es realmente opcional.
+- Corrección acotada sin impacto en el tipo final de los metadatos consumidos por la UI.
+
+## 📌 Conclusión
+
+La versión 1.31.7 entrega una corrección puntual pero importante para la confiabilidad del flujo documental. Al tratar `entry.properties` como un campo opcional, la aplicación evita crashes al abrir archivos válidos de Alfresco que no poseen propiedades custom.
+
+Esta mejora fortalece la integración ECM dentro del formulario bento y reduce fricción operacional en revisión de contenido. La UI queda preparada para respuestas más variadas del repositorio documental sin requerir cambios en las rutas de consulta existentes.

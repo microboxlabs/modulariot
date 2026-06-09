@@ -1,0 +1,67 @@
+name: Publish miot-auth
+
+on:
+  push:
+    tags:
+      - "miot-auth@v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-auth@v0.1.0)"
+        required: true
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  publish:
+    name: Publish to npmjs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write          # OIDC for npm trusted publishers
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Honor a manual-dispatch tag only when it's a real miot-auth@v* tag;
+          # otherwise fall back to the triggering ref (the push tag, or the ref
+          # the dispatch ran from) so an arbitrary ref can't be published.
+          ref: ${{ startsWith(inputs.tag, 'miot-auth@v') && inputs.tag || github.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      # Publish from a fresh, lockfile-verified install. No restorable
+      # node_modules cache — one populated by any branch's CI could poison the
+      # published tarball. setup-node's `cache: npm` still keeps this fast by
+      # caching the integrity-checked download tarballs.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build package
+        run: npx turbo run build --filter=@microboxlabs/miot-auth
+        working-directory: turbo-repo
+
+      - name: Run lint
+        run: npx turbo run lint --filter=@microboxlabs/miot-auth
+        working-directory: turbo-repo
+
+      - name: Run type check
+        run: npx turbo run check-types --filter=@microboxlabs/miot-auth
+        working-directory: turbo-repo
+
+      - name: Run tests
+        run: npx turbo run test --filter=@microboxlabs/miot-auth
+        working-directory: turbo-repo
+
+      - name: Publish to npm
+        run: npm publish --workspace=packages/miot-auth --access public
+        working-directory: turbo-repo

@@ -9,8 +9,111 @@
  */
 import crypto from "node:crypto";
 import http from "node:http";
+import readline from "node:readline";
 import { spawn } from "node:child_process";
 import { URL } from "node:url";
+import { ORG_LOGO_SVG } from "./logo.js";
+
+/** Out-of-band redirect URI (RFC 6749 §section "oob"): tells the platform
+ *  handoff to display the one-time code instead of redirecting to a local
+ *  server. Used by manual login when no loopback is reachable. */
+const OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
+
+/** Reads a one-time code pasted by the user. Prompt + echo go to stderr so
+ *  the captured code never pollutes stdout. */
+function promptForCode(): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  return new Promise((resolve, reject) => {
+    rl.question("Paste the code from your browser and press Enter: ", (answer) => {
+      rl.close();
+      const code = answer.trim();
+      if (!code) {
+        reject(new Error("No code entered."));
+        return;
+      }
+      resolve(code);
+    });
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+const CHECK_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const WARN_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+
+/**
+ * Renders a self-contained, branded result page for the CLI loopback server —
+ * styled to match the platform sign-in card (system-ui, white/dark card,
+ * #2563eb accent) so the post-login screen feels like part of the product.
+ * No external assets: works fully offline.
+ */
+function renderCliPage(opts: {
+  status: "success" | "error";
+  title: string;
+  message: string;
+}): string {
+  const isSuccess = opts.status === "success";
+  const icon = isSuccess ? CHECK_ICON : WARN_ICON;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ModularIoT CLI</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 1.5rem;
+    display: flex; align-items: center; justify-content: center;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f8fafc; color: #0f172a;
+  }
+  .card {
+    width: 100%; max-width: 26rem; text-align: center;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem;
+    box-shadow: 0 4px 6px rgb(0 0 0 / 0.07), 0 1px 2px rgb(0 0 0 / 0.05);
+    padding: 2.25rem 2rem;
+  }
+  .logo { margin: 0 auto 1.25rem; width: 64px; height: 64px; }
+  .logo svg { display: block; width: 64px; height: 64px; }
+  .brand { margin: 0 0 1.5rem; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #2563eb; }
+  .icon { width: 56px; height: 56px; margin: 0 auto 1.1rem; display: flex; align-items: center; justify-content: center; border-radius: 9999px; }
+  .icon svg { width: 30px; height: 30px; }
+  .icon.success { background: #ecfdf5; color: #059669; }
+  .icon.error { background: #fef2f2; color: #e11d48; }
+  h1 { margin: 0 0 0.5rem; font-size: 1.5rem; font-weight: 700; }
+  p { margin: 0; font-size: 0.9375rem; line-height: 1.55; color: #475569; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0b1120; color: #f1f5f9; }
+    .card { background: #1f2937; border-color: #374151; box-shadow: 0 6px 16px rgb(0 0 0 / 0.45); }
+    p { color: #cbd5e1; }
+    .icon.success { background: rgba(5,150,105,0.16); }
+    .icon.error { background: rgba(225,29,72,0.16); }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">${ORG_LOGO_SVG}</div>
+    <div class="icon ${opts.status}">${icon}</div>
+    <h1>${escapeHtml(opts.title)}</h1>
+    <p>${escapeHtml(opts.message)}</p>
+  </main>
+</body>
+</html>`;
+}
 
 export interface BrowserLoginOptions {
   baseUrl: string;
@@ -25,6 +128,10 @@ export interface BrowserLoginOptions {
   callbackPort?: number;
   timeoutSeconds?: number;
   openBrowser?: boolean;
+  /** Out-of-band login: skip the local loopback server and instead prompt
+   *  for a code the user copies from the browser. For remote/SSH hosts or
+   *  when the browser can't reach 127.0.0.1. Platform login only. */
+  manual?: boolean;
 }
 
 export interface BrowserLoginResult {
@@ -150,7 +257,12 @@ function createCallbackServer(options: {
 
             res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
             res.end(
-              "<!doctype html><title>ModularIoT CLI</title><h1>Login complete</h1><p>You can return to your terminal.</p>",
+              renderCliPage({
+                status: "success",
+                title: "Login complete",
+                message:
+                  "You're signed in. You can close this tab and return to your terminal.",
+              }),
             );
             settled = true;
             server.close();
@@ -176,8 +288,14 @@ function createCallbackServer(options: {
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             console.error("Login callback error:", message);
-            res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
-            res.end("Login failed. Check your terminal for details.");
+            res.writeHead(400, { "content-type": "text/html; charset=utf-8" });
+            res.end(
+              renderCliPage({
+                status: "error",
+                title: "Login failed",
+                message: `${message} — check your terminal for details.`,
+              }),
+            );
             settled = true;
             server.close();
             rejectCallback(err);
@@ -188,7 +306,11 @@ function createCallbackServer(options: {
           settled = true;
           server.close();
           rejectCallback(
-            new Error("Timed out waiting for the browser login callback."),
+            new Error(
+              "Timed out waiting for the browser login callback. If you're on " +
+                "a remote/SSH host or the browser can't reach this machine, " +
+                "re-run with --manual to paste a code instead.",
+            ),
           );
         }, options.timeoutSeconds * 1000);
 
@@ -363,6 +485,46 @@ export async function browserLogin(
   const codeChallenge = codeVerifier
     ? base64Url(crypto.createHash("sha256").update(codeVerifier).digest())
     : undefined;
+
+  // Manual (out-of-band) login: no loopback server. The platform shows the
+  // one-time code in the browser; the user pastes it back here. PKCE/OAuth
+  // client login uses the provider's own flow and isn't supported here.
+  if (options.manual) {
+    if (clientId) {
+      throw new Error(
+        "Manual login is only supported for platform login (omit --client-id).",
+      );
+    }
+    const loginUrl = buildPlatformLoginUrl({
+      loginUrl: platformLoginUrl,
+      redirectUri: OOB_REDIRECT_URI,
+      state,
+    });
+    console.error("To sign in, open this URL in any browser:");
+    console.error(loginUrl);
+    if (options.openBrowser !== false) {
+      await openUrl(loginUrl);
+    }
+    const code = await promptForCode();
+    const token = await exchangePlatformCode({
+      tokenUrl,
+      code,
+      redirectUri: OOB_REDIRECT_URI,
+      state,
+    });
+    if (!token.access_token) {
+      throw new Error("OAuth token response did not include an access token.");
+    }
+    const organizationId =
+      token.organizationId ?? token.organization_id ?? options.organizationId;
+    return {
+      accessToken: token.access_token,
+      baseUrl: options.baseUrl,
+      ...(organizationId !== undefined && { organizationId }),
+      ...(token.expires_in !== undefined && { expiresIn: token.expires_in }),
+      ...(token.scope !== undefined && { scope: token.scope }),
+    };
+  }
 
   const callbackServer = await createCallbackServer({
     host,

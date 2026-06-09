@@ -6,6 +6,16 @@ A Copilot-style agentic chat CLI for the `miot-harness` SSE streaming API. Lives
 
 ## Install
 
+```bash
+npm install -g @microboxlabs/miot-chat
+miot-chat --help
+
+# or run without installing
+npx @microboxlabs/miot-chat --help
+```
+
+If you already have `@microboxlabs/miot-cli` installed, `miot chat` works without a second install — the standalone bin and the `miot` subcommand share the same library entry.
+
 Inside the monorepo it's available as a workspace package. To use the built binary directly:
 
 ```bash
@@ -14,18 +24,57 @@ npm run build
 node ./dist/cli.js --help
 ```
 
-When published, `npm i -g @microboxlabs/miot-chat` installs the `miot-chat` bin. If you already have `@microboxlabs/miot-cli` installed, `miot chat` works without a second install.
-
 ## Quick start
 
-The CLI talks to a running `miot-harness` over the Phase A SSE surface (`POST /runs:start` + `GET /runs/{id}/stream`). Default base URL is `http://localhost:8000`.
+```bash
+# 1. Install
+npm install -g @microboxlabs/miot-chat
+
+# 2. Log in through the browser (platform sign-in); saves token + org to ~/.miot-chat/config.json
+miot-chat login --base-url https://<platform-host>
+
+# 3. Ask — runs route through the platform's harness proxy for your organization
+miot-chat ask "what is the ETA status for today's deliveries?"
+```
+
+`<platform-host>` is the deployment you were given access to (there are several production environments, so there is no baked-in default — `--base-url` or `MIOT_CHAT_BASE_URL` is required).
+
+## Log in
+
+`miot-chat login` opens your platform's own sign-in page in the browser. After you sign in, the CLI receives a token plus your active organization and persists them as the default profile (`platform`) in `~/.miot-chat/config.json`. Subsequent `miot-chat ask` / TUI sessions use that profile automatically and route through `{baseUrl}/api/v1/orgs/{org}/harness`.
+
+```bash
+miot-chat login --base-url https://<platform-host>
+```
+
+| Flag | Effect |
+|---|---|
+| `--login-url <url>` | Override the platform CLI login handoff endpoint (default `{baseUrl}/app/cli/auth/login`) |
+| `--token-url <url>` | Override the token endpoint (default `{baseUrl}/app/api/cli/auth/token`) |
+| `--auth-url <url>`, `--client-id <id>`, `--audience <a>`, `--scope <s>` | Direct OAuth/PKCE mode against an authorization server instead of the platform handoff |
+| `--timeout <seconds>` | Login timeout (positive integer) |
+| `--no-open` | Print the login URL instead of opening the browser |
+
+In split-origin local dev (app and API on different ports) pass the endpoints explicitly:
+
+```bash
+miot-chat login --base-url http://localhost:8180 \
+  --login-url http://localhost:3050/app/cli/auth/login \
+  --token-url http://localhost:3050/app/api/cli/auth/token
+```
+
+If you previously logged in with `miot-cli`, `miot-chat` reuses that session from `~/.miotrc.json` as a fallback (baseUrl/token/org only) whenever no token is configured via flags, env, or the chat profile.
+
+## Other commands
+
+The CLI talks to `miot-harness` over the Phase A SSE surface (`POST /runs:start` + `GET /runs/{id}/stream`) — directly via `--base-url`, or through the platform harness proxy when an org is set (`--org`, `MIOT_CHAT_ORG`, or the org saved by `login`).
 
 ```bash
 # Interactive TUI (default in a real terminal)
-miot-chat --tenant demo-tenant
+miot-chat
 
-# One-shot
-miot-chat ask "what's in stock?" --tenant mintral --mode canned
+# One-shot against a local harness (no login needed)
+miot-chat ask "what's in stock?" --base-url http://localhost:8000 --tenant demo-tenant --mode canned
 
 # Resume — TUI mode opens the saved-sessions picker; piped stdin re-seeds the headless REPL
 miot-chat resume
@@ -117,7 +166,9 @@ Env vars:
 | `MIOT_CHAT_TENANT_ID` | Override tenant |
 | `MIOT_CHAT_USER_ID` | Override user |
 | `MIOT_CHAT_MODE` | Override dispatch mode |
+| `MIOT_CHAT_ORG` | Override the organization slug (routes runs through the platform harness proxy) |
 | `MIOT_CHAT_PROFILE` | Pick a profile from the config file |
+| `MIOT_CHAT_DEBUG` | `1` streams full tool inputs and truncated outputs (tenant must be allow-listed) |
 | `MIOT_CHAT_NO_TUI` | `1` forces headless mode even in a TTY |
 | `MIOT_CHAT_APPROVALS_UI` | `1` enables the `approval.requested` modal (reply transport not yet wired) |
 | `NO_COLOR` | Disable ANSI output in the headless renderer |

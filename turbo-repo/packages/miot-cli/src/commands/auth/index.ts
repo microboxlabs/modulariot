@@ -30,6 +30,10 @@ export function registerAuthCommand(program: Command): void {
     .option("--timeout <seconds>", "Login timeout in seconds", (value) =>
       Number.parseInt(value, 10),
     )
+    .option(
+      "--manual",
+      "Paste a code from the browser instead of using a local callback server (for remote/SSH hosts or when the browser can't reach 127.0.0.1)",
+    )
     .option("--no-open", "Print the login URL without opening the browser")
     .action(async (opts: LoginOptions, cmd: Command) => {
       const globals = cmd.optsWithGlobals<{
@@ -67,6 +71,7 @@ export function registerAuthCommand(program: Command): void {
           callbackHost: opts.callbackHost,
           callbackPort: opts.callbackPort,
           timeoutSeconds: opts.timeout,
+          manual: opts.manual,
           openBrowser: opts.open,
         });
 
@@ -165,6 +170,7 @@ interface LoginOptions {
   callbackHost?: string;
   callbackPort?: number;
   timeout?: number;
+  manual?: boolean;
   open?: boolean;
 }
 

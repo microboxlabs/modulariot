@@ -353,7 +353,7 @@ function MarkdownTooltip({
   children,
 }: Readonly<MarkdownTooltipProps>) {
   const triggerRef = useRef<HTMLSpanElement>(null);
-  const hideTimer = useRef<ReturnType<typeof setTimeout>>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [visible, setVisible] = useState(false);
   const coordsRef = useRef({ top: 0, left: 0 });
 
@@ -853,12 +853,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <div className="flex-1 overflow-auto overscroll-none rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         {loading && (
           <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Loading...
+            {tr("dashboard.settings.tableLoading", dictionary)}
           </div>
         )}
         {fetchError && (
           <div className="flex h-20 items-center justify-center text-sm text-red-500 dark:text-red-400">
-            Error: {fetchError}
+            {tr("dashboard.settings.tableError", dictionary, { fetchError })}
           </div>
         )}
         {!loading && !fetchError && (
@@ -949,7 +949,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     colSpan={(columns.length || 1) + (hasActions ? 1 : 0)}
                     className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500"
                   >
-                    No data
+                    {tr("dashboard.settings.tableNoData", dictionary)}
                   </td>
                 </tr>
               ) : (

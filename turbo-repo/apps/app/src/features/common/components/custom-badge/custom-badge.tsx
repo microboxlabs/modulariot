@@ -7,9 +7,10 @@ interface CustomBadgeProps {
   readonly text: string;
   readonly className?: string;
   readonly onRemove?: () => void;
+  readonly removeLabel?: string;
 }
 
-export default function CustomBadge({ text, className, onRemove }: CustomBadgeProps) {
+export default function CustomBadge({ text, className, onRemove, removeLabel = "Remove" }: CustomBadgeProps) {
   return (
     <span
       className={twMerge(
@@ -22,6 +23,8 @@ export default function CustomBadge({ text, className, onRemove }: CustomBadgePr
         <button
           type="button"
           onClick={onRemove}
+          aria-label={removeLabel}
+          title={removeLabel}
           className="rounded-full p-0.5 transition-colors hover:bg-gray-200 dark:hover:bg-gray-600"
         >
           <HiXMark className="h-2.5 w-2.5" />

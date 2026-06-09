@@ -64,6 +64,7 @@ function isValidRowAction(item: unknown): item is RowAction {
   return (
     typeof obj.name === "string" &&
     typeof obj.link === "string" &&
+    isSafeActionUrl(obj.link) &&
     typeof obj.method === "string" &&
     (ROW_ACTION_METHODS as string[]).includes(obj.method) &&
     typeof obj.target === "string" &&

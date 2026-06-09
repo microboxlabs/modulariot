@@ -201,7 +201,7 @@ function FilterInput({
   const props = { columnKey, currentFilter, onFilterChange, dictionary };
   switch (dataType) {
     case "text":
-      if (enumValues.length > 0) {
+      if (enumValues.length > 0 && (!currentFilter || Array.isArray(currentFilter.value))) {
         return <EnumFilter {...props} enumValues={enumValues} />;
       }
       return <TextFilter {...props} cancelDebounceRef={cancelDebounceRef} />;
@@ -562,7 +562,7 @@ function EnumFilter({
         })}
         {visibleValues.length === 0 && (
           <div className="py-2 text-center text-xs italic text-gray-400">
-            {search ? "No matches" : tr("dashboard.settings.columnFilterNoValues", dictionary)}
+            {search ? tr("dashboard.settings.columnFilterNoMatches", dictionary) : tr("dashboard.settings.columnFilterNoValues", dictionary)}
           </div>
         )}
       </div>

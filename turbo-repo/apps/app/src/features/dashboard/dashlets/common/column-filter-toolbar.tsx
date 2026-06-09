@@ -59,9 +59,9 @@ export function ColumnFilterToolbar({
         size="xs"
         color="alternative"
         onClick={onClearAll}
-        icon={HiXMark}
         className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
       >
+        <HiXMark className="mr-1 h-3.5 w-3.5" />
         {tr("dashboard.settings.columnFilterClearAll", dictionary)}
       </Button>
     </div>

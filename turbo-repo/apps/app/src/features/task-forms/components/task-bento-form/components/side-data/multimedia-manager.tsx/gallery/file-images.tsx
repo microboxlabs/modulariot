@@ -121,7 +121,7 @@ function buildCommittedEntry(
 ): TimelineEntry[] {
   const looseObs: ObservationEntry[] = existing
     .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
-    .map((e) => ({ id: e.id, type: e.type, description: e.description, createdAt: e.createdAt, createdBy: e.createdBy, replies: e.replies }));
+    .map((e) => ({ id: e.id, types: e.types, description: e.description, createdAt: e.createdAt, createdBy: e.createdBy, replies: e.replies }));
   const withoutLoose = existing.filter((e) => e.kind !== "observation");
   const entry: StateChangeTimelineEntry = {
     kind: "state_change",
@@ -192,11 +192,12 @@ function flattenTopicPosts(
 function buildObservationEntry(obs: FlatPost): ObservationEntry {
   const plainDesc = stripHtmlEntities(obs.content);
   const match = /^\[([^\]]+)\](.*)$/.exec(plainDesc);
-  const obsType = match ? (match[1] as ObservationType) : (obs.title as ObservationType) || "other";
+  const rawTypes = match ? match[1] : obs.title || "other";
+  const obsTypes = rawTypes.split(",").map((t) => t.trim()).filter(Boolean) as ObservationType[];
   return {
     id: obs.postRef,
-    type: obsType,
-    description: plainDesc,
+    types: obsTypes.length > 0 ? obsTypes : ["other"],
+    description: match ? match[2].trim() : plainDesc,
     createdAt: obs.created,
     createdBy: obs.author,
     replies: obs.replies.map((r) => ({
@@ -607,16 +608,16 @@ export default function FileImages({
     });
   }, [currentUserName, dictionary]);
 
-  const handleAddObservation = useCallback((fileId: string, type: ObservationType, description: string) => {
-    const entry: ObservationEntry = { id: `obs-${fileId}-${Date.now()}`, type, description, createdAt: new Date(), createdBy: currentUserName };
+  const handleAddObservation = useCallback((fileId: string, types: ObservationType[], description: string) => {
+    const entry: ObservationEntry = { id: `obs-${fileId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, types, description, createdAt: new Date(), createdBy: currentUserName };
     // Always add to committedTimeline immediately (visible right away)
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
       next.set(fileId, [...(prev.get(fileId) ?? []), { kind: "observation" as const, ...entry }]);
       return next;
     });
-    // Always persist immediately
-    createContentForumTopic(toNodeRef(fileId), type, description).catch(() => {});
+    // Always persist immediately — store types as comma-separated prefix: [type1,type2] description
+    createContentForumTopic(toNodeRef(fileId), types.join(","), `[${types.join(",")}] ${description}`).catch(() => {});
   }, [currentUserName]);
 
   const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {

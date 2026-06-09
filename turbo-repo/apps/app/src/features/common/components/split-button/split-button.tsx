@@ -27,8 +27,10 @@ export type SplitButtonProps = Readonly<{
   size?: "sm" | "md";
   disabled?: boolean;
   primaryDisabled?: boolean;
+  secondaryDisabled?: boolean;
   tooltip?: ReactNode;
   primaryTooltip?: ReactNode;
+  secondaryTooltip?: ReactNode;
 }>;
 
 export default function SplitButton({
@@ -38,8 +40,10 @@ export default function SplitButton({
   size = "sm",
   disabled = false,
   primaryDisabled = false,
+  secondaryDisabled = false,
   tooltip,
   primaryTooltip,
+  secondaryTooltip,
 }: SplitButtonProps) {
   const btnSize = size === "sm" ? "sm" : "md";
 
@@ -47,11 +51,11 @@ export default function SplitButton({
     <div className="flex items-stretch">
       {/* Secondary: single Button OR Flowbite Dropdown */}
       {secondaryActions.length === 1 && !secondaryLabel && (
-        <MaybeTooltip content={disabled ? tooltip : undefined}>
+        <MaybeTooltip content={(disabled || secondaryDisabled) ? (secondaryTooltip ?? tooltip) : undefined}>
           <Button
             color="light"
             size={btnSize}
-            disabled={disabled}
+            disabled={disabled || secondaryDisabled}
             onClick={secondaryActions[0].onClick}
             className="rounded-r-none border-r-0 focus:ring-0 gap-1"
           >
@@ -63,15 +67,15 @@ export default function SplitButton({
 
       {secondaryActions.length > 0 &&
         (secondaryActions.length > 1 || secondaryLabel) && (
-        <MaybeTooltip content={disabled ? tooltip : undefined}>
+        <MaybeTooltip content={(disabled || secondaryDisabled) ? (secondaryTooltip ?? tooltip) : undefined}>
           <Dropdown
             label=""
-            disabled={disabled}
+            disabled={disabled || secondaryDisabled}
             renderTrigger={() => (
               <Button
                 color="light"
                 size={btnSize}
-                disabled={disabled}
+                disabled={disabled || secondaryDisabled}
                 className="rounded-r-none border-r-0 focus:ring-0"
               >
                 {secondaryLabel && (

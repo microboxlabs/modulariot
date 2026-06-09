@@ -41,7 +41,7 @@ export type ReplyEntry = {
 
 export type ObservationEntry = {
   id: string;
-  type: ObservationType;
+  types: ObservationType[];
   description: string;
   createdAt: Date;
   createdBy?: string;
@@ -60,7 +60,7 @@ export type StateChangeTimelineEntry = {
 export type LooseObservationTimelineEntry = {
   kind: "observation";
   id: string;
-  type: ObservationType;
+  types: ObservationType[];
   description: string;
   createdAt: Date;
   createdBy?: string;

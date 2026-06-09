@@ -3,12 +3,12 @@ import {
   endTask,
   updateTask,
   getChildrenNodes,
+  listContentTopics,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
   AlfrescoErrorResponse,
   InfoError,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import { listContentTopics } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 import { EndTaskRequest, UpdateTaskRequest } from "./route.types";
 import { logger, logError } from "@/lib/logger";

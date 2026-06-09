@@ -191,13 +191,14 @@ function flattenTopicPosts(
 
 function buildObservationEntry(obs: FlatPost): ObservationEntry {
   const plainDesc = stripHtmlEntities(obs.content);
-  const match = /^\[([^\]]+)\](.*)$/.exec(plainDesc);
-  const rawTypes = match ? match[1] : obs.title || "other";
-  const obsTypes = rawTypes.split(",").map((t) => t.trim()).filter(Boolean) as ObservationType[];
+  const obsTypes = (obs.title || "other")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean) as ObservationType[];
   return {
     id: obs.postRef,
     types: obsTypes.length > 0 ? obsTypes : ["other"],
-    description: match ? match[2].trim() : plainDesc,
+    description: plainDesc,
     createdAt: obs.created,
     createdBy: obs.author,
     replies: obs.replies.map((r) => ({
@@ -597,7 +598,7 @@ export default function FileImages({
   }, [reviewStatuses]);
 
   const handleAddObservation = useCallback((fileId: string, types: ObservationType[], description: string) => {
-    const entry: ObservationEntry = { id: `obs-${fileId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, types, description, createdAt: new Date(), createdBy: currentUserName };
+    const entry: ObservationEntry = { id: crypto.randomUUID(), types, description, createdAt: new Date(), createdBy: currentUserName };
     // Always add to committedTimeline immediately (visible right away)
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
@@ -605,7 +606,7 @@ export default function FileImages({
       return next;
     });
     // Always persist immediately — store types as comma-separated prefix: [type1,type2] description
-    createContentForumTopic(toNodeRef(fileId), types.join(","), `[${types.join(",")}] ${description}`).catch(() => {});
+    createContentForumTopic(toNodeRef(fileId), types.join(","), description).catch(() => {});
   }, [currentUserName]);
 
   const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {

@@ -89,7 +89,7 @@ export function DashletSettings({
 
   const s = useSettingsState({
     title: config.title,
-    defaultTitle: "Data Table V2",
+    defaultTitle: tr("dashlets.data_table_v2.name", dictionary),
     showRowCount: config.showRowCount,
     columns: config.columns,
     defaultColumns,
@@ -251,8 +251,9 @@ export function DashletSettings({
                 actionLink: tr("dashboard.settings.actionLink", dictionary),
                 sameTab: tr("dashboard.settings.actionTargetSelf", dictionary),
                 newTab: tr("dashboard.settings.actionTargetBlank", dictionary),
-                primarySection: "Acción principal",
-                secondarySection: "Acciones secundarias",
+                primarySection: tr("dashboard.settings.primarySection", dictionary),
+                secondarySection: tr("dashboard.settings.secondarySection", dictionary),
+                dragActionHere: tr("dashboard.settings.dragActionHere", dictionary),
               }}
             />
           </div>
@@ -281,6 +282,7 @@ export function DashletSettings({
               rulesLabel: tr("dashboard.settings.colorRules", dictionary),
               valuePlaceholder,
               operatorLabels,
+              decoratorPlaceholder: tr("dashboard.settings.decoratorPlaceholder", dictionary),
             }}
           />
         </div>

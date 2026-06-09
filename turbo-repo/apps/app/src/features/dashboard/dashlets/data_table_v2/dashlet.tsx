@@ -312,7 +312,7 @@ export const defaultSort: SortConfig = {
   columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
 };
 
-export const defaultConfig: DashletConfig = {
+export const defaultConfig: DashletConfig & Record<string, unknown> = {
   title: "Data Table V2",
   showRowCount: true,
   showColumnDividers: true,

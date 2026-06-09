@@ -1801,6 +1801,12 @@
       "applyTo": "Aplicar a",
       "actions": "Acciones",
       "addAction": "Agregar acción",
+      "primarySection": "Acción principal",
+      "secondarySection": "Acciones secundarias",
+      "dragActionHere": "Arrastra una acción aquí",
+      "decoratorPlaceholder": "Sufijo (ej. Días, km, %)",
+      "reorderItem": "Reordenar",
+      "deleteItem": "Eliminar",
       "actionName": "Nombre",
       "actionLink": "Enlace (soporta Handlebars)",
       "actionTarget": "Abrir en",
@@ -2139,6 +2145,10 @@
         "range90d": "3M",
         "range180d": "6M",
         "range1y": "1A"
+      },
+      "data_table_v2": {
+        "name": "Tabla de Datos V2",
+        "description": "Muestra datos tabulares con columnas redimensionables y fuentes estáticas o dinámicas (API)"
       },
       "data_list": {
         "name": "Lista de Datos",

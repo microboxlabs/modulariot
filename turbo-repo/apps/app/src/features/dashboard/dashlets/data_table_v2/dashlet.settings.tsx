@@ -205,7 +205,7 @@ export function DashletSettings({
 
   const visualizationTabContent = (
     <>
-      <SidebarSection title="General" defaultExpanded>
+      <SidebarSection title={tr("dashboard.settings.sectionGeneral", dictionary)} defaultExpanded>
         <div className="space-y-3">
           <SettingsTextField
             id="dt2-title"
@@ -236,7 +236,7 @@ export function DashletSettings({
         </div>
       </SidebarSection>
 
-      <SidebarSection title="Utilities" defaultExpanded>
+      <SidebarSection title={tr("dashboard.settings.sectionUtilities", dictionary)} defaultExpanded>
         <div className="space-y-3">
           <div>
             <RowActionsEditor
@@ -260,7 +260,7 @@ export function DashletSettings({
         </div>
       </SidebarSection>
 
-      <SidebarSection title="Columns" defaultExpanded>
+      <SidebarSection title={tr("dashboard.settings.sectionColumns", dictionary)} defaultExpanded>
         <div className="space-y-3">
           <ColumnEditor
             columns={s.columns}
@@ -289,7 +289,7 @@ export function DashletSettings({
       </SidebarSection>
 
       <SidebarSection
-        title="Coloring"
+        title={tr("dashboard.settings.sectionColoring", dictionary)}
         defaultExpanded
         description={tr("dashboard.settings.rowColorRulesDescription", dictionary)}
       >

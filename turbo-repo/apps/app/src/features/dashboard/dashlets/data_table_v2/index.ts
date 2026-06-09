@@ -7,7 +7,7 @@ export const dashletDefinition: DashletDefinition = {
   meta: dashletMeta,
   Component: Dashlet,
   SettingsModal: DashletSettings,
-  defaultConfig: defaultConfig as Record<string, unknown>,
+  defaultConfig: defaultConfig,
   getLayoutDefaults,
 };
 

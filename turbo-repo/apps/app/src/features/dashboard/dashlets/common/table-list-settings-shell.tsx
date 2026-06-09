@@ -91,7 +91,7 @@ export function TableListSettingsShell({
   const valuePlaceholder = tr("dashboard.settings.value", dictionary);
 
   const visualizationTab = visualizationTabContent ?? (
-    <>
+    <div className="p-4">
       <SettingsTextField
         id={`${id}-title`}
         label={tr("common.title", dictionary)}
@@ -201,7 +201,7 @@ export function TableListSettingsShell({
           ),
         }}
       />
-    </>
+    </div>
   );
 
   const dataTab = (

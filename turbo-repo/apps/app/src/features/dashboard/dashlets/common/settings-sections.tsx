@@ -76,6 +76,7 @@ interface ColumnEditorProps {
     rulesLabel: string;
     valuePlaceholder: string;
     operatorLabels: Record<ColorRuleOperator, string>;
+    decoratorPlaceholder?: string;
   };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
@@ -264,7 +265,7 @@ function ColumnCard({
 
         <TextInput
           sizing="sm"
-          placeholder="Sufijo (ej. Días, km, %)"
+          placeholder={labels.decoratorPlaceholder ?? "Suffix (e.g. Days, km, %)"}
           value={col.decorator ?? ""}
           onChange={(e) => onUpdate(col._id, "decorator", e.target.value)}
         />
@@ -833,6 +834,7 @@ interface RowActionsEditorLabels {
   newTab: string;
   primarySection: string;
   secondarySection: string;
+  dragActionHere?: string;
 }
 
 interface RowActionsEditorProps {
@@ -856,6 +858,8 @@ interface SettingsCardProps {
   onRemove: () => void;
   headerButtons?: React.ReactNode;
   children?: React.ReactNode;
+  reorderAriaLabel?: string;
+  deleteAriaLabel?: string;
 }
 
 function SettingsCard({
@@ -866,6 +870,8 @@ function SettingsCard({
   onRemove,
   headerButtons,
   children,
+  reorderAriaLabel = "Reorder",
+  deleteAriaLabel = "Delete",
 }: Readonly<SettingsCardProps>) {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -886,7 +892,7 @@ function SettingsCard({
         <button
           type="button"
           className={`${dragHandleClass} shrink-0 cursor-grab p-0.5 text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:text-gray-500 dark:hover:text-gray-300`}
-          aria-label="Reordenar"
+          aria-label={reorderAriaLabel}
         >
           <HiBars3 className="h-3.5 w-3.5" />
         </button>
@@ -914,7 +920,7 @@ function SettingsCard({
 
         {headerButtons}
 
-        <DeleteItemButton onClick={onRemove} ariaLabel="Eliminar" />
+        <DeleteItemButton onClick={onRemove} ariaLabel={deleteAriaLabel} />
       </div>
 
       {/* Body */}
@@ -1075,7 +1081,7 @@ export function RowActionsEditor({
             </ReactSortable>
             {primaryList.length === 0 && (
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                Arrastra una acción aquí
+                {labels.dragActionHere ?? "Drag an action here"}
               </p>
             )}
           </div>

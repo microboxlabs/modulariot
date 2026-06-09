@@ -65,6 +65,12 @@ export type TaskResponse = {
   persistentState: PersistentState;
   isEditable: boolean;
   takenBy?: string;
+  /**
+   * Alfresco group authorities the task is offered to (e.g. "GROUP_<name>").
+   * Present for pooled tasks; absent until the backend surfaces it. Display
+   * names strip the "GROUP_" prefix.
+   */
+  candidateGroups?: string[];
 };
 
 export type Task = {

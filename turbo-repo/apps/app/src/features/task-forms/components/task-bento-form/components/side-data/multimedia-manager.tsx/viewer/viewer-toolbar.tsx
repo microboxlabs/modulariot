@@ -139,7 +139,7 @@ export default function ViewerToolbar({
             },
           ]}
           secondaryDisabled={!canReject}
-          secondaryTooltip={!canReject ? tr("bento.multimedia.btn_reject_requires_observation", dictionary) : undefined}
+          secondaryTooltip={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
         />
       )}
 
@@ -167,7 +167,7 @@ export default function ViewerToolbar({
             </DropdownItem>
           )}
           <Tooltip
-            content={!canReject ? tr("bento.multimedia.btn_reject_requires_observation", dictionary) : undefined}
+            content={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
             placement="left"
           >
             <div>

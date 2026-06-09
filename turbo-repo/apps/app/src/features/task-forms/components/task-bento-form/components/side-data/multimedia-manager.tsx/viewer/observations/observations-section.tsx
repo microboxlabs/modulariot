@@ -99,9 +99,12 @@ export function ObservationsSection({
   }, [newDescription, isAdding, pendingReplyRef, onAdd, newTypes]);
 
   const toggleType = (code: ObservationType) => {
-    setNewTypes((prev) =>
-      prev.includes(code) ? (prev.length > 1 ? prev.filter((c) => c !== code) : prev) : [...prev, code]
-    );
+    setNewTypes((prev) => {
+      if (prev.includes(code)) {
+        return prev.length > 1 ? prev.filter((c) => c !== code) : prev;
+      }
+      return [...prev, code];
+    });
   };
 
   const handleAdd = () => {
@@ -195,10 +198,8 @@ export function ObservationsSection({
               <DropdownItem
                 key={opt.code}
                 onClick={() => toggleType(opt.code)}
-                icon={() => (
-                  <HiCheck className={`h-3.5 w-3.5 mr-1.5 ${newTypes.includes(opt.code) ? "text-blue-600" : "text-transparent"}`} />
-                )}
               >
+                <HiCheck className={`h-3.5 w-3.5 mr-1.5 ${newTypes.includes(opt.code) ? "text-blue-600" : "text-transparent"}`} />
                 <span className="text-xs">{obsTypeLabel(opt.code, opt.name)}</span>
               </DropdownItem>
             ))}

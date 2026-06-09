@@ -21,7 +21,7 @@ export default function ImageViewerConnector({
   const data = useMemo(() => {
     return images.map((image) => {
       return {
-        tag: image.file.entry.properties["mintral:contentType"],
+        tag: image.file.entry.properties?.["mintral:contentType"],
         name: image.file.entry.name,
         modifiedAt: image.file.entry.modifiedAt,
         modifiedByUser: image.file.entry.modifiedByUser,

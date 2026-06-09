@@ -61,11 +61,11 @@ export default function MediaRow({
   }, [data]);
 
   const categories = getCategories(dictionary);
-  const tag = file.entry.properties["mintral:contentType"];
+  const tag = file.entry.properties?.["mintral:contentType"];
   const categoryLabel = categories[tag as keyof typeof categories]?.label;
   const FallbackIcon = type === "image" ? IoImagesOutline : FaRegFilePdf;
 
-  const version = file.entry.properties["cm:versionLabel"];
+  const version = file.entry.properties?.["cm:versionLabel"];
   const lastEditor = file.entry.modifiedByUser?.displayName;
   const modifiedAt = file.entry.modifiedAt ? formatDateString(file.entry.modifiedAt) : null;
   const secondaryParts = [

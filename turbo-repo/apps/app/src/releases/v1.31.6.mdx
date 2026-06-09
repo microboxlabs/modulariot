@@ -1,0 +1,67 @@
+# 🔔 Release Notes v1.31.6 — ModularIoT
+
+### Fecha: 09/06/2026
+
+**Objetivo**: Fortalecer la autenticación y proxy del harness (Auth0 / Quarkus), mejorar experiencia y componentes de dashboard y dashlets, y corregir varios errores funcionales en la app (especialmente flujo de entrega y visor multimedia). Esta entrega incluye además mejoras para pruebas y evaluación reproducible del harness.
+
+## 🚀 Evolutivos
+
+- **miot-chat: autenticación y enrutamiento por front door**
+  - **Punto clave**: `miot-chat` añade `login` nativo que reutiliza el flujo OAuth en navegador y enruta peticiones al harness exclusivamente vía el front door de Quarkus (`/api/v1/orgs/{slug}/harness`), con persistencia de token + org en perfil.
+  - **Detalle técnico**: Se creó el paquete `@microboxlabs/miot-auth` para extraer el flujo OAuth del cliente. Fallback silencioso a `~/.miotrc.json`. *(Integración OSS — MIOT-0.5.7)*
+
+- **Dashlets: Flex Container y mejoras en Stat Card**
+  - **Punto clave**: Nuevo dashlet `flex_container` (row/column/grid) y mejoras funcionales en `Stat Card` (Handlebars autocomplete ampliado, soporte para JSON estático y descripciones en Markdown).
+  - **Detalle técnico**: Autocompletado ahora se alimenta también desde JSON estático; campos de settings admiten `multiline`/`rows`; mejoras visuales y de layout. *(Integración OSS — MIOT-0.5.7)*
+
+- **Dashboards: uso completo de pantallas anchas**
+  - **Punto clave**: Layout adaptable que aprovecha monitores grandes sin romper la compatibilidad ni crear layouts por dispositivo.
+  - **Detalle técnico**: Escalado con capping en 4K/ultrawide, más columnas editables en modo edición y comportamiento de adaptación a pantallas pequeñas preservando la disposición guardada. *(Integración OSS — MIOT-0.5.7)*
+
+- **Cierre de gaps backend para integración AI Shell (Phase 4)**
+  - **Punto clave**: Múltiples contratos del harness implementados: aprobaciones resolubles, endpoint de cancelación en vuelo, firma/verificación de identidad, esquema consistente de `tool.failed` y badge `source`.
+  - **Detalle técnico**: Endpoints y comportamiento de runtime para aprobar/denegar con single-shot, cancelar runs con emisión de `run.failed`, y registro de identidad resuelta en el run record. *(Integración OSS — MIOT-0.5.7)*
+
+- **Golden eval suite del Nexo: restauración y endurecimiento**
+  - **Punto clave**: Suite de evaluación reproducible y determinista restaurada (modos `static` y `fake`) para detectar regresiones en comportamiento de agentes.
+  - **Detalle técnico**: Registro de bloque `env` en resultados, eje `step_economy`, dataset representativo y documentación (`evals/README.md`). *(Integración OSS — MIOT-0.5.7)*
+
+## 🔧 Integraciones
+
+- **Auth0 JWT + Quarkus — front door y proxy al harness**
+  - **Scope**: Nuevo proxy en `quarkus-srv` que aplica verificación Auth0, chequeo de pertenencia org y reenvía token + cabeceras `X-Miot-*` al harness; objetivo: un único front door con defense‑in‑depth.
+  - **Detalle técnico**: Proxy añade `Authorization` y `X-Miot-Tenant-Client-Id` al request hacia `miot-harness`; el harness mantiene un verificador de JWT como capa adicional. *(Integración OSS — MIOT-0.5.7)*
+
+- **SSE relay para `/runs/{id}/stream` a través del proxy**
+  - **Scope**: Relay SSE autenticado que preserva framing y `Last-Event-ID` para reconexión correcta.
+  - **Detalle técnico**: Implementación prevista como endpoint reactivo en Quarkus que retransmite eventos del harness al navegador conservando latencia y resume. *(Integración OSS — MIOT-0.5.7)*
+
+## 🐛 Correcciones
+
+- **Selector de tipo siempre visible en el visor multimedia**
+  - **Impacto**: El selector de tipo/categoría se ocultaba indebidamente en algunos escenarios de documento/multimedia.
+  - **Solución**: Se eliminó la validación incorrecta que escondía el selector para asegurar su visibilidad en vistas de documento donde se requiere. *(Integración OSS — MIOT-0.5.7 — issue #600)*
+
+- **Drivers bloqueados por `PROOF_OF_LOAD_RECEIPT`**
+  - **Impacto**: Documentos legítimos clasificados como `PROOF_OF_LOAD_RECEIPT` no desbloqueaban el flujo de entrega y ocultaban el botón Continuar.
+  - **Solución**: La validación frontend acepta ahora `PROOF_OF_DELIVERY` O `PROOF_OF_LOAD_RECEIPT` para los pasos `confirmDeliveryTask` y `receiveDeliveryTask`, manteniendo bloqueo si ninguno está presente. *(Integración OSS — MIOT-0.5.7 — issue #592)*
+
+- **Correcciones varias de UI y flujo (bento, modal, whitespace, cursor, error 500)**
+  - **Impacto**: Botones ausentes en bento, modal con input incorrecto, problemas de wrapping y cursor en botones, y un 500 en edición de tarea.
+  - **Solución**: Se aplicaron múltiples fixes en la app para restaurar botones, mover el input del modal, añadir `cursor: pointer` y corregir el 500 reportado. *(Integración OSS — MIOT-0.5.7 — issue #590)*
+
+## 📊 Beneficios
+
+- Mejora de seguridad y control: autenticación centralizada via Quarkus + verificación en harness reduce la superficie de abuso y evita que clientes se hagan pasar por otros tenants.
+- Experiencia de usuario: `miot-chat` ahora puede autenticar desde CLI/TUI y acceder al harness con enrutamiento por org; los conductores dejan de quedarse bloqueados por documentos válidos.
+- Productividad de la plataforma: dashlets y dashboards ganan flexibilidad visual en monitores grandes y editabilidad mejorada.
+- Calidad y confiabilidad: golden eval suite reproducible permite detectar regresiones de agente de forma determinista.
+- Operación más predecible: SSE proxy y mejoras en eventos facilitan integración de flujos en tiempo real con menor riesgo de duplicados por reconexión.
+- Accesibilidad y consistencia UI: selector multimedia y correcciones diversas mejoran flujo de trabajo y usabilidad.
+- Menor friction de despliegue: contratos y variables de configuración documentados para auth y harness.
+
+## 📌 Conclusión
+
+Esta versión refuerza el perímetro de autenticación y proxy del ecosistema — un cambio crítico para que las herramientas frontend y CLI consuman el harness de forma segura y auditada. También entrega mejoras visibles en la UX (dashboards, dashlets y visor multimedia) y corrige errores que bloqueaban flujos operativos (entregas y botones faltantes).
+
+Adicionalmente se invierte en calidad de desarrollo: la suite de golden evals ofrece una señal determinista para evitar regresiones del agente Nexo. En conjunto, 1.31.6 reduce riesgos operativos, mejora la experiencia en terminales y web, y facilita la integración segura de componentes en entornos de producción.

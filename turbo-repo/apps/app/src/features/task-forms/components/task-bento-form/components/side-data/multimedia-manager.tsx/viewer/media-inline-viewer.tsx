@@ -111,12 +111,12 @@ export default function MediaInlineViewer({
   const id = current?.file?.entry?.id;
 
   const [currentCategory, setCurrentCategory] = useState<string | null>(
-    current?.file?.entry?.properties["mintral:contentType"] ?? null
+    current?.file?.entry?.properties?.["mintral:contentType"] ?? null
   );
 
   const isCurrentReviewable = current?.file?.entry?.aspectNames?.includes("mintral:reviewableAspect") ?? false;
   useEffect(() => {
-    setCurrentCategory(items[currentIndex]?.file?.entry?.properties["mintral:contentType"] ?? null);
+    setCurrentCategory(items[currentIndex]?.file?.entry?.properties?.["mintral:contentType"] ?? null);
   }, [currentIndex, items]);
 
   const handleCategoryChange = (newCategory: string) => {

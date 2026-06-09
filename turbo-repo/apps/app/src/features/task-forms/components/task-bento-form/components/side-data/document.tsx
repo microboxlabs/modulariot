@@ -114,7 +114,7 @@ export default function Document({
           {document.file.entry.name}
         </p>
         {document?.file?.entry?.properties?.["mintral:contentType"] &&
-          document.file.entry.properties["mintral:contentType"] !== null && (
+          document.file.entry.properties?.["mintral:contentType"] !== null && (
             <div
               className={`text-xs z-10 rounded-full flex items-center justify-center px-2 py-1 w-fit whitespace-nowrap ${
                 modified
@@ -124,7 +124,7 @@ export default function Document({
             >
               {
                 categories[
-                  document.file.entry.properties[
+                  document.file.entry.properties?.[
                     "mintral:contentType"
                   ] as keyof typeof categories
                 ]?.label

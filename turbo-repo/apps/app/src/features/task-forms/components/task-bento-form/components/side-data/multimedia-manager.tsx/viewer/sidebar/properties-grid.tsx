@@ -14,7 +14,7 @@ type PropertiesGridProps = Readonly<{
 }>;
 
 export function PropertiesGrid({ entry, categoryLabel, onRename, dictionary }: PropertiesGridProps) {
-  const reviewStatus = entry.properties["mintral:reviewStatus"];
+  const reviewStatus = entry.properties?.["mintral:reviewStatus"];
   let reviewStatusLabel: string | null = null;
   if (reviewStatus && reviewStatus !== "PENDING") {
     reviewStatusLabel =
@@ -43,13 +43,13 @@ export function PropertiesGrid({ entry, categoryLabel, onRename, dictionary }: P
         }
       />
       {categoryLabel && <MetaRow label={tr("bento.multimedia.sidebar_prop_type", dictionary)} value={categoryLabel} />}
-      {entry.properties["cm:versionLabel"] && (
-        <MetaRow label={tr("bento.multimedia.sidebar_prop_version", dictionary)} value={`v${entry.properties["cm:versionLabel"]}`} />
+      {entry.properties?.["cm:versionLabel"] && (
+        <MetaRow label={tr("bento.multimedia.sidebar_prop_version", dictionary)} value={`v${entry.properties?.["cm:versionLabel"]}`} />
       )}
       <MetaRow label={tr("bento.multimedia.sidebar_prop_format", dictionary)} value={entry.content.mimeTypeName ?? entry.content.mimeType} />
       <MetaRow label={tr("bento.multimedia.sidebar_prop_size", dictionary)} value={formatBytes(entry.content.sizeInBytes)} />
-      {entry.properties["exif:pixelXDimension"] != null && entry.properties["exif:pixelYDimension"] != null && (
-        <MetaRow label="Resolution" value={`${entry.properties["exif:pixelXDimension"]} × ${entry.properties["exif:pixelYDimension"]}`} />
+      {entry.properties?.["exif:pixelXDimension"] != null && entry.properties?.["exif:pixelYDimension"] != null && (
+        <MetaRow label="Resolution" value={`${entry.properties?.["exif:pixelXDimension"]} × ${entry.properties?.["exif:pixelYDimension"]}`} />
       )}
       {entry.modifiedAt && (
         <MetaRow label={tr("bento.multimedia.sidebar_prop_modified", dictionary)} value={formatDateString(entry.modifiedAt)} />
@@ -66,11 +66,11 @@ export function PropertiesGrid({ entry, categoryLabel, onRename, dictionary }: P
       {reviewStatusLabel && (
         <MetaRow label={tr("bento.multimedia.sidebar_prop_review_status", dictionary)} value={reviewStatusLabel} />
       )}
-      {entry.properties["mintral:reviewedBy"] && (
-        <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_by", dictionary)} value={entry.properties["mintral:reviewedBy"]} />
+      {entry.properties?.["mintral:reviewedBy"] && (
+        <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_by", dictionary)} value={entry.properties?.["mintral:reviewedBy"]} />
       )}
-      {entry.properties["mintral:reviewedAt"] && (
-        <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_at", dictionary)} value={formatDateString(entry.properties["mintral:reviewedAt"])} />
+      {entry.properties?.["mintral:reviewedAt"] && (
+        <MetaRow label={tr("bento.multimedia.sidebar_prop_reviewed_at", dictionary)} value={formatDateString(entry.properties?.["mintral:reviewedAt"])} />
       )}
     </dl>
   );

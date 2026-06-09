@@ -791,13 +791,13 @@ export default function FileImages({
       documentsData.data.forEach((document: any, index: number) => {
         if (!document.error && files[index]) {
           const entry = files[index] as AlfrescoFileEntry;
-          const alfrescoState = entry.entry.properties["mintral:reviewStatus"];
+          const alfrescoState = entry.entry.properties?.["mintral:reviewStatus"];
           if (alfrescoState === "APPROVED") loadedStatuses.set(entry.entry.id, "approved");
           else if (alfrescoState === "REJECTED") loadedStatuses.set(entry.entry.id, "rejected");
           else loadedStatuses.set(entry.entry.id, "pending");
-          const reviewedAt = entry.entry.properties["mintral:reviewedAt"];
+          const reviewedAt = entry.entry.properties?.["mintral:reviewedAt"];
           if (reviewedAt) loadedTimestamps.set(entry.entry.id, new Date(reviewedAt));
-          const reviewedBy = entry.entry.properties["mintral:reviewedBy"];
+          const reviewedBy = entry.entry.properties?.["mintral:reviewedBy"];
           if (reviewedBy) loadedUsers.set(entry.entry.id, reviewedBy);
           if (entry.entry.content.mimeType.includes("image")) {
             newImages.push({ file: entry, data: document });

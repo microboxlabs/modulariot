@@ -46,7 +46,7 @@ export default function ImageElement({
       stepped={false}
       tag={
         categories[
-          file.entry.properties[
+          file.entry.properties?.[
             "mintral:contentType"
           ] as keyof typeof categories
         ]?.label

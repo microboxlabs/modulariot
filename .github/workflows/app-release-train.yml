@@ -22,7 +22,8 @@ env:
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-app
-  RELEASE_NOTES_MODEL: claude-opus-4-8
+  RELEASE_NOTES_MODEL: claude-opus-4.8
+  RELEASE_NOTES_CONTEXT: long_context
 
 jobs:
   prepare:
@@ -140,17 +141,27 @@ jobs:
           fs.writeFileSync("release-notes.prompt.yml", body);
           NODE
 
-      - name: Generate release notes with AI inference
+      - name: Generate release notes with Copilot CLI
         id: release_notes_ai
-        uses: actions/ai-inference@v2
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_PAT }}
-        with:
-          prompt-file: ./release-notes.prompt.yml
-          provider: copilot
-          model: ${{ env.RELEASE_NOTES_MODEL }}
-          temperature: 0.2
-          max-completion-tokens: 12000
+        run: |
+          copilot --version
+          ruby -ryaml -e '
+            prompt = YAML.load_file("release-notes.prompt.yml")
+            text = prompt.fetch("messages").map do |message|
+              "#{message.fetch("role").upcase}:\n#{message.fetch("content")}"
+            end.join("\n\n")
+            File.write("release-notes.prompt.txt", text)
+          '
+          copilot \
+            --prompt "$(cat release-notes.prompt.txt)" \
+            --silent \
+            --no-ask-user \
+            --model "${{ env.RELEASE_NOTES_MODEL }}" \
+            --context "${{ env.RELEASE_NOTES_CONTEXT }}" \
+            > release-notes.response.mdx
+          echo "response-file=release-notes.response.mdx" >> "$GITHUB_OUTPUT"
 
       - name: Write release notes
         run: |

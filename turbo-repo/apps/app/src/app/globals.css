@@ -12,7 +12,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
-  button {
+  button:not(:disabled):not([aria-disabled="true"]) {
     @apply cursor-pointer;
   }
 }

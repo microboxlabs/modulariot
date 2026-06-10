@@ -6,6 +6,7 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import { ShippingCoordinatorProcessFormsV2 } from "../../services/form.service.types";
 import TimeElement from "./time-element";
+import CandidateGroupsElement from "./candidate-groups-element";
 import Link from "next/link";
 import { Button } from "flowbite-react";
 import { FaRegEye } from "react-icons/fa";
@@ -103,6 +104,10 @@ export default function BentoHead({
         </div>
       </div>
       <div className="flex flex-row gap-1">
+        <CandidateGroupsElement
+          candidateGroups={task.candidateGroups}
+          dict={dict}
+        />
         <TimeElement
           task={task}
           dict={dict}

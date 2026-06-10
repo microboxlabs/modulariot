@@ -2665,6 +2665,7 @@
     "verified": "Verified",
     "not_verified": "Not verified",
     "trip_duration": "Trip duration",
+    "candidate_groups": "Candidate groups",
     "process_state": "Process state",
     "planificado": "Planified",
     "asignado": "Assigned",

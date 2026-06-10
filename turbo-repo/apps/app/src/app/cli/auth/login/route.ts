@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import { createCliAuthHandoff } from "../handoff-store";
+import { resolvePublicOrigin } from "../public-origin";
 import { getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import { NextResponse } from "next/server";
 
@@ -175,11 +176,13 @@ export async function GET(request: Request): Promise<Response> {
       rawRedirectUri ?? ""
     )}&state=${encodeURIComponent(state)}`;
     // Route handlers redirect with absolute URLs, so the app basePath is
-    // included explicitly (pages got it implicitly from the router).
+    // included explicitly (pages got it implicitly from the router). The base
+    // must be the PUBLIC origin — behind the proxy, url.origin is the internal
+    // bind address and the browser can't reach it.
     return NextResponse.redirect(
       new URL(
         `/app/${locale}/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-        url.origin
+        resolvePublicOrigin(request)
       )
     );
   }

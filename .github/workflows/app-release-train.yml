@@ -22,7 +22,7 @@ env:
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-app
-  RELEASE_NOTES_MODEL: gpt-5-mini
+  RELEASE_NOTES_MODEL: claude-opus-4-8
 
 jobs:
   prepare:

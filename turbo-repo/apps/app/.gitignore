@@ -37,5 +37,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-mintral.wiki
-rest-api
+
+# local clones (were broken gitlinks; .gitmodules only works at repo root)
+/mintral.wiki
+/rest-api

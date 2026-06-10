@@ -11,6 +11,12 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@layer base {
+  button {
+    @apply cursor-pointer;
+  }
+}
+
 @layer utilities {
   .no-dot {
     text-decoration: none;

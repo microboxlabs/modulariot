@@ -54,20 +54,12 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
       className="rounded"
       arrowIcon={false}
       inline
-      label={
-        <span className="flex items-center text-sm gap-3">
-          <span className="sr-only">User menu</span>
-          <div className="relative border flex text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 justify-center items-center transition-all duration-300 rounded-full h-10 w-10 flex-shrink-0">
-            {session.user?.name ? session.user.name[0] : ""}
-          </div>
-          {/*
-            <Avatar alt="" img="/app/api/user/-me-/avatar" rounded size="sm" />
-            */}
-          <span className="dark:text-gray-400 hidden">
-            {session.user?.name}
-          </span>
-        </span>
-      }
+      renderTrigger={(theme) => {
+        return <button className="relative border flex text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 justify-center items-center transition-all duration-300 rounded-full h-10 w-10 flex-shrink-0">
+          {session.user?.name ? session.user.name[0] : ""}
+        </button>
+      }}
+      
     >
       <DropdownHeader className="px-4 py-3">
         <span className="block text-sm">{session.user?.name}</span>

@@ -1,0 +1,42 @@
+# 🔔 Release Notes v1.31.9 — ModularIoT
+
+### Fecha: 10/06/2026
+
+**Objetivo**: Mejorar la visibilidad operacional de tareas en pool mostrando los grupos candidatos directamente en el encabezado bento, con nombres normalizados y soporte de internacionalización.
+
+## 🚀 Evolutivos
+
+- **📍 Grupos candidatos en el encabezado de tareas bento**
+  - **Punto clave**: Las tareas que llegan con `candidateGroups` ahora muestran un badge compacto en el encabezado bento para indicar qué grupos Alfresco pueden reclamar o trabajar la tarea.
+  - **Detalle técnico**: Se agregó el campo tipado `candidateGroups?: string[]` a `TaskResponse`, un nuevo `CandidateGroupsElement` con icono, tooltip y comportamiento responsive, y el render dentro de `BentoHead` junto al indicador de duración. (Integración OSS — MIOT-0.5.10)
+
+- **📍 Nombres de grupos más legibles para usuarios finales**
+  - **Punto clave**: Los identificadores técnicos de Alfresco se limpian antes de mostrarse, eliminando el prefijo `GROUP_` de forma case-insensitive.
+  - **Detalle técnico**: Cuando existen varios grupos candidatos, el badge concatena los nombres normalizados y conserva el detalle completo en el tooltip; cuando la tarea no tiene grupos candidatos, no se renderiza un badge vacío. (Integración OSS — MIOT-0.5.10)
+
+## 🔧 Integraciones
+
+- **🔌 Integración del contrato `TaskDetails` con la UI bento**
+  - **Alcance**: La respuesta de tareas ahora transporta los grupos candidatos desde Alfresco hasta la cabecera visual del formulario, sin requerir que el usuario inspeccione datos crudos de la tarea.
+  - **Detalle técnico**: Se añadieron traducciones `bento.candidate_groups` en inglés y español para mantener el indicador localizado en ambos idiomas soportados. (Integración OSS — MIOT-0.5.10)
+
+## 🐛 Correcciones
+
+- **🐛 Sin correcciones adicionales registradas**
+  - **Impacto**: Esta versión se concentra en una mejora evolutiva de interfaz y contrato de datos.
+  - **Nota**: No se identificaron issues de bugfix en el milestone OSS `MIOT-0.5.10` ni en el escaneo de milestones privados para `1.31.9`.
+
+## 📊 Beneficios
+
+- Mayor claridad para tareas asignadas a grupos en vez de usuarios individuales.
+- Menos necesidad de revisar datos técnicos o payloads crudos para entender quién puede tomar una tarea.
+- Interfaz más limpia al ocultar el indicador cuando no existen grupos candidatos.
+- Mejor experiencia responsive: el badge conserva el contexto completo en tooltip en pantallas estrechas.
+- Nombres más comprensibles al remover prefijos técnicos de Alfresco.
+- Localización consistente en inglés y español para el nuevo indicador bento.
+
+## 📌 Conclusión
+
+La versión 1.31.9 mejora la lectura inmediata de tareas en pool dentro del formulario bento. Al exponer los grupos candidatos en la cabecera, los usuarios pueden reconocer rápidamente qué equipos están habilitados para reclamar o trabajar una tarea sin abrir vistas técnicas ni inspeccionar metadatos.
+
+Esta entrega también refuerza la integración entre el contrato de `TaskDetails` y la experiencia visual de la aplicación. La normalización de nombres, el tooltip y las traducciones mantienen la información clara, compacta y adecuada para operación diaria en distintos tamaños de pantalla.

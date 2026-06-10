@@ -85,6 +85,33 @@ async def test_create_nexo_pool_with_dsn(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_nexo_pool_application_name_rides_server_settings(monkeypatch):
+    """Regression for the prod boot failure `connect() got an unexpected
+    keyword argument 'application_name'`: asyncpg has no such kwarg, so
+    the pool factory must translate it into `server_settings` — the one
+    startup parameter PgBouncer tracks natively (unlike the read-only /
+    timeout parameters guarded against above)."""
+    captured: dict = {}
+
+    async def fake_create_pool(dsn=None, **kwargs):
+        captured["kwargs"] = kwargs
+        return "POOL_APPNAME"
+
+    import asyncpg
+
+    monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
+
+    pool = await create_nexo_pool(
+        "postgresql://u:p@h:6432/citus", application_name="miot-harness"
+    )
+
+    assert pool == "POOL_APPNAME"
+    assert captured["kwargs"]["server_settings"] == {
+        "application_name": "miot-harness"
+    }
+
+
+@pytest.mark.asyncio
 async def test_create_nexo_pool_rejects_empty_dsn():
     """An empty DSN is a caller/config bug — surface it loudly rather
     than handing asyncpg a meaningless connection string."""

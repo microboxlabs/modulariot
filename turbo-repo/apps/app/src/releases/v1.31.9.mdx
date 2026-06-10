@@ -1,0 +1,24 @@
+# 🔔 Release Notes v1.31.9 — ModularIoT
+
+### Fecha: 10/06/2026
+
+**Objetivo**: Mejorar la visibilidad de la información de tareas en la interfaz para tareas asignadas a grupos, facilitando que los usuarios identifiquen qué grupos pueden reclamar o trabajar una tarea.
+
+## 🚀 Evolutivos
+
+- **📍 Mostrar grupos candidatos en el encabezado de bento**
+  - **Punto clave**: Se añadió un distintivo en el encabezado de bento que muestra los grupos candidatos asociados a una tarea, con tooltip y comportamiento responsivo.
+  - **Detalle técnico**: Se agregó el campo tipado `candidateGroups?: string[]` al tipo Alfresco `TaskResponse` y se implementó el componente `CandidateGroupsElement` que utiliza un badge con icono bordeado y tooltip; las autoridades de grupo se normalizan eliminando el prefijo `GROUP_` (case-insensitive), múltiples grupos se unen para mostrarse en badge y tooltip, el badge queda oculto cuando no hay grupos y se añadieron traducciones en inglés y español. (Integración OSS — MIOT-0.5.10)
+
+## 📊 Beneficios
+
+- Los usuarios identifican rápidamente qué grupos pueden reclamar o trabajar una tarea sin inspeccionar datos crudos.
+- Mejora de la experiencia en tareas pooled al mostrar la información de grupos directamente en el header.
+- Normalización de nombres reduce ruido técnico al eliminar el prefijo `GROUP_`.
+- Badge responsivo preserva información completa en el tooltip en pantallas pequeñas.
+- Localización añadida (ES/EN) facilita su uso en equipos bilingües.
+
+## 📌 Conclusión
+
+La incorporación del badge de grupos candidatos hace más evidente y accesible la información de asignación cuando una tarea está dirigida a grupos en lugar de usuarios concretos, reduciendo fricción operativa y consultas manuales.  
+Técnicamente, la modificación introduce un campo opcional en la respuesta de tareas (`candidateGroups?: string[]`) y un pequeño componente de interfaz con comportamiento responsivo y cadenas localizadas, manteniendo la presentación limpia cuando no hay grupos asociados.

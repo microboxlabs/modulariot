@@ -11,7 +11,9 @@ Then dispatches to:
 - `agentic_graph` (DATA_AGENTIC, composable-primitive exploration)
 - `meta_agent_node` (DATA_META, schema/primer questions; no SQL)
 - `storytelling` module (STORYTELLING_RUN, mocked narrative path)
-- direct response (DIRECT / OTHER)
+- `direct_agent_node` (DIRECT / OTHER, small talk — the harness
+  composes the reply; the old "client renders" contract left
+  ``answer`` null and no client implemented it, see #628)
 
 `conversation_id` is hydrated/appended via `ConversationStore` so
 multi-turn chats accumulate context across `/runs` calls.
@@ -26,6 +28,10 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 
+from miot_harness.agents.direct_agent import (
+    FALLBACK_DIRECT_ANSWER,
+    direct_agent_node,
+)
 from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
@@ -181,7 +187,14 @@ class HarnessSupervisor:
                 )
             elif route.route == HarnessRoute.STORYTELLING_RUN:
                 await self._run_storytelling(ctx, record, progress)
-            # DIRECT / OTHER: nothing to do; client renders.
+            else:
+                # DIRECT / OTHER (and any future unrouted kind): the
+                # harness composes the reply (#628). Leaving answer
+                # null here surfaced as "(no answer recorded)" in every
+                # client.
+                await self._run_direct(
+                    request, ctx, record, progress, route.route, prior_messages
+                )
         except asyncio.CancelledError:
             # POST /runs/{id}/cancel cancelled this task. Surface a
             # terminal `run.failed` with `reason=cancelled` so SSE
@@ -563,6 +576,109 @@ class HarnessSupervisor:
                 run_id=ctx.run_id,
                 type="answer.completed",
                 message="Meta agent answered",
+                data={"length": len(record.answer or "")},
+            )
+        )
+
+    async def _run_direct(
+        self,
+        request: UserRequest,
+        ctx: HarnessContext,
+        record: HarnessRunRecord,
+        progress: Any,
+        route: HarnessRoute | None = None,
+        prior_messages: list[BaseMessage] | None = None,
+    ) -> None:
+        """Compose the DIRECT / OTHER reply harness-side (#628).
+
+        Reuses ``meta_model`` (same cheap tier) so no extra wiring or
+        env is needed; falls back to a canned bilingual greeting when
+        no model is wired so ``answer`` is never null.
+        """
+        if self.meta_model is None:
+            record.answer = FALLBACK_DIRECT_ANSWER
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="answer.completed",
+                    message="direct fallback (no model wired)",
+                    data={"length": len(record.answer)},
+                )
+            )
+            return
+
+        from time import monotonic
+
+        from miot_harness.config import get_settings
+
+        settings = get_settings()
+        stream_enabled = settings.agents_synthesizer_stream
+
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="agent.started",
+                message="Entering direct_agent",
+                data={"agent": "direct_agent", "graph": "direct", "turn": 0},
+            )
+        )
+        start = monotonic()
+
+        # Same telemetry wrap as _run_data_meta: the per-agent span and
+        # `usage.recorded` events keep direct-route LLM cost visible in
+        # tenant rollups even though the call is tiny.
+        _span_prefix = self.profile.name if self.profile is not None else "datasource"
+        instrumented_model = instrument_model(
+            self.meta_model, "direct_agent", ctx,
+            progress=progress, span_prefix=_span_prefix,
+        )
+
+        try:
+            with agent_span("run", **self._root_span_kwargs(ctx, route)):
+                delta = await direct_agent_node(
+                    {"user_message": request.message},
+                    model=instrumented_model,
+                    prior_messages=prior_messages or [],
+                    progress=progress if stream_enabled else None,
+                    stream=stream_enabled,
+                    run_id=ctx.run_id,
+                )
+            exit_reason = "ok"
+        except Exception:
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="agent.completed",
+                    message="Failed direct_agent",
+                    data={
+                        "agent": "direct_agent",
+                        "graph": "direct",
+                        "duration_ms": int((monotonic() - start) * 1000),
+                        "exit_reason": "failure",
+                    },
+                )
+            )
+            raise
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="agent.completed",
+                message="Completed direct_agent",
+                data={
+                    "agent": "direct_agent",
+                    "graph": "direct",
+                    "duration_ms": int((monotonic() - start) * 1000),
+                    "exit_reason": exit_reason,
+                },
+            )
+        )
+
+        record.answer = delta.get("answer") or "(no answer produced by direct agent)"
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="answer.completed",
+                message="Direct agent answered",
                 data={"length": len(record.answer or "")},
             )
         )

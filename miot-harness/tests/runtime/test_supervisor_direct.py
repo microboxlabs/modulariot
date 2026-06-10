@@ -86,7 +86,9 @@ async def test_other_route_composes_answer(tmp_path: Any) -> None:
     supervisor = _build_supervisor(
         tmp_path,
         llm_router=_scripted_llm_router("OTHER"),
-        meta_model=FakeListChatModel(responses=["I can't help with that, but ask me about the fleet."]),
+        meta_model=FakeListChatModel(
+            responses=["I can't help with that, but ask me about the fleet."]
+        ),
     )
     record = await supervisor.run(
         UserRequest(message="write me a poem", tenant_id="any-tenant", mode="auto")

@@ -57,6 +57,8 @@ export interface RowColorRuleSetterProps {
   onRemove: (id: string) => void;
   /** Callback when a rule field is updated */
   onUpdate: (id: string, field: string, value: string) => void;
+  /** Hide the enable/disable toggle — rules list is always shown; "no rules" acts as disabled */
+  hideToggle?: boolean;
 }
 
 export function RowColorRuleSetter({
@@ -69,18 +71,21 @@ export function RowColorRuleSetter({
   onAdd,
   onRemove,
   onUpdate,
+  hideToggle = false,
 }: Readonly<RowColorRuleSetterProps>) {
-  return (
-    <>
-      <hr className="border-gray-200 dark:border-gray-700" />
-      <div className="space-y-2">
-        <ToggleSectionHeader
-          label={title}
-          enabled={enabled}
-          onToggle={onToggle}
-        />
+  const showRules = hideToggle || enabled;
 
-        {enabled && (
+  return (
+    <div className="space-y-2">
+        {!hideToggle && (
+          <ToggleSectionHeader
+            label={title}
+            enabled={enabled}
+            onToggle={onToggle}
+          />
+        )}
+
+        {showRules && (
           <div>
             <div className="space-y-2">
               {rules.map((rule) => (
@@ -122,7 +127,6 @@ export function RowColorRuleSetter({
             />
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }

@@ -53,6 +53,8 @@ export interface TableColumn {
   descriptionEnabled?: boolean;
   /** Markdown description shown as a tooltip on the column header. */
   description?: string;
+  /** Text appended after the cell value (e.g. "Días", "km"). */
+  decorator?: string;
 }
 
 export interface SortConfig {

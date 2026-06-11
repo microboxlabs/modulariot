@@ -65,6 +65,8 @@ export interface SettingsShellProps {
   widgetId?: string;
   /** Whether the settings form has unsaved changes */
   isDirty?: boolean;
+  /** className applied to the scrollable content area (default: "p-4") */
+  contentClassName?: string;
 }
 
 // ============================================================================
@@ -117,6 +119,7 @@ export function SettingsShell({
   title,
   widgetId,
   isDirty = false,
+  contentClassName,
 }: Readonly<SettingsShellProps>) {
   return (
     <SettingsDrawer
@@ -133,6 +136,7 @@ export function SettingsShell({
         dictionary={dictionary}
         tabs={tabs}
         footer={footer}
+        contentClassName={contentClassName}
       >
         {children}
       </SettingsShellContent>
@@ -150,6 +154,7 @@ interface SettingsShellContentProps {
   tabs?: SettingsTab[];
   children?: ReactNode;
   footer?: ReactNode;
+  contentClassName?: string;
 }
 
 function SettingsShellContent({
@@ -158,6 +163,7 @@ function SettingsShellContent({
   tabs,
   children,
   footer,
+  contentClassName = "p-4",
 }: Readonly<SettingsShellContentProps>) {
   const [activeTabId, setActiveTabId] = useState<string>(
     () => tabs?.[0]?.id ?? ""
@@ -176,7 +182,7 @@ function SettingsShellContent({
     : undefined;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Tab bar (only for tabbed layout) */}
       {hasTabs && (
         <div className="flex border-b border-gray-200 dark:border-gray-700">
@@ -193,26 +199,29 @@ function SettingsShellContent({
       )}
 
       {/* Scrollable content */}
-      <div className="min-h-0 grow space-y-3 overflow-y-auto">
+      <div className={`min-h-0 grow overflow-y-auto ${contentClassName}`}>
         {hasTabs ? activeTab?.content : children}
       </div>
 
-      {/* Optional footer (e.g. refresh interval) */}
-      {footer && <div className="shrink-0">{footer}</div>}
+      <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+        {/* Optional footer (e.g. refresh interval) */}
+        {footer && <div className="shrink-0">{footer}</div>}
 
-      {/* Action buttons */}
-      <div className="flex shrink-0 gap-2 pt-2">
-        <Button
-          color="blue"
-          onClick={onSave}
-          onMouseDown={handleMouseDown}
-          size="sm"
-          className="no-drag w-full shrink-0"
-          disabled={!isDirty}
-        >
-          {tr("common.save", dictionary)}
-        </Button>
+        {/* Action buttons */}
+        <div className="flex shrink-0 gap-2 pt-2">
+          <Button
+            color="blue"
+            onClick={onSave}
+            onMouseDown={handleMouseDown}
+            size="sm"
+            className="no-drag w-full shrink-0"
+            disabled={!isDirty}
+          >
+            {tr("common.save", dictionary)}
+          </Button>
+        </div>
       </div>
+
     </div>
   );
 }

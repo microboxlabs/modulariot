@@ -461,38 +461,38 @@
             {
               "vehicle": "FL-2341\nPeugeot Partner",
               "client": "Traza Logistics",
-              "km": "47,400 km",
+              "km": "47,400",
               "system": "DPF",
               "status": "Crítico",
               "alert": "Saturación DPF crítica",
-              "duration": "12 días"
+              "duration": "12"
             },
             {
               "vehicle": "FL-1892\nMercedes Vito",
               "client": "Logística Express",
-              "km": "38,900 km",
+              "km": "38,900",
               "system": "Motor",
               "status": "Crítico",
               "alert": "Temperatura elevada",
-              "duration": "8 días"
+              "duration": "8"
             },
             {
               "vehicle": "FL-3456\nMitsubishi L200",
               "client": "Constructora Andina S.A.",
-              "km": "61,200 km",
+              "km": "61,200",
               "system": "DPF",
               "status": "Crítico",
               "alert": "Presión diferencial alta",
-              "duration": "5 días"
+              "duration": "5"
             },
             {
               "vehicle": "FL-4521\nVolkswagen Amarok",
               "client": "Distribuciones FastGo",
-              "km": "23,400 km",
+              "km": "23,400",
               "system": "Alimentación",
               "status": "Medio",
               "alert": "Presión de combustible baja",
-              "duration": "3 días"
+              "duration": "3"
             }
           ],
           "apiUrl": "",

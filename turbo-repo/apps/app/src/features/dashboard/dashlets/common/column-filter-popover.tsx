@@ -8,7 +8,8 @@ import {
   useLayoutEffect,
 } from "react";
 import { createPortal } from "react-dom";
-import { HiFunnel } from "react-icons/hi2";
+import { HiFunnel, HiCheck } from "react-icons/hi2";
+import { Select } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
@@ -58,7 +59,10 @@ export function ColumnFilterPopover({
 
     const updatePosition = () => {
       const rect = buttonRef.current!.getBoundingClientRect();
-      setPopoverPos({ top: rect.bottom + 4, left: rect.left });
+      const popoverWidth = popoverRef.current?.offsetWidth ?? 220;
+      const rawLeft = rect.left;
+      const clampedLeft = Math.min(rawLeft, window.innerWidth - popoverWidth - 8);
+      setPopoverPos({ top: rect.bottom + 4, left: Math.max(8, clampedLeft) });
     };
 
     updatePosition();
@@ -118,9 +122,9 @@ export function ColumnFilterPopover({
           e.stopPropagation();
           setIsOpen((prev) => !prev);
         }}
-        className={`rounded p-0.5 transition-colors ${
+        className={`cursor-pointer rounded p-0.5 transition-colors ${
           hasActiveFilter
-            ? "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400"
+            ? "bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200"
             : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         }`}
         title={filterTitle}
@@ -139,7 +143,7 @@ export function ColumnFilterPopover({
               top: popoverPos.top,
               left: popoverPos.left,
             }}
-            className="z-[9999] min-w-[220px] rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+            className="z-9999 min-w-55 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-600 dark:bg-gray-800"
           >
             <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
               {filterTitle}
@@ -158,7 +162,7 @@ export function ColumnFilterPopover({
             {hasActiveFilter && (
               <button
                 onClick={handleClear}
-                className="mt-2 w-full text-xs text-red-600 hover:underline dark:text-red-400"
+                className="mt-3 w-full rounded-lg border border-red-200 bg-red-50 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
               >
                 {tr("dashboard.settings.columnFilterClear", dictionary)}
               </button>
@@ -197,6 +201,9 @@ function FilterInput({
   const props = { columnKey, currentFilter, onFilterChange, dictionary };
   switch (dataType) {
     case "text":
+      if (enumValues.length > 0 && (!currentFilter || Array.isArray(currentFilter.value))) {
+        return <EnumFilter {...props} enumValues={enumValues} />;
+      }
       return <TextFilter {...props} cancelDebounceRef={cancelDebounceRef} />;
     case "number":
       return <NumberFilter {...props} cancelDebounceRef={cancelDebounceRef} />;
@@ -228,7 +235,10 @@ interface DebouncedFilterComponentProps extends FilterComponentProps {
 }
 
 const inputClass =
-  "w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100";
+  "w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-gray-500 dark:focus:ring-gray-600";
+
+const searchInputClass =
+  "w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-gray-500 dark:focus:ring-gray-600";
 
 // ============================================================================
 // Text filter
@@ -364,20 +374,20 @@ function NumberFilter({
 
   return (
     <div className="space-y-2">
-      <select
+      <Select
+        sizing="sm"
         value={operator}
         onChange={(e) => {
           const op = e.target.value as FilterOperator;
           setOperator(op);
           emitFilter(op, value, value2);
         }}
-        className={inputClass}
       >
         <option value="equals">{tr("dashboard.settings.columnFilterEquals", dictionary)}</option>
         <option value="gt">{tr("dashboard.settings.columnFilterGreaterThan", dictionary)}</option>
         <option value="lt">{tr("dashboard.settings.columnFilterLessThan", dictionary)}</option>
         <option value="between">{tr("dashboard.settings.columnFilterBetween", dictionary)}</option>
-      </select>
+      </Select>
       <input
         type="number"
         value={value}
@@ -491,7 +501,12 @@ function EnumFilter({
   onFilterChange,
   dictionary,
 }: FilterComponentProps & { readonly enumValues: string[] }) {
+  const [search, setSearch] = useState("");
   const selected = new Set((currentFilter?.value as string[]) || []);
+
+  const visibleValues = search.trim()
+    ? enumValues.filter((v) => v.toLowerCase().includes(search.toLowerCase()))
+    : enumValues;
 
   const toggle = (val: string) => {
     const next = new Set(selected);
@@ -513,24 +528,44 @@ function EnumFilter({
   };
 
   return (
-    <div className="max-h-48 space-y-1 overflow-y-auto">
-      {enumValues.map((val) => (
-        <label
-          key={val}
-          className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-        >
-          <input
-            type="checkbox"
-            checked={selected.has(val)}
-            onChange={() => toggle(val)}
-            className="rounded border-gray-300 text-orange-500 focus:ring-orange-500 dark:border-gray-600"
-          />
-          <span className="truncate">{val || `(${tr("dashboard.settings.columnFilterEmpty", dictionary)})`}</span>
-        </label>
-      ))}
-      {enumValues.length === 0 && (
-        <div className="text-xs italic text-gray-400">{tr("dashboard.settings.columnFilterNoValues", dictionary)}</div>
-      )}
+    <div className="space-y-1.5">
+      <input
+        type="text"
+        autoFocus
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={tr("dashboard.settings.columnFilterSearch", dictionary)}
+        className={searchInputClass}
+      />
+      <div className="max-h-48 space-y-0.5 overflow-y-auto">
+        {visibleValues.map((val) => {
+          const isChecked = selected.has(val);
+          return (
+            <button
+              key={val}
+              type="button"
+              onClick={() => toggle(val)}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded px-1.5 py-1 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/60"
+            >
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                  isChecked
+                    ? "border-gray-700 bg-gray-700 dark:border-gray-200 dark:bg-gray-200"
+                    : "border-gray-300 bg-white dark:border-gray-500 dark:bg-gray-800"
+                }`}
+              >
+                {isChecked && <HiCheck className="h-2.5 w-2.5 text-white dark:text-gray-800" />}
+              </span>
+              <span className="truncate">{val || `(${tr("dashboard.settings.columnFilterEmpty", dictionary)})`}</span>
+            </button>
+          );
+        })}
+        {visibleValues.length === 0 && (
+          <div className="py-2 text-center text-xs italic text-gray-400">
+            {search ? tr("dashboard.settings.columnFilterNoMatches", dictionary) : tr("dashboard.settings.columnFilterNoValues", dictionary)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -186,33 +186,35 @@ function SettingsDrawerInner({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Widget anchor ID - shown automatically at the top */}
           {widgetId && (
-            <button
-              type="button"
-              onClick={handleCopyAnchor}
-              title={tr("common.copy", dictionary ?? {})}
-              className="mb-3 flex h-8 w-full cursor-pointer items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 text-xs transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-            >
-              <span className="relative h-3.5 w-3.5 shrink-0">
-                <HiClipboardDocument
-                  className={twMerge(
-                    "absolute inset-0 h-3.5 w-3.5 text-gray-400 transition-all duration-200",
-                    copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
-                  )}
-                />
-                <HiCheck
-                  className={twMerge(
-                    "absolute inset-0 h-3.5 w-3.5 text-green-500 transition-all duration-200",
-                    copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
-                  )}
-                />
-              </span>
-              <code className="truncate font-mono text-gray-500 dark:text-gray-400">
-                #widget-{widgetId}
-              </code>
-            </button>
+            <div className="p-3 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={handleCopyAnchor}
+                title={tr("common.copy", dictionary ?? {})}
+                className="flex h-8 w-full cursor-pointer items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 text-xs transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
+              >
+                <span className="relative h-3.5 w-3.5 shrink-0">
+                  <HiClipboardDocument
+                    className={twMerge(
+                      "absolute inset-0 h-3.5 w-3.5 text-gray-400 transition-all duration-200",
+                      copied ? "scale-0 opacity-0" : "scale-100 opacity-100"
+                    )}
+                  />
+                  <HiCheck
+                    className={twMerge(
+                      "absolute inset-0 h-3.5 w-3.5 text-green-500 transition-all duration-200",
+                      copied ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                    )}
+                  />
+                </span>
+                <code className="truncate font-mono text-gray-500 dark:text-gray-400">
+                  #widget-{widgetId}
+                </code>
+              </button>
+            </div>
           )}
           {open && children}
         </div>

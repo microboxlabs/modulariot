@@ -80,7 +80,7 @@ export function useFilterAndSort(
           if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
           if (aEmpty && bEmpty) return 0;
 
-          const cmp = aVal.localeCompare(bVal);
+          const cmp = aVal.localeCompare(bVal, undefined, { numeric: true });
           return sortDir === "asc" ? cmp : -cmp;
         });
       }

@@ -125,7 +125,9 @@ describe("<App /> smoke", () => {
       <App config={mkConfig()} client={client} home="/tmp/miot-app-slash" {...ctx} />,
     );
     await new Promise((r) => setTimeout(r, 50));
-    stdin.write("/whoami\r");
+    stdin.write("/whoami");
+    await new Promise((r) => setTimeout(r, 50));
+    stdin.write("\r");
     await waitForFrame(lastFrame, "user=demo-user");
     // /whoami should NOT have triggered a harness call.
     expect(client.runs.create).not.toHaveBeenCalled();
@@ -261,7 +263,7 @@ describe("<App /> smoke", () => {
     },
   );
 
-  it("renders the header with tenant/user/conv chips", async () => {
+  it("renders the top line with tenant/user/conv", async () => {
     const ctx = deterministicCtx();
     const client = {
       runs: {
@@ -275,7 +277,56 @@ describe("<App /> smoke", () => {
     );
     await new Promise((r) => setTimeout(r, 50));
     const frame = lastFrame() ?? "";
-    expect(frame).toContain("tenant=demo-tenant");
-    expect(frame).toContain("user=demo-user");
+    expect(frame).toContain("demo-tenant");
+    expect(frame).toContain("demo-user");
+    expect(frame).toContain("conv ");
+    // Mode is embedded in the input frame's bottom border.
+    expect(frame).toContain("miot · auto");
+  });
+
+  it("shows the welcome card on an empty transcript and hides it after a submit", async () => {
+    const ctx = deterministicCtx();
+    const events: HarnessEvent[] = [
+      evt("run.started"),
+      evt("answer.completed", { data: { text: "hi there" } }),
+      evt("run.completed"),
+    ];
+    const record: HarnessRunRecord = {
+      run_id: "r-welcome",
+      status: "completed",
+      events,
+      artifacts: [],
+      answer: "hi there",
+      conversation_id: "c1",
+    };
+    const client = {
+      runs: {
+        create: vi.fn(async () => ({ run_id: "r-welcome" })),
+        stream: async function* (): AsyncGenerator<HarnessEvent> {
+          for (const e of events) {
+            yield e;
+            await new Promise((r) => setTimeout(r, 5));
+          }
+        },
+        get: vi.fn(async () => record),
+      },
+    };
+    const { stdin, lastFrame } = render(
+      <App
+        config={mkConfig()}
+        client={client}
+        home="/tmp/miot-app-welcome"
+        {...ctx}
+      />,
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(lastFrame() ?? "").toContain("miot chat");
+    expect(lastFrame() ?? "").toContain("Resume session");
+
+    stdin.write("hello");
+    await new Promise((r) => setTimeout(r, 50));
+    stdin.write("\r");
+    await waitForFrame(lastFrame, "hi there");
+    expect(lastFrame() ?? "").not.toContain("Resume session");
   });
 });

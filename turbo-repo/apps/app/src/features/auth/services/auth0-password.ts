@@ -73,6 +73,8 @@ export async function authenticateWithAuth0Password(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // OAuth 2.0 extension grant-type identifier (RFC 6749 §4.5) — an
+          // exact-match name, not a URL; Auth0 rejects any variation of it.
           grant_type: "http://auth0.com/oauth/grant-type/password-realm",
           realm: getCredentialsConnection(),
           username: credentials.email,

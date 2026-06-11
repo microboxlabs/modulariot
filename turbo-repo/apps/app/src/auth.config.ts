@@ -54,6 +54,31 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
   return providers;
 }
 
+/**
+ * Email domains permitted to sign in via federated/OAuth providers (e.g. Auth0 → Google).
+ * Configured via AUTH_ALLOWED_EMAIL_DOMAINS as a comma-separated list, e.g.
+ * "microboxlabs.com,vialabs.net". Each deployment/instance sets its own value, so the
+ * allowlist lives in environment config rather than code. When unset/empty the guard is
+ * disabled and all domains are allowed (preserving prior behavior); set it per environment
+ * to lock down.
+ */
+function getAllowedEmailDomains(): string[] {
+  return (process.env.AUTH_ALLOWED_EMAIL_DOMAINS ?? "")
+    .split(",")
+    .map((domain) => domain.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/** Returns true when the email's domain is in the allowlist (or the allowlist is empty). */
+function isEmailDomainAllowed(
+  email: string | null | undefined,
+  allowedDomains: string[]
+): boolean {
+  if (allowedDomains.length === 0) return true; // guard disabled
+  const domain = (email ?? "").toLowerCase().split("@")[1];
+  return !!domain && allowedDomains.includes(domain);
+}
+
 // Create hierarchical auth loggers for better management
 const authLogger = createManagedLogger("auth", "Authentication System");
 const authJwtLogger = createManagedLogger("auth.jwt", "JWT Processing", undefined, "auth");
@@ -66,8 +91,52 @@ export const authConfig: NextAuthConfig = {
   basePath: "/app/api/auth",
   pages: {
     signIn: "/app/sign-in",
+    // Surface AccessDenied (and other auth errors) on the sign-in page itself
+    // rather than NextAuth's default error page.
+    error: "/app/sign-in",
   },
   callbacks: {
+    /**
+     * Gates *who* may sign in. (The `authorized` callback only decides whether a
+     * route requires a logged-in user, not which users are allowed at all.)
+     * Federated/OAuth logins (Auth0 → Google/Microsoft/etc.) are restricted to the
+     * domains in AUTH_ALLOWED_EMAIL_DOMAINS. Credentials logins are already validated
+     * upstream against Alfresco, so they bypass this domain guard.
+     */
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "credentials") {
+        return true;
+      }
+
+      const allowedDomains = getAllowedEmailDomains();
+      if (allowedDomains.length === 0) {
+        authAuthzLogger.warn(
+          {},
+          "AUTH_ALLOWED_EMAIL_DOMAINS is not set; email-domain sign-in guard is disabled (all domains allowed)"
+        );
+        return true;
+      }
+
+      // Reject social logins whose IdP reports the email as unverified, so a
+      // spoofed/unverified address in an allowed domain can't slip through.
+      if ((profile as { email_verified?: boolean } | undefined)?.email_verified === false) {
+        authAuthzLogger.warn({ email: user?.email }, "Sign-in denied: email not verified");
+        return false;
+      }
+
+      const email =
+        user?.email ?? (profile as { email?: string } | undefined)?.email ?? null;
+      if (!isEmailDomainAllowed(email, allowedDomains)) {
+        authAuthzLogger.warn(
+          { email, allowedDomains },
+          "Sign-in denied: email domain not in AUTH_ALLOWED_EMAIL_DOMAINS allowlist"
+        );
+        return false;
+      }
+
+      authAuthzLogger.debug({ email }, "Sign-in allowed by email-domain guard");
+      return true;
+    },
     authorized({ auth, request }) {
       try {
         const nextUrl = new URL(request.nextUrl);

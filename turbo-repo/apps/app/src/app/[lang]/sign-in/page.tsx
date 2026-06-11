@@ -1,4 +1,4 @@
-import { Card } from "flowbite-react";
+import { Alert, Card } from "flowbite-react";
 import React from "react";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
@@ -78,15 +78,22 @@ function buildSamlLabels(
 
 export default async function SignInPage(
   params: ParamsWithLang & {
-    searchParams?: Promise<{ callbackUrl?: string }>;
+    searchParams?: Promise<{ callbackUrl?: string; error?: string }>;
   }
 ) {
   const { lang } = await params.params;
+  const resolvedSearchParams = await params.searchParams;
   // Post-sign-in destination (e.g. the CLI auth handoff page). Resolved
   // server-side and passed as a prop so FormSignIn stays free of
   // useSearchParams (which would require a Suspense boundary).
-  const callbackUrl = (await params.searchParams)?.callbackUrl ?? null;
+  const callbackUrl = resolvedSearchParams?.callbackUrl ?? null;
   const [dict, , dictDynamic] = await getDictionary(lang);
+  // NextAuth redirects here with ?error=AccessDenied when the signIn callback
+  // rejects a login (e.g. email domain not in AUTH_ALLOWED_EMAIL_DOMAINS).
+  const accessDeniedMessage =
+    resolvedSearchParams?.error === "AccessDenied"
+      ? dict("pages.login.errors.accessDenied")
+      : null;
   const signInMessages = buildSignInFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();
@@ -118,6 +125,15 @@ export default async function SignInPage(
             <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white w-full text-center">
               {dict("pages.login.welcome")}
             </h2>
+            {accessDeniedMessage && (
+              <Alert
+                color="failure"
+                data-testid="sign-in-access-denied"
+                className="w-full"
+              >
+                {accessDeniedMessage}
+              </Alert>
+            )}
             <FormSignIn
               messages={signInMessages}
               authConfig={authConfig}

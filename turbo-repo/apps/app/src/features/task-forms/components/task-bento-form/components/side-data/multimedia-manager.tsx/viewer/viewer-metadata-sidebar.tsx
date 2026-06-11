@@ -6,6 +6,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SidebarSection } from "./sidebar/sidebar-section";
 import { PropertiesGrid } from "./sidebar/properties-grid";
+import { HistoryGrid } from "./sidebar/history-grid";
 import { ObservationsSection } from "./observations/observations-section";
 import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations/observation.types";
 import type { ReviewStatus } from "../gallery/media-row";
@@ -57,13 +58,21 @@ export default function ViewerMetadataSidebar({
   pendingReplyRef: RefObject<{ text: string; send: () => void }>;
   dictionary: I18nRecord;
 }>) {
+  const reviewStatus = entry.properties?.["mintral:reviewStatus"];
+  const reviewStatusLabel: string | null =
+    reviewStatus && reviewStatus !== "PENDING"
+      ? reviewStatus === "APPROVED"
+        ? tr("bento.multimedia.sidebar_prop_review_approved", dictionary)
+        : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary)
+      : null;
+
   return (
     <div
       className="shrink-0 sm:shrink-0 border-t sm:border-t-0 sm:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto flex flex-col w-full sm:w-1/3 min-h-0 basis-1/2 sm:basis-auto sm:h-full"
     >
       {showAllObservations && isReviewable ? (
         <div className="flex flex-col h-full">
-          <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={() => setShowAllObservations(false)}
@@ -101,6 +110,13 @@ export default function ViewerMetadataSidebar({
               entry={entry}
               categoryLabel={categoryLabel}
               onRename={onRename}
+              dictionary={dictionary}
+            />
+          </SidebarSection>
+          <SidebarSection title={tr("bento.multimedia.sidebar_history", dictionary)} defaultExpanded>
+            <HistoryGrid
+              entry={entry}
+              reviewStatusLabel={reviewStatusLabel}
               dictionary={dictionary}
             />
           </SidebarSection>

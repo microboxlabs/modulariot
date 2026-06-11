@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import { useCallback, useMemo, useState } from "react";
 import { randomUUID } from "node:crypto";
 import type { ResolvedConfig } from "../config.js";
@@ -189,6 +189,19 @@ function AppInner(
       appendSystem,
     ],
   );
+
+  // Global shortcuts advertised on the welcome card. Routed through
+  // the slash handlers so behavior stays identical to the typed
+  // commands. The Editor's keymap ignores these combos; ctrl+h is
+  // off-limits (terminals emit it as backspace), hence ctrl+g for
+  // help. Inactive while a modal is open so pickers own their keys.
+  useInput((input, key) => {
+    if (!key.ctrl || modal.spec !== null) return;
+    if (input === "r") void dispatchSlash("/resume");
+    else if (input === "t") void dispatchSlash("/theme");
+    else if (input === "g") void dispatchSlash("/help");
+    else if (input === "q") void dispatchSlash("/exit");
+  });
 
   const handleSubmit = useCallback(
     (text: string): void => {

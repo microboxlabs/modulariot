@@ -651,6 +651,7 @@ export function DashletSettings({
                           onChange={(v) => updateRepresentation(rep._id, { smooth: v })}
                           label=""
                           sizing="sm"
+                          theme={{ toggle: { checked: { off: "bg-gray-200 after:border-gray-300 dark:bg-gray-800" } } }}
                         />
                         {trDynamic("dashboard.dashlets.chart_v2.repSmooth", dictionary)}
                       </label>
@@ -662,6 +663,7 @@ export function DashletSettings({
                           onChange={(v) => updateRepresentation(rep._id, { stacked: v })}
                           label=""
                           sizing="sm"
+                          theme={{ toggle: { checked: { off: "bg-gray-200 after:border-gray-300 dark:bg-gray-800" } } }}
                         />
                         {trDynamic("dashboard.dashlets.chart_v2.repStacked", dictionary)}
                       </label>
@@ -673,6 +675,7 @@ export function DashletSettings({
                           onChange={(v) => updateRepresentation(rep._id, { showLabels: v })}
                           label=""
                           sizing="sm"
+                          theme={{ toggle: { checked: { off: "bg-gray-200 after:border-gray-300 dark:bg-gray-800" } } }}
                         />
                         {trDynamic("dashboard.dashlets.chart_v2.repShowLabels", dictionary)}
                       </label>

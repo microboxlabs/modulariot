@@ -220,3 +220,37 @@ async def test_invoke_truncates_long_row_lists():
     assert len(dump["rows"]) == 5
     completed = [e for e in events if e.type == "tool.completed"]
     assert completed[0].data["truncated"] is True
+
+
+def test_text_args_coerce_numeric_input():
+    """All Coordinador p_* filters are pg `text`, but LLM planners emit
+    JSON numbers for ids ("p_service_code": 1643006). Pydantic v2 rejects
+    int→str by default, which would turn a perfectly valid tool call into
+    a failure — coerce numerics to strings for text-typed args (Gap 3)."""
+    descriptor = FunctionDescriptor(
+        name="fn_dx_task_timeline",
+        proc_oid=2,
+        description=ParsedDescription(layer="L3", body="Timeline de tareas"),
+        args=[
+            FunctionArg(
+                name="p_service_code", pg_type="text", has_default=True, default_expr="NULL"
+            ),
+            FunctionArg(
+                name="p_semanas", pg_type="integer", has_default=True, default_expr="8"
+            ),
+        ],
+        returns_kind="table",
+        returns_columns=[],
+    )
+    tool = build_nexo_tool(descriptor, pool=MagicMock(), tenant_lock="mintral")
+
+    parsed = tool.input_model.model_validate({"p_service_code": 1643006})
+    assert parsed.p_service_code == "1643006"
+
+    # Integer-typed args keep their type — coercion is text-field-only.
+    parsed = tool.input_model.model_validate({"p_service_code": "1643006", "p_semanas": 4})
+    assert parsed.p_semanas == 4
+
+    # Booleans are NOT silently stringified into text fields.
+    with pytest.raises(ValidationError):
+        tool.input_model.model_validate({"p_service_code": True})

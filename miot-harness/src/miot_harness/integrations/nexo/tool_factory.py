@@ -24,7 +24,7 @@ from decimal import Decimal
 from typing import Any
 
 import asyncpg
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 
 from miot_harness.integrations.nexo.introspect import (
     FunctionArg,
@@ -82,6 +82,9 @@ def _python_type_for(pg_type: str) -> type:
 
 def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel]:
     fields: dict[str, Any] = {}
+    text_fields: frozenset[str] = frozenset(
+        arg.name for arg in args if _python_type_for(arg.pg_type) is str
+    )
     for arg in args:
         py_type = _python_type_for(arg.pg_type)
         if arg.has_default:
@@ -89,9 +92,27 @@ def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel
             fields[arg.name] = (py_type | None, Field(default=None))
         else:
             fields[arg.name] = (py_type, Field(...))
+
+    def _coerce_numeric_text(cls: type[BaseModel], values: Any) -> Any:
+        # LLM planners emit JSON numbers for id-like filters
+        # ("p_service_code": 1643006) while every Coordinador p_* filter
+        # is pg `text`. Pydantic v2 rejects int→str, so stringify
+        # numerics (not booleans) for text-typed args before validation.
+        if isinstance(values, dict):
+            for key in text_fields & values.keys():
+                value = values[key]
+                if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+                    values[key] = str(value)
+        return values
+
     model: type[BaseModel] = create_model(
         f"_Input_{name}",
         __config__=ConfigDict(arbitrary_types_allowed=True, extra="forbid"),
+        __validators__={
+            "_coerce_numeric_text": model_validator(mode="before")(
+                classmethod(_coerce_numeric_text)
+            ),
+        },
         **fields,
     )
     return model

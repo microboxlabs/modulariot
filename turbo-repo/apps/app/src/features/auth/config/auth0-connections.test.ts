@@ -71,6 +71,13 @@ describe("isAuth0Configured", () => {
     expect(isAuth0Configured()).toBe(false);
   });
 
+  it("is false when an Auth0 client env var is whitespace-only", () => {
+    vi.stubEnv("AUTH_AUTH0_ID", "   ");
+    vi.stubEnv("AUTH_AUTH0_SECRET", "client-secret");
+    vi.stubEnv("AUTH_AUTH0_ISSUER", "https://tenant.auth0.com");
+    expect(isAuth0Configured()).toBe(false);
+  });
+
   it("is true when id, secret and issuer are all set", () => {
     vi.stubEnv("AUTH_AUTH0_ID", "client-id");
     vi.stubEnv("AUTH_AUTH0_SECRET", "client-secret");

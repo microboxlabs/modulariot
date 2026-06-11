@@ -45,9 +45,9 @@ export function getCredentialsConnection(): string {
 
 /** True when the Auth0 OIDC client is fully configured for this deployment. */
 export function isAuth0Configured(): boolean {
-  return !!(
-    process.env.AUTH_AUTH0_ID &&
-    process.env.AUTH_AUTH0_SECRET &&
-    process.env.AUTH_AUTH0_ISSUER
-  );
+  return [
+    process.env.AUTH_AUTH0_ID,
+    process.env.AUTH_AUTH0_SECRET,
+    process.env.AUTH_AUTH0_ISSUER,
+  ].every((value) => !!value && value.trim().length > 0);
 }

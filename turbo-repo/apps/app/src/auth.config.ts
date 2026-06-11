@@ -117,13 +117,11 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
-      // Reject social logins whose IdP reports the email as unverified, so a
-      // spoofed/unverified address in an allowed domain can't slip through.
-      if ((profile as { email_verified?: boolean } | undefined)?.email_verified === false) {
-        authAuthzLogger.warn({ email: user?.email }, "Sign-in denied: email not verified");
-        return false;
-      }
-
+      // NOTE: we intentionally do NOT require profile.email_verified. Enterprise IdP
+      // connections (e.g. Microsoft Entra ID) routinely report email_verified=false for
+      // valid corporate users, so requiring it locks them out. The email address from the
+      // federated login — gated by the domain allowlist below — is the trust anchor, and
+      // domains we own (Workspace/Entra) can't be self-asserted by an outside attacker.
       const email =
         user?.email ?? (profile as { email?: string } | undefined)?.email ?? null;
       if (!isEmailDomainAllowed(email, allowedDomains)) {

@@ -145,6 +145,17 @@ def _make_lifespan(
         app.state.datasource_enabled = result.enabled
         app.state.datasource_registered = list(result.registered)
         app.state.datasource_snapshot_age_minutes = result.snapshot_age_minutes
+        # Per-function freshness survey (Gap 2) — JSON-ready for /health.
+        app.state.datasource_freshness = {
+            name: {
+                "status": probe.status,
+                "age_minutes": probe.age_minutes,
+                "refreshed_at": (
+                    probe.refreshed_at.isoformat() if probe.refreshed_at else None
+                ),
+            }
+            for name, probe in result.freshness.items()
+        }
         if not result.enabled:
             logger.info(
                 "Datasource %s: disabled (%s)", provider.profile.name, result.reason
@@ -206,7 +217,10 @@ def _make_lifespan(
                     thinking_budget_tokens=synth_thinking_budget,
                 )
                 harness.meta_primer = provider.profile.primer
-                harness.meta_catalog = [
+                # Descriptor-derived entries (title/layer/body + freshness
+                # suffix) when the provider supplies them; generic
+                # fallback otherwise so the meta agent never goes blind.
+                harness.meta_catalog = list(result.catalog_entries) or [
                     MetaAgentCatalogEntry(
                         name=name,
                         layer="L*",
@@ -250,6 +264,7 @@ def _make_lifespan(
                 app.state.datasource_enabled = False
                 app.state.datasource_registered = []
                 app.state.datasource_snapshot_age_minutes = None
+                app.state.datasource_freshness = {}
                 harness.data_graph = None
                 harness.agentic_graph = None
                 harness.meta_model = None
@@ -458,6 +473,7 @@ def create_app() -> FastAPI:
                 "enabled": app.state.datasource_enabled,
                 "tools": list(app.state.datasource_registered),
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
+                "freshness": getattr(app.state, "datasource_freshness", {}),
             },
         }
 
@@ -486,6 +502,7 @@ def create_app() -> FastAPI:
                 "enabled": enabled,
                 "tools": list(app.state.datasource_registered),
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
+                "freshness": getattr(app.state, "datasource_freshness", {}),
             },
         }
 

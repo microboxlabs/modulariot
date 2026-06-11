@@ -45,6 +45,11 @@ class HarnessSettings(BaseSettings):
     datasource_freshness_warn_minutes: int | None = Field(default=None, ge=0)
     # None → profile default.
     datasource_freshness_refuse_minutes: int | None = Field(default=None, ge=0)
+    # Boot-time per-function freshness survey (Gap 2): probes every
+    # zero-required-arg datasource function once and exposes the result
+    # in /health and the meta-agent catalog. Kill switch if boot latency
+    # against the real DB becomes a problem.
+    datasource_freshness_survey_enabled: bool = True
     agents_max_turns: int = 8
     # Agentic-mode turn cap. Looser than the canned cap (8) because
     # exploration is the whole point of the agentic loop; each turn is

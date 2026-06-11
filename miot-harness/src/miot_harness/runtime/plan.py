@@ -25,6 +25,13 @@ class DataPlan(BaseModel):
     final_format: Literal["answer", "story"] = "answer"
 
 
+# How fresh / usable one piece of evidence is. `is_stale` survives as the
+# coarse boolean; this status keeps "0 rows matched the filter" (empty)
+# distinguishable from "snapshot never refreshed" (empty_no_timestamp) so
+# the synthesizer can tell the user which one actually happened.
+FreshnessStatus = Literal["fresh", "stale", "no_timestamp", "empty", "empty_no_timestamp"]
+
+
 class DataEvidence(BaseModel):
     step_id: str
     tool: str
@@ -33,6 +40,7 @@ class DataEvidence(BaseModel):
     output: dict[str, Any] = Field(default_factory=dict)
     sample_size: int = 0
     is_stale: bool = False
+    freshness_status: FreshnessStatus = "fresh"
 
 
 class DataState(TypedDict, total=False):

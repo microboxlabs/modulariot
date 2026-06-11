@@ -94,6 +94,68 @@ async def test_happy_path_registers_tools(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_boot_surveys_freshness_and_builds_catalog(monkeypatch):
+    """Boot must survey per-function freshness and derive meta-catalog
+    entries (descriptor title/layer/body + freshness suffix) so /health
+    and the meta agent can expose what's fresh vs stale up front."""
+    now = datetime.now(UTC)
+    descriptors = [
+        _descriptor("fn_dx_centro_control"),
+        _descriptor("fn_dx_task_timeline"),
+    ]
+    monkeypatch.setattr(
+        "miot_harness.integrations.nexo.boot.introspect_nexo_functions",
+        AsyncMock(return_value=descriptors),
+    )
+    registry = ToolRegistry()
+    pool = _mock_pool(centro_refreshed=now - timedelta(minutes=5))
+
+    async def fetch(sql, *args):
+        if "fn_dx_centro_control" in sql:
+            return [{"n": 1, "refreshed_at_servicios": now - timedelta(minutes=5)}]
+        if "fn_dx_task_timeline" in sql:
+            return []
+        return []
+
+    # pool.acquire() returns the same fake conn; wire fetch for the survey.
+    pool.acquire.return_value.__aenter__.return_value.fetch = AsyncMock(side_effect=fetch)
+
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=pool)
+
+    assert result.enabled is True
+    assert result.freshness["fn_dx_centro_control"].status == "fresh"
+    assert result.freshness["fn_dx_task_timeline"].status == "empty_no_timestamp"
+
+    entries = {e.name: e for e in result.catalog_entries}
+    assert set(entries) == {"coordinador_centro_control", "coordinador_task_timeline"}
+    centro = entries["coordinador_centro_control"]
+    assert centro.layer == "L1"
+    assert "kpi" in centro.body
+    assert "Último refresh" in centro.body
+    timeline = entries["coordinador_task_timeline"]
+    assert "sin refrescar" in timeline.body
+
+
+@pytest.mark.asyncio
+async def test_boot_survey_disabled_yields_no_freshness(monkeypatch):
+    monkeypatch.setattr(
+        "miot_harness.integrations.nexo.boot.introspect_nexo_functions",
+        AsyncMock(return_value=[_descriptor("fn_dx_centro_control")]),
+    )
+    registry = ToolRegistry()
+    pool = _mock_pool(centro_refreshed=datetime.now(UTC))
+
+    result = await load_nexo_tools(
+        registry, **_boot_kwargs(), pool=pool, survey_enabled=False
+    )
+
+    assert result.enabled is True
+    assert result.freshness == {}
+    # Catalog entries are still descriptor-derived (no freshness suffix).
+    assert [e.name for e in result.catalog_entries] == ["coordinador_centro_control"]
+
+
+@pytest.mark.asyncio
 async def test_fn_refresh_leak_disables_nexo(monkeypatch):
     monkeypatch.setattr(
         "miot_harness.integrations.nexo.boot.introspect_nexo_functions",

@@ -58,6 +58,17 @@ Rules:
 - If the evidence is empty or insufficient, say what you don't know.
 - Do not invent rows or numbers; quote what's in the evidence.
 - Do not mention internal pipeline (filter_expert, plan, etc.).
+
+Per-status phrasing (each evidence line carries status=... and rows=...):
+- status=empty → the snapshot IS fresh but the filter matched nothing:
+  say "no hay filas que coincidan con esos filtros (snapshot del <ts>)".
+  Never present this as stale data.
+- status=stale → cite the snapshot age explicitly ("datos antiguos").
+- status=no_timestamp → data came back without a refresh timestamp:
+  say "datos sin marca de tiempo de actualización — trátalos con cautela".
+- status=empty_no_timestamp → no rows AND no timestamp; the view looks
+  unrefreshed: say "esta vista parece no haberse refrescado; no puedo
+  distinguir 'sin datos' de 'snapshot vacío'".
 """
 
 
@@ -122,7 +133,8 @@ def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
         stale = " STALE" if ev.is_stale else ""
         snippet = json.dumps(ev.output, default=str)[:1200]
         lines.append(
-            f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale}\n  {snippet}"
+            f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale} "
+            f"status={ev.freshness_status} rows={ev.sample_size}\n  {snippet}"
         )
     return "\n".join(lines)
 

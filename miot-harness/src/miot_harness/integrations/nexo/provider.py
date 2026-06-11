@@ -82,6 +82,11 @@ class NexoProvider(DataSourceProvider):
             if settings.datasource_freshness_refuse_minutes is not None
             else self.profile.freshness_refuse_minutes
         )
+        warn_minutes = (
+            settings.datasource_freshness_warn_minutes
+            if settings.datasource_freshness_warn_minutes is not None
+            else self.profile.freshness_warn_minutes
+        )
         try:
             self._pool = await create_nexo_pool(
                 dsn, application_name=settings.datasource_application_name
@@ -92,6 +97,8 @@ class NexoProvider(DataSourceProvider):
                 tenant_lock=tenant_lock,
                 refuse_minutes=refuse_minutes,
                 pool=self._pool,
+                warn_minutes=warn_minutes,
+                survey_enabled=settings.datasource_freshness_survey_enabled,
             )
         except Exception as exc:  # noqa: BLE001 — boot must not die (base-class contract)
             logger.critical("Nexo: boot failed (%s)", exc)
@@ -121,6 +128,8 @@ class NexoProvider(DataSourceProvider):
             registered=tuple(registered),
             reason=legacy.reason,
             snapshot_age_minutes=legacy.snapshot_age_minutes,
+            freshness=dict(legacy.freshness),
+            catalog_entries=tuple(legacy.catalog_entries),
         )
 
     async def close(self) -> None:

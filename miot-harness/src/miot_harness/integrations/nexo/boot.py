@@ -18,13 +18,19 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 import asyncpg
 
-from miot_harness.integrations.nexo.introspect import introspect_nexo_functions
+from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
+from miot_harness.datasource.provider import FreshnessProbe
+from miot_harness.integrations.nexo.freshness import survey_freshness
+from miot_harness.integrations.nexo.introspect import (
+    FunctionDescriptor,
+    introspect_nexo_functions,
+)
 from miot_harness.integrations.nexo.tool_factory import build_nexo_tool
 from miot_harness.tools.registry import ToolRegistry
 
@@ -39,6 +45,43 @@ class NexoBootResult:
     registered: list[str]
     reason: str | None = None
     snapshot_age_minutes: float | None = None
+    # Per-function freshness survey + descriptor-derived meta catalog
+    # (Gap 2). Empty when the survey is disabled or boot fails early.
+    freshness: dict[str, FreshnessProbe] = field(default_factory=dict)
+    catalog_entries: list[MetaAgentCatalogEntry] = field(default_factory=list)
+
+
+def _freshness_suffix(probe: FreshnessProbe | None) -> str:
+    if probe is None or probe.status == "skipped":
+        return ""
+    if probe.status in ("fresh", "stale"):
+        refreshed = probe.refreshed_at.strftime("%H:%M UTC") if probe.refreshed_at else "?"
+        age = f"hace {probe.age_minutes:.0f} min" if probe.age_minutes is not None else "?"
+        return f"Último refresh: {refreshed} ({age})."
+    if probe.status == "empty":
+        return "Snapshot vigente sin filas para los filtros por defecto."
+    if probe.status == "no_timestamp":
+        return "Snapshot con datos pero sin marca de tiempo de actualización."
+    if probe.status == "empty_no_timestamp":
+        return "Snapshot sin datos ni marca de tiempo — posiblemente sin refrescar."
+    return "No fue posible sondear el estado del snapshot."
+
+
+def _catalog_entry(
+    descriptor: FunctionDescriptor,
+    tool_name: str,
+    probe: FreshnessProbe | None,
+) -> MetaAgentCatalogEntry:
+    parsed = descriptor.description
+    layer = parsed.layer if parsed.layer in {"L1", "L2", "L3", "VT"} else ""
+    if not layer:
+        layer = parsed.meta.get("layer", "").strip() or "L*"
+    body = parsed.body.strip() or f"Curated function `{descriptor.name}`."
+    title = parsed.title.strip() or body.splitlines()[0][:80]
+    suffix = _freshness_suffix(probe)
+    if suffix:
+        body = f"{body}\n  {suffix}"
+    return MetaAgentCatalogEntry(name=tool_name, layer=layer, title=title, body=body)
 
 
 _ACL_CHECK_SQL = """
@@ -63,13 +106,16 @@ async def load_nexo_tools(
     tenant_lock: str,
     refuse_minutes: int,
     pool: asyncpg.Pool | None,
+    warn_minutes: int = 30,
+    survey_enabled: bool = True,
 ) -> NexoBootResult:
     """Boot the Nexo tools.
 
     The provider-private knobs are passed in already resolved:
     ``schema`` from :class:`NexoSettings`, and ``tenant_lock`` /
-    ``refuse_minutes`` as the effective values (env override over the
-    NEXO profile default), resolved once in :meth:`NexoProvider.boot`.
+    ``refuse_minutes`` / ``warn_minutes`` as the effective values (env
+    override over the NEXO profile default), resolved once in
+    :meth:`NexoProvider.boot`.
     """
     if pool is None:
         logger.warning("Nexo: disabled (no asyncpg pool — tunnel may be down)")
@@ -166,8 +212,20 @@ async def load_nexo_tools(
             reason=f"Introspection failed: {exc}",
         )
 
-    # 4. Build + register tools.
+    # 3.5. Per-function freshness survey (Gap 2). Failures never disable
+    # the integration — an unprobeable function reports status="error".
+    freshness: dict[str, FreshnessProbe] = {}
+    if survey_enabled:
+        try:
+            freshness = await survey_freshness(
+                pool, schema=schema, descriptors=descriptors, warn_minutes=warn_minutes
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Nexo: freshness survey raised %s; continuing without it", exc)
+
+    # 4. Build + register tools (+ descriptor-derived meta catalog).
     registered: list[str] = []
+    catalog_entries: list[MetaAgentCatalogEntry] = []
     for descriptor in descriptors:
         try:
             tool = build_nexo_tool(
@@ -178,6 +236,9 @@ async def load_nexo_tools(
             )
             registry.register(tool)
             registered.append(tool.name)
+            catalog_entries.append(
+                _catalog_entry(descriptor, tool.name, freshness.get(descriptor.name))
+            )
         except Exception as exc:  # noqa: BLE001
             logger.error(
                 "Nexo: failed to register tool for %s: %s; skipping",
@@ -187,7 +248,11 @@ async def load_nexo_tools(
 
     logger.info("Nexo: enabled — %d tools registered", len(registered))
     return NexoBootResult(
-        enabled=True, registered=registered, snapshot_age_minutes=age_minutes
+        enabled=True,
+        registered=registered,
+        snapshot_age_minutes=age_minutes,
+        freshness=freshness,
+        catalog_entries=catalog_entries,
     )
 
 

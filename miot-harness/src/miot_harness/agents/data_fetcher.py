@@ -17,7 +17,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import DataEvidence, DataStep
+from miot_harness.runtime.plan import DataEvidence, DataStep, FreshnessStatus
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
 
@@ -82,12 +82,23 @@ def _evidence_from_output(
     elif "value" in dump:
         sample_size = 1
 
-    is_stale = False
+    # Classify freshness. "empty" (0 rows, timestamped snapshot) means the
+    # FILTER matched nothing — that is not staleness. Only a missing
+    # timestamp (with or without rows) is treated as unverified/stale, so
+    # the synthesizer can distinguish "no matching rows" from "this view
+    # looks unrefreshed" (the beta-review Gap 2 conflation).
+    has_rows = sample_size > 0
+    age_is_stale = False
     if isinstance(refreshed_at, datetime):
         age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
-        is_stale = age_minutes > warn_minutes
-    elif refreshed_at is None and dump:
-        # Tool returned data but no refreshed_at — treat as unverified
+        age_is_stale = age_minutes > warn_minutes
+        if has_rows:
+            status: FreshnessStatus = "stale" if age_is_stale else "fresh"
+        else:
+            status = "empty"
+        is_stale = age_is_stale
+    else:
+        status = "no_timestamp" if has_rows else "empty_no_timestamp"
         is_stale = True
 
     return DataEvidence(
@@ -100,6 +111,7 @@ def _evidence_from_output(
         output=dump,
         sample_size=sample_size,
         is_stale=is_stale,
+        freshness_status=status,
     )
 
 

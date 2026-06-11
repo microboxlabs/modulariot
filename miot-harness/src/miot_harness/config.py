@@ -46,7 +46,17 @@ class HarnessSettings(BaseSettings):
     # None → profile default.
     datasource_freshness_refuse_minutes: int | None = Field(default=None, ge=0)
     agents_max_turns: int = 8
+    # Agentic-mode turn cap. Looser than the canned cap (8) because
+    # exploration is the whole point of the agentic loop; each turn is
+    # one planner LLM call + at most one tool invocation.
+    agents_agentic_max_turns: int = Field(default=12, gt=0)
     agents_critic_enabled: bool = False
+
+    # Provenance log for agentic tool invocations (plan 13, E4). One JSONL
+    # line per executed step under `<dir>/YYYY-MM-DD.jsonl`; the weekly
+    # curation pass mines these for curated-function candidates.
+    provenance_log_dir: Path = Path("evals/provenance")
+    provenance_log_enabled: bool = True
 
     # Phase E (plan 13): LLM intent router. Default model is Haiku tier
     # for cost — the router is invoked on every "auto" request. Below

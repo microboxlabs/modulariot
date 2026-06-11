@@ -26,6 +26,7 @@ from miot_harness.api.identity import (
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
+from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -193,8 +194,12 @@ def _make_lifespan(
                         # planner; same model pool, same callbacks.
                         "planner": get_chat_model(settings.agents_analyst_model),
                     },
-                    provenance_log=None,  # wired in F-phase when executor lands
+                    provenance_log=ProvenanceLog(
+                        settings.provenance_log_dir,
+                        enabled=settings.provenance_log_enabled,
+                    ),
                     profile=provider.profile,
+                    registry=harness.tools,
                 )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,

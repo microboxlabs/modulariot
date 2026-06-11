@@ -107,6 +107,12 @@ def _render_failure(reason: str, *, snapshot_stale_prefix: str) -> str:
     )
 
 
+def render_failure(reason: str, *, profile: DataSourceProfile) -> str:
+    """Public seam for other graphs (agentic) to render the same graceful
+    Spanish refusals without re-deriving the stale-snapshot prefix."""
+    return _render_failure(reason, snapshot_stale_prefix=_snapshot_stale_prefix(profile))
+
+
 def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
     if not evidence:
         return "(sin evidencia)"
@@ -139,6 +145,7 @@ async def synthesizer_node(
     progress: Progress,
     profile: DataSourceProfile,
     settings: HarnessSettings | None = None,
+    extra_system_rules: str | None = None,
 ) -> dict[str, Any]:
     ctx: HarnessContext = state["ctx"]
     failure = state.get("failure")
@@ -164,6 +171,8 @@ async def synthesizer_node(
     system = _SYNTH_SYSTEM_TEMPLATE.format(
         display_name=profile.display_name, primer=profile.primer
     )
+    if extra_system_rules:
+        system = f"{system}\n{extra_system_rules}"
     rendered = _render_evidence_for_synth(evidence)
     human = f"User question:\n{user_message}\n\nEvidence:\n{rendered}\n\nWrite the answer."
 

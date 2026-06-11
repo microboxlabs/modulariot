@@ -19,6 +19,7 @@ from miot_harness.datasource.provider import (
 from miot_harness.integrations.nexo.boot import load_nexo_tools
 from miot_harness.integrations.nexo.pool import create_nexo_pool
 from miot_harness.integrations.nexo.primer import COORDINADOR_PRIMER
+from miot_harness.integrations.nexo.primitive_tools import build_primitive_tools
 from miot_harness.integrations.nexo.settings import NexoSettings
 from miot_harness.tools.registry import ToolRegistry
 
@@ -98,9 +99,26 @@ class NexoProvider(DataSourceProvider):
             return BootResult(
                 enabled=False, registered=(), reason=f"boot failed: {exc}"
             )
+        registered = list(legacy.registered)
+        if legacy.enabled:
+            # Composable primitives (agentic executor surface). They share
+            # the registry but stay invisible to canned mode — the
+            # filter_expert catalog filters by the curated tool prefix.
+            try:
+                for tool in build_primitive_tools(
+                    pool=self._pool,
+                    schema=nexo_settings.nexo_search_path,
+                    tenant_lock=tenant_lock,
+                    explain_cost_threshold=nexo_settings.nexo_explain_cost_threshold,
+                    source_label=self.profile.source_label,
+                ):
+                    registry.register(tool)
+                    registered.append(tool.name)
+            except Exception as exc:  # noqa: BLE001 — curated tools still work without primitives
+                logger.error("Nexo: failed to register primitives (%s); continuing", exc)
         return BootResult(
             enabled=legacy.enabled,
-            registered=tuple(legacy.registered),
+            registered=tuple(registered),
             reason=legacy.reason,
             snapshot_age_minutes=legacy.snapshot_age_minutes,
         )

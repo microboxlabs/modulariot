@@ -17,7 +17,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import DataEvidence
+from miot_harness.runtime.plan import DataEvidence, DataStep
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
 
@@ -103,22 +103,22 @@ def _evidence_from_output(
     )
 
 
-async def data_fetcher_node(
-    state: dict[str, Any],
+async def invoke_step(
+    step: DataStep,
     *,
+    ctx: HarnessContext,
     registry: ToolRegistry,
     settings: HarnessSettings,
     progress: Progress,
     profile: DataSourceProfile,
 ) -> dict[str, Any]:
-    plan = state.get("plan")
-    pending = int(state.get("pending_step_index", 0))
-    if plan is None or pending >= len(plan.steps):
-        return {"next_action": "ready_to_synthesize"}
+    """Invoke one DataStep's tool and classify the outcome.
 
-    step = plan.steps[pending]
-    ctx: HarnessContext = state["ctx"]
-
+    Returns either ``{"evidence": [DataEvidence]}`` on success or a
+    ``{"failure": ..., ...}`` delta on any error. Shared by the canned
+    `data_fetcher_node` and the agentic executor so both modes execute
+    tools through the exact same registry / evidence / failure path.
+    """
     try:
         output = await registry.invoke(step.tool, ctx, step.args, progress)
     except KeyError as exc:
@@ -153,8 +153,37 @@ async def data_fetcher_node(
         ),
         source_label=profile.source_label,
     )
+    return {"evidence": [evidence]}
+
+
+async def data_fetcher_node(
+    state: dict[str, Any],
+    *,
+    registry: ToolRegistry,
+    settings: HarnessSettings,
+    progress: Progress,
+    profile: DataSourceProfile,
+) -> dict[str, Any]:
+    plan = state.get("plan")
+    pending = int(state.get("pending_step_index", 0))
+    if plan is None or pending >= len(plan.steps):
+        return {"next_action": "ready_to_synthesize"}
+
+    step = plan.steps[pending]
+    ctx: HarnessContext = state["ctx"]
+
+    delta = await invoke_step(
+        step,
+        ctx=ctx,
+        registry=registry,
+        settings=settings,
+        progress=progress,
+        profile=profile,
+    )
+    if "failure" in delta:
+        return delta
     return {
-        "evidence": [evidence],  # appended by DataState's operator.add reducer
+        **delta,  # evidence appended by DataState's operator.add reducer
         "pending_step_index": pending + 1,
         "next_action": "judge_freshness",
     }

@@ -2095,6 +2095,28 @@
       "clearSearch": "Limpiar búsqueda"
     },
     "dashlets": {
+      "chart_v2": {
+        "name": "Gráfico v2",
+        "description": "Gráfico multi-representación con líneas, barras, dispersión, torta e indicador",
+        "chartFamily": "Familia de gráfico",
+        "familyCartesian": "Cartesiano",
+        "familyCartesianDesc": "Mezcla series de línea y barra",
+        "familyScatter": "Dispersión",
+        "familyScatterDesc": "Gráfico de dispersión x/y",
+        "familyPie": "Torta",
+        "familyPieDesc": "Distribución proporcional",
+        "familyGauge": "Indicador",
+        "familyGaugeDesc": "Valor en un rango",
+        "representations": "Representaciones",
+        "addRepresentation": "Agregar representación",
+        "removeRepresentation": "Eliminar representación",
+        "repNumber": "Rep {n}",
+        "repSmooth": "Suavizado",
+        "repStacked": "Apilado",
+        "repShowLabels": "Etiquetas",
+        "dualYAxis": "Doble eje Y",
+        "yAxisLabelRight": "Etiqueta eje Y derecho"
+      },
       "chart": {
         "name": "Gráfico",
         "description": "Muestra datos como gráficos de línea, barras, pastel, indicador o dispersión",

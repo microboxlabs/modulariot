@@ -2095,6 +2095,28 @@
       "clearSearch": "Clear search"
     },
     "dashlets": {
+      "chart_v2": {
+        "name": "Chart v2",
+        "description": "Multi-representation chart combining line, bar, scatter, pie, and gauge",
+        "chartFamily": "Chart Family",
+        "familyCartesian": "Cartesian",
+        "familyCartesianDesc": "Mix line & bar series",
+        "familyScatter": "Scatter",
+        "familyScatterDesc": "x/y scatter plot",
+        "familyPie": "Pie",
+        "familyPieDesc": "Proportional distribution",
+        "familyGauge": "Gauge",
+        "familyGaugeDesc": "Single value range",
+        "representations": "Representations",
+        "addRepresentation": "Add representation",
+        "removeRepresentation": "Remove representation",
+        "repNumber": "Rep {n}",
+        "repSmooth": "Smooth",
+        "repStacked": "Stacked",
+        "repShowLabels": "Labels",
+        "dualYAxis": "Dual Y-Axis",
+        "yAxisLabelRight": "Right Y-Axis Label"
+      },
       "chart": {
         "name": "Chart",
         "description": "Displays data as line, bar, pie, gauge, or scatter charts",

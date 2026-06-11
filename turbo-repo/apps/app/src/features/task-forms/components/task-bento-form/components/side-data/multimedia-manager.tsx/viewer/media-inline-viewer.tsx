@@ -66,7 +66,7 @@ export default function MediaInlineViewer({
   currentTaskServiceCode?: string;
   draftObservations?: Map<string, ObservationEntry[]>;
   committedTimeline?: Map<string, TimelineEntry[]>;
-  onAddObservation?: (fileId: string, type: ObservationType, description: string) => void;
+  onAddObservation?: (fileId: string, types: ObservationType[], description: string) => void;
   onRemoveDraftObservation?: (fileId: string, obsId: string) => void;
   onRemoveCommittedObservation?: (fileId: string, obsId: string) => void;
   onAddReply?: (fileId: string, obsId: string, description: string) => void;
@@ -147,11 +147,17 @@ export default function MediaInlineViewer({
   // Non-reviewable content (no mintral:reviewableAspect) exposes no review controls.
   const isReviewable = isReviewableEntry(current.file);
 
+  const fileObservations = [
+    ...(draftObservations?.get(id ?? "") ?? []),
+    ...((committedTimeline?.get(id ?? "") ?? []).filter((e) => e.kind === "observation")),
+  ];
+  const canReject = fileObservations.length > 0;
+
   const handleDecision = (decision: ReviewStatus) => {
     if (!id || !isCurrentReviewable) return;
     onStatusChange?.(id, decision);
 
-    if (status === "approved" || status === "rejected") return;
+    if (status === "approved" || status === "rejected") { onClose(); return; }
 
     const updatedDrafts = new Map(draftDecisions ?? new Map());
     updatedDrafts.set(id, decision);
@@ -238,6 +244,7 @@ export default function MediaInlineViewer({
           categories={Object.values(categories)}
           currentCategory={currentCategory}
           onCategoryChange={handleCategoryChange}
+          canReject={canReject}
           dictionary={dictionary}
         />
       </div>

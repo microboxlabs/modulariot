@@ -48,7 +48,7 @@ export default function ViewerMetadataSidebar({
   reviewStatuses?: Map<string, ReviewStatus>;
   draftObservations?: Map<string, ObservationEntry[]>;
   committedTimeline?: Map<string, TimelineEntry[]>;
-  onAddObservation?: (fileId: string, type: ObservationType, description: string) => void;
+  onAddObservation?: (fileId: string, types: ObservationType[], description: string) => void;
   onRemoveDraftObservation?: (fileId: string, obsId: string) => void;
   onRemoveCommittedObservation?: (fileId: string, obsId: string) => void;
   onAddReply?: (fileId: string, obsId: string, description: string) => void;
@@ -83,7 +83,7 @@ export default function ViewerMetadataSidebar({
               draftObservations={draftObservations?.get(id ?? "") ?? []}
               committedTimeline={committedTimeline?.get(id ?? "") ?? []}
               isInDraftReview={!reviewStatuses?.get(id ?? "") || reviewStatuses?.get(id ?? "") === "pending"}
-              onAdd={(type, description) => { if (id) onAddObservation?.(id, type, description); }}
+              onAdd={(types, description) => { if (id) onAddObservation?.(id, types, description); }}
               onRemoveDraft={(obsId) => { if (id) onRemoveDraftObservation?.(id, obsId); }}
               onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
               onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}
@@ -112,7 +112,7 @@ export default function ViewerMetadataSidebar({
                 draftObservations={draftObservations?.get(id ?? "") ?? []}
                 committedTimeline={committedTimeline?.get(id ?? "") ?? []}
                 isInDraftReview={!reviewStatuses?.get(id ?? "") || reviewStatuses?.get(id ?? "") === "pending"}
-                onAdd={(type, description) => { if (id) onAddObservation?.(id, type, description); }}
+                onAdd={(types, description) => { if (id) onAddObservation?.(id, types, description); }}
                 onRemoveDraft={(obsId) => { if (id) onRemoveDraftObservation?.(id, obsId); }}
                 onRemoveCommitted={(obsId) => { if (id) onRemoveCommittedObservation?.(id, obsId); }}
                 onAddReply={(obsId, desc) => { if (id) onAddReply?.(id, obsId, desc); }}

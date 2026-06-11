@@ -49,24 +49,32 @@ export function ObservationCard({
   return (
     <div className="flex flex-col gap-1 group/card">
 
-      {/* Header: label · name · time · delete */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 shrink-0">
-          {tr(`bento.multimedia.obs_${obs.type}`, dictionary)}
-        </span>
-        {obs.createdBy && (
-          <span className="text-xs text-gray-400 dark:text-gray-500">{obs.createdBy}</span>
-        )}
-        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{relativeTime(obs.createdAt, dictionary)}</span>
+      {/* Header: [badges + name + date] · [delete] */}
+      <div className="flex items-start gap-1.5">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 flex-1 min-w-0">
+          <div className="flex flex-wrap gap-1">
+            {obs.types.map((t) => (
+              <span key={t} className="inline-flex items-center rounded bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">
+                {tr(`bento.multimedia.obs_${t}`, dictionary)}
+              </span>
+            ))}
+          </div>
+          {obs.createdBy && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">{obs.createdBy}</span>
+          )}
+          <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{relativeTime(obs.createdAt, dictionary)}</span>
+        </div>
         {onDelete && (
-          <button
-            type="button"
-            onClick={() => setIsDeleteConfirmOpen(true)}
-            title={tr("bento.multimedia.obs_delete", dictionary)}
-            className="ml-auto p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer shrink-0 opacity-100"
-          >
-            <HiTrash className="w-3 h-3" />
-          </button>
+          <div className="self-stretch flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              title={tr("bento.multimedia.obs_delete", dictionary)}
+              className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer opacity-100"
+            >
+              <HiTrash className="w-3 h-3" />
+            </button>
+          </div>
         )}
       </div>
 

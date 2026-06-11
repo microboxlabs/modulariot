@@ -3,6 +3,7 @@ import {
   endTask,
   updateTask,
   getChildrenNodes,
+  listContentTopics,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
   AlfrescoErrorResponse,
@@ -72,15 +73,50 @@ async function checkDocumentReview(
       };
     }
 
-    const hasRejected = reviewable.some(
+    const rejectedEntries = reviewable.filter(
       (e) => e.entry.properties?.["mintral:reviewStatus"] === "REJECTED"
     );
 
-    if (hasRejected && transitionId && FORWARD_TRANSITION_IDS.has(transitionId)) {
+    if (rejectedEntries.length > 0 && transitionId && FORWARD_TRANSITION_IDS.has(transitionId)) {
       return {
         code: "REJECTED_DOCUMENTS",
         message: "Cannot advance: some documents have been rejected.",
       };
+    }
+
+    // Business rule: every rejected document must have at least one observation
+    // (a forum topic that is not a state-change entry).
+    if (rejectedEntries.length > 0) {
+      const STATE_CHANGE_TITLES = new Set(["APPROVED", "REJECTED", "PENDING"]);
+
+      const topicChecks = await Promise.allSettled(
+        rejectedEntries.map((e) => {
+          const nodeRef = `workspace://SpacesStore/${e.entry.id}`;
+          return listContentTopics(session, nodeRef);
+        })
+      );
+
+      const hasDocWithoutObservation = topicChecks.some((result, i) => {
+        if (result.status === "rejected") {
+          // Fail open for this document — log and skip the check.
+          logError(result.reason as Error, {
+            context: "checkDocumentReview:listContentTopics",
+            nodeId: rejectedEntries[i]?.entry.id,
+          });
+          return false;
+        }
+        const observationTopics = (result.value.topics ?? []).filter(
+          (t) => !STATE_CHANGE_TITLES.has(t.title)
+        );
+        return observationTopics.length === 0;
+      });
+
+      if (hasDocWithoutObservation) {
+        return {
+          code: "REJECTED_WITHOUT_OBSERVATIONS",
+          message: "Cannot proceed: all rejected documents must have at least one observation.",
+        };
+      }
     }
   } catch (err) {
     // Fail open: if Alfresco is unreachable, log and allow the transition

@@ -38,6 +38,7 @@ export default function ViewerToolbar({
   categories,
   currentCategory,
   onCategoryChange,
+  canReject = true,
   dictionary,
 }: Readonly<{
   fileUrl: string;
@@ -58,6 +59,7 @@ export default function ViewerToolbar({
   categories: { value: string; label: string }[];
   currentCategory: string | null;
   onCategoryChange: (category: string) => void;
+  canReject?: boolean;
   dictionary: I18nRecord;
 }>) {
   return (
@@ -136,6 +138,8 @@ export default function ViewerToolbar({
               onClick: () => onDecision("rejected"),
             },
           ]}
+          secondaryDisabled={!canReject}
+          secondaryTooltip={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
         />
       )}
 
@@ -162,9 +166,16 @@ export default function ViewerToolbar({
               {tr("bento.multimedia.btn_no_change", dictionary)}
             </DropdownItem>
           )}
-          <DropdownItem onClick={() => onDecision("rejected")}>
-            {tr("bento.multimedia.btn_reject", dictionary)}
-          </DropdownItem>
+          <Tooltip
+            content={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
+            placement="left"
+          >
+            <div>
+              <DropdownItem onClick={canReject ? () => onDecision("rejected") : undefined} disabled={!canReject}>
+                {tr("bento.multimedia.btn_reject", dictionary)}
+              </DropdownItem>
+            </div>
+          </Tooltip>
           <DropdownItem onClick={() => onDecision("pending")}>
             {tr("bento.multimedia.btn_back_to_review", dictionary)}
           </DropdownItem>

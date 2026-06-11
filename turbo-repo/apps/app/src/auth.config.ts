@@ -1,6 +1,11 @@
 import { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { signInWithCredentials } from "@/features/auth/services/auth.service";
+import {
+  authenticateWithAuth0Password,
+  tokenFieldsForCredentialsUser,
+} from "@/features/auth/services/auth0-password";
+import { isAuth0Configured } from "@/features/auth/config/auth0-connections";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
 import Auth0 from "next-auth/providers/auth0"
 
@@ -36,7 +41,10 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
   }
 
 
-  // Credentials provider - always available
+  // Credentials provider - always available. When Auth0 is configured the
+  // username/password is validated against the Auth0 database connection
+  // (password-realm grant) and yields a JWT session like the OAuth providers;
+  // otherwise it falls back to the legacy Alfresco ticket-based login.
   providers.push(
     Credentials({
       id: "credentials",
@@ -46,6 +54,11 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
+        if (isAuth0Configured()) {
+          return authenticateWithAuth0Password(
+            credentials as SignInCredentials
+          );
+        }
         return signInWithCredentials(credentials as SignInCredentials);
       },
     })
@@ -100,8 +113,9 @@ export const authConfig: NextAuthConfig = {
      * Gates *who* may sign in. (The `authorized` callback only decides whether a
      * route requires a logged-in user, not which users are allowed at all.)
      * Federated/OAuth logins (Auth0 → Google/Microsoft/etc.) are restricted to the
-     * domains in AUTH_ALLOWED_EMAIL_DOMAINS. Credentials logins are already validated
-     * upstream against Alfresco, so they bypass this domain guard.
+     * domains in AUTH_ALLOWED_EMAIL_DOMAINS. Credentials logins bypass this domain
+     * guard: those users are provisioned by us (Auth0 database connection, or the
+     * legacy Alfresco fallback), not self-asserted via a federated IdP.
      */
     async signIn({ user, account, profile }) {
       if (account?.provider === "credentials") {
@@ -250,25 +264,25 @@ export const authConfig: NextAuthConfig = {
           }
         }
 
-        // Handle credentials provider
+        // Handle credentials provider. Auth0-validated users carry an idToken
+        // and get a JWT-shaped token (same as OAuth users, including refresh);
+        // legacy Alfresco users keep the ticket-shaped token.
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
               hasUser: !!user,
               email: user?.email,
             }, "Processing credentials-based authentication");
-      
+
 
           if (user) {
-            token.ticket = user.ticket;
-            token.rawJWT = undefined;
+            Object.assign(token, tokenFieldsForCredentialsUser(user));
             authJwtLogger.debug( {
               email: user.email,
-              hasTicket: !!user.ticket,
+              hasTicket: !!token.ticket,
+              hasRawJWT: !!token.rawJWT,
               provider: account?.provider,
-              ticket: token.ticket,
-              rawJWT: token.rawJWT,
             }, "Processing user in JWT callback");
-            
+
           }
         }
 

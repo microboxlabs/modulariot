@@ -43,6 +43,21 @@ class DataState(TypedDict, total=False):
     pending_step_index: int
     answer: str | None
     failure: str | None
+    # Supervisor routing + accounting channels. LangGraph SILENTLY drops
+    # node writes to channels not declared here (verified on langgraph
+    # 1.1.10), so every key a node returns in its delta MUST be listed.
+    turn_count: int
+    next_action: str | None
+    freshness: str | None
+    analyst_reasoning: str
+    # Tool failure detail set by data_fetcher alongside `failure`.
+    error: str | None
+    error_type: str | None
+    # Agentic loop: the planner proposes one step per turn; the executor
+    # consumes it and appends to executed_steps. No DataPlan here — the
+    # agentic mode is not bounded by the 4-step canned plan cap.
+    current_step: DataStep | None
+    executed_steps: Annotated[list[DataStep], operator.add]
     # Prior turns hydrated from `ConversationStore` by the supervisor before
     # graph dispatch. LLM-bearing agents (filter_expert / synthesizer /
     # agentic_graph.planner / meta_agent via kwarg) prepend these to their

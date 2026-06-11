@@ -97,3 +97,42 @@ def test_data_state_required_fields_present():
         "failure",
     ):
         assert field in hints, f"DataState missing field: {field}"
+
+
+# Every state key any graph node writes in its delta. LangGraph SILENTLY
+# drops writes to channels not declared on the state schema (verified on
+# langgraph 1.1.10), so an undeclared key here means broken routing in
+# production — keep this set in sync when adding node outputs.
+_NODE_WRITTEN_KEYS = {
+    # core
+    "user_message",
+    "ctx",
+    "plan",
+    "evidence",
+    "pending_step_index",
+    "answer",
+    "failure",
+    "prior_messages",
+    "_events",
+    # supervisor routing / accounting (filter_expert, data_fetcher,
+    # freshness_judge, domain_analyst)
+    "next_action",
+    "turn_count",
+    "freshness",
+    "analyst_reasoning",
+    # tool failure detail (data_fetcher)
+    "error",
+    "error_type",
+    # agentic loop (agentic planner / executor)
+    "current_step",
+    "executed_steps",
+}
+
+
+def test_data_state_declares_every_node_written_key():
+    hints = get_type_hints(DataState)
+    missing = _NODE_WRITTEN_KEYS - set(hints)
+    assert not missing, (
+        f"DataState is missing channels written by nodes: {sorted(missing)}. "
+        "LangGraph silently drops writes to undeclared channels."
+    )

@@ -40,7 +40,8 @@
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
-        "invalidFromData": "Datos de formulario inválidos. Por favor, verifique sus credenciales e intente nuevamente."
+        "invalidFromData": "Datos de formulario inválidos. Por favor, verifique sus credenciales e intente nuevamente.",
+        "accessDenied": "El acceso está restringido a dominios de correo autorizados. Inicia sesión con una cuenta corporativa aprobada."
       }
     },
     "shippingv1": {

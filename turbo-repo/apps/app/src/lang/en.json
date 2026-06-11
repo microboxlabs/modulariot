@@ -40,7 +40,8 @@
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
-        "invalidFromData": "Invalid form data. Please verify your credentials and try again."
+        "invalidFromData": "Invalid form data. Please verify your credentials and try again.",
+        "accessDenied": "Access is restricted to authorized email domains. Please sign in with an approved company account."
       }
     },
     "shippingv1": {

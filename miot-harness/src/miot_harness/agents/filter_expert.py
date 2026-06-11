@@ -94,6 +94,24 @@ def build_tool_catalog(registry: ToolRegistry, *, profile: DataSourceProfile) ->
     )
 
 
+def build_capabilities_summary(
+    registry: ToolRegistry, *, profile: DataSourceProfile, max_entries: int = 15
+) -> str:
+    """User-facing (Spanish-context) bullet list of what the datasource can
+    answer — the synthesizer's onboarding fallback when planning fails
+    (Gap 4: meta-questions like '¿qué puedes hacer?' in canned mode)."""
+    lines: list[str] = []
+    for name in registry.names():
+        if not name.startswith(profile.tool_prefix):
+            continue
+        if len(lines) >= max_entries:
+            break
+        tool = registry.get(name)
+        first_line = (tool.description or "").splitlines()[0].strip()
+        lines.append(f"- {name}: {first_line}")
+    return "\n".join(lines)
+
+
 def _parse_step(text: str) -> DataStep | None:
     cleaned = _strip_fences(text)
     try:

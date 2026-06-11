@@ -80,20 +80,31 @@ def _snapshot_stale_prefix(profile: DataSourceProfile) -> str:
 
 _SNAPSHOT_AGE_RE = re.compile(r"\(age\s*(\d+)\s*min")
 
+# Failure reasons produced by a PLANNER seat that couldn't turn the user's
+# message into a tool call (vs. a tool that ran and broke). Only these get
+# the capabilities-list fallback — after a tool crash, "here's what I can
+# do" would be misleading.
+_PLANNING_FAILURE_PREFIXES = ("filter_expert", "agentic planner")
 
-def _render_failure(reason: str, *, snapshot_stale_prefix: str) -> str:
+
+def _render_failure(
+    reason: str,
+    *,
+    snapshot_stale_prefix: str,
+    capabilities_hint: str | None = None,
+) -> str:
     """Render a graceful refusal for the user (Spanish, user-facing).
 
-    The previous copy unconditionally suggested waiting for a fresh
-    snapshot, which was misleading whenever the failure was not
-    freshness-related (planning errors, tool errors, permission denials).
-    We now route by reason category:
+    Routed by reason category:
 
     - Snapshot stale → render the freshness retry advice in Spanish.
       The internal `reason` text (which is in English, formatted by
       `freshness_judge`) is NOT shown to the user; the age in minutes is
       parsed out so the user-facing message stays in one language.
-    - Anything else → a neutral planning copy that nudges the user to
+    - Planning failure + capabilities_hint → onboarding fallback: list
+      what the datasource CAN answer instead of asking the user to
+      rephrase into the void (Gap 4 — meta-questions in canned mode).
+    - Anything else → a neutral copy that nudges the user to
       reformulate. Internal `reason` text (e.g. "filter_expert returned
       malformed step") is intentionally hidden — it leaks pipeline
       structure with no user value.
@@ -112,16 +123,32 @@ def _render_failure(reason: str, *, snapshot_stale_prefix: str) -> str:
             "No puedo responder ahora mismo: el snapshot está desactualizado. "
             "Vuelve a intentarlo cuando esté fresco o consulta con operaciones."
         )
+    if capabilities_hint and reason.startswith(_PLANNING_FAILURE_PREFIXES):
+        return (
+            "No pude convertir tu pregunta en una consulta de datos. "
+            "Esto es lo que puedo consultar:\n"
+            f"{capabilities_hint}\n"
+            "Pídeme cualquiera de estos temas o haz una pregunta más específica."
+        )
     return (
         "No pude planificar la consulta; "
         "reformúlala con más detalle o pide ayuda al equipo."
     )
 
 
-def render_failure(reason: str, *, profile: DataSourceProfile) -> str:
+def render_failure(
+    reason: str,
+    *,
+    profile: DataSourceProfile,
+    capabilities_hint: str | None = None,
+) -> str:
     """Public seam for other graphs (agentic) to render the same graceful
     Spanish refusals without re-deriving the stale-snapshot prefix."""
-    return _render_failure(reason, snapshot_stale_prefix=_snapshot_stale_prefix(profile))
+    return _render_failure(
+        reason,
+        snapshot_stale_prefix=_snapshot_stale_prefix(profile),
+        capabilities_hint=capabilities_hint,
+    )
 
 
 def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
@@ -158,6 +185,7 @@ async def synthesizer_node(
     profile: DataSourceProfile,
     settings: HarnessSettings | None = None,
     extra_system_rules: str | None = None,
+    capabilities_hint: str | None = None,
 ) -> dict[str, Any]:
     ctx: HarnessContext = state["ctx"]
     failure = state.get("failure")
@@ -169,7 +197,9 @@ async def synthesizer_node(
 
     if failure:
         answer = _render_failure(
-            failure, snapshot_stale_prefix=_snapshot_stale_prefix(profile)
+            failure,
+            snapshot_stale_prefix=_snapshot_stale_prefix(profile),
+            capabilities_hint=capabilities_hint,
         )
         _emit(progress, ctx.run_id, answer)
         return {"answer": answer}

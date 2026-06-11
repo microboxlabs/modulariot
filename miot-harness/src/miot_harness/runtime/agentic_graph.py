@@ -36,6 +36,7 @@ from langgraph.graph import END, StateGraph
 
 from miot_harness.agents.agentic_planner import agentic_planner_node
 from miot_harness.agents.critic import critic_node
+from miot_harness.agents.filter_expert import build_capabilities_summary
 from miot_harness.agents.data_fetcher import invoke_step
 from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.synthesizer import synthesizer_node
@@ -100,6 +101,9 @@ def build_agentic_graph(
 
     graph = StateGraph(DataState)
     max_turns = settings.agents_agentic_max_turns
+    # Onboarding fallback for planning failures (Gap 4) — same curated
+    # list canned mode shows; primitives stay out of user-facing copy.
+    capabilities_hint = build_capabilities_summary(registry, profile=profile)
 
     def _make_event_buffer() -> tuple[list[HarnessEvent], Any]:
         buf: list[HarnessEvent] = []
@@ -193,6 +197,7 @@ def build_agentic_graph(
             settings=settings,
             profile=profile,
             extra_system_rules=_AGENTIC_SYNTH_EXTRA_RULES,
+            capabilities_hint=capabilities_hint,
         )
         return _merge_events(delta, buf)
 

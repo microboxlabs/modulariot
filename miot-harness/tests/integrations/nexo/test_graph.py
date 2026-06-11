@@ -220,3 +220,34 @@ async def test_stale_data_routes_through_synth_failure_path():
     assert final.get("answer")
     assert "el snapshot tiene" in final["answer"]
     assert "minutos" in final["answer"]
+
+
+@pytest.mark.asyncio
+async def test_meta_question_in_canned_mode_lists_capabilities():
+    """Gap 4 e2e: '¿qué puedes hacer?' makes filter_expert return prose
+    (unparseable as a step) → the synthesizer answers with the
+    capabilities list, deterministically (no synth LLM call), instead of
+    the dead-end 'reformúlala' copy."""
+    registry, _ = _registry_with_centro()
+    settings = HarnessSettings()
+    models = _models()
+    models["filter_expert"] = FakeListChatModel(
+        responses=["¡Claro! Puedo ayudarte con varias cosas del Coordinador."]
+    )
+    models["synthesizer"] = FakeListChatModel(responses=[])  # any LLM call IndexErrors
+    graph = build_data_graph(
+        registry=registry, settings=settings, models=models, profile=NEXO_PROFILE
+    )
+
+    final = await graph.ainvoke(
+        {
+            "user_message": "¿qué puedes hacer?",
+            "ctx": _ctx(),
+            "evidence": [],
+            "turn_count": 0,
+        }
+    )
+
+    assert final.get("answer")
+    assert "coordinador_centro_control" in final["answer"]
+    assert "reformúlala" not in final["answer"]

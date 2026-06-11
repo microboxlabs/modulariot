@@ -189,3 +189,110 @@ async def test_system_prompt_carries_per_status_messaging_rules() -> None:
     for token in ("status=empty_no_timestamp", "status=empty", "status=no_timestamp"):
         assert token in system, f"missing rule for {token}"
     assert "no hay filas que coincidan" in system
+
+
+_HINT = (
+    "- coordinador_centro_control: KPI summary\n"
+    "- coordinador_task_timeline: Timeline de tareas"
+)
+
+
+@pytest.mark.asyncio
+async def test_planning_failure_with_hint_lists_capabilities() -> None:
+    """Gap 4: 'qué puedes hacer' in canned mode shouldn't dead-end in
+    'reformúlala' — answer with the capabilities list instead."""
+    state: dict[str, Any] = {
+        "user_message": "¿qué puedes hacer?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "filter_expert returned malformed step",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),  # deterministic — no LLM
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "coordinador_centro_control" in update["answer"]
+    assert "reformúlala" not in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_agentic_planning_failure_with_hint_lists_capabilities() -> None:
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "agentic planner returned malformed step",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "coordinador_centro_control" in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_planning_failure_without_hint_keeps_legacy_copy() -> None:
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "filter_expert returned malformed step",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+    )
+    assert "reformúlala" in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_tool_error_failure_does_not_leak_capabilities_hint() -> None:
+    """Tool crashes are not planning failures — the capabilities list
+    would be misleading ('here's what I can do' right after failing to
+    do exactly that)."""
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "coordinador_centro_control raised: connection lost",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "coordinador_task_timeline" not in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_stale_failure_keeps_snapshot_copy_with_hint_present() -> None:
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "Coordinador snapshot is stale (age 4000min > refuse threshold 240min).",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "el snapshot tiene 4000 minutos" in update["answer"]
+    assert "coordinador_task_timeline" not in update["answer"]

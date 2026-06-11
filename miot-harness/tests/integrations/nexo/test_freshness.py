@@ -114,7 +114,6 @@ async def test_survey_skips_functions_with_required_args() -> None:
 async def test_survey_empty_with_timestamp_is_empty() -> None:
     """A 0-row probe that still carries a refreshed_at (e.g. a metadata
     row scan) classifies as 'empty', not unrefreshed."""
-    now = datetime.now(UTC)
     descriptors = [_descriptor("fn_dx_x")]
 
     # A function returning a single all-null row except refreshed_at would
@@ -128,3 +127,23 @@ async def test_survey_empty_with_timestamp_is_empty() -> None:
     )
     assert probes["fn_dx_x"].status == "empty_no_timestamp"
     assert probes["fn_dx_x"].has_rows is False
+
+
+@pytest.mark.asyncio
+async def test_survey_takes_freshest_timestamp_across_rows() -> None:
+    """Multi-layer functions return one row per layer; the per-function
+    status must reflect the freshest layer, not an arbitrary first row."""
+    now = datetime.now(UTC)
+    descriptors = [_descriptor("fn_dx_centro_control")]
+    pool = _pool(
+        {
+            "fn_dx_centro_control": [
+                {"capa": "torre", "refreshed_at_torre": now - timedelta(days=33)},
+                {"capa": "servicios", "refreshed_at_servicios": now},
+            ]
+        }
+    )
+    probes = await survey_freshness(
+        pool, schema="nexo", descriptors=descriptors, warn_minutes=30
+    )
+    assert probes["fn_dx_centro_control"].status == "fresh"

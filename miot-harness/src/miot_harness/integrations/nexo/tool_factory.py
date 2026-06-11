@@ -93,7 +93,7 @@ def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel
         else:
             fields[arg.name] = (py_type, Field(...))
 
-    def _coerce_numeric_text(cls: type[BaseModel], values: Any) -> Any:
+    def _coerce_numeric_text(values: Any) -> Any:
         # LLM planners emit JSON numbers for id-like filters
         # ("p_service_code": 1643006) while every Coordinador p_* filter
         # is pg `text`. Pydantic v2 rejects int→str, so stringify
@@ -105,14 +105,13 @@ def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel
                     values[key] = str(value)
         return values
 
+    validators: dict[str, Any] = {
+        "_coerce_numeric_text": model_validator(mode="before")(_coerce_numeric_text),
+    }
     model: type[BaseModel] = create_model(
         f"_Input_{name}",
         __config__=ConfigDict(arbitrary_types_allowed=True, extra="forbid"),
-        __validators__={
-            "_coerce_numeric_text": model_validator(mode="before")(
-                classmethod(_coerce_numeric_text)
-            ),
-        },
+        __validators__=validators,
         **fields,
     )
     return model
@@ -185,6 +184,26 @@ def _extract_refreshed_at(row: dict[str, Any]) -> datetime | None:
         if key.startswith("refreshed_at") and isinstance(value, datetime):
             return value
     return None
+
+
+def freshest_refreshed_at(rows: list[dict[str, Any]]) -> datetime | None:
+    """Max refreshed_at_* across ALL rows and columns.
+
+    Multi-layer functions (fn_dx_centro_control: one row per capa) carry a
+    refreshed_at per layer, and result order is not guaranteed — a probe
+    that reads only row 0 flips between layers across boots. For
+    pipeline-liveness gates the freshest layer is the signal; per-layer
+    staleness is surfaced separately (survey + evidence statuses)."""
+    candidates: list[datetime] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for key, value in row.items():
+            if isinstance(key, str) and key.startswith("refreshed_at") and isinstance(
+                value, datetime
+            ):
+                candidates.append(value)
+    return max(candidates) if candidates else None
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:

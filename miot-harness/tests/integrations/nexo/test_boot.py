@@ -40,6 +40,8 @@ def _boot_kwargs(**overrides) -> dict:
         "schema": "nexo",
         "tenant_lock": "mintral",
         "refuse_minutes": 240,
+        # No sleeping between probe retries in tests.
+        "probe_retry_delay_s": 0.0,
     }
     base.update(overrides)
     return base
@@ -59,6 +61,14 @@ def _mock_pool(centro_refreshed: datetime, fn_refresh_leak: int = 0) -> MagicMoc
         return {}
 
     fake_conn.fetchrow = AsyncMock(side_effect=fetchrow)
+
+    async def fetch(sql, *args):
+        # Boot's freshness probe (and the survey) read via conn.fetch.
+        if "fn_dx_centro_control" in sql:
+            return [{"refreshed_at_servicios": centro_refreshed}]
+        return []
+
+    fake_conn.fetch = AsyncMock(side_effect=fetch)
     fake_conn.execute = AsyncMock()
 
     txn_cm = MagicMock()
@@ -230,3 +240,75 @@ async def test_invalid_schema_name_disables_nexo():
     assert result.enabled is False
     assert "schema" in (result.reason or "").lower()
     assert registry.names() == []
+
+
+@pytest.mark.asyncio
+async def test_boot_probe_uses_freshest_row_across_layers(monkeypatch):
+    """fn_dx_centro_control returns one row PER LAYER, each with its own
+    refreshed_at_*. A LIMIT 1 probe lands on an arbitrary row (no ORDER
+    BY), so a single month-stale layer (capa torre) could flakily disable
+    the whole integration. The gate must consider the freshest timestamp
+    across all returned rows."""
+    monkeypatch.setattr(
+        "miot_harness.integrations.nexo.boot.introspect_nexo_functions",
+        AsyncMock(return_value=[_descriptor("fn_dx_centro_control")]),
+    )
+    registry = ToolRegistry()
+    stale_torre = datetime.now(UTC) - timedelta(days=33)
+    fresh_servicios = datetime.now(UTC) - timedelta(minutes=5)
+    pool = _mock_pool(centro_refreshed=stale_torre)
+
+    async def fetch(sql, *args):
+        if "fn_dx_centro_control" in sql:
+            return [
+                {"capa": "torre", "refreshed_at_torre": stale_torre},
+                {"capa": "servicios", "refreshed_at_servicios": fresh_servicios},
+            ]
+        return []
+
+    conn = pool.acquire.return_value.__aenter__.return_value
+    conn.fetch = AsyncMock(side_effect=fetch)
+    # fetchrow no longer drives the gate; the multi-row fetch does.
+
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=pool)
+
+    assert result.enabled is True
+    assert result.snapshot_age_minutes is not None
+    assert result.snapshot_age_minutes < 30
+
+
+@pytest.mark.asyncio
+async def test_boot_probe_retries_through_transient_refresh_window(monkeypatch):
+    """The snapshot refresh job briefly NULLs refreshed_at_servicios while
+    rebuilding; a single point-in-time probe lands in that window and
+    flakily disables the whole integration (live repro 2026-06-11). The
+    gate must retry before refusing."""
+    monkeypatch.setattr(
+        "miot_harness.integrations.nexo.boot.introspect_nexo_functions",
+        AsyncMock(return_value=[_descriptor("fn_dx_centro_control")]),
+    )
+    registry = ToolRegistry()
+    stale_torre = datetime.now(UTC) - timedelta(days=33)
+    fresh = datetime.now(UTC)
+    pool = _mock_pool(centro_refreshed=fresh)
+
+    calls = {"n": 0}
+
+    async def fetch(sql, *args):
+        if "fn_dx_centro_control" in sql:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # Mid-refresh: servicios timestamp NULL, only stale torre.
+                return [{"refreshed_at_servicios": None, "refreshed_at_torre": stale_torre}]
+            return [{"refreshed_at_servicios": fresh, "refreshed_at_torre": stale_torre}]
+        return []
+
+    conn = pool.acquire.return_value.__aenter__.return_value
+    conn.fetch = AsyncMock(side_effect=fetch)
+
+    result = await load_nexo_tools(registry, **_boot_kwargs(), pool=pool)
+
+    assert result.enabled is True
+    assert result.snapshot_age_minutes is not None
+    assert result.snapshot_age_minutes < 30
+    assert calls["n"] >= 2

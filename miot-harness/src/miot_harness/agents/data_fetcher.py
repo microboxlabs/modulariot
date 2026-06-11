@@ -66,13 +66,19 @@ def _evidence_from_output(
 
     refreshed_at = dump.get("refreshed_at")
     if not isinstance(refreshed_at, datetime):
-        # Fall back to scanning row 0 for a refreshed_at_* field
-        rows = dump.get("rows") or []
-        if rows and isinstance(rows[0], dict):
-            for k, v in rows[0].items():
-                if isinstance(k, str) and k.startswith("refreshed_at") and isinstance(v, datetime):
-                    refreshed_at = v
-                    break
+        # Fall back to scanning ALL rows for refreshed_at_* fields and take
+        # the freshest. Multi-layer outputs (e.g. centro_control: one row
+        # per capa, each with its own refreshed_at) have no guaranteed row
+        # order — keying off row 0 flips between layers across calls.
+        candidates = [
+            v
+            for row in dump.get("rows") or []
+            if isinstance(row, dict)
+            for k, v in row.items()
+            if isinstance(k, str) and k.startswith("refreshed_at") and isinstance(v, datetime)
+        ]
+        if candidates:
+            refreshed_at = max(candidates)
 
     sample_size = 0
     if isinstance(dump.get("rows"), list):

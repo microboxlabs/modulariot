@@ -16,11 +16,11 @@ Nexo is misconfigured (review item C4).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 
 import asyncpg
 
@@ -31,7 +31,7 @@ from miot_harness.integrations.nexo.introspect import (
     FunctionDescriptor,
     introspect_nexo_functions,
 )
-from miot_harness.integrations.nexo.tool_factory import build_nexo_tool
+from miot_harness.integrations.nexo.tool_factory import build_nexo_tool, freshest_refreshed_at
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -94,8 +94,13 @@ SELECT
     ) AS fn_refresh_direct_leak
 """
 
+# Multi-layer probe: centro_control returns one row PER LAYER (servicios,
+# torre, …), each with its own refreshed_at_*, and row order is not
+# guaranteed. Fetch a bounded set and gate on the FRESHEST timestamp —
+# LIMIT 1 flips between layers across boots and a single stale layer
+# would flakily disable the whole integration.
 _CENTRO_CONTROL_PROBE_SQL = """
-SELECT * FROM {schema}.fn_dx_centro_control() LIMIT 1
+SELECT * FROM {schema}.fn_dx_centro_control() LIMIT 50
 """
 
 
@@ -108,6 +113,8 @@ async def load_nexo_tools(
     pool: asyncpg.Pool | None,
     warn_minutes: int = 30,
     survey_enabled: bool = True,
+    probe_attempts: int = 3,
+    probe_retry_delay_s: float = 2.0,
 ) -> NexoBootResult:
     """Boot the Nexo tools.
 
@@ -163,34 +170,55 @@ async def load_nexo_tools(
             reason=f"ACL check failed: {exc}",
         )
 
-    # 2. Connectivity + freshness probe on centro_control.
+    # 2. Connectivity + freshness probe on centro_control. The refresh job
+    # briefly NULLs the freshest layer timestamp while rebuilding, so a
+    # single point-in-time probe can land in that window and flakily
+    # report only a stale layer — retry before refusing.
     age_minutes: float | None = None
     try:
-        async with pool.acquire() as conn:
-            async with conn.transaction(readonly=True):
-                await conn.execute(f"SET LOCAL search_path TO {schema}, public")
-                probe = await conn.fetchrow(_CENTRO_CONTROL_PROBE_SQL.format(schema=schema))
-        refreshed_at = _extract_refreshed_at(dict(probe) if probe else {})
-        if refreshed_at is None:
+        for attempt in range(1, probe_attempts + 1):
+            async with pool.acquire() as conn:
+                async with conn.transaction(readonly=True):
+                    await conn.execute(f"SET LOCAL search_path TO {schema}, public")
+                    probe_rows = await conn.fetch(
+                        _CENTRO_CONTROL_PROBE_SQL.format(schema=schema)
+                    )
+            refreshed_at = freshest_refreshed_at(
+                [dict(r) for r in probe_rows] if probe_rows else []
+            )
+            if refreshed_at is None:
+                age_minutes = None
+            else:
+                age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
+                if age_minutes <= refuse_minutes:
+                    break  # fresh enough — gate passes
+            if attempt < probe_attempts:
+                logger.warning(
+                    "Nexo: centro_control probe attempt %d/%d saw %s; retrying",
+                    attempt,
+                    probe_attempts,
+                    "no refreshed_at" if age_minutes is None else f"age {age_minutes:.0f}min",
+                )
+                await asyncio.sleep(probe_retry_delay_s)
+        if age_minutes is None:
             logger.warning("Nexo: centro_control probe returned no refreshed_at; continuing")
-        else:
-            age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
-            if age_minutes > refuse_minutes:
-                logger.critical(
-                    "Nexo: centro_control snapshot is %.0f min old "
-                    "(refuse threshold %d). Disabling.",
-                    age_minutes,
-                    refuse_minutes,
-                )
-                return NexoBootResult(
-                    enabled=False,
-                    registered=[],
-                    reason=(
-                        f"Snapshot stale: refreshed_at age {age_minutes:.0f}min "
-                        f"> refuse threshold {refuse_minutes}min."
-                    ),
-                    snapshot_age_minutes=age_minutes,
-                )
+        elif age_minutes > refuse_minutes:
+            logger.critical(
+                "Nexo: centro_control snapshot is %.0f min old "
+                "(refuse threshold %d, %d attempts). Disabling.",
+                age_minutes,
+                refuse_minutes,
+                probe_attempts,
+            )
+            return NexoBootResult(
+                enabled=False,
+                registered=[],
+                reason=(
+                    f"Snapshot stale: refreshed_at age {age_minutes:.0f}min "
+                    f"> refuse threshold {refuse_minutes}min."
+                ),
+                snapshot_age_minutes=age_minutes,
+            )
     except Exception as exc:  # noqa: BLE001
         logger.critical("Nexo: centro_control probe raised %s; disabling", exc)
         return NexoBootResult(
@@ -254,10 +282,3 @@ async def load_nexo_tools(
         freshness=freshness,
         catalog_entries=catalog_entries,
     )
-
-
-def _extract_refreshed_at(row: dict[str, Any]) -> datetime | None:
-    for key, value in row.items():
-        if isinstance(key, str) and key.startswith("refreshed_at") and isinstance(value, datetime):
-            return value
-    return None

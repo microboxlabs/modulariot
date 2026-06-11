@@ -200,16 +200,35 @@ async def test_agentic_failure_renders_spanish_refusal() -> None:
 
 
 @pytest.mark.asyncio
-async def test_agentic_stale_snapshot_refuses_in_spanish() -> None:
+async def test_agentic_stale_evidence_is_a_caveat_not_a_dead_end() -> None:
+    """Multi-evidence exploration must not refuse the whole run because
+    one snapshot is old (beta Gap 2 frustration): the judge's refuse
+    verdict downgrades to a warn, the loop continues, and the synthesizer
+    answers citing the staleness (evidence carries status=stale)."""
+    from langchain_core.messages import HumanMessage
+
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
     stale = datetime.now(UTC) - timedelta(days=30)
-    models = _models([_call_tool_response()])
-    models["synthesizer"] = FakeListChatModel(responses=[])
+    models = _models([_call_tool_response(), _FINAL_RESPONSE])
+    models["synthesizer"] = _RecordingModel(
+        responses=["Datos antiguos: 3 ETA en riesgo (snapshot de hace 30 días)."]
+    )
     graph = _graph(registry=_registry(refreshed=stale), models=models)
     final = await graph.ainvoke(
         {"user_message": "estado?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
     )
-    assert "snapshot is stale" in (final.get("failure") or "")
-    assert "el snapshot tiene" in final.get("answer", "")
+    assert not final.get("failure")
+    assert final.get("answer", "").startswith("Datos antiguos")
+    assert final["evidence"][0].is_stale is True
+    # The synthesizer prompt carries the stale marker so it can caveat.
+    human = [m for m in captured[0] if isinstance(m, HumanMessage)][-1]
+    assert "status=stale" in human.content
 
 
 @pytest.mark.asyncio
@@ -279,8 +298,9 @@ def test_agentic_graph_topology_has_required_nodes() -> None:
 
 
 def test_agentic_synth_prompt_no_longer_disclaims_executor() -> None:
-    import miot_harness.runtime.agentic_graph as module
     import inspect
+
+    import miot_harness.runtime.agentic_graph as module
 
     source = inspect.getsource(module)
     assert "not yet wired" not in source

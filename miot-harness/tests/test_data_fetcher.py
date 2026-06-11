@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -334,3 +334,21 @@ def test_evidence_source_none_falls_back_to_profile_label() -> None:
         source_label=NEXO_PROFILE.source_label,
     )
     assert evidence.source == NEXO_PROFILE.source_label
+
+
+def test_evidence_freshness_uses_freshest_row_across_layers() -> None:
+    """Multi-layer outputs (centro_control: one row per capa) must not be
+    flagged stale just because row 0 happens to be the stale layer."""
+    now = datetime.now(UTC)
+    stale = now - timedelta(days=33)
+    ev = _classify(
+        {
+            "rows": [
+                {"capa": "torre", "refreshed_at_torre": stale},
+                {"capa": "servicios", "refreshed_at_servicios": now},
+            ]
+        }
+    )
+    assert ev.freshness_status == "fresh"
+    assert ev.is_stale is False
+    assert ev.refreshed_at == now

@@ -36,8 +36,8 @@ from langgraph.graph import END, StateGraph
 
 from miot_harness.agents.agentic_planner import agentic_planner_node
 from miot_harness.agents.critic import critic_node
-from miot_harness.agents.filter_expert import build_capabilities_summary
 from miot_harness.agents.data_fetcher import invoke_step
+from miot_harness.agents.filter_expert import build_capabilities_summary
 from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.synthesizer import synthesizer_node
 from miot_harness.config import HarnessSettings
@@ -182,6 +182,15 @@ def build_agentic_graph(
         delta = freshness_judge_node(
             cast(dict[str, Any], state), settings=settings, progress=progress, profile=profile
         )
+        # Agentic downgrade: in a multi-evidence exploration, one
+        # refuse-zone snapshot must not dead-end the whole run (the canned
+        # gate keeps refusing). The evidence is already marked
+        # status=stale, the freshness.warning event was emitted, and the
+        # synthesizer's per-status rules caveat the answer — so strip the
+        # failure and let the planner keep going.
+        failure = delta.get("failure") or ""
+        if failure.startswith(f"{profile.display_name} snapshot is stale"):
+            delta = {**delta, "failure": None, "next_action": None}
         return _merge_events(delta, buf)
 
     async def synthesizer(state: DataState) -> dict[str, Any]:

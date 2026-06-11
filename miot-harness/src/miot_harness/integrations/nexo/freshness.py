@@ -21,11 +21,14 @@ from typing import Any
 
 from miot_harness.datasource.provider import FreshnessProbe
 from miot_harness.integrations.nexo.introspect import FunctionDescriptor
-from miot_harness.integrations.nexo.tool_factory import _extract_refreshed_at, _row_to_dict
+from miot_harness.integrations.nexo.tool_factory import _row_to_dict, freshest_refreshed_at
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_PER_CALL_TIMEOUT_S = 3.0
+# Below the asyncpg pool's default size so probes never starve each other
+# (or live traffic) waiting on pool.acquire.
+_PROBE_CONCURRENCY = 4
 
 
 def _classify(
@@ -49,20 +52,34 @@ async def _probe_one(
     descriptor: FunctionDescriptor,
     warn_minutes: int,
     timeout_s: float,
+    semaphore: asyncio.Semaphore,
 ) -> FreshnessProbe:
-    sql = f"SELECT * FROM {schema}.{descriptor.name}() LIMIT 1"
+    # LIMIT 50 (not 1): multi-layer functions return one row per layer,
+    # each with its own refreshed_at_*, in no guaranteed order — the
+    # status must reflect the freshest layer.
+    sql = f"SELECT * FROM {schema}.{descriptor.name}() LIMIT 50"
 
     async def _run() -> list[dict[str, Any]]:
-        async with pool.acquire() as conn:
-            async with conn.transaction(readonly=True):
-                await conn.execute(f"SET LOCAL search_path TO {schema}, public")
-                raw = await conn.fetch(sql)
+        # The semaphore bounds concurrency BELOW the pool size so probes
+        # don't queue on pool.acquire — queue time would otherwise eat the
+        # per-call budget and misreport slow-but-healthy functions as
+        # errors. The timeout covers only the query itself.
+        async with semaphore:
+            async with pool.acquire() as conn:
+                async with conn.transaction(readonly=True):
+                    await conn.execute(f"SET LOCAL search_path TO {schema}, public")
+                    raw = await asyncio.wait_for(conn.fetch(sql), timeout=timeout_s)
         return [_row_to_dict(r) for r in raw]
 
     try:
-        rows = await asyncio.wait_for(_run(), timeout=timeout_s)
+        rows = await _run()
     except Exception as exc:  # noqa: BLE001 — survey must not break boot
-        logger.warning("Nexo freshness survey: %s probe failed (%s)", descriptor.name, exc)
+        logger.warning(
+            "Nexo freshness survey: %s probe failed (%s: %s)",
+            descriptor.name,
+            type(exc).__name__,
+            exc,
+        )
         return FreshnessProbe(
             function=descriptor.name,
             refreshed_at=None,
@@ -71,7 +88,7 @@ async def _probe_one(
             status="error",
         )
 
-    refreshed_at = _extract_refreshed_at(rows[0]) if rows else None
+    refreshed_at = freshest_refreshed_at(rows)
     status, age_minutes = _classify(
         rows=rows, refreshed_at=refreshed_at, warn_minutes=warn_minutes
     )
@@ -111,6 +128,7 @@ async def survey_freshness(
                 status="skipped",
             )
 
+    semaphore = asyncio.Semaphore(_PROBE_CONCURRENCY)
     results = await asyncio.gather(
         *(
             _probe_one(
@@ -119,6 +137,7 @@ async def survey_freshness(
                 descriptor=d,
                 warn_minutes=warn_minutes,
                 timeout_s=per_call_timeout_s,
+                semaphore=semaphore,
             )
             for d in runnable
         )

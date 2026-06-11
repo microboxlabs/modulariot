@@ -1,9 +1,14 @@
-import { Box } from "ink";
+import { Box, Text, useInput } from "ink";
 import { useCallback, useMemo, useState } from "react";
 import { randomUUID } from "node:crypto";
 import type { ResolvedConfig } from "../config.js";
+import { packageVersion } from "../version.js";
 import { Editor } from "./input/Editor.js";
-import { Header } from "./header/Header.js";
+import { TopLine } from "./chrome/TopLine.js";
+import { TipLine } from "./chrome/TipLine.js";
+import { FooterLine } from "./chrome/FooterLine.js";
+import { InputFrame } from "./chrome/InputFrame.js";
+import { WelcomeCard } from "./chrome/WelcomeCard.js";
 import { Transcript } from "./transcript/Transcript.js";
 import { ContextModal } from "./modals/ContextModal.js";
 import { ResumePicker } from "./modals/ResumePicker.js";
@@ -25,6 +30,7 @@ import {
   turnCount,
 } from "./session/selectors.js";
 import { isApprovalsUiEnabled } from "./session/approvals.js";
+import { isAgenticTenantMismatch } from "./session/agentic.js";
 import { useSession, type HarnessClientLike } from "./useSession.js";
 import { parseSlash } from "./slash/parse.js";
 import {
@@ -184,6 +190,19 @@ function AppInner(
     ],
   );
 
+  // Global shortcuts advertised on the welcome card. Routed through
+  // the slash handlers so behavior stays identical to the typed
+  // commands. The Editor's keymap ignores these combos; ctrl+h is
+  // off-limits (terminals emit it as backspace), hence ctrl+g for
+  // help. Inactive while a modal is open so pickers own their keys.
+  useInput((input, key) => {
+    if (!key.ctrl || modal.spec !== null) return;
+    if (input === "r") void dispatchSlash("/resume");
+    else if (input === "t") void dispatchSlash("/theme");
+    else if (input === "g") void dispatchSlash("/help");
+    else if (input === "q") void dispatchSlash("/exit");
+  });
+
   const handleSubmit = useCallback(
     (text: string): void => {
       if (text.trim().startsWith("/")) {
@@ -207,6 +226,10 @@ function AppInner(
 
   const modalSpec = modal.spec;
   const editorActive = modalSpec === null;
+  const version = useMemo(() => packageVersion(), []);
+  const showWelcome = allItems.length === 0 && modalSpec === null;
+  const meta = session.state.meta;
+  const agenticWarn = isAgenticTenantMismatch(meta.mode, meta.tenantId);
 
   return (
     <Box flexDirection="column">
@@ -215,10 +238,15 @@ function AppInner(
           <SystemNote text={`theme: ${props.themeWarning}`} />
         </Box>
       ) : null}
-      <Transcript
-        items={allItems}
-        isStreaming={isStreaming(session.state)}
-      />
+      <TopLine meta={meta} streaming={isStreaming(session.state)} />
+      {showWelcome ? (
+        <WelcomeCard version={version} />
+      ) : (
+        <Transcript
+          items={allItems}
+          isStreaming={isStreaming(session.state)}
+        />
+      )}
       {modalSpec?.kind === "context" ? (
         <ContextModal
           session={session.state}
@@ -277,16 +305,19 @@ function AppInner(
           onCancel={closeModal}
         />
       ) : null}
-      <Header
-        meta={session.state.meta}
-        streaming={isStreaming(session.state)}
-        pendingApprovals={pendingApprovalCount(session.state)}
+      <TipLine tipIndex={turnCount(session.state)} />
+      <InputFrame label={`miot · ${meta.mode}`} labelWarn={agenticWarn}>
+        <Editor onSubmit={handleSubmit} isFocused={editorActive} />
+      </InputFrame>
+      <FooterLine
         turns={turnCount(session.state)}
         approxTokens={approxTokenCount(session.state)}
         contextPercent={contextPercent(session.state)}
         usageTotals={session.state.usageTotals}
+        baseUrl={meta.baseUrl}
+        profileName={meta.profileName}
+        pendingApprovals={pendingApprovalCount(session.state)}
       />
-      <Editor onSubmit={handleSubmit} isFocused={editorActive} />
     </Box>
   );
 }
@@ -309,5 +340,3 @@ function SystemNote(props: { text: string }): React.ReactElement {
     </Box>
   );
 }
-
-import { Text } from "ink";

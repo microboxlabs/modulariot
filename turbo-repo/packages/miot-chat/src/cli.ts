@@ -1,4 +1,3 @@
-import { createRequire } from "node:module";
 import { Command } from "commander";
 import { registerAskCommand } from "./commands/ask.js";
 import { registerLoginCommand } from "./commands/login.js";
@@ -7,13 +6,13 @@ import { registerRunsCommand } from "./commands/runs.js";
 import { resolveConfig, type CliFlags } from "./config.js";
 import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import { runMiotChat, shouldUseTui } from "./runMiotChat.js";
+import { packageVersion } from "./version.js";
 
 // Re-export so existing consumers (incl. cli.fork.test.ts) keep
 // working without an import-path update.
 export { shouldUseTui };
 
-const require = createRequire(import.meta.url);
-const { version } = require("../package.json") as { version: string };
+const version = packageVersion();
 
 const program = new Command();
 

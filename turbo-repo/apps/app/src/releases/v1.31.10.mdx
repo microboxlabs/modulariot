@@ -1,0 +1,45 @@
+# 🔔 Release Notes v1.31.10 — ModularIoT
+
+### Fecha: 11/06/2026
+
+**Objetivo**: Reforzar la seguridad y la fiabilidad del acceso a la aplicación ModularIoT, asegurando que el inicio de sesión funcione correctamente en entornos desplegados y mejorando la consistencia de la interfaz de usuario.
+
+## 🚀 Evolutivos
+
+- **📍 Consistencia del cursor en botones no estándar**
+  - **Punto clave**: Se incorpora un mecanismo para garantizar que los botones creados fuera del estándar Flowbite mantengan la clase de cursor tipo puntero. *(Integración OSS — MIOT-0.5.11)*
+  - **Detalle técnico**: Evita que botones generados de forma no convencional pierdan el indicador visual de interacción, homogeneizando el comportamiento de la UI.
+
+## 🔧 Integraciones
+
+- **🔌 Control de acceso por dominio de correo en `apps/app`**
+  - **Alcance**: Se añade un callback `signIn` en la configuración de autenticación que restringe los inicios de sesión federados/OAuth a los dominios de correo aprobados, configurables por entorno mediante la variable `AUTH_ALLOWED_EMAIL_DOMAINS` (separados por comas). *(Integración OSS — MIOT-0.5.11)*
+  - **Detalle**: Si la variable está vacía o sin definir, el guard queda deshabilitado para preservar el comportamiento actual; cada instancia decide su propia lista. Se rechazan los inicios sociales cuyo proveedor reporta el correo como no verificado y se muestra un mensaje claro de acceso denegado (`?error=AccessDenied`) con soporte i18n (en/es). Los inicios con credenciales (Alfresco) quedan fuera de alcance al validarse aguas arriba.
+
+## 🐛 Correcciones
+
+- **🐛 Redirección del handoff de autenticación de la CLI hacia el host interno tras el proxy**
+  - **Impacto**: Al ejecutar `miot auth login` contra un entorno desplegado, la redirección de inicio de sesión se construía a partir del origen interno de la petición, apuntando al bind interno de la app (p. ej. `http://0.0.0.0:3000/...`), inalcanzable desde el navegador y provocando `ERR_CONNECTION_REFUSED`. El login de la CLI era imposible en cualquier entorno con proxy inverso. *(Integración OSS — MIOT-0.5.11)*
+  - **Solución**: La redirección de inicio de sesión ahora resuelve al origen público (derivado de las cabeceras reenviadas `X-Forwarded-Host` / `X-Forwarded-Proto` o de una URL base configurada como `AUTH_URL`), con fallback a `url.origin` para desarrollo local. El login local permanece sin cambios y la ruta ya autenticada no se ve afectada.
+
+- **🐛 Cualquier usuario autenticado podía iniciar sesión en `apps/app`**
+  - **Impacto**: El callback `authorized` solo verificaba si un usuario había iniciado sesión, sin ningún `signIn` que controlara quién podía autenticarse; en consecuencia, cualquier cuenta de Google/Auth0 podía obtener una sesión válida en la aplicación. *(Integración OSS — MIOT-0.5.11)*
+  - **Solución**: Se introduce el control de acceso por dominio de correo descrito en Integraciones, limitando el acceso a los dominios corporativos aprobados y mostrando un mensaje claro cuando se deniega el acceso.
+
+## 📊 Beneficios
+
+- Mayor seguridad de acceso: solo los usuarios de dominios corporativos autorizados pueden autenticarse mediante OAuth/social.
+- Configuración flexible por entorno e instancia, sin necesidad de modificar el código fuente.
+- Inicio de sesión de la CLI funcional en entornos desplegados detrás de un proxy inverso.
+- Compatibilidad preservada: el guard de dominios queda deshabilitado por defecto y el login local permanece intacto.
+- Experiencia de usuario más coherente gracias al cursor uniforme en todos los botones.
+- Mensajes de acceso denegado claros y traducidos (en/es) que mejoran la comprensión del usuario.
+- Reducción de riesgos operativos al evitar accesos no autorizados a sesiones de la aplicación.
+
+## 📌 Conclusión
+
+La versión 1.31.10 centra sus esfuerzos en endurecer la capa de autenticación de ModularIoT. La incorporación del control de acceso por dominio de correo cierra una brecha relevante que permitía a cualquier cuenta federada obtener una sesión, y lo hace de forma configurable por instancia para adaptarse a despliegues multi-cliente.
+
+A su vez, la corrección del handoff de la CLI restablece una funcionalidad esencial en entornos desplegados, garantizando que el inicio de sesión sea alcanzable a través del origen público correcto. Estas mejoras refuerzan la robustez del flujo de acceso en producción.
+
+En conjunto, esta entrega prioriza la seguridad, la fiabilidad y la consistencia de la experiencia, sentando una base más sólida para los entornos productivos y multi-instancia de la plataforma.

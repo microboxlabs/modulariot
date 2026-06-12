@@ -10,17 +10,17 @@ type LogoSegment = { text: string; tone: "accent" | "warn" };
 
 const LOGO: LogoSegment[][] = [
   [
-    { text: " ◢", tone: "accent" },
+    { text: "▚▗▄▄", tone: "accent" },
     { text: "▲", tone: "warn" },
-    { text: "◣ ", tone: "accent" },
+    { text: "▄▄▖▞", tone: "accent" },
   ],
   [
-    { text: "▐", tone: "accent" },
+    { text: "▐  ", tone: "accent" },
     { text: "◉ ◉", tone: "warn" },
-    { text: "▌", tone: "accent" },
+    { text: "  ▌", tone: "accent" },
   ],
-  [{ text: "▐ ▼ ▌", tone: "accent" }],
-  [{ text: " ◥▄◤ ", tone: "accent" }],
+  [{ text: "▐   ▼   ▌", tone: "accent" }],
+  [{ text: " ▝▀▀▀▀▀▘ ", tone: "accent" }],
 ];
 
 const MENU: Array<{ label: string; shortcut: string }> = [

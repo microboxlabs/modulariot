@@ -23,11 +23,12 @@ describe("<WelcomeCard />", () => {
     expect(frame).toContain("ctrl+q");
   });
 
-  it("renders the owl logo", () => {
+  it("renders the braille owl logo", () => {
     const { lastFrame } = render(<WelcomeCard version="0.1.0" />);
     const frame = lastFrame() ?? "";
-    expect(frame).toContain("◉ ◉");
-    expect(frame).toContain("▼");
+    // Dot-matrix body and the tapered chin row.
+    expect(frame).toContain("⣿");
+    expect(frame).toContain("⠙⠻⠿⣿⣿⣿⣿⣿⣿⠿⠟⠋");
   });
 
   it("renders inside a bordered card", () => {

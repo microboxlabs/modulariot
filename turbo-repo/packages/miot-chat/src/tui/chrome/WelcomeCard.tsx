@@ -2,25 +2,83 @@ import { Box, Text } from "ink";
 import { useTerminalWidth } from "../hooks/useTerminalWidth.js";
 import { useTheme } from "../theme/ThemeProvider.js";
 
-// Owl mascot in block art. Each row is a list of colored segments;
-// the forehead triangle and the eyes take the warn (orange) token,
-// matching the brand mascot. Keep every row the same printed width
-// so the right column lines up.
-type LogoSegment = { text: string; tone: "accent" | "warn" };
+// Owl mascot rendered as braille dot-matrix art (each char encodes a
+// 2x4 dot cell), generated from the brand mascot bitmap: blue
+// feathers → accent, orange forehead/eye rings → warn, white facial
+// disc → face (assistant token). Rows are 22 printed columns wide.
+type LogoSegment = { text: string; tone: "accent" | "warn" | "face" };
 
 const LOGO: LogoSegment[][] = [
+  [{ text: "⣶⣄⡀   ⢀⣀⣤⣶⣿⣿⣶⣤⣀⡀   ⢀⣠⣴", tone: "accent" }],
   [
-    { text: "▚▗▄▄", tone: "accent" },
-    { text: "▲", tone: "warn" },
-    { text: "▄▄▖▞", tone: "accent" },
+    { text: "⢿⣿⣿⣿⣿⣾⣿", tone: "accent" },
+    { text: "⣷⣿⣿⣿⣿⣿⣿", tone: "warn" },
+    { text: "⣿⣿⣷⣾⣿⣿⣿⡿", tone: "accent" },
   ],
   [
-    { text: "▐  ", tone: "accent" },
-    { text: "◉ ◉", tone: "warn" },
-    { text: "  ▌", tone: "accent" },
+    { text: "⠈⢿⣿⣿⣿⣿⣿⣿⣿", tone: "accent" },
+    { text: "⣿⣿⣿⣿", tone: "warn" },
+    { text: "⣿⣿⣿⣿⣿⣿⣿⡿⠁", tone: "accent" },
   ],
-  [{ text: "▐   ▼   ▌", tone: "accent" }],
-  [{ text: " ▝▀▀▀▀▀▘ ", tone: "accent" }],
+  [
+    { text: "⢀⣿⣿⣿", tone: "accent" },
+    { text: "⣿⣿⣟⣿⣿⣿", tone: "face" },
+    { text: "⣿⣿", tone: "accent" },
+    { text: "⣿", tone: "face" },
+    { text: "⣿", tone: "accent" },
+    { text: "⣿⣿⣿⣿", tone: "face" },
+    { text: "⣿⣿⣿⡀", tone: "accent" },
+  ],
+  [
+    { text: "⢸⣿⣿", tone: "accent" },
+    { text: "⣿", tone: "face" },
+    { text: "⣿", tone: "accent" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣿⣿", tone: "accent" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣿⣿⣿⡿", tone: "face" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣿⣿", tone: "accent" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣽", tone: "accent" },
+    { text: "⣿", tone: "face" },
+    { text: "⣿⣿⡇", tone: "accent" },
+  ],
+  [
+    { text: "⢸⣿⣿", tone: "accent" },
+    { text: "⣿", tone: "face" },
+    { text: "⣟", tone: "accent" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣻⣿", tone: "accent" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣿⣿⣿⣷", tone: "face" },
+    { text: "⣿", tone: "warn" },
+    { text: "⣿⣿", tone: "accent" },
+    { text: "⡿", tone: "warn" },
+    { text: "⣿", tone: "accent" },
+    { text: "⣿", tone: "face" },
+    { text: "⣿⣿⡇", tone: "accent" },
+  ],
+  [
+    { text: "⠈⣿⣿⣿", tone: "accent" },
+    { text: "⣿⣷⣿⣷⣿⣿", tone: "face" },
+    { text: "⣿⣿", tone: "accent" },
+    { text: "⣿⣿⣾⣿⣿⣿", tone: "face" },
+    { text: "⣿⣿⣿⠁", tone: "accent" },
+  ],
+  [
+    { text: " ⠘⣿⣿⣿⣿", tone: "accent" },
+    { text: "⣿⣿⣿⣿", tone: "face" },
+    { text: "⣿⣿", tone: "accent" },
+    { text: "⣿⣿⣿⣿", tone: "face" },
+    { text: "⣿⣿⣿⣿⠃ ", tone: "accent" },
+  ],
+  [
+    { text: "  ⠈⠻⣿⣿⣿⣿⣿", tone: "accent" },
+    { text: "⣿⣿⣿⣿", tone: "face" },
+    { text: "⣿⣿⣿⣿⣿⠟⠁  ", tone: "accent" },
+  ],
+  [{ text: "     ⠙⠻⠿⣿⣿⣿⣿⣿⣿⠿⠟⠋     ", tone: "accent" }],
 ];
 
 const MENU: Array<{ label: string; shortcut: string }> = [
@@ -56,7 +114,13 @@ export function WelcomeCard(props: WelcomeCardProps): React.ReactElement {
             {row.map((seg, j) => (
               <Text
                 key={j}
-                color={seg.tone === "warn" ? theme.warn : theme.accent}
+                color={
+                  seg.tone === "warn"
+                    ? theme.warn
+                    : seg.tone === "face"
+                      ? theme.assistant
+                      : theme.accent
+                }
               >
                 {seg.text}
               </Text>

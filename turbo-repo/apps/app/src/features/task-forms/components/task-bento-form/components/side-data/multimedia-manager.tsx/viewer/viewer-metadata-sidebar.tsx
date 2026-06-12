@@ -59,12 +59,12 @@ export default function ViewerMetadataSidebar({
   dictionary: I18nRecord;
 }>) {
   const reviewStatus = entry.properties?.["mintral:reviewStatus"];
-  const reviewStatusLabel: string | null =
-    reviewStatus && reviewStatus !== "PENDING"
-      ? reviewStatus === "APPROVED"
-        ? tr("bento.multimedia.sidebar_prop_review_approved", dictionary)
-        : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary)
-      : null;
+  let reviewStatusLabel: string | null = null;
+  if (reviewStatus && reviewStatus !== "PENDING") {
+    reviewStatusLabel = reviewStatus === "APPROVED"
+      ? tr("bento.multimedia.sidebar_prop_review_approved", dictionary)
+      : tr("bento.multimedia.sidebar_prop_review_rejected", dictionary);
+  }
 
   return (
     <div

@@ -27,8 +27,8 @@ export default function ViewerHeaderBadges({
   const byWord = tr("bento.multimedia.row_by_lower", dictionary);
   const onWord = tr("bento.multimedia.row_on", dictionary);
 
-  const reviewedAt = entry.properties?.["mintral:reviewedAt"] as string | undefined;
-  const reviewedBy = entry.properties?.["mintral:reviewedBy"] as string | undefined;
+  const reviewedAt = entry.properties?.["mintral:reviewedAt"];
+  const reviewedBy = entry.properties?.["mintral:reviewedBy"];
   const modifiedAt = entry.modifiedAt;
   const modifiedBy = entry.modifiedByUser?.displayName;
 
@@ -45,9 +45,9 @@ export default function ViewerHeaderBadges({
     ? `${STATUS_BADGE_CLASSES[status]} px-1.5 py-0.5 shrink-0`
     : `${valueBadgeCls}`;
   const eventBy = isReviewRecent ? reviewedBy : modifiedBy;
-  const eventAt = isReviewRecent
-    ? (reviewedAt ? formatDateString(reviewedAt) : null)
-    : (modifiedAt ? formatDateString(modifiedAt) : null);
+  const reviewedAtFormatted = reviewedAt ? formatDateString(reviewedAt) : null;
+  const modifiedAtFormatted = modifiedAt ? formatDateString(modifiedAt) : null;
+  const eventAt = isReviewRecent ? reviewedAtFormatted : modifiedAtFormatted;
 
   return (
     <>

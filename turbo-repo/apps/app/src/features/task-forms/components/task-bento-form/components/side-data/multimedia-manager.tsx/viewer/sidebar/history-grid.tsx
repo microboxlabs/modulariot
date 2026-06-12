@@ -63,6 +63,24 @@ function buildPersonDateLine(
   );
 }
 
+function buildActivityLine(
+  displayName: string | undefined,
+  date: string | undefined,
+  byWord: string,
+  onWord: string,
+): ReactNode {
+  if (displayName && date) {
+    return buildPersonDateLine(displayName, formatDateString(date), byWord, onWord);
+  }
+  if (displayName) {
+    return <ValueBadge>{displayName}</ValueBadge>;
+  }
+  if (date) {
+    return <ValueBadge>{formatDateString(date)}</ValueBadge>;
+  }
+  return null;
+}
+
 function buildStateSummary(
   statusLabel: string,
   reviewStatus: string,
@@ -100,27 +118,12 @@ function buildStateSummary(
 export function HistoryGrid({ entry, reviewStatusLabel, dictionary }: HistoryGridProps) {
   const byWord = tr("bento.multimedia.sidebar_history_state_by_word", dictionary);
   const onWord = tr("bento.multimedia.sidebar_history_state_on_word", dictionary);
-  const reviewStatus = entry.properties?.["mintral:reviewStatus"] as string | undefined;
-  const reviewedBy = entry.properties?.["mintral:reviewedBy"] as string | undefined;
-  const reviewedAt = entry.properties?.["mintral:reviewedAt"] as string | undefined;
+  const reviewStatus = entry.properties?.["mintral:reviewStatus"];
+  const reviewedBy = entry.properties?.["mintral:reviewedBy"];
+  const reviewedAt = entry.properties?.["mintral:reviewedAt"];
 
-  const creationLine =
-    entry.createdByUser?.displayName && entry.createdAt
-      ? buildPersonDateLine(entry.createdByUser.displayName, formatDateString(entry.createdAt), byWord, onWord)
-      : entry.createdByUser?.displayName
-        ? <ValueBadge>{entry.createdByUser.displayName}</ValueBadge>
-        : entry.createdAt
-          ? <ValueBadge>{formatDateString(entry.createdAt)}</ValueBadge>
-          : null;
-
-  const modificationLine =
-    entry.modifiedByUser?.displayName && entry.modifiedAt
-      ? buildPersonDateLine(entry.modifiedByUser.displayName, formatDateString(entry.modifiedAt), byWord, onWord)
-      : entry.modifiedByUser?.displayName
-        ? <ValueBadge>{entry.modifiedByUser.displayName}</ValueBadge>
-        : entry.modifiedAt
-          ? <ValueBadge>{formatDateString(entry.modifiedAt)}</ValueBadge>
-          : null;
+  const creationLine = buildActivityLine(entry.createdByUser?.displayName, entry.createdAt, byWord, onWord);
+  const modificationLine = buildActivityLine(entry.modifiedByUser?.displayName, entry.modifiedAt, byWord, onWord);
 
   const stateSummary =
     reviewStatusLabel && reviewStatus

@@ -28,7 +28,7 @@ describe("<WelcomeCard />", () => {
     const frame = lastFrame() ?? "";
     // Dot-matrix body and the tapered chin row.
     expect(frame).toContain("⣿");
-    expect(frame).toContain("⠙⠻⠿⣿⣿⣿⣿⣿⣿⠿⠟⠋");
+    expect(frame).toContain("⠈⠙⠛⠛⠛⠛⠉⠁");
   });
 
   it("renders inside a bordered card", () => {

@@ -5,80 +5,22 @@ import { useTheme } from "../theme/ThemeProvider.js";
 // Owl mascot rendered as braille dot-matrix art (each char encodes a
 // 2x4 dot cell), generated from the brand mascot bitmap: blue
 // feathers → accent, orange forehead/eye rings → warn, white facial
-// disc → face (assistant token). Rows are 22 printed columns wide.
+// disc → face (assistant token), and the dark navy outlines, pupils,
+// and beak become missing dots (negative space) so the features stay
+// visible even in monochrome. Rows are 22 printed columns wide.
 type LogoSegment = { text: string; tone: "accent" | "warn" | "face" };
 
 const LOGO: LogoSegment[][] = [
-  [{ text: "⣶⣄⡀   ⢀⣀⣤⣶⣿⣿⣶⣤⣀⡀   ⢀⣠⣴", tone: "accent" }],
-  [
-    { text: "⢿⣿⣿⣿⣿⣾⣿", tone: "accent" },
-    { text: "⣷⣿⣿⣿⣿⣿⣿", tone: "warn" },
-    { text: "⣿⣿⣷⣾⣿⣿⣿⡿", tone: "accent" },
-  ],
-  [
-    { text: "⠈⢿⣿⣿⣿⣿⣿⣿⣿", tone: "accent" },
-    { text: "⣿⣿⣿⣿", tone: "warn" },
-    { text: "⣿⣿⣿⣿⣿⣿⣿⡿⠁", tone: "accent" },
-  ],
-  [
-    { text: "⢀⣿⣿⣿", tone: "accent" },
-    { text: "⣿⣿⣟⣿⣿⣿", tone: "face" },
-    { text: "⣿⣿", tone: "accent" },
-    { text: "⣿", tone: "face" },
-    { text: "⣿", tone: "accent" },
-    { text: "⣿⣿⣿⣿", tone: "face" },
-    { text: "⣿⣿⣿⡀", tone: "accent" },
-  ],
-  [
-    { text: "⢸⣿⣿", tone: "accent" },
-    { text: "⣿", tone: "face" },
-    { text: "⣿", tone: "accent" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣿⣿", tone: "accent" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣿⣿⣿⡿", tone: "face" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣿⣿", tone: "accent" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣽", tone: "accent" },
-    { text: "⣿", tone: "face" },
-    { text: "⣿⣿⡇", tone: "accent" },
-  ],
-  [
-    { text: "⢸⣿⣿", tone: "accent" },
-    { text: "⣿", tone: "face" },
-    { text: "⣟", tone: "accent" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣻⣿", tone: "accent" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣿⣿⣿⣷", tone: "face" },
-    { text: "⣿", tone: "warn" },
-    { text: "⣿⣿", tone: "accent" },
-    { text: "⡿", tone: "warn" },
-    { text: "⣿", tone: "accent" },
-    { text: "⣿", tone: "face" },
-    { text: "⣿⣿⡇", tone: "accent" },
-  ],
-  [
-    { text: "⠈⣿⣿⣿", tone: "accent" },
-    { text: "⣿⣷⣿⣷⣿⣿", tone: "face" },
-    { text: "⣿⣿", tone: "accent" },
-    { text: "⣿⣿⣾⣿⣿⣿", tone: "face" },
-    { text: "⣿⣿⣿⠁", tone: "accent" },
-  ],
-  [
-    { text: " ⠘⣿⣿⣿⣿", tone: "accent" },
-    { text: "⣿⣿⣿⣿", tone: "face" },
-    { text: "⣿⣿", tone: "accent" },
-    { text: "⣿⣿⣿⣿", tone: "face" },
-    { text: "⣿⣿⣿⣿⠃ ", tone: "accent" },
-  ],
-  [
-    { text: "  ⠈⠻⣿⣿⣿⣿⣿", tone: "accent" },
-    { text: "⣿⣿⣿⣿", tone: "face" },
-    { text: "⣿⣿⣿⣿⣿⠟⠁  ", tone: "accent" },
-  ],
-  [{ text: "     ⠙⠻⠿⣿⣿⣿⣿⣿⣿⠿⠟⠋     ", tone: "accent" }],
+  [{ text: "⢀", tone: "accent" }, { text: "        ", tone: "accent" }, { text: "⣀", tone: "accent" }, { text: "⣤⣤⣀", tone: "warn" }, { text: "        ", tone: "accent" }, { text: "⡀", tone: "accent" }],
+  [{ text: " ", tone: "accent" }, { text: "⢿⣶⣶⣤⣤⣰", tone: "accent" }, { text: "⢶⣿⣿⣿⣿⣿⣿⣷", tone: "warn" }, { text: "⣆⣤⣤⣶⣶⡿", tone: "accent" }, { text: " ", tone: "accent" }],
+  [{ text: " ", tone: "accent" }, { text: "⠈⠛⣛⢛⣛⣛⡛⠺", tone: "accent" }, { text: "⢿⣿⣿⡿", tone: "warn" }, { text: "⠟⠛⣛⣛⣛⣛⠛⠁", tone: "accent" }, { text: " ", tone: "accent" }],
+  [{ text: " ", tone: "accent" }, { text: "⢀⣿⣿", tone: "accent" }, { text: "⣿⢟⣛⣛⢿⣦", tone: "face" }, { text: "⣌⣡", tone: "accent" }, { text: "⣴⡾⣛⣛⡿⣿", tone: "face" }, { text: "⣿⣷", tone: "accent" }, { text: "  ", tone: "accent" }],
+  [{ text: " ", tone: "accent" }, { text: "⣸⣿", tone: "accent" }, { text: "⣿", tone: "face" }, { text: "⢳", tone: "accent" }, { text: "⡿", tone: "warn" }, { text: "⡯", tone: "accent" }, { text: "⠙⣷", tone: "warn" }, { text: "⢻⣿⣿⡟", tone: "face" }, { text: "⣾⠋", tone: "warn" }, { text: "⢽", tone: "accent" }, { text: "⢻", tone: "warn" }, { text: "⣽", tone: "accent" }, { text: "⣿", tone: "face" }, { text: "⣿⡇", tone: "accent" }, { text: " ", tone: "accent" }],
+  [{ text: " ", tone: "accent" }, { text: "⢻⣿", tone: "accent" }, { text: "⣿", tone: "face" }, { text: "⡜⣧⣀⣠⡿", tone: "warn" }, { text: "⣼⡿⣿⣧", tone: "face" }, { text: "⢿⣄⣠⡾", tone: "warn" }, { text: "⣻", tone: "accent" }, { text: "⣿", tone: "face" }, { text: "⣿⡇", tone: "accent" }, { text: " ", tone: "accent" }],
+  [{ text: " ", tone: "accent" }, { text: "⠘⣿⣿", tone: "accent" }, { text: "⣿⣶⣯⣷⣾⡟", tone: "face" }, { text: "⠁⣬", tone: "accent" }, { text: "⣻⣷⣾⣿⣾⣿", tone: "face" }, { text: "⣿⡿", tone: "accent" }, { text: "  ", tone: "accent" }],
+  [{ text: "  ", tone: "accent" }, { text: "⠘⢿⣿⣿", tone: "accent" }, { text: "⣿⣿⣿⣿", tone: "face" }, { text: "⡄⢡", tone: "accent" }, { text: "⣿⣿⣿⣿", tone: "face" }, { text: "⣿⣿⠟⠁", tone: "accent" }, { text: "  ", tone: "accent" }],
+  [{ text: "    ", tone: "accent" }, { text: "⠙⠻⢿⣿⣿", tone: "accent" }, { text: "⣿⣿⣿⣿", tone: "face" }, { text: "⣿⣿⡿⠟⠁", tone: "accent" }, { text: "    ", tone: "accent" }],
+  [{ text: "       ", tone: "accent" }, { text: "⠈⠙⠛⠛⠛⠛⠉⠁", tone: "accent" }, { text: "       ", tone: "accent" }],
 ];
 
 const MENU: Array<{ label: string; shortcut: string }> = [

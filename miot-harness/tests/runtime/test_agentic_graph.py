@@ -370,3 +370,72 @@ async def test_agentic_synthesizer_prior_turns_rule_present() -> None:
     )
     system = [m for m in captured[0] if isinstance(m, SystemMessage)][0]
     assert "authoritative" in system.content
+
+
+@pytest.mark.asyncio
+async def test_agentic_tool_failure_feeds_back_to_planner() -> None:
+    """A failed tool call must not dead-end the exploration: the failure
+    is recorded in failed_steps, the planner sees it (and the evidence
+    already collected) and can adapt — try another tool or finalize.
+    Found live: nexo_describe ok + nexo_grep raised → whole run died with
+    the generic failure copy, discarding the describe evidence."""
+    from pydantic import BaseModel as _BM
+
+    registry = _registry()
+
+    class _In(_BM):
+        pass
+
+    class _Out(_BM):
+        rows: list[dict[str, Any]] = []
+
+    async def _check(ctx: HarnessContext, inp: Any) -> PermissionResult:
+        return PermissionResult.allow()
+
+    async def _boom(ctx: HarnessContext, inp: Any, progress: Any) -> Any:
+        raise RuntimeError("relation does not exist")
+
+    registry.register(
+        HarnessTool(
+            name="nexo_grep",
+            description="grep",
+            input_model=_In,
+            output_model=_Out,
+            check_permission=_check,
+            call=_boom,
+            kind="primitive",
+        )
+    )
+
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    models = {
+        "planner": _RecordingModel(
+            responses=[
+                _call_tool_response("nexo_grep"),  # fails
+                _call_tool_response(),  # recovers with the curated tool
+                _FINAL_RESPONSE,
+            ]
+        ),
+        "critic": FakeListChatModel(responses=[]),
+        "synthesizer": FakeListChatModel(responses=["Recovered answer."]),
+        "summarizer": FakeListChatModel(responses=[]),
+    }
+    graph = _graph(registry=registry, models=models)
+    final = await graph.ainvoke(
+        {"user_message": "explora", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    )
+
+    assert final.get("answer") == "Recovered answer."
+    assert not final.get("failure")
+    assert len(final.get("evidence", [])) == 1  # only the successful call
+    assert any("nexo_grep" in note for note in final.get("failed_steps", []))
+    # The planner's 2nd/3rd prompts must mention the failed call so it
+    # doesn't repeat it.
+    later_prompts = "".join(m.content for m in captured[1])
+    assert "nexo_grep" in later_prompts

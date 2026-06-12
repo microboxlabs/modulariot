@@ -123,10 +123,14 @@ async def agentic_planner_node(
         "\n".join(f"- {s.tool}({json.dumps(s.args, default=str)})" for s in executed)
         or "(none)"
     )
+    failed: list[str] = list(state.get("failed_steps", []))
+    failed_lines = "\n".join(f"- {note}" for note in failed) or "(none)"
     human = (
         f"User question:\n{state.get('user_message', '')}\n\n"
         f"Evidence collected so far:\n{render_evidence(evidence)}\n\n"
         f"Tool calls already executed:\n{executed_lines}\n\n"
+        f"Tool calls that FAILED (do not repeat them as-is; fix the args, "
+        f"try a different tool, or finalize):\n{failed_lines}\n\n"
         "Decide the next action."
     )
 

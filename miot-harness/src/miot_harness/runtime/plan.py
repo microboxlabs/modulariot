@@ -66,6 +66,10 @@ class DataState(TypedDict, total=False):
     # agentic mode is not bounded by the 4-step canned plan cap.
     current_step: DataStep | None
     executed_steps: Annotated[list[DataStep], operator.add]
+    # Failed tool calls (one human-readable note each). The agentic
+    # executor records failures here instead of dead-ending the run, so
+    # the planner can adapt — try another tool or finalize.
+    failed_steps: Annotated[list[str], operator.add]
     # Prior turns hydrated from `ConversationStore` by the supervisor before
     # graph dispatch. LLM-bearing agents (filter_expert / synthesizer /
     # agentic_graph.planner / meta_agent via kwarg) prepend these to their

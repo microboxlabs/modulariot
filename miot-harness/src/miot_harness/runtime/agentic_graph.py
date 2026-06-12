@@ -156,7 +156,19 @@ def build_agentic_graph(
             profile=profile,
         )
         if "failure" in delta:
-            return _merge_events({**delta, "current_step": None}, buf)
+            # A failed tool call is feedback, not a dead end: record the
+            # note for the planner (which sees failed_steps in its prompt
+            # and adapts) and loop back instead of failing the whole run.
+            # The turn cap bounds repeated failures.
+            note = f"{step.tool}({json.dumps(step.args, default=str)}): {delta['failure']}"
+            return _merge_events(
+                {
+                    "failed_steps": [note],
+                    "current_step": None,
+                    "next_action": None,
+                },
+                buf,
+            )
         evidence: DataEvidence = delta["evidence"][0]
         if provenance_log is not None:
             provenance_log.append(
@@ -261,9 +273,15 @@ def build_agentic_graph(
         return "synthesizer"
 
     def route_from_executor(state: DataState) -> str:
-        if cast(dict[str, Any], state).get("failure"):
+        snapshot = cast(dict[str, Any], state)
+        if snapshot.get("failure"):
             return "synthesizer"
-        return "freshness_judge"
+        # Success sets next_action="judge_freshness"; a recorded tool
+        # failure leaves it None → straight back to the planner (there is
+        # no new evidence for the judge to look at).
+        if snapshot.get("next_action") == "judge_freshness":
+            return "freshness_judge"
+        return "planner"
 
     def route_from_judge(state: DataState) -> str:
         # REFUSE-zone verdicts set `failure`; fresh/warn loop back to the
@@ -281,7 +299,11 @@ def build_agentic_graph(
     graph.add_conditional_edges(
         "executor",
         route_from_executor,
-        {"synthesizer": "synthesizer", "freshness_judge": "freshness_judge"},
+        {
+            "synthesizer": "synthesizer",
+            "freshness_judge": "freshness_judge",
+            "planner": "planner",
+        },
     )
     graph.add_conditional_edges(
         "freshness_judge",

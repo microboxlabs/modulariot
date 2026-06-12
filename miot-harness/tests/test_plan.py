@@ -126,6 +126,7 @@ _NODE_WRITTEN_KEYS = {
     # agentic loop (agentic planner / executor)
     "current_step",
     "executed_steps",
+    "failed_steps",
 }
 
 

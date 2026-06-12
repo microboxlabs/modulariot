@@ -2889,7 +2889,6 @@
       "commit_undecided_many": "files without a decision — will not be changed",
       "commit_success": "Review submitted successfully",
       "review_state_update_error": "Failed to save review state — please try again",
-      "review_summary": "Review summary",
       "row_by": "By",
       "row_updated": "Updated",
       "row_on": "on",

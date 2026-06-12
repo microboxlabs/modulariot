@@ -582,22 +582,40 @@ export default function FileImages({
     const ALFRESCO_STATE_MAP: Record<string, "APPROVED" | "REJECTED" | "PENDING"> = { approved: "APPROVED", rejected: "REJECTED", pending: "PENDING" };
     const alfrescoState = ALFRESCO_STATE_MAP[status] ?? "PENDING";
 
-    setReviewStatuses((prev) => { const next = new Map(prev); next.set(id, status); return next; });
-    setReviewStatusTimestamps((prev) => { const next = new Map(prev); next.set(id, now); return next; });
-    if (currentUserName) {
-      setReviewStatusUsers((prev) => { const next = new Map(prev); next.set(id, currentUserName); return next; });
-    }
+    // Capture full-map snapshots inside the updaters before writing optimistic values.
+    // Restored verbatim on any API failure so prior state (including previously committed
+    // decisions) is never lost.
+    let snapStatuses: Map<string, ReviewStatus> | undefined;
+    let snapTimestamps: Map<string, Date> | undefined;
+    let snapUsers: Map<string, string> | undefined;
+    let snapTimeline: Map<string, TimelineEntry[]> | undefined;
 
-    const [updateResult] = await Promise.allSettled([
+    setReviewStatuses((prev) => {
+      snapStatuses = prev;
+      const next = new Map(prev); next.set(id, status); return next;
+    });
+    setReviewStatusTimestamps((prev) => {
+      snapTimestamps = prev;
+      const next = new Map(prev); next.set(id, now); return next;
+    });
+    setReviewStatusUsers((prev) => {
+      snapUsers = prev;
+      if (!currentUserName) return prev;
+      const next = new Map(prev); next.set(id, currentUserName); return next;
+    });
+    setCommittedTimeline((prev) => { snapTimeline = prev; return prev; });
+
+    const [updateResult, forumResult] = await Promise.allSettled([
       updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString()),
       createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState),
     ]);
 
-    if (updateResult.status === "rejected") {
+    if (updateResult.status === "rejected" || forumResult.status === "rejected") {
       toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
-      setReviewStatuses((prev) => { const next = new Map(prev); next.delete(id); return next; });
-      setReviewStatusTimestamps((prev) => { const next = new Map(prev); next.delete(id); return next; });
-      setReviewStatusUsers((prev) => { const next = new Map(prev); next.delete(id); return next; });
+      if (snapStatuses) setReviewStatuses(() => snapStatuses!);
+      if (snapTimestamps) setReviewStatusTimestamps(() => snapTimestamps!);
+      if (snapUsers) setReviewStatusUsers(() => snapUsers!);
+      if (snapTimeline) setCommittedTimeline(() => snapTimeline!);
       return;
     }
 

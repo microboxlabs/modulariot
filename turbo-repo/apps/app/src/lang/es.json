@@ -2889,7 +2889,6 @@
       "commit_undecided_many": "archivos sin decisión — no serán cambiados",
       "commit_success": "Revisión enviada correctamente",
       "review_state_update_error": "Error al guardar el estado de revisión — intenta de nuevo",
-      "review_summary": "Resumen de revisión",
       "row_by": "Por",
       "row_updated": "Actualizado",
       "row_on": "el",

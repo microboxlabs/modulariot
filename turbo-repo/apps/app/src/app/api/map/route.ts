@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { mapLogger } from "@/lib/logger";
 
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_map_positions`;
 
@@ -64,9 +65,16 @@ async function fetchPositions(): Promise<unknown> {
     });
 
     if (response.ok) {
-      const json = await response.json();
+      const json: unknown = await response.json();
       // Upstream wraps the rows as { data: [...] }; unwrap to the array.
-      return json.data;
+      if (json && typeof json === "object" && "data" in json) {
+        return (json as { data: unknown }).data;
+      }
+      // Malformed 200 (missing `data`): treat as an upstream fault instead of
+      // caching `undefined` as a successful, empty map.
+      lastStatus = 502;
+      lastBody = "unexpected upstream payload shape";
+      break;
     }
 
     lastStatus = response.status;
@@ -84,13 +92,14 @@ async function fetchPositions(): Promise<unknown> {
     await sleep(backoff);
   }
 
-  console.error("API Error Details:", {
-    responseUrl: url,
-    status: lastStatus,
-    body: lastBody,
-  });
+  // Log the full upstream detail server-side only; never echo the raw body to
+  // the client (it can carry internal gateway/db error text).
+  mapLogger.error(
+    { responseUrl: url, status: lastStatus, body: lastBody },
+    "Map upstream request failed"
+  );
   const error = new Error(
-    `HTTP error! status: ${lastStatus}, body: ${lastBody}`
+    `Map upstream request failed with status ${lastStatus}`
   ) as Error & { status?: number };
   error.status = lastStatus;
   throw error;
@@ -118,25 +127,25 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500;
+    const retryable = isRetryableStatus(status);
 
     // A transient gateway spike should not blank the map: prefer the last-known
-    // positions when we have them, even if slightly stale.
-    if (cachedPayload) {
+    // positions when we have them, even if slightly stale. Only for *retryable*
+    // faults — a non-retryable error (e.g. a 4xx contract/auth break) must
+    // surface, not hide behind stale data indefinitely.
+    if (retryable && cachedPayload) {
       return NextResponse.json(cachedPayload.data, {
         headers: { "x-map-stale": "1" },
       });
     }
 
-    // No cache to fall back on. Return a *retryable* status for backpressure so
-    // the client backs off and retries instead of treating it as a hard 500.
-    const retryable = isRetryableStatus(status);
+    // Return a *retryable* status for backpressure so the client backs off and
+    // retries instead of treating it as a hard 500. Keep the client message
+    // generic; the upstream detail is logged server-side only.
     return NextResponse.json(
       {
         error: "Failed to fetch map positions",
-        errorMessage:
-          typeof error === "object" && error !== null && "message" in error
-            ? (error as { message: string }).message
-            : String(error),
+        errorMessage: "Map positions are temporarily unavailable",
       },
       {
         status: retryable ? 503 : 500,

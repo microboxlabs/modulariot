@@ -188,4 +188,64 @@ describe("GET /api/map", () => {
     expect(await stale.json()).toEqual(positions);
     expect(stale.headers.get("x-map-stale")).toBe("1");
   });
+
+  it("does NOT serve stale cache for a non-retryable (4xx) upstream error", async () => {
+    const nowSpy = vi.spyOn(Date, "now");
+    let clock = 2_000_000;
+    nowSpy.mockImplementation(() => clock);
+
+    fetchMock.mockResolvedValueOnce(
+      makeResponse({ ok: true, status: 200, jsonData: { data: [{ id: "warm" }] } })
+    );
+    const { GET } = await loadRoute();
+    const warm = await GET();
+    expect(await warm.json()).toEqual([{ id: "warm" }]);
+
+    // Past the TTL, the upstream now fails with a non-retryable 400. A hard
+    // contract/auth break must surface, not be masked by stale data.
+    clock += 60_000;
+    fetchMock.mockResolvedValue(
+      makeResponse({ ok: false, status: 400, text: "bad request" })
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("x-map-stale")).toBeNull();
+  });
+
+  it("treats a malformed 200 (no data field) as a fault, not a cached success", async () => {
+    fetchMock.mockResolvedValueOnce(
+      makeResponse({ ok: true, status: 200, jsonData: { unexpected: "shape" } })
+    );
+    const { GET } = await loadRoute();
+
+    const bad = await GET();
+    expect(bad.status).toBe(503); // 502 upstream fault -> retryable, no cache
+
+    // The malformed payload must not have been cached: the next call hits the
+    // upstream again and returns the real data.
+    fetchMock.mockResolvedValue(
+      makeResponse({ ok: true, status: 200, jsonData: { data: [{ id: "real" }] } })
+    );
+    const good = await GET();
+    expect(await good.json()).toEqual([{ id: "real" }]);
+  });
+
+  it("does not leak the upstream error body to the client", async () => {
+    fetchMock.mockResolvedValue(
+      makeResponse({
+        ok: false,
+        status: 500,
+        text: "SECRET pg error: relation private_table does not exist",
+      })
+    );
+    const { GET } = await loadRoute();
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(JSON.stringify(body)).not.toContain("SECRET");
+    expect(body.errorMessage).toBe("Map positions are temporarily unavailable");
+  });
 });

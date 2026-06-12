@@ -25,5 +25,6 @@ export default async function SignInLocaleRedirect({
     else if (Array.isArray(value) && value[0]) qs.set(key, value[0]);
   }
   const query = qs.toString();
-  redirect(`/${defaultLocale}/sign-in${query ? `?${query}` : ""}`);
+  const suffix = query ? `?${query}` : "";
+  redirect(`/${defaultLocale}/sign-in${suffix}`);
 }

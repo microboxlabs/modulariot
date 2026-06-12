@@ -35,10 +35,8 @@ const CACHE_TTL_MS = 5_000;
 const MAX_RETRIES = 2;
 const BASE_BACKOFF_MS = 250;
 
-type MapPayload = unknown;
-
-let cachedPayload: { data: MapPayload; ts: number } | null = null;
-let inFlight: Promise<MapPayload> | null = null;
+let cachedPayload: { data: unknown; ts: number } | null = null;
+let inFlight: Promise<unknown> | null = null;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -49,7 +47,7 @@ const isRetryableStatus = (status: number) => status === 429 || status >= 500;
  * exponential backoff (honoring `Retry-After` when present). Throws a tagged
  * error carrying the final upstream status on persistent failure.
  */
-async function fetchPositions(): Promise<MapPayload> {
+async function fetchPositions(): Promise<unknown> {
   const token = await authToken.getToken();
   const url = `${SYMPTOMS_API_URL}?p_is_dev=true`;
 
@@ -67,7 +65,8 @@ async function fetchPositions(): Promise<MapPayload> {
 
     if (response.ok) {
       const json = await response.json();
-      return json.data; //TODO: ask to standardize the response
+      // Upstream wraps the rows as { data: [...] }; unwrap to the array.
+      return json.data;
     }
 
     lastStatus = response.status;

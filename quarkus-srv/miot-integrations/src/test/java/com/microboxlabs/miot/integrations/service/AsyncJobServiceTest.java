@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.domain.JobState;
@@ -12,6 +11,7 @@ import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
+import java.lang.reflect.Method;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +31,17 @@ class AsyncJobServiceTest {
 
         assertEquals(JobState.PENDING, repo.reportedState);
         assertNotNull(repo.reportedNextRetryAt);
-        // attempt 1 → base * 2^0 = 60s
-        assertTrue(repo.reportedNextRetryAt.isAfter(OffsetDateTime.now().plusSeconds(BASE_SECONDS - 10)));
-        assertTrue(repo.reportedNextRetryAt.isBefore(OffsetDateTime.now().plusSeconds(BASE_SECONDS + 10)));
+    }
+
+    @Test
+    void backoffDoublesPerAttemptAndIsCapped() throws Exception {
+        var service = new AsyncJobService(new FakeRepository(null), BASE_SECONDS, MAX_SECONDS);
+        Method backoff = AsyncJobService.class.getDeclaredMethod("backoffSeconds", int.class);
+        backoff.setAccessible(true);
+
+        assertEquals(60L, backoff.invoke(service, 1));   // base * 2^0
+        assertEquals(120L, backoff.invoke(service, 2));  // base * 2^1
+        assertEquals(3600L, backoff.invoke(service, 10)); // capped at max
     }
 
     @Test
@@ -72,9 +80,10 @@ class AsyncJobServiceTest {
     void reportRejectsJobsThatAreNotRunning() {
         var repo = new FakeRepository(jobInState(JobState.PENDING, 0, 5));
         var service = new AsyncJobService(repo, BASE_SECONDS, MAX_SECONDS);
+        var request = failed();
 
         assertThrows(IllegalStateException.class,
-                () -> service.report("t", "job-1", failed()));
+                () -> service.report("t", "job-1", request));
     }
 
     @Test
@@ -88,13 +97,13 @@ class AsyncJobServiceTest {
     @Test
     void enqueueValidatesRequiredFields() {
         var service = new AsyncJobService(new FakeRepository(null), BASE_SECONDS, MAX_SECONDS);
+        var missingSource = new EnqueueJobsRequest(null, "listener", List.of(spec()));
+        var emptyJobs = new EnqueueJobsRequest("ecm-1", "listener", List.of());
+        var bogusActor = new EnqueueJobsRequest("ecm-1", "bogus", List.of(spec()));
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.enqueue("t", new EnqueueJobsRequest(null, "listener", List.of(spec()))));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.enqueue("t", new EnqueueJobsRequest("ecm-1", "listener", List.of())));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.enqueue("t", new EnqueueJobsRequest("ecm-1", "bogus", List.of(spec()))));
+        assertThrows(IllegalArgumentException.class, () -> service.enqueue("t", missingSource));
+        assertThrows(IllegalArgumentException.class, () -> service.enqueue("t", emptyJobs));
+        assertThrows(IllegalArgumentException.class, () -> service.enqueue("t", bogusActor));
     }
 
     @Test

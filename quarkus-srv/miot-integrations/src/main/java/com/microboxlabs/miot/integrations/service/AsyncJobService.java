@@ -11,6 +11,7 @@ import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,16 +53,7 @@ public class AsyncJobService {
      * state, wins — re-running a SUCCEEDED job requires an explicit manual retry).
      */
     public EnqueueJobsResponse enqueue(String tenantCode, EnqueueJobsRequest request) {
-        if (request.sourceInstance() == null || request.sourceInstance().isBlank()) {
-            throw new IllegalArgumentException("sourceInstance is required");
-        }
-        if (request.jobs() == null || request.jobs().isEmpty()) {
-            throw new IllegalArgumentException("jobs must not be empty");
-        }
-        String enqueuedBy = request.enqueuedBy() == null ? "listener" : request.enqueuedBy();
-        if (!VALID_ENQUEUED_BY.contains(enqueuedBy)) {
-            throw new IllegalArgumentException("enqueuedBy must be one of " + VALID_ENQUEUED_BY);
-        }
+        String enqueuedBy = validateEnqueueRequest(request);
 
         List<AsyncJob> created = new ArrayList<>();
         int duplicates = 0;
@@ -76,6 +68,26 @@ public class AsyncJobService {
                 created.add(row);
             }
         }
+        logEnqueueOutcome(tenantCode, enqueuedBy, created, duplicates);
+        return new EnqueueJobsResponse(created, duplicates);
+    }
+
+    /** @return the validated enqueuing actor (defaults to "listener") */
+    private String validateEnqueueRequest(EnqueueJobsRequest request) {
+        if (request.sourceInstance() == null || request.sourceInstance().isBlank()) {
+            throw new IllegalArgumentException("sourceInstance is required");
+        }
+        if (request.jobs() == null || request.jobs().isEmpty()) {
+            throw new IllegalArgumentException("jobs must not be empty");
+        }
+        String enqueuedBy = request.enqueuedBy() == null ? "listener" : request.enqueuedBy();
+        if (!VALID_ENQUEUED_BY.contains(enqueuedBy)) {
+            throw new IllegalArgumentException("enqueuedBy must be one of " + VALID_ENQUEUED_BY);
+        }
+        return enqueuedBy;
+    }
+
+    private void logEnqueueOutcome(String tenantCode, String enqueuedBy, List<AsyncJob> created, int duplicates) {
         if (duplicates > 0) {
             LOG.infof("Enqueue for tenant %s: %d created, %d duplicates (by=%s)",
                     tenantCode, created.size(), duplicates, enqueuedBy);
@@ -86,7 +98,6 @@ public class AsyncJobService {
             LOG.warnf("Reconciler backfilled %d job(s) for tenant %s — fast-path enqueue missed them",
                     created.size(), tenantCode);
         }
-        return new EnqueueJobsResponse(created, duplicates);
     }
 
     public List<AsyncJob> claim(ClaimJobsRequest request) {
@@ -129,7 +140,7 @@ public class AsyncJobService {
             boolean retryable = !Boolean.FALSE.equals(request.retryable());
             if (retryable && job.attempts() < job.maxAttempts()) {
                 newState = JobState.PENDING;
-                nextRetryAt = OffsetDateTime.now().plusSeconds(backoffSeconds(job.attempts()));
+                nextRetryAt = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(backoffSeconds(job.attempts()));
             } else {
                 newState = JobState.FAILED;
             }
@@ -198,7 +209,7 @@ public class AsyncJobService {
 
     private Map<String, Object> attemptEntry(String outcome, String detail, String by) {
         Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("at", OffsetDateTime.now().toString());
+        entry.put("at", OffsetDateTime.now(ZoneOffset.UTC).toString());
         entry.put("outcome", outcome);
         if (detail != null) {
             entry.put("detail", detail);

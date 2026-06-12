@@ -462,6 +462,10 @@ export function useMapPositions() {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
+      // Collapse focus/reconnect-driven refetches into one call within the
+      // window — this endpoint is concurrency-limited upstream (429 spike
+      // arrest), so duplicate bursts must not reach it.
+      dedupingInterval: 10_000,
     }
   );
 

@@ -171,19 +171,6 @@ export default function TaskActions({
     }
   }, [outcome, taskId, taskType, lang, router]);
 
-  const handleSelection = (
-    outcome:
-      | TaskOutcome
-      | TaskOutcomeV2
-      | TaskOutcomeDelivery
-      | TaskOutcomePlanning,
-    outcomeLabel: string
-  ) => {
-    setOutcome(outcome);
-    setOutcomeLabel(outcomeLabel);
-    setOpenModal(true);
-  };
-
   const isCommentsFieldEnabled = (
     outcome:
       | TaskOutcome

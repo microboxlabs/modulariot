@@ -589,7 +589,7 @@ export default function FileImages({
     }
 
     const [updateResult] = await Promise.allSettled([
-      updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString(), undefined),
+      updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString()),
       createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState),
     ]);
 

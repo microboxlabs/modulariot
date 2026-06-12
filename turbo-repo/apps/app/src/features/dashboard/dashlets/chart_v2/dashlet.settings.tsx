@@ -40,7 +40,7 @@ import { useSettingsDirty } from "../common/use-settings-dirty";
 // Helpers
 // ============================================================================
 
-const SINGLE_SERIES_FAMILIES: ChartFamily[] = ["pie", "gauge"];
+const SINGLE_SERIES_FAMILIES = new Set<ChartFamily>(["pie", "gauge"]);
 
 type RepresentationItem = RepresentationConfig & { _id: string };
 let repIdCounter = 0;
@@ -65,6 +65,9 @@ const BAR_ICON_SVG = (
   </svg>
 );
 
+const ChartIconPie = CHART_ICON.pie;
+const ChartIconGauge = CHART_ICON.gauge;
+
 const FAMILY_DEFS: {
   value: ChartFamily;
   labelKey: string;
@@ -86,13 +89,13 @@ const FAMILY_DEFS: {
     value: "pie",
     labelKey: "dashboard.dashlets.chart_v2.familyPie",
     descKey: "dashboard.dashlets.chart_v2.familyPieDesc",
-    icon: <CHART_ICON.pie className="h-5 w-5" />,
+    icon: <ChartIconPie className="h-5 w-5" />,
   },
   {
     value: "gauge",
     labelKey: "dashboard.dashlets.chart_v2.familyGauge",
     descKey: "dashboard.dashlets.chart_v2.familyGaugeDesc",
-    icon: <CHART_ICON.gauge className="h-5 w-5" />,
+    icon: <ChartIconGauge className="h-5 w-5" />,
   },
 ];
 
@@ -102,20 +105,22 @@ interface ChartFamilyPickerProps {
   dictionary: DashletSettingsProps<DashletConfig>["dictionary"];
 }
 
+function useClickOutside(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, onClose]);
+}
+
 function ChartFamilyPicker({ value, onChange, dictionary }: Readonly<ChartFamilyPickerProps>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeDef = FAMILY_DEFS.find((d) => d.value === value)!;
 
-  useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, []);
+  useClickOutside(containerRef, () => setOpen(false));
 
   return (
     <div>
@@ -199,15 +204,7 @@ function RepTypeDropdown({ value, onChange, dictionary }: Readonly<RepTypeDropdo
   const activeDef = REP_TYPE_DEFS.find((d) => d.value === value) ?? REP_TYPE_DEFS[0];
   const ActiveIcon = activeDef.icon;
 
-  useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, []);
+  useClickOutside(containerRef, () => setOpen(false));
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -376,7 +373,7 @@ export function DashletSettings({
   const handleChartFamilyChange = (family: ChartFamily) => {
     setChartFamily(family);
 
-    if (SINGLE_SERIES_FAMILIES.includes(family)) {
+    if (SINGLE_SERIES_FAMILIES.has(family)) {
       setRepresentations((prev) => prev.slice(0, 1));
       setCustomColors((prev) => prev.slice(0, 1));
     }
@@ -494,7 +491,7 @@ export function DashletSettings({
   };
 
   const isCartesian = chartFamily === "cartesian";
-  const isSingle = SINGLE_SERIES_FAMILIES.includes(chartFamily);
+  const isSingle = SINGLE_SERIES_FAMILIES.has(chartFamily);
   const xAxisColumnLabel =
     chartFamily === "pie"
       ? tr("dashboard.settings.categoryColumn", dictionary)

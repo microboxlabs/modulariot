@@ -246,7 +246,7 @@ function buildCartesianOption(
     }
 
     return {
-      type: rep.type as "line" | "bar",
+      type: rep.type,
       name: rep.label,
       yAxisIndex: config.dualYAxis ? (rep.yAxisIndex ?? 0) : undefined,
       data: rows.map((r) => {

@@ -228,7 +228,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       const firstRow = rows[0];
       return { ...firstRow, row: firstRow, filter: activeFilters };
     }
-    return { filter: activeFilters } as Record<string, unknown>;
+    return { filter: activeFilters };
   }, [rows, activeFilters]);
 
   const resolvedTitle = useMemo(

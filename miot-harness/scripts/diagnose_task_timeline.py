@@ -19,7 +19,9 @@ Usage (requires MIOT_HARNESS_DATASOURCE_DSN in env or .env):
     uv run python scripts/diagnose_task_timeline.py \
         --service-code 1643006 --proc-inst-id 45703329
 
-Exit code 0 always (diagnostic, not a gate); findings go to stdout.
+Findings go to stdout; probe failures are caught and reported inline
+(this is a diagnostic, not a gate). Exits non-zero when the DSN is
+missing or when connection/bootstrap errors occur before probing starts.
 """
 
 from __future__ import annotations

@@ -19,7 +19,7 @@ The factory creates per-function:
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -177,17 +177,14 @@ def _truncate_rows(
     return rows[:cap], total, True
 
 
-def _extract_refreshed_at(row: dict[str, Any]) -> datetime | None:
-    for key, value in row.items():
-        if not isinstance(key, str):
-            continue
-        if key.startswith("refreshed_at") and isinstance(value, datetime):
-            return value
-    return None
+def _ensure_utc(value: datetime) -> datetime:
+    """Coerce naive datetimes (pg `timestamp` without tz) to UTC so
+    max()/age arithmetic never hits naive-vs-aware TypeError."""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 def freshest_refreshed_at(rows: list[dict[str, Any]]) -> datetime | None:
-    """Max refreshed_at_* across ALL rows and columns.
+    """Max refreshed_at_* across ALL rows and columns (tz-aware, UTC).
 
     Multi-layer functions (fn_dx_centro_control: one row per capa) carry a
     refreshed_at per layer, and result order is not guaranteed — a probe
@@ -202,7 +199,7 @@ def freshest_refreshed_at(rows: list[dict[str, Any]]) -> datetime | None:
             if isinstance(key, str) and key.startswith("refreshed_at") and isinstance(
                 value, datetime
             ):
-                candidates.append(value)
+                candidates.append(_ensure_utc(value))
     return max(candidates) if candidates else None
 
 
@@ -259,9 +256,10 @@ def build_nexo_tool(
                 raw_rows = await conn.fetch(sql, *positional)
 
         rows = [_row_to_dict(r) for r in raw_rows]
-        refreshed_at = rows[0].get("refreshed_at") if rows else None
-        if refreshed_at is None and rows:
-            refreshed_at = _extract_refreshed_at(rows[0])
+        # Freshest across ALL rows/columns — multi-layer functions return
+        # one refreshed_at_* per layer in no guaranteed order, so reading
+        # row 0 would flip between fresh and stale layers across calls.
+        refreshed_at = freshest_refreshed_at(rows)
 
         if descriptor.returns_kind == "table":
             kept, total, truncated = _truncate_rows(rows)

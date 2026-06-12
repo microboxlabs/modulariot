@@ -254,3 +254,54 @@ def test_text_args_coerce_numeric_input():
     # Booleans are NOT silently stringified into text fields.
     with pytest.raises(ValidationError):
         tool.input_model.model_validate({"p_service_code": True})
+
+
+def test_freshest_refreshed_at_coerces_naive_and_takes_max():
+    from datetime import UTC, datetime
+
+    from miot_harness.integrations.nexo.tool_factory import freshest_refreshed_at
+
+    aware_new = datetime(2026, 6, 12, 12, 0, tzinfo=UTC)
+    naive_old = datetime(2026, 5, 1, 12, 0)  # pg `timestamp` w/o tz
+    result = freshest_refreshed_at(
+        [{"refreshed_at_torre": naive_old}, {"refreshed_at_servicios": aware_new}]
+    )
+    assert result == aware_new
+    # All-naive input returns an aware (UTC) result so downstream age
+    # math never hits naive-vs-aware TypeError.
+    result = freshest_refreshed_at([{"refreshed_at_x": naive_old}])
+    assert result is not None and result.tzinfo is not None
+
+
+@pytest.mark.asyncio
+async def test_invoke_uses_freshest_refreshed_at_across_rows():
+    """Multi-layer outputs (one row per capa, each with its own
+    refreshed_at_*) must surface the FRESHEST timestamp, not row 0's."""
+    from datetime import UTC, datetime, timedelta
+
+    stale = datetime.now(UTC) - timedelta(days=33)
+    fresh = datetime.now(UTC)
+
+    class _RowDict(dict):
+        pass
+
+    rows = [
+        _RowDict({"capa": "torre", "refreshed_at_torre": stale}),
+        _RowDict({"capa": "servicios", "refreshed_at_servicios": fresh}),
+    ]
+    fake_conn = MagicMock()
+    fake_conn.fetch = AsyncMock(return_value=rows)
+    fake_conn.execute = AsyncMock()
+    txn = MagicMock()
+    txn.__aenter__ = AsyncMock(return_value=None)
+    txn.__aexit__ = AsyncMock(return_value=None)
+    fake_conn.transaction = MagicMock(return_value=txn)
+    pool = MagicMock()
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=fake_conn)
+    cm.__aexit__ = AsyncMock(return_value=None)
+    pool.acquire = MagicMock(return_value=cm)
+
+    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
+    output = await tool.invoke(_ctx(), {}, lambda e: None)
+    assert output.model_dump()["refreshed_at"] == fresh

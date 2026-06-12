@@ -352,3 +352,26 @@ def test_evidence_freshness_uses_freshest_row_across_layers() -> None:
     assert ev.freshness_status == "fresh"
     assert ev.is_stale is False
     assert ev.refreshed_at == now
+
+
+def test_evidence_handles_naive_datetimes_without_crashing() -> None:
+    """pg `timestamp` (no tz) columns arrive as naive datetimes; mixing
+    them with aware ones must not raise TypeError in max()/subtraction —
+    naive values are coerced to UTC."""
+    now_aware = datetime.now(UTC)
+    naive_old = datetime(2026, 1, 1, 12, 0)  # no tzinfo
+    ev = _classify(
+        {
+            "rows": [
+                {"capa": "a", "refreshed_at_x": naive_old},
+                {"capa": "b", "refreshed_at_y": now_aware},
+            ]
+        }
+    )
+    assert ev.freshness_status == "fresh"
+    assert ev.refreshed_at == now_aware
+
+    # All-naive also works (coerced to UTC, then age math succeeds).
+    ev = _classify({"rows": [{"refreshed_at_x": datetime(2026, 1, 1, 12, 0)}]})
+    assert ev.freshness_status == "stale"
+    assert ev.refreshed_at is not None and ev.refreshed_at.tzinfo is not None

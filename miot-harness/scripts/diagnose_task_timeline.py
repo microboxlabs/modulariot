@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import re
 import sys
 from datetime import UTC, datetime
 from typing import Any
@@ -35,7 +36,19 @@ from typing import Any
 from miot_harness.config import HarnessSettings
 from miot_harness.integrations.nexo.pool import create_nexo_pool
 from miot_harness.integrations.nexo.settings import NexoSettings
-from miot_harness.integrations.nexo.tool_factory import _extract_refreshed_at, _row_to_dict
+from miot_harness.integrations.nexo.tool_factory import _row_to_dict, freshest_refreshed_at
+
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _ident(name: str) -> str:
+    """Validate a schema/table identifier before f-string interpolation.
+
+    Inputs come from trusted sources (NexoSettings, information_schema),
+    but every interpolated identifier still goes through this gate."""
+    if not _IDENT_RE.match(name):
+        raise ValueError(f"unsafe SQL identifier: {name!r}")
+    return name
 
 _SIGNATURE_SQL = """
 SELECT p.proname,
@@ -58,7 +71,7 @@ ORDER BY table_name
 
 
 def _summarize_rows(label: str, rows: list[dict[str, Any]]) -> None:
-    refreshed = _extract_refreshed_at(rows[0]) if rows else None
+    refreshed = freshest_refreshed_at(rows)
     age = (
         f"{(datetime.now(UTC) - refreshed).total_seconds() / 60:.0f} min"
         if refreshed
@@ -89,7 +102,7 @@ async def main() -> int:
 
     settings = HarnessSettings()
     nexo = NexoSettings()
-    schema = nexo.nexo_search_path
+    schema = _ident(nexo.nexo_search_path)
     if not settings.datasource_dsn:
         print("MIOT_HARNESS_DATASOURCE_DSN is not set — aborting.", file=sys.stderr)
         return 1
@@ -162,13 +175,13 @@ async def main() -> int:
             else:
                 print("\n== 4. skipped (no proc_inst_id resolved) ==")
 
-            if timeline_by_service == 0 and timeline_by_proc <= 0:
+            if timeline_by_service == 0 and timeline_by_proc == 0:
                 print("\n== 5. Both probes empty — checking underlying snapshot tables ==")
                 tables = await _fetch(conn, _TIMELINE_TABLES_SQL, schema)
                 if not tables:
                     print("  No dx_* table matching %task%/%timeline% found.")
                 for t in tables:
-                    name = t["table_name"]
+                    name = _ident(t["table_name"])
                     try:
                         count_rows = await _fetch(
                             conn, f'SELECT count(*) AS n FROM {schema}."{name}"'
@@ -180,6 +193,13 @@ async def main() -> int:
                     "\n  → If these tables are empty/old, the root cause is the "
                     "DB-side refresh job (escalate to the Coordinador owners), "
                     "not the harness."
+                )
+
+            elif timeline_by_service == 0:
+                print(
+                    "\n== 5. service_code probe empty; proc_inst_id probe "
+                    "errored or was skipped — rerun with --proc-inst-id to "
+                    "confirm before blaming the snapshot =="
                 )
 
             print("\n== Verdict hints ==")

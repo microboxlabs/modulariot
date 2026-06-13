@@ -228,9 +228,6 @@ jobs:
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
           MODULITH_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
           MODULITH_IMAGE_REF: ${{ needs.build-modulith.outputs.image }}
-          GIT_SHA: ${{ github.sha }}
-          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
-          NIGHTLY_DATE: ${{ needs.metadata.outputs.nightly_date }}
         run: |
           DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
 
@@ -249,9 +246,6 @@ jobs:
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
-            --arg git_sha "$GIT_SHA" \
-            --arg short_sha "$SHORT_SHA" \
-            --arg nightly_date "$NIGHTLY_DATE" \
             '{
               event_type: "miot-stack-nightly",
               client_payload: {
@@ -264,10 +258,7 @@ jobs:
                 app_image_ref: $app_image_ref,
                 modulith_image_repository: $modulith_image_repository,
                 modulith_image_tag: $modulith_image_tag,
-                modulith_image_ref: $modulith_image_ref,
-                git_sha: $git_sha,
-                short_sha: $short_sha,
-                nightly_date: $nightly_date
+                modulith_image_ref: $modulith_image_ref
               }
             }' |
             gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \

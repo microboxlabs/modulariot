@@ -1,5 +1,8 @@
 *
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+!Dockerfile
+!miot-cli/
+miot-cli/*
+!miot-cli/target/
+miot-cli/target/*
+!miot-cli/target/quarkus-app/
+!miot-cli/target/quarkus-app/**

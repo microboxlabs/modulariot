@@ -31,7 +31,7 @@ public class AsyncJobRepository {
                 tenant_code, source_instance, executor, job_type, correlation_key,
                 chain_key, chain_sequence, dedupe_key, payload, max_attempts, enqueued_by
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+            ON CONFLICT (tenant_code, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
             RETURNING %s""".formatted(COLUMNS);
 
     /**
@@ -45,7 +45,8 @@ public class AsyncJobRepository {
             WITH runnable AS (
                 SELECT j.id
                 FROM miot_integrations.async_jobs j
-                WHERE j.executor = $1
+                WHERE j.tenant_code = $1
+                  AND j.executor = $2
                   AND j.attempts < j.max_attempts
                   AND (
                       (j.state = 'PENDING' AND (j.next_retry_at IS NULL OR j.next_retry_at <= now()))
@@ -55,25 +56,32 @@ public class AsyncJobRepository {
                       SELECT 1
                       FROM miot_integrations.async_jobs p
                       WHERE j.chain_key IS NOT NULL
+                        AND p.tenant_code = j.tenant_code
                         AND p.chain_key = j.chain_key
                         AND p.chain_sequence < j.chain_sequence
                         AND p.state NOT IN ('SUCCEEDED', 'CANCELLED')
                   )
-                  AND ($4::varchar IS NULL OR j.chain_key = $4)
+                  AND ($5::varchar IS NULL OR j.chain_key = $5)
                 ORDER BY j.created_at
-                LIMIT $2
+                LIMIT $3
                 FOR UPDATE OF j SKIP LOCKED
             )
             UPDATE miot_integrations.async_jobs a
             SET state = 'RUNNING',
-                locked_by = $3,
-                locked_until = now() + make_interval(secs => $5::int),
+                locked_by = $4,
+                locked_until = now() + make_interval(secs => $6::int),
                 attempts = a.attempts + 1,
                 updated_at = now()
             FROM runnable r
             WHERE a.id = r.id
             RETURNING %s""".formatted(COLUMNS);
 
+    /**
+     * Compare-and-set on the active lease: the update only lands when the row is
+     * still RUNNING, held by the reporting worker, and on the attempt the worker
+     * claimed. A stale report (lease expired and the job was reclaimed — possibly
+     * by the same workerId via fast path + poller overlap) matches zero rows.
+     */
     private static final String REPORT = """
             UPDATE miot_integrations.async_jobs
             SET state = $2,
@@ -84,6 +92,9 @@ public class AsyncJobRepository {
                 locked_until = NULL,
                 updated_at = now()
             WHERE id = $1
+              AND state = 'RUNNING'
+              AND locked_by = $6
+              AND attempts = $7
             RETURNING %s""".formatted(COLUMNS);
 
     private static final String RETRY = """
@@ -143,8 +154,10 @@ public class AsyncJobRepository {
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
-    public List<AsyncJob> claim(String executor, String workerId, int limit, int leaseSeconds, String chainKey) {
+    public List<AsyncJob> claim(String tenantCode, String executor, String workerId,
+            int limit, int leaseSeconds, String chainKey) {
         Tuple params = Tuple.tuple()
+                .addString(tenantCode)
                 .addString(executor)
                 .addInteger(limit)
                 .addString(workerId)
@@ -158,14 +171,20 @@ public class AsyncJobRepository {
                 .toList();
     }
 
-    public AsyncJob report(String jobId, JobState newState, OffsetDateTime nextRetryAt,
-            String lastError, Map<String, Object> attemptEntry) {
+    /**
+     * @return the updated job, or null when the lease CAS failed (the job was
+     *         reclaimed since this worker's claim — the report is stale)
+     */
+    public AsyncJob report(String jobId, String workerId, int expectedAttempts, JobState newState,
+            OffsetDateTime nextRetryAt, String lastError, Map<String, Object> attemptEntry) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(jobId))
                 .addString(newState.name())
                 .addOffsetDateTime(nextRetryAt)
                 .addString(lastError)
-                .addJsonArray(new JsonArray().add(new JsonObject(attemptEntry)));
+                .addJsonArray(new JsonArray().add(new JsonObject(attemptEntry)))
+                .addString(workerId)
+                .addInteger(expectedAttempts);
         RowSet<Row> rows = client().preparedQuery(REPORT)
                 .execute(params)
                 .await().indefinitely();

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.domain.JobState;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
+import com.microboxlabs.miot.integrations.dto.ClaimJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
@@ -60,7 +61,7 @@ class AsyncJobServiceTest {
         var repo = new FakeRepository(runningJob(1, 5));
         var service = new AsyncJobService(repo, BASE_SECONDS, MAX_SECONDS);
 
-        service.report("t", "job-1", new ReportJobRequest("w", "FAILED", "bad config", false));
+        service.report("t", "job-1", new ReportJobRequest("w", "FAILED", "bad config", false, null));
 
         assertEquals(JobState.FAILED, repo.reportedState);
     }
@@ -70,7 +71,7 @@ class AsyncJobServiceTest {
         var repo = new FakeRepository(runningJob(1, 5));
         var service = new AsyncJobService(repo, BASE_SECONDS, MAX_SECONDS);
 
-        service.report("t", "job-1", new ReportJobRequest("w", "SKIPPED", "already delivered", null));
+        service.report("t", "job-1", new ReportJobRequest("w", "SKIPPED", "already delivered", null, null));
 
         assertEquals(JobState.SUCCEEDED, repo.reportedState);
         assertNull(repo.reportedNextRetryAt);
@@ -126,10 +127,54 @@ class AsyncJobServiceTest {
         assertEquals(1, response.duplicates());
     }
 
+    @Test
+    void nullRequestBodiesAreRejected() {
+        var service = new AsyncJobService(new FakeRepository(null), BASE_SECONDS, MAX_SECONDS);
+
+        assertThrows(IllegalArgumentException.class, () -> service.enqueue("t", null));
+        assertThrows(IllegalArgumentException.class, () -> service.claim("t", null));
+        assertThrows(IllegalArgumentException.class, () -> service.report("t", "job-1", null));
+    }
+
+    @Test
+    void claimScopesByTenantAndValidatesBounds() {
+        var repo = new FakeRepository(null);
+        var service = new AsyncJobService(repo, BASE_SECONDS, MAX_SECONDS);
+        var badLimit = new ClaimJobsRequest("ecm", "w1", 0, null, null);
+        var badLease = new ClaimJobsRequest("ecm", "w1", null, 0, null);
+
+        assertThrows(IllegalArgumentException.class, () -> service.claim("t", badLimit));
+        assertThrows(IllegalArgumentException.class, () -> service.claim("t", badLease));
+
+        service.claim("tenant-1", new ClaimJobsRequest("ecm", "w1", 5, 60, null));
+        assertEquals("tenant-1", repo.claimedTenant);
+    }
+
+    @Test
+    void staleReportIsRejectedWhenLeaseCasFails() {
+        var repo = new FakeRepository(runningJob(1, 5));
+        repo.reportStale = true;
+        var service = new AsyncJobService(repo, BASE_SECONDS, MAX_SECONDS);
+        var request = failed();
+
+        assertThrows(IllegalStateException.class, () -> service.report("t", "job-1", request));
+    }
+
+    @Test
+    void reportEchoesWorkerAndAttemptIntoLeaseCas() {
+        var repo = new FakeRepository(runningJob(2, 5));
+        var service = new AsyncJobService(repo, BASE_SECONDS, MAX_SECONDS);
+
+        service.report("t", "job-1", new ReportJobRequest("worker-1", "SUCCEEDED", "ok", null, 2));
+
+        assertEquals("worker-1", repo.reportedWorkerId);
+        assertEquals(2, repo.reportedExpectedAttempts);
+    }
+
     // -----------------------------------------------------------------------
 
     private static ReportJobRequest failed() {
-        return new ReportJobRequest("worker-1", "FAILED", "Alerce 500", null);
+        return new ReportJobRequest("worker-1", "FAILED", "Alerce 500", null, null);
     }
 
     private static AsyncJobSpec spec() {
@@ -152,6 +197,10 @@ class AsyncJobServiceTest {
         private final AsyncJob existing;
         JobState reportedState;
         OffsetDateTime reportedNextRetryAt;
+        String reportedWorkerId;
+        Integer reportedExpectedAttempts;
+        String claimedTenant;
+        boolean reportStale;
 
         FakeRepository(AsyncJob existing) {
             super(null);
@@ -164,11 +213,20 @@ class AsyncJobServiceTest {
         }
 
         @Override
-        public AsyncJob report(String jobId, JobState newState, OffsetDateTime nextRetryAt,
-                String lastError, Map<String, Object> attemptEntry) {
+        public AsyncJob report(String jobId, String workerId, int expectedAttempts, JobState newState,
+                OffsetDateTime nextRetryAt, String lastError, Map<String, Object> attemptEntry) {
             this.reportedState = newState;
             this.reportedNextRetryAt = nextRetryAt;
-            return existing;
+            this.reportedWorkerId = workerId;
+            this.reportedExpectedAttempts = expectedAttempts;
+            return reportStale ? null : existing;
+        }
+
+        @Override
+        public List<AsyncJob> claim(String tenantCode, String executor, String workerId,
+                int limit, int leaseSeconds, String chainKey) {
+            this.claimedTenant = tenantCode;
+            return List.of();
         }
 
         @Override

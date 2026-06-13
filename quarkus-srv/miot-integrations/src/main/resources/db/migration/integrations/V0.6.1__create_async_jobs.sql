@@ -33,9 +33,10 @@ CREATE TABLE miot_integrations.async_jobs (
     )
 );
 
--- Idempotent enqueue: listener and reconciler converge on the same deterministic key.
+-- Idempotent enqueue: listener and reconciler converge on the same deterministic
+-- key. Tenant-scoped so one tenant's keys can never collide with another's.
 CREATE UNIQUE INDEX idx_async_jobs_dedupe
-    ON miot_integrations.async_jobs(dedupe_key)
+    ON miot_integrations.async_jobs(tenant_code, dedupe_key)
     WHERE dedupe_key IS NOT NULL;
 -- Worker claim scan.
 CREATE INDEX idx_async_jobs_claim

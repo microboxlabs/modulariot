@@ -53,6 +53,7 @@ public class AsyncJobService {
      * state, wins — re-running a SUCCEEDED job requires an explicit manual retry).
      */
     public EnqueueJobsResponse enqueue(String tenantCode, EnqueueJobsRequest request) {
+        requireBody(request);
         String enqueuedBy = validateEnqueueRequest(request);
 
         List<AsyncJob> created = new ArrayList<>();
@@ -100,16 +101,24 @@ public class AsyncJobService {
         }
     }
 
-    public List<AsyncJob> claim(ClaimJobsRequest request) {
+    public List<AsyncJob> claim(String tenantCode, ClaimJobsRequest request) {
+        requireBody(request);
         if (request.executor() == null || request.executor().isBlank()) {
             throw new IllegalArgumentException("executor is required");
         }
         if (request.workerId() == null || request.workerId().isBlank()) {
             throw new IllegalArgumentException("workerId is required");
         }
+        if (request.limit() != null && request.limit() < 1) {
+            throw new IllegalArgumentException("limit must be >= 1");
+        }
+        if (request.leaseSeconds() != null && request.leaseSeconds() < 1) {
+            throw new IllegalArgumentException("leaseSeconds must be >= 1");
+        }
         int limit = request.limit() == null ? DEFAULT_CLAIM_LIMIT : Math.min(request.limit(), MAX_CLAIM_LIMIT);
         int lease = request.leaseSeconds() == null ? DEFAULT_LEASE_SECONDS : request.leaseSeconds();
-        return repository.claim(request.executor(), request.workerId(), limit, lease, request.chainKey());
+        return repository.claim(tenantCode, request.executor(), request.workerId(), limit, lease,
+                request.chainKey());
     }
 
     /**
@@ -119,6 +128,10 @@ public class AsyncJobService {
      * which parks it as FAILED for the babysitter.
      */
     public AsyncJob report(String tenantCode, String jobId, ReportJobRequest request) {
+        requireBody(request);
+        if (request.workerId() == null || request.workerId().isBlank()) {
+            throw new IllegalArgumentException("workerId is required");
+        }
         if (request.outcome() == null || !VALID_OUTCOMES.contains(request.outcome())) {
             throw new IllegalArgumentException("outcome must be one of " + VALID_OUTCOMES);
         }
@@ -146,9 +159,19 @@ public class AsyncJobService {
             }
         }
 
+        // CAS on the lease: workers echo the attempt number they claimed so a
+        // stale report (lease expired, job reclaimed — possibly by the same
+        // workerId via fast path + poller overlap) cannot overwrite the newer
+        // attempt's state.
+        int expectedAttempts = request.attempts() != null ? request.attempts() : job.attempts();
         Map<String, Object> entry = attemptEntry(request.outcome(), request.detail(), request.workerId());
-        AsyncJob updated = repository.report(jobId, newState, nextRetryAt,
+        AsyncJob updated = repository.report(jobId, request.workerId(), expectedAttempts, newState, nextRetryAt,
                 failed ? request.detail() : null, entry);
+        if (updated == null) {
+            throw new IllegalStateException(
+                    "Stale report for job " + jobId + ": lease no longer held by " + request.workerId()
+                            + " on attempt " + expectedAttempts);
+        }
         if (newState == JobState.FAILED) {
             LOG.errorf("Job %s (%s, correlation=%s) parked as FAILED after %d attempt(s): %s",
                     jobId, job.jobType(), job.correlationKey(), job.attempts(), request.detail());
@@ -156,7 +179,13 @@ public class AsyncJobService {
         return updated;
     }
 
-    /** Manual babysitter action: resets a parked job so workers pick it up again. */
+    /**
+     * Manual babysitter action: resets a job so workers pick it up again with a
+     * fresh attempt budget. Deliberately also accepts PENDING jobs — a job
+     * sitting in backoff (nextRetryAt in the future) is forced to run now
+     * instead of waiting out the delay. Only RUNNING (lease held) and SUCCEEDED
+     * jobs are rejected.
+     */
     public AsyncJob retry(String tenantCode, String jobId, String actor) {
         AsyncJob job = repository.findByTenantAndId(tenantCode, jobId);
         if (job == null) {
@@ -174,10 +203,19 @@ public class AsyncJobService {
     }
 
     public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType, int limit) {
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be >= 1");
+        }
         if (state != null) {
             JobState.valueOf(state); // validate
         }
         return repository.list(tenantCode, state, correlationKey, jobType, limit);
+    }
+
+    private static void requireBody(Object request) {
+        if (request == null) {
+            throw new IllegalArgumentException("request body is required");
+        }
     }
 
     /** Exponential backoff: base * 2^(attempts-1), capped. */

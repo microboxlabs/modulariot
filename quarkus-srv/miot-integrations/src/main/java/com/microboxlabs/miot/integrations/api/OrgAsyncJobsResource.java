@@ -21,6 +21,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Map;
 import java.util.Objects;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
@@ -64,9 +65,8 @@ public class OrgAsyncJobsResource {
     @Path("/claim")
     @Operation(summary = "Claim runnable jobs for an executor with a lease")
     public Response claim(@PathParam("organizationId") String organizationId, ClaimJobsRequest request) {
-        tenantCode(organizationId); // enforce org context
         try {
-            return Response.ok(service.claim(request)).build();
+            return Response.ok(service.claim(tenantCode(organizationId), request)).build();
         } catch (IllegalArgumentException e) {
             throw badRequest(e.getMessage());
         }
@@ -134,7 +134,7 @@ public class OrgAsyncJobsResource {
         if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
             throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity("{\"error\":\"Organization context does not match request path\"}")
+                    .entity(Map.of("error", "Organization context does not match request path"))
                     .build());
         }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
@@ -143,21 +143,21 @@ public class OrgAsyncJobsResource {
     private WebApplicationException badRequest(String message) {
         return new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity("{\"error\":\"" + message + "\"}")
+                .entity(Map.of("error", message == null ? "Bad request" : message))
                 .build());
     }
 
     private WebApplicationException conflict(String message) {
         return new WebApplicationException(Response.status(Response.Status.CONFLICT)
                 .type(MediaType.APPLICATION_JSON)
-                .entity("{\"error\":\"" + message + "\"}")
+                .entity(Map.of("error", message == null ? "Conflict" : message))
                 .build());
     }
 
     private Response notFound(String jobId) {
         return Response.status(Response.Status.NOT_FOUND)
                 .type(MediaType.APPLICATION_JSON)
-                .entity("{\"error\":\"Job not found: " + jobId + "\"}")
+                .entity(Map.of("error", "Job not found: " + jobId))
                 .build();
     }
 }

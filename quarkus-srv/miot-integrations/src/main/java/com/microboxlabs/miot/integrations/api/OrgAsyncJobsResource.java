@@ -10,6 +10,8 @@ import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -24,10 +26,23 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+/**
+ * Org-scoped control plane for the integration outbox.
+ *
+ * <p>Endpoints return {@link Uni} so the request runs on the Vert.x event loop:
+ * org-scoped resources go through {@code OrganizationRequestFilter}, which uses
+ * Hibernate Reactive and asserts the event-loop thread. The blocking
+ * {@link AsyncJobService} (Vert.x SQL client with {@code await()}) is therefore
+ * offloaded to the worker pool via {@link #onWorker}. The request-scoped
+ * tenant/org contexts are resolved eagerly on the event loop (the filter has
+ * already populated them) and the resolved tenant code is captured before
+ * offloading, so the worker task does not depend on request-scope propagation.
+ */
 @Path("/api/v1/orgs/{organizationId}/integrations/jobs")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -42,6 +57,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgAsyncJobsResource {
 
     private static final String ERROR_KEY = "error";
+    private static final String BAD_REQUEST = "Bad request";
+    private static final String CONFLICT = "Conflict";
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
@@ -60,111 +77,115 @@ public class OrgAsyncJobsResource {
     @POST
     @Path("/enqueue")
     @Operation(summary = "Idempotently enqueue a batch of jobs (dedupe-key aware)")
-    public Response enqueue(@PathParam("organizationId") String organizationId, EnqueueJobsRequest request) {
-        try {
-            return Response.ok(service.enqueue(tenantCode(organizationId), request)).build();
-        } catch (IllegalArgumentException e) {
-            throw badRequest(e.getMessage());
-        }
+    public Uni<Response> enqueue(@PathParam("organizationId") String organizationId, EnqueueJobsRequest request) {
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(service.enqueue(tenant, request)).build())
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST));
     }
 
     @POST
     @Path("/claim")
     @Operation(summary = "Claim runnable jobs for an executor with a lease")
-    public Response claim(@PathParam("organizationId") String organizationId, ClaimJobsRequest request) {
-        try {
-            return Response.ok(service.claim(tenantCode(organizationId), request)).build();
-        } catch (IllegalArgumentException e) {
-            throw badRequest(e.getMessage());
-        }
+    public Uni<Response> claim(@PathParam("organizationId") String organizationId, ClaimJobsRequest request) {
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(service.claim(tenant, request)).build())
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST));
     }
 
     @POST
     @Path("/{jobId}/report")
     @Operation(summary = "Report the outcome of a claimed job")
-    public Response report(
+    public Uni<Response> report(
             @PathParam("organizationId") String organizationId,
             @PathParam("jobId") String jobId,
             ReportJobRequest request) {
-        try {
-            AsyncJob job = service.report(tenantCode(organizationId), jobId, request);
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> {
+            AsyncJob job = service.report(tenant, jobId, request);
             return job == null ? notFound(jobId) : Response.ok(job).build();
-        } catch (IllegalArgumentException e) {
-            throw badRequest(e.getMessage());
-        } catch (IllegalStateException e) {
-            throw conflict(e.getMessage());
-        }
+        })
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST))
+                .onFailure(IllegalStateException.class)
+                .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), CONFLICT));
     }
 
     @POST
     @Path("/{jobId}/retry")
     @Operation(summary = "Manually reset a parked job so workers pick it up again")
-    public Response retry(
+    public Uni<Response> retry(
             @PathParam("organizationId") String organizationId,
             @PathParam("jobId") String jobId) {
-        try {
-            AsyncJob job = service.retry(tenantCode(organizationId), jobId, tenantContext.getClientId());
+        String tenant = tenantCode(organizationId);
+        String actor = tenantContext.getClientId();
+        return onWorker(() -> {
+            AsyncJob job = service.retry(tenant, jobId, actor);
             return job == null ? notFound(jobId) : Response.ok(job).build();
-        } catch (IllegalStateException e) {
-            throw conflict(e.getMessage());
-        }
+        })
+                .onFailure(IllegalStateException.class)
+                .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), CONFLICT));
     }
 
     @GET
     @Operation(summary = "List jobs with optional filters")
-    public Response list(
+    public Uni<Response> list(
             @PathParam("organizationId") String organizationId,
             @QueryParam("state") String state,
             @QueryParam("correlationKey") String correlationKey,
             @QueryParam("jobType") String jobType,
             @QueryParam("limit") @DefaultValue("100") int limit) {
-        try {
-            return Response.ok(
-                    service.list(tenantCode(organizationId), state, correlationKey, jobType, Math.min(limit, 500)))
-                    .build();
-        } catch (IllegalArgumentException e) {
-            throw badRequest("Invalid state filter: " + state);
-        }
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(
+                service.list(tenant, state, correlationKey, jobType, Math.min(limit, 500))).build())
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(errorResponse(Response.Status.BAD_REQUEST, "Invalid state filter: " + state, null));
     }
 
     @GET
     @Path("/{jobId}")
     @Operation(summary = "Get a job with its full attempt history")
-    public Response get(
+    public Uni<Response> get(
             @PathParam("organizationId") String organizationId,
             @PathParam("jobId") String jobId) {
-        AsyncJob job = service.get(tenantCode(organizationId), jobId);
-        return job == null ? notFound(jobId) : Response.ok(job).build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> {
+            AsyncJob job = service.get(tenant, jobId);
+            return job == null ? notFound(jobId) : Response.ok(job).build();
+        });
+    }
+
+    /**
+     * Runs a blocking supplier on the worker pool so this non-blocking endpoint
+     * keeps the request on the event loop (required by the reactive org filter).
+     */
+    private static <T> Uni<T> onWorker(Supplier<T> work) {
+        return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
     private String tenantCode(String organizationId) {
         if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
-            throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(Map.of(ERROR_KEY, "Organization context does not match request path"))
-                    .build());
+            throw new WebApplicationException(
+                    errorResponse(Response.Status.FORBIDDEN, "Organization context does not match request path", null));
         }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
     }
 
-    private WebApplicationException badRequest(String message) {
-        return new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
-                .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of(ERROR_KEY, message == null ? "Bad request" : message))
-                .build());
-    }
-
-    private WebApplicationException conflict(String message) {
-        return new WebApplicationException(Response.status(Response.Status.CONFLICT)
-                .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of(ERROR_KEY, message == null ? "Conflict" : message))
-                .build());
-    }
-
     private Response notFound(String jobId) {
-        return Response.status(Response.Status.NOT_FOUND)
+        return errorResponse(Response.Status.NOT_FOUND, "Job not found: " + jobId, null);
+    }
+
+    private static Response errorResponse(Response.Status status, String message, String fallback) {
+        String body = message != null ? message : fallback;
+        if (body == null) {
+            // Map.of disallows null values; guarantee a non-null body regardless
+            // of caller (e.g. an exception with a null message and no fallback).
+            body = status.getReasonPhrase();
+        }
+        return Response.status(status)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of(ERROR_KEY, "Job not found: " + jobId))
+                .entity(Map.of(ERROR_KEY, body))
                 .build();
     }
 }

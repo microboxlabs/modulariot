@@ -1,4 +1,4 @@
-name: App Nightly
+name: MIOT Stack Nightly
 
 on:
   push:
@@ -12,12 +12,13 @@ on:
       - 'turbo-repo/packages/typescript-config/**'
       - 'turbo-repo/package-lock.json'
       - 'turbo-repo/docker/**'
+      - 'quarkus-srv/**'
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: app-nightly-${{ github.ref }}
+  group: miot-stack-nightly-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -27,12 +28,30 @@ env:
   NODE_VERSION: "22"
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
-  IMAGE_NAME: miot-app
+  APP_IMAGE_NAME: miot-app
+  MODULITH_IMAGE_NAME: miot-srv
+  JAVA_VERSION: "21"
 
 jobs:
-  build:
+  metadata:
+    name: Resolve nightly metadata
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.vars.outputs.short_sha }}
+      nightly_date: ${{ steps.vars.outputs.nightly_date }}
+    steps:
+      - name: Resolve image metadata
+        id: vars
+        run: |
+          {
+            echo "short_sha=${GITHUB_SHA::7}"
+            echo "nightly_date=$(date -u +'%Y%m%d')"
+          } >> "$GITHUB_OUTPUT"
+
+  build-app:
     name: Build and publish nightly app image
     runs-on: ubuntu-latest
+    needs: metadata
     permissions:
       contents: read
       packages: write
@@ -44,8 +63,6 @@ jobs:
       NEXT_PUBLIC_AUTENTIA_PATH: ${{ secrets.NEXT_PUBLIC_AUTENTIA_PATH }}
     outputs:
       image: ${{ steps.image.outputs.image }}
-      short_sha: ${{ steps.vars.outputs.short_sha }}
-      nightly_date: ${{ steps.vars.outputs.nightly_date }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
@@ -54,12 +71,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: turbo-repo/package-lock.json
-
-      - name: Resolve image metadata
-        id: vars
-        run: |
-          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "nightly_date=$(date -u +'%Y%m%d')" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
@@ -96,11 +107,11 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:nightly
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:nightly-${{ steps.vars.outputs.nightly_date }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.short_sha }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:nightly
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
           labels: |
-            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.title=${{ env.APP_IMAGE_NAME }}
             org.opencontainers.image.description=ModularIoT app nightly build
             org.opencontainers.image.vendor=MicroboxLabs
             org.opencontainers.image.revision=${{ github.sha }}
@@ -112,19 +123,91 @@ jobs:
 
       - name: Resolve immutable image reference
         id: image
-        run: echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+        run: echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
       - name: Nightly summary
         run: |
-          echo "# App Nightly" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Image: \`${{ steps.image.outputs.image }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Tags: \`nightly\`, \`nightly-${{ steps.vars.outputs.nightly_date }}\`, \`sha-${{ steps.vars.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# MIOT App Nightly"
+            echo ""
+            echo "- Image: \`${{ steps.image.outputs.image }}\`"
+            echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`sha-${{ needs.metadata.outputs.short_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build-modulith:
+    name: Build and publish nightly modulith image
+    runs-on: ubuntu-latest
+    needs: metadata
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: quarkus-srv/pom.xml
+
+      - name: Build and test modulith
+        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true
+        working-directory: quarkus-srv
+
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: docker
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: quarkus-srv
+          file: quarkus-srv/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=${{ env.MODULITH_IMAGE_NAME }}
+            org.opencontainers.image.description=ModularIoT modulith nightly build
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Resolve immutable image reference
+        id: image
+        run: echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Nightly summary
+        run: |
+          {
+            echo "# MIOT Modulith Nightly"
+            echo ""
+            echo "- Image: \`${{ steps.image.outputs.image }}\`"
+            echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`sha-${{ needs.metadata.outputs.short_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     name: Dispatch development environment deploys
     runs-on: ubuntu-latest
-    needs: build
+    needs: [metadata, build-app, build-modulith]
     permissions:
       contents: read
     environment:
@@ -134,14 +217,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
-          APP_VERSION: nightly-${{ needs.build.outputs.nightly_date }}
-          APP_TAG: nightly-${{ needs.build.outputs.nightly_date }}-${{ needs.build.outputs.short_sha }}
-          IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}
-          IMAGE_TAG: sha-${{ needs.build.outputs.short_sha }}
-          IMAGE_REF: ${{ needs.build.outputs.image }}
+          RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          APP_TAG: app@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          MODULITH_TAG: modulith@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
+          APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
+          APP_IMAGE_REF: ${{ needs.build-app.outputs.image }}
+          MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
+          MODULITH_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
+          MODULITH_IMAGE_REF: ${{ needs.build-modulith.outputs.image }}
           GIT_SHA: ${{ github.sha }}
-          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
-          NIGHTLY_DATE: ${{ needs.build.outputs.nightly_date }}
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          NIGHTLY_DATE: ${{ needs.metadata.outputs.nightly_date }}
         run: |
           DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
 
@@ -151,23 +238,31 @@ jobs:
           fi
 
           jq -n \
-            --arg app_version "$APP_VERSION" \
+            --arg release_version "$RELEASE_VERSION" \
             --arg app_tag "$APP_TAG" \
-            --arg image_repository "$IMAGE_REPOSITORY" \
-            --arg image_tag "$IMAGE_TAG" \
-            --arg image_ref "$IMAGE_REF" \
+            --arg modulith_tag "$MODULITH_TAG" \
+            --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
+            --arg app_image_tag "$APP_IMAGE_TAG" \
+            --arg app_image_ref "$APP_IMAGE_REF" \
+            --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
+            --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
+            --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
             --arg git_sha "$GIT_SHA" \
             --arg short_sha "$SHORT_SHA" \
             --arg nightly_date "$NIGHTLY_DATE" \
             '{
-              event_type: "miot-app-nightly",
+              event_type: "miot-stack-nightly",
               client_payload: {
                 deploy_kind: "nightly",
-                app_version: $app_version,
+                release_version: $release_version,
                 app_tag: $app_tag,
-                image_repository: $image_repository,
-                image_tag: $image_tag,
-                image_ref: $image_ref,
+                modulith_tag: $modulith_tag,
+                app_image_repository: $app_image_repository,
+                app_image_tag: $app_image_tag,
+                app_image_ref: $app_image_ref,
+                modulith_image_repository: $modulith_image_repository,
+                modulith_image_tag: $modulith_image_tag,
+                modulith_image_ref: $modulith_image_ref,
                 git_sha: $git_sha,
                 short_sha: $short_sha,
                 nightly_date: $nightly_date
@@ -177,4 +272,4 @@ jobs:
               --method POST \
               --input -
 
-          echo "Dispatched nightly deployment ${APP_TAG} to ${DEPLOY_DISPATCH_REPO}."
+          echo "Dispatched nightly stack deployment ${RELEASE_VERSION} to ${DEPLOY_DISPATCH_REPO}."

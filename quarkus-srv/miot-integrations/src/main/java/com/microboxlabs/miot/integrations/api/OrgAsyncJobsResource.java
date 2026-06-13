@@ -36,6 +36,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class OrgAsyncJobsResource {
 
+    private static final String ERROR_KEY = "error";
+
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final AsyncJobService service;
@@ -134,7 +136,7 @@ public class OrgAsyncJobsResource {
         if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
             throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(Map.of("error", "Organization context does not match request path"))
+                    .entity(Map.of(ERROR_KEY, "Organization context does not match request path"))
                     .build());
         }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
@@ -143,21 +145,21 @@ public class OrgAsyncJobsResource {
     private WebApplicationException badRequest(String message) {
         return new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", message == null ? "Bad request" : message))
+                .entity(Map.of(ERROR_KEY, message == null ? "Bad request" : message))
                 .build());
     }
 
     private WebApplicationException conflict(String message) {
         return new WebApplicationException(Response.status(Response.Status.CONFLICT)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", message == null ? "Conflict" : message))
+                .entity(Map.of(ERROR_KEY, message == null ? "Conflict" : message))
                 .build());
     }
 
     private Response notFound(String jobId) {
         return Response.status(Response.Status.NOT_FOUND)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", "Job not found: " + jobId))
+                .entity(Map.of(ERROR_KEY, "Job not found: " + jobId))
                 .build();
     }
 }

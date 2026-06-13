@@ -25,8 +25,9 @@ public class AsyncJobService {
 
     private static final Logger LOG = Logger.getLogger(AsyncJobService.class);
 
+    private static final String OUTCOME_FAILED = "FAILED";
     private static final Set<String> VALID_ENQUEUED_BY = Set.of("listener", "reconciler", "manual");
-    private static final Set<String> VALID_OUTCOMES = Set.of("SUCCEEDED", "SKIPPED", "FAILED");
+    private static final Set<String> VALID_OUTCOMES = Set.of("SUCCEEDED", "SKIPPED", OUTCOME_FAILED);
 
     private static final int DEFAULT_MAX_ATTEMPTS = 5;
     private static final int DEFAULT_CLAIM_LIMIT = 10;
@@ -128,13 +129,7 @@ public class AsyncJobService {
      * which parks it as FAILED for the babysitter.
      */
     public AsyncJob report(String tenantCode, String jobId, ReportJobRequest request) {
-        requireBody(request);
-        if (request.workerId() == null || request.workerId().isBlank()) {
-            throw new IllegalArgumentException("workerId is required");
-        }
-        if (request.outcome() == null || !VALID_OUTCOMES.contains(request.outcome())) {
-            throw new IllegalArgumentException("outcome must be one of " + VALID_OUTCOMES);
-        }
+        validateReportRequest(request);
         AsyncJob job = repository.findByTenantAndId(tenantCode, jobId);
         if (job == null) {
             return null;
@@ -144,20 +139,11 @@ public class AsyncJobService {
                     "Job " + jobId + " is " + job.state() + ", only RUNNING jobs accept reports");
         }
 
-        JobState newState;
-        OffsetDateTime nextRetryAt = null;
-        boolean failed = "FAILED".equals(request.outcome());
-        if (!failed) {
-            newState = JobState.SUCCEEDED;
-        } else {
-            boolean retryable = !Boolean.FALSE.equals(request.retryable());
-            if (retryable && job.attempts() < job.maxAttempts()) {
-                newState = JobState.PENDING;
-                nextRetryAt = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(backoffSeconds(job.attempts()));
-            } else {
-                newState = JobState.FAILED;
-            }
-        }
+        JobState newState = resolveReportState(job, request);
+        OffsetDateTime nextRetryAt = newState == JobState.PENDING
+                ? OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(backoffSeconds(job.attempts()))
+                : null;
+        String lastError = OUTCOME_FAILED.equals(request.outcome()) ? request.detail() : null;
 
         // CAS on the lease: workers echo the attempt number they claimed so a
         // stale report (lease expired, job reclaimed — possibly by the same
@@ -166,7 +152,7 @@ public class AsyncJobService {
         int expectedAttempts = request.attempts() != null ? request.attempts() : job.attempts();
         Map<String, Object> entry = attemptEntry(request.outcome(), request.detail(), request.workerId());
         AsyncJob updated = repository.report(jobId, request.workerId(), expectedAttempts, newState, nextRetryAt,
-                failed ? request.detail() : null, entry);
+                lastError, entry);
         if (updated == null) {
             throw new IllegalStateException(
                     "Stale report for job " + jobId + ": lease no longer held by " + request.workerId()
@@ -216,6 +202,29 @@ public class AsyncJobService {
         if (request == null) {
             throw new IllegalArgumentException("request body is required");
         }
+    }
+
+    private void validateReportRequest(ReportJobRequest request) {
+        requireBody(request);
+        if (request.workerId() == null || request.workerId().isBlank()) {
+            throw new IllegalArgumentException("workerId is required");
+        }
+        if (request.outcome() == null || !VALID_OUTCOMES.contains(request.outcome())) {
+            throw new IllegalArgumentException("outcome must be one of " + VALID_OUTCOMES);
+        }
+    }
+
+    /**
+     * Target state for a reported outcome: SUCCEEDED/SKIPPED close the job;
+     * FAILED retries (PENDING) while attempts remain and the failure is
+     * retryable, otherwise parks the job as FAILED.
+     */
+    private static JobState resolveReportState(AsyncJob job, ReportJobRequest request) {
+        if (!OUTCOME_FAILED.equals(request.outcome())) {
+            return JobState.SUCCEEDED;
+        }
+        boolean retryable = !Boolean.FALSE.equals(request.retryable());
+        return retryable && job.attempts() < job.maxAttempts() ? JobState.PENDING : JobState.FAILED;
     }
 
     /** Exponential backoff: base * 2^(attempts-1), capped. */

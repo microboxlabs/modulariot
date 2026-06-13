@@ -178,6 +178,11 @@ public class OrgAsyncJobsResource {
 
     private static Response errorResponse(Response.Status status, String message, String fallback) {
         String body = message != null ? message : fallback;
+        if (body == null) {
+            // Map.of disallows null values; guarantee a non-null body regardless
+            // of caller (e.g. an exception with a null message and no fallback).
+            body = status.getReasonPhrase();
+        }
         return Response.status(status)
                 .type(MediaType.APPLICATION_JSON)
                 .entity(Map.of(ERROR_KEY, body))

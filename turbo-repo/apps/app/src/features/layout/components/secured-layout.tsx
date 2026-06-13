@@ -1,4 +1,5 @@
 import React from "react";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SidebarProvider } from "@/features/sidebar/context/sidebar-context";
 import { LayoutContent } from "@/features/layout/components/layout-content";
@@ -22,6 +23,12 @@ export default async function SecuredLayout({
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();
+  // No session (signed out, or an OAuth sign-in denied by the email-domain
+  // allowlist): redirect to sign-in instead of dereferencing a null session
+  // below, which would throw and crash the whole secured render.
+  if (!session?.user) {
+    redirect(`/${lang}/sign-in`);
+  }
   const initialOrgLogo = await getPublicOrgLogo();
   return (
     <RuntimeConfigProvider>
@@ -29,7 +36,7 @@ export default async function SecuredLayout({
         <KioskShell>
           <SseListener
             dictionary={dictionary}
-            tenantId={session!.user!.email}
+            tenantId={session.user.email}
           />
           <SecuredNavbar
             messages={navBarMessages}

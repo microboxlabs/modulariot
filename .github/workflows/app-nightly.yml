@@ -211,7 +211,9 @@ jobs:
     permissions:
       contents: read
     environment:
-      name: app-nightly-development
+      # Dispatch credentials are shared with tagged releases. The private
+      # deployment repository still restricts nightly targets to development.
+      name: app-deploy
     steps:
       - name: Dispatch private deployment workflow
         env:

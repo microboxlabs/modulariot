@@ -57,6 +57,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgAsyncJobsResource {
 
     private static final String ERROR_KEY = "error";
+    private static final String BAD_REQUEST = "Bad request";
+    private static final String CONFLICT = "Conflict";
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
@@ -79,7 +81,7 @@ public class OrgAsyncJobsResource {
         String tenant = tenantCode(organizationId);
         return onWorker(() -> Response.ok(service.enqueue(tenant, request)).build())
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), "Bad request"));
+                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST));
     }
 
     @POST
@@ -89,7 +91,7 @@ public class OrgAsyncJobsResource {
         String tenant = tenantCode(organizationId);
         return onWorker(() -> Response.ok(service.claim(tenant, request)).build())
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), "Bad request"));
+                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST));
     }
 
     @POST
@@ -105,9 +107,9 @@ public class OrgAsyncJobsResource {
             return job == null ? notFound(jobId) : Response.ok(job).build();
         })
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), "Bad request"))
+                .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST))
                 .onFailure(IllegalStateException.class)
-                .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), "Conflict"));
+                .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), CONFLICT));
     }
 
     @POST
@@ -123,7 +125,7 @@ public class OrgAsyncJobsResource {
             return job == null ? notFound(jobId) : Response.ok(job).build();
         })
                 .onFailure(IllegalStateException.class)
-                .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), "Conflict"));
+                .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), CONFLICT));
     }
 
     @GET

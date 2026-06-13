@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.api;
 
+import com.microboxlabs.miot.core.auth.M2MAuth;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
@@ -33,6 +34,10 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @Tag(name = "Async Jobs", description = "Durable ledger and control plane for externally-executed integration jobs")
 @SecurityRequirement(name = "oidc")
 @Authenticated
+// The caller is a machine (ECM) using an Auth0 client-credentials token →
+// HS256/M2M verification. Org membership for M2M is validated by
+// OrganizationRequestFilter (token azp/aud == org.tenantClientId), no Alfresco.
+@M2MAuth
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class OrgAsyncJobsResource {
 

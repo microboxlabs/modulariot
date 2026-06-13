@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.jose4j.jwk.HttpsJwks;
@@ -47,6 +49,9 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String NOT_CONFIGURED = "not-configured";
 
+    /** A JAX-RS path-template variable, e.g. {organizationId} or {id:\\d+}. */
+    private static final Pattern PATH_TEMPLATE_VAR = Pattern.compile("\\{[^/}]+}");
+
     private final String hs256Issuer;
     private final String rs256Issuer;
     private final String jwksUrl;
@@ -56,7 +61,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
 
     private JwtConsumer hs256Consumer;
     private JwtConsumer rs256Consumer;
-    private List<String> m2mPathPrefixes;
+    private List<Pattern> m2mPathPatterns;
 
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
@@ -81,7 +86,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
 
     @PostConstruct
     void init() {
-        m2mPathPrefixes = discoverM2mPaths();
+        m2mPathPatterns = discoverM2mPaths();
 
         if (!NOT_CONFIGURED.equals(hs256Secret)) {
             var hs256Builder = new JwtConsumerBuilder()
@@ -94,8 +99,8 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                 hs256Builder.setSkipDefaultAudienceValidation();
             }
             hs256Consumer = hs256Builder.build();
-            LOG.infof("HS256 verification configured for @M2MAuth paths: %s issuer=%s",
-                    m2mPathPrefixes, hs256Issuer);
+            LOG.infof("HS256 verification configured for %d @M2MAuth path pattern(s) issuer=%s",
+                    m2mPathPatterns.size(), hs256Issuer);
         }
 
         if (!NOT_CONFIGURED.equals(jwksUrl)) {
@@ -115,8 +120,8 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         }
     }
 
-    private List<String> discoverM2mPaths() {
-        List<String> paths = new ArrayList<>();
+    private List<Pattern> discoverM2mPaths() {
+        List<Pattern> patterns = new ArrayList<>();
         for (var bean : io.quarkus.arc.Arc.container().beanManager().getBeans(Object.class)) {
             Class<?> beanClass = bean.getBeanClass();
             if (beanClass.isAnnotationPresent(M2MAuth.class)
@@ -125,12 +130,34 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                 if (!path.startsWith("/")) {
                     path = "/" + path;
                 }
-                paths.add(path);
+                patterns.add(templateToPattern(path));
                 LOG.infof("Discovered @M2MAuth resource: %s -> %s",
                         beanClass.getSimpleName(), path);
             }
         }
-        return paths;
+        return patterns;
+    }
+
+    /**
+     * Compiles a JAX-RS {@code @Path} value into a matcher for the runtime
+     * request path. Template variables ({@code {organizationId}}) become
+     * single-segment wildcards, so an org-scoped resource path like
+     * {@code /api/v1/orgs/{organizationId}/integrations/jobs} matches the real
+     * {@code /api/v1/orgs/mintral/integrations/jobs} and any sub-path under it.
+     * Static paths keep the original "exact or prefix-with-slash" semantics.
+     */
+    static Pattern templateToPattern(String pathTemplate) {
+        StringBuilder regex = new StringBuilder("^");
+        Matcher vars = PATH_TEMPLATE_VAR.matcher(pathTemplate);
+        int last = 0;
+        while (vars.find()) {
+            regex.append(Pattern.quote(pathTemplate.substring(last, vars.start())));
+            regex.append("[^/]+");
+            last = vars.end();
+        }
+        regex.append(Pattern.quote(pathTemplate.substring(last)));
+        regex.append("(/.*)?$");
+        return Pattern.compile(regex.toString());
     }
 
     @Override
@@ -168,8 +195,8 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     }
 
     private boolean isM2mPath(String path) {
-        for (String prefix : m2mPathPrefixes) {
-            if (path.equals(prefix) || path.startsWith(prefix + "/")) {
+        for (Pattern pattern : m2mPathPatterns) {
+            if (pattern.matcher(path).matches()) {
                 return true;
             }
         }

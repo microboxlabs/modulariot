@@ -42,7 +42,7 @@ yarn-error.log*
 apps/app/.env.local.dev
 
 # Claude Code
-# .claude/
+.claude/worktrees
 
 # Aura
 .aura

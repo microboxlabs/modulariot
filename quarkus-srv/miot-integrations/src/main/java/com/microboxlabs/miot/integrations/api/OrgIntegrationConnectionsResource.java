@@ -9,6 +9,8 @@ import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -23,8 +25,19 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
+/**
+ * Org-scoped endpoints return {@link Uni} so the request runs on the Vert.x
+ * event loop: {@code OrganizationRequestFilter} uses Hibernate Reactive and
+ * asserts the event-loop thread. A synchronous ({@code Response}-returning)
+ * resource is treated as blocking and dispatched to a worker thread, which made
+ * the reactive filter fail with HR000068 once exercised. The blocking
+ * {@link IntegrationConnectionService} call is offloaded to the worker pool via
+ * {@link #onWorker}, with the tenant code resolved eagerly on the event loop.
+ */
 @Path("/api/v1/orgs/{organizationId}/integrations")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -51,86 +64,108 @@ public class OrgIntegrationConnectionsResource {
     @GET
     @Path("/credential-profiles")
     @Operation(summary = "List credential profiles")
-    public Response listCredentialProfiles(@PathParam("organizationId") String organizationId) {
-        return Response.ok(service.listCredentialProfiles(tenantCode(organizationId))).build();
+    public Uni<Response> listCredentialProfiles(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(service.listCredentialProfiles(tenant)).build());
     }
 
     @POST
     @Path("/credential-profiles")
     @Operation(summary = "Create a credential profile")
-    public Response createCredentialProfile(
+    public Uni<Response> createCredentialProfile(
             @PathParam("organizationId") String organizationId,
             CreateCredentialProfileRequest req) {
-        return Response.status(Response.Status.CREATED)
-                .entity(service.createCredentialProfile(tenantCode(organizationId), req))
-                .build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.status(Response.Status.CREATED)
+                .entity(service.createCredentialProfile(tenant, req))
+                .build());
     }
 
     @GET
     @Path("/connections")
     @Operation(summary = "List integration connections")
-    public Response listConnections(@PathParam("organizationId") String organizationId) {
-        return Response.ok(service.listConnections(tenantCode(organizationId))).build();
+    public Uni<Response> listConnections(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(service.listConnections(tenant)).build());
     }
 
     @POST
     @Path("/connections")
     @Operation(summary = "Create an integration connection")
-    public Response createConnection(
+    public Uni<Response> createConnection(
             @PathParam("organizationId") String organizationId,
             CreateIntegrationConnectionRequest req) {
-        return Response.status(Response.Status.CREATED)
-                .entity(service.createConnection(tenantCode(organizationId), req))
-                .build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.status(Response.Status.CREATED)
+                .entity(service.createConnection(tenant, req))
+                .build());
     }
 
     @GET
     @Path("/connections/{connectionId}")
     @Operation(summary = "Get an integration connection")
-    public Response getConnection(
+    public Uni<Response> getConnection(
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
-        var connection = service.getConnection(tenantCode(organizationId), connectionId);
-        return connection == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(connection).build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> {
+            var connection = service.getConnection(tenant, connectionId);
+            return connection == null
+                    ? Response.status(Response.Status.NOT_FOUND).build()
+                    : Response.ok(connection).build();
+        });
     }
 
     @POST
     @Path("/connections/{connectionId}/test")
     @Operation(summary = "Test an integration connection")
-    public Response testConnection(
+    public Uni<Response> testConnection(
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId,
             ConnectionTestRequest req) {
-        return Response.ok(service.testConnection(tenantCode(organizationId), connectionId, req)).build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(service.testConnection(tenant, connectionId, req)).build());
     }
 
     @GET
     @Path("/connections/{connectionId}/operations")
     @Operation(summary = "List integration operations")
-    public Response listOperations(
+    public Uni<Response> listOperations(
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
-        return Response.ok(service.listOperations(tenantCode(organizationId), connectionId)).build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> Response.ok(service.listOperations(tenant, connectionId)).build());
     }
 
     @POST
     @Path("/connections/{connectionId}/operations")
     @Operation(summary = "Create an integration operation")
-    public Response createOperation(
+    public Uni<Response> createOperation(
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId,
             CreateIntegrationOperationRequest req) {
-        var operation = service.addOperation(tenantCode(organizationId), connectionId, req);
-        return operation == null
-                ? Response.status(Response.Status.NOT_FOUND).build()
-                : Response.status(Response.Status.CREATED).entity(operation).build();
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> {
+            var operation = service.addOperation(tenant, connectionId, req);
+            return operation == null
+                    ? Response.status(Response.Status.NOT_FOUND).build()
+                    : Response.status(Response.Status.CREATED).entity(operation).build();
+        });
+    }
+
+    /**
+     * Runs a blocking supplier on the worker pool so this non-blocking endpoint
+     * keeps the request on the event loop (required by the reactive org filter).
+     */
+    private static <T> Uni<T> onWorker(Supplier<T> work) {
+        return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
     private String tenantCode(String organizationId) {
         if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
             throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity("{\"error\":\"Organization context does not match request path\"}")
+                    .entity(Map.of("error", "Organization context does not match request path"))
                     .build());
         }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();

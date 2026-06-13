@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency=20",
     "storm": "turbo run storm",
     "lint": "turbo run lint --filter='!@modulariot/web-admin'",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
@@ -24,7 +24,7 @@
     "husky": "^9.1.7",
     "patch-package": "^8.0.1",
     "prettier": "^3.5.3",
-    "turbo": "^2.5.4",
+    "turbo": "^2.9.18",
     "typescript": "5.8.2"
   },
   "engines": {

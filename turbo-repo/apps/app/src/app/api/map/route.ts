@@ -68,7 +68,7 @@ async function fetchPositions(): Promise<unknown> {
       const json: unknown = await response.json();
       // Upstream wraps the rows as { data: [...] }; unwrap to the array.
       if (json && typeof json === "object" && "data" in json) {
-        return (json as { data: unknown }).data;
+        return json.data;
       }
       // Malformed 200 (missing `data`): treat as an upstream fault instead of
       // caching `undefined` as a successful, empty map.

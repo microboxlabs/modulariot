@@ -1,5 +1,5 @@
 import TaskActions from "../task-actions/task-actions";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
@@ -139,6 +139,7 @@ export default function BentoHead({
             fluid={true}
             enableActions={enableActions}
             extraData={task}
+            fullDict={dict as unknown as I18nDictionary}
           />
         )}
       </div>

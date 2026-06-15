@@ -311,12 +311,14 @@ export const getSecondaryTransitionIdV2 = (
   label: string;
   icon: ElementType;
   isGoBack: boolean;
+  showEtaEdit?: boolean;
 }[] => {
   const otherOptions: {
     id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
     label: string;
     icon: ElementType;
     isGoBack: boolean;
+    showEtaEdit?: boolean;
   }[] = [];
   if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
     otherOptions.push({
@@ -386,6 +388,7 @@ export const getSecondaryTransitionIdV2 = (
       label: (dict.outcome as I18nRecord)[OUTCOME_MONITOR_TRIP_V2] as string,
       icon: HiOutlineArrowLeft,
       isGoBack: true,
+      showEtaEdit: true,
     });
   } else if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK) {
     // nothing to do here

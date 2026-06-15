@@ -79,10 +79,12 @@ export default function TaskActions({
   dict,
   fluid = false,
   extraData,
+  fullDict,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [openGoBackModal, setOpenGoBackModal] = useState(false);
   const [isGoBackSubmitting, setIsGoBackSubmitting] = useState(false);
+  const [goBackShowEtaEdit, setGoBackShowEtaEdit] = useState(false);
   const [outcome, setOutcome] = useState<
     | TaskOutcome
     | TaskOutcomeV2
@@ -268,7 +270,7 @@ export default function TaskActions({
             (dict.outcome as I18nRecord)[transitionId] as string
           ),
       }}
-      secondaryActions={otherOptions.map(({ id, label, icon: Icon, isGoBack }) => ({
+      secondaryActions={otherOptions.map(({ id, label, icon: Icon, isGoBack, showEtaEdit }) => ({
         id,
         label,
         icon: <Icon />,
@@ -277,6 +279,7 @@ export default function TaskActions({
           setOutcomeLabel(label);
           if (isGoBack) {
             setOpenGoBackModal(true);
+            setGoBackShowEtaEdit(showEtaEdit ?? false);
           } else {
             setOpenModal(true);
           }
@@ -314,6 +317,11 @@ export default function TaskActions({
           rejectedItems={reviewState.rejectedItems}
           lang={lang}
           dict={dict}
+          showEtaEdit={goBackShowEtaEdit}
+          taskId={taskId}
+          originGeofence={extraData?.mintral_originDelegateCode as string | undefined}
+          destinationGeofence={extraData?.mintral_destinationDelegateCode as string | undefined}
+          etaModalDict={fullDict?.pages?.shippingDetailsTaskForm?.modal as unknown as I18nRecord | undefined}
         />
       </GroupAllowed>
     </div>

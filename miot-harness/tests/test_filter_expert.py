@@ -71,6 +71,70 @@ def test_build_tool_catalog_includes_layer_hint():
     assert "KPI summary text" in catalog
 
 
+def test_build_tool_catalog_lists_scratchpad_tools_separately():
+    from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_tools
+
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI summary"))
+    for tool in build_filesystem_tools(VirtualFileStore()):
+        registry.register(tool)
+
+    catalog = build_tool_catalog(registry, profile=NEXO_PROFILE)
+
+    assert "Scratchpad tools" in catalog
+    assert "fs_write" in catalog
+    assert "fs_read" in catalog
+    # Datasource tools still listed.
+    assert "coordinador_centro_control" in catalog
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_allows_scratchpad_tool():
+    """The model may pick a scratchpad fs_* tool — it's a known-safe
+    utility, allowed past the datasource-prefix guardrail."""
+    from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_tools
+
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    for tool in build_filesystem_tools(VirtualFileStore()):
+        registry.register(tool)
+
+    fake_response = json.dumps(
+        {
+            "intent": "stash a running note",
+            "tool": "fs_write",
+            "args": {"path": "notes.md", "content": "service 42 is late"},
+            "rationale": "keep working memory out of the prompt",
+        }
+    )
+    model = FakeListChatModel(responses=[fake_response])
+    state: dict[str, Any] = {
+        "user_message": "remember service 42 is late",
+        "ctx": _ctx(),
+        "evidence": [],
+        "turn_count": 0,
+    }
+
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
+
+    assert update.get("failure") is None
+    assert update["plan"].steps[0].tool == "fs_write"
+
+
+@pytest.mark.asyncio
+async def test_filter_expert_refuses_hallucinated_scratchpad_tool():
+    """A made-up fs_* name passes the prefix gate but must still fail the
+    registry-membership check (the allowlist is not a hole)."""
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
+    fake_response = json.dumps({"intent": "x", "tool": "fs_bogus", "args": {}, "rationale": "r"})
+    model = FakeListChatModel(responses=[fake_response])
+    state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
+    assert update.get("failure")
+    assert "unknown tool" in update["failure"].lower()
+
+
 @pytest.mark.asyncio
 async def test_filter_expert_produces_single_step():
     """Given a user message and a tool catalog, filter_expert returns a
@@ -95,9 +159,7 @@ async def test_filter_expert_produces_single_step():
         "turn_count": 0,
     }
 
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
 
     plan = update["plan"]
     assert isinstance(plan, DataPlan)
@@ -141,9 +203,7 @@ async def test_filter_expert_appends_to_existing_plan():
         "turn_count": 1,
     }
 
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     new_plan = update["plan"]
 
     assert len(new_plan.steps) == 2
@@ -174,9 +234,7 @@ async def test_filter_expert_clears_next_action():
         "turn_count": 1,
         "next_action": "need_more_tools",
     }
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     assert update.get("next_action") is None
 
 
@@ -186,16 +244,14 @@ async def test_filter_expert_handles_json_fenced_response():
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI"))
     fenced = (
-        '```json\n'
+        "```json\n"
         '{"intent": "x", "tool": "coordinador_centro_control", '
         '"args": {}, "rationale": "r"}\n'
-        '```'
+        "```"
     )
     model = FakeListChatModel(responses=[fenced])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     assert "plan" in update
     assert update["plan"].steps[0].tool == "coordinador_centro_control"
 
@@ -228,9 +284,7 @@ async def test_filter_expert_handles_plan_max_steps():
         "evidence": [],
         "turn_count": 4,
     }
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     assert update.get("failure")
     assert update.get("next_action") == "ready_to_synthesize"
 
@@ -251,9 +305,7 @@ async def test_filter_expert_refuses_non_coordinador_tool():
     )
     model = FakeListChatModel(responses=[fake_response])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     assert update.get("failure")
     assert "out-of-scope" in update["failure"] or "scope" in update["failure"].lower()
 
@@ -272,9 +324,7 @@ async def test_filter_expert_emits_plan_created_event_on_first_step():
     )
     model = FakeListChatModel(responses=[fake_response])
     state = {"user_message": "?", "ctx": _ctx(), "evidence": [], "turn_count": 0}
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     events = update.get("_events") or []
     assert any(e.type == "plan.created" for e in events)
 
@@ -303,9 +353,7 @@ async def test_filter_expert_refuses_unknown_tool():
         "turn_count": 0,
     }
 
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     assert update.get("failure")
 
 
@@ -323,7 +371,5 @@ async def test_filter_expert_non_object_json_is_malformed_step():
         "evidence": [],
         "turn_count": 0,
     }
-    update = await filter_expert_node(
-        state, registry=registry, model=model, profile=NEXO_PROFILE
-    )
+    update = await filter_expert_node(state, registry=registry, model=model, profile=NEXO_PROFILE)
     assert update.get("failure") == "filter_expert returned malformed step"

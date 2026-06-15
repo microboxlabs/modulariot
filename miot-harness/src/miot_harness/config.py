@@ -72,6 +72,18 @@ class HarnessSettings(BaseSettings):
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
 
+    # Virtual filesystem scratchpad. An in-memory, per-conversation file
+    # store that lets agents offload notes/plans/intermediate findings out
+    # of the LLM context window across a multi-turn run (see
+    # tools/filesystem.py). On by default; flip `fs_enabled=False` to drop
+    # the four `fs_*` tools from the registry. Caps are per-conversation
+    # and bound a single scratchpad's memory footprint; exceeding any cap
+    # returns a typed `ok=False` tool result (no partial write).
+    fs_enabled: bool = True
+    fs_max_file_bytes: int = Field(default=65_536, gt=0)
+    fs_max_total_bytes: int = Field(default=1_048_576, gt=0)
+    fs_max_files: int = Field(default=64, gt=0)
+
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     request_id_header: str = "x-request-id"

@@ -13,6 +13,31 @@ import { updateTaskProperties } from "@/features/task-forms/services/client-form
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
+function buildEtaProperties(
+  formValues: Record<string, unknown>,
+  eta: { estimatedArrival?: string } | null | undefined
+): Record<string, unknown> {
+  const isManual = formValues.mintral_etaMode === "manual";
+  const properties: Record<string, unknown> = { mintral_etaMode: formValues.mintral_etaMode };
+  if (isManual) {
+    if (formValues.mintral_estimatedArrivalDate) {
+      const iso = dayjs(formValues.mintral_estimatedArrivalDate as string).toISOString();
+      properties.mintral_estimatedArrivalDate = iso;
+      properties.mintral_arrivalDate = iso;
+    }
+    if (formValues.mintral_manualEtaReason) {
+      properties.mintral_manualEtaReason = formValues.mintral_manualEtaReason;
+    }
+    if (formValues.mintral_manualEtaReason === "OTHER" && formValues.mintral_manualEtaReasonOther) {
+      properties.mintral_manualEtaReasonOther = formValues.mintral_manualEtaReasonOther;
+    }
+  } else if (eta?.estimatedArrival) {
+    properties.mintral_estimatedArrivalDate = eta.estimatedArrival;
+    properties.mintral_arrivalDate = eta.estimatedArrival;
+  }
+  return properties;
+}
+
 function fmt(date: Date, locale: string): string {
   return new Date(date).toLocaleString(locale, {
     day: "2-digit", month: "short", year: "numeric",
@@ -121,26 +146,7 @@ export default function GoBackModal({
 
   const handleConfirm = async () => {
     if (showEtaEdit && taskId) {
-      const isManual = formValues.mintral_etaMode === "manual";
-      const properties: Record<string, unknown> = {
-        mintral_etaMode: formValues.mintral_etaMode,
-      };
-      if (isManual) {
-        if (formValues.mintral_estimatedArrivalDate) {
-          const iso = dayjs(formValues.mintral_estimatedArrivalDate as string).toISOString();
-          properties.mintral_estimatedArrivalDate = iso;
-          properties.mintral_arrivalDate = iso;
-        }
-        if (formValues.mintral_manualEtaReason) {
-          properties.mintral_manualEtaReason = formValues.mintral_manualEtaReason;
-        }
-        if (formValues.mintral_manualEtaReason === "OTHER" && formValues.mintral_manualEtaReasonOther) {
-          properties.mintral_manualEtaReasonOther = formValues.mintral_manualEtaReasonOther;
-        }
-      } else if (eta?.estimatedArrival) {
-        properties.mintral_estimatedArrivalDate = eta.estimatedArrival;
-        properties.mintral_arrivalDate = eta.estimatedArrival;
-      }
+      const properties = buildEtaProperties(formValues, eta);
       try {
         await updateTaskProperties(taskId, properties);
         setEtaSaveError(null);

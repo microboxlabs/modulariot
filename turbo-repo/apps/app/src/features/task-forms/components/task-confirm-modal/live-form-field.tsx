@@ -23,7 +23,6 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { Badge } from "flowbite-react";
 import { CustomBadge } from "@/features/common/components/custom-badge";
 
 interface ETADetailsRendererProps {

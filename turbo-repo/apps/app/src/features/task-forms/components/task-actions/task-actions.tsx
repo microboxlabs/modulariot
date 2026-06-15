@@ -321,7 +321,7 @@ export default function TaskActions({
           taskId={taskId}
           originGeofence={extraData?.mintral_originDelegateCode as string | undefined}
           destinationGeofence={extraData?.mintral_destinationDelegateCode as string | undefined}
-          etaModalDict={fullDict?.pages?.shippingDetailsTaskForm?.modal as unknown as I18nRecord | undefined}
+          etaModalDict={fullDict?.pages?.shippingDetailsTaskForm?.modal}
         />
       </GroupAllowed>
     </div>

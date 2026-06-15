@@ -10,7 +10,7 @@ import { CustomFormField } from "../task-confirm-modal/custom-form-field";
 import { ETA_EDIT_FORM_CONFIG } from "../eta-edit-modal/eta-edit-modal.config";
 import { useLiveETA } from "@/features/common/providers/client-api.provider";
 import { updateTaskProperties } from "@/features/task-forms/services/client-form.service";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
 function fmt(date: Date, locale: string): string {
@@ -85,6 +85,8 @@ export default function GoBackModal({
     ? "outcome.goBackModalRejectedCount_one"
     : "outcome.goBackModalRejectedCount";
 
+  const [etaSaveError, setEtaSaveError] = useState<string | null>(null);
+
   const { formValues, setFormValue, resetFormValues, isFieldVisible } =
     useCustomFormState(show, showEtaEdit ? ETA_EDIT_FORM_CONFIG : undefined);
 
@@ -113,6 +115,7 @@ export default function GoBackModal({
 
   const handleClose = () => {
     resetFormValues();
+    setEtaSaveError(null);
     onClose();
   };
 
@@ -138,9 +141,14 @@ export default function GoBackModal({
         properties.mintral_estimatedArrivalDate = eta.estimatedArrival;
         properties.mintral_arrivalDate = eta.estimatedArrival;
       }
-      await updateTaskProperties(taskId, properties).catch((err) =>
-        console.error("[GoBack] ETA save failed", err)
-      );
+      try {
+        await updateTaskProperties(taskId, properties);
+        setEtaSaveError(null);
+      } catch (err) {
+        console.error("[GoBack] ETA save failed", err);
+        setEtaSaveError("No se pudo guardar la ETA. Intenta nuevamente.");
+        return;
+      }
     }
     await onConfirm();
   };
@@ -231,6 +239,13 @@ export default function GoBackModal({
               <p className="text-sm text-amber-700 dark:text-amber-300">
                 {tr("outcome.goBackModalNoMotives", dict)}
               </p>
+            </div>
+          )}
+
+          {etaSaveError && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3">
+              <HiExclamationCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <p className="text-sm text-red-700 dark:text-red-300">{etaSaveError}</p>
             </div>
           )}
 

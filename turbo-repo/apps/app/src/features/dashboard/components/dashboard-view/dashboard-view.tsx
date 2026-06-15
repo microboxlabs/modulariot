@@ -71,6 +71,7 @@ import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
+import { DashboardFiltersCard } from "../dashboard-filters-card/dashboard-filters-card";
 
 /**
  * Main dashboard view component
@@ -418,6 +419,13 @@ export function DashboardView() {
               </Link>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Filters card */}
+      {!isKiosk && (
+        <div className="shrink-0 px-4 pt-4">
+          <DashboardFiltersCard />
         </div>
       )}
 

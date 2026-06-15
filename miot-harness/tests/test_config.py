@@ -162,6 +162,7 @@ def test_fs_settings_defaults():
     assert settings.fs_max_file_bytes == 65_536
     assert settings.fs_max_total_bytes == 1_048_576
     assert settings.fs_max_files == 64
+    assert settings.fs_max_conversations == 512
 
 
 def test_fs_settings_read_from_env(monkeypatch):
@@ -169,11 +170,13 @@ def test_fs_settings_read_from_env(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_FS_MAX_FILE_BYTES", "1024")
     monkeypatch.setenv("MIOT_HARNESS_FS_MAX_TOTAL_BYTES", "4096")
     monkeypatch.setenv("MIOT_HARNESS_FS_MAX_FILES", "8")
+    monkeypatch.setenv("MIOT_HARNESS_FS_MAX_CONVERSATIONS", "16")
     settings = HarnessSettings()
     assert settings.fs_enabled is False
     assert settings.fs_max_file_bytes == 1024
     assert settings.fs_max_total_bytes == 4096
     assert settings.fs_max_files == 8
+    assert settings.fs_max_conversations == 16
 
 
 def test_fs_caps_reject_non_positive(monkeypatch):

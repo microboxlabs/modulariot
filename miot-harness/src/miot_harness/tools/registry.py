@@ -55,6 +55,7 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
             max_file_bytes=settings.fs_max_file_bytes,
             max_total_bytes=settings.fs_max_total_bytes,
             max_files=settings.fs_max_files,
+            max_conversations=settings.fs_max_conversations,
         )
         for tool in build_filesystem_tools(store):
             registry.register(tool)

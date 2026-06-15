@@ -24,6 +24,7 @@ exception. A missing read returns `found=False` (also not an error).
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
 
@@ -38,6 +39,12 @@ from miot_harness.runtime.tool import HarnessTool, Progress
 _DEFAULT_MAX_FILE_BYTES = 65_536
 _DEFAULT_MAX_TOTAL_BYTES = 1_048_576
 _DEFAULT_MAX_FILES = 64
+# Global bound on the number of distinct conversation partitions kept in
+# memory. The per-conversation caps above bound each partition's size; this
+# bounds how many partitions accumulate so a long-running process can't grow
+# without limit as new conversation/thread ids arrive. Least-recently-used
+# conversations are evicted first.
+_DEFAULT_MAX_CONVERSATIONS = 512
 
 
 class FileStoreError(Exception):
@@ -95,6 +102,13 @@ def _normalize_path(path: str) -> str:
 class VirtualFileStore:
     """Process-local, per-conversation virtual file store.
 
+    Two layers of bounds: per-conversation caps (file size, total bytes,
+    file count) bound a single scratchpad; a global `max_conversations`
+    LRU bound caps how many conversation partitions stay in memory so the
+    store can't grow without limit as new conversation/thread ids arrive.
+    Every access (write/read/ls/edit) marks its conversation most-recently
+    used; the oldest is evicted when a new conversation exceeds the cap.
+
     Concurrency: single event loop, no locks (same posture as
     `InMemoryConversationStore`). If the harness ever runs multi-worker,
     a shared backend becomes the seam.
@@ -106,14 +120,35 @@ class VirtualFileStore:
         max_file_bytes: int = _DEFAULT_MAX_FILE_BYTES,
         max_total_bytes: int = _DEFAULT_MAX_TOTAL_BYTES,
         max_files: int = _DEFAULT_MAX_FILES,
+        max_conversations: int = _DEFAULT_MAX_CONVERSATIONS,
     ) -> None:
-        self._files: dict[str, dict[str, FileEntry]] = {}
+        # OrderedDict so we can track recency: move_to_end on access,
+        # popitem(last=False) to evict the least-recently-used conversation.
+        self._files: OrderedDict[str, dict[str, FileEntry]] = OrderedDict()
         self._max_file_bytes = max_file_bytes
         self._max_total_bytes = max_total_bytes
         self._max_files = max_files
+        self._max_conversations = max_conversations
 
     def _total_bytes(self, conv_key: str) -> int:
         return sum(entry.bytes for entry in self._files.get(conv_key, {}).values())
+
+    def _bucket_for_write(self, conv_key: str) -> dict[str, FileEntry]:
+        """Return the conversation's bucket, creating it (and LRU-evicting
+        the oldest conversation when at the global cap) if it's new.
+
+        Only called after a write's per-conversation cap checks pass, so a
+        rejected write never evicts a victim or leaves an empty bucket.
+        """
+        bucket = self._files.get(conv_key)
+        if bucket is not None:
+            self._files.move_to_end(conv_key)
+            return bucket
+        while len(self._files) >= self._max_conversations:
+            self._files.popitem(last=False)
+        bucket = {}
+        self._files[conv_key] = bucket
+        return bucket
 
     def write(self, conv_key: str, path: str, content: str) -> WriteResult:
         norm = _normalize_path(path)
@@ -123,10 +158,10 @@ class VirtualFileStore:
                 "file_too_large",
                 f"file is {size} bytes; per-file cap is {self._max_file_bytes}",
             )
-        bucket = self._files.setdefault(conv_key, {})
-        existing = bucket.get(norm)
+        bucket = self._files.get(conv_key)
+        existing = bucket.get(norm) if bucket is not None else None
         created = existing is None
-        if created and len(bucket) >= self._max_files:
+        if created and bucket is not None and len(bucket) >= self._max_files:
             raise FileStoreError(
                 "too_many_files",
                 f"scratchpad already holds {len(bucket)} files (cap {self._max_files})",
@@ -138,16 +173,26 @@ class VirtualFileStore:
                 "workspace_full",
                 f"write would use {projected} bytes; total cap is {self._max_total_bytes}",
             )
+        # All per-conversation checks passed — now materialize the bucket
+        # (LRU-evicting if needed) and write.
+        bucket = self._bucket_for_write(conv_key)
         bucket[norm] = FileEntry(content=content)
         return WriteResult(path=norm, bytes=size, created=created)
 
     def read(self, conv_key: str, path: str) -> str | None:
         norm = _normalize_path(path)
-        entry = self._files.get(conv_key, {}).get(norm)
+        bucket = self._files.get(conv_key)
+        if bucket is None:
+            return None
+        self._files.move_to_end(conv_key)
+        entry = bucket.get(norm)
         return entry.content if entry is not None else None
 
     def ls(self, conv_key: str, prefix: str | None = None) -> list[tuple[str, int]]:
-        bucket = self._files.get(conv_key, {})
+        bucket = self._files.get(conv_key)
+        if bucket is None:
+            return []
+        self._files.move_to_end(conv_key)
         pfx = (prefix or "").strip().lstrip("/")
         return [
             (path, entry.bytes)
@@ -167,10 +212,10 @@ class VirtualFileStore:
         norm = _normalize_path(path)
         if old_string == "":
             raise FileStoreError("invalid_edit", "old_string must not be empty")
-        bucket = self._files.get(conv_key, {})
-        entry = bucket.get(norm)
-        if entry is None:
+        bucket = self._files.get(conv_key)
+        if bucket is None or norm not in bucket:
             raise FileStoreError("not_found", f"no such file: {norm}")
+        entry = bucket[norm]
         count = entry.content.count(old_string)
         if count == 0:
             raise FileStoreError("not_found", "old_string not present in file")
@@ -197,6 +242,7 @@ class VirtualFileStore:
                 "workspace_full",
                 f"edit would use {projected} bytes; total cap is {self._max_total_bytes}",
             )
+        self._files.move_to_end(conv_key)
         bucket[norm] = FileEntry(content=updated)
         return EditResult(path=norm, bytes=size, replacements=replacements)
 

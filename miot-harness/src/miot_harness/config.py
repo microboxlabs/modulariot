@@ -76,13 +76,16 @@ class HarnessSettings(BaseSettings):
     # store that lets agents offload notes/plans/intermediate findings out
     # of the LLM context window across a multi-turn run (see
     # tools/filesystem.py). On by default; flip `fs_enabled=False` to drop
-    # the four `fs_*` tools from the registry. Caps are per-conversation
-    # and bound a single scratchpad's memory footprint; exceeding any cap
-    # returns a typed `ok=False` tool result (no partial write).
+    # the four `fs_*` tools from the registry. The per-conversation caps
+    # bound a single scratchpad's memory footprint (exceeding any returns a
+    # typed `ok=False` tool result, no partial write); `fs_max_conversations`
+    # is a global LRU bound on how many scratchpads stay in memory so the
+    # store can't grow without limit as new conversation/thread ids arrive.
     fs_enabled: bool = True
     fs_max_file_bytes: int = Field(default=65_536, gt=0)
     fs_max_total_bytes: int = Field(default=1_048_576, gt=0)
     fs_max_files: int = Field(default=64, gt=0)
+    fs_max_conversations: int = Field(default=512, gt=0)
 
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

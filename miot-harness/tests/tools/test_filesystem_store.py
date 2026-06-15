@@ -154,3 +154,37 @@ def test_edit_total_cap_enforced() -> None:
     with pytest.raises(FileStoreError) as exc:
         store.edit(CONV, "a.txt", "abcde", "abcdefgh")
     assert exc.value.code == "workspace_full"
+
+
+def test_global_conversation_lru_eviction() -> None:
+    store = VirtualFileStore(max_conversations=2)
+    store.write("c1", "f", "1")
+    store.write("c2", "f", "2")
+    store.write("c3", "f", "3")  # exceeds cap → evicts c1 (least recently used)
+    assert store.read("c1", "f") is None
+    assert store.read("c2", "f") == "2"
+    assert store.read("c3", "f") == "3"
+
+
+def test_access_marks_conversation_most_recently_used() -> None:
+    store = VirtualFileStore(max_conversations=2)
+    store.write("c1", "f", "1")
+    store.write("c2", "f", "2")
+    # Touch c1 so c2 becomes the LRU victim instead.
+    assert store.read("c1", "f") == "1"
+    store.write("c3", "f", "3")
+    assert store.read("c2", "f") is None
+    assert store.read("c1", "f") == "1"
+    assert store.read("c3", "f") == "3"
+
+
+def test_failed_write_does_not_evict_or_create_bucket() -> None:
+    # A write that violates a per-conversation cap must not evict an existing
+    # conversation or leave behind an empty bucket for the failed one.
+    store = VirtualFileStore(max_conversations=1, max_file_bytes=2)
+    store.write("c1", "f", "ok")
+    with pytest.raises(FileStoreError) as exc:
+        store.write("c2", "f", "toolong")
+    assert exc.value.code == "file_too_large"
+    assert store.read("c1", "f") == "ok"  # c1 not evicted
+    assert store.ls("c2") == []  # c2 never materialized

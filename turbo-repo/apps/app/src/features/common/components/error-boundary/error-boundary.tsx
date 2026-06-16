@@ -1,15 +1,31 @@
 "use client";
 
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import {
+  Component,
+  cloneElement,
+  isValidElement,
+  type ErrorInfo,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+
+// Props the boundary injects into the fallback element when a child throws.
+// Both are optional so callers can construct the element with only its own
+// props (e.g. an i18n dictionary); the boundary fills these in via cloneElement.
+export type ErrorFallbackProps = {
+  error?: Error;
+  reset?: () => void;
+};
 
 type ErrorBoundaryProps = Readonly<{
   children: ReactNode;
-  // Rendered in place of `children` when a descendant throws during render or in
-  // a lifecycle method. `reset` clears the captured error so the subtree
-  // re-mounts — wire it to a "retry" control in the fallback.
-  fallback: (error: Error, reset: () => void) => ReactNode;
-  // Optional hook for logging/telemetry. React still logs the error to the
-  // console; this is for sending it somewhere durable.
+  // A React element rendered in place of `children` when a descendant throws.
+  // The boundary injects `error` and a `reset` callback (which clears the error
+  // so the subtree re-mounts) into it via cloneElement. Passing an element —
+  // not an inline render function — keeps call sites free of nested component
+  // definitions (sonar typescript:S6478).
+  fallback: ReactElement<ErrorFallbackProps>;
+  // Optional hook for logging/telemetry. React still logs to the console.
   onError?: (error: Error, info: ErrorInfo) => void;
 }>;
 
@@ -37,7 +53,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render(): ReactNode {
     const { error } = this.state;
     if (error) {
-      return this.props.fallback(error, this.reset);
+      const { fallback } = this.props;
+      return isValidElement(fallback)
+        ? cloneElement(fallback, { error, reset: this.reset })
+        : fallback;
     }
     return this.props.children;
   }

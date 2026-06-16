@@ -29,6 +29,11 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     output_model: type[OutputT]
     read_only: bool = True
     destructive: bool = False
+    # Tool family for catalog scoping: "curated" datasource functions are
+    # offered to every planner seat; "primitive" exploration tools are
+    # agentic-only; "general" (default) covers everything else sharing the
+    # registry (e.g. storytelling tools) and is never planner-selectable.
+    kind: str = "general"
     # Trace badge — propagated into tool.started.data.source so the frontend
     # can render the datasource provenance label (e.g. "ModularIoT AMS")
     # without waiting for the per-row metadata that _lift_metadata pulls from

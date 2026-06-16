@@ -19,12 +19,12 @@ The factory creates per-function:
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 import asyncpg
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 
 from miot_harness.integrations.nexo.introspect import (
     FunctionArg,
@@ -82,6 +82,9 @@ def _python_type_for(pg_type: str) -> type:
 
 def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel]:
     fields: dict[str, Any] = {}
+    text_fields: frozenset[str] = frozenset(
+        arg.name for arg in args if _python_type_for(arg.pg_type) is str
+    )
     for arg in args:
         py_type = _python_type_for(arg.pg_type)
         if arg.has_default:
@@ -89,9 +92,26 @@ def _input_model_from_args(name: str, args: list[FunctionArg]) -> type[BaseModel
             fields[arg.name] = (py_type | None, Field(default=None))
         else:
             fields[arg.name] = (py_type, Field(...))
+
+    def _coerce_numeric_text(values: Any) -> Any:
+        # LLM planners emit JSON numbers for id-like filters
+        # ("p_service_code": 1643006) while every Coordinador p_* filter
+        # is pg `text`. Pydantic v2 rejects int→str, so stringify
+        # numerics (not booleans) for text-typed args before validation.
+        if isinstance(values, dict):
+            for key in text_fields & values.keys():
+                value = values[key]
+                if isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+                    values[key] = str(value)
+        return values
+
+    validators: dict[str, Any] = {
+        "_coerce_numeric_text": model_validator(mode="before")(_coerce_numeric_text),
+    }
     model: type[BaseModel] = create_model(
         f"_Input_{name}",
         __config__=ConfigDict(arbitrary_types_allowed=True, extra="forbid"),
+        __validators__=validators,
         **fields,
     )
     return model
@@ -157,13 +177,30 @@ def _truncate_rows(
     return rows[:cap], total, True
 
 
-def _extract_refreshed_at(row: dict[str, Any]) -> datetime | None:
-    for key, value in row.items():
-        if not isinstance(key, str):
+def _ensure_utc(value: datetime) -> datetime:
+    """Coerce naive datetimes (pg `timestamp` without tz) to UTC so
+    max()/age arithmetic never hits naive-vs-aware TypeError."""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+def freshest_refreshed_at(rows: list[dict[str, Any]]) -> datetime | None:
+    """Max refreshed_at_* across ALL rows and columns (tz-aware, UTC).
+
+    Multi-layer functions (fn_dx_centro_control: one row per capa) carry a
+    refreshed_at per layer, and result order is not guaranteed — a probe
+    that reads only row 0 flips between layers across boots. For
+    pipeline-liveness gates the freshest layer is the signal; per-layer
+    staleness is surfaced separately (survey + evidence statuses)."""
+    candidates: list[datetime] = []
+    for row in rows:
+        if not isinstance(row, dict):
             continue
-        if key.startswith("refreshed_at") and isinstance(value, datetime):
-            return value
-    return None
+        for key, value in row.items():
+            if isinstance(key, str) and key.startswith("refreshed_at") and isinstance(
+                value, datetime
+            ):
+                candidates.append(_ensure_utc(value))
+    return max(candidates) if candidates else None
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
@@ -219,9 +256,10 @@ def build_nexo_tool(
                 raw_rows = await conn.fetch(sql, *positional)
 
         rows = [_row_to_dict(r) for r in raw_rows]
-        refreshed_at = rows[0].get("refreshed_at") if rows else None
-        if refreshed_at is None and rows:
-            refreshed_at = _extract_refreshed_at(rows[0])
+        # Freshest across ALL rows/columns — multi-layer functions return
+        # one refreshed_at_* per layer in no guaranteed order, so reading
+        # row 0 would flip between fresh and stale layers across calls.
+        refreshed_at = freshest_refreshed_at(rows)
 
         if descriptor.returns_kind == "table":
             kept, total, truncated = _truncate_rows(rows)
@@ -276,6 +314,7 @@ def build_nexo_tool(
         output_model=output_model,
         read_only=True,
         destructive=False,
+        kind="curated",
         source="Coordinador · nexo (Citus DB)",
         check_permission=check_permission,
         call=call,

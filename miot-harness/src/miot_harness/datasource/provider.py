@@ -18,10 +18,12 @@ docs/specs/2026-06-05-harness-datasource-refactor-design.md).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
     from miot_harness.config import HarnessSettings
     from miot_harness.tools.registry import ToolRegistry
 
@@ -65,6 +67,22 @@ class DataSourceProfile:
 
 
 @dataclass(frozen=True)
+class FreshnessProbe:
+    """One datasource function's snapshot state at boot time.
+
+    status: fresh | stale | no_timestamp | empty | empty_no_timestamp |
+            error | skipped (mirrors DataEvidence.freshness_status, plus
+            the survey-only error/skipped outcomes).
+    """
+
+    function: str
+    refreshed_at: datetime | None
+    age_minutes: float | None
+    has_rows: bool
+    status: str
+
+
+@dataclass(frozen=True)
 class BootResult:
     """Outcome of DataSourceProvider.boot — same shape for every provider."""
 
@@ -74,6 +92,12 @@ class BootResult:
     # float is intentional: sub-minute precision from timestamp arithmetic
     # (sub-minute precision is required by the freshness SLA checks).
     snapshot_age_minutes: float | None = None
+    # Per-function freshness survey (Gap 2): lets /health and the meta
+    # agent say which functions are fresh vs stale BEFORE a user asks.
+    freshness: dict[str, FreshnessProbe] = field(default_factory=dict)
+    # Descriptor-derived meta-agent catalog (title/layer/body + freshness
+    # suffix). Empty → the server falls back to generic entries.
+    catalog_entries: tuple[MetaAgentCatalogEntry, ...] = ()
 
 
 class DataSourceProvider(ABC):

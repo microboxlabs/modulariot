@@ -28,7 +28,7 @@
     "typescript": "5.8.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "overrides": {
     "@types/react": "19.2.10",

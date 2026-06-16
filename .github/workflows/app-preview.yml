@@ -27,7 +27,7 @@ permissions:
   pull-requests: write
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-app
@@ -45,11 +45,11 @@ jobs:
       image: ${{ steps.image.outputs.image }}
       short_sha: ${{ steps.vars.outputs.short_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm

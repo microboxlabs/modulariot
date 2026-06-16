@@ -311,7 +311,7 @@ export default function TimeRangePicker({
                           : e.target.value.replace("T", " ")
                       );
                     }}
-                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                    className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 scheme-light dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:scheme-dark"
                   />
                 </div>
               ))}

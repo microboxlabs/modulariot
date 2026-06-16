@@ -9,7 +9,6 @@ import ExpandableSection from "@/features/fleet-management/components/vehicle-de
 import TimeRangePicker from "../dashboard-filter-bar/time-range-picker";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import type { DashboardFilterParam } from "../../types/dashboard.types";
 
 const INPUT_CLS =
   "h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400";
@@ -22,21 +21,12 @@ export function DashboardFiltersCard() {
     [dictionary]
   );
 
-  const defaultDateFilter = useMemo<DashboardFilterParam>(
-    () => ({ key: "date_range", label: t("dateRangeLabel"), type: "date_range" }),
-    [t]
-  );
-
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const textFilters = useMemo(() => filters.filter((f) => f.type === "text"), [filters]);
   const dateFilters = useMemo(() => filters.filter((f) => f.type === "date_range"), [filters]);
-  const effectiveDateFilters = useMemo(
-    () => (dateFilters.length > 0 ? dateFilters : [defaultDateFilter]),
-    [dateFilters, defaultDateFilter]
-  );
 
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -44,13 +34,11 @@ export function DashboardFiltersCard() {
       const v = searchParams.get(f.key);
       if (v) init[f.key] = v;
     }
-    for (const f of effectiveDateFilters) {
-      init[`${f.key}_from`] =
-        searchParams.get(`${f.key}_from`) ??
-        dayjs().subtract(30, "day").startOf("day").format("YYYY-MM-DD");
-      init[`${f.key}_to`] =
-        searchParams.get(`${f.key}_to`) ??
-        dayjs().endOf("day").format("YYYY-MM-DD");
+    for (const f of dateFilters) {
+      const from = searchParams.get(`${f.key}_from`);
+      const to = searchParams.get(`${f.key}_to`);
+      if (from) init[`${f.key}_from`] = from;
+      if (to) init[`${f.key}_to`] = to;
     }
     return init;
   });
@@ -73,7 +61,7 @@ export function DashboardFiltersCard() {
       const v = draft[f.key];
       if (v) params.set(f.key, v); else params.delete(f.key);
     }
-    for (const f of effectiveDateFilters) {
+    for (const f of dateFilters) {
       const from = draft[`${f.key}_from`];
       const to = draft[`${f.key}_to`];
       if (from) params.set(`${f.key}_from`, from); else params.delete(`${f.key}_from`);
@@ -81,28 +69,28 @@ export function DashboardFiltersCard() {
     }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [draft, textFilters, effectiveDateFilters, searchParams, router, pathname]);
+  }, [draft, textFilters, dateFilters, searchParams, router, pathname]);
 
   const handleClear = useCallback(() => {
     const defaultDraft: Record<string, string> = {};
-    for (const f of effectiveDateFilters) {
+    for (const f of dateFilters) {
       defaultDraft[`${f.key}_from`] = dayjs().subtract(30, "day").startOf("day").format("YYYY-MM-DD");
       defaultDraft[`${f.key}_to`] = dayjs().endOf("day").format("YYYY-MM-DD");
     }
     setDraft(defaultDraft);
     const params = new URLSearchParams(searchParams.toString());
     for (const f of textFilters) params.delete(f.key);
-    for (const f of effectiveDateFilters) {
+    for (const f of dateFilters) {
       params.delete(`${f.key}_from`);
       params.delete(`${f.key}_to`);
     }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [effectiveDateFilters, textFilters, searchParams, router, pathname]);
+  }, [dateFilters, textFilters, searchParams, router, pathname]);
 
   const hasValues = Object.values(draft).some(Boolean);
 
-  const totalCount = textFilters.length + effectiveDateFilters.length;
+  const totalCount = filters.length;
   const description =
     totalCount === 1
       ? t("filtersDescriptionSingular", { count: "1" })
@@ -137,7 +125,7 @@ export function DashboardFiltersCard() {
               />
             </div>
           ))}
-          {effectiveDateFilters.map((filter) => (
+          {dateFilters.map((filter) => (
             <div key={filter.key} className="flex flex-col gap-0.5">
               <label className="text-xs text-gray-400 dark:text-gray-500">
                 {filter.label}

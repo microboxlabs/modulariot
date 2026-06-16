@@ -94,6 +94,7 @@ export function DashboardView() {
     redo,
     canUndo,
     canRedo,
+    filters,
   } = useDashboard();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -422,8 +423,8 @@ export function DashboardView() {
         </div>
       )}
 
-      {/* Filters card */}
-      {!isKiosk && (
+      {/* Filters card — only shown when at least one filter is configured */}
+      {!isKiosk && filters.length > 0 && (
         <div className="shrink-0 px-4 pt-4">
           <DashboardFiltersCard />
         </div>

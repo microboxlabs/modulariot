@@ -5,12 +5,16 @@ import { FastifyInstance } from "fastify";
 export default function AppFramework(fastify: FastifyInstance, opts: any): FastifyInstance {
   const appConfig = opts.config;
   fastify.decorate("config", appConfig);
+  const pluginIgnorePattern =
+    process.env.NODE_ENV === "test"
+      ? /(?:swagger|.*(?:test|spec))\.(?:ts|js|cjs|mjs)$/
+      : /.*(?:test|spec)\.(?:ts|js|cjs|mjs)$/;
 
   // Register app framework plugins
   fastify.register(autoload, {
     dir: path.join(__dirname, "http/plugins"),
     encapsulate: false,
-    ignorePattern: /.*(test|spec).js/,
+    ignorePattern: pluginIgnorePattern,
   });
 
   // Register API routes

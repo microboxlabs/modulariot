@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsup src/server.ts --format esm --outDir dist",
     "start": "node dist/server.js",
-    "test": "vitest run",
+    "test": "NODE_OPTIONS='--import tsx' vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
@@ -36,6 +36,6 @@
     "tsup": "^8.0.0",
     "tsx": "^4.19.0",
     "typescript": "5.8.2",
-    "vitest": "^4.0.0"
+    "vitest": "^4.1.9"
   }
 }

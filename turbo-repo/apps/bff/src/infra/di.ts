@@ -4,7 +4,7 @@
 
 // The dependency injection framework
 import { createContainer, InjectionMode, asClass, asValue } from "awilix";
-import { Config } from "../services/core/Config";
+import { Config } from "../services/core/Config.js";
 
 const container = createContainer({ injectionMode: InjectionMode.PROXY });
 

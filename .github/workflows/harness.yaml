@@ -69,7 +69,7 @@ jobs:
       is-release: ${{ steps.version.outputs.is-release }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -129,7 +129,7 @@ jobs:
       HARNESS_VERSION: ${{ needs.lint-and-test.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Category A evals (build + boot)
         run: bash miot-harness/evals/deploy/run-all.sh
@@ -159,7 +159,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -305,7 +305,7 @@ jobs:
       DIGEST: ${{ needs.publish-image.outputs.image-digest }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Pull from GHCR (anonymous)
         run: bash miot-harness/evals/deploy/05-pulls-from-ghcr.sh "$DIGEST"

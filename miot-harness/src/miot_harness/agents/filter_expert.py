@@ -40,6 +40,12 @@ logger = logging.getLogger(__name__)
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
 
+# Scratchpad tools (tools/filesystem.py) are datasource-agnostic working
+# memory, not datasource data tools. They're allowed past the
+# datasource-prefix guardrail below as a known-safe utility allowlist —
+# a hallucinated `fs_*` name still fails the registry-membership check.
+_SCRATCHPAD_PREFIX = "fs_"
+
 
 def _strip_fences(text: str) -> str:
     """Real Claude wraps structured output in ```json fences; strip them."""
@@ -66,6 +72,12 @@ Routing hints:
 - L3 tools drill into one service.
 - VT tools support shift-handoff narratives.
 
+Scratchpad (optional): you have a private virtual filesystem to keep
+working notes across turns. Use fs_write / fs_read / fs_ls / fs_edit to
+stash an intermediate finding or a running plan so it doesn't bloat the
+prompt on later turns. These are helpers — when the user is asking for
+data, prefer a {prefix_label} data tool.
+
 Output ONLY a JSON object with this exact shape:
 {{"intent": "...", "tool": "{tool_prefix}xxx", "args": {{}}, "rationale": "..."}}
 - intent: one short phrase describing what you're trying to learn.
@@ -79,19 +91,26 @@ Available tools:
 """
 
 
+def _catalog_line(registry: ToolRegistry, name: str) -> str:
+    tool = registry.get(name)
+    first_line = (tool.description or "").splitlines()[0].strip()
+    return f"- {name}: {first_line}"
+
+
 def build_tool_catalog(registry: ToolRegistry, *, profile: DataSourceProfile) -> str:
-    lines: list[str] = []
-    for name in registry.names():
-        if not name.startswith(profile.tool_prefix):
-            continue
-        tool = registry.get(name)
-        first_line = (tool.description or "").splitlines()[0].strip()
-        lines.append(f"- {name}: {first_line}")
-    return (
-        "\n".join(lines)
-        if lines
+    data_tools = [n for n in registry.names() if n.startswith(profile.tool_prefix)]
+    catalog = (
+        "\n".join(_catalog_line(registry, name) for name in data_tools)
+        if data_tools
         else f"(no {profile.display_name.lower()} tools registered)"
     )
+    # Scratchpad tools are listed in their own section so the model treats
+    # them as utilities, not datasource data tools.
+    scratchpad = [n for n in registry.names() if n.startswith(_SCRATCHPAD_PREFIX)]
+    if scratchpad:
+        catalog += "\n\nScratchpad tools (optional, for working notes):\n"
+        catalog += "\n".join(_catalog_line(registry, name) for name in scratchpad)
+    return catalog
 
 
 def build_capabilities_summary(
@@ -177,7 +196,7 @@ async def filter_expert_node(
             "next_action": None,
         }
 
-    if not step.tool.startswith(profile.tool_prefix):
+    if not (step.tool.startswith(profile.tool_prefix) or step.tool.startswith(_SCRATCHPAD_PREFIX)):
         logger.error("filter_expert: model picked out-of-scope datasource tool %r", step.tool)
         return {
             "failure": f"filter_expert picked out-of-scope tool: {step.tool}",

@@ -241,19 +241,22 @@ export default function TimeRangePicker({
     return `UTC${sign}${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   }, []);
 
+  let sizeClass: string;
+  if (fullWidth) {
+    sizeClass = "h-7 w-full justify-between gap-1.5 rounded px-2";
+  } else if (size === "sm") {
+    sizeClass = "h-8 w-8 justify-center rounded-md";
+  } else {
+    sizeClass = "h-10.5 w-10.5 justify-center rounded-lg";
+  }
+
   return (
     <div className={`relative flex items-center ${fullWidth ? "w-full" : ""} ${className}`}>
       <button
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${
-          fullWidth
-            ? "h-7 w-full justify-between gap-1.5 rounded px-2"
-            : size === "sm"
-              ? "h-8 w-8 justify-center rounded-md"
-              : "h-10.5 w-10.5 justify-center rounded-lg"
-        }`}
+        className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${sizeClass}`}
         title={
           fromDate && toDate
             ? `${fromDate} - ${toDate}`

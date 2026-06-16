@@ -41,7 +41,7 @@ import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
 // Helpers
 // ============================================================================
 
-function MdTooltip({ children }: { children: string }) {
+function MdTooltip({ children }: Readonly<{ children: string }>) {
   return (
     <div className="max-w-72 text-left text-xs">
       <Markdown components={MARKDOWN_COMPONENTS}>{children}</Markdown>
@@ -425,6 +425,23 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
 }
 
 // ============================================================================
+// Filter Manager Form — pure helpers (module-level to avoid deep nesting)
+// ============================================================================
+
+function patchOption(
+  options: DashboardFilterOption[],
+  optIndex: number,
+  field: keyof DashboardFilterOption,
+  value: string
+): DashboardFilterOption[] {
+  return options.map((o, j) => (j === optIndex ? { ...o, [field]: value } : o));
+}
+
+function withoutOption(options: DashboardFilterOption[], optIndex: number): DashboardFilterOption[] {
+  return options.filter((_, j) => j !== optIndex);
+}
+
+// ============================================================================
 // Filter Manager Form
 // ============================================================================
 
@@ -443,16 +460,37 @@ function FilterManagerForm({
   const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
   const [filterIds, setFilterIds] = useState(() => filters.map(() => crypto.randomUUID()));
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [optionIds, setOptionIds] = useState<Record<string, string[]>>(() => {
+    const result: Record<string, string[]> = {};
+    filters.forEach((f, i) => {
+      result[filterIds[i]] = (f.options ?? []).map(() => crypto.randomUUID());
+    });
+    return result;
+  });
 
   useEffect(() => {
+    // Intentionally read stale closure values (previous render's state) to
+    // build the key→id map for matching. Adding them to deps would loop.
+    const prevKeyToId = new Map(localFilters.map((f, i) => [f.key, filterIds[i]]));
+    const prevKeyToOptIds = new Map(localFilters.map((f, i) => [f.key, optionIds[filterIds[i]] ?? []]));
+
+    const ids = filters.map((f) => prevKeyToId.get(f.key) ?? crypto.randomUUID());
+    const opts: Record<string, string[]> = {};
+    filters.forEach((f, i) => {
+      const prevOptIds = prevKeyToOptIds.get(f.key) ?? [];
+      opts[ids[i]] = (f.options ?? []).map((_, j) => prevOptIds[j] ?? crypto.randomUUID());
+    });
+
     setLocalFilters(filters);
-    setFilterIds(filters.map(() => crypto.randomUUID()));
-  }, [filters]);
+    setFilterIds(ids);
+    setOptionIds(opts);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addFilter = () => {
     const id = crypto.randomUUID();
     setLocalFilters((prev) => [...prev, { key: "", label: "", type: "text" }]);
     setFilterIds((prev) => [...prev, id]);
+    setOptionIds((prev) => ({ ...prev, [id]: [] }));
     setExpandedIds((prev) => new Set([...prev, id]));
   };
 
@@ -469,15 +507,19 @@ function FilterManagerForm({
   };
 
   const removeFilter = (index: number) => {
+    const filterId = filterIds[index];
     setLocalFilters((prev) => prev.filter((_, i) => i !== index));
-    setFilterIds((prev) => {
-      const next = [...prev];
-      next.splice(index, 1);
+    setFilterIds((prev) => prev.filter((_, i) => i !== index));
+    setOptionIds((prev) => {
+      const next = { ...prev };
+      delete next[filterId];
       return next;
     });
   };
 
   const addOption = (index: number) => {
+    const filterId = filterIds[index];
+    const optId = crypto.randomUUID();
     setLocalFilters((prev) =>
       prev.map((f, i) =>
         i === index
@@ -485,6 +527,10 @@ function FilterManagerForm({
           : f
       )
     );
+    setOptionIds((prev) => ({
+      ...prev,
+      [filterId]: [...(prev[filterId] ?? []), optId],
+    }));
   };
 
   const updateOption = (
@@ -496,25 +542,25 @@ function FilterManagerForm({
     setLocalFilters((prev) =>
       prev.map((f, i) =>
         i === filterIndex
-          ? {
-              ...f,
-              options: (f.options ?? []).map((o, j) =>
-                j === optIndex ? { ...o, [field]: value } : o
-              ),
-            }
+          ? { ...f, options: patchOption(f.options ?? [], optIndex, field, value) }
           : f
       )
     );
   };
 
   const removeOption = (filterIndex: number, optIndex: number) => {
+    const filterId = filterIds[filterIndex];
     setLocalFilters((prev) =>
       prev.map((f, i) =>
         i === filterIndex
-          ? { ...f, options: (f.options ?? []).filter((_, j) => j !== optIndex) }
+          ? { ...f, options: withoutOption(f.options ?? [], optIndex) }
           : f
       )
     );
+    setOptionIds((prev) => ({
+      ...prev,
+      [filterId]: (prev[filterId] ?? []).filter((_, j) => j !== optIndex),
+    }));
   };
 
   const handleSave = () => {
@@ -674,7 +720,7 @@ function FilterManagerForm({
                         <p className="text-xs text-gray-400 dark:text-gray-500">{t("noOptionsYet")}</p>
                       )}
                       {(filter.options ?? []).map((opt, optIdx) => (
-                        <div key={optIdx} className="flex items-center gap-2">
+                        <div key={(optionIds[id] ?? [])[optIdx] ?? optIdx} className="flex items-center gap-2">
                           <TextInput
                             sizing="sm"
                             placeholder={t("optionLabelPlaceholder")}

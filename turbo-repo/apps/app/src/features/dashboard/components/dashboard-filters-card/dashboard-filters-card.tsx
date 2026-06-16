@@ -13,6 +13,9 @@ import { tr } from "@/features/i18n/tr.service";
 const INPUT_CLS =
   "h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400";
 
+const SELECT_CLS =
+  "h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
+
 export function DashboardFiltersCard() {
   const { filters, dictionary } = useDashboard();
   const t = useCallback(
@@ -26,11 +29,16 @@ export function DashboardFiltersCard() {
   const pathname = usePathname();
 
   const textFilters = useMemo(() => filters.filter((f) => f.type === "text"), [filters]);
+  const selectFilters = useMemo(() => filters.filter((f) => f.type === "select"), [filters]);
   const dateFilters = useMemo(() => filters.filter((f) => f.type === "date_range"), [filters]);
 
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const f of textFilters) {
+      const v = searchParams.get(f.key);
+      if (v) init[f.key] = v;
+    }
+    for (const f of selectFilters) {
       const v = searchParams.get(f.key);
       if (v) init[f.key] = v;
     }
@@ -61,6 +69,10 @@ export function DashboardFiltersCard() {
       const v = draft[f.key];
       if (v) params.set(f.key, v); else params.delete(f.key);
     }
+    for (const f of selectFilters) {
+      const v = draft[f.key];
+      if (v) params.set(f.key, v); else params.delete(f.key);
+    }
     for (const f of dateFilters) {
       const from = draft[`${f.key}_from`];
       const to = draft[`${f.key}_to`];
@@ -69,7 +81,7 @@ export function DashboardFiltersCard() {
     }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [draft, textFilters, dateFilters, searchParams, router, pathname]);
+  }, [draft, textFilters, selectFilters, dateFilters, searchParams, router, pathname]);
 
   const handleClear = useCallback(() => {
     const defaultDraft: Record<string, string> = {};
@@ -80,13 +92,14 @@ export function DashboardFiltersCard() {
     setDraft(defaultDraft);
     const params = new URLSearchParams(searchParams.toString());
     for (const f of textFilters) params.delete(f.key);
+    for (const f of selectFilters) params.delete(f.key);
     for (const f of dateFilters) {
       params.delete(`${f.key}_from`);
       params.delete(`${f.key}_to`);
     }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [dateFilters, textFilters, searchParams, router, pathname]);
+  }, [dateFilters, selectFilters, textFilters, searchParams, router, pathname]);
 
   const hasValues = Object.values(draft).some(Boolean);
 
@@ -123,6 +136,27 @@ export function DashboardFiltersCard() {
                 }
                 className={INPUT_CLS}
               />
+            </div>
+          ))}
+          {selectFilters.map((filter) => (
+            <div key={filter.key} className="flex flex-col gap-0.5">
+              <label className="text-xs text-gray-400 dark:text-gray-500">
+                {filter.label}
+              </label>
+              <select
+                value={draft[filter.key] ?? ""}
+                onChange={(e) =>
+                  e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
+                }
+                className={SELECT_CLS}
+              >
+                <option value="">—</option>
+                {(filter.options ?? []).map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           ))}
           {dateFilters.map((filter) => (

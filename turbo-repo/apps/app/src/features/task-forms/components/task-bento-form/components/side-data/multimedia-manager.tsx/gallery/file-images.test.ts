@@ -3,9 +3,28 @@ import {
   extractImageUrlFromDrop,
   isValidImageUrl,
   fetchImageAsFile,
+  isImageEntry,
   ALLOWED_FILE_TYPES,
   ALLOWED_IMAGE_EXTENSIONS,
 } from "./file-images";
+import { AlfrescoFileEntry } from "../image.types";
+
+// Build a minimal AlfrescoFileEntry for classification tests. `content` is
+// intentionally omittable — Alfresco drops it for nodes with no content stream.
+function makeEntry(
+  name: string,
+  mimeType?: string
+): AlfrescoFileEntry {
+  return {
+    entry: {
+      id: "node-1",
+      name,
+      ...(mimeType
+        ? { content: { mimeType, mimeTypeName: mimeType, sizeInBytes: 1, encoding: "UTF-8" } }
+        : {}),
+    } as AlfrescoFileEntry["entry"],
+  };
+}
 
 // Helper to create a mock DataTransfer object
 function createMockDataTransfer(data: Record<string, string>): DataTransfer {
@@ -239,6 +258,49 @@ describe("isValidImageUrl", () => {
   describe("ALLOWED_IMAGE_EXTENSIONS constant", () => {
     it("should contain exactly jpg, jpeg, png", () => {
       expect(ALLOWED_IMAGE_EXTENSIONS).toEqual(new Set(["jpg", "jpeg", "png"]));
+    });
+  });
+});
+
+describe("isImageEntry", () => {
+  describe("classifies by mimeType when content is present", () => {
+    it("should return true for an image mimeType", () => {
+      expect(isImageEntry(makeEntry("photo.jpg", "image/jpeg"))).toBe(true);
+    });
+
+    it("should return false for a non-image mimeType", () => {
+      expect(isImageEntry(makeEntry("doc.pdf", "application/pdf"))).toBe(false);
+    });
+
+    it("should trust the mimeType over the extension", () => {
+      // Mislabeled name but image content → still an image.
+      expect(isImageEntry(makeEntry("scan.pdf", "image/png"))).toBe(true);
+    });
+
+    it("should not match non-image MIME types that merely contain 'image'", () => {
+      // Strict image/ family check — a substring match would misclassify these.
+      expect(isImageEntry(makeEntry("a.bin", "application/vnd.fake-image"))).toBe(false);
+      expect(isImageEntry(makeEntry("b.txt", "text/x-image-description"))).toBe(false);
+    });
+  });
+
+  describe("falls back to the file extension when content is missing", () => {
+    // Reproduces the incident: a full disk left a cm:content node with a name
+    // but no `content` block. It must still classify as an image, not crash.
+    it("should return true for a .jpg name with no content", () => {
+      expect(isImageEntry(makeEntry("polf-image-1.jpg"))).toBe(true);
+    });
+
+    it("should be case-insensitive on the extension", () => {
+      expect(isImageEntry(makeEntry("PHOTO.JPG"))).toBe(true);
+    });
+
+    it("should return false for a .pdf name with no content", () => {
+      expect(isImageEntry(makeEntry("contract.pdf"))).toBe(false);
+    });
+
+    it("should return false when there is no extension and no content", () => {
+      expect(isImageEntry(makeEntry("folder-node"))).toBe(false);
     });
   });
 });

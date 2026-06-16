@@ -2768,6 +2768,9 @@
       "only_jpg_jpeg_png_allowed": "Only JPG, JPEG or PNG files are allowed.",
       "fetch_image_error": "Could not fetch the image from the URL. Please try downloading it first.",
       "fetching_image": "Fetching image...",
+      "panel_error_title": "The media panel couldn't be displayed",
+      "panel_error_description": "Something went wrong loading this content. The rest of the page is unaffected.",
+      "panel_error_retry": "Retry",
       "select_document_type": "Select a document type",
       "select_document_type_error": "You must select a document type",
       "categories": {

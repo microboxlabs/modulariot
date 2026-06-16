@@ -16,6 +16,11 @@ const INPUT_CLS =
 const SELECT_CLS =
   "h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
 
+function setOrDelete(params: URLSearchParams, key: string, value: string | undefined) {
+  if (value) params.set(key, value);
+  else params.delete(key);
+}
+
 export function DashboardFiltersCard() {
   const { filters, dictionary } = useDashboard();
   const t = useCallback(
@@ -65,19 +70,11 @@ export function DashboardFiltersCard() {
 
   const handleApply = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    for (const f of textFilters) {
-      const v = draft[f.key];
-      if (v) params.set(f.key, v); else params.delete(f.key);
-    }
-    for (const f of selectFilters) {
-      const v = draft[f.key];
-      if (v) params.set(f.key, v); else params.delete(f.key);
-    }
+    for (const f of textFilters) setOrDelete(params, f.key, draft[f.key]);
+    for (const f of selectFilters) setOrDelete(params, f.key, draft[f.key]);
     for (const f of dateFilters) {
-      const from = draft[`${f.key}_from`];
-      const to = draft[`${f.key}_to`];
-      if (from) params.set(`${f.key}_from`, from); else params.delete(`${f.key}_from`);
-      if (to) params.set(`${f.key}_to`, to); else params.delete(`${f.key}_to`);
+      setOrDelete(params, `${f.key}_from`, draft[`${f.key}_from`]);
+      setOrDelete(params, `${f.key}_to`, draft[`${f.key}_to`]);
     }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });

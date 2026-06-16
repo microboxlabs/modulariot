@@ -4,7 +4,8 @@
       "Bash(awk -F: '{if \\($1+0 >= 670 && $1+0 <= 700\\) print}')",
       "Bash(awk -F: '{n=$1+0; if\\(n>=455 && n<=480\\) print}')",
       "Bash(awk -F: '{n=$1+0; if\\(n>=580 && n<=605\\) print}')",
-      "Bash(awk -F: '{n=$1+0; if\\(n>=607 && n<=625\\) print}')"
+      "Bash(awk -F: '{n=$1+0; if\\(n>=607 && n<=625\\) print}')",
+      "Bash(awk -F: '{n=$1+0; if\\(n>=63 && n<=95\\) print}')"
     ]
   }
 }

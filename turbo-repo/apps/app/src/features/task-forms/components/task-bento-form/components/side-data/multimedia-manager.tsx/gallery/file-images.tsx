@@ -254,6 +254,19 @@ export const ALLOWED_FILE_TYPES = new Set([
 
 export const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 
+// Decide whether an entry belongs in the image gallery vs. the document list.
+// Prefer the server-reported mimeType, but Alfresco omits the `content` block
+// entirely when a node has no content stream — e.g. an upload interrupted by a
+// full disk leaves a `cm:content` node with a name but no bytes. In that case
+// fall back to the filename extension so a broken image still shows in the
+// gallery (with its missing-thumbnail icon) instead of being misfiled as a PDF.
+export function isImageEntry(entry: AlfrescoFileEntry): boolean {
+  const mimeType = entry.entry.content?.mimeType;
+  if (mimeType) return mimeType.includes("image");
+  const ext = entry.entry.name?.split(".").pop()?.toLowerCase();
+  return ext ? ALLOWED_IMAGE_EXTENSIONS.has(ext) : false;
+}
+
 function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
   const validFiles = files.filter((file) => ALLOWED_FILE_TYPES.has(file.type));
   if (validFiles.length !== files.length) {
@@ -801,7 +814,7 @@ export default function FileImages({
           if (reviewedAt) loadedTimestamps.set(entry.entry.id, new Date(reviewedAt));
           const reviewedBy = entry.entry.properties?.["mintral:reviewedBy"];
           if (reviewedBy) loadedUsers.set(entry.entry.id, reviewedBy);
-          if (entry.entry.content.mimeType.includes("image")) {
+          if (isImageEntry(entry)) {
             newImages.push({ file: entry, data: document });
           } else {
             newDocuments.push({ file: entry, data: document });

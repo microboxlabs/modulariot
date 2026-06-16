@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { HiExclamationTriangle } from "react-icons/hi2";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { ErrorBoundary } from "@/features/common/components/error-boundary/error-boundary";
 import Geographic from "@/features/shipping/components/geographic";
 import FileImages from "./components/side-data/multimedia-manager.tsx/gallery/file-images";
 
@@ -50,13 +53,36 @@ export default function BentoMediaSection({
         className="flex-1 overflow-hidden rounded-lg border scroll-p-6 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
         style={{ minWidth: 0 }}
       >
-        <FileImages
-          task={task}
-          dictionary={dict}
-          isExpanded={isMediaExpanded}
-          onRequestExpand={() => setIsMediaExpanded(true)}
-          onRequestCollapse={() => setIsMediaExpanded(false)}
-        />
+        <ErrorBoundary
+          fallback={(_error, reset) => (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <HiExclamationTriangle className="h-8 w-8 text-amber-500" />
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {tr("bento.multimedia.panel_error_title", dict)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {tr("bento.multimedia.panel_error_description", dict)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={reset}
+                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                {tr("bento.multimedia.panel_error_retry", dict)}
+              </button>
+            </div>
+          )}
+        >
+          <FileImages
+            task={task}
+            dictionary={dict}
+            isExpanded={isMediaExpanded}
+            onRequestExpand={() => setIsMediaExpanded(true)}
+            onRequestCollapse={() => setIsMediaExpanded(false)}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );

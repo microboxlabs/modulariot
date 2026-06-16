@@ -2768,6 +2768,9 @@
       "only_jpg_jpeg_png_allowed": "Solo se permiten archivos JPG, JPEG o PNG.",
       "fetch_image_error": "No se pudo obtener la imagen desde la URL. Por favor, intente descargarla primero.",
       "fetching_image": "Obteniendo imagen...",
+      "panel_error_title": "No se pudo mostrar el panel multimedia",
+      "panel_error_description": "Ocurrió un error al cargar este contenido. El resto de la página no se ve afectado.",
+      "panel_error_retry": "Reintentar",
       "select_document_type": "Selecciona un Tipo de Documento",
       "select_document_type_error": "Debe seleccionar un tipo de documento",
       "categories": {

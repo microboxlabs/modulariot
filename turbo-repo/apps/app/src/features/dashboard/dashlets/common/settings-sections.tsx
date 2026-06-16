@@ -14,7 +14,7 @@ import { DeleteItemButton } from "./delete-item-button";
 import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
 import type { DataMode } from "./column-types";
-import { SettingsTextField, SettingsSelectField } from "./settings-fields";
+import { SettingsTextField, SettingsSelectField, HbInlineInput } from "./settings-fields";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 import { SuggestionInput } from "./suggestion-input";
 import { COLUMN_TYPES, DATA_TYPES } from "./column-types";
@@ -80,6 +80,8 @@ interface ColumnEditorProps {
   };
   /** When true, apply Handlebars color coding to key and label inputs */
   handlebarsColorKeys?: boolean;
+  schemaSuggestions?: string[];
+  filterSuggestions?: string[];
 }
 
 export function ColumnEditor({
@@ -93,6 +95,8 @@ export function ColumnEditor({
   onUpdateColorMapping,
   labels,
   handlebarsColorKeys = false,
+  schemaSuggestions,
+  filterSuggestions,
 }: Readonly<ColumnEditorProps>) {
   const sortableColumns: SortableColumnItem[] = columns.map((col) => ({
     ...col,
@@ -134,6 +138,8 @@ export function ColumnEditor({
               onUpdateColorMapping={onUpdateColorMapping}
               labels={labels}
               handlebarsColorKeys={handlebarsColorKeys}
+              schemaSuggestions={schemaSuggestions}
+              filterSuggestions={filterSuggestions}
             />
           );
         })}
@@ -163,6 +169,8 @@ interface ColumnCardProps {
   onUpdateColorMapping?: ColumnEditorProps["onUpdateColorMapping"];
   labels: ColumnEditorProps["labels"];
   handlebarsColorKeys: boolean;
+  schemaSuggestions?: string[];
+  filterSuggestions?: string[];
 }
 
 function getStickyBtnClass(disabled: boolean, active: boolean): string {
@@ -182,6 +190,8 @@ function ColumnCard({
   onUpdateColorMapping,
   labels,
   handlebarsColorKeys,
+  schemaSuggestions,
+  filterSuggestions,
 }: Readonly<ColumnCardProps>) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const descEnabled = !!col.descriptionEnabled;
@@ -230,15 +240,17 @@ function ColumnCard({
       dragHandleClass="drag-handle"
       onRemove={() => onRemove(col._id)}
       headerButtons={headerButtons}
+      schemaSuggestions={schemaSuggestions}
+      filterSuggestions={filterSuggestions}
     >
       <div className="space-y-1.5">
         <div className="min-w-0">
-          <TextInput
-            sizing="sm"
+          <HbInlineInput
             placeholder={labels.key}
             value={col.key}
-            onChange={(e) => onUpdate(col._id, "key", e.target.value)}
-            color={handlebarsColorKeys ? getFlowbiteColor(getHandlebarsStatus(col.key)) : undefined}
+            onChange={(v) => onUpdate(col._id, "key", v)}
+            schemaSuggestions={schemaSuggestions}
+            filterSuggestions={filterSuggestions}
           />
         </div>
         <div className="flex items-center gap-1.5">
@@ -860,6 +872,8 @@ interface SettingsCardProps {
   children?: React.ReactNode;
   reorderAriaLabel?: string;
   deleteAriaLabel?: string;
+  schemaSuggestions?: string[];
+  filterSuggestions?: string[];
 }
 
 function SettingsCard({
@@ -872,13 +886,17 @@ function SettingsCard({
   children,
   reorderAriaLabel = "Reorder",
   deleteAriaLabel = "Delete",
+  schemaSuggestions,
+  filterSuggestions,
 }: Readonly<SettingsCardProps>) {
   const [editing, setEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const editContainerRef = useRef<HTMLDivElement>(null);
 
   function startEdit() {
     setEditing(true);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    requestAnimationFrame(() => {
+      editContainerRef.current?.querySelector("input")?.focus();
+    });
   }
 
   function stopEdit() {
@@ -898,16 +916,16 @@ function SettingsCard({
         </button>
 
         {editing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={title}
-            placeholder={titlePlaceholder}
-            onChange={(e) => onTitleChange(e.target.value)}
-            onBlur={stopEdit}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") stopEdit(); }}
-            className="min-w-0 flex-1 rounded border border-blue-400 bg-white px-1.5 py-0.5 text-xs font-medium text-gray-900 outline-none dark:border-blue-500 dark:bg-gray-700 dark:text-white"
-          />
+          <div ref={editContainerRef} className="min-w-0 flex-1">
+            <HbInlineInput
+              value={title}
+              placeholder={titlePlaceholder}
+              onChange={onTitleChange}
+              schemaSuggestions={schemaSuggestions}
+              filterSuggestions={filterSuggestions}
+              className="[&_input]:border-blue-400 [&_input]:py-0.5 [&_input]:text-xs [&_input]:font-medium dark:[&_input]:border-blue-500"
+            />
+          </div>
         ) : (
           <button
             type="button"

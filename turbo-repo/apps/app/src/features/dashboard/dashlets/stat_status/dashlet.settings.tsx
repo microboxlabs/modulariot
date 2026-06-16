@@ -20,6 +20,7 @@ import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings"
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
   useValueColorSettings,
@@ -38,6 +39,7 @@ export function DashletSettings({
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
+  const filterSuggestions = useDashboardFilterSuggestions();
 
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
@@ -155,6 +157,7 @@ export function DashletSettings({
         onChange={setTitle}
         placeholder="Status"
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
       <HbTextField
         id="ss-value"
@@ -163,6 +166,7 @@ export function DashletSettings({
         onChange={setValue}
         placeholder="0"
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
       <HbTextField
         id="ss-subtitle"
@@ -171,6 +175,7 @@ export function DashletSettings({
         onChange={setSubtitle}
         placeholder="e.g. 204 de 230 dispositivos"
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
       <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
         <div className="flex items-center gap-2">

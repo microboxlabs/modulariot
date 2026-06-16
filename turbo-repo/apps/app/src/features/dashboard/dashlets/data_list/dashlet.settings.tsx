@@ -27,6 +27,8 @@ import {
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { useActiveProviders } from "../common/use-active-providers";
 import { tr } from "@/features/i18n/tr.service";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
+import { useSchemaSuggestions } from "../common/use-schema-suggestions";
 
 export function DashletSettings({
   isOpen,
@@ -39,6 +41,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const activeProviders = useActiveProviders();
+  const filterSuggestions = useDashboardFilterSuggestions();
 
   const s = useSettingsState({
     title: config.title,
@@ -94,6 +97,13 @@ export function DashletSettings({
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
     onDetectionComplete: autoPopulateCardLayout,
+  });
+
+  const schemaSuggestions = useSchemaSuggestions({
+    dataMode: s.dataMode,
+    rowsJson: s.rowsJson,
+    sampleRows: pg.sampleRows,
+    plannerVariableName,
   });
 
   const isDirty = useSettingsDirty(isOpen, {
@@ -302,6 +312,8 @@ export function DashletSettings({
       dataTabChildren={pgrestContent}
       plannerContent={plannerContent}
       handlebarsColorKeys
+      schemaSuggestions={schemaSuggestions}
+      filterSuggestions={filterSuggestions}
       refreshSelect={refresh.selectNode}
       title={dashletName}
       displayOptionsChildren={exportToggle}

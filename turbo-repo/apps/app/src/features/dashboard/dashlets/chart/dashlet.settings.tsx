@@ -24,6 +24,7 @@ import { PgrestDataTab } from "../common/pgrest-data-tab";
 import { useActiveProviders } from "../common/use-active-providers";
 import { type SimpleDataMode } from "../common/use-simple-pgrest-settings";
 import { usePlannerContext } from "../../context/planner-context";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
 import { useChartColorSettings, ChartColorRulesEditor } from "./value-color-rules";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
@@ -58,6 +59,7 @@ export function DashletSettings({
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
+  const filterSuggestions = useDashboardFilterSuggestions();
 
   // Visualization state
   const [title, setTitle] = useState(config.title ?? "Chart");
@@ -236,6 +238,7 @@ export function DashletSettings({
           value={title}
           onChange={setTitle}
           schemaSuggestions={schemaSuggestions}
+          filterSuggestions={filterSuggestions}
         />
         <ChartTypePicker value={chartType} onChange={handleChartTypeChange} dictionary={dictionary} />
       </ExpandableSection>
@@ -298,6 +301,7 @@ export function DashletSettings({
                   placeholder={tr("dashboard.settings.seriesLabel", dictionary)}
                   className="flex-1"
                   schemaSuggestions={schemaSuggestions}
+                  filterSuggestions={filterSuggestions}
                 />
                 <AdvancedColorPicker
                   value={(customColors[i] ?? "5470c6").replace(/^#/, "")}
@@ -326,6 +330,7 @@ export function DashletSettings({
               value={xAxisLabel}
               onChange={setXAxisLabel}
               schemaSuggestions={schemaSuggestions}
+              filterSuggestions={filterSuggestions}
             />
             <HbTextField
               id="ch-y-label"
@@ -333,6 +338,7 @@ export function DashletSettings({
               value={yAxisLabel}
               onChange={setYAxisLabel}
               schemaSuggestions={schemaSuggestions}
+              filterSuggestions={filterSuggestions}
             />
           </SettingsFieldGrid>
         )}
@@ -404,6 +410,8 @@ export function DashletSettings({
           onChange={setTooltipTemplate}
           placeholder={"{{row.name}}\n{{row.value}}"}
           rows={3}
+          schemaSuggestions={schemaSuggestions}
+          filterSuggestions={filterSuggestions}
         />
       </ExpandableSection>
 

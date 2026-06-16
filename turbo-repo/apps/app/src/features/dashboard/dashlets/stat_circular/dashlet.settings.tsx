@@ -17,6 +17,7 @@ import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings"
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
 import { tr } from "@/features/i18n/tr.service";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
@@ -36,6 +37,7 @@ export function DashletSettings({
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
+  const filterSuggestions = useDashboardFilterSuggestions();
 
   const [title, setTitle] = useState(
     String(config.title ?? defaultConfig.title)
@@ -133,6 +135,7 @@ export function DashletSettings({
         onChange={setTitle}
         placeholder="Storage Used"
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
       <SettingsFieldGrid cols={3}>
         <HbTextField
@@ -142,6 +145,7 @@ export function DashletSettings({
           onChange={setValue}
           placeholder="67"
           schemaSuggestions={schemaSuggestions}
+          filterSuggestions={filterSuggestions}
         />
         <HbTextField
           id="sc-max"
@@ -150,6 +154,7 @@ export function DashletSettings({
           onChange={setMaxValue}
           placeholder="100"
           schemaSuggestions={schemaSuggestions}
+          filterSuggestions={filterSuggestions}
         />
         <HbTextField
           id="sc-unit"
@@ -158,6 +163,7 @@ export function DashletSettings({
           onChange={setUnit}
           placeholder="GB"
           schemaSuggestions={schemaSuggestions}
+          filterSuggestions={filterSuggestions}
         />
       </SettingsFieldGrid>
       {/* Ring color picker */}

@@ -14,6 +14,7 @@ import { useThresholdSettings } from "../common/use-threshold-settings";
 import { ThresholdEditor } from "../common/threshold-editor";
 import { DeleteItemButton } from "../common/delete-item-button";
 import { usePlannerContext } from "../../context/planner-context";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
 import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings";
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
@@ -69,6 +70,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
+  const filterSuggestions = useDashboardFilterSuggestions();
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit ?? "");
   const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
@@ -234,6 +236,7 @@ export function DashletSettings({
         isPgrest={isPgrest}
         dictionary={dictionary}
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
 
       <div className="space-y-2">
@@ -290,6 +293,7 @@ export function DashletSettings({
                 }
                 className="flex-1"
                 schemaSuggestions={schemaSuggestions}
+                filterSuggestions={filterSuggestions}
                 aria-label={tr(
                   "dashboard.settings.categoryAriaLabel",
                   dictionary,
@@ -306,6 +310,7 @@ export function DashletSettings({
                 placeholder={isPgrest ? "{{row.value}}" : "0"}
                 className="w-20"
                 schemaSuggestions={schemaSuggestions}
+                filterSuggestions={filterSuggestions}
                 aria-label={tr(
                   "dashboard.settings.categoryAriaLabel",
                   dictionary,

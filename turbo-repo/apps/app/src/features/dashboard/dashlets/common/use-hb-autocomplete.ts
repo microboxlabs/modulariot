@@ -53,7 +53,7 @@ function detectMode(text: string, cursor: number, namespaces: HbNamespace[]): De
   const before = text.slice(0, cursor);
 
   for (const ns of namespaces) {
-    const match = new RegExp(`\\{\\{${ns.prefix}\\.([a-z0-9_-]*)$`, "i").exec(before);
+    const match = new RegExp(String.raw`\{\{${ns.prefix}\.([a-z0-9_-]*)$`, "i").exec(before);
     if (match) return { mode: "suggestion", prefix: ns.prefix, partial: match[1] };
   }
 

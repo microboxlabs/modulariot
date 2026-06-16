@@ -166,14 +166,14 @@ export function SimpleDashletSettings<C extends object>({
     plannerVariableName: dataTabProps.plannerVariableName,
   });
 
-  const schemaSampleRow: Record<string, string> | undefined =
-    isPgrest && dataTabProps.pgrest.sampleRows.length > 0
-      ? Object.fromEntries(
-          Object.entries(dataTabProps.pgrest.sampleRows[0]).map(([k, v]) => [k, String(v)])
-        )
-      : schemaSuggestions
-        ? Object.fromEntries(schemaSuggestions.map((k) => [k, ""]))
-        : undefined;
+  let schemaSampleRow: Record<string, string> | undefined;
+  if (isPgrest && dataTabProps.pgrest.sampleRows.length > 0) {
+    schemaSampleRow = Object.fromEntries(
+      Object.entries(dataTabProps.pgrest.sampleRows[0]).map(([k, v]) => [k, String(v)])
+    );
+  } else if (schemaSuggestions) {
+    schemaSampleRow = Object.fromEntries(schemaSuggestions.map((k) => [k, ""]));
+  }
 
   // ── Save payload (shared by dirty tracking & handleSave) ────────────
   const buildFullSavePayload = () => ({

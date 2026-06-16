@@ -15,7 +15,7 @@ import Markdown from "react-markdown";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
-import { useHbAutocomplete, type HbDropdownItem } from "./use-hb-autocomplete";
+import { useHbAutocomplete } from "./use-hb-autocomplete";
 import { DropdownList } from "./dropdown-list";
 
 const LABEL_CLS = "text-xs font-normal text-gray-500 dark:text-gray-400";

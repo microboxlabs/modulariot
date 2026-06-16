@@ -34,7 +34,7 @@ export function useSchemaSuggestions({
         return Object.keys(parsed[0] as Record<string, unknown>);
       }
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return Object.keys(parsed as Record<string, unknown>);
+        return Object.keys(parsed);
       }
     } catch { /* invalid JSON — wait for user to finish typing */ }
     return undefined;

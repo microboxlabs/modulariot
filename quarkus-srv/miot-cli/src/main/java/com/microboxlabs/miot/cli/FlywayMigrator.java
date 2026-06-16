@@ -86,7 +86,15 @@ public class FlywayMigrator {
                 .schemas("miot_core")
                 .defaultSchema("miot_core")
                 .outOfOrder(true)
-                .ignoreMigrationPatterns("*:missing")
+                // Tolerate applied component migrations this run can't resolve
+                // locally because the component is disabled (its location isn't
+                // added above). Both buckets matter — mirrors the extension config
+                // from #536 (quarkus.flyway.ignore-migration-patterns=*:missing,*:future):
+                //   *:missing → applied version BELOW the resolved max (e.g. fleet 0.2.x)
+                //   *:future  → applied version ABOVE the resolved max (e.g. integrations 0.6.x)
+                // Without *:future, disabling a component whose migrations are already
+                // applied aborts boot with "applied migration not resolved locally".
+                .ignoreMigrationPatterns("*:missing", "*:future")
                 .load();
 
         flyway.migrate();

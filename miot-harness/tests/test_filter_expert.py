@@ -327,3 +327,25 @@ async def test_filter_expert_non_object_json_is_malformed_step():
         state, registry=registry, model=model, profile=NEXO_PROFILE
     )
     assert update.get("failure") == "filter_expert returned malformed step"
+
+
+def test_build_capabilities_summary_lists_curated_tools() -> None:
+    from miot_harness.agents.filter_expert import build_capabilities_summary
+
+    registry = ToolRegistry()
+    registry.register(_stub_tool("coordinador_centro_control", "[Layer L1] KPI summary"))
+    registry.register(_stub_tool("coordinador_task_timeline", "[Layer L3] Timeline"))
+    summary = build_capabilities_summary(registry, profile=NEXO_PROFILE)
+    assert "coordinador_centro_control" in summary
+    assert "KPI summary" in summary
+    assert "coordinador_task_timeline" in summary
+
+
+def test_build_capabilities_summary_caps_entries() -> None:
+    from miot_harness.agents.filter_expert import build_capabilities_summary
+
+    registry = ToolRegistry()
+    for i in range(20):
+        registry.register(_stub_tool(f"coordinador_fn_{i:02d}", f"desc {i}"))
+    summary = build_capabilities_summary(registry, profile=NEXO_PROFILE, max_entries=15)
+    assert summary.count("coordinador_fn_") == 15

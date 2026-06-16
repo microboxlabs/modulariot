@@ -553,25 +553,29 @@ function HbAutoTextarea({
   );
 }
 
-// Stable markdown component overrides for the tooltip — defined outside
-// HbTextField so React never treats them as new references on each render.
-const MD_P = ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => (
-  <p className="mb-2 last:mb-0">{children}</p>
-);
-const MD_STRONG = ({ children }: React.HTMLAttributes<HTMLElement>) => (
-  <strong className="font-semibold">{children}</strong>
-);
-const MD_EM = ({ children }: React.HTMLAttributes<HTMLElement>) => (
-  <em className="italic opacity-80">{children}</em>
-);
-const MD_CODE = ({ children }: React.HTMLAttributes<HTMLElement>) => (
-  <code className="rounded bg-white/20 px-1 py-0.5 font-mono">{children}</code>
-);
-const MARKDOWN_COMPONENTS = {
-  p: MD_P,
-  strong: MD_STRONG,
-  em: MD_EM,
-  code: MD_CODE,
+// Module-level so references are stable across renders (react-markdown requirement).
+export const MARKDOWN_COMPONENTS = {
+  p: ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => (
+    <p className="mb-2 last:mb-0">{children}</p>
+  ),
+  strong: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <strong className="font-semibold">{children}</strong>
+  ),
+  em: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <em className="italic opacity-80">{children}</em>
+  ),
+  code: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <code className="rounded bg-white/20 px-1 py-0.5 font-mono">{children}</code>
+  ),
+  ul: ({ children }: React.HTMLAttributes<HTMLUListElement>) => (
+    <ul className="mb-2 list-disc pl-4 last:mb-0">{children}</ul>
+  ),
+  ol: ({ children }: React.HTMLAttributes<HTMLOListElement>) => (
+    <ol className="mb-2 list-decimal pl-4 last:mb-0">{children}</ol>
+  ),
+  li: ({ children }: React.HTMLAttributes<HTMLLIElement>) => (
+    <li className="mb-0.5 last:mb-0">{children}</li>
+  ),
 };
 
 // ============================================================================

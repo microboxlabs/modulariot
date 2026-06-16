@@ -34,7 +34,7 @@ from langgraph.graph import END, StateGraph
 from miot_harness.agents.critic import critic_node
 from miot_harness.agents.data_fetcher import data_fetcher_node
 from miot_harness.agents.domain_analyst import domain_analyst_node
-from miot_harness.agents.filter_expert import filter_expert_node
+from miot_harness.agents.filter_expert import build_capabilities_summary, filter_expert_node
 from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.summarizer import summarizer_node
 from miot_harness.agents.supervisor import next_agent
@@ -153,6 +153,10 @@ def build_data_graph(
     # GraphLabel is a plain `str` alias so any profile.name flows through
     # directly.
     graph_label: GraphLabel = profile.name
+    # Computed once at build time: the synthesizer's onboarding fallback
+    # for planning failures (Gap 4). The registry is fully populated by
+    # the time the graph is built (lifespan boots the datasource first).
+    capabilities_hint = build_capabilities_summary(registry, profile=profile)
 
     def _merge_events(delta: dict[str, Any], events: list[HarnessEvent]) -> dict[str, Any]:
         if events:
@@ -217,6 +221,7 @@ def build_data_graph(
             progress=progress,
             settings=settings,
             profile=profile,
+            capabilities_hint=capabilities_hint,
         )
         return _merge_events(delta, buf)
 

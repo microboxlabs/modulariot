@@ -2,7 +2,10 @@ export interface AlfrescoFileEntry {
   entry: {
     id: string;
     name: string;
-    content: {
+    // Alfresco omits `content` entirely for nodes that have no content stream
+    // (e.g. folder nodes, or entries returned before an upload finishes), so this
+    // is optional — every read must guard with `?.` or it crashes at runtime.
+    content?: {
       mimeType: string;
       mimeTypeName: string;
       sizeInBytes: number;

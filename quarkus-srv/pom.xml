@@ -6,7 +6,7 @@
 
     <groupId>com.microboxlabs.miot</groupId>
     <artifactId>miot-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.5.12</version>
     <packaging>pom</packaging>
 
     <name>ModularIoT — Parent</name>

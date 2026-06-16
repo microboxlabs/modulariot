@@ -1,10 +1,10 @@
 "use client";
 
 import { Button, Modal, ModalBody, ModalHeader } from "flowbite-react";
-import { HiExclamationCircle, HiDocumentText } from "react-icons/hi2";
+import { HiCheckCircle, HiDocumentText, HiExclamationCircle } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import type { RejectedItem, ObservationEntry } from "../task-bento-form/bento-review-context";
+import type { RejectedItem, ObservationEntry, ApprovedItem,  } from "../task-bento-form/bento-review-context";
 import { useCustomFormState } from "../task-confirm-modal/hooks/use-custom-form-state";
 import { CustomFormField } from "../task-confirm-modal/custom-form-field";
 import { ETA_EDIT_FORM_CONFIG } from "../eta-edit-modal/eta-edit-modal.config";
@@ -74,13 +74,100 @@ function ObservationCard({ obs, locale }: Readonly<{ obs: ObservationEntry; loca
   );
 }
 
+const ITEM_STYLES = {
+  approved: {
+    border: "border-green-200 dark:border-green-800",
+    header: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+    text: "text-green-700 dark:text-green-300",
+    Icon: HiCheckCircle,
+    iconColor: "text-green-500",
+  },
+  rejected: {
+    border: "border-red-200 dark:border-red-800",
+    header: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+    text: "text-red-700 dark:text-red-300",
+    Icon: HiDocumentText,
+    iconColor: "text-red-500",
+  },
+} as const;
+
+function ReviewedItemCard({
+  item,
+  status,
+  locale,
+  noObservationsLabel,
+}: Readonly<{
+  item: ApprovedItem | RejectedItem;
+  status: "approved" | "rejected";
+  locale: string;
+  noObservationsLabel?: string;
+}>) {
+  const s = ITEM_STYLES[status];
+  const hasBody = item.observations.length > 0 || !!noObservationsLabel;
+  return (
+    <li className={`rounded-lg border ${s.border} overflow-hidden list-none`}>
+      <div className={`flex items-center gap-2 px-3 py-2 ${s.header} ${hasBody ? "border-b" : ""}`}>
+        <s.Icon className={`w-3.5 h-3.5 ${s.iconColor} shrink-0`} />
+        <span className={`text-xs font-medium ${s.text} truncate`}>{item.fileName}</span>
+      </div>
+      {item.observations.length > 0 ? (
+        <div className="flex flex-col gap-2 p-3">
+          {item.observations.map((obs) => (
+            <ObservationCard key={obs.id} obs={obs} locale={locale} />
+          ))}
+        </div>
+      ) : (
+        noObservationsLabel && (
+          <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 italic">
+            {noObservationsLabel}
+          </p>
+        )
+      )}
+    </li>
+  );
+}
+
+function ReviewSection({
+  items,
+  status,
+  countLabel,
+  locale,
+  noObservationsLabel,
+}: Readonly<{
+  items: (ApprovedItem | RejectedItem)[];
+  status: "approved" | "rejected";
+  countLabel: string;
+  locale: string;
+  noObservationsLabel?: string;
+}>) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{countLabel}</p>
+      <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+        {items.map((item) => (
+          <ReviewedItemCard
+            key={item.fileName}
+            item={item}
+            status={status}
+            locale={locale}
+            noObservationsLabel={noObservationsLabel}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 interface GoBackModalProps {
   show: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
   isSubmitting?: boolean;
   outcomeLabel: string;
+  approvedItems?: ApprovedItem[];
   rejectedItems: RejectedItem[];
+  subtitle?: string;
   lang: string;
   dict: I18nRecord;
   showEtaEdit?: boolean;
@@ -96,7 +183,9 @@ export default function GoBackModal({
   onConfirm,
   isSubmitting = false,
   outcomeLabel,
+  approvedItems = [],
   rejectedItems,
+  subtitle,
   lang,
   dict,
   showEtaEdit = false,
@@ -105,10 +194,13 @@ export default function GoBackModal({
   destinationGeofence,
   etaModalDict,
 }: Readonly<GoBackModalProps>) {
-  const hasItems = rejectedItems.length > 0;
-  const countKey = rejectedItems.length === 1
+  const hasItems = approvedItems.length > 0 || rejectedItems.length > 0;
+  const rejectedCountKey = rejectedItems.length === 1
     ? "outcome.goBackModalRejectedCount_one"
     : "outcome.goBackModalRejectedCount";
+  const approvedCountKey = approvedItems.length === 1
+    ? "outcome.continueModalApprovedCount_one"
+    : "outcome.continueModalApprovedCount";
 
   const [etaSaveError, setEtaSaveError] = useState<string | null>(null);
 
@@ -187,7 +279,7 @@ export default function GoBackModal({
         <div className="flex flex-col">
           <span className="text-base font-semibold">{outcomeLabel}</span>
           <span className="text-sm text-gray-500 mt-1 font-normal">
-            {tr("outcome.goBackModalSubtitle", dict)}
+            {subtitle ?? tr("outcome.goBackModalSubtitle", dict)}
           </span>
         </div>
       </ModalHeader>
@@ -211,34 +303,21 @@ export default function GoBackModal({
           )}
 
           {hasItems ? (
-            <>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {trDynamic(countKey, dict, { count: String(rejectedItems.length) })}
-              </p>
-              <ul className="flex flex-col gap-4">
-                {rejectedItems.map((item) => (
-                  <li key={item.fileName} className="rounded-lg border border-red-200 dark:border-red-800 overflow-hidden">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
-                      <HiDocumentText className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                      <span className="text-xs font-medium text-red-700 dark:text-red-300 truncate">
-                        {item.fileName}
-                      </span>
-                    </div>
-                    {item.observations.length > 0 ? (
-                      <div className="flex flex-col gap-2 p-3">
-                        {item.observations.map((obs) => (
-                          <ObservationCard key={obs.id} obs={obs} locale={lang} />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 italic">
-                        {tr("outcome.goBackModalNoMotives", dict)}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </>
+            <div className="flex flex-col gap-4">
+              <ReviewSection
+                items={approvedItems}
+                status="approved"
+                countLabel={trDynamic(approvedCountKey, dict, { count: String(approvedItems.length) })}
+                locale={lang}
+              />
+              <ReviewSection
+                items={rejectedItems}
+                status="rejected"
+                countLabel={trDynamic(rejectedCountKey, dict, { count: String(rejectedItems.length) })}
+                locale={lang}
+                noObservationsLabel={tr("outcome.goBackModalNoMotives", dict)}
+              />
+            </div>
           ) : (
             <div className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
               <HiExclamationCircle className="w-4 h-4 text-amber-500 shrink-0" />

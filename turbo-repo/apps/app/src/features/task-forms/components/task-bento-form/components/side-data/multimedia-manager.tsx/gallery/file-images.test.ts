@@ -276,6 +276,12 @@ describe("isImageEntry", () => {
       // Mislabeled name but image content → still an image.
       expect(isImageEntry(makeEntry("scan.pdf", "image/png"))).toBe(true);
     });
+
+    it("should not match non-image MIME types that merely contain 'image'", () => {
+      // Strict image/ family check — a substring match would misclassify these.
+      expect(isImageEntry(makeEntry("a.bin", "application/vnd.fake-image"))).toBe(false);
+      expect(isImageEntry(makeEntry("b.txt", "text/x-image-description"))).toBe(false);
+    });
   });
 
   describe("falls back to the file extension when content is missing", () => {

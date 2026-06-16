@@ -262,7 +262,7 @@ export const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 // gallery (with its missing-thumbnail icon) instead of being misfiled as a PDF.
 export function isImageEntry(entry: AlfrescoFileEntry): boolean {
   const mimeType = entry.entry.content?.mimeType;
-  if (mimeType) return mimeType.includes("image");
+  if (mimeType) return mimeType.startsWith("image/");
   const ext = entry.entry.name?.split(".").pop()?.toLowerCase();
   return ext ? ALLOWED_IMAGE_EXTENSIONS.has(ext) : false;
 }

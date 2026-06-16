@@ -21,7 +21,7 @@ function MediaPanelErrorFallback({
 }: ErrorFallbackProps & Readonly<{ dict: I18nDictionary }>) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <HiExclamationTriangle className="h-8 w-8 text-amber-500" />
+      <HiExclamationTriangle aria-hidden="true" className="h-8 w-8 text-amber-500" />
       <div>
         <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
           {tr("bento.multimedia.panel_error_title", dict)}

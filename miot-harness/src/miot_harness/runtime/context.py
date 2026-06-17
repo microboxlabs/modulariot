@@ -85,6 +85,12 @@ class UserRequest(BaseModel):
     rules: list[PermissionRule] = Field(default_factory=list)
 
     def to_context(self) -> HarnessContext:
+        # NOTE: the policy built here is UNGATED — the bypass policy gate
+        # (resolve_effective_mode) is NOT applied. HarnessSupervisor.run
+        # overwrites ctx.permission_policy with the gated result of
+        # _resolve_policy, so this value is only a seed. Any caller that
+        # uses to_context() outside the supervisor and then drives a tool
+        # directly MUST apply the gate itself, or a bypass mode will skip it.
         policy: PermissionPolicy | None = None
         if self.permission_mode is not None or self.rules:
             policy = PermissionPolicy(

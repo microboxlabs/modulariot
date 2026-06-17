@@ -95,3 +95,52 @@ async def test_allow_rule_skips_pause() -> None:
     out = await tool.invoke(_ctx(policy), {"x": 1}, events.append)
     assert isinstance(out, _Out)
     assert "approval.requested" not in [e.type for e in events]
+
+
+def _allow_tool() -> HarnessTool[_In, _Out]:
+    """A tool whose own check_permission would ALLOW — used to prove an
+    `ask` rule still forces a pause."""
+
+    async def check(ctx: HarnessContext, _in: _In) -> PermissionResult:
+        return PermissionResult.allow("read-only")
+
+    async def call(ctx: HarnessContext, _in: _In, progress) -> _Out:  # type: ignore[no-untyped-def]
+        return _Out()
+
+    return HarnessTool[_In, _Out](
+        name="run_sql",
+        description="t",
+        input_model=_In,
+        output_model=_Out,
+        read_only=True,
+        destructive=False,
+        check_permission=check,
+        call=call,
+    )
+
+
+@pytest.mark.asyncio
+async def test_ask_rule_forces_pause_over_allowing_check() -> None:
+    # check_permission would ALLOW, but an `ask` rule forces the human-pause
+    # decision. With no registry on the context (DEFAULT mode), the pause
+    # path refuses — proving the rule changed behaviour rather than no-op'd.
+    events: list[HarnessEvent] = []
+    tool = _allow_tool()
+    policy = PermissionPolicy(
+        rules=[PermissionRule(tool="run_sql", decision=PermissionDecision.ASK)]
+    )
+    with pytest.raises(PermissionError):
+        await tool.invoke(_ctx(policy), {"x": 1}, events.append)
+    assert "approval.requested" in [e.type for e in events]
+
+
+@pytest.mark.asyncio
+async def test_deny_rule_not_escalatable_by_bypass() -> None:
+    # The most critical invariant: a hard deny rule is honoured even under
+    # BYPASS mode — auto-approval can never escalate past a deny.
+    policy = PermissionPolicy(
+        mode=PermissionMode.BYPASS,
+        rules=[PermissionRule(tool="run_sql", decision=PermissionDecision.DENY)],
+    )
+    with pytest.raises(PermissionError):
+        await _ask_tool().invoke(_ctx(policy), {"x": 1}, [].append)

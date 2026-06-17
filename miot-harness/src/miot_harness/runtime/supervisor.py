@@ -42,7 +42,11 @@ from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.conversation_policy import ConversationPolicyStore
-from miot_harness.runtime.permissions import PermissionMode, PermissionPolicy
+from miot_harness.runtime.permissions import (
+    PermissionMode,
+    PermissionPolicy,
+    PermissionRule,
+)
 from miot_harness.runtime.policy import resolve_effective_mode
 from miot_harness.runtime.conversation import (
     ConversationStore,
@@ -371,10 +375,10 @@ class HarnessSupervisor:
         DEFAULT. The chosen mode passes through the bypass policy gate; a
         forbidden bypass is downgraded to DEFAULT with denied=True. Side
         effect: the resolved policy is persisted as the sticky conversation
-        policy so a later turn that omits mode/rules inherits them.
+        policy so a later turn that omits mode/rules inherits them. Note: a
+        denied bypass persists the downgraded DEFAULT policy, so a later
+        mode-less turn inherits DEFAULT rather than re-triggering the denial.
         """
-
-        from miot_harness.runtime.permissions import PermissionRule
 
         requested: PermissionMode | None = None
         rules: list[PermissionRule] = []

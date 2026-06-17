@@ -61,6 +61,12 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
 
         if rule_decision == PermissionDecision.ALLOW:
             permission = PermissionResult.allow("allowed by rule")
+        elif rule_decision == PermissionDecision.ASK:
+            # An explicit `ask` rule forces the human-pause decision,
+            # skipping check_permission. The mode handling below still
+            # applies (bypass/auto_safe can auto-approve), matching Claude
+            # Code where bypassPermissions overrides ask rules.
+            permission = PermissionResult.ask("approval required by rule")
         else:
             permission = await self.check_permission(ctx, parsed_input)
 

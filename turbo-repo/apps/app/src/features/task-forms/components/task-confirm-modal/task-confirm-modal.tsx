@@ -255,7 +255,7 @@ export default function TaskConfirmModal({
                     options={selectConfig.options}
                     selectedValues={selectedValues}
                     onSelectionChange={setSelectedValues}
-                    triggerText={selectConfig.triggerText || "Seleccionar opciones"}
+                    triggerText={selectConfig.triggerText || tr("modal.selectOptions", dict)}
                     dict={dict}
                   />
                 ) : (

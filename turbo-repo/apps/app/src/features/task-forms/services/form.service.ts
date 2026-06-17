@@ -340,7 +340,7 @@ export const getSecondaryTransitionIdV2 = (
         id: OUTCOME_ASSIGN_DRIVER_V2,
         label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
+        isGoBack: true,
       },
       {
         id: OUTCOME_PRESENT_DRIVER_V2,

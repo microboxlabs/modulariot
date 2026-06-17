@@ -5,6 +5,7 @@ import json
 import logging
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -24,6 +25,7 @@ from miot_harness.api.identity import (
     verify_signed_identity,
 )
 from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.context_skills.loader import boot_context_skills
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
@@ -59,6 +61,9 @@ def _make_lifespan(
         app.state.datasource_registered = []
         app.state.datasource_snapshot_age_minutes = None
         app.state.datasource_provider = None
+        # Context & Skills subsystem state (populated by its boot below).
+        app.state.context_skills_registered = []
+        app.state.context_skills_diagnostics = []
         # Streaming state: harness ref for endpoint access (tests inject
         # controlled graphs by mutating this), event bus the SSE handler
         # subscribes to, and the in-flight task table the stream uses to
@@ -156,6 +161,49 @@ def _make_lifespan(
             }
             for name, probe in result.freshness.items()
         }
+
+        # Context & Skills subsystem (file-backed now; API-backed later).
+        # Loaded AFTER the datasource boot (so connector tool names can
+        # collide-check against datasource tools) but OUTSIDE the
+        # enabled/disabled branch — it describes the *surrounding* system
+        # and must load even when the datasource is down. Boot isolation
+        # mirrors the datasource: boot_context_skills never raises on bad
+        # files; we log diagnostics and continue. The global context block
+        # is folded into the profile primer (a frozen-dataclass `replace`)
+        # so it reaches every agent path while staying byte-stable across
+        # tenants — keeping the Anthropic cache prefix hot. The per-tenant
+        # overlay is applied per request on the meta path (see supervisor).
+        effective_profile = provider.profile
+        try:
+            cs = boot_context_skills(harness.tools, settings)
+            harness.context_skills = cs.bundle
+            app.state.context_skills_registered = list(cs.registered_tools)
+            app.state.context_skills_diagnostics = list(cs.diagnostics)
+            global_block = cs.bundle.global_primer()
+            if global_block:
+                effective_profile = replace(
+                    provider.profile,
+                    primer=(
+                        f"{provider.profile.primer}\n\n"
+                        f"# System context\n{global_block}"
+                    ),
+                )
+            for diag in cs.diagnostics:
+                (logger.error if diag.level == "error" else logger.warning)(
+                    "Context/Skills: %s (%s)", diag.message, diag.path
+                )
+            logger.info(
+                "Context/Skills: %d contexts, %d connector tools registered",
+                len(cs.bundle.contexts),
+                len(cs.registered_tools),
+            )
+        except Exception as exc:  # noqa: BLE001 — defense in depth; loader shouldn't raise
+            logger.critical(
+                "Context/Skills: subsystem boot failed (%s); continuing without it",
+                exc,
+            )
+            harness.context_skills = None
+
         if not result.enabled:
             logger.info(
                 "Datasource %s: disabled (%s)", provider.profile.name, result.reason
@@ -188,7 +236,9 @@ def _make_lifespan(
                     registry=harness.tools,
                     settings=settings,
                     models=models,
-                    profile=provider.profile,
+                    # effective_profile = provider.profile with the global
+                    # system-context block folded into its primer.
+                    profile=effective_profile,
                 )
 
                 # Phase E wiring: agentic_graph + meta agent + LLM
@@ -209,14 +259,16 @@ def _make_lifespan(
                         settings.provenance_log_dir,
                         enabled=settings.provenance_log_enabled,
                     ),
-                    profile=provider.profile,
+                    # effective_profile = provider.profile with the global
+                    # system-context block folded into its primer.
+                    profile=effective_profile,
                     registry=harness.tools,
                 )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
                     thinking_budget_tokens=synth_thinking_budget,
                 )
-                harness.meta_primer = provider.profile.primer
+                harness.meta_primer = effective_profile.primer
                 # Descriptor-derived entries (title/layer/body + freshness
                 # suffix) when the provider supplies them; generic
                 # fallback otherwise so the meta agent never goes blind.
@@ -465,6 +517,7 @@ def create_app() -> FastAPI:
         ds_name = (
             provider.profile.name if provider is not None else settings.datasource_kind
         )
+        diagnostics = getattr(app.state, "context_skills_diagnostics", [])
         return {
             "status": "ok",
             "env": settings.env,
@@ -474,6 +527,15 @@ def create_app() -> FastAPI:
                 "tools": list(app.state.datasource_registered),
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
                 "freshness": getattr(app.state, "datasource_freshness", {}),
+            },
+            "context_skills": {
+                "connector_tools": list(
+                    getattr(app.state, "context_skills_registered", [])
+                ),
+                "diagnostics": [
+                    {"level": d.level, "path": d.path, "message": d.message}
+                    for d in diagnostics
+                ],
             },
         }
 
@@ -487,6 +549,16 @@ def create_app() -> FastAPI:
         required = settings.datasource_dsn is not None
         enabled = bool(app.state.datasource_enabled)
         ready = (not required) or enabled
+        # Strict mode: an ERROR-level context/skills diagnostic (malformed
+        # manifest, unsafe connector) fails readiness so a bad ConfigMap is
+        # caught before the pod takes traffic. Default off = log-and-serve.
+        cs_errors = [
+            d
+            for d in getattr(app.state, "context_skills_diagnostics", [])
+            if d.level == "error"
+        ]
+        if settings.context_skills_strict and cs_errors:
+            ready = False
         if not ready:
             response.status_code = 503
         provider = getattr(app.state, "datasource_provider", None)

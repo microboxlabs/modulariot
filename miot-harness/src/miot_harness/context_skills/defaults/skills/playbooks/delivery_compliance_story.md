@@ -23,4 +23,3 @@ bottleneck, and propose one dashboard widget draft.
 
 Dashboard patches are drafts until approved by the user. Never apply a patch
 without an approval id.
-

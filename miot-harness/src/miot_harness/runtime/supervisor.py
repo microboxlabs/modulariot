@@ -36,6 +36,7 @@ from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
 )
+from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.approvals import ApprovalRegistry
@@ -101,6 +102,28 @@ class HarnessSupervisor:
         self.approval_registry = approval_registry
         # Set by the lifespan after boot; None = legacy defaults.
         self.profile: DataSourceProfile | None = None
+        # Set by the lifespan after the context/skills boot; None when the
+        # subsystem is disabled or failed to load. The global context
+        # block is already folded into `meta_primer` at boot — this bundle
+        # supplies the per-request tenant overlay and the queryable facts.
+        self.context_skills: ContextSkillsBundle | None = None
+
+    def _meta_primer_for(self, tenant_id: str) -> str:
+        """meta_primer (datasource primer + global context) plus this
+        tenant's overlay block, if any."""
+        if self.context_skills is None:
+            return self.meta_primer
+        tenant_block = self.context_skills.primer_for(tenant_id).tenant_block
+        if not tenant_block:
+            return self.meta_primer
+        return f"{self.meta_primer}\n\n# System context (tenant)\n{tenant_block}"
+
+    def _meta_catalog_for(self, tenant_id: str) -> list[MetaAgentCatalogEntry]:
+        """The datasource catalog plus this tenant's system facts and the
+        available-skills index."""
+        if self.context_skills is None:
+            return self.meta_catalog
+        return self.meta_catalog + self.context_skills.facts_for(tenant_id)
 
     async def run(
         self,
@@ -533,8 +556,8 @@ class HarnessSupervisor:
                 delta = await meta_agent_node(
                     {"user_message": request.message},
                     model=instrumented_meta_model,
-                    primer=self.meta_primer,
-                    catalog=self.meta_catalog,
+                    primer=self._meta_primer_for(ctx.tenant_id),
+                    catalog=self._meta_catalog_for(ctx.tenant_id),
                     prior_messages=prior_messages or [],
                     progress=progress if stream_enabled else None,
                     stream=stream_enabled,

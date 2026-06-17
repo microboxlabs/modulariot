@@ -3,6 +3,7 @@ from pathlib import Path
 from miot_harness.config import get_settings
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.conversation import InMemoryConversationStore
+from miot_harness.runtime.conversation_policy import InMemoryConversationPolicyStore
 from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
@@ -41,4 +42,5 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
         # human-in-the-loop approvals. The /runs/{id}/approvals/{aid}
         # endpoint resolves entries here to unblock awaiting tools.
         approval_registry=ApprovalRegistry(),
+        conversation_policy_store=InMemoryConversationPolicyStore(),
     )

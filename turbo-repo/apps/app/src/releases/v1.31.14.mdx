@@ -1,0 +1,34 @@
+# 🔔 Release Notes v1.31.14 — ModularIoT
+
+### Fecha: 17/06/2026
+
+**Objetivo**: Esta versión mejora la adaptabilidad del ASK MIOT Harness por entorno y tenant sin depender de rebuilds de imagen, y corrige un bloqueo crítico en dashboards con fuentes PostgREST. El foco está en acelerar operación, reducir fricción de configuración y aumentar resiliencia ante entradas inválidas.
+
+## 🚀 Evolutivos
+
+- **📍 Contexto y Skills configurables externamente para ASK MIOT Harness** *(Integración OSS — MIOT-0.5.15)*
+  - **Key point**: Se habilitó la carga de contexto y skills desde archivos externos, con capas globales y overlays por tenant, manteniendo contenido por defecto para arranque sin configuración montada.
+  - **Technical detail**: Se incorpora un modelo declarativo para playbook skills y connector skills HTTP, con controles de permisos/aprobación, resolución de secretos vía variables de entorno, diagnósticos en `health` y modo estricto para readiness.
+
+## 🐛 Correcciones
+
+- **🐛 Falla HTTP 400 en dashboards PostgREST cuando parámetros tipados quedan vacíos** *(Integración OSS — MIOT-0.5.15)*
+  - **Impacto**: Dashlets del Planificador de Solicitudes no cargaban datos al enviar RPC con argumentos tipados opcionales en blanco.
+  - **Solución**: Los parámetros vacíos dejan de propagarse como valores vacíos hacia PostgREST y se alinea el comportamiento con Swagger: si están en blanco, se omiten; si tienen valor, se envían sin cambios.
+
+## 📊 Beneficios
+
+- Mayor velocidad para adaptar ASK MIOT por ambiente y tenant sin ciclos de build/deploy.
+- Menor riesgo operativo gracias a carga resiliente ante manifiestos malformados.
+- Mejor gobernanza de capacidades con skills declarativas y controles de aprobación.
+- Reducción de errores de integración en dashboards con RPC tipadas y filtros opcionales.
+- Mejor continuidad del servicio al preservar arranque con defaults empaquetados.
+- Base preparada para evolucionar de archivos a fuentes runtime (API/DB) sin rediseño.
+
+## 📌 Conclusión
+
+La v1.31.14 fortalece dos frentes clave del producto: extensibilidad del harness y confiabilidad en visualización de datos. Esto mejora tanto la experiencia operativa de equipos técnicos como la estabilidad funcional para usuarios de dashboards.
+
+En términos de arquitectura, se consolida un enfoque más configurable y seguro para incorporar contexto y capacidades sin tocar imagen base. Al mismo tiempo, se corrige un comportamiento que afectaba casos reales de uso con parámetros opcionales en PostgREST.
+
+El resultado es una plataforma más flexible para despliegues heterogéneos, con menor fricción para evolucionar integraciones y menor probabilidad de interrupciones por configuración.

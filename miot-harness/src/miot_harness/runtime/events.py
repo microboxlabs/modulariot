@@ -11,6 +11,7 @@ HarnessEventType = Literal[
     "tool.completed",
     "tool.failed",
     "approval.requested",
+    "approval.auto",
     "artifact.created",
     "plan.created",
     # Deprecated: superseded by agent.started / agent.completed. Kept in

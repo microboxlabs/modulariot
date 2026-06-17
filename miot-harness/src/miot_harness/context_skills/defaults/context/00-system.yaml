@@ -1,0 +1,35 @@
+# Global system context — always loaded, applies to every tenant.
+# Override or extend by mounting a ConfigMap at MIOT_HARNESS_CONTEXT_DIR.
+id: system-base
+# scope is derived from the directory (top-level = global); declared here
+# only for readability.
+scope: { kind: global }
+primer_text: |
+  This harness runs behind the Quarkus proxy, which terminates the
+  user's Auth0 token, resolves the organization to a tenant, and forwards
+  the request with the tenant in an X-Miot-Tenant-Client-Id header. The
+  harness re-verifies the same token as defense in depth.
+
+  The harness is read-only over operational data: it never mutates
+  production systems. Mutating actions are returned as approval-gated
+  drafts and only applied after an explicit user decision.
+priority: 0
+facts:
+  - name: deployment_topology
+    title: Where the harness runs
+    body: >
+      Containerized with a read-only root filesystem; only
+      /app/.miot-workspace is writable. Configuration is supplied via
+      environment variables and a mounted ConfigMap.
+  - name: surrounding_services
+    title: Services around the harness
+    body: >
+      Quarkus (quarkus-srv) is the front door and auth gateway; Auth0
+      issues the JWTs; the Coordinador/Nexo Postgres is the data source;
+      ECM (Alfresco) holds documents and group membership.
+  - name: escalation_path
+    title: What to do on failure
+    body: >
+      The harness degrades gracefully — a disabled data source still
+      answers meta questions. It never invents data or tenants; if the
+      answer is not in the evidence, it says so.

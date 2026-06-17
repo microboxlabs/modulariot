@@ -1,0 +1,22 @@
+# Example HTTP connector skill. Compiled into a callable HarnessTool
+# named `skill_status_page_check` at boot. Read-only, so it executes
+# without an approval gate. The Authorization header is a ${ENV_VAR}
+# reference resolved from the environment at call time — never store a
+# literal secret in a mounted file.
+kind: http
+id: status_page
+tool_name: status_page_check
+description: Fetch the current ModularIoT platform status banner.
+method: GET
+url: https://status.internal.example/api/v1/status
+read_only: true
+input_schema:
+  type: object
+  properties:
+    component:
+      type: string
+  required: []
+headers:
+  Authorization: "${STATUS_PAGE_TOKEN}"
+timeout_seconds: 8
+scope: { kind: global }

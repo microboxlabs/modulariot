@@ -70,7 +70,10 @@ export function buildPgrestFetch(
   params: PgrestParam[],
   dataSourceId?: string,
 ): { url: string; init?: RequestInit } {
-  const validParams = params.filter((p) => p.key && p.value != null);
+  // Drop blank values so the request mirrors Swagger: a blank param is omitted
+  // entirely, letting the RPC's defaults/NULLs apply. Forwarding `p_x=` sends an
+  // empty string, which PostgREST rejects for typed args (integer/boolean) with 400.
+  const validParams = params.filter((p) => p.key && p.value != null && p.value !== "");
   const baseUrl = `/app/api/dashboard/pgrest/${encodeURIComponent(functionName.trim())}`;
 
   const dsParams = buildDataSourceParams(dataSourceId);

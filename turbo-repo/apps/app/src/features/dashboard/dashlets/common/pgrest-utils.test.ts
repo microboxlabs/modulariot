@@ -139,6 +139,15 @@ describe("buildPgrestFetch", () => {
     expect(JSON.parse(result.init!.body as string)).toEqual({ p_name: "test" });
   });
 
+  it("POST: filters out params with empty-string value", () => {
+    const params = [
+      makePgrestParam({ key: "p_etapa_max", value: "" }),
+      makePgrestParam({ key: "p_name", value: "test" }),
+    ];
+    const result = buildPgrestFetch("my_func", "POST", params);
+    expect(JSON.parse(result.init!.body as string)).toEqual({ p_name: "test" });
+  });
+
   it("POST: appends dataSourceId to query string", () => {
     const result = buildPgrestFetch("my_func", "POST", [], "ds-99");
     expect(result.url).toBe("/app/api/dashboard/pgrest/my_func?dataSourceId=ds-99");
@@ -149,6 +158,16 @@ describe("buildPgrestFetch", () => {
     const result = buildPgrestFetch("my_func", "GET", params);
     expect(result.url).toBe("/app/api/dashboard/pgrest/my_func?p_id=123");
     expect(result.init).toBeUndefined();
+  });
+
+  it("GET: omits params with empty-string value from query string", () => {
+    const params = [
+      makePgrestParam({ key: "p_id", value: "123" }),
+      makePgrestParam({ key: "p_etapa_max", value: "" }),
+      makePgrestParam({ key: "p_solo_criticos", value: "" }),
+    ];
+    const result = buildPgrestFetch("my_func", "GET", params);
+    expect(result.url).toBe("/app/api/dashboard/pgrest/my_func?p_id=123");
   });
 
   it("GET: includes dataSourceId in query params", () => {

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button, Dropdown, DropdownItem, Tooltip } from "flowbite-react";
 import {
   HiChevronDown,
@@ -18,6 +20,42 @@ import SplitButton from "@/features/common/components/split-button/split-button"
 import { SharePopover } from "./header/share-popover";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import type { ReviewStatus } from "../gallery/media-row";
+
+// Portal tooltip — escapes overflow:hidden and CSS transform ancestors
+function PortalTooltip({ content, children }: { content?: string; children: ReactNode }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  if (!content) return <>{children}</>;
+
+  return (
+    <>
+      <div
+        ref={ref}
+        className="w-full"
+        onMouseEnter={() => {
+          if (!ref.current) return;
+          const r = ref.current.getBoundingClientRect();
+          setPos({ top: r.top + r.height / 2, left: r.left - 8 });
+        }}
+        onMouseLeave={() => setPos(null)}
+      >
+        {children}
+      </div>
+      {pos && createPortal(
+        <div
+          role="tooltip"
+          style={{ position: "fixed", top: pos.top, left: pos.left, transform: "translate(-100%, -50%)", zIndex: 9999 }}
+          className="relative px-3 py-2 text-sm font-medium text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-sm pointer-events-none whitespace-nowrap"
+        >
+          {content}
+          <div className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 export default function ViewerToolbar({
   fileUrl,
@@ -166,16 +204,11 @@ export default function ViewerToolbar({
               {tr("bento.multimedia.btn_no_change", dictionary)}
             </DropdownItem>
           )}
-          <Tooltip
-            content={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
-            placement="left"
-          >
-            <div>
-              <DropdownItem onClick={canReject ? () => onDecision("rejected") : undefined} disabled={!canReject}>
-                {tr("bento.multimedia.btn_reject", dictionary)}
-              </DropdownItem>
-            </div>
-          </Tooltip>
+          <PortalTooltip content={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}>
+            <DropdownItem onClick={canReject ? () => onDecision("rejected") : undefined} disabled={!canReject}>
+              {tr("bento.multimedia.btn_reject", dictionary)}
+            </DropdownItem>
+          </PortalTooltip>
           <DropdownItem onClick={() => onDecision("pending")}>
             {tr("bento.multimedia.btn_back_to_review", dictionary)}
           </DropdownItem>

@@ -8,10 +8,15 @@
 #   - GitHub Container Registry (GHCR) — Primary registry
 #   - Docker Hub — Secondary mirror (non-PR only)
 #
+# Build Modes:
+#   - JVM: Standard Quarkus fast-jar image
+#   - Native: Mandrel/GraalVM native executable image
+#
 # Tagging Strategy:
 #   - PRs:        ghcr.io/<org>/miot-srv:pr-<number>
 #   - main/trunk: ghcr.io/<org>/miot-srv:latest
-#   - Tags:       ghcr.io/<org>/miot-srv:<version>
+#   - SHA:        ghcr.io/<org>/miot-srv:sha-<short_sha>
+#   - Native:     same tags with -native suffix
 #
 # Required Secrets:
 #   - DOCKERHUB_USERNAME:              Docker Hub username
@@ -26,8 +31,6 @@ on:
     paths:
       - 'quarkus-srv/**'
     branches: [trunk, main]
-    tags:
-      - 'v*'
   pull_request:
     paths:
       - 'quarkus-srv/**'
@@ -40,6 +43,7 @@ env:
   IMAGE_NAME: microboxlabs/miot-srv
   JAVA_VERSION: '21'
   JAVA_DISTRIBUTION: 'temurin'
+  MANDREL_IMAGE: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21
 
 jobs:
   # ===========================================================================
@@ -56,6 +60,7 @@ jobs:
 
     outputs:
       version: ${{ steps.version.outputs.version }}
+      short_sha: ${{ steps.version.outputs.short_sha }}
 
     steps:
       - name: Checkout repository
@@ -75,12 +80,9 @@ jobs:
         id: version
         working-directory: quarkus-srv
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
-          fi
+          VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
       - name: Build & Test
@@ -110,6 +112,48 @@ jobs:
           path: |
             quarkus-srv/miot-cli/target/quarkus-app/
             quarkus-srv/Dockerfile
+          retention-days: 1
+
+  # ===========================================================================
+  # Build Native — GraalVM/Mandrel Native Executable
+  # ===========================================================================
+  build-native:
+    name: Build Native
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    container:
+      image: ${{ env.MANDREL_IMAGE }}
+      options: --user root
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Maven cache
+        uses: actions/cache@v4
+        with:
+          path: /github/home/.m2/repository
+          key: ${{ runner.os }}-maven-native-${{ hashFiles('quarkus-srv/**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-native-
+
+      - name: Build native executable
+        run: ./mvnw package -Pnative -DskipTests
+        working-directory: quarkus-srv
+        env:
+          MAVEN_OPTS: -Dmaven.repo.local=/github/home/.m2/repository
+
+      - name: Upload native artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-build
+          path: |
+            quarkus-srv/miot-cli/target/*-runner
+            quarkus-srv/Dockerfile.native
           retention-days: 1
 
   # ===========================================================================
@@ -166,9 +210,7 @@ jobs:
           tags: |
             type=ref,event=pr
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
+            type=raw,value=sha-${{ needs.build-jvm.outputs.short_sha }}
           labels: |
             org.opencontainers.image.title=ModularIoT Server
             org.opencontainers.image.description=Quarkus modulith backend for ModularIoT — fleet, driver and resource management
@@ -201,12 +243,98 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
+  # Docker Native — Build and Publish Native Image
+  # ===========================================================================
+  docker-native:
+    name: Docker Native Image
+    runs-on: ubuntu-latest
+    needs: [build-jvm, build-native]
+
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    outputs:
+      image-digest: ${{ steps.build-push.outputs.digest }}
+
+    steps:
+      - name: Download native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: native-build
+          path: quarkus-srv
+
+      - name: Prepare native executable
+        run: |
+          chmod +x quarkus-srv/miot-cli/target/*-runner
+          ls -la quarkus-srv/miot-cli/target/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKERHUB_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ github.event_name != 'pull_request' && format('{0}/{1}', env.DOCKERHUB_REGISTRY, env.IMAGE_NAME) || '' }}
+          flavor: |
+            suffix=-native
+          tags: |
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=sha-${{ needs.build-jvm.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=ModularIoT Server (Native)
+            org.opencontainers.image.description=Quarkus native modulith backend for ModularIoT
+            org.opencontainers.image.vendor=MicroboxLabs
+
+      - name: Build and push native Docker image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: quarkus-srv
+          file: quarkus-srv/Dockerfile.native
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image summary
+        run: |
+          echo "## Docker Native Image Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
   # Security Scan — Trivy (non-PR only)
   # ===========================================================================
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    needs: docker-jvm
+    needs: [build-jvm, docker-jvm]
     if: github.event_name != 'pull_request'
 
     permissions:
@@ -220,7 +348,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
+          image-ref: '${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ needs.build-jvm.outputs.short_sha }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
         continue-on-error: true

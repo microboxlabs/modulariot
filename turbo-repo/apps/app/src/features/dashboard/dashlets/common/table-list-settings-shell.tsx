@@ -35,6 +35,8 @@ interface TableListSettingsShellProps {
   plannerContent?: ReactNode;
   /** Enable Handlebars color coding on column key/label inputs */
   handlebarsColorKeys?: boolean;
+  schemaSuggestions?: string[];
+  filterSuggestions?: string[];
   /** Optional refresh interval select rendered above the save button */
   refreshSelect?: ReactNode;
   /** Optional title shown in the modal header */
@@ -64,6 +66,8 @@ export function TableListSettingsShell({
   dataTabChildren,
   plannerContent,
   handlebarsColorKeys = false,
+  schemaSuggestions,
+  filterSuggestions,
   refreshSelect,
   title,
   displayOptionsChildren,
@@ -123,6 +127,8 @@ export function TableListSettingsShell({
         onRemoveColorMapping={s.removeColorMapping}
         onUpdateColorMapping={s.updateColorMapping}
         handlebarsColorKeys={handlebarsColorKeys}
+        schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
         labels={{
           columns: tr("dashboard.settings.columns", dictionary),
           key: tr("dashboard.settings.key", dictionary),

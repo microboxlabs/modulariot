@@ -380,6 +380,7 @@ interface HbAutoInputProps {
   schemaSuggestions?: string[];
   /** Sample values keyed by column name, shown next to each suggestion */
   schemaSampleRow?: Record<string, string>;
+  filterSuggestions?: string[];
   id?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
@@ -397,6 +398,7 @@ function HbAutoInput({
   placeholder,
   schemaSuggestions,
   schemaSampleRow,
+  filterSuggestions,
   id,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledby,
@@ -405,12 +407,14 @@ function HbAutoInput({
 }: Readonly<HbAutoInputProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
 
-  const ac = useHbAutocomplete({
-    value,
-    onChange,
-    prefix: "row",
-    suggestions: schemaSuggestions,
-  });
+  const namespaces = useMemo(() => {
+    const ns = [];
+    if (schemaSuggestions?.length) ns.push({ prefix: "row", suggestions: schemaSuggestions });
+    if (filterSuggestions?.length) ns.push({ prefix: "filter", suggestions: filterSuggestions });
+    return ns;
+  }, [schemaSuggestions, filterSuggestions]);
+
+  const ac = useHbAutocomplete({ value, onChange, namespaces });
 
   return (
     <div ref={ac.containerRef} className={`relative ${className ?? ""}`}>
@@ -433,7 +437,7 @@ function HbAutoInput({
   );
 }
 
-// Shared autocomplete dropdown — renders either the no-suggestions hint or the column list
+// Shared autocomplete dropdown — renders namespace groups or suggestion items
 function HbAutocompleteDropdown({ ac, schemaSampleRow, dictionary }: Readonly<{
   ac: ReturnType<typeof useHbAutocomplete>;
   schemaSampleRow?: Record<string, string>;
@@ -448,20 +452,39 @@ function HbAutocompleteDropdown({ ac, schemaSampleRow, dictionary }: Readonly<{
       onSelect={ac.handleSelect}
       onHover={ac.setSelectedIndex}
       dropdownRef={ac.dropdownRef}
-      getKey={(s) => s}
-      renderItem={(s) => (
-        <HbDropdownItem col={s} sampleValue={schemaSampleRow?.[s]} />
-      )}
+      getKey={(item) => item.kind === "namespace" ? `ns:${item.prefix}` : `${item.prefix}.${item.key}`}
+      renderItem={(item) =>
+        item.kind === "namespace"
+          ? <HbNamespaceItem prefix={item.prefix} count={item.count} />
+          : <HbSuggestionItem prefix={item.prefix} col={item.key} sampleValue={item.prefix === "row" ? schemaSampleRow?.[item.key] : undefined} />
+      }
     />
   );
 }
 
-// Shared dropdown item — shows {{row.col}} with optional sample value on the right
-function HbDropdownItem({ col, sampleValue }: Readonly<{ col: string; sampleValue?: string }>) {
+// Namespace group header — e.g. "{{row.*}}" with count badge
+function HbNamespaceItem({ prefix, count }: Readonly<{ prefix: string; count: number }>) {
   return (
     <span className="flex w-full items-center justify-between gap-3">
       <span className="font-mono text-xs">
-        {"{{row."}
+        {"{{"}
+        <span className="font-semibold">{prefix}</span>
+        {".*}}"}
+      </span>
+      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+        {count}
+      </span>
+    </span>
+  );
+}
+
+// Suggestion item — shows {{prefix.col}} with optional sample value on the right
+function HbSuggestionItem({ prefix, col, sampleValue }: Readonly<{ prefix: string; col: string; sampleValue?: string }>) {
+  return (
+    <span className="flex w-full items-center justify-between gap-3">
+      <span className="font-mono text-xs">
+        {"{{"}
+        <span className="text-gray-400 dark:text-gray-500">{prefix}.</span>
         <span className="font-semibold">{col}</span>
         {"}}"}
       </span>
@@ -506,6 +529,7 @@ interface HbAutoTextareaProps {
   placeholder?: string;
   schemaSuggestions?: string[];
   schemaSampleRow?: Record<string, string>;
+  filterSuggestions?: string[];
   id?: string;
   rows?: number;
   "aria-label"?: string;
@@ -518,6 +542,7 @@ function HbAutoTextarea({
   placeholder,
   schemaSuggestions,
   schemaSampleRow,
+  filterSuggestions,
   id,
   rows = 3,
   "aria-label": ariaLabel,
@@ -525,12 +550,14 @@ function HbAutoTextarea({
 }: Readonly<HbAutoTextareaProps>) {
   const status = useMemo(() => getHandlebarsStatus(value), [value]);
 
-  const ac = useHbAutocomplete({
-    value,
-    onChange,
-    prefix: "row",
-    suggestions: schemaSuggestions,
-  });
+  const namespaces = useMemo(() => {
+    const ns = [];
+    if (schemaSuggestions?.length) ns.push({ prefix: "row", suggestions: schemaSuggestions });
+    if (filterSuggestions?.length) ns.push({ prefix: "filter", suggestions: filterSuggestions });
+    return ns;
+  }, [schemaSuggestions, filterSuggestions]);
+
+  const ac = useHbAutocomplete({ value, onChange, namespaces });
 
   return (
     <div ref={ac.containerRef} className="relative">
@@ -590,6 +617,7 @@ interface HbTextFieldProps {
   placeholder?: string;
   schemaSuggestions?: string[];
   schemaSampleRow?: Record<string, string>;
+  filterSuggestions?: string[];
   /** Markdown string shown in a ? tooltip next to the label */
   tooltip?: string;
   dictionary?: I18nRecord;
@@ -597,8 +625,8 @@ interface HbTextFieldProps {
 
 /**
  * Text input that shows Handlebars validation status via Flowbite color.
- * When `schemaSuggestions` are provided, shows a dropdown when typing `{{row.`
- * with matching column key suggestions.
+ * When suggestions are provided, shows a grouped dropdown on `{{` with
+ * namespace headers (row, filter) and drills into matching keys on `{{prefix.`.
  */
 export function HbTextField({
   id,
@@ -608,6 +636,7 @@ export function HbTextField({
   placeholder,
   schemaSuggestions,
   schemaSampleRow,
+  filterSuggestions,
   tooltip,
   dictionary,
 }: Readonly<HbTextFieldProps>) {
@@ -640,6 +669,7 @@ export function HbTextField({
         placeholder={placeholder}
         schemaSuggestions={schemaSuggestions}
         schemaSampleRow={schemaSampleRow}
+        filterSuggestions={filterSuggestions}
         dictionary={dictionary}
       />
     </div>
@@ -670,6 +700,7 @@ interface HbTextFieldListProps {
   dictionary: I18nRecord;
   schemaSuggestions?: string[];
   schemaSampleRow?: Record<string, string>;
+  filterSuggestions?: string[];
 }
 
 export function HbTextFieldList({
@@ -680,12 +711,11 @@ export function HbTextFieldList({
   dictionary,
   schemaSuggestions,
   schemaSampleRow,
+  filterSuggestions,
 }: Readonly<HbTextFieldListProps>) {
   return (
     <>
       {fields.map((f) => {
-        const suggestions = schemaSuggestions;
-        const sampleRow = schemaSampleRow;
         const placeholder = isPgrest ? f.hbPlaceholder : f.staticPlaceholder;
 
         return f.multiline ? (
@@ -697,8 +727,9 @@ export function HbTextFieldList({
             onChange={fieldSetters[f.state]}
             placeholder={placeholder}
             rows={f.rows ?? 3}
-            schemaSuggestions={suggestions}
-            schemaSampleRow={sampleRow}
+            schemaSuggestions={schemaSuggestions}
+            schemaSampleRow={schemaSampleRow}
+            filterSuggestions={filterSuggestions}
             dictionary={dictionary}
           />
         ) : (
@@ -709,8 +740,9 @@ export function HbTextFieldList({
             value={fieldValues[f.state]}
             onChange={fieldSetters[f.state]}
             placeholder={placeholder}
-            schemaSuggestions={suggestions}
-            schemaSampleRow={sampleRow}
+            schemaSuggestions={schemaSuggestions}
+            schemaSampleRow={schemaSampleRow}
+            filterSuggestions={filterSuggestions}
             dictionary={dictionary}
           />
         );
@@ -730,6 +762,7 @@ interface HbInlineInputProps {
   className?: string;
   /** Column keys for Handlebars autocomplete */
   schemaSuggestions?: string[];
+  filterSuggestions?: string[];
   /** HTML id for the input element */
   id?: string;
   /** Accessible label for assistive technology (use when no visible label exists) */
@@ -741,7 +774,7 @@ interface HbInlineInputProps {
 /**
  * Compact Handlebars-aware TextInput without a label.
  * Designed for use in list rows (e.g. category items, detail rows).
- * Shows autocomplete when typing `{{row.` and color-codes Handlebars syntax.
+ * Shows grouped autocomplete on `{{` across all available namespaces.
  */
 export function HbInlineInput(props: Readonly<HbInlineInputProps>) {
   return <HbAutoInput {...props} />;
@@ -760,6 +793,7 @@ interface HbTextareaFieldProps {
   rows?: number;
   schemaSuggestions?: string[];
   schemaSampleRow?: Record<string, string>;
+  filterSuggestions?: string[];
   dictionary?: I18nRecord;
 }
 
@@ -776,6 +810,7 @@ export function HbTextareaField({
   rows = 2,
   schemaSuggestions,
   schemaSampleRow,
+  filterSuggestions,
   dictionary,
 }: Readonly<HbTextareaFieldProps>) {
   return (
@@ -796,6 +831,7 @@ export function HbTextareaField({
         rows={rows}
         schemaSuggestions={schemaSuggestions}
         schemaSampleRow={schemaSampleRow}
+        filterSuggestions={filterSuggestions}
         dictionary={dictionary}
       />
     </div>

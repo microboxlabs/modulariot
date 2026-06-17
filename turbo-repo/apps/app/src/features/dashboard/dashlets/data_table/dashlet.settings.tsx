@@ -25,6 +25,8 @@ import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
+import { useSchemaSuggestions } from "../common/use-schema-suggestions";
 
 export function DashletSettings({
   isOpen,
@@ -37,6 +39,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
+  const filterSuggestions = useDashboardFilterSuggestions();
   const { dataSources } = useDataSources(siteId ?? undefined);
 
   const activeProviders = dataSources.filter(
@@ -79,6 +82,13 @@ export function DashletSettings({
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
+  });
+
+  const schemaSuggestions = useSchemaSuggestions({
+    dataMode: s.dataMode,
+    rowsJson: s.rowsJson,
+    sampleRows: pg.sampleRows,
+    plannerVariableName,
   });
 
   const isDirty = useSettingsDirty(isOpen, {
@@ -196,6 +206,8 @@ export function DashletSettings({
       dataTabChildren={pgrestContent}
       plannerContent={plannerContent}
       handlebarsColorKeys
+      schemaSuggestions={schemaSuggestions}
+      filterSuggestions={filterSuggestions}
       refreshSelect={refresh.selectNode}
       title={dashletName}
       displayOptionsChildren={displayOptions}

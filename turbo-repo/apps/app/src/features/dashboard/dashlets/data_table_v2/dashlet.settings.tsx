@@ -38,6 +38,8 @@ import {
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { useDataSources } from "@/features/data-sources/hooks/use-data-sources";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
+import { useSchemaSuggestions } from "../common/use-schema-suggestions";
 import { SidebarSection } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section";
 
 export function DashletSettings({
@@ -51,6 +53,7 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { siteId } = useDashboard();
+  const filterSuggestions = useDashboardFilterSuggestions();
   const { dataSources } = useDataSources(siteId ?? undefined);
 
   const activeProviders = dataSources.filter(
@@ -111,6 +114,13 @@ export function DashletSettings({
     pgrestHttpMethod: config.pgrestHttpMethod ?? "POST",
     dataSourceId: dataSourceId || undefined,
     ...buildPgrestSettingsConfig(s),
+  });
+
+  const schemaSuggestions = useSchemaSuggestions({
+    dataMode: s.dataMode,
+    rowsJson: s.rowsJson,
+    sampleRows: pg.sampleRows,
+    plannerVariableName,
   });
 
   const isDirty = useSettingsDirty(isOpen, {
@@ -272,6 +282,8 @@ export function DashletSettings({
             onRemoveColorMapping={s.removeColorMapping}
             onUpdateColorMapping={s.updateColorMapping}
             handlebarsColorKeys
+            schemaSuggestions={schemaSuggestions}
+            filterSuggestions={filterSuggestions}
             labels={{
               columns: tr("dashboard.settings.columns", dictionary),
               key: tr("dashboard.settings.key", dictionary),
@@ -319,6 +331,8 @@ export function DashletSettings({
       dictionary={dictionary}
       dataTabChildren={pgrestContent}
       plannerContent={plannerContent}
+      schemaSuggestions={schemaSuggestions}
+      filterSuggestions={filterSuggestions}
       refreshSelect={refresh.selectNode}
       title={dashletName}
       widgetId={widgetId}

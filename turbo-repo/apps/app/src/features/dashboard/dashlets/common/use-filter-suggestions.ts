@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
+import { useDashboard } from "../../context/dashboard-context";
 
 /**
  * Build filter key suggestions for {{filter.*}} autocomplete.
@@ -23,4 +24,10 @@ export function useFilterSuggestions(filters: DashboardFilterParam[]): string[] 
     }
     return [...new Set(keys)];
   }, [filters]);
+}
+
+/** Convenience hook — reads filters from the dashboard context automatically. */
+export function useDashboardFilterSuggestions(): string[] {
+  const { filters } = useDashboard();
+  return useFilterSuggestions(filters);
 }

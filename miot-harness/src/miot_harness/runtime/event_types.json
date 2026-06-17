@@ -8,6 +8,7 @@
     "tool.failed",
     "approval.requested",
     "approval.auto",
+    "steering.mode_denied",
     "artifact.created",
     "plan.created",
     "agent.turn",

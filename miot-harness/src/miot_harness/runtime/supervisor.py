@@ -38,8 +38,12 @@ from miot_harness.agents.meta_agent import (
 )
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
+from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
+from miot_harness.runtime.conversation_policy import ConversationPolicyStore
+from miot_harness.runtime.permissions import PermissionMode, PermissionPolicy
+from miot_harness.runtime.policy import resolve_effective_mode
 from miot_harness.runtime.conversation import (
     ConversationStore,
     ConversationTurn,
@@ -82,6 +86,7 @@ class HarnessSupervisor:
         event_bus: RunEventBus | None = None,
         checkpoint_every_n_events: int = 10,
         approval_registry: ApprovalRegistry | None = None,
+        conversation_policy_store: ConversationPolicyStore | None = None,
     ) -> None:
         self.router = router
         self.tools = tools
@@ -99,6 +104,7 @@ class HarnessSupervisor:
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
         self.approval_registry = approval_registry
+        self.conversation_policy_store = conversation_policy_store
         # Set by the lifespan after boot; None = legacy defaults.
         self.profile: DataSourceProfile | None = None
 
@@ -121,6 +127,9 @@ class HarnessSupervisor:
             ctx = ctx.model_copy(
                 update={"approval_registry": self.approval_registry}
             )
+        settings = get_settings()
+        effective_policy, mode_denied = self._resolve_policy(request, settings=settings)
+        ctx = ctx.model_copy(update={"permission_policy": effective_policy})
         record = HarnessRunRecord(
             run_id=ctx.run_id,
             status="running",
@@ -133,6 +142,15 @@ class HarnessSupervisor:
             self._emit(record, event)
 
         progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
+        if mode_denied:
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="steering.mode_denied",
+                    message="bypass not permitted in this deployment; using default",
+                    data={"requested": "bypass", "effective": "default"},
+                )
+            )
 
         # Route via the LLM router when injected; else fall back to the
         # keyword router (Plan 12 default; the "auto" mode confidence
@@ -340,6 +358,51 @@ class HarnessSupervisor:
             "tags": tags,
             "span_prefix": self.profile.name if self.profile is not None else "datasource",
         }
+
+    def _resolve_policy(
+        self,
+        request: UserRequest,
+        *,
+        settings: HarnessSettings,
+    ) -> tuple[PermissionPolicy, bool]:
+        """Resolve the effective permission policy for this run.
+
+        Precedence: request (mode+rules) -> sticky conversation policy ->
+        DEFAULT. The chosen mode passes through the bypass policy gate; a
+        forbidden bypass is downgraded to DEFAULT with denied=True. Side
+        effect: the resolved policy is persisted as the sticky conversation
+        policy so a later turn that omits mode/rules inherits them.
+        """
+
+        from miot_harness.runtime.permissions import PermissionRule
+
+        requested: PermissionMode | None = None
+        rules: list[PermissionRule] = []
+        if request.permission_mode is not None or request.rules:
+            requested = request.permission_mode or PermissionMode.DEFAULT
+            rules = list(request.rules)
+        elif (
+            self.conversation_policy_store is not None
+            and request.conversation_id
+        ):
+            sticky = self.conversation_policy_store.get(request.conversation_id)
+            if sticky is not None:
+                requested = sticky.mode
+                rules = list(sticky.rules)
+
+        if requested is None:
+            return PermissionPolicy(), False
+
+        effective, denied = resolve_effective_mode(
+            requested, settings=settings, tenant_id=request.tenant_id
+        )
+        policy = PermissionPolicy(mode=effective, rules=rules)
+        if (
+            self.conversation_policy_store is not None
+            and request.conversation_id
+        ):
+            self.conversation_policy_store.set(request.conversation_id, policy)
+        return policy, denied
 
     async def _resolve_route(self, request: UserRequest) -> RouteResult:
         """Use the LLM router when available; else the keyword router.

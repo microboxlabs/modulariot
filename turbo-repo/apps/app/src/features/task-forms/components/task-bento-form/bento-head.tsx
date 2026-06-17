@@ -5,6 +5,11 @@ import { taskShippingBoardMap } from "@/features/shipping/services/data.service"
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import { ShippingCoordinatorProcessFormsV2 } from "../../services/form.service.types";
+import {
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+} from "../../services/form.service";
 import TimeElement from "./time-element";
 import CandidateGroupsElement from "./candidate-groups-element";
 import Link from "next/link";
@@ -140,6 +145,11 @@ export default function BentoHead({
             enableActions={enableActions}
             extraData={task}
             fullDict={dict as unknown as I18nDictionary}
+            strictReviewGating={
+              task.taskFormKey === TYPE_WFSHIP2_MISSION_CONTROL_TASK ||
+              task.taskFormKey === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK ||
+              task.taskFormKey === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK
+            }
           />
         )}
       </div>

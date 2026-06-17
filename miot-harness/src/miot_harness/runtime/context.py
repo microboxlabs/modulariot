@@ -5,6 +5,11 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.permissions import (
+    PermissionMode,
+    PermissionPolicy,
+    PermissionRule,
+)
 
 # The four explicit dispatch surfaces a caller can request. "auto" is the
 # default (LLM intent router decides). The other three bypass the router
@@ -39,6 +44,11 @@ class HarnessContext(BaseModel):
     # The API layer injects this from app.state; CLI/eval paths leave it
     # None and the tool layer treats "ask" as deny when it's unset.
     approval_registry: ApprovalRegistry | None = Field(default=None, exclude=True)
+    # Steering Plan A: the resolved permission posture for this run
+    # (mode + rules), set by the supervisor after the bypass gate. Like
+    # approval_registry, it is excluded from model_dump (PermissionPolicy
+    # is serializable, but it is run-control state, not run output).
+    permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
 
 
 class UserRequest(BaseModel):
@@ -68,8 +78,19 @@ class UserRequest(BaseModel):
     mode: RunMode = "auto"
     conversation_id: str | None = None
     debug: bool = False
+    # Steering Plan A: optional permission posture supplied by the caller.
+    # When omitted, the supervisor falls back to the sticky conversation
+    # policy, then the tenant default.
+    permission_mode: PermissionMode | None = None
+    rules: list[PermissionRule] = Field(default_factory=list)
 
     def to_context(self) -> HarnessContext:
+        policy: PermissionPolicy | None = None
+        if self.permission_mode is not None or self.rules:
+            policy = PermissionPolicy(
+                mode=self.permission_mode or PermissionMode.DEFAULT,
+                rules=list(self.rules),
+            )
         return HarnessContext(
             thread_id=self.thread_id,
             tenant_id=self.tenant_id,
@@ -78,4 +99,5 @@ class UserRequest(BaseModel):
             mode=self.mode,
             conversation_id=self.conversation_id,
             debug=self.debug,
+            permission_policy=policy,
         )

@@ -43,7 +43,6 @@ env:
   IMAGE_NAME: microboxlabs/miot-srv
   JAVA_VERSION: '21'
   JAVA_DISTRIBUTION: 'temurin'
-  MANDREL_IMAGE: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21
 
 jobs:
   # ===========================================================================
@@ -126,7 +125,7 @@ jobs:
       contents: read
 
     container:
-      image: ${{ env.MANDREL_IMAGE }}
+      image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21
       options: --user root
 
     steps:

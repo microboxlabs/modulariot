@@ -115,6 +115,52 @@ async def test_happy_path_mintral_run_emits_answer():
     assert len(final_state["evidence"]) == 1
 
 
+def _visited_agents(final_state: dict[str, Any]) -> list[str]:
+    return [
+        evt.data["agent"]
+        for evt in final_state.get("_events") or []
+        if evt.type == "agent.started"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_happy_path_visits_full_pipeline():
+    """Routing keys (next_action / turn_count / freshness) must survive
+    LangGraph supersteps: the happy path traverses EVERY staged node, not
+    just filter_expert → data_fetcher → synthesizer. Regression for the
+    undeclared-channel bug where freshness_judge and domain_analyst were
+    silently skipped."""
+    registry, _refreshed = _registry_with_centro()
+    settings = HarnessSettings(
+        datasource_freshness_warn_minutes=30,
+        datasource_freshness_refuse_minutes=240,
+    )
+    graph = build_data_graph(
+        registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
+    )
+
+    final_state = await graph.ainvoke(
+        {
+            "user_message": "¿estado operativo de hoy?",
+            "ctx": _ctx(),
+            "evidence": [],
+            "turn_count": 0,
+        }
+    )
+
+    assert _visited_agents(final_state) == [
+        "tenant_gate",
+        "filter_expert",
+        "data_fetcher",
+        "freshness_judge",
+        "domain_analyst",
+        "synthesizer",
+        "critic",
+    ]
+    # turn_count accrued by filter_expert and domain_analyst must persist.
+    assert final_state.get("turn_count") == 2
+
+
 @pytest.mark.asyncio
 async def test_non_mintral_tenant_short_circuits_at_tenant_gate():
     """tenant_gate must produce a refusal WITHOUT invoking any LLM."""
@@ -148,13 +194,18 @@ async def test_non_mintral_tenant_short_circuits_at_tenant_gate():
 @pytest.mark.asyncio
 async def test_stale_data_routes_through_synth_failure_path():
     """Refreshed_at older than refuse threshold → freshness_judge sets
-    failure, supervisor routes to synth, synth renders graceful refusal."""
+    failure, supervisor routes to synth, synth renders the deterministic
+    Spanish refusal WITHOUT asking the LLM."""
     refreshed = datetime(2026, 5, 1, tzinfo=UTC)  # 7+ days stale vs default 240min refuse
     registry = ToolRegistry()
     registry.register(_stub_tool("coordinador_centro_control", refreshed))
     settings = HarnessSettings(datasource_freshness_refuse_minutes=240)
+    models = _models()
+    # An empty-responses synthesizer IndexErrors on any LLM call, proving
+    # the failure path stays deterministic.
+    models["synthesizer"] = FakeListChatModel(responses=[])
     graph = build_data_graph(
-        registry=registry, settings=settings, models=_models(), profile=NEXO_PROFILE
+        registry=registry, settings=settings, models=models, profile=NEXO_PROFILE
     )
 
     initial = {
@@ -165,10 +216,38 @@ async def test_stale_data_routes_through_synth_failure_path():
     }
     final = await graph.ainvoke(initial)
 
-    # Synth failure path emits a localized refusal and never asks the synth model
+    assert "snapshot is stale" in (final.get("failure") or "")
     assert final.get("answer")
-    assert (
-        "stale" in final["answer"].lower()
-        or "snapshot" in final["answer"].lower()
-        or "stale" in (final.get("failure") or "").lower()
+    assert "el snapshot tiene" in final["answer"]
+    assert "minutos" in final["answer"]
+
+
+@pytest.mark.asyncio
+async def test_meta_question_in_canned_mode_lists_capabilities():
+    """Gap 4 e2e: '¿qué puedes hacer?' makes filter_expert return prose
+    (unparseable as a step) → the synthesizer answers with the
+    capabilities list, deterministically (no synth LLM call), instead of
+    the dead-end 'reformúlala' copy."""
+    registry, _ = _registry_with_centro()
+    settings = HarnessSettings()
+    models = _models()
+    models["filter_expert"] = FakeListChatModel(
+        responses=["¡Claro! Puedo ayudarte con varias cosas del Coordinador."]
     )
+    models["synthesizer"] = FakeListChatModel(responses=[])  # any LLM call IndexErrors
+    graph = build_data_graph(
+        registry=registry, settings=settings, models=models, profile=NEXO_PROFILE
+    )
+
+    final = await graph.ainvoke(
+        {
+            "user_message": "¿qué puedes hacer?",
+            "ctx": _ctx(),
+            "evidence": [],
+            "turn_count": 0,
+        }
+    )
+
+    assert final.get("answer")
+    assert "coordinador_centro_control" in final["answer"]
+    assert "reformúlala" not in final["answer"]

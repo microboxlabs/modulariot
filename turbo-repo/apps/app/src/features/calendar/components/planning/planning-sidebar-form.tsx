@@ -20,7 +20,7 @@ import {
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
-import { categorizeIncidencias } from "./incidencias.types";
+import { getDisplayIncidencias } from "./incidencias.types";
 import {
   formatPercent,
   SidebarFormShell,
@@ -128,7 +128,6 @@ export function PlanningSidebarForm({
   isSlotsLoading = false,
   liveTaskStage,
 }: PlanningSidebarFormProps) {
-  const [showAllIncidencias, setShowAllIncidencias] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
   const [selectedServiceCategory, setSelectedServiceCategory] =
@@ -443,18 +442,9 @@ export function PlanningSidebarForm({
     }
   );
 
-  // Categorize incidencias into primary (always visible) and secondary (expandable)
-  const { primary, secondary } = categorizeIncidencias(incidentCodes);
-  const hasIncidencias = primary.length > 0 || secondary.length > 0;
-  // Always reserve up to INLINE_BUDGET inline slots: primary first, then top up with secondary.
-  const INLINE_BUDGET = 2;
-  const inlineSecondaryCount = Math.max(
-    0,
-    Math.min(secondary.length, INLINE_BUDGET - primary.length)
-  );
-  const inlineSecondary = secondary.slice(0, inlineSecondaryCount);
-  const collapsedSecondary = secondary.slice(inlineSecondaryCount);
-  const hasCollapsed = collapsedSecondary.length > 0;
+  // Show only sort-relevant incidencias, in tier order (issue #677).
+  const displayIncidencias = getDisplayIncidencias(incidentCodes);
+  const hasIncidencias = displayIncidencias.length > 0;
 
   // Use real data from selectedService
   const id = selectedService.id;
@@ -523,8 +513,7 @@ export function PlanningSidebarForm({
         {hasIncidencias && (
           <FormSection title={tr("pages.planning.sidebar.form.flags", dict)}>
             <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-              {/* Primary incidencias - always visible */}
-              {primary.map(({ key, config }) => {
+              {displayIncidencias.map(({ key, config }) => {
                 const tooltip =
                   codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
                 return (
@@ -542,66 +531,6 @@ export function PlanningSidebarForm({
                   </Badge>
                 );
               })}
-
-              {/* Inline secondary incidencias - always visible */}
-              {inlineSecondary.map(({ key, config }) => {
-                const tooltip =
-                  codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
-                return (
-                  <Badge
-                    key={key}
-                    size="xs"
-                    color="gray"
-                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
-                    title={tooltip}
-                  >
-                    {config.label}
-                  </Badge>
-                );
-              })}
-
-              {/* Collapsed secondary incidencias - revealed when expanded */}
-              {hasCollapsed &&
-                showAllIncidencias &&
-                collapsedSecondary.map(({ key, config }) => {
-                  const tooltip =
-                    codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
-                  return (
-                    <Badge
-                      key={key}
-                      size="xs"
-                      color="gray"
-                      className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
-                      title={tooltip}
-                    >
-                      {config.label}
-                    </Badge>
-                  );
-                })}
-
-              {/* "+N more" button to expand collapsed secondary incidencias */}
-              {hasCollapsed && !showAllIncidencias && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllIncidencias(true)}
-                  className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-colors"
-                >
-                  {tr("pages.planning.sidebar.form.showMore", dict, {
-                    count: String(collapsedSecondary.length),
-                  })}
-                </button>
-              )}
-
-              {/* "Show less" button when expanded */}
-              {hasCollapsed && showAllIncidencias && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllIncidencias(false)}
-                  className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 cursor-pointer transition-colors"
-                >
-                  {tr("pages.planning.sidebar.form.showLess", dict)}
-                </button>
-              )}
             </div>
           </FormSection>
         )}

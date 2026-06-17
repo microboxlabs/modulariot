@@ -135,3 +135,31 @@ def test_no_refreshed_at_treated_as_warn_not_refuse():
     )
     assert update.get("freshness") == FRESHNESS_WARN
     assert update["next_action"] == "analyze"
+
+
+def test_empty_no_timestamp_warns_with_reason_but_never_refuses():
+    """0 rows + no refreshed_at = probably an unrefreshed snapshot. The
+    judge must warn (with a machine-readable reason) but NOT refuse —
+    refusal is reserved for provably old timestamps."""
+    ev = DataEvidence(
+        step_id="s",
+        tool="coordinador_task_timeline",
+        source="src",
+        refreshed_at=None,
+        output={"rows": []},
+        sample_size=0,
+        is_stale=True,
+        freshness_status="empty_no_timestamp",
+    )
+    state: dict[str, Any] = {"ctx": _ctx(), "evidence": [ev], "turn_count": 1}
+    events: list[HarnessEvent] = []
+
+    update = freshness_judge_node(
+        state, settings=HarnessSettings(), progress=events.append, profile=NEXO_PROFILE
+    )
+
+    assert update.get("freshness") == FRESHNESS_WARN
+    assert "failure" not in update
+    warnings = [e for e in events if e.type == "freshness.warning"]
+    assert len(warnings) == 1
+    assert warnings[0].data.get("reason") == "empty_no_timestamp"

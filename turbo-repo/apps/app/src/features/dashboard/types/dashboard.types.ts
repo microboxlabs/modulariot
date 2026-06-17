@@ -107,6 +107,12 @@ export interface PlannerRequestDefinition {
   schema?: string[];
 }
 
+/** A single selectable option for a "select" filter */
+export interface DashboardFilterOption {
+  label: string;
+  value: string;
+}
+
 /** A filter parameter available in the dashboard filter bar */
 export interface DashboardFilterParam {
   /** URL param key (e.g., "asset_id", "date_range") */
@@ -114,9 +120,11 @@ export interface DashboardFilterParam {
   /** Display label shown in the filter bar */
   label: string;
   /** Filter type */
-  type: "text" | "date_range";
+  type: "text" | "date_range" | "select";
   /** When true, setting this filter clears all other filters */
   unique?: boolean;
+  /** Predefined options (only for type "select") */
+  options?: DashboardFilterOption[];
 }
 
 /** Versioned storage schema for dashboard config (supports migrations) */

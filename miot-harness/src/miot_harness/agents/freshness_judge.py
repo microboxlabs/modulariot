@@ -71,6 +71,20 @@ def freshness_judge_node(
             verdict = FRESHNESS_REFUSE
 
     if verdict in (FRESHNESS_WARN, FRESHNESS_REFUSE):
+        data: dict[str, Any] = {
+            "tool": last.tool,
+            "verdict": verdict,
+            "refreshed_at": last.refreshed_at,
+            "age_minutes": age_minutes,
+        }
+        # Machine-readable cause for the no-timestamp warn zone: lets ops
+        # / SSE consumers distinguish "snapshot looks unrefreshed" from a
+        # plain old timestamp without re-deriving evidence shape.
+        if last.refreshed_at is None and last.freshness_status in (
+            "empty_no_timestamp",
+            "no_timestamp",
+        ):
+            data["reason"] = last.freshness_status
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -79,12 +93,7 @@ def freshness_judge_node(
                     f"Snapshot age {age_minutes if age_minutes is not None else 'unknown'} "
                     f"min ({verdict})"
                 ),
-                data={
-                    "tool": last.tool,
-                    "verdict": verdict,
-                    "refreshed_at": last.refreshed_at,
-                    "age_minutes": age_minutes,
-                },
+                data=data,
             )
         )
 

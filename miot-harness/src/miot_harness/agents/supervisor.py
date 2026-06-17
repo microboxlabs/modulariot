@@ -8,7 +8,6 @@ where to go next; the supervisor enforces invariants on top:
   - turn cap (`settings.agents_max_turns`) → force synthesizer
   - failure flag → synthesizer (it renders a graceful refusal)
   - answer set → END
-  - long transcript → summarizer (>10 messages)
 
 The intent is to keep cost predictable in v1 while leaving the seat
 open for an LLM-based supervisor (`agents_supervisor_mode='llm'`) once
@@ -38,10 +37,6 @@ def next_agent(state: dict[str, Any], settings: HarnessSettings) -> str:
     turn_count = int(state.get("turn_count", 0))
     if turn_count >= settings.agents_max_turns:
         return "synthesizer"
-
-    messages = state.get("messages") or []
-    if len(messages) > 10:
-        return "summarizer"
 
     next_action = state.get("next_action")
     if next_action == "judge_freshness":

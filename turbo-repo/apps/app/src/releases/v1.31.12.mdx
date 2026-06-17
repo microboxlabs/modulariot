@@ -1,0 +1,64 @@
+# 🔔 Release Notes v1.31.12 — ModularIoT
+
+### Fecha: 16/06/2026
+
+**Objetivo**: Esta versión amplía las capacidades de visualización y filtrado de dashboards, refuerza el razonamiento multironda del ASK MIOT Harness, mejora los flujos de revisión multimedia y moderniza la infraestructura de ejecución migrando CI y runtime a Node.js 24.
+
+## 🚀 Evolutivos
+
+- **📍 Barra de filtros configurable en dashboards**
+  - **Punto clave**: Se rediseñó la configuración de filtros (`FilterManagerForm`) con tarjetas colapsables y se añadió `DashboardFiltersCard`, soportando filtros de texto, rango de fechas (parámetros `_from` / `_to`) y selección con opciones configurables. *(Integración OSS — MIOT-0.5.13)*
+  - **Detalle técnico**: Los valores se mantienen como borrador local y se vuelcan a parámetros de URL solo al aplicar; la configuración persiste en Alfresco compartida entre usuarios, con todas las cadenas localizadas en `en.json` / `es.json`.
+
+- **📍 Soporte de múltiples series en el dashlet de gráficos**
+  - **Punto clave**: El dashlet de gráficos ahora permite configurar varias series dentro de un mismo gráfico, con tipos mixtos (por ejemplo barra + línea) y fuente de datos, color y etiqueta independientes por serie. *(Integración OSS — MIOT-0.5.13)*
+  - **Detalle técnico**: El comportamiento de serie única se mantiene como predeterminado y compatible hacia atrás, sin requerir migración de los dashlets existentes.
+
+- **📍 Scratchpad para agentes del Harness**
+  - **Punto clave**: Se incorporó un sistema de archivos virtual privado que permite a los agentes escribir, leer, listar y editar notas de trabajo a lo largo de los turnos de una conversación, sacando la memoria de trabajo fuera del prompt. *(Integración OSS — MIOT-0.5.13)*
+  - **Detalle técnico**: El scratchpad está particionado por conversación, es virtual en v1 (sin disco, sin fugas entre inquilinos), con memoria acotada y expulsión LRU; se expone en el catálogo de herramientas respetando la barrera de seguridad del planificador y retorna resultados estructurados ante fallos.
+
+- **📍 Revisión multimedia instantánea con modal de resumen**
+  - **Punto clave**: Aprobar/Rechazar ahora dispara la llamada a la API al instante con actualización optimista (con reversión y toast de error si falla), eliminando el flujo de dos pasos y el botón de confirmación. *(Integración OSS — MIOT-0.5.13)*
+  - **Detalle técnico**: Cada decisión persiste vía `updateBentoReviewState` y `createContentForumTopic` en Alfresco; la acción "Continuar" abre un modal de resumen (`GoBackModal`) con documentos aprobados y rechazados, y se rehidrata el estado al recargar mediante revalidación SWR.
+
+- **📍 Mejoras en la barra lateral de propiedades y cabecera del visor multimedia**
+  - **Punto clave**: La barra lateral separa ahora "Propiedades" (metadatos de archivo) de "Actividad" (historial de auditoría con insignias en línea), y la cabecera del visor muestra el evento más reciente entre una decisión de revisión y una modificación de archivo. *(Integración OSS — MIOT-0.5.13)*
+  - **Detalle técnico**: La insignia de categoría/tipo se muestra antes del nombre de archivo en `MediaRow`, con nombres legibles y palabras conectoras atenuadas para mejorar la lectura del contexto.
+
+- **📍 Tarjeta de bienvenida de miot-chat con la mascota búho**
+  - **Punto clave**: La tarjeta de bienvenida ahora renderiza la mascota búho como arte de matriz de puntos braille, centrada en ambos ejes y con re-centrado en vivo al redimensionar la terminal. *(Integración OSS — MIOT-0.5.13)*
+  - **Detalle técnico**: El logo usa tokens de tema para la identidad de color (plumas azules, cresta naranja, disco facial blanco) y rasgos como espacio negativo para conservar legibilidad en monocromo; las filas se rellenan con braille en blanco (U+2800) para mantener bordes alineados en fuentes con métricas de ancho ambiguo.
+
+## 🔧 Integraciones
+
+- **🔌 Migración de CI y runtime a Node.js 24**
+  - **Alcance**: Se migraron las rutas de CI, release, publicación y runtime de la aplicación a Node.js 24, actualizando las GitHub Actions de primera parte a majors compatibles, moviendo las versiones de workflow de 22 a 24, actualizando las imágenes base Docker a Node 24 y ajustando el engine de Node del monorepo Turbo, en respuesta a la deprecación del runtime Node.js 20. *(Integración OSS — MIOT-0.5.13)*
+
+## 🐛 Correcciones
+
+- **🐛 Restauración del formulario de edición de ETA en el modal GoBack**
+  - **Impacto**: La capacidad de editar el ETA se perdió tras enrutar todas las acciones secundarias por el `GoBackModal` genérico, dejando sin formulario de ETA la tarea de confirmación de llegada. *(Integración OSS — MIOT-0.5.13)*
+  - **Solución**: Se añadió el indicador `showEtaEdit` a las opciones secundarias para renderizar los campos de ETA en línea como tarjeta dentro del modal, guardando las propiedades vía `updateTaskProperties` antes de la transición; además se reemplazó el `Select` nativo por un `Dropdown` de Flowbite en los campos de selección.
+
+- **🐛 Cierre de brechas del Harness en la revisión beta del cliente**
+  - **Impacto**: La revisión beta concluyó que el harness operaba a ~50% de su potencial: el modo `agentic` no ejecutaba funciones de datos reales, la frescura de los snapshots era inconsistente, `coordinador_task_timeline` devolvía vacío para un servicio válido y el modo `canned` no atendía meta-preguntas. *(Integración OSS — MIOT-0.5.13)*
+  - **Solución**: Se incorporó un ejecutor agentic real con planificador por turno, juicio de frescura, tope de turnos configurable y registro de procedencia; se distinguió por evidencia el estado de frescura (fresco/obsoleto/sin marca de tiempo/sin filas/snapshot nunca refrescado) con mensajería precisa en español; se corrigió el tipado de argumentos `p_*` para ids; y el modo `canned` ahora responde con el catálogo de capacidades cuando falla la planificación.
+
+## 📊 Beneficios
+
+- Filtrado de dashboards más rico y flexible para fuentes de datos parametrizadas, con configuración compartida y persistente entre usuarios.
+- Comparación visual de métricas relacionadas en un mismo gráfico gracias al soporte de múltiples series, manteniendo compatibilidad con los dashlets existentes.
+- Razonamiento multironda más eficiente y económico en el Harness al mover la memoria de trabajo fuera del prompt y reducir el consumo de tokens.
+- Respuestas de datos más confiables y predecibles, con ejecución real de herramientas y mensajería honesta sobre la frescura de los datos.
+- Flujos de revisión multimedia más rápidos y claros, con confirmación instantánea, resumen de decisiones y mejor contexto de auditoría.
+- Experiencia de bienvenida de miot-chat más pulida y reconocible, robusta en terminales monocromas y con métricas de fuente no estándar.
+- Infraestructura de CI y runtime al día con Node.js 24, eliminando advertencias de deprecación y asegurando soporte futuro de los runners.
+
+## 📌 Conclusión
+
+La versión 1.31.12 consolida avances significativos en la capa de experiencia de usuario y en la inteligencia operativa de la plataforma. Las mejoras en dashboards —filtros configurables y múltiples series— amplían la capacidad de análisis visual, mientras que los flujos de revisión multimedia ganan inmediatez y claridad, reduciendo la fricción en las tareas cotidianas de los operadores.
+
+En el plano del ASK MIOT Harness, esta entrega cierra brechas clave detectadas en la revisión beta del cliente y suma un scratchpad de memoria de trabajo, acercando al asistente a su potencial real con ejecución efectiva de herramientas y mensajería transparente sobre la frescura de los datos.
+
+Finalmente, la migración a Node.js 24 sienta una base de infraestructura sostenible para el futuro, evitando interrupciones por deprecación de runtimes y manteniendo CI, publicación y runtime alineados con las plataformas de ejecución vigentes.

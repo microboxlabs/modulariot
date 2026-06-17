@@ -28,6 +28,7 @@ from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.loader import boot_context_skills
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
+from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -149,6 +150,17 @@ def _make_lifespan(
         app.state.datasource_enabled = result.enabled
         app.state.datasource_registered = list(result.registered)
         app.state.datasource_snapshot_age_minutes = result.snapshot_age_minutes
+        # Per-function freshness survey (Gap 2) — JSON-ready for /health.
+        app.state.datasource_freshness = {
+            name: {
+                "status": probe.status,
+                "age_minutes": probe.age_minutes,
+                "refreshed_at": (
+                    probe.refreshed_at.isoformat() if probe.refreshed_at else None
+                ),
+            }
+            for name, probe in result.freshness.items()
+        }
 
         # Context & Skills subsystem (file-backed now; API-backed later).
         # Loaded AFTER the datasource boot (so connector tool names can
@@ -243,15 +255,24 @@ def _make_lifespan(
                         # planner; same model pool, same callbacks.
                         "planner": get_chat_model(settings.agents_analyst_model),
                     },
-                    provenance_log=None,  # wired in F-phase when executor lands
+                    provenance_log=ProvenanceLog(
+                        settings.provenance_log_dir,
+                        enabled=settings.provenance_log_enabled,
+                    ),
+                    # effective_profile = provider.profile with the global
+                    # system-context block folded into its primer.
                     profile=effective_profile,
+                    registry=harness.tools,
                 )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
                     thinking_budget_tokens=synth_thinking_budget,
                 )
                 harness.meta_primer = effective_profile.primer
-                harness.meta_catalog = [
+                # Descriptor-derived entries (title/layer/body + freshness
+                # suffix) when the provider supplies them; generic
+                # fallback otherwise so the meta agent never goes blind.
+                harness.meta_catalog = list(result.catalog_entries) or [
                     MetaAgentCatalogEntry(
                         name=name,
                         layer="L*",
@@ -295,6 +316,7 @@ def _make_lifespan(
                 app.state.datasource_enabled = False
                 app.state.datasource_registered = []
                 app.state.datasource_snapshot_age_minutes = None
+                app.state.datasource_freshness = {}
                 harness.data_graph = None
                 harness.agentic_graph = None
                 harness.meta_model = None
@@ -504,6 +526,7 @@ def create_app() -> FastAPI:
                 "enabled": app.state.datasource_enabled,
                 "tools": list(app.state.datasource_registered),
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
+                "freshness": getattr(app.state, "datasource_freshness", {}),
             },
             "context_skills": {
                 "connector_tools": list(
@@ -551,6 +574,7 @@ def create_app() -> FastAPI:
                 "enabled": enabled,
                 "tools": list(app.state.datasource_registered),
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
+                "freshness": getattr(app.state, "datasource_freshness", {}),
             },
         }
 

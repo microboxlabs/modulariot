@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import type { IconType } from "react-icons";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { PgrestDashletFields, useDashletPgrest } from "../common/use-dashlet-pgrest";
@@ -185,6 +186,16 @@ function normalizeGoToUrl(rawUrl: string): string {
   return `/${trimmed}`;
 }
 
+// Next.js basePath — Link adds this automatically, so strip it from user-supplied URLs
+const BASE_PATH = "/app";
+
+/** Strip the basePath prefix so Next.js Link doesn't double-prepend it */
+function toRouterPath(url: string): string {
+  if (url.startsWith(BASE_PATH + "/")) return url.slice(BASE_PATH.length);
+  if (url === BASE_PATH) return "/";
+  return url;
+}
+
 /** Common KpiStat props builder */
 interface KpiStatPropsInput {
   iconConfig: { icon: IconType; style: React.CSSProperties } | undefined;
@@ -333,10 +344,14 @@ function renderStatCard(
   kpiProps: ReturnType<typeof buildKpiStatProps>,
   interactiveClasses: string
 ): React.ReactNode {
+  const isInternal = goToUrl.startsWith("/");
+  const NavWrapper = isInternal ? Link : "a";
+  const linkHref = isInternal ? toRouterPath(goToUrl) : goToUrl;
+
   if (expandable && hasGoToLink) {
     return (
-      <a
-        href={goToUrl}
+      <NavWrapper
+        href={linkHref}
         className="block h-full w-full"
         style={{ containerType: "size" }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -346,7 +361,7 @@ function renderStatCard(
           className={`h-full ${interactiveClasses}`}
           scalable
         />
-      </a>
+      </NavWrapper>
     );
   }
 
@@ -360,8 +375,8 @@ function renderStatCard(
 
   if (hasGoToLink) {
     return (
-      <a
-        href={goToUrl}
+      <NavWrapper
+        href={linkHref}
         className="block h-full w-full"
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -369,7 +384,7 @@ function renderStatCard(
           {...kpiProps}
           className={`h-full text-2xl ${interactiveClasses}`}
         />
-      </a>
+      </NavWrapper>
     );
   }
 

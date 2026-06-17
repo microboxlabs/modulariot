@@ -117,24 +117,32 @@ export function getIncidenciaConfig(keyOrLabel: string): Required<IncidenciaConf
 }
 
 /**
- * Sort incidencias by priority and split into primary/secondary groups
+ * Whether an incident code participates in the calendar planning sort.
+ *
+ * Mirrors ecm-coordinator `MintralModel.INCIDENT_TIER_BY_CODE`: only codes
+ * with an explicit tier — C309 (1); C307/C314/C319/C320/C326/C329 (2);
+ * C308 (3) — are sort-relevant. Everything else falls to the default tier
+ * and is intentionally hidden in the planner (issue #677).
  */
-export function categorizeIncidencias(incidencias: string[]): {
-  primary: Array<{ key: string; config: Required<IncidenciaConfig> }>;
-  secondary: Array<{ key: string; config: Required<IncidenciaConfig> }>;
-} {
-  const withConfig = incidencias.map((key) => ({
-    key,
-    config: getIncidenciaConfig(key),
-  }));
-
-  // Sort by priority
-  withConfig.sort((a, b) => a.config.priority - b.config.priority);
-
-  const primary = withConfig.filter((i) => i.config.visibility === "primary");
-  const secondary = withConfig.filter(
-    (i) => i.config.visibility === "secondary"
+export function isSortingRelevant(keyOrLabel: string): boolean {
+  return (
+    getIncidenciaConfig(keyOrLabel).priority !==
+    DEFAULT_INCIDENCIA_CONFIG.priority
   );
+}
 
-  return { primary, secondary };
+/**
+ * The incidencias to render in the planner, in sort (tier) order.
+ *
+ * Only sort-relevant codes are returned, so the sidebar and grid chips show
+ * exactly the flags the backend sort ranks on — and nothing else. Non-tiered
+ * incident codes carried by a service are dropped here.
+ */
+export function getDisplayIncidencias(
+  incidencias: string[]
+): Array<{ key: string; config: Required<IncidenciaConfig> }> {
+  return incidencias
+    .filter(isSortingRelevant)
+    .map((key) => ({ key, config: getIncidenciaConfig(key) }))
+    .sort((a, b) => a.config.priority - b.config.priority);
 }

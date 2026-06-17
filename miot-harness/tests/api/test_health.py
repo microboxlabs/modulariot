@@ -39,6 +39,7 @@ def test_health_default_nexo_disabled() -> None:
         "enabled": False,
         "tools": [],
         "snapshot_age_minutes": None,
+        "freshness": {},
     }
 
 
@@ -66,6 +67,7 @@ def test_health_reflects_simulated_nexo_enabled_state() -> None:
             "coordinador_servicios",
         ],
         "snapshot_age_minutes": 12.5,
+        "freshness": {},
     }
 
 
@@ -83,6 +85,7 @@ def test_health_ready_without_datasource_dsn_is_ready() -> None:
         "enabled": False,
         "tools": [],
         "snapshot_age_minutes": None,
+        "freshness": {},
     }
 
 
@@ -144,4 +147,28 @@ def test_health_ready_reflects_simulated_nexo_enabled_state(
         "enabled": True,
         "tools": ["coordinador_centro_control"],
         "snapshot_age_minutes": 7.5,
+        "freshness": {},
     }
+
+
+def test_health_exposes_per_function_freshness() -> None:
+    """Gap 2: ops must see which functions are fresh vs stale in /health
+    without running a single data query."""
+    app = create_app()
+    with TestClient(app) as client:
+        app.state.datasource_freshness = {
+            "fn_dx_centro_control": {
+                "status": "fresh",
+                "age_minutes": 12.0,
+                "refreshed_at": "2026-06-11T14:33:00+00:00",
+            },
+            "fn_dx_task_timeline": {
+                "status": "empty_no_timestamp",
+                "age_minutes": None,
+                "refreshed_at": None,
+            },
+        }
+        body = client.get("/health").json()
+    freshness = body["datasource"]["freshness"]
+    assert freshness["fn_dx_centro_control"]["status"] == "fresh"
+    assert freshness["fn_dx_task_timeline"]["status"] == "empty_no_timestamp"

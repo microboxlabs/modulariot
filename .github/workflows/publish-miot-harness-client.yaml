@@ -23,7 +23,7 @@ jobs:
       id-token: write          # OIDC for npm trusted publishers
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Honor a manual-dispatch tag only when it's a real
           # miot-harness-client@v* tag; otherwise fall back to the triggering
@@ -32,7 +32,7 @@ jobs:
           ref: ${{ startsWith(inputs.tag, 'miot-harness-client@v') && inputs.tag || github.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org

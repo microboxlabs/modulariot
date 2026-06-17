@@ -24,7 +24,7 @@ env:
   APP_IMAGE_NAME: miot-app
   MODULITH_IMAGE_NAME: miot-srv
   JAVA_VERSION: "21"
-  RELEASE_NOTES_MODEL: claude-opus-4.8
+  RELEASE_NOTES_MODEL: auto
   RELEASE_NOTES_CONTEXT: long_context
 
 jobs:

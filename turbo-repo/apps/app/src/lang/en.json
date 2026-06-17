@@ -980,6 +980,7 @@
         "reason": "Reason",
         "confirm": "Confirm move to {outcome}",
         "multipleReasonsSelected": "options selected",
+        "selectOptions": "Select options",
         "rejectedGuide": "Rejected guide",
         "rejectedGuideDesc": "The guide document presents errors or is incomplete",
         "rejectedLeftSide": "Left side rejected",
@@ -1112,6 +1113,7 @@
         "confirm": "Confirm move to {outcome}",
         "reason": "Reason",
         "multipleReasonsSelected": "options selected",
+        "selectOptions": "Select options",
         "etaModeLabel": "Arrival Calculation Mode",
         "etaModeCalculated": "Calculated (ETA Automatic)",
         "etaModeManual": "Manual Arrival Time",
@@ -1198,7 +1200,8 @@
         "reason6": "Authorized by Overlord of transport.",
         "reason7": "Other.",
         "reason": "Reason",
-        "confirm": "Confirm move to {outcome}"
+        "confirm": "Confirm move to {outcome}",
+        "selectOptions": "Select options"
       }
     },
     "historicalTaskView": {

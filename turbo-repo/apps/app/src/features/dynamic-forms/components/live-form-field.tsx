@@ -84,7 +84,7 @@ export function LiveFormField({
 
   if (error) {
     return (
-      <div className="text-red-600 dark:text-red-400 text-sm p-2">
+      <div className="text-red-600 dark:text-red-400 text-sm">
         {errorMessage}
       </div>
     );

@@ -76,6 +76,7 @@ export default function TaskActions({
   fluid = false,
   extraData,
   fullDict,
+  strictReviewGating = false,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
@@ -177,9 +178,10 @@ export default function TaskActions({
   const showDocumentWarning = !documentsValid && !documentsLoading;
 
   const { state: reviewState } = useBentoReview();
-  // pending > 0 → disable everything; rejected > 0 (no pending) → disable only continue
+  // pending always blocks all movement.
+  // rejected blocks continue only in strict mode (iniciar viaje / confirmar entrega / confirmar recepción).
   const reviewBlocksAll = reviewState.pending > 0;
-  const reviewBlocksContinue = reviewState.pending === 0 && reviewState.rejected > 0;
+  const reviewBlocksContinue = strictReviewGating && reviewState.pending === 0 && reviewState.rejected > 0;
 
   const makeTooltip = (reasons: string[]) => reasons.length === 0 ? undefined : (
     <ul className="flex flex-col gap-1 text-xs">
@@ -262,6 +264,9 @@ export default function TaskActions({
           openModal={openModal}
           setOpenModal={setOpenModal}
           extraData={extraData}
+          approvedItems={reviewState.approvedItems}
+          rejectedItems={reviewState.rejectedItems}
+          lang={lang}
         />
       </GroupAllowed>
     </div>

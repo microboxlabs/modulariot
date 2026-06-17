@@ -6,6 +6,7 @@ import {
   TaskOutcomeV2,
 } from "../../services/form.service.types";
 import type { DynamicFormConfig } from "@/features/dynamic-forms";
+import type { ApprovedItem, RejectedItem } from "../task-bento-form/bento-review-context";
 
 export type TaskConfirmModalProps = {
   taskId: string;
@@ -20,6 +21,9 @@ export type TaskConfirmModalProps = {
   outcomeLabel?: string;
   taskType?: string;
   extraData?: Record<string, any>;
+  approvedItems?: ApprovedItem[];
+  rejectedItems?: RejectedItem[];
+  lang?: string;
 };
 
 export type ErrorWithAlfrescoError = Error & {

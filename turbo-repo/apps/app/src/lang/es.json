@@ -980,6 +980,7 @@
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}",
         "multipleReasonsSelected": "opciones seleccionadas",
+        "selectOptions": "Seleccionar opciones",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
         "rejectedLeftSide": "Lado izquierdo rechazado",
@@ -1112,6 +1113,7 @@
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}",
         "multipleReasonsSelected": "opciones seleccionadas",
+        "selectOptions": "Seleccionar opciones",
         "etaModeLabel": "Modo de Cálculo de Arribo",
         "etaModeCalculated": "Calculado (ETA Automático)",
         "etaModeManual": "Hora de Arribo Manual",
@@ -1198,7 +1200,8 @@
         "reason6": "Autorizada por Overlord de transporte.",
         "reason7": "Otro.",
         "reason": "Motivo",
-        "confirm": "Confirmar mover a {outcome}"
+        "confirm": "Confirmar mover a {outcome}",
+        "selectOptions": "Seleccionar opciones"
       }
     },
     "historicalTaskView": {

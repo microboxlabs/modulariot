@@ -267,13 +267,26 @@ export function isImageEntry(entry: AlfrescoFileEntry): boolean {
   return ext ? ALLOWED_IMAGE_EXTENSIONS.has(ext) : false;
 }
 
+function getBaseName(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return (dot === -1 ? name : name.slice(0, dot)).toLowerCase();
+}
+
 function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
   const validFiles = files.filter((file) => ALLOWED_FILE_TYPES.has(file.type));
   if (validFiles.length !== files.length) {
     alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
     return null;
   }
-  return validFiles;
+  // iOS sometimes sends a PNG preview alongside a PDF when picking from Files.
+  // Drop any PNG whose base name matches an existing PDF in the same batch.
+  const pdfBaseNames = new Set(
+    validFiles.filter((f) => f.type === "application/pdf").map((f) => getBaseName(f.name))
+  );
+  if (pdfBaseNames.size === 0) return validFiles;
+  return validFiles.filter(
+    (f) => f.type !== "image/png" || !pdfBaseNames.has(getBaseName(f.name))
+  );
 }
 
 export function extractImageUrlFromDrop(dataTransfer: DataTransfer): string | null {

@@ -1,0 +1,42 @@
+# 🔔 Release Notes v1.31.15 — ModularIoT
+
+### Fecha: 17/06/2026
+
+**Objetivo**: Esta versión consolida capacidades base para escalar ModularIoT en telemetría, multi-tenancy y arquitectura modular. El foco estuvo en habilitar integraciones más seguras y una evolución técnica sostenible entre componentes OSS y plataforma.
+
+## 🚀 Evolutivos
+
+- **📍 Telemetría vehicular estandarizada con `miot.metrics@1.0`** *(Integración OSS — MIOT-0.1.0)*
+  - **Key point**: Se incorporó soporte del sobre de métricas en el modelo (`metrics` opcional en `AssetTrackingData`) y se estableció un registro canónico v1 para validar claves, tipos, unidades y rangos.
+  - **Technical detail**: El alcance conecta librería de modelo, validación de 31 métricas canónicas y diseño de ingesta dedicada para desacoplar métricas de la ruta GPS tradicional.
+
+- **📍 Arquitectura multi-cliente para asset tracking** *(Integración OSS — MIOT-0.1.0)*
+  - **Key point**: Se implementó una arquitectura de datos multi-cliente para asociar un activo a múltiples clientes sin duplicar lógica de negocio.
+  - **Technical detail**: Se añadieron tablas de mapeo y flujo de persistencia con particionamiento y automatización operativa para mantener escalabilidad.
+
+- **📍 Base modular de código en `miot-coordinator`** *(Integración OSS — MIOT-0.1.0)*
+  - **Key point**: Se reemplazó la estructura demo por una arquitectura modular (`core`, `feature`, `integration`, `platform`) preparada para crecimiento por dominios.
+  - **Technical detail**: Se incorporó shell de plataforma, endpoint de healthcheck y reorganización de contextos Spring para facilitar evolución y futura extracción de módulos.
+
+## 🔧 Integraciones
+
+- **🔌 Compatibilidad legacy de login en `api.microboxlabs.com`** *(Integración OSS — MIOT-0.1.0)*
+  - **Scope**: Se habilitó un ingress específico para enrutar `POST /api/v1/login` hacia Auth0 con reescritura de ruta, TLS y CORS, preservando compatibilidad con clientes existentes durante la migración de infraestructura.
+
+- **🔌 Aislamiento multi-cliente en funciones de overview** *(Integración OSS — MIOT-0.1.0)*
+  - **Scope**: Se reforzó el filtrado por cliente y control de acceso en funciones de mapa e histórico para evitar exposición cruzada de datos entre tenants.
+
+## 📊 Beneficios
+
+- Mayor capacidad para incorporar telemetría OBD/CAN con contrato común y validaciones consistentes.
+- Menor riesgo operativo al migrar dominios legacy sin romper integraciones existentes.
+- Mejor aislamiento de datos entre clientes en consultas críticas de overview.
+- Base de datos más preparada para crecimiento por particiones y mantenimiento automatizado.
+- Arquitectura de código más limpia y extensible para acelerar nuevas funcionalidades.
+- Mejor alineación entre componentes OSS y evolución de la plataforma ModularIoT.
+
+## 📌 Conclusión
+
+La versión 1.31.15 fortalece cimientos técnicos clave: telemetría estandarizada, separación multi-cliente y modularización del coordinador. Esto reduce deuda estructural y mejora la capacidad de evolución del ecosistema.
+
+En términos de operación, el release combina continuidad (compatibilidad legacy de login) con mejoras de seguridad y escalabilidad en datos. El resultado es una plataforma más robusta para soportar expansión funcional y de volumen en próximos ciclos.

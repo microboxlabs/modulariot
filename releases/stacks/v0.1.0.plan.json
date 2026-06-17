@@ -1,0 +1,19 @@
+{
+  "stack_version": "0.1.0",
+  "stack_tag": "miot-stack@v0.1.0",
+  "milestone": "MIOT-0.1.0",
+  "pull_requests": [],
+  "changed_files": [],
+  "components": {
+    "app": {
+      "changed": false,
+      "version": "0.5.15",
+      "tag": "app@v0.5.15"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.15",
+      "tag": "modulith@v0.5.15"
+    }
+  }
+}

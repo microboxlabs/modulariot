@@ -17,6 +17,12 @@ import { Button } from "flowbite-react";
 import { FaRegEye } from "react-icons/fa";
 import { TaskOwnerDisplay } from "./task-owner-display";
 
+const STRICT_REVIEW_GATING_TASKS = [
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+] as const;
+
 const task_states = {
   assignDriver: "planificado",
   presentDriver: "asignado",
@@ -145,11 +151,7 @@ export default function BentoHead({
             enableActions={enableActions}
             extraData={task}
             fullDict={dict as unknown as I18nDictionary}
-            strictReviewGating={
-              task.taskFormKey === TYPE_WFSHIP2_MISSION_CONTROL_TASK ||
-              task.taskFormKey === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK ||
-              task.taskFormKey === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK
-            }
+            strictReviewGating={STRICT_REVIEW_GATING_TASKS.includes(task.taskFormKey as never)}
           />
         )}
       </div>

@@ -180,7 +180,7 @@ export default function GoForwardModal({
   }
 
   async function handleConfirm(
-    e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+    e?: React.SyntheticEvent<HTMLFormElement>
   ) {
     e?.preventDefault();
     setIsProcessing(true);
@@ -204,7 +204,7 @@ export default function GoForwardModal({
     try {
       const formData = prepareFormData({
         taskId,
-        outcome: outcome as string,
+        outcome,
         comments,
         taskType: taskType ?? "",
         selectedValues,
@@ -270,7 +270,7 @@ export default function GoForwardModal({
     ...formValues,
   };
 
-  const formDict = (etaModalDict ?? (dict.modal as I18nRecord | undefined) ?? dict) as I18nRecord;
+  const formDict = etaModalDict ?? (dict.modal as I18nRecord | undefined) ?? dict;
 
   return (
     <Modal

@@ -11,8 +11,13 @@ Directory layout (a packaged default dir, or a mounted ConfigMap):
         tenants/<tenant_id>/**/*.yaml  -> per-tenant skill manifests
 
 The *directory* is authoritative for scope: a doc under
-`tenants/<id>/` is tenant-scoped to `<id>` regardless of what its file
-says (a conflicting in-file scope yields a warning, not a failure).
+`tenants/<id>/` is tenant-scoped to `<id>`. Any `scope` declared inside
+the file itself is ignored (manifests may still declare it for
+readability — the directory always wins).
+
+Paths whose components start with a dot are skipped: Kubernetes projects
+a ConfigMap/Secret volume with internal `..data` / `..2026_...` symlinks
+that would otherwise double-ingest every manifest.
 
 Every file is parsed in isolation: one malformed file becomes a
 `LoadDiagnostic` and the rest still load. A missing base dir yields an
@@ -44,6 +49,20 @@ from miot_harness.context_skills.source import (
 
 _TENANTS_DIR = "tenants"
 _SKILL_ADAPTER: TypeAdapter[Skill] = TypeAdapter(Skill)
+
+
+def _is_hidden(path: Path, base_dir: Path) -> bool:
+    """True if any path component under `base_dir` starts with a dot.
+
+    Excludes Kubernetes projected-volume internals (`..data`,
+    `..2026_06_17_...`) and any dotfile, so a mounted ConfigMap doesn't
+    double-ingest every manifest through its symlinked snapshot dir.
+    """
+    try:
+        parts = path.relative_to(base_dir).parts
+    except ValueError:
+        return False
+    return any(part.startswith(".") for part in parts)
 
 
 def _scope_for(path: Path, base_dir: Path) -> ContextScope:
@@ -89,6 +108,8 @@ class FileContextSource(ContextSource):
         contexts: list[SystemContext] = []
         diagnostics: list[LoadDiagnostic] = []
         for path in sorted(base.rglob("*")):
+            if _is_hidden(path, base):
+                continue
             if not path.is_file() or path.suffix.lower() not in {".yaml", ".yml", ".md"}:
                 continue
             try:
@@ -133,6 +154,8 @@ class FileSkillSource(SkillSource):
         skills: list[LoadedSkill] = []
         diagnostics: list[LoadDiagnostic] = []
         for path in sorted(base.rglob("*")):
+            if _is_hidden(path, base):
+                continue
             if not path.is_file() or path.suffix.lower() not in {".yaml", ".yml"}:
                 continue
             try:
@@ -158,6 +181,20 @@ class FileSkillSource(SkillSource):
         if not isinstance(skill, PlaybookSkill) or skill.playbook_ref is None:
             return None
         ref = (path.parent / skill.playbook_ref).resolve()
+        # Containment guard: a manifest must not read files outside its own
+        # directory via `../` or an absolute playbook_ref.
+        try:
+            ref.relative_to(path.parent.resolve())
+        except ValueError:
+            diagnostics.append(
+                LoadDiagnostic(
+                    str(path),
+                    "warning",
+                    f"playbook_ref {skill.playbook_ref!r} escapes the manifest "
+                    "directory; ignored",
+                )
+            )
+            return None
         try:
             return ref.read_text(encoding="utf-8").strip()
         except OSError as exc:

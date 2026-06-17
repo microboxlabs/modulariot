@@ -19,7 +19,7 @@ def _client(handler: object) -> httpx.AsyncClient:
 
 
 @pytest.mark.asyncio
-async def test_readonly_get_executes_and_binds_placeholder() -> None:
+async def test_readonly_get_executes_and_binds_placeholder(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -49,14 +49,9 @@ async def test_readonly_get_executes_and_binds_placeholder() -> None:
     perm = await tool.check_permission(_ctx(), tool.input_model(item_id="x"))
     assert perm.decision == PermissionDecision.ALLOW
 
-    import os
-
-    os.environ["PING_TOKEN"] = "secret-123"
-    try:
-        events: list[HarnessEvent] = []
-        output = await tool.invoke(_ctx(), {"item_id": "42"}, events.append)
-    finally:
-        del os.environ["PING_TOKEN"]
+    monkeypatch.setenv("PING_TOKEN", "secret-123")
+    events: list[HarnessEvent] = []
+    output = await tool.invoke(_ctx(), {"item_id": "42"}, events.append)
 
     assert captured["url"] == "https://api.example/items/42"
     assert captured["auth"] == "secret-123"
@@ -90,6 +85,25 @@ def test_non_absolute_url_rejected() -> None:
         kind="http", id="s", tool_name="x", url="/relative/path"
     )
     with pytest.raises(ValueError, match="absolute"):
+        build_http_tool(skill, name="skill_x", source_label="skill:s")
+
+
+def test_non_http_scheme_rejected() -> None:
+    skill = HttpConnectorSkill(
+        kind="http", id="s", tool_name="x", url="file://etc/passwd"
+    )
+    with pytest.raises(ValueError, match="http or https"):
+        build_http_tool(skill, name="skill_x", source_label="skill:s")
+
+
+def test_sensitive_header_mixed_content_rejected() -> None:
+    # A literal prefix next to a ${VAR} ref must not slip a plaintext
+    # secret through; the whole value has to be a single ${VAR} reference.
+    skill = HttpConnectorSkill(
+        kind="http", id="s", tool_name="x", url="https://api.example/x",
+        headers={"Authorization": "leaked-secret ${TOKEN}"},
+    )
+    with pytest.raises(ValueError, match="sensitive"):
         build_http_tool(skill, name="skill_x", source_label="skill:s")
 
 

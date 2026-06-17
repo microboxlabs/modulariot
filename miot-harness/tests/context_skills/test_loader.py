@@ -62,6 +62,35 @@ def test_duplicate_connector_name_diagnostic_not_crash() -> None:
     assert any("duplicate" in d.message for d in result.diagnostics)
 
 
+def test_failed_first_connector_does_not_block_valid_duplicate() -> None:
+    # Two manifests resolve to the same name `skill_dup`; the first is
+    # unsafe (sensitive literal header) and fails to build. The second is
+    # valid and must still register — the failed first must not reserve
+    # the name.
+    bad = LoadedSkill(
+        skill=HttpConnectorSkill(
+            kind="http", id="a", tool_name="dup", url="https://api.example/x",
+            headers={"Authorization": "literal-secret"},
+        ),
+        source_path="a.yaml",
+    )
+    good = LoadedSkill(
+        skill=HttpConnectorSkill(
+            kind="http", id="b", tool_name="dup", url="https://api.example/x"
+        ),
+        source_path="b.yaml",
+    )
+    registry = build_default_registry()
+    result = boot_context_skills(
+        registry,
+        HarnessSettings(),
+        context_source=_NoContext(),
+        skill_source=_Skills(bad, good),
+    )
+    assert result.registered_tools == ("skill_dup",)
+    assert "skill_dup" in registry.names()
+
+
 def test_max_connector_tools_cap() -> None:
     registry = build_default_registry()
     result = boot_context_skills(

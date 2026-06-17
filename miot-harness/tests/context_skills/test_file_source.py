@@ -89,6 +89,32 @@ def test_skill_source_missing_playbook_ref_warns(tmp_path: Path) -> None:
     assert any(d.level == "warning" for d in result.diagnostics)
 
 
+def test_skill_source_playbook_ref_traversal_blocked(tmp_path: Path) -> None:
+    secret = tmp_path / "secret.md"
+    secret.write_text("TOP SECRET", encoding="utf-8")
+    _write(
+        tmp_path / "skills" / "p.yaml",
+        "kind: playbook\nid: p1\nname: P1\nplaybook_ref: ../secret.md\n",
+    )
+    result = FileSkillSource(tmp_path / "skills").load()
+    assert len(result.skills) == 1
+    # The traversal must NOT read the out-of-tree file.
+    assert result.skills[0].playbook_body is None
+    assert any("escapes" in d.message for d in result.diagnostics)
+
+
+def test_context_source_skips_k8s_projected_volume_dirs(tmp_path: Path) -> None:
+    # Mimic a K8s ConfigMap projection: the real file plus a "..data"
+    # snapshot copy. Only the real top-level file should be ingested.
+    _write(tmp_path / "00-system.yaml", "id: system-base\nprimer_text: ok\n")
+    _write(tmp_path / "..2026_06_17" / "00-system.yaml", "id: dup\nprimer_text: dup\n")
+
+    result = FileContextSource(tmp_path).load()
+
+    assert [c.id for c in result.contexts] == ["system-base"]
+    assert result.diagnostics == ()
+
+
 def test_skill_source_tenant_scope_from_dir(tmp_path: Path) -> None:
     _write(
         tmp_path / "tenants" / "mintral" / "s.yaml",

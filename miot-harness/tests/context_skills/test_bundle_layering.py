@@ -46,6 +46,19 @@ def test_facts_tenant_overrides_global() -> None:
     assert acme["shared"] == "global"
 
 
+def test_higher_priority_global_overrides_lower_global() -> None:
+    low = SystemContext(
+        id="a", priority=0, facts=(SystemFact(name="shared", body="low"),)
+    )
+    high = SystemContext(
+        id="b", priority=5, facts=(SystemFact(name="shared", body="high"),)
+    )
+    # Pass high first to prove ordering follows priority, not insertion.
+    bundle = ContextSkillsBundle(contexts=(high, low))
+    facts = {e.name: e.body for e in bundle.facts_for("acme")}
+    assert facts["shared"] == "high"
+
+
 def test_primer_blocks_split_and_cache_invariant() -> None:
     bundle = ContextSkillsBundle(
         contexts=(

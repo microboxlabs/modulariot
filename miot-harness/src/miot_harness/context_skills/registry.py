@@ -80,14 +80,17 @@ class ContextSkillsBundle:
         global on fact name. Plus a compact 'available skills' index so
         'what can you do?' is answered from the playbook set."""
         chosen: dict[str, MetaAgentCatalogEntry] = {}
+        chosen_tenant: dict[str, bool] = {}
         for ctx in self._by_priority(self.contexts):
             if not _is_for_tenant(ctx.scope.kind, ctx.scope.tenant_id, tenant_id):
                 continue
             tenant_scoped = ctx.scope.kind == "tenant"
             for fact in ctx.facts:
-                # Tenant facts override globals; among same-scope dups the
-                # later (higher-priority) one wins via dict assignment.
-                if fact.name in chosen and not tenant_scoped:
+                # Only block a global from overriding an entry a tenant doc
+                # already set. Otherwise the later (higher-priority, or
+                # tenant) entry wins via dict assignment — so a
+                # higher-priority global still replaces a lower-priority one.
+                if chosen_tenant.get(fact.name) and not tenant_scoped:
                     continue
                 chosen[fact.name] = MetaAgentCatalogEntry(
                     name=fact.name,
@@ -95,6 +98,7 @@ class ContextSkillsBundle:
                     title=fact.title or fact.name,
                     body=fact.body,
                 )
+                chosen_tenant[fact.name] = tenant_scoped
         rows = list(chosen.values())
         rows.extend(self._skill_index_rows(tenant_id))
         return rows
@@ -118,6 +122,7 @@ class ContextSkillsBundle:
 
     def playbooks_for(self, tenant_id: str) -> list[LoadedSkill]:
         chosen: dict[str, LoadedSkill] = {}
+        chosen_tenant: dict[str, bool] = {}
         for loaded in self._by_priority_skills(self.playbook_skills):
             skill = loaded.skill
             if not isinstance(skill, PlaybookSkill):
@@ -125,9 +130,12 @@ class ContextSkillsBundle:
             if not _is_for_tenant(skill.scope.kind, skill.scope.tenant_id, tenant_id):
                 continue
             tenant_scoped = skill.scope.kind == "tenant"
-            if skill.id in chosen and not tenant_scoped:
+            # Same rule as facts_for: a global never overrides a tenant
+            # entry, but higher-priority same-scope items still win.
+            if chosen_tenant.get(skill.id) and not tenant_scoped:
                 continue
             chosen[skill.id] = loaded
+            chosen_tenant[skill.id] = tenant_scoped
         return list(chosen.values())
 
     # ---- helpers ----------------------------------------------------------

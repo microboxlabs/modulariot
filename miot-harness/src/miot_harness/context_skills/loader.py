@@ -123,7 +123,6 @@ def _register_connectors(
                 )
             )
             continue
-        seen.add(name)
         if len(registered) >= settings.max_connector_tools:
             diagnostics.append(
                 LoadDiagnostic(
@@ -141,10 +140,15 @@ def _register_connectors(
             registry.register(tool)
         except (ValueError, RuntimeError) as exc:
             # Unsafe manifest or a name collision with an existing
-            # (datasource) tool. Skip it — never crash boot.
+            # (datasource) tool. Skip it — never crash boot. The name is
+            # NOT reserved (see below) so a later valid manifest resolving
+            # to the same name still gets a chance.
             diagnostics.append(LoadDiagnostic(loaded.source_path, "error", str(exc)))
             continue
+        # Reserve the name only after a successful registration so a failed
+        # first candidate doesn't block a valid duplicate.
         registered.append(name)
+        seen.add(name)
     return registered
 
 

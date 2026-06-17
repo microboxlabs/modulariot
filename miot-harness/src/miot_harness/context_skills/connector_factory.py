@@ -81,10 +81,15 @@ def _build_input_model(skill: HttpConnectorSkill) -> type[BaseModel]:
 def _validate_headers(skill: HttpConnectorSkill) -> None:
     for header_name, value in skill.headers.items():
         sensitive = any(hint in header_name.lower() for hint in _SENSITIVE_HEADER_HINTS)
-        if sensitive and not _ENV_REF_RE.search(value):
+        # `fullmatch`, not `search`: the WHOLE value must be a single
+        # ${ENV_VAR} reference. `search` would wave through mixed content
+        # like "literal-secret ${TOKEN}", leaving plaintext secret in the
+        # file. Bake any scheme prefix (e.g. "Bearer ") into the secret.
+        if sensitive and not _ENV_REF_RE.fullmatch(value):
             raise ValueError(
-                f"header {header_name!r} looks sensitive but holds a literal value; "
-                "use a ${ENV_VAR} reference so secrets stay out of mounted files"
+                f"header {header_name!r} looks sensitive; its value must be exactly a "
+                "${ENV_VAR} reference (bake any prefix like 'Bearer' into the secret) "
+                "so no plaintext secret lives in a mounted file"
             )
 
 
@@ -134,6 +139,11 @@ def build_http_tool(
     parsed = urlsplit(skill.url)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError(f"connector url must be absolute (scheme+host): {skill.url!r}")
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"connector url scheme must be http or https, got {parsed.scheme!r}: "
+            f"{skill.url!r}"
+        )
     _validate_headers(skill)
     input_model = _build_input_model(skill)
 

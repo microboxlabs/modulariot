@@ -71,6 +71,14 @@ jobs:
           else
             latest="$(git tag --list 'miot-stack@v*' | sed 's/^miot-stack@v//' | sort -V | tail -1)"
             if [[ -z "$latest" ]]; then
+              latest="$(
+                {
+                  git tag --list 'app@v*' | sed 's/^app@v//'
+                  git tag --list 'modulith@v*' | sed 's/^modulith@v//'
+                } | sort -V | tail -1
+              )"
+            fi
+            if [[ -z "$latest" ]]; then
               version="0.1.0"
             else
               IFS=. read -r major minor patch <<< "$latest"
@@ -115,7 +123,7 @@ jobs:
           {
             echo "release_version=$version"
             echo "release_notes_version=$release_notes_version"
-            echo "private_milestone=Release-$release_notes_version"
+            echo "private_milestone=Release $release_notes_version"
             echo "oss_milestone=MIOT-$version"
           } >> "$GITHUB_OUTPUT"
 

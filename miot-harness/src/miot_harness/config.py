@@ -87,6 +87,24 @@ class HarnessSettings(BaseSettings):
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
 
+    # Context & Skills subsystem (Phase 1: file-backed). Default dirs are
+    # packaged in the image so it boots with zero mounted config; a K8s
+    # ConfigMap/volume overrides them. The loader handles a missing dir
+    # gracefully (diagnostic, not a crash), so no existence check here —
+    # `get_settings()` stays side-effect-free.
+    context_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "context"
+    skills_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "skills"
+    # Source-kind seam for the future API/DB-backed source (Phase 2).
+    context_source_kind: str = "file"
+    skills_source_kind: str = "file"
+    # Hard cap on connector tools registered from skill files — bounds the
+    # blast radius of a misconfigured/oversized ConfigMap.
+    max_connector_tools: int = Field(default=50, ge=0)
+    # When True, an ERROR-level context/skills diagnostic fails readiness
+    # (/health/ready 503) instead of only logging. Default False = log and
+    # continue, matching the datasource boot contract. Prod sets True.
+    context_skills_strict: bool = False
+
     # Virtual filesystem scratchpad. An in-memory, per-conversation file
     # store that lets agents offload notes/plans/intermediate findings out
     # of the LLM context window across a multi-turn run (see

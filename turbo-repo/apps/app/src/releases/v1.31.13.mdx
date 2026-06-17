@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.13 — ModularIoT
+
+### Fecha: 17/06/2026
+
+**Objetivo**: Esta versión mejora la experiencia de planificación y dashboards en la app, y fortalece el flujo de entrega de servicios Quarkus en CI/CD. El foco es aumentar consistencia funcional, trazabilidad de artefactos y confiabilidad operativa entre app y backend.
+
+## 🚀 Evolutivos
+
+- **📍 Planner de calendario con flags alineados al algoritmo de priorización** *(Integración OSS — MIOT-0.5.14)*
+  - **Key point**: En sidebar y chips de grilla ahora se muestran solo los códigos de incidentes relevantes para el ordenamiento de planificación, eliminando elementos secundarios y controles de “+N más / Show less”.
+  - **Technical detail**: La UI queda alineada con la jerarquía usada por `mintral_calendarPlanningPriority`, manteniendo coherencia entre lógica de priorización y representación visual.
+
+- **📍 Mejoras UX del dashboard: navegación interna, autocompletado unificado y ajustes de localización** *(Integración OSS — MIOT-0.5.14)*
+  - **Key point**: Se eliminan recargas completas al navegar desde tarjetas de estadísticas en rutas internas y se unifica el autocompletado de expresiones para múltiples tipos de dashlets.
+  - **Technical detail**: Se estandarizan sugerencias `row`/`filter` mediante hooks compartidos y se corrige la clave i18n de `data_table_v2` para resolver el nombre mostrado en el modal de alta de widgets.
+
+## 🔧 Integraciones
+
+- **🔌 Promoción de imágenes Quarkus desde CI hacia release train** *(Integración OSS — MIOT-0.5.14)*
+  - **Scope**: El pipeline se refactoriza para publicar imágenes JVM y nativas desde Quarkus CI (tags por short SHA), validar versión Maven vs release y promover artefactos en release sin recompilar en el train, preservando compatibilidad con despliegues por digest inmutable.
+
+## 📊 Beneficios
+
+- Menor ruido visual en planificación y foco directo en señales que afectan prioridad operativa.
+- Mayor consistencia entre backend de ordenamiento y frontend de calendario.
+- Navegación más fluida en dashboards al evitar recargas completas en rutas internas.
+- Configuración de widgets más uniforme con autocompletado compartido entre dashlets.
+- Mejor calidad funcional en internacionalización del catálogo de widgets.
+- Proceso de release más trazable al promover imágenes ya construidas en CI.
+- Reducción de riesgo en despliegues al mantener referencias inmutables por digest.
+
+## 📌 Conclusión
+
+La release 1.31.13 consolida una mejora transversal: experiencia de usuario más consistente en la app y un circuito de entrega backend más robusto en Quarkus. Esto reduce fricción tanto para equipos operativos como para equipos de plataforma.
+
+También fortalece la continuidad entre desarrollo, integración OSS y release productivo, alineando criterios funcionales (priorización y UX) con prácticas técnicas de promoción de artefactos.
+
+En conjunto, es una versión orientada a confiabilidad y claridad: menos ambigüedad en la operación diaria y mayor previsibilidad en los ciclos de entrega.

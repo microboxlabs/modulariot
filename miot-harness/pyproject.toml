@@ -28,6 +28,9 @@ dependencies = [
   "pydantic>=2.10",
   "pydantic-settings>=2.6",
   "pyjwt[crypto]>=2.8",
+  # Context & Skills manifests are YAML. pyyaml is present transitively
+  # via langchain-core; declared directly so a future bump can't drop it.
+  "pyyaml>=6",
   "sqlglot>=25.0",
   "traceloop-sdk>=0.33",
   "uvicorn[standard]>=0.30",

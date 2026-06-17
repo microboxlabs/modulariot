@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: "Shared app and modulith semver without v prefix. Leave blank to bump the latest app@v* patch."
+        description: "Umbrella stack semver without v prefix. Leave blank to bump the latest miot-stack@v* patch."
         required: false
         type: string
       release_notes_version:
@@ -33,8 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_version: ${{ steps.version.outputs.release_version }}
-      app_tag: ${{ steps.version.outputs.app_tag }}
-      modulith_tag: ${{ steps.version.outputs.modulith_tag }}
+      stack_tag: ${{ steps.plan.outputs.stack_tag }}
+      stack_plan_file: ${{ steps.plan.outputs.stack_plan_file }}
+      app_changed: ${{ steps.plan.outputs.app_changed }}
+      app_version: ${{ steps.plan.outputs.app_version }}
+      app_tag: ${{ steps.plan.outputs.app_tag }}
+      modulith_changed: ${{ steps.plan.outputs.modulith_changed }}
+      modulith_version: ${{ steps.plan.outputs.modulith_version }}
+      modulith_tag: ${{ steps.plan.outputs.modulith_tag }}
       release_notes_version: ${{ steps.version.outputs.release_notes_version }}
       private_milestone: ${{ steps.version.outputs.private_milestone }}
       oss_milestone: ${{ steps.version.outputs.oss_milestone }}
@@ -63,7 +69,7 @@ jobs:
           if [[ -n "${{ inputs.release_version }}" ]]; then
             version="${{ inputs.release_version }}"
           else
-            latest="$(git tag --list 'app@v*' | sed 's/^app@v//' | sort -V | tail -1)"
+            latest="$(git tag --list 'miot-stack@v*' | sed 's/^miot-stack@v//' | sort -V | tail -1)"
             if [[ -z "$latest" ]]; then
               version="0.1.0"
             else
@@ -80,7 +86,11 @@ jobs:
           if [[ -n "${{ inputs.release_notes_version }}" ]]; then
             release_notes_version="${{ inputs.release_notes_version }}"
           else
-            latest_release_notes="$(find turbo-repo/apps/app/src/releases \
+            note_dirs=(turbo-repo/apps/app/src/releases)
+            if [[ -d releases/notes ]]; then
+              note_dirs+=(releases/notes)
+            fi
+            latest_release_notes="$(find "${note_dirs[@]}" \
               -maxdepth 1 \
               -type f \
               -name 'v[0-9]*.[0-9]*.[0-9]*.mdx' \
@@ -104,26 +114,10 @@ jobs:
 
           {
             echo "release_version=$version"
-            echo "app_tag=app@v$version"
-            echo "modulith_tag=modulith@v$version"
             echo "release_notes_version=$release_notes_version"
             echo "private_milestone=Release-$release_notes_version"
             echo "oss_milestone=MIOT-$version"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Create release branch
-        id: branch
-        run: |
-          branch="release/miot-v${{ steps.version.outputs.release_version }}"
-          git switch -c "$branch"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-
-      - name: Bump app package version
-        run: bash turbo-repo/generative_ai/tools/sh/bump-app-version.sh "${{ steps.version.outputs.release_version }}"
-
-      - name: Bump modulith Maven version
-        run: ./mvnw versions:set -DnewVersion="${{ steps.version.outputs.release_version }}" -DgenerateBackupPoms=false -DprocessAllModules=true
-        working-directory: quarkus-srv
 
       - name: Collect release issues
         env:
@@ -134,6 +128,30 @@ jobs:
             --release "${{ steps.version.outputs.private_milestone }}" \
             --oss "${{ steps.version.outputs.oss_milestone }}" \
             --state all > release-issues.json
+
+      - name: Resolve component release plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          STACK_VERSION: ${{ steps.version.outputs.release_version }}
+          OSS_MILESTONE: ${{ steps.version.outputs.oss_milestone }}
+        run: node .github/scripts/resolve-stack-release-plan.js
+
+      - name: Create release branch
+        id: branch
+        run: |
+          branch="release/miot-v${{ steps.version.outputs.release_version }}"
+          git switch -c "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Bump app package version
+        if: steps.plan.outputs.app_changed == 'true'
+        run: bash turbo-repo/generative_ai/tools/sh/bump-app-version.sh "${{ steps.plan.outputs.app_version }}"
+
+      - name: Bump modulith Maven version
+        if: steps.plan.outputs.modulith_changed == 'true'
+        run: ./mvnw versions:set -DnewVersion="${{ steps.plan.outputs.modulith_version }}" -DgenerateBackupPoms=false -DprocessAllModules=true
+        working-directory: quarkus-srv
 
       - name: Resolve release date
         id: release_date
@@ -182,7 +200,8 @@ jobs:
 
       - name: Write release notes
         run: |
-          release_file="turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx"
+          release_file="releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx"
+          mkdir -p "$(dirname "$release_file")"
           node - "${{ steps.release_notes_ai.outputs['response-file'] }}" "$release_file" <<'NODE'
           const fs = require("fs");
           const [source, target] = process.argv.slice(2);
@@ -198,8 +217,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add turbo-repo/apps/app/package.json turbo-repo/package-lock.json turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx quarkus-srv
-          git commit -m "chore(release): prepare MIOT v${{ steps.version.outputs.release_version }}"
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv
+          git commit -m "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}"
           git push origin "${{ steps.branch.outputs.branch }}"
 
       - name: Open release PR
@@ -208,17 +227,21 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
           cat > release-pr-body.md <<'EOF'
-          Prepares ${{ steps.version.outputs.app_tag }} and ${{ steps.version.outputs.modulith_tag }} from the same release commit, with release notes v${{ steps.version.outputs.release_notes_version }}.
+          Prepares ${{ steps.plan.outputs.stack_tag }} from milestone ${{ steps.version.outputs.oss_milestone }}, with release notes v${{ steps.version.outputs.release_notes_version }}.
+
+          Components:
+          - App: ${{ steps.plan.outputs.app_tag }} (changed: ${{ steps.plan.outputs.app_changed }})
+          - Modulith: ${{ steps.plan.outputs.modulith_tag }} (changed: ${{ steps.plan.outputs.modulith_changed }})
 
           Milestones: ${{ steps.version.outputs.private_milestone }}, ${{ steps.version.outputs.oss_milestone }}.
 
-          Approve and merge this PR, then approve the protected release job to tag, build the app image, promote the Quarkus CI modulith image, and deploy the stack.
+          Approve and merge this PR, then approve the protected release job to tag changed components, resolve component images, and deploy the stack manifest.
           EOF
 
           url="$(gh pr create \
             --base trunk \
             --head "${{ steps.branch.outputs.branch }}" \
-            --title "chore(release): prepare MIOT v${{ steps.version.outputs.release_version }}" \
+            --title "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}" \
             --body-file release-pr-body.md)"
           number="${url##*/}"
           echo "number=$number" >> "$GITHUB_OUTPUT"
@@ -288,27 +311,31 @@ jobs:
 
       - name: Verify release prep landed on trunk
         run: |
-          package_version="$(node -p "require('./turbo-repo/apps/app/package.json').version")"
-          lock_version="$(node -p "require('./turbo-repo/package-lock.json').packages['apps/app'].version")"
-          modulith_version="$(cd quarkus-srv && ./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)"
-          release_file="turbo-repo/apps/app/src/releases/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
+          release_file="releases/notes/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
+          plan_file="${{ needs.prepare.outputs.stack_plan_file }}"
 
-          if [[ "$package_version" != "${{ needs.prepare.outputs.release_version }}" ]]; then
-            echo "trunk package.json is $package_version, expected ${{ needs.prepare.outputs.release_version }}." >&2
-            echo "Merge the release PR before approving/tagging." >&2
-            exit 1
+          if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
+            package_version="$(node -p "require('./turbo-repo/apps/app/package.json').version")"
+            lock_version="$(node -p "require('./turbo-repo/package-lock.json').packages['apps/app'].version")"
+            if [[ "$package_version" != "${{ needs.prepare.outputs.app_version }}" ]]; then
+              echo "trunk package.json is $package_version, expected ${{ needs.prepare.outputs.app_version }}." >&2
+              echo "Merge the release PR before approving/tagging." >&2
+              exit 1
+            fi
+            if [[ "$lock_version" != "${{ needs.prepare.outputs.app_version }}" ]]; then
+              echo "trunk package-lock.json is $lock_version, expected ${{ needs.prepare.outputs.app_version }}." >&2
+              echo "Merge the release PR before approving/tagging." >&2
+              exit 1
+            fi
           fi
 
-          if [[ "$lock_version" != "${{ needs.prepare.outputs.release_version }}" ]]; then
-            echo "trunk package-lock.json is $lock_version, expected ${{ needs.prepare.outputs.release_version }}." >&2
-            echo "Merge the release PR before approving/tagging." >&2
-            exit 1
-          fi
-
-          if [[ "$modulith_version" != "${{ needs.prepare.outputs.release_version }}" ]]; then
-            echo "trunk modulith version is $modulith_version, expected ${{ needs.prepare.outputs.release_version }}." >&2
-            echo "Merge the release PR before approving/tagging." >&2
-            exit 1
+          if [[ "${{ needs.prepare.outputs.modulith_changed }}" == "true" ]]; then
+            modulith_version="$(cd quarkus-srv && ./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)"
+            if [[ "$modulith_version" != "${{ needs.prepare.outputs.modulith_version }}" ]]; then
+              echo "trunk modulith version is $modulith_version, expected ${{ needs.prepare.outputs.modulith_version }}." >&2
+              echo "Merge the release PR before approving/tagging." >&2
+              exit 1
+            fi
           fi
 
           if [[ ! -f "$release_file" ]]; then
@@ -317,52 +344,81 @@ jobs:
             exit 1
           fi
 
+          if [[ ! -f "$plan_file" ]]; then
+            echo "Missing stack release plan on trunk: $plan_file" >&2
+            echo "Merge the release PR before approving/tagging." >&2
+            exit 1
+          fi
+
       - name: Create and push component tags
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ needs.prepare.outputs.app_tag }}" -m "${{ needs.prepare.outputs.app_tag }}"
-          git tag -a "${{ needs.prepare.outputs.modulith_tag }}" -m "${{ needs.prepare.outputs.modulith_tag }}"
-          git push origin "${{ needs.prepare.outputs.app_tag }}" "${{ needs.prepare.outputs.modulith_tag }}"
+          tags=("${{ needs.prepare.outputs.stack_tag }}")
+          git tag -a "${{ needs.prepare.outputs.stack_tag }}" -m "${{ needs.prepare.outputs.stack_tag }}"
+
+          if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
+            git tag -a "${{ needs.prepare.outputs.app_tag }}" -m "${{ needs.prepare.outputs.app_tag }}"
+            tags+=("${{ needs.prepare.outputs.app_tag }}")
+          fi
+
+          if [[ "${{ needs.prepare.outputs.modulith_changed }}" == "true" ]]; then
+            git tag -a "${{ needs.prepare.outputs.modulith_tag }}" -m "${{ needs.prepare.outputs.modulith_tag }}"
+            tags+=("${{ needs.prepare.outputs.modulith_tag }}")
+          fi
+
+          git push origin "${tags[@]}"
 
       - name: Create GitHub releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ needs.prepare.outputs.app_tag }}" \
-            --title "${{ needs.prepare.outputs.app_tag }}" \
+          gh release create "${{ needs.prepare.outputs.stack_tag }}" \
+            --title "${{ needs.prepare.outputs.stack_tag }}" \
             --generate-notes \
             --latest
-          gh release create "${{ needs.prepare.outputs.modulith_tag }}" \
-            --title "${{ needs.prepare.outputs.modulith_tag }}" \
-            --generate-notes
+          if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
+            gh release create "${{ needs.prepare.outputs.app_tag }}" \
+              --title "${{ needs.prepare.outputs.app_tag }}" \
+              --generate-notes
+          fi
+          if [[ "${{ needs.prepare.outputs.modulith_changed }}" == "true" ]]; then
+            gh release create "${{ needs.prepare.outputs.modulith_tag }}" \
+              --title "${{ needs.prepare.outputs.modulith_tag }}" \
+              --generate-notes
+          fi
 
   build-app:
-    name: Build and publish app image
+    name: Resolve app image
     runs-on: ubuntu-latest
     needs: [prepare, tag]
     outputs:
       image: ${{ steps.image.outputs.image }}
     steps:
       - uses: actions/checkout@v5
+        if: needs.prepare.outputs.app_changed == 'true'
         with:
           ref: ${{ needs.tag.outputs.sha }}
 
       - uses: actions/setup-node@v6
+        if: needs.prepare.outputs.app_changed == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: turbo-repo/package-lock.json
 
       - name: Install dependencies
+        if: needs.prepare.outputs.app_changed == 'true'
         run: npm ci
         working-directory: turbo-repo
 
       - name: Build app
+        if: needs.prepare.outputs.app_changed == 'true'
         run: npx turbo run build --filter=@modulariot/app
         working-directory: turbo-repo
 
       - name: Stage app artifact
+        if: needs.prepare.outputs.app_changed == 'true'
         run: |
           mkdir -p build-context/.next
           cp -r turbo-repo/apps/app/.next/standalone build-context/.next/standalone
@@ -379,6 +435,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
+        if: needs.prepare.outputs.app_changed == 'true'
         id: docker
         uses: docker/build-push-action@v6
         with:
@@ -387,8 +444,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:${{ needs.prepare.outputs.release_version }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:app-v${{ needs.prepare.outputs.release_version }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:${{ needs.prepare.outputs.app_version }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:app-v${{ needs.prepare.outputs.app_version }}
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
           build-args: |
             APP_NAME=app
@@ -398,10 +455,15 @@ jobs:
       - name: Export image ref
         id: image
         run: |
-          echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
+            digest="${{ steps.docker.outputs.digest }}"
+          else
+            digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:app-v${{ needs.prepare.outputs.app_version }}" | awk '/^Digest:/ { print $2; exit }')"
+          fi
+          echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
   build-modulith:
-    name: Promote modulith image
+    name: Resolve modulith image
     runs-on: ubuntu-latest
     needs: [prepare, tag]
     outputs:
@@ -416,6 +478,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for release modulith image
+        if: needs.prepare.outputs.modulith_changed == 'true'
         env:
           SOURCE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
           SOURCE_NATIVE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}-native
@@ -435,13 +498,14 @@ jobs:
           exit 1
 
       - name: Promote image tags
+        if: needs.prepare.outputs.modulith_changed == 'true'
         env:
           SOURCE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
           SOURCE_NATIVE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}-native
-          RELEASE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:${{ needs.prepare.outputs.release_version }}
-          COMPONENT_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:modulith-v${{ needs.prepare.outputs.release_version }}
-          RELEASE_NATIVE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:${{ needs.prepare.outputs.release_version }}-native
-          COMPONENT_NATIVE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:modulith-v${{ needs.prepare.outputs.release_version }}-native
+          RELEASE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:${{ needs.prepare.outputs.modulith_version }}
+          COMPONENT_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:modulith-v${{ needs.prepare.outputs.modulith_version }}
+          RELEASE_NATIVE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:${{ needs.prepare.outputs.modulith_version }}-native
+          COMPONENT_NATIVE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:modulith-v${{ needs.prepare.outputs.modulith_version }}-native
         run: |
           docker buildx imagetools create \
             --tag "$RELEASE_IMAGE" \
@@ -455,7 +519,7 @@ jobs:
       - name: Export image ref
         id: image
         run: |
-          digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:${{ needs.prepare.outputs.release_version }}" | awk '/^Digest:/ { print $2; exit }')"
+          digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:modulith-v${{ needs.prepare.outputs.modulith_version }}" | awk '/^Digest:/ { print $2; exit }')"
           echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
   deploy:
@@ -470,14 +534,19 @@ jobs:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          STACK_TAG: ${{ needs.prepare.outputs.stack_tag }}
           APP_TAG: ${{ needs.prepare.outputs.app_tag }}
           MODULITH_TAG: ${{ needs.prepare.outputs.modulith_tag }}
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
-          APP_IMAGE_TAG: ${{ needs.prepare.outputs.release_version }}
+          APP_IMAGE_TAG: app-v${{ needs.prepare.outputs.app_version }}
           APP_IMAGE_REF: ${{ needs.build-app.outputs.image }}
+          APP_CHANGED: ${{ needs.prepare.outputs.app_changed }}
+          APP_VERSION: ${{ needs.prepare.outputs.app_version }}
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
-          MODULITH_IMAGE_TAG: ${{ needs.prepare.outputs.release_version }}
+          MODULITH_IMAGE_TAG: modulith-v${{ needs.prepare.outputs.modulith_version }}
           MODULITH_IMAGE_REF: ${{ needs.build-modulith.outputs.image }}
+          MODULITH_CHANGED: ${{ needs.prepare.outputs.modulith_changed }}
+          MODULITH_VERSION: ${{ needs.prepare.outputs.modulith_version }}
         run: |
           DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
 
@@ -488,8 +557,13 @@ jobs:
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg stack_tag "$STACK_TAG" \
             --arg app_tag "$APP_TAG" \
+            --arg app_changed "$APP_CHANGED" \
+            --arg app_version "$APP_VERSION" \
             --arg modulith_tag "$MODULITH_TAG" \
+            --arg modulith_changed "$MODULITH_CHANGED" \
+            --arg modulith_version "$MODULITH_VERSION" \
             --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
             --arg app_image_tag "$APP_IMAGE_TAG" \
             --arg app_image_ref "$APP_IMAGE_REF" \
@@ -500,6 +574,8 @@ jobs:
               event_type: "miot-stack-release",
               client_payload: {
                 release_version: $release_version,
+                stack_version: $release_version,
+                stack_tag: $stack_tag,
                 app_tag: $app_tag,
                 modulith_tag: $modulith_tag,
                 app_image_repository: $app_image_repository,
@@ -507,14 +583,41 @@ jobs:
                 app_image_ref: $app_image_ref,
                 modulith_image_repository: $modulith_image_repository,
                 modulith_image_tag: $modulith_image_tag,
-                modulith_image_ref: $modulith_image_ref
+                modulith_image_ref: $modulith_image_ref,
+                components: {
+                  app: {
+                    changed: ($app_changed == "true"),
+                    version: $app_version,
+                    tag: $app_tag,
+                    image_repository: $app_image_repository,
+                    image_tag: $app_image_tag,
+                    image_ref: $app_image_ref
+                  },
+                  modulith: {
+                    changed: ($modulith_changed == "true"),
+                    version: $modulith_version,
+                    tag: $modulith_tag,
+                    image_repository: $modulith_image_repository,
+                    image_tag: $modulith_image_tag,
+                    image_ref: $modulith_image_ref
+                  }
+                }
               }
-            }' |
+            }' > stack-dispatch-payload.json
+
+          jq '.client_payload' stack-dispatch-payload.json > stack-manifest.json
+
+          cat stack-dispatch-payload.json |
             gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
               --method POST \
               --input -
 
           echo "Dispatched MIOT v${RELEASE_VERSION} deployment to ${DEPLOY_DISPATCH_REPO}."
+
+      - name: Upload stack manifest to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ needs.prepare.outputs.stack_tag }}" stack-manifest.json --clobber
 
   close-milestones:
     name: Close release milestones

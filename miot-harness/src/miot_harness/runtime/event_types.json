@@ -7,6 +7,7 @@
     "tool.completed",
     "tool.failed",
     "approval.requested",
+    "approval.auto",
     "artifact.created",
     "plan.created",
     "agent.turn",

@@ -6,7 +6,6 @@
       "Bash(awk -F: '{n=$1+0; if\\(n>=580 && n<=605\\) print}')",
       "Bash(awk -F: '{n=$1+0; if\\(n>=607 && n<=625\\) print}')",
       "Bash(awk -F: '{n=$1+0; if\\(n>=63 && n<=95\\) print}')",
-      "Bash(git -C /Users/khalz/Desktop/development/modulariot-fixing-bentobox-modal/turbo-repo remote get-url origin)"
     ]
   }
 }

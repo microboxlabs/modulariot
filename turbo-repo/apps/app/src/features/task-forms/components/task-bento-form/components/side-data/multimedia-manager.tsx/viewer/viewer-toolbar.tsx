@@ -175,12 +175,12 @@ export default function ViewerToolbar({
           {/* Reject — visually disabled (not HTML-disabled) so mouse events still fire for the portal tooltip */}
           <DropdownItem
             onClick={() => { if (canReject) onDecision("rejected"); else setRejectTipPos(null); }}
-            className={!canReject ? "opacity-50 cursor-not-allowed" : undefined}
-            onMouseEnter={!canReject ? (e) => {
+            className={canReject ? undefined : "opacity-50 cursor-not-allowed"}
+            onMouseEnter={canReject ? undefined : (e) => {
               const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setRejectTipPos({ top: r.top + r.height / 2, left: r.left - 8 });
-            } : undefined}
-            onMouseLeave={!canReject ? () => setRejectTipPos(null) : undefined}
+            }}
+            onMouseLeave={canReject ? undefined : () => setRejectTipPos(null)}
           >
             {tr("bento.multimedia.btn_reject", dictionary)}
           </DropdownItem>

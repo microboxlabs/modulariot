@@ -115,14 +115,19 @@ export function SidebarSection({
   title,
   defaultExpanded = false,
   description,
+  icon,
+  titleClassName,
   children,
 }: Readonly<{
   title: string;
   defaultExpanded?: boolean;
   description?: string;
+  icon?: ReactNode;
+  titleClassName?: string;
   children: ReactNode;
 }>) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const resolvedTitleClass = titleClassName ?? "text-gray-400 dark:text-gray-500";
   return (
     <div className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
       <button
@@ -131,7 +136,8 @@ export function SidebarSection({
         className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
       >
         <span className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          {icon && <span className="shrink-0">{icon}</span>}
+          <span className={`text-xs font-semibold uppercase tracking-wide ${resolvedTitleClass}`}>
             {title}
           </span>
           {description && <DescriptionTooltip description={description} />}

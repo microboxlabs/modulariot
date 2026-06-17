@@ -262,6 +262,9 @@ export default function TaskActions({
           openModal={openModal}
           setOpenModal={setOpenModal}
           extraData={extraData}
+          approvedItems={reviewState.approvedItems}
+          rejectedItems={reviewState.rejectedItems}
+          lang={lang}
         />
       </GroupAllowed>
     </div>

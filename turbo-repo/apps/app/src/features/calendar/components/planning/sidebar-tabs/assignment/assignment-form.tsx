@@ -97,7 +97,6 @@ function TruckMapDisplay({
 
   const truckLng = truck.longitude;
   const truckLat = truck.latitude;
-  const hasTruck = truckLat != null && truckLng != null;
 
   // Truck pin + origin (start) / destination (finish) flags, reusing the trip
   // map's pin atlas.
@@ -133,15 +132,15 @@ function TruckMapDisplay({
       );
     }
 
-    if (hasTruck) {
+    if (truckLat != null && truckLng != null) {
       result.push(
         new PinLayer({
           id: "truck-pin-layer",
           data: [
             {
               assetid: truck.id,
-              latitude: truckLat as number,
-              longitude: truckLng as number,
+              latitude: truckLat,
+              longitude: truckLng,
               heading: truck.heading,
               speed: 0,
               location: truck.plate,
@@ -153,13 +152,13 @@ function TruckMapDisplay({
     }
 
     return result;
-  }, [truck, truckLat, truckLng, hasTruck, originCoord, destinationCoord]);
+  }, [truck, truckLat, truckLng, originCoord, destinationCoord]);
 
   // Fit the viewport to every point we have (truck + origin + destination).
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current) return;
     const pts: [number, number][] = [];
-    if (hasTruck) pts.push([truckLng as number, truckLat as number]);
+    if (truckLat != null && truckLng != null) pts.push([truckLng, truckLat]);
     if (originCoord) pts.push([originCoord.longitude, originCoord.latitude]);
     if (destinationCoord) {
       pts.push([destinationCoord.longitude, destinationCoord.latitude]);
@@ -184,14 +183,14 @@ function TruckMapDisplay({
       ],
       { padding: 48, duration: 500, maxZoom: 14 }
     );
-  }, [isMapLoaded, hasTruck, truckLat, truckLng, originCoord, destinationCoord]);
+  }, [isMapLoaded, truckLat, truckLng, originCoord, destinationCoord]);
 
   const handleZoomChange = useCallback(() => setIsMapLoaded(true), []);
 
   const distanceToOriginKm =
-    hasTruck && originCoord
+    truckLat != null && truckLng != null && originCoord
       ? haversineKm(
-          [truckLng as number, truckLat as number],
+          [truckLng, truckLat],
           [originCoord.longitude, originCoord.latitude]
         )
       : null;

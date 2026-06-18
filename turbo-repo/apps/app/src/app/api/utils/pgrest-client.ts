@@ -411,7 +411,7 @@ export async function fetchGeofenceCentroids(
   if (unique.length === 0) return [];
 
   const token = await bearerToken();
-  const inList = unique.map((c) => `"${c.replace(/"/g, '""')}"`).join(",");
+  const inList = unique.map((c) => `"${c.replaceAll('"', '""')}"`).join(",");
   const url = `${pgrestBaseUrl()}/geofences?select=client_geofence_id,coordinates&client_geofence_id=in.(${encodeURIComponent(
     inList
   )})`;

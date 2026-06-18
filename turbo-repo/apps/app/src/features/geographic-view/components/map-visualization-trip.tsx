@@ -328,9 +328,9 @@ export default function MapVisualizationTrip({
       : null;
 
   const etaToOriginHours =
-    distanceToOriginKm != null
-      ? estimateEtaHours(distanceToOriginKm, vehicle?.speed)
-      : null;
+    distanceToOriginKm == null
+      ? null
+      : estimateEtaHours(distanceToOriginKm, vehicle?.speed);
 
   // Memoize the layers array
   const layers = React.useMemo(() => {
@@ -597,7 +597,7 @@ export default function MapVisualizationTrip({
               {tr("geographic_view.eta_to_origin", dict)}:
             </span>
             <span>
-              {etaToOriginHours != null ? formatEtaHours(etaToOriginHours) : "—"}
+              {etaToOriginHours == null ? "—" : formatEtaHours(etaToOriginHours)}
             </span>
           </span>
         </div>

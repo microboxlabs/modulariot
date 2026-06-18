@@ -582,41 +582,64 @@ jobs:
               event_type: "miot-stack-release",
               client_payload: {
                 release_version: $release_version,
-                stack_version: $release_version,
-                stack_tag: $stack_tag,
-                manifest_version: 1,
-                legacy: {
-                  app_tag: $app_tag,
-                  modulith_tag: $modulith_tag,
-                  app_image_repository: $app_image_repository,
-                  app_image_tag: $app_image_tag,
-                  app_image_ref: $app_image_ref,
-                  modulith_image_repository: $modulith_image_repository,
-                  modulith_image_tag: $modulith_image_tag,
-                  modulith_image_ref: $modulith_image_ref
-                },
-                components: {
-                  app: {
-                    changed: ($app_changed == "true"),
-                    version: $app_version,
-                    tag: $app_tag,
-                    image_repository: $app_image_repository,
-                    image_tag: $app_image_tag,
-                    image_ref: $app_image_ref
-                  },
-                  modulith: {
-                    changed: ($modulith_changed == "true"),
-                    version: $modulith_version,
-                    tag: $modulith_tag,
-                    image_repository: $modulith_image_repository,
-                    image_tag: $modulith_image_tag,
-                    image_ref: $modulith_image_ref
-                  }
-                }
+                app_tag: $app_tag,
+                modulith_tag: $modulith_tag,
+                app_image_repository: $app_image_repository,
+                app_image_tag: $app_image_tag,
+                app_image_ref: $app_image_ref,
+                modulith_image_repository: $modulith_image_repository,
+                modulith_image_tag: $modulith_image_tag,
+                modulith_image_ref: $modulith_image_ref
               }
             }' > stack-dispatch-payload.json
 
-          jq '.client_payload' stack-dispatch-payload.json > stack-manifest.json
+          jq -n \
+            --arg release_version "$RELEASE_VERSION" \
+            --arg stack_tag "$STACK_TAG" \
+            --arg app_tag "$APP_TAG" \
+            --arg app_changed "$APP_CHANGED" \
+            --arg app_version "$APP_VERSION" \
+            --arg modulith_tag "$MODULITH_TAG" \
+            --arg modulith_changed "$MODULITH_CHANGED" \
+            --arg modulith_version "$MODULITH_VERSION" \
+            --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
+            --arg app_image_tag "$APP_IMAGE_TAG" \
+            --arg app_image_ref "$APP_IMAGE_REF" \
+            --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
+            --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
+            --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
+            '{
+              release_version: $release_version,
+              stack_version: $release_version,
+              stack_tag: $stack_tag,
+              manifest_version: 1,
+              app_tag: $app_tag,
+              modulith_tag: $modulith_tag,
+              app_image_repository: $app_image_repository,
+              app_image_tag: $app_image_tag,
+              app_image_ref: $app_image_ref,
+              modulith_image_repository: $modulith_image_repository,
+              modulith_image_tag: $modulith_image_tag,
+              modulith_image_ref: $modulith_image_ref,
+              components: {
+                app: {
+                  changed: ($app_changed == "true"),
+                  version: $app_version,
+                  tag: $app_tag,
+                  image_repository: $app_image_repository,
+                  image_tag: $app_image_tag,
+                  image_ref: $app_image_ref
+                },
+                modulith: {
+                  changed: ($modulith_changed == "true"),
+                  version: $modulith_version,
+                  tag: $modulith_tag,
+                  image_repository: $modulith_image_repository,
+                  image_tag: $modulith_image_tag,
+                  image_ref: $modulith_image_ref
+                }
+              }
+            }' > stack-manifest.json
 
           cat stack-dispatch-payload.json |
             gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \

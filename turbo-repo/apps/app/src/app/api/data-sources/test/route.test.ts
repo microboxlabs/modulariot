@@ -105,6 +105,20 @@ describe("POST /api/data-sources/test (stateless)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 (not 500) for a malformed JSON body", async () => {
+    const { POST } = await loadRoute();
+
+    const req = new Request("https://app.example.com/api/data-sources/test?siteId=site-1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{ not valid json",
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("tests a TOKEN connection using the inline token from the body", async () => {
     fetchMock.mockResolvedValue(makeResponse({ ok: true, status: 200, jsonData: {} }));
     const { POST } = await loadRoute();

@@ -21,8 +21,8 @@ const MAX_LIMIT = 200;
 
 /**
  * GET /app/api/calendar/accredited-resources
- *   ?rutMandante=<rut>
- *   &delegacion=<code>
+ *   ?delegacion=<code>
+ *   [&rutMandante=<rut>]  optional; omitted/blank → upstream p_rut_mandante=null
  *   [&resourceType=DRIVER|TRUCK|TRAILER|CARRIER]
  *   [&carrierId=<resource_id>]
  *   [&q=<search>]
@@ -52,7 +52,10 @@ export async function GET(request: Request) {
   if (!authResult.authenticated) return authResult.response;
 
   const { searchParams } = new URL(request.url);
-  const rutMandante = searchParams.get("rutMandante")?.trim();
+  // clientRut is optional now: a service may have no client assigned. Keep the
+  // contract (still forwarded as p_rut_mandante) but coalesce absent/blank to
+  // null so the resource picker is no longer gated on it.
+  const rutMandante = searchParams.get("rutMandante")?.trim() || null;
   const delegacion = searchParams.get("delegacion")?.trim();
   const resourceTypeRaw = searchParams.get("resourceType")?.trim().toUpperCase();
   const carrierId = searchParams.get("carrierId")?.trim() || undefined;
@@ -68,9 +71,9 @@ export async function GET(request: Request) {
   const limitRaw = searchParams.get("limit");
   const refresh = searchParams.get("refresh") === "1";
 
-  if (!rutMandante || !delegacion) {
+  if (!delegacion) {
     return NextResponse.json(
-      { error: "rutMandante and delegacion are required" },
+      { error: "delegacion is required" },
       { status: 400 }
     );
   }

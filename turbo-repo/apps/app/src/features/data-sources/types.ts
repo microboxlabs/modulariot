@@ -73,6 +73,32 @@ export const CreateDataSourceSchema = z.discriminatedUnion("authMethod", [
   oauthCreateFields,
 ]);
 
+// Connection-only fields for a stateless "test before save" probe. No name /
+// description — only what is needed to attempt the upstream connection.
+const tokenTestFields = z.object({
+  type: z.enum(["POSTGREST"]),
+  url: z.string().url("validation.urlInvalid"),
+  authMethod: z.literal("TOKEN"),
+  token: z.string().min(1, "validation.tokenRequired"),
+});
+
+const oauthTestFields = z.object({
+  type: z.enum(["POSTGREST"]),
+  url: z.string().url("validation.urlInvalid"),
+  authMethod: z.literal("OAUTH"),
+  clientId: z.string().min(1, "validation.clientIdRequired"),
+  clientSecret: z.string().min(1, "validation.clientSecretRequired"),
+  tokenUrl: z.string().url("validation.tokenUrlInvalid"),
+  scope: z.string().max(500).optional(),
+  audience: z.string().max(500).optional(),
+  tokenRequestFormat: z.enum(["form", "json"]).optional(),
+});
+
+export const TestConnectionSchema = z.discriminatedUnion("authMethod", [
+  tokenTestFields,
+  oauthTestFields,
+]);
+
 export const UpdateDataSourceSchema = z.object({
   name: z.string().min(1, "validation.nameRequired").max(100).optional(),
   type: z.enum(["POSTGREST"]).optional(),

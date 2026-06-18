@@ -26,11 +26,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const names = [origin, destination].filter((n): n is string => Boolean(n));
-    const centroids = await fetchGeofenceCentroids(names);
-    const byName = new Map(centroids.map((c) => [c.name, c]));
-    const pick = (name: string | null) => {
-      const c = name ? byName.get(name) : undefined;
+    const codes = [origin, destination].filter((c): c is string => Boolean(c));
+    const centroids = await fetchGeofenceCentroids(codes);
+    const byCode = new Map(centroids.map((c) => [c.code, c]));
+    const pick = (code: string | null) => {
+      const c = code ? byCode.get(code) : undefined;
       return c ? { latitude: c.latitude, longitude: c.longitude } : null;
     };
     return NextResponse.json({

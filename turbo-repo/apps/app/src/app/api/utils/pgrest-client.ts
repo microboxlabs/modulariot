@@ -389,28 +389,30 @@ export function decodeEwkbPolygonCentroid(
 }
 
 export interface GeofenceCentroid {
-  name: string;
+  /** The geofence's client id — matches a service's origen/destino code. */
+  code: string;
   latitude: number;
   longitude: number;
 }
 
 /**
- * Resolve geofence names (the same values the service carries as
- * origin/destination — `mintral_originDelegateCode` etc., which the ETA
- * integration passes as `p_origin_geofence_name`) to their polygon centroids
- * via the streamhub `geofences` table. Names not found (or with unparseable
- * geometry) are simply omitted. Matched case-sensitively, mirroring the ETA
- * integration's exact-name contract.
+ * Resolve geofence client-ids (the values a service carries as
+ * origin/destination — `mintral_originDelegateCode` etc., e.g. "SCL" / "ANF")
+ * to their polygon centroids via the streamhub `geofences` table.
+ *
+ * The match is on `client_geofence_id` (the upstream/client id), NOT
+ * `geofence_name`: e.g. `ANF` → "SITRANS ANTOFAGASTA", `SCL` → "SITRANS
+ * SANTIAGO". Codes not found (or with unparseable geometry) are omitted.
  */
 export async function fetchGeofenceCentroids(
-  names: string[]
+  codes: string[]
 ): Promise<GeofenceCentroid[]> {
-  const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+  const unique = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
   if (unique.length === 0) return [];
 
   const token = await bearerToken();
-  const inList = unique.map((n) => `"${n.replace(/"/g, '""')}"`).join(",");
-  const url = `${pgrestBaseUrl()}/geofences?select=geofence_name,coordinates&geofence_name=in.(${encodeURIComponent(
+  const inList = unique.map((c) => `"${c.replace(/"/g, '""')}"`).join(",");
+  const url = `${pgrestBaseUrl()}/geofences?select=client_geofence_id,coordinates&client_geofence_id=in.(${encodeURIComponent(
     inList
   )})`;
   const response = await pgrestFetch(url, {
@@ -426,7 +428,7 @@ export async function fetchGeofenceCentroids(
     );
   }
   const rows = (await response.json()) as Array<{
-    geofence_name: string;
+    client_geofence_id: string;
     coordinates: string | null;
   }>;
   const out: GeofenceCentroid[] = [];
@@ -434,7 +436,7 @@ export async function fetchGeofenceCentroids(
     const c = decodeEwkbPolygonCentroid(row.coordinates);
     if (c) {
       out.push({
-        name: row.geofence_name,
+        code: row.client_geofence_id,
         latitude: c.latitude,
         longitude: c.longitude,
       });

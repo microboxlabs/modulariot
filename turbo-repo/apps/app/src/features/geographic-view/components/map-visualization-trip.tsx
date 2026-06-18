@@ -36,6 +36,13 @@ import {
   center_in_bounds,
   flyTo,
 } from "@/features/map-visualization/map-view-utils";
+import {
+  haversineKm,
+  ringCentroid,
+  estimateEtaHours,
+  formatEtaHours,
+  type LngLat,
+} from "../utils/vehicle-origin";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -299,6 +306,32 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_data]);
 
+  // Distance + rough ETA from the current vehicle position to the ORIGIN
+  // geofence centroid (location_type === 1). The origin/end flags themselves
+  // are drawn by GeofencePinLayer; this surfaces "how far is the vehicle from
+  // the origin" and an ETA estimated from its last reported speed.
+  const originCentroid = React.useMemo<LngLat | null>(() => {
+    const origin = processedGeofence?.features.find(
+      (f) => (f.properties as { location_type?: number }).location_type === 1
+    );
+    const ring = (origin?.geometry as { coordinates?: LngLat[][] } | undefined)
+      ?.coordinates?.[0];
+    return ring ? ringCentroid(ring) : null;
+  }, [processedGeofence]);
+
+  const vehicle =
+    positions && positions.length > 0 ? positions[displayPosition] : null;
+
+  const distanceToOriginKm =
+    vehicle && originCentroid
+      ? haversineKm([vehicle.longitude, vehicle.latitude], originCentroid)
+      : null;
+
+  const etaToOriginHours =
+    distanceToOriginKm != null
+      ? estimateEtaHours(distanceToOriginKm, vehicle?.speed)
+      : null;
+
   // Memoize the layers array
   const layers = React.useMemo(() => {
     const baseLayers = [];
@@ -549,6 +582,26 @@ export default function MapVisualizationTrip({
           </div>
         ) : null}
       </div>
+
+      {!minimized && distanceToOriginKm != null && (
+        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow dark:border-gray-700 dark:bg-gray-800/90">
+          <span className="flex items-center gap-1">
+            <span className="font-semibold">
+              {tr("geographic_view.distance_to_origin", dict)}:
+            </span>
+            <span>{distanceToOriginKm.toFixed(1)} km</span>
+          </span>
+          <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
+          <span className="flex items-center gap-1">
+            <span className="font-semibold">
+              {tr("geographic_view.eta_to_origin", dict)}:
+            </span>
+            <span>
+              {etaToOriginHours != null ? formatEtaHours(etaToOriginHours) : "—"}
+            </span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

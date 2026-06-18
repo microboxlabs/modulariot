@@ -2620,6 +2620,8 @@
     "latitude": "Latitud",
     "longitude": "Longitud",
     "no_data_found": "No se encontraron datos",
+    "distance_to_origin": "Distancia al origen",
+    "eta_to_origin": "ETA al origen",
     "last_reported_speed": "Velocidad reportada",
     "last_reported_engine_status": "Estado del motor reportado",
     "on": "Encendido",

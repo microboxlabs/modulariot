@@ -16,7 +16,13 @@ export async function testPostgrestConnection(
 ): Promise<{ success: boolean; errorMessage?: string }> {
   // Strip any trailing slash before appending one so a url that already ends
   // in "/" doesn't produce a double slash (which breaks the upstream probe).
-  const specUrl = `${url.replace(/\/+$/, "")}/`;
+  // Done with a linear scan rather than a /\/+$/ regex, which can backtrack
+  // super-linearly on a long run of trailing slashes (ReDoS / DoS).
+  let trimmedEnd = url.length;
+  while (trimmedEnd > 0 && url[trimmedEnd - 1] === "/") {
+    trimmedEnd--;
+  }
+  const specUrl = `${url.slice(0, trimmedEnd)}/`;
 
   const urlCheck = await validateTargetUrl(specUrl);
   if (!urlCheck.valid) {

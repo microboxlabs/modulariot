@@ -21,17 +21,17 @@ function setOrDelete(params: URLSearchParams, key: string, value: string | undef
   else params.delete(key);
 }
 
-export function DashboardFiltersCard() {
+function useDashboardFiltersState() {
   const { filters, dictionary } = useDashboard();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const t = useCallback(
     (key: string, vars?: Record<string, string>) =>
       tr(`dashboard.filterBar.${key}`, dictionary, vars),
     [dictionary]
   );
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const textFilters = useMemo(() => filters.filter((f) => f.type === "text"), [filters]);
   const selectFilters = useMemo(() => filters.filter((f) => f.type === "select"), [filters]);
@@ -100,6 +100,129 @@ export function DashboardFiltersCard() {
 
   const hasValues = Object.values(draft).some(Boolean);
 
+  return {
+    filters,
+    dictionary,
+    textFilters,
+    selectFilters,
+    dateFilters,
+    draft,
+    set,
+    unset,
+    handleApply,
+    handleClear,
+    hasValues,
+    t,
+  };
+}
+
+interface DashboardFiltersPanelProps {
+  onClose?: () => void;
+}
+
+/**
+ * Raw filter form — used inside the header dropdown.
+ * Calling onClose after apply/clear collapses the panel.
+ */
+export function DashboardFiltersPanel({ onClose }: DashboardFiltersPanelProps = {}) {
+  const {
+    textFilters,
+    selectFilters,
+    dateFilters,
+    draft,
+    set,
+    unset,
+    handleApply: _handleApply,
+    handleClear: _handleClear,
+    hasValues,
+    t,
+    dictionary,
+  } = useDashboardFiltersState();
+
+  const handleApply = useCallback(() => {
+    _handleApply();
+  }, [_handleApply]);
+
+  const handleClear = useCallback(() => {
+    _handleClear();
+  }, [_handleClear]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-4 gap-x-3 gap-y-2">
+        {textFilters.map((filter) => (
+          <div key={filter.key} className="flex flex-col gap-0.5">
+            <label className="text-xs text-gray-400 dark:text-gray-500">
+              {filter.label}
+            </label>
+            <input
+              type="text"
+              placeholder={t("filterByPlaceholder", { label: filter.label.toLowerCase() })}
+              value={draft[filter.key] ?? ""}
+              onChange={(e) =>
+                e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
+              }
+              className={INPUT_CLS}
+            />
+          </div>
+        ))}
+        {selectFilters.map((filter) => (
+          <div key={filter.key} className="flex flex-col gap-0.5">
+            <label className="text-xs text-gray-400 dark:text-gray-500">
+              {filter.label}
+            </label>
+            <select
+              value={draft[filter.key] ?? ""}
+              onChange={(e) =>
+                e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
+              }
+              className={SELECT_CLS}
+            >
+              <option value="">—</option>
+              {(filter.options ?? []).map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+        {dateFilters.map((filter) => (
+          <div key={filter.key} className="flex flex-col gap-0.5">
+            <label className="text-xs text-gray-400 dark:text-gray-500">
+              {filter.label}
+            </label>
+            <TimeRangePicker
+              dictionary={dictionary}
+              mode="date"
+              ranges="date"
+              fullWidth
+              from={draft[`${filter.key}_from`]}
+              to={draft[`${filter.key}_to`]}
+              onDateChange={(from, to) => {
+                if (from) set(`${filter.key}_from`, from); else unset(`${filter.key}_from`);
+                if (to) set(`${filter.key}_to`, to); else unset(`${filter.key}_to`);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        <Button size="xs" color="light" onClick={handleClear} disabled={!hasValues}>
+          {t("clearFilters")}
+        </Button>
+        <Button size="xs" color="blue" onClick={handleApply}>
+          {t("applyFilters")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function DashboardFiltersCard() {
+  const { filters, t } = useDashboardFiltersState();
+
   const totalCount = filters.length;
   const description =
     totalCount === 1
@@ -117,75 +240,7 @@ export function DashboardFiltersCard() {
       description={description}
       defaultExpanded
     >
-      <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-4 gap-x-3 gap-y-2">
-          {textFilters.map((filter) => (
-            <div key={filter.key} className="flex flex-col gap-0.5">
-              <label className="text-xs text-gray-400 dark:text-gray-500">
-                {filter.label}
-              </label>
-              <input
-                type="text"
-                placeholder={t("filterByPlaceholder", { label: filter.label.toLowerCase() })}
-                value={draft[filter.key] ?? ""}
-                onChange={(e) =>
-                  e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
-                }
-                className={INPUT_CLS}
-              />
-            </div>
-          ))}
-          {selectFilters.map((filter) => (
-            <div key={filter.key} className="flex flex-col gap-0.5">
-              <label className="text-xs text-gray-400 dark:text-gray-500">
-                {filter.label}
-              </label>
-              <select
-                value={draft[filter.key] ?? ""}
-                onChange={(e) =>
-                  e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
-                }
-                className={SELECT_CLS}
-              >
-                <option value="">—</option>
-                {(filter.options ?? []).map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
-          {dateFilters.map((filter) => (
-            <div key={filter.key} className="flex flex-col gap-0.5">
-              <label className="text-xs text-gray-400 dark:text-gray-500">
-                {filter.label}
-              </label>
-              <TimeRangePicker
-                dictionary={dictionary}
-                mode="date"
-                ranges="date"
-                fullWidth
-                from={draft[`${filter.key}_from`]}
-                to={draft[`${filter.key}_to`]}
-                onDateChange={(from, to) => {
-                  if (from) set(`${filter.key}_from`, from); else unset(`${filter.key}_from`);
-                  if (to) set(`${filter.key}_to`, to); else unset(`${filter.key}_to`);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-end gap-2">
-          <Button size="xs" color="light" onClick={handleClear} disabled={!hasValues}>
-            {t("clearFilters")}
-          </Button>
-          <Button size="xs" color="blue" onClick={handleApply}>
-            {t("applyFilters")}
-          </Button>
-        </div>
-      </div>
+      <DashboardFiltersPanel />
     </ExpandableSection>
   );
 }

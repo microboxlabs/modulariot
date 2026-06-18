@@ -25,6 +25,13 @@ const latestVersion = (pattern, prefix) => {
   return tags.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))[tags.length - 1];
 };
 
+const bumpPatch = (version) => {
+  if (!version) return "0.1.0";
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) throw new Error(`Invalid semver tag version: ${version}`);
+  return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
+};
+
 const prListJson = run("gh", [
   "pr",
   "list",
@@ -90,28 +97,15 @@ for (const pr of prs) {
 }
 
 const pathStarts = (prefixes) => [...changedFiles].some((file) => prefixes.some((prefix) => file.startsWith(prefix)));
-const pathEquals = (paths) => [...changedFiles].some((file) => paths.includes(file));
 
-const appSourceChanged =
-  pathStarts([
-    "turbo-repo/apps/app/",
-    "turbo-repo/packages/ui/",
-    "turbo-repo/packages/db/",
-    "turbo-repo/packages/typescript-config/",
-    "turbo-repo/packages/eslint-config/",
-    "turbo-repo/docker/",
-  ]) || pathEquals(["turbo-repo/package-lock.json"]);
-
-// Release notes are still bundled into the Next.js app, so every stack release
-// changes the app artifact until notes are served from an external resource.
-const releaseNotesAreEmbeddedInApp = true;
-const appChanged = releaseNotesAreEmbeddedInApp || appSourceChanged;
+// Stack release notes are bundled into the Next.js app, so the app package,
+// tag, and image intentionally stay in sync with the stack version.
+const appChanged = true;
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
-const latestAppVersion = latestVersion("app@v*", "app@v");
 const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
-const appVersion = appChanged ? stackVersion : latestAppVersion;
-const modulithVersion = modulithChanged ? stackVersion : latestModulithVersion;
+const appVersion = stackVersion;
+const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
 
 if (!appVersion) {
   throw new Error("No app@v* tag exists and the app did not change in this milestone.");

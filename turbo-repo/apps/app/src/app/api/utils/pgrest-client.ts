@@ -558,13 +558,13 @@ interface AccreditedCacheEntry {
 const accreditedResourcesCache = new Map<string, AccreditedCacheEntry>();
 
 function accreditedCacheKey(opts: {
-  rutMandante: string;
+  rutMandante: string | null;
   delegacion: string;
   resourceType?: AccreditedResourceType;
   carrierId?: string;
 }): string {
   return [
-    opts.rutMandante,
+    opts.rutMandante ?? "*",
     opts.delegacion,
     opts.resourceType ?? "*",
     opts.carrierId ?? "*",
@@ -586,7 +586,7 @@ function accreditedCacheKey(opts: {
  * this feature expects.
  */
 export async function fetchAccreditedResources(opts: {
-  rutMandante: string;
+  rutMandante: string | null;
   delegacion: string;
   resourceType?: AccreditedResourceType;
   /**
@@ -605,6 +605,9 @@ export async function fetchAccreditedResources(opts: {
   const url = `${amsRouteBaseUrl()}/rpc/fn_rd_accredited_resources`;
   const body: Record<string, unknown> = {
     p_client_id: "mintral",
+    // Contract preserved: `p_rut_mandante` is always sent. It is `null` when
+    // the service carries no client RUT — the upstream function must treat
+    // null as "no mandante filter" (return the full delegacion scope).
     p_rut_mandante: opts.rutMandante,
     p_delegacion: opts.delegacion,
   };
@@ -638,7 +641,7 @@ export async function fetchAccreditedResources(opts: {
 
 /** Drop the cached entry — used when the route wants to bypass TTL on demand. */
 export function invalidateAccreditedResourcesCache(opts?: {
-  rutMandante: string;
+  rutMandante: string | null;
   delegacion: string;
   resourceType?: AccreditedResourceType;
   carrierId?: string;

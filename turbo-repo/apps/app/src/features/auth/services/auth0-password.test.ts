@@ -174,19 +174,4 @@ describe("tokenFieldsForCredentialsUser", () => {
       ticket: undefined,
     });
   });
-
-  it("maps a legacy Alfresco user to a ticket-shaped token (no JWT)", async () => {
-    const { tokenFieldsForCredentialsUser } = await import("./auth0-password");
-    const fields = tokenFieldsForCredentialsUser({
-      id: "jane",
-      name: "Jane Doe",
-      email: "jane@example.com",
-      groups: [],
-      ticket: "TICKET_abc",
-    });
-    expect(fields).toEqual({
-      ticket: "TICKET_abc",
-      rawJWT: undefined,
-    });
-  });
 });

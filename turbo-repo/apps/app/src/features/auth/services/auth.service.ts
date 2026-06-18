@@ -1,48 +1,15 @@
 "use server";
 import "server-only";
 
-import { AuthError, CredentialsSignin } from "next-auth";
-import type { User } from "next-auth";
+import { AuthError } from "next-auth";
 import {
   AuthenticateActionState,
   formSchema,
-  SignInCredentials,
 } from "./auth.service.types";
-import { PeopleApi, AlfrescoApi } from "@alfresco/js-api";
 import { getAuth0Connection } from "@/features/auth/config/auth0-connections";
 import { auth, signIn } from "@/auth";
 import { redirectWithLang } from "./navigation.service";
 import { logger } from "@/lib/logger";
-
-export async function signInWithCredentials(
-  credentials: Record<keyof SignInCredentials, string>
-): Promise<User | null> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const alfrescoApi = new AlfrescoApi({
-      hostEcm: process.env.ECM_API_URL,
-      provider: process.env.AUTH_PROVIDER,
-      contextRoot: process.env.CONTEXT_ROOT,
-    });
-    const ticket: string = (await alfrescoApi.login(
-      credentials.email as string,
-      credentials.password as string
-    )) as string;
-
-    const peopleApi = new PeopleApi(alfrescoApi);
-    const person = await peopleApi.getPerson("-me-");
-
-    return {
-      id: person.entry.id,
-      name: person.entry.displayName || person.entry.email || "Unknown User",
-      email: person.entry.email,
-      groups: [],
-      ticket,
-    };
-  } catch (error) {
-    throw new CredentialsSignin("Invalid credentials");
-  }
-}
 
 /**
  * Resolves a post-sign-in redirect target from an optional callbackUrl.

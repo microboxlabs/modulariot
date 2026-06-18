@@ -1,6 +1,5 @@
 import { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { signInWithCredentials } from "@/features/auth/services/auth.service";
 import {
   authenticateWithAuth0Password,
   tokenFieldsForCredentialsUser,
@@ -41,28 +40,23 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
   }
 
 
-  // Credentials provider - always available. When Auth0 is configured the
+  // Credentials provider - only available when Auth0 is configured, since
   // username/password is validated against the Auth0 database connection
-  // (password-realm grant) and yields a JWT session like the OAuth providers;
-  // otherwise it falls back to the legacy Alfresco ticket-based login.
-  providers.push(
-    Credentials({
-      id: "credentials",
-      name: "Credentials",
-      credentials: {
-        username: { label: "Username", type: "text", placeholder: "jsmith" },
-        password: { label: "Password", type: "password" },
-      },
-      authorize: async (credentials) => {
-        if (isAuth0Configured()) {
-          return authenticateWithAuth0Password(
-            credentials as SignInCredentials
-          );
-        }
-        return signInWithCredentials(credentials as SignInCredentials);
-      },
-    })
-  );
+  // (password-realm grant) and yields a JWT session like the OAuth providers.
+  if (isAuth0Configured()) {
+    providers.push(
+      Credentials({
+        id: "credentials",
+        name: "Credentials",
+        credentials: {
+          username: { label: "Username", type: "text", placeholder: "jsmith" },
+          password: { label: "Password", type: "password" },
+        },
+        authorize: async (credentials) =>
+          authenticateWithAuth0Password(credentials as SignInCredentials),
+      })
+    );
+  }
 
   return providers;
 }
@@ -114,8 +108,8 @@ export const authConfig: NextAuthConfig = {
      * route requires a logged-in user, not which users are allowed at all.)
      * Federated/OAuth logins (Auth0 → Google/Microsoft/etc.) are restricted to the
      * domains in AUTH_ALLOWED_EMAIL_DOMAINS. Credentials logins bypass this domain
-     * guard: those users are provisioned by us (Auth0 database connection, or the
-     * legacy Alfresco fallback), not self-asserted via a federated IdP.
+     * guard: those users are provisioned by us (Auth0 database connection), not
+     * self-asserted via a federated IdP.
      */
     async signIn({ user, account, profile }) {
       if (account?.provider === "credentials") {
@@ -264,9 +258,9 @@ export const authConfig: NextAuthConfig = {
           }
         }
 
-        // Handle credentials provider. Auth0-validated users carry an idToken
-        // and get a JWT-shaped token (same as OAuth users, including refresh);
-        // legacy Alfresco users keep the ticket-shaped token.
+        // Handle credentials provider. Credentials users are validated against
+        // Auth0 (password-realm grant), so they carry an idToken and get a
+        // JWT-shaped token, same as OAuth users (including refresh).
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
               hasUser: !!user,

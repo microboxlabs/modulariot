@@ -31,10 +31,10 @@ function decodeJwtPayload(token: string): IdTokenClaims {
 }
 
 /**
- * Token fields to persist for a credentials sign-in. Auth0-authenticated users
- * carry an id_token and get the same JWT-shaped token as OAuth users (so the
- * session/refresh/Bearer-forwarding paths treat them identically); legacy
- * Alfresco users keep the ticket-shaped token.
+ * Token fields to persist for a credentials sign-in. Credentials users are
+ * validated against Auth0 and carry an id_token, so they get the same
+ * JWT-shaped token as OAuth users (the session/refresh/Bearer-forwarding paths
+ * treat them identically).
  */
 export function tokenFieldsForCredentialsUser(user: User): {
   rawJWT?: string;
@@ -42,17 +42,11 @@ export function tokenFieldsForCredentialsUser(user: User): {
   refreshToken?: string;
   ticket?: string;
 } {
-  if (user.idToken) {
-    return {
-      rawJWT: user.idToken,
-      accessTokenExpiresAt: user.expiresAt,
-      refreshToken: user.refreshToken,
-      ticket: undefined,
-    };
-  }
   return {
-    ticket: user.ticket,
-    rawJWT: undefined,
+    rawJWT: user.idToken,
+    accessTokenExpiresAt: user.expiresAt,
+    refreshToken: user.refreshToken,
+    ticket: undefined,
   };
 }
 

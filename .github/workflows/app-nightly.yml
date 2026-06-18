@@ -251,36 +251,15 @@ jobs:
             '{
               event_type: "miot-stack-nightly",
               client_payload: {
-                deploy_kind: "nightly",
                 release_version: $release_version,
-                manifest_version: 1,
-                legacy: {
-                  app_tag: $app_tag,
-                  modulith_tag: $modulith_tag,
-                  app_image_repository: $app_image_repository,
-                  app_image_tag: $app_image_tag,
-                  app_image_ref: $app_image_ref,
-                  modulith_image_repository: $modulith_image_repository,
-                  modulith_image_tag: $modulith_image_tag,
-                  modulith_image_ref: $modulith_image_ref
-                },
-                components: {
-                  app: {
-                    changed: true,
-                    tag: $app_tag,
-                    image_repository: $app_image_repository,
-                    image_tag: $app_image_tag,
-                    image_ref: $app_image_ref
-                  },
-                  modulith: {
-                    changed: false,
-                    tag: $modulith_tag,
-                    source_tag: $modulith_source_tag,
-                    image_repository: $modulith_image_repository,
-                    image_tag: $modulith_image_tag,
-                    image_ref: $modulith_image_ref
-                  }
-                }
+                app_tag: $app_tag,
+                modulith_tag: $modulith_tag,
+                app_image_repository: $app_image_repository,
+                app_image_tag: $app_image_tag,
+                app_image_ref: $app_image_ref,
+                modulith_image_repository: $modulith_image_repository,
+                modulith_image_tag: $modulith_image_tag,
+                modulith_image_ref: $modulith_image_ref
               }
             }' |
             gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \

@@ -1,0 +1,75 @@
+{
+  "stack_version": "0.5.18",
+  "stack_tag": "miot-stack@v0.5.18",
+  "milestone": "MIOT-0.5.18",
+  "pull_requests": [
+    {
+      "number": 634,
+      "title": "feat(auth): validate username/password against Auth0, env-driven conn…",
+      "source_issues": [
+        {
+          "number": 635,
+          "title": "feat: unify username/password sign-in through Auth0 and make Auth0 connection IDs configurable"
+        }
+      ]
+    },
+    {
+      "number": 711,
+      "title": "feat(map): show vehicle distance + ETA to origin on the trip map",
+      "source_issues": [
+        {
+          "number": 710,
+          "title": "feat: show vehicle distance + ETA to origin on the trip map"
+        }
+      ]
+    },
+    {
+      "number": 715,
+      "title": "feat(calendar): origin/destination flags + vehicle distance/ETA on assignment map",
+      "source_issues": [
+        {
+          "number": 714,
+          "title": "feat: origin/destination flags + vehicle distance/ETA on the assignment map"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/src/app/api/calendar/geofence-coords/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/pgrest-client.ts",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.test.ts",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth.service.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth0-password.test.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth0-password.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/services/geofence-coords.service.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/geofence-coords.service.types.ts",
+    "turbo-repo/apps/app/src/features/calendar/utils/distance.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/utils/distance.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence_pin.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/test/server-only-stub.ts",
+    "turbo-repo/apps/app/src/types/next-auth.d.ts",
+    "turbo-repo/apps/app/vitest.config.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.18",
+      "tag": "app@v0.5.18"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.15",
+      "tag": "modulith@v0.5.15"
+    }
+  }
+}

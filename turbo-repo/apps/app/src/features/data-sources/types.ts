@@ -119,3 +119,4 @@ export const UpdateDataSourceSchema = z.object({
 
 export type CreateDataSourceInput = z.infer<typeof CreateDataSourceSchema>;
 export type UpdateDataSourceInput = z.infer<typeof UpdateDataSourceSchema>;
+export type TestConnectionInput = z.infer<typeof TestConnectionSchema>;

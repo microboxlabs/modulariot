@@ -1,0 +1,47 @@
+# 🔔 Release Notes v1.31.15 — ModularIoT
+
+### Fecha: 17/06/2026
+
+**Objetivo**: Esta versión mejora la priorización operativa en planificación y consolida el modelo de releases por milestone para que los despliegues sean más consistentes entre app y modulith. Además, corrige fricciones en flujos de tareas y visualización documental para estabilizar la operación diaria.
+
+## 🚀 Evolutivos
+
+- **📍 Priorización de servicios sin cliente en planificación de calendario**
+  - **Key point**: Se ajustó el orden del preset de planificación para que los servicios sin cliente asignado queden siempre al final.
+  - **Technical detail**: El criterio de orden ahora evalúa primero ausencia de cliente (considerando valores vacíos o con espacios) y luego conserva la prioridad existente por incidencia, compliance y recencia.
+
+## 🔧 Integraciones
+
+- **🔌 Release train guiado por milestones con ensamblado por componentes** *(Integración OSS — MIOT-0.5.16)*
+  - **Scope**: El release pasa a usar una versión umbrella de stack y detecta qué componentes cambiaron por paths de PR para versionar/promover solo app o modulith cuando corresponde, reutilizando artefactos ya liberados para lo no modificado y publicando manifiesto con `components.app` y `components.modulith` (manteniendo campos legacy durante migración).
+
+- **🔌 Alineación del flujo nightly con el modelo de release por componentes** *(Integración OSS — MIOT-0.5.16)*
+  - **Scope**: Nightly deja de recompilar Quarkus, resuelve imagen existente (priorizando `sha-<short_sha>` y fallback a `latest`), promueve esa imagen a tags nightly y despacha payload con estructura por componentes sin romper compatibilidad de campos actuales.
+
+## 🐛 Correcciones
+
+- **🐛 Versionado por defecto del stack y nomenclatura de milestone privada en release train** *(Integración OSS — MIOT-0.5.16)*
+  - **Impacto**: Cuando no existía tag `miot-stack@v*`, el flujo arrancaba en `0.1.0` en lugar de continuar la línea vigente, y el milestone privado salía con formato inconsistente.
+  - **Solución**: El seed de versión ahora toma como base los tags más recientes de `app`/`modulith` y hace bump patch; además, el milestone privado se emite como `Release <version>`.
+
+- **🐛 Consolidación de modales de tareas y correcciones en viewer multimedia/bento** *(Integración OSS — MIOT-0.5.16)*
+  - **Impacto**: Había inconsistencias entre modales de acción, problemas de scroll/layout en el modal, tooltip de rechazo recortado en dropdown y comportamiento de ancho en ítems; también se observaba carga duplicada PDF+PNG en iOS en ciertos casos.
+  - **Solución**: Se unificó en `TaskConfirmModal` con reglas de supresión de motivos según acción, se estabilizó layout scrollable con header/footer fijos, se mejoró `SidebarSection`, se reemplazó el tooltip interno por `PortalTooltip` para evitar clipping y se añadió deduplicación por nombre base para descartar PNGs duplicados de previsualización.
+
+## 📊 Beneficios
+
+- Mejora la lectura operativa del planificador al priorizar primero servicios con cliente identificado.
+- Reduce acoplamiento artificial entre versiones de app y backend en releases de milestone.
+- Disminuye trabajo innecesario en nightly al reutilizar imágenes existentes de modulith.
+- Mantiene compatibilidad hacia atrás en payloads de despliegue durante la transición de contrato.
+- Hace más predecible el versionado del stack y evita saltos a versiones base incorrectas.
+- Simplifica y homogeneiza la experiencia de confirmación/rechazo en tareas de entrega/recepción.
+- Mitiga fricciones de UX en viewer y reduce duplicados de archivos en flujos móviles iOS.
+
+## 📌 Conclusión
+
+La v1.31.15 combina mejoras funcionales visibles para operación con ajustes estructurales del pipeline de releases. El resultado es una planificación más útil en campo y un tren de liberación más alineado con cambios reales por componente.
+
+En paralelo, las correcciones de UX en bento/viewer atacan puntos de fricción concretos del flujo documental y de validación de tareas, reforzando consistencia en interacción y legibilidad en modal.
+
+En conjunto, esta entrega fortalece la continuidad operativa, la gobernanza de versiones y la estabilidad del ciclo de despliegue de ModularIoT.

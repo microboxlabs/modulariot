@@ -47,12 +47,50 @@ const prListJson = run("gh", [
   "200",
 ]);
 
-const prs = JSON.parse(prListJson);
+const issueListJson = run("gh", [
+  "issue",
+  "list",
+  "--repo",
+  repo,
+  "--milestone",
+  milestone,
+  "--state",
+  "all",
+  "--json",
+  "number,title,closedByPullRequestsReferences",
+  "--limit",
+  "200",
+]);
+
+const prByNumber = new Map();
+for (const pr of JSON.parse(prListJson)) {
+  prByNumber.set(pr.number, { ...pr, source_issues: [] });
+}
+
+for (const issue of JSON.parse(issueListJson)) {
+  for (const pr of issue.closedByPullRequestsReferences ?? []) {
+    if (pr.repository?.owner?.login !== repo.split("/")[0] || pr.repository?.name !== repo.split("/")[1]) {
+      continue;
+    }
+
+    const existing = prByNumber.get(pr.number) ?? {
+      number: pr.number,
+      title: "",
+      source_issues: [],
+    };
+    existing.source_issues.push({ number: issue.number, title: issue.title });
+    prByNumber.set(pr.number, existing);
+  }
+}
+
+const prs = [...prByNumber.values()].sort((a, b) => a.number - b.number);
 const changedFiles = new Set();
 
 for (const pr of prs) {
-  const prJson = run("gh", ["pr", "view", String(pr.number), "--repo", repo, "--json", "files"]);
-  const files = JSON.parse(prJson).files ?? [];
+  const prJson = run("gh", ["pr", "view", String(pr.number), "--repo", repo, "--json", "title,files"]);
+  const prData = JSON.parse(prJson);
+  pr.title = pr.title || prData.title;
+  const files = prData.files ?? [];
   for (const file of files) {
     if (file.path) changedFiles.add(file.path);
   }

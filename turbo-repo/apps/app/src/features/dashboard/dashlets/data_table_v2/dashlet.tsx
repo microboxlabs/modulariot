@@ -116,7 +116,7 @@ function buildStickyThClass(
   firstStickyRightIdx: number
 ): string {
   const base =
-    "relative overflow-hidden bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
+    "relative bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
   if (colIdx <= lastStickyIdx) {
     const shadow =
       colIdx === lastStickyIdx
@@ -483,7 +483,7 @@ function ResizeHandle({ onMouseDown, onDoubleClick }: Readonly<ResizeHandleProps
     <div
       role="separator"
       aria-orientation="vertical"
-      className="group/rh absolute inset-y-0 right-0 z-10 flex w-3 cursor-col-resize select-none items-center justify-center"
+      className="group/rh absolute inset-y-0 -right-1.5 z-10 flex w-3 cursor-col-resize select-none items-center justify-center"
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
     >
@@ -692,6 +692,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   columnsRef.current = columns;
   const columnWidthsRef = useRef(columnWidths);
   columnWidthsRef.current = columnWidths;
+  const hasActionsRef = useRef(hasActions);
+  hasActionsRef.current = hasActions;
 
   useEffect(() => {
     setColumnWidths([]);
@@ -710,17 +712,27 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     const cols = columnsRef.current;
     if (!headerRow.children.length || !cols.length) return;
 
+    const containerWidth = table.offsetWidth;
+
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
     void table.offsetWidth; // force reflow in auto mode
 
     const cells = headerRow.children;
-    const snapshot = cols.map((_, i) =>
-      i === cols.length - 1 ? null : ((cells[i] as HTMLElement)?.offsetWidth ?? null)
-    );
+    // Measure ALL data columns including the last.
+    const raw = cols.map((_, i) => (cells[i] as HTMLElement)?.offsetWidth ?? null);
 
-    table.style.tableLayout = ""; // restore: Tailwind table-fixed takes over
+    table.style.tableLayout = "";
     table.style.width = "";
+
+    // Account for the actions column so it doesn't eat into the last data column.
+    const actionsW = hasActionsRef.current ? 40 : 0;
+    const available = containerWidth - actionsW;
+    const sum = raw.reduce<number>((a, w) => a + (w ?? 0), 0);
+    // Scale proportionally if natural widths overflow the container.
+    const snapshot = sum > available && available > 0
+      ? raw.map(w => w != null ? Math.max(40, Math.round(w * available / sum)) : null)
+      : raw;
 
     columnWidthsRef.current = snapshot;
     setColumnWidths(snapshot);
@@ -742,12 +754,35 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       document.body.style.userSelect = "none";
 
       const applyWidth = (w: number) => {
+        const table = tableRef.current;
+        if (!table) return;
         const px = `${w}px`;
         colEl.style.width = px; colEl.style.minWidth = px; colEl.style.maxWidth = px;
         if (thEl) { thEl.style.width = px; thEl.style.minWidth = px; thEl.style.maxWidth = px; }
-        tableRef.current?.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${colIdx + 1})`).forEach(td => {
+        table.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${colIdx + 1})`).forEach(td => {
           td.style.width = px; td.style.minWidth = px; td.style.maxWidth = px;
         });
+
+        // Keep the last column filling all remaining space.
+        const lastIdx = columnsRef.current.length - 1;
+        const lastColEl = colRefs.current[lastIdx];
+        const lastThEl = thRefs.current[lastIdx];
+        if (lastColEl && lastThEl) {
+          const containerW = table.parentElement?.clientWidth ?? table.offsetWidth;
+          const actionsW = hasActionsRef.current ? 40 : 0;
+          let sumOthers = actionsW;
+          colRefs.current.forEach((c, i) => {
+            if (i === lastIdx) return;
+            sumOthers += i === colIdx ? w : (parseFloat(c?.style.width ?? "0") || 0);
+          });
+          const lastW = Math.max(40, containerW - sumOthers);
+          const lastPx = `${lastW}px`;
+          lastColEl.style.width = lastPx; lastColEl.style.minWidth = lastPx; lastColEl.style.maxWidth = lastPx;
+          lastThEl.style.width = lastPx; lastThEl.style.minWidth = lastPx; lastThEl.style.maxWidth = lastPx;
+          table.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${lastIdx + 1})`).forEach(td => {
+            td.style.width = lastPx; td.style.minWidth = lastPx; td.style.maxWidth = lastPx;
+          });
+        }
       };
 
       const onMouseMove = (ev: MouseEvent) => {
@@ -762,6 +797,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         setColumnWidths((prev) => {
           const next = [...prev];
           next[colIdx] = finalWidth;
+          const lastIdx = columnsRef.current.length - 1;
+          const lastThEl = thRefs.current[lastIdx];
+          if (lastThEl) next[lastIdx] = parseFloat(lastThEl.style.width) || next[lastIdx];
           return next;
         });
         document.removeEventListener("mousemove", onMouseMove);

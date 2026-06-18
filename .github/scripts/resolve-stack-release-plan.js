@@ -97,23 +97,14 @@ for (const pr of prs) {
 }
 
 const pathStarts = (prefixes) => [...changedFiles].some((file) => prefixes.some((prefix) => file.startsWith(prefix)));
-const pathEquals = (paths) => [...changedFiles].some((file) => paths.includes(file));
 
-const appChanged =
-  pathStarts([
-    "turbo-repo/apps/app/",
-    "turbo-repo/packages/ui/",
-    "turbo-repo/packages/db/",
-    "turbo-repo/packages/typescript-config/",
-    "turbo-repo/packages/eslint-config/",
-    "turbo-repo/docker/",
-  ]) || pathEquals(["turbo-repo/package-lock.json"]);
-
+// Stack release notes are bundled into the Next.js app, so the app package,
+// tag, and image intentionally stay in sync with the stack version.
+const appChanged = true;
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
-const latestAppVersion = latestVersion("app@v*", "app@v");
 const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
-const appVersion = appChanged ? bumpPatch(latestAppVersion) : latestAppVersion;
+const appVersion = stackVersion;
 const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
 
 if (!appVersion) {

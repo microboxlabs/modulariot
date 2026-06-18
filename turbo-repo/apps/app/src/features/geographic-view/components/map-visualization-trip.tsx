@@ -36,12 +36,11 @@ import {
   center_in_bounds,
   flyTo,
 } from "@/features/map-visualization/map-view-utils";
+import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
-  haversineKm,
   ringCentroid,
   estimateEtaHours,
   formatEtaHours,
-  type LngLat,
 } from "../utils/vehicle-origin";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not

@@ -1,30 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  haversineKm,
   ringCentroid,
   estimateEtaHours,
   formatEtaHours,
 } from "./vehicle-origin";
-
-describe("haversineKm", () => {
-  it("is ~0 for the same point", () => {
-    expect(haversineKm([-70.66, -33.44], [-70.66, -33.44])).toBeCloseTo(0, 5);
-  });
-
-  it("matches a known distance (Santiago → Antofagasta ≈ 1090 km)", () => {
-    // [lng, lat]
-    const santiago: [number, number] = [-70.6693, -33.4489];
-    const antofagasta: [number, number] = [-70.4, -23.65];
-    expect(haversineKm(santiago, antofagasta)).toBeGreaterThan(1050);
-    expect(haversineKm(santiago, antofagasta)).toBeLessThan(1130);
-  });
-
-  it("is symmetric", () => {
-    const a: [number, number] = [-70.6, -33.4];
-    const b: [number, number] = [-71.6, -33.0];
-    expect(haversineKm(a, b)).toBeCloseTo(haversineKm(b, a), 9);
-  });
-});
 
 describe("ringCentroid", () => {
   it("averages the ring coordinates", () => {

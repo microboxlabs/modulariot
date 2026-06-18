@@ -1,0 +1,16 @@
+# Per-tenant overlay for `mintral`. Layered on top of the global base
+# only when the requesting tenant is mintral. The scope is derived from
+# the tenants/<id>/ directory; the in-file scope is for readability.
+id: mintral-overlay
+scope: { kind: tenant, tenant_id: mintral }
+primer_text: |
+  For Mintral, "Coordinador" is the single source of fleet-operations
+  truth and the harness is locked to this tenant. Service-level
+  vocabulary (servicio, tarea, POD, ETA) follows the Coordinador domain.
+priority: 0
+facts:
+  - name: tenant_data_scope
+    title: Mintral data scope
+    body: >
+      All coordinador_* tools are tenant-locked to Mintral. Cross-tenant
+      questions are refused, not answered from another client's data.

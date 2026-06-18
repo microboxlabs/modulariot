@@ -33,6 +33,7 @@ import {
 } from "../common/settings-fields";
 import { DeleteItemButton } from "../common/delete-item-button";
 import { useActiveProviders } from "../common/use-active-providers";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
 import { PgrestFunctionAutocomplete } from "../common/pgrest-function-autocomplete";
 import { PlannerVariableSelector } from "../common/planner-variable-selector";
 import { useOptionalPlannerContext } from "../../context/planner-context";
@@ -537,6 +538,7 @@ function PgrestLayerSection({
   dictionary,
 }: Readonly<PgrestLayerSectionProps>) {
   const activeProviders = useActiveProviders();
+  const filterSuggestions = useDashboardFilterSuggestions();
 
   return (
     <>
@@ -664,6 +666,7 @@ function PgrestLayerSection({
                     );
                     set("pgrestParams", updated);
                   }}
+                  filterSuggestions={filterSuggestions}
                 />
               </div>
               <DeleteItemButton
@@ -719,6 +722,7 @@ function LayerCard({
   onDelete,
   dictionary,
 }: Readonly<LayerCardProps>) {
+  const filterSuggestions = useDashboardFilterSuggestions();
   const searchParams = useSearchParams();
   const resolvedApiUrl = useMemo(
     () => resolveUrlTemplate(item.apiUrl, searchParams),
@@ -872,6 +876,7 @@ function LayerCard({
                     value={item.apiUrl}
                     onChange={(v) => set("apiUrl", v)}
                     placeholder="https://api.example.com/geojson"
+                    filterSuggestions={filterSuggestions}
                   />
                 </div>
                 <ApiStatusIndicator url={item.apiUrl} />
@@ -1033,6 +1038,7 @@ function TooltipLayerSection({
   onChange,
   dictionary,
 }: Readonly<TooltipLayerSectionProps>) {
+  const filterSuggestions = useDashboardFilterSuggestions();
   const [open, setOpen] = useState(false);
 
   const template = item.tooltip?.template ?? "";
@@ -1066,6 +1072,7 @@ function TooltipLayerSection({
             onChange={handleTemplate}
             placeholder="{{row.label}}: {{row.value}}"
             rows={3}
+            filterSuggestions={filterSuggestions}
           />
         </div>
       )}
@@ -1303,6 +1310,7 @@ function LayerStyleCard({
   onChange,
   dictionary,
 }: Readonly<LayerStyleCardProps>) {
+  const filterSuggestions = useDashboardFilterSuggestions();
   const setStyle = useCallback(
     <K extends keyof MapLayerStyle>(key: K, value: MapLayerStyle[K]) =>
       onChange({ ...item, style: { ...item.style, [key]: value } }),
@@ -1450,6 +1458,7 @@ function LayerStyleCard({
             onChange={(v) => set("geometryField", v)}
             placeholder="location"
             tooltip={tr("dashboard.settings.geometryFieldTooltip", dictionary)}
+            filterSuggestions={filterSuggestions}
           />
         )}
 
@@ -1462,6 +1471,7 @@ function LayerStyleCard({
               onChange={(v) => set("latField", v)}
               placeholder="lat"
               tooltip={tr("dashboard.settings.latFieldTooltip", dictionary)}
+              filterSuggestions={filterSuggestions}
             />
             <HbTextField
               id={`geo-lngfield-${item.id}`}
@@ -1470,6 +1480,7 @@ function LayerStyleCard({
               onChange={(v) => set("lngField", v)}
               placeholder="lng"
               tooltip={tr("dashboard.settings.lngFieldTooltip", dictionary)}
+              filterSuggestions={filterSuggestions}
             />
           </div>
         )}
@@ -1482,6 +1493,7 @@ function LayerStyleCard({
             onChange={(v) => set("responsePath", v)}
             placeholder="data.results"
             tooltip={tr("dashboard.settings.responsePathTooltip", dictionary)}
+            filterSuggestions={filterSuggestions}
           />
         )}
       </div>

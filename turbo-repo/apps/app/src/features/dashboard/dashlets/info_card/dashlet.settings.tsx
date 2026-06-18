@@ -20,6 +20,7 @@ import { useWidgetRefreshSettings } from "../common/use-widget-refresh-settings"
 import { SettingsShell, buildStandardTabs } from "../common/settings-shell";
 import { useSettingsDirty } from "../common/use-settings-dirty";
 import { usePlannerContext } from "../../context/planner-context";
+import { useDashboardFilterSuggestions } from "../common/use-filter-suggestions";
 import { AdvancedColorPicker } from "@/features/common/components/advanced-color-picker";
 import {
   useValueColorSettings,
@@ -43,6 +44,7 @@ export function DashletSettings({
   const activeProviders = useActiveProviders();
   const refresh = useWidgetRefreshSettings(config, dictionary);
   const { schemas } = usePlannerContext();
+  const filterSuggestions = useDashboardFilterSuggestions();
 
   const [title, setTitle] = useState(config.title || "Metric");
   const [icon, setIcon] = useState<InfoCardIcon>(config.icon || "chart");
@@ -208,6 +210,7 @@ export function DashletSettings({
         onChange={setTitle}
         placeholder={tr("dashboard.settings.titlePlaceholder", dictionary)}
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
 
       <HbTextField
@@ -217,6 +220,7 @@ export function DashletSettings({
         onChange={setValue}
         placeholder={tr("dashboard.settings.valuePlaceholder", dictionary)}
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
       />
 
       <HbTextareaField
@@ -226,6 +230,7 @@ export function DashletSettings({
         onChange={setDescriptor}
         placeholder={tr("dashboard.settings.descriptorPlaceholder", dictionary)}
         rows={2}
+        filterSuggestions={filterSuggestions}
       />
 
       <HbTextareaField
@@ -238,12 +243,14 @@ export function DashletSettings({
           dictionary
         )}
         rows={2}
+        filterSuggestions={filterSuggestions}
       />
 
       <HbTextField
         id="viewMoreUrl"
         label={tr("dashboard.settings.viewMoreUrl", dictionary)}
         schemaSuggestions={schemaSuggestions}
+        filterSuggestions={filterSuggestions}
         value={viewMoreUrl}
         onChange={setViewMoreUrl}
         placeholder="https://example.com/details"
@@ -254,6 +261,7 @@ export function DashletSettings({
           id="viewMoreLabel"
           label={tr("dashboard.settings.viewMoreLabel", dictionary)}
           schemaSuggestions={schemaSuggestions}
+          filterSuggestions={filterSuggestions}
           value={viewMoreLabel}
           onChange={setViewMoreLabel}
           placeholder={tr(

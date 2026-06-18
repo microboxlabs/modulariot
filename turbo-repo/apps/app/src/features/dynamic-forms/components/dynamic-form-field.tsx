@@ -1,8 +1,8 @@
 "use client";
 
-import { Label, TextInput, Select, Textarea, Checkbox, Button } from "flowbite-react";
+import { Label, TextInput, Textarea, Checkbox, Button, Dropdown, DropdownItem } from "flowbite-react";
 import { useState, useEffect } from "react";
-import { HiMinus, HiPlus } from "react-icons/hi";
+import { HiMinus, HiPlus, HiChevronDown } from "react-icons/hi";
 import { DynamicFieldConfig } from "../dynamic-form.types";
 import { DisplayField } from "./display-field";
 
@@ -210,23 +210,32 @@ export function DynamicFormField({
           />
         );
 
-      case "select":
+      case "select": {
+        const selectedOption = field.options?.find((o) => o.value === (value as string));
+        const selectedLabel = selectedOption ? translate(selectedOption.labelKey) : "—";
         return (
-          <Select
-            id={field.name}
-            name={field.name}
-            value={value as string}
-            onChange={(e) => onChange(e.target.value)}
-            required={field.required}
+          <Dropdown
+            label=""
             disabled={field.readonly}
+            renderTrigger={() => (
+              <button
+                type="button"
+                disabled={field.readonly}
+                className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span>{selectedLabel}</span>
+                <HiChevronDown className="ml-2 h-4 w-4 shrink-0" />
+              </button>
+            )}
           >
             {field.options?.map((option) => (
-              <option key={option.value} value={option.value}>
+              <DropdownItem key={option.value} onClick={() => onChange(option.value)}>
                 {translate(option.labelKey)}
-              </option>
+              </DropdownItem>
             ))}
-          </Select>
+          </Dropdown>
         );
+      }
 
       case "textarea":
         return (

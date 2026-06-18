@@ -496,7 +496,7 @@ export function PlanningSelectionProvider({
       // canonical item's raw service. The package's generic SidebarShell calls
       // this seam (falling back to its default ItemCard when unset).
       renderItemCard: (item) => (
-        <ServiceEvent service={item.raw as SelectedService} dict={dict} />
+        <ServiceEvent service={item.raw as SelectedService} />
       ),
       bookingApi: {
         createBooking,

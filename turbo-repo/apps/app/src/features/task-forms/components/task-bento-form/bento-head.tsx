@@ -1,16 +1,27 @@
 import TaskActions from "../task-actions/task-actions";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import { ShippingCoordinatorProcessFormsV2 } from "../../services/form.service.types";
+import {
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+} from "../../services/form.service";
 import TimeElement from "./time-element";
 import CandidateGroupsElement from "./candidate-groups-element";
 import Link from "next/link";
 import { Button } from "flowbite-react";
 import { FaRegEye } from "react-icons/fa";
 import { TaskOwnerDisplay } from "./task-owner-display";
+
+const STRICT_REVIEW_GATING_TASKS = [
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+] as const;
 
 const task_states = {
   assignDriver: "planificado",
@@ -139,6 +150,8 @@ export default function BentoHead({
             fluid={true}
             enableActions={enableActions}
             extraData={task}
+            fullDict={dict as unknown as I18nDictionary}
+            strictReviewGating={STRICT_REVIEW_GATING_TASKS.includes(task.taskFormKey as never)}
           />
         )}
       </div>

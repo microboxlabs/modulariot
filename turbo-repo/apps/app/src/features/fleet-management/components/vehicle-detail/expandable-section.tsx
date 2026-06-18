@@ -57,7 +57,7 @@ export default function ExpandableSection({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        className="w-full flex items-center gap-3 p-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
         aria-expanded={isExpanded}
       >
         {renderIcon()}

@@ -3,7 +3,6 @@
 import { HiCheck } from "react-icons/hi";
 
 import SplitButton from "@/features/common/components/split-button/split-button";
-import GoBackModal from "./go-back-modal";
 import { TaskActionsProps } from "./task-actions.types";
 import { useDocumentValidation } from "./use-document-validation";
 import {
@@ -43,16 +42,12 @@ import {
   OUTCOME_PLAN_SERVICE,
   OUTCOME_SEPARATE_DOCUMENTS,
   OUTCOME_ASSIGN_DRIVER_V2,
-  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
-  DELIVERY_COORDINATOR_PROCESS_TASKS,
-  PLANNING_COORDINATOR_PROCESS_TASKS,
 } from "../../services/form.service";
-import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
   I18nRecord,
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
-import { useActionState, useCallback, useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   TaskNextActionState,
   ShippingCoordinatorProcessFormsV2,
@@ -71,6 +66,7 @@ import { useRouter } from "next/navigation";
 import { taskNextAction } from "../../services/client-form.service";
 import { tr } from "@/features/i18n/tr.service";
 import { useBentoReview } from "../task-bento-form/bento-review-context";
+import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 
 export default function TaskActions({
   lang,
@@ -79,10 +75,10 @@ export default function TaskActions({
   dict,
   fluid = false,
   extraData,
+  fullDict,
+  strictReviewGating = false,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
-  const [openGoBackModal, setOpenGoBackModal] = useState(false);
-  const [isGoBackSubmitting, setIsGoBackSubmitting] = useState(false);
   const [outcome, setOutcome] = useState<
     | TaskOutcome
     | TaskOutcomeV2
@@ -110,49 +106,6 @@ export default function TaskActions({
       router.replace(`/${lang}/shipping`);
     }
   }, [state]);
-
-  const handleGoBackConfirm = useCallback(async () => {
-    if (!outcome) return;
-    setIsGoBackSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append("taskId", taskId);
-      formData.append("transitionId", outcome as string);
-      if (taskType) formData.append("taskType", taskType);
-      const response = await taskNextAction({}, formData);
-      if (response?.success) {
-        setOpenGoBackModal(false);
-        if (taskType && SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
-          router.push(`/${lang}/shipping`);
-        } else if (taskType && DELIVERY_COORDINATOR_PROCESS_TASKS.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
-          router.push(`/${lang}/delivery`);
-        } else if (taskType && PLANNING_COORDINATOR_PROCESS_TASKS.includes(taskType.replace("wfship2:", "").replace("Task", "") as never)) {
-          router.push(`/${lang}/planning`);
-        } else {
-          router.push(`/${lang}/shipping`);
-        }
-      } else {
-        console.error("[GoBack] action failed", response);
-      }
-    } catch (err) {
-      console.error("[GoBack] unexpected error", err);
-    } finally {
-      setIsGoBackSubmitting(false);
-    }
-  }, [outcome, taskId, taskType, lang, router]);
-
-  const handleSelection = (
-    outcome:
-      | TaskOutcome
-      | TaskOutcomeV2
-      | TaskOutcomeDelivery
-      | TaskOutcomePlanning,
-    outcomeLabel: string
-  ) => {
-    setOutcome(outcome);
-    setOutcomeLabel(outcomeLabel);
-    setOpenModal(true);
-  };
 
   const isCommentsFieldEnabled = (
     outcome:
@@ -225,9 +178,10 @@ export default function TaskActions({
   const showDocumentWarning = !documentsValid && !documentsLoading;
 
   const { state: reviewState } = useBentoReview();
-  // pending > 0 → disable everything; rejected > 0 (no pending) → disable only continue
+  // pending always blocks all movement.
+  // rejected blocks continue only in strict mode (iniciar viaje / confirmar entrega / confirmar recepción).
   const reviewBlocksAll = reviewState.pending > 0;
-  const reviewBlocksContinue = reviewState.pending === 0 && reviewState.rejected > 0;
+  const reviewBlocksContinue = strictReviewGating && reviewState.pending === 0 && reviewState.rejected > 0;
 
   const makeTooltip = (reasons: string[]) => reasons.length === 0 ? undefined : (
     <ul className="flex flex-col gap-1 text-xs">
@@ -250,6 +204,19 @@ export default function TaskActions({
     ...(!reviewBlocksAll && reviewBlocksContinue ? [tr("outcome.disabledRejectedDocs", dict)] : []),
   ]);
 
+  const handleSelection = (
+    outcome:
+      | TaskOutcome
+      | TaskOutcomeV2
+      | TaskOutcomeDelivery
+      | TaskOutcomePlanning,
+    outcomeLabel: string
+  ) => {
+    setOutcome(outcome);
+    setOutcomeLabel(outcomeLabel);
+    setOpenModal(true);
+  };
+
   const splitBtn = (
     <SplitButton
       size="md"
@@ -268,18 +235,12 @@ export default function TaskActions({
             (dict.outcome as I18nRecord)[transitionId] as string
           ),
       }}
-      secondaryActions={otherOptions.map(({ id, label, icon: Icon, isGoBack }) => ({
+      secondaryActions={otherOptions.map(({ id, label, icon: Icon }) => ({
         id,
         label,
         icon: <Icon />,
         onClick: () => {
-          setOutcome(id);
-          setOutcomeLabel(label);
-          if (isGoBack) {
-            setOpenGoBackModal(true);
-          } else {
-            setOpenModal(true);
-          }
+          handleSelection(id, label);
         },
       }))}
     />
@@ -303,17 +264,9 @@ export default function TaskActions({
           openModal={openModal}
           setOpenModal={setOpenModal}
           extraData={extraData}
-        />
-
-        <GoBackModal
-          show={openGoBackModal}
-          onClose={() => setOpenGoBackModal(false)}
-          onConfirm={handleGoBackConfirm}
-          isSubmitting={isGoBackSubmitting}
-          outcomeLabel={outcomeLabel ?? ""}
+          approvedItems={reviewState.approvedItems}
           rejectedItems={reviewState.rejectedItems}
           lang={lang}
-          dict={dict}
         />
       </GroupAllowed>
     </div>

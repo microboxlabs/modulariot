@@ -37,7 +37,6 @@ export default function MediaInlineViewer({
   initialIndex = 0,
   onClose,
   reviewStatuses,
-  draftDecisions,
   onStatusChange,
   onEdit,
   onDelete,
@@ -57,7 +56,6 @@ export default function MediaInlineViewer({
   initialIndex?: number;
   onClose: () => void;
   reviewStatuses?: Map<string, ReviewStatus>;
-  draftDecisions?: Map<string, ReviewStatus>;
   onStatusChange?: (id: string, status: ReviewStatus) => void;
   onEdit?: (index: number) => void;
   onDelete?: (index: number) => void;
@@ -159,10 +157,10 @@ export default function MediaInlineViewer({
 
     if (status === "approved" || status === "rejected") { onClose(); return; }
 
-    const updatedDrafts = new Map(draftDecisions ?? new Map());
-    updatedDrafts.set(id, decision);
+    const updatedStatuses = new Map(reviewStatuses ?? new Map());
+    updatedStatuses.set(id, decision);
 
-    const nextIndex = findNextUndecided(items, currentIndex, updatedDrafts, reviewStatuses);
+    const nextIndex = findNextUndecided(items, currentIndex, new Map(), updatedStatuses);
     if (nextIndex === null) {
       onClose();
     } else {
@@ -180,7 +178,6 @@ export default function MediaInlineViewer({
   const refreshSuffix = current.refreshKey ? `&r=${current.refreshKey}` : "";
   const imageUrl =
     current.type === "image" ? `/app/api/bento/content?nodeId=${id}${refreshSuffix}` : null;
-  const draftDecision = id ? (draftDecisions?.get(id) ?? null) : null;
   const handleEditClick = onEdit ? () => onEdit(currentIndex) : undefined;
   const handleDeleteClick = onDelete ? () => setIsDeleteConfirmOpen(true) : undefined;
 
@@ -194,7 +191,7 @@ export default function MediaInlineViewer({
           currentIndex={currentIndex}
           totalItems={items.length}
           status={status}
-          draftDecision={draftDecision}
+          draftDecision={null}
           isReviewable={isReviewable}
           categories={Object.values(categories)}
           currentCategory={currentCategory}
@@ -218,7 +215,7 @@ export default function MediaInlineViewer({
           <ViewerHeaderBadges
             entry={current.file.entry}
             status={status}
-            draftDecision={draftDecision}
+            draftDecision={null}
             isReviewable={isReviewable}
             dictionary={dictionary}
           />
@@ -231,7 +228,7 @@ export default function MediaInlineViewer({
           currentIndex={currentIndex}
           totalItems={items.length}
           status={status}
-          draftDecision={draftDecision}
+          draftDecision={null}
           isReviewable={isReviewable}
           onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           onNext={() => setCurrentIndex((i) => Math.min(items.length - 1, i + 1))}

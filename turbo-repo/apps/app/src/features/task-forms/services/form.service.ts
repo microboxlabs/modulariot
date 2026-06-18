@@ -310,27 +310,23 @@ export const getSecondaryTransitionIdV2 = (
   id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
   label: string;
   icon: ElementType;
-  isGoBack: boolean;
 }[] => {
   const otherOptions: {
     id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
     label: string;
     icon: ElementType;
-    isGoBack: boolean;
   }[] = [];
   if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
     otherOptions.push({
       id: OUTCOME_ASSIGN_DRIVER_V2,
       label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
       icon: HiOutlineArrowLeft,
-      isGoBack: true,
     });
   } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
     otherOptions.push({
       id: OUTCOME_PRESENT_DRIVER_V2,
       label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
       icon: HiOutlineArrowLeft,
-      isGoBack: true,
     });
   } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
     otherOptions.push(
@@ -338,39 +334,34 @@ export const getSecondaryTransitionIdV2 = (
         id: OUTCOME_ASSIGN_DRIVER_V2,
         label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+  },
       {
         id: OUTCOME_PRESENT_DRIVER_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_PRESENT_DRIVER_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_PREPARE_SERVICE_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_PREPARE_SERVICE_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_OVERLORD_REQUIRED_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_OVERLORD_REQUIRED_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2
         ] as string,
         icon: HiOutlineArrowRight,
-      isGoBack: false,
       }
     );
   } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
@@ -378,14 +369,12 @@ export const getSecondaryTransitionIdV2 = (
       id: OUTCOME_MISSION_CONTROL_V2,
       label: (dict.outcome as I18nRecord)[OUTCOME_MISSION_CONTROL_V2] as string,
       icon: HiOutlineArrowLeft,
-      isGoBack: true,
     });
   } else if (taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK) {
     otherOptions.push({
       id: OUTCOME_MONITOR_TRIP_V2,
       label: (dict.outcome as I18nRecord)[OUTCOME_MONITOR_TRIP_V2] as string,
       icon: HiOutlineArrowLeft,
-      isGoBack: true,
     });
   } else if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK) {
     // nothing to do here
@@ -397,8 +386,7 @@ export const getSecondaryTransitionIdV2 = (
           OUTCOME_OVERLORD_CANCELED_SOVOS_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      }
+}
     );
   } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
     otherOptions.push(
@@ -408,16 +396,14 @@ export const getSecondaryTransitionIdV2 = (
           OUTCOME_CONFIRM_DELIVERY_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },     
+},     
       {
         id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_OVERLORD_CANCELED_SOVOS_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      }
+}
     );
   } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
     otherOptions.push(
@@ -427,15 +413,13 @@ export const getSecondaryTransitionIdV2 = (
           OUTCOME_RECEIVE_DELIVERY_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_TO_CLOSE_MONITORING_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_TO_CLOSE_MONITORING_V2
         ] as string,
         icon: HiOutlineArrowRight,
-      isGoBack: false,
       }
     );
   } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK) {
@@ -446,15 +430,13 @@ export const getSecondaryTransitionIdV2 = (
           OUTCOME_NOTIFY_TMS_ARRIVAL_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_TO_CLOSE_MONITORING_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_TO_CLOSE_MONITORING_V2
         ] as string,
         icon: HiOutlineArrowRight,
-      isGoBack: false,
       }
     );
   } else if (taskType === TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK) {
@@ -463,16 +445,14 @@ export const getSecondaryTransitionIdV2 = (
         id: OUTCOME_PLAN_SERVICE,
         label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_TO_ASSIGN_DRIVER_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_TO_ASSIGN_DRIVER_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      }
+}
     );
   } else if (taskType === TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK) {
     otherOptions.push(
@@ -480,16 +460,14 @@ export const getSecondaryTransitionIdV2 = (
         id: OUTCOME_CONSOLIDATE_LOAD,
         label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_TO_ASSIGN_DRIVER_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_TO_ASSIGN_DRIVER_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      }
+}
     );
   } else if (taskType === TYPE_WFPLANNING_PLAN_SERVICE_TASK) {
     otherOptions.push(
@@ -497,16 +475,14 @@ export const getSecondaryTransitionIdV2 = (
         id: OUTCOME_CONSOLIDATE_LOAD,
         label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_SEPARATE_DOCUMENTS,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_SEPARATE_DOCUMENTS
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      }
+}
     );
   } else if (taskType === TYPE_WFSHIP2_ASSIGN_DRIVER_TASK) {
     otherOptions.push(
@@ -514,22 +490,19 @@ export const getSecondaryTransitionIdV2 = (
         id: OUTCOME_CONSOLIDATE_LOAD,
         label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_SEPARATE_DOCUMENTS,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_SEPARATE_DOCUMENTS
         ] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      },
+},
       {
         id: OUTCOME_PLAN_SERVICE,
         label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
         icon: HiOutlineArrowLeft,
-      isGoBack: true,
-      }
+}
     );
   }
   otherOptions.push(
@@ -537,13 +510,11 @@ export const getSecondaryTransitionIdV2 = (
       id: OUTCOME_OVERLORD_CANCELED_V2,
       label: (dict.outcome as I18nRecord).canceled as string,
       icon: HiOutlineArrowLeft,
-      isGoBack: true,
     },
     {
       id: OUTCOME_OVERLORD_ANULLED_V2,
       label: (dict.outcome as I18nRecord).annulled as string,
       icon: HiTrash,
-      isGoBack: false,
     }
   );
   return otherOptions;

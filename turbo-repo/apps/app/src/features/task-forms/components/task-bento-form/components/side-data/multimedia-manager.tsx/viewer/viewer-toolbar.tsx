@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Button, Dropdown, DropdownItem, Tooltip } from "flowbite-react";
 import {
   HiChevronDown,
@@ -62,6 +64,10 @@ export default function ViewerToolbar({
   canReject?: boolean;
   dictionary: I18nRecord;
 }>) {
+  // Portal tooltip state for the reject dropdown item (disabled buttons block mouse events,
+  // so we use visual-disabled styling and track hover here instead)
+  const [rejectTipPos, setRejectTipPos] = useState<{ top: number; left: number } | null>(null);
+
   return (
     <div className="hidden sm:flex items-center gap-1 xl:gap-1.5 shrink-0">
       <SharePopover fileUrl={fileUrl} fileName={fileName} dictionary={dictionary} />
@@ -166,20 +172,35 @@ export default function ViewerToolbar({
               {tr("bento.multimedia.btn_no_change", dictionary)}
             </DropdownItem>
           )}
-          <Tooltip
-            content={canReject ? undefined : tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
-            placement="left"
+          {/* Reject — visually disabled (not HTML-disabled) so mouse events still fire for the portal tooltip */}
+          <DropdownItem
+            onClick={() => { if (canReject) onDecision("rejected"); else setRejectTipPos(null); }}
+            className={canReject ? undefined : "opacity-50 cursor-not-allowed"}
+            onMouseEnter={canReject ? undefined : (e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setRejectTipPos({ top: r.top + r.height / 2, left: r.left - 8 });
+            }}
+            onMouseLeave={canReject ? undefined : () => setRejectTipPos(null)}
           >
-            <div>
-              <DropdownItem onClick={canReject ? () => onDecision("rejected") : undefined} disabled={!canReject}>
-                {tr("bento.multimedia.btn_reject", dictionary)}
-              </DropdownItem>
-            </div>
-          </Tooltip>
+            {tr("bento.multimedia.btn_reject", dictionary)}
+          </DropdownItem>
           <DropdownItem onClick={() => onDecision("pending")}>
             {tr("bento.multimedia.btn_back_to_review", dictionary)}
           </DropdownItem>
         </Dropdown>
+      )}
+
+      {/* Portal tooltip for the reject item — rendered outside the dropdown so overflow:hidden can't clip it */}
+      {rejectTipPos && createPortal(
+        <div
+          role="tooltip"
+          style={{ position: "fixed", top: rejectTipPos.top, left: rejectTipPos.left, transform: "translate(-100%, -50%)", zIndex: 9999 }}
+          className="relative px-3 py-2 text-sm font-medium text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-sm pointer-events-none whitespace-nowrap"
+        >
+          {tr("bento.multimedia.btn_reject_requires_observation", dictionary)}
+          <div className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+        </div>,
+        document.body
       )}
 
       {/* Close */}

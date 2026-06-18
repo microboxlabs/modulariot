@@ -23,6 +23,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { CustomBadge } from "@/features/common/components/custom-badge";
 
 interface ETADetailsRendererProps {
   data: ReturnType<typeof useLiveETA>["eta"];
@@ -35,16 +36,12 @@ function ETADetailsRenderer({
 }: Readonly<ETADetailsRendererProps>) {
   if (!eta) return null;
   return (
-    <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
+    <div className="text-xs text-blue-700 dark:text-blue-300 space-x-1">
       {eta.duration && (
-        <div>
-          {tr("duration", dict)}: {formatDuration(eta)}
-        </div>
+        <CustomBadge text={`${tr("duration", dict)}: ${formatDuration(eta)}`} />
       )}
       {eta.distance && (
-        <div>
-          {tr("distance", dict)}: {eta.distance.toFixed(2)} km
-        </div>
+        <CustomBadge text={`${tr("distance", dict)}: ${eta.distance.toFixed(2)} km`} />
       )}
     </div>
   );

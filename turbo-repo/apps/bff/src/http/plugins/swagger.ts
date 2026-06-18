@@ -4,9 +4,8 @@ import fastifySwaggerUi from "@fastify/swagger-ui";
 import fastifyBasicAuth from "@fastify/basic-auth";
 import fastifyAuth from "@fastify/auth";
 
-// import { container } from "../../infra/di.js";
 import { FastifyInstance } from "fastify";
-import { container } from "../../infra/di";
+import { container } from "../../infra/di.js";
 /**
  *
  * @param {*} server

@@ -118,17 +118,17 @@ export default function MediaRow({
 
         {/* Text content */}
         <div className="flex flex-col flex-1 min-w-0 gap-1">
-          {/* Primary row: name · dot · category */}
+          {/* Primary row: category · name · dot */}
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate flex-1">
-              {file.entry.name}
-            </span>
             {categoryLabel && (
               <CustomBadge
                 text={categoryLabel}
                 className="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 shrink-0 whitespace-nowrap"
               />
             )}
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate flex-1">
+              {file.entry.name}
+            </span>
             {!hideStatusDot && isReviewable && (
               <span
                 title={statusLabel}

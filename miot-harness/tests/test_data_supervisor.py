@@ -148,16 +148,18 @@ def test_turn_cap_forces_synthesizer():
     assert next_agent(state, _settings(agents_max_turns=8)) == "synthesizer"
 
 
-def test_summarizer_triggered_when_messages_exceed_threshold():
-    """Auto-summarize at >10 transcript messages to keep context bounded."""
+def test_messages_key_does_not_route_to_summarizer():
+    """The legacy `messages → summarizer` branch was dead code: `messages`
+    was never a declared DataState channel, so the branch could never fire
+    inside the real graph. The supervisor now ignores the key entirely."""
     state = {
         "user_message": "?",
         "ctx": _ctx(),
         "evidence": [],
         "turn_count": 3,
-        "messages": [{"role": "user", "content": "x"}] * 11,  # > 10
+        "messages": [{"role": "user", "content": "x"}] * 11,
     }
-    assert next_agent(state, _settings()) == "summarizer"
+    assert next_agent(state, _settings()) == "filter_expert"
 
 
 def test_default_after_freshness_judge_routes_to_analyst():

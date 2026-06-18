@@ -142,3 +142,157 @@ async def test_includes_stale_warning_when_evidence_is_stale():
         state, model=model, progress=lambda e: None, profile=NEXO_PROFILE
     )
     assert update["answer"] == fake
+
+
+def test_rendered_evidence_includes_status_and_rows() -> None:
+    from miot_harness.agents.synthesizer import _render_evidence_for_synth
+
+    empty_ev = DataEvidence(
+        step_id="s",
+        tool="coordinador_task_timeline",
+        source="src",
+        refreshed_at=None,
+        output={"rows": []},
+        sample_size=0,
+        is_stale=True,
+        freshness_status="empty_no_timestamp",
+    )
+    rendered = _render_evidence_for_synth([empty_ev])
+    assert "status=empty_no_timestamp" in rendered
+    assert "rows=0" in rendered
+
+
+@pytest.mark.asyncio
+async def test_system_prompt_carries_per_status_messaging_rules() -> None:
+    """The synthesizer must be instructed how to phrase each freshness
+    status (empty vs stale vs no_timestamp vs empty_no_timestamp)."""
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    state: dict[str, Any] = {
+        "user_message": "tareas del servicio?",
+        "ctx": _ctx(),
+        "evidence": [_ev()],
+        "turn_count": 2,
+    }
+    await synthesizer_node(
+        state,
+        model=_RecordingModel(responses=["ok"]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+    )
+    system = captured[0][0].content
+    for token in ("status=empty_no_timestamp", "status=empty", "status=no_timestamp"):
+        assert token in system, f"missing rule for {token}"
+    assert "no hay filas que coincidan" in system
+
+
+_HINT = (
+    "- coordinador_centro_control: KPI summary\n"
+    "- coordinador_task_timeline: Timeline de tareas"
+)
+
+
+@pytest.mark.asyncio
+async def test_planning_failure_with_hint_lists_capabilities() -> None:
+    """Gap 4: 'qué puedes hacer' in canned mode shouldn't dead-end in
+    'reformúlala' — answer with the capabilities list instead."""
+    state: dict[str, Any] = {
+        "user_message": "¿qué puedes hacer?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "filter_expert returned malformed step",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),  # deterministic — no LLM
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "coordinador_centro_control" in update["answer"]
+    assert "reformúlala" not in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_agentic_planning_failure_with_hint_lists_capabilities() -> None:
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "agentic planner returned malformed step",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "coordinador_centro_control" in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_planning_failure_without_hint_keeps_legacy_copy() -> None:
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "filter_expert returned malformed step",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+    )
+    assert "reformúlala" in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_tool_error_failure_does_not_leak_capabilities_hint() -> None:
+    """Tool crashes are not planning failures — the capabilities list
+    would be misleading ('here's what I can do' right after failing to
+    do exactly that)."""
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "coordinador_centro_control raised: connection lost",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "coordinador_task_timeline" not in update["answer"]
+
+
+@pytest.mark.asyncio
+async def test_stale_failure_keeps_snapshot_copy_with_hint_present() -> None:
+    state: dict[str, Any] = {
+        "user_message": "?",
+        "ctx": _ctx(),
+        "evidence": [],
+        "failure": "Coordinador snapshot is stale (age 4000min > refuse threshold 240min).",
+        "turn_count": 1,
+    }
+    update = await synthesizer_node(
+        state,
+        model=FakeListChatModel(responses=[]),
+        progress=lambda e: None,
+        profile=NEXO_PROFILE,
+        capabilities_hint=_HINT,
+    )
+    assert "el snapshot tiene 4000 minutos" in update["answer"]
+    assert "coordinador_task_timeline" not in update["answer"]

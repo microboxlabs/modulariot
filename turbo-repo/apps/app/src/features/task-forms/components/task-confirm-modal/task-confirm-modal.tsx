@@ -19,7 +19,7 @@ import {
   I18nRecord,
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { taskNextAction } from "../../services/client-form.service";
 import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
@@ -31,6 +31,10 @@ import {
   PLANNING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+  OUTCOME_TO_CONFIRM_DELIVERY_V2,
+  OUTCOME_TO_CLOSE_MONITORING_V2,
 } from "../../services/form.service";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -47,6 +51,9 @@ import {
   PlanningProcessTask,
   ShippingCoordinatorProcessTaskV2,
 } from "../../services/form.service.types";
+import { ReviewedItemCard } from "../task-actions/review-items";
+import { SidebarSection } from "../task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section";
+import { HiCheckCircle, HiDocumentText } from "react-icons/hi2";
 
 export default function TaskConfirmModal({
   openModal,
@@ -58,6 +65,9 @@ export default function TaskConfirmModal({
   dict,
   commentsFieldEnabled = false,
   extraData,
+  approvedItems = [],
+  rejectedItems = [],
+  lang = "es",
 }: PropsWithI18nDict<TaskConfirmModalProps>) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
@@ -72,6 +82,21 @@ export default function TaskConfirmModal({
   const selectConfig = useMemo(() => {
     return taskFormConfig?.selectConfig || getSelectConfig(taskType, outcome);
   }, [taskFormConfig, taskType, outcome]);
+
+  // Suppress select + comments for secondary actions on delivery tasks:
+  // "Confirmar Entrega" and "Confirmar Recepcion" other-options should have no motive inputs.
+  const suppressMotiveInputs = useMemo(() => {
+    if (!taskType) return false;
+    const isConfirmDelivery = taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK;
+    const isReceiveDelivery = taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK;
+    if (!isConfirmDelivery && !isReceiveDelivery) return false;
+    const primaryOutcome = isConfirmDelivery
+      ? OUTCOME_TO_CONFIRM_DELIVERY_V2
+      : OUTCOME_TO_CLOSE_MONITORING_V2;
+    return outcome !== primaryOutcome;
+  }, [taskType, outcome]);
+
+  const hasReviewItems = approvedItems.length > 0 || rejectedItems.length > 0;
 
   // Use consolidated state management for select/reason fields
   const {
@@ -194,9 +219,21 @@ export default function TaskConfirmModal({
   }
 
   return (
-    <Modal dismissible show={openModal} onClose={onClose} size="4xl">
-      <form onSubmit={handleConfirm}>
-        <ModalHeader className="border-none">
+    <Modal
+      dismissible
+      show={openModal}
+      onClose={onClose}
+      size="4xl"
+      theme={{
+        content: {
+          inner:
+            "relative flex max-h-[90dvh] flex-col rounded-lg bg-white shadow dark:bg-gray-800 border border-gray-200 dark:border-gray-600",
+        },
+        body: { base: "flex-1 overflow-y-auto px-6 py-4" },
+      }}
+    >
+      <form onSubmit={handleConfirm} className="flex flex-col flex-1 min-h-0">
+        <ModalHeader className="border-none pb-0 shrink-0">
           <div className="flex flex-col items-start">
             <h2 className="text-base font-semibold">
               {(dict.modal as I18nRecord).title as string}
@@ -207,10 +244,10 @@ export default function TaskConfirmModal({
           </div>
         </ModalHeader>
         <ModalBody>
-          <div className="flex flex-col my-4">
-            {selectConfig && (
-              <>
-                <Label className="mt-4">
+          <div className="flex flex-col gap-4">
+            {selectConfig && !suppressMotiveInputs && (
+              <div className="flex flex-col gap-2">
+                <Label>
                   {(dict.modal as I18nRecord).title2 as string}
                 </Label>
                 {selectConfig.multiSelect ? (
@@ -218,9 +255,7 @@ export default function TaskConfirmModal({
                     options={selectConfig.options}
                     selectedValues={selectedValues}
                     onSelectionChange={setSelectedValues}
-                    triggerText={
-                      selectConfig.triggerText || "Seleccionar opciones"
-                    }
+                    triggerText={selectConfig.triggerText || tr("modal.selectOptions", dict)}
                     dict={dict}
                   />
                 ) : (
@@ -235,12 +270,12 @@ export default function TaskConfirmModal({
                     ))}
                   </Select>
                 )}
-              </>
+              </div>
             )}
 
             {/* Custom form fields */}
             {taskFormConfig?.customFormConfig && (
-              <div className="flex flex-col gap-4 mt-4">
+              <div className="flex flex-col gap-4">
                 {taskFormConfig.customFormConfig.fields.map((field) => (
                   <CustomFormField
                     key={field.name}
@@ -255,13 +290,8 @@ export default function TaskConfirmModal({
               </div>
             )}
 
-            {!commentsFieldEnabled && !taskFormConfig?.customFormConfig && (
-              <div className="flex items-center justify-center mt-4">
-                <KanbanMove />
-              </div>
-            )}
-            {commentsFieldEnabled && (
-              <div className="flex-1 flex flex-col gap-y-2">
+            {commentsFieldEnabled && !suppressMotiveInputs && (
+              <div className="flex flex-col gap-y-2">
                 <Label htmlFor="comments">{tr("modal.reason", dict)}:</Label>
                 <Textarea
                   id="comments"
@@ -273,16 +303,77 @@ export default function TaskConfirmModal({
                 />
               </div>
             )}
+
+            {((!commentsFieldEnabled && !suppressMotiveInputs && !taskFormConfig?.customFormConfig) ||
+              suppressMotiveInputs) &&
+              !hasReviewItems && (
+                <div className="flex items-center justify-center py-4">
+                  <KanbanMove />
+                </div>
+              )}
+
+            {/* Document review summary — collapsible, always at the bottom */}
+            {hasReviewItems && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                {approvedItems.length > 0 && (
+                  <SidebarSection
+                    title={trDynamic(
+                      approvedItems.length === 1
+                        ? "outcome.continueModalApprovedCount_one"
+                        : "outcome.continueModalApprovedCount",
+                      dict,
+                      { count: String(approvedItems.length) }
+                    )}
+                    icon={<HiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                    titleClassName="text-green-700 dark:text-green-300"
+                    defaultExpanded
+                  >
+                    <ul className="flex flex-col gap-2 list-none ">
+                      {approvedItems.map((item) => (
+                        <ReviewedItemCard key={item.fileName} item={item} status="approved" locale={lang} />
+                      ))}
+                    </ul>
+                  </SidebarSection>
+                )}
+                {rejectedItems.length > 0 && (
+                  <SidebarSection
+                    title={trDynamic(
+                      rejectedItems.length === 1
+                        ? "outcome.goBackModalRejectedCount_one"
+                        : "outcome.goBackModalRejectedCount",
+                      dict,
+                      { count: String(rejectedItems.length) }
+                    )}
+                    icon={<HiDocumentText className="w-3.5 h-3.5 text-red-500" />}
+                    titleClassName="text-red-700 dark:text-red-300"
+                    defaultExpanded
+                  >
+                    <ul className="flex flex-col gap-2 list-none ">
+                      {rejectedItems.map((item) => (
+                        <ReviewedItemCard
+                          key={item.fileName}
+                          item={item}
+                          status="rejected"
+                          locale={lang}
+                          noObservationsLabel={tr("outcome.goBackModalNoMotives", dict)}
+                        />
+                      ))}
+                    </ul>
+                  </SidebarSection>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <div className="space-y-2">
+                <ErrorAlert error={error} />
+              </div>
+            )}
           </div>
-          {error && (
-            <div className="mt-4 mb-4 space-y-2">
-              <ErrorAlert error={error} />
-            </div>
-          )}
         </ModalBody>
-        <ModalFooter className="border-none">
+        <ModalFooter className="border-none pt-0 shrink-0">
           <Button
-            className="ml-auto mt-[-41px]"
+            className="ml-auto"
             disabled={isProcessing}
             color="blue"
             type="submit"

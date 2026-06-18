@@ -9,10 +9,19 @@ import {
   FileInput,
   Label,
   Select,
+  Tooltip,
 } from "flowbite-react";
+import Markdown from "react-markdown";
+import { MARKDOWN_COMPONENTS } from "../../dashlets/common/settings-fields";
 import { FaGear } from "react-icons/fa6";
 import { ChevronLeft } from "flowbite-react-icons/outline";
-import { HiArrowDownTray } from "react-icons/hi2";
+import {
+  HiArrowDownTray,
+  HiChevronDown,
+  HiQuestionMarkCircle,
+  HiPlus,
+  HiTrash,
+} from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
@@ -23,9 +32,22 @@ import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import type {
   DashboardFilterParam,
+  DashboardFilterOption,
   RefreshInterval,
 } from "../../types/dashboard.types";
 import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function MdTooltip({ children }: Readonly<{ children: string }>) {
+  return (
+    <div className="max-w-72 text-left text-xs">
+      <Markdown components={MARKDOWN_COMPONENTS}>{children}</Markdown>
+    </div>
+  );
+}
 
 // ============================================================================
 // Types
@@ -403,6 +425,23 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
 }
 
 // ============================================================================
+// Filter Manager Form — pure helpers (module-level to avoid deep nesting)
+// ============================================================================
+
+function patchOption(
+  options: DashboardFilterOption[],
+  optIndex: number,
+  field: keyof DashboardFilterOption,
+  value: string
+): DashboardFilterOption[] {
+  return options.map((o, j) => (j === optIndex ? { ...o, [field]: value } : o));
+}
+
+function withoutOption(options: DashboardFilterOption[], optIndex: number): DashboardFilterOption[] {
+  return options.filter((_, j) => j !== optIndex);
+}
+
+// ============================================================================
 // Filter Manager Form
 // ============================================================================
 
@@ -417,50 +456,122 @@ function FilterManagerForm({
 }: Readonly<FilterManagerFormProps>) {
   const { dictionary } = useDashboard();
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
-  const [localFilters, setLocalFilters] =
-    useState<DashboardFilterParam[]>(filters);
-  const [filterIds, setFilterIds] = useState(() =>
-    filters.map(() => crypto.randomUUID())
-  );
+
+  const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
+  const [filterIds, setFilterIds] = useState(() => filters.map(() => crypto.randomUUID()));
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [optionIds, setOptionIds] = useState<Record<string, string[]>>(() => {
+    const result: Record<string, string[]> = {};
+    filters.forEach((f, i) => {
+      result[filterIds[i]] = (f.options ?? []).map(() => crypto.randomUUID());
+    });
+    return result;
+  });
 
   useEffect(() => {
+    // Intentionally read stale closure values (previous render's state) to
+    // build the key→id map for matching. Adding them to deps would loop.
+    const prevKeyToId = new Map(localFilters.map((f, i) => [f.key, filterIds[i]]));
+    const prevKeyToOptIds = new Map(localFilters.map((f, i) => [f.key, optionIds[filterIds[i]] ?? []]));
+
+    const ids = filters.map((f) => prevKeyToId.get(f.key) ?? crypto.randomUUID());
+    const opts: Record<string, string[]> = {};
+    filters.forEach((f, i) => {
+      const prevOptIds = prevKeyToOptIds.get(f.key) ?? [];
+      opts[ids[i]] = (f.options ?? []).map((_, j) => prevOptIds[j] ?? crypto.randomUUID());
+    });
+
     setLocalFilters(filters);
-    setFilterIds(filters.map(() => crypto.randomUUID()));
-  }, [filters]);
+    setFilterIds(ids);
+    setOptionIds(opts);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addFilter = () => {
+    const id = crypto.randomUUID();
     setLocalFilters((prev) => [...prev, { key: "", label: "", type: "text" }]);
-    setFilterIds((prev) => [...prev, crypto.randomUUID()]);
+    setFilterIds((prev) => [...prev, id]);
+    setOptionIds((prev) => ({ ...prev, [id]: [] }));
+    setExpandedIds((prev) => new Set([...prev, id]));
   };
 
-  const updateFilter = (
-    index: number,
-    field: keyof DashboardFilterParam,
-    value: string
-  ) => {
-    setLocalFilters((prev) =>
-      prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
-    );
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const updateFilter = (index: number, patch: Partial<DashboardFilterParam>) => {
+    setLocalFilters((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
   };
 
   const removeFilter = (index: number) => {
+    const filterId = filterIds[index];
     setLocalFilters((prev) => prev.filter((_, i) => i !== index));
     setFilterIds((prev) => prev.filter((_, i) => i !== index));
+    setOptionIds((prev) => {
+      const next = { ...prev };
+      delete next[filterId];
+      return next;
+    });
+  };
+
+  const addOption = (index: number) => {
+    const filterId = filterIds[index];
+    const optId = crypto.randomUUID();
+    setLocalFilters((prev) =>
+      prev.map((f, i) =>
+        i === index
+          ? { ...f, options: [...(f.options ?? []), { label: "", value: "" }] }
+          : f
+      )
+    );
+    setOptionIds((prev) => ({
+      ...prev,
+      [filterId]: [...(prev[filterId] ?? []), optId],
+    }));
+  };
+
+  const updateOption = (
+    filterIndex: number,
+    optIndex: number,
+    field: keyof DashboardFilterOption,
+    value: string
+  ) => {
+    setLocalFilters((prev) =>
+      prev.map((f, i) =>
+        i === filterIndex
+          ? { ...f, options: patchOption(f.options ?? [], optIndex, field, value) }
+          : f
+      )
+    );
+  };
+
+  const removeOption = (filterIndex: number, optIndex: number) => {
+    const filterId = filterIds[filterIndex];
+    setLocalFilters((prev) =>
+      prev.map((f, i) =>
+        i === filterIndex
+          ? { ...f, options: withoutOption(f.options ?? [], optIndex) }
+          : f
+      )
+    );
+    setOptionIds((prev) => ({
+      ...prev,
+      [filterId]: (prev[filterId] ?? []).filter((_, j) => j !== optIndex),
+    }));
   };
 
   const handleSave = () => {
     const seen = new Set<string>();
     const normalizedFilters = localFilters.map((f) => {
       const trimmedLabel = f.label.trim();
-      // Normalize key: trim, lowercase, spaces→underscores, strip unsafe chars
       let key = (f.key.trim() || trimmedLabel)
         .toLowerCase()
         .replaceAll(/\s+/g, "_")
         .replaceAll(/[^a-z0-9_-]/g, "");
-      // Ensure key starts with a letter or underscore
-      if (key && !/^[a-z_]/i.test(key)) {
-        key = `_${key}`;
-      }
+      if (key && !/^[a-z_]/i.test(key)) key = `_${key}`;
       return { ...f, key, label: trimmedLabel };
     });
 
@@ -472,10 +583,7 @@ function FilterManagerForm({
     const hasDuplicates = [...keyCount.values()].some((c) => c > 1);
 
     if (hasEmpty || hasDuplicates) {
-      ShowNotification({
-        type: "error",
-        message: t("filtersValidationError"),
-      });
+      ShowNotification({ type: "error", message: t("filtersValidationError") });
       return;
     }
 
@@ -485,103 +593,228 @@ function FilterManagerForm({
       return true;
     });
     onSave(validFilters);
-    ShowNotification({
-      type: "success",
-      message: t("filtersUpdated"),
-    });
+    ShowNotification({ type: "success", message: t("filtersUpdated") });
+  };
+
+  const TYPE_LABEL: Record<DashboardFilterParam["type"], string> = {
+    text: t("textSearch"),
+    date_range: t("dateRange"),
+    select: t("selectType"),
   };
 
   return (
-    <div className="p-4 space-y-3">
-      {localFilters.length === 0 && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t("noFiltersConfigured")}
-        </p>
-      )}
-
-      {localFilters.map((filter, index) => (
-        <div key={filterIds[index]} className="space-y-1">
-          <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-2 dark:border-gray-600">
-            <div className="flex-1 space-y-2">
-              <div className="flex gap-2">
-                <TextInput
-                  sizing="sm"
-                  placeholder={t("keyPlaceholder")}
-                  value={filter.key}
-                  onChange={(e) => updateFilter(index, "key", e.target.value)}
-                  className="flex-1"
-                />
-                <TextInput
-                  sizing="sm"
-                  placeholder={t("labelPlaceholder")}
-                  value={filter.label}
-                  onChange={(e) => updateFilter(index, "label", e.target.value)}
-                  className="flex-1"
-                />
-                <Select
-                  sizing="sm"
-                  value={filter.type}
-                  onChange={(e) => updateFilter(index, "type", e.target.value)}
-                  className="w-32 shrink-0"
-                >
-                  <option value="text">{t("textSearch")}</option>
-                  <option value="date_range">{t("dateRange")}</option>
-                </Select>
-              </div>
-            </div>
-            <Button
-              type="button"
-              color="failure"
-              size="xs"
-              onClick={() => removeFilter(index)}
-            >
-              &times;
-            </Button>
-          </div>
-          {filter.type === "date_range" && filter.key && (
-            <div className="ml-4 space-y-1">
-              {[`${filter.key}_from`, `${filter.key}_to`].map((derived) => (
-                <div
-                  key={derived}
-                  className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
-                >
-                  <code className="flex-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
-                    {`{{filter.${derived}}}`}
-                  </code>
-                  <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                    {t("autoGenerated")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-
-      {/* Show default date range keys when no date_range filter is configured */}
-      {!localFilters.some((f) => f.type === "date_range") && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            {t("builtInDateRange")}
+    <div className="flex flex-col">
+      {/* Scrollable filter list */}
+      <div className="overflow-y-auto p-4 space-y-3">
+        {localFilters.length === 0 && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t("noFiltersConfigured")}
           </p>
-          {["date_range_from", "date_range_to"].map((derived) => (
-            <div
-              key={derived}
-              className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
-            >
-              <code className="flex-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
-                {`{{filter.${derived}}}`}
-              </code>
-              <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                {t("autoGenerated")}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+        )}
 
-      <div className="flex justify-between gap-2">
+        {localFilters.map((filter, index) => {
+          const id = filterIds[index];
+          const isOpen = expandedIds.has(id);
+          const title = filter.label || t("newFilter");
+
+          return (
+            <div
+              key={id}
+              className="rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800 overflow-hidden"
+            >
+              {/* Card header */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleExpanded(id)}
+                  className="flex flex-1 items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                >
+                  <HiChevronDown
+                    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                  />
+                  <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                    {title}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                    {TYPE_LABEL[filter.type]}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeFilter(index)}
+                  className="mr-2 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                  title={t("removeFilter")}
+                >
+                  <HiTrash className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Card body */}
+              {isOpen && (
+                <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3 space-y-3">
+
+                  {/* Type */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Label htmlFor={`type-${id}`}>{t("filterType")}</Label>
+                      <Tooltip content={<MdTooltip>{t("filterTypeTooltip")}</MdTooltip>}>
+                        <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <Select
+                      id={`type-${id}`}
+                      sizing="sm"
+                      value={filter.type}
+                      onChange={(e) =>
+                        updateFilter(index, {
+                          type: e.target.value as DashboardFilterParam["type"],
+                          options: e.target.value === "select" ? (filter.options ?? []) : undefined,
+                        })
+                      }
+                    >
+                      <option value="text">{t("textSearch")}</option>
+                      <option value="date_range">{t("dateRange")}</option>
+                      <option value="select">{t("selectType")}</option>
+                    </Select>
+                  </div>
+
+                  {/* Label */}
+                  <div className="space-y-1">
+                    <Label htmlFor={`label-${id}`}>{t("displayLabel")}</Label>
+                    <TextInput
+                      id={`label-${id}`}
+                      sizing="sm"
+                      placeholder={t("displayLabelPlaceholder")}
+                      value={filter.label}
+                      onChange={(e) => updateFilter(index, { label: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Key */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Label htmlFor={`key-${id}`}>{t("parameterKey")}</Label>
+                      <Tooltip content={<MdTooltip>{t("parameterKeyTooltip")}</MdTooltip>}>
+                        <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                      </Tooltip>
+                    </div>
+                    <TextInput
+                      id={`key-${id}`}
+                      sizing="sm"
+                      placeholder={t("parameterKeyPlaceholder")}
+                      value={filter.key}
+                      onChange={(e) => updateFilter(index, { key: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Select options */}
+                  {filter.type === "select" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <Label>{t("selectOptionsLabel")}</Label>
+                        <Tooltip content={<MdTooltip>{t("selectOptionsTooltip")}</MdTooltip>}>
+                          <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
+                      {(filter.options ?? []).length === 0 && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">{t("noOptionsYet")}</p>
+                      )}
+                      {(filter.options ?? []).map((opt, optIdx) => (
+                        <div key={(optionIds[id] ?? [])[optIdx] ?? optIdx} className="flex items-center gap-2">
+                          <TextInput
+                            sizing="sm"
+                            placeholder={t("optionLabelPlaceholder")}
+                            value={opt.label}
+                            onChange={(e) => updateOption(index, optIdx, "label", e.target.value)}
+                            className="flex-1"
+                          />
+                          <TextInput
+                            sizing="sm"
+                            placeholder={t("optionValuePlaceholder")}
+                            value={opt.value}
+                            onChange={(e) => updateOption(index, optIdx, "value", e.target.value)}
+                            className="flex-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeOption(index, optIdx)}
+                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <HiTrash className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        size="xs"
+                        color="light"
+                        onClick={() => addOption(index)}
+                      >
+                        <HiPlus className="mr-1 h-3 w-3" />
+                        {t("addOption")}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Date range auto-generated param info */}
+                  {filter.type === "date_range" && filter.key && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          {t("autoGeneratedParams")}
+                        </p>
+                        <Tooltip content={<MdTooltip>{t("autoGeneratedParamsTooltip")}</MdTooltip>}>
+                          <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
+                      {[`${filter.key}_from`, `${filter.key}_to`].map((derived) => (
+                        <div
+                          key={derived}
+                          className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
+                        >
+                          <code className="flex-1 text-xs font-mono text-gray-500 dark:text-gray-400">
+                            {`{{filter.${derived}}}`}
+                          </code>
+                          <span className="text-xs italic text-gray-400 dark:text-gray-500">
+                            {t("autoGenerated")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Default date range info */}
+        {!localFilters.some((f) => f.type === "date_range") && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {t("builtInDateRange")}
+            </p>
+            {["date_range_from", "date_range_to"].map((derived) => (
+              <div
+                key={derived}
+                className="flex items-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/50"
+              >
+                <code className="flex-1 text-xs font-mono text-gray-500 dark:text-gray-400">
+                  {`{{filter.${derived}}}`}
+                </code>
+                <span className="text-xs italic text-gray-400 dark:text-gray-500">
+                  {t("autoGenerated")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Always-visible action bar */}
+      <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between gap-2">
         <Button type="button" color="light" size="sm" onClick={addFilter}>
+          <HiPlus className="mr-1 h-4 w-4" />
           {t("addFilterButton")}
         </Button>
         <Button type="button" size="sm" onClick={handleSave}>
@@ -841,7 +1074,7 @@ export default function DashboardSettingsDropdown({
       </Button>
 
       {open && (
-        <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[360px] w-[440px]">
+        <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-90 w-110">
           <SettingsSection
             option="order"
             selected={selected}
@@ -891,6 +1124,7 @@ export default function DashboardSettingsDropdown({
               "dashboard.settings.filterBarDescription",
               dictionary
             )}
+            maxHeight="max-h-[70vh]"
           >
             <FilterManagerForm filters={filters} onSave={setFilters} />
           </SettingsSection>

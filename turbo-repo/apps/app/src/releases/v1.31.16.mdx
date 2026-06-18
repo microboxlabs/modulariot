@@ -1,0 +1,46 @@
+# 🔔 Release Notes v1.31.16 — ModularIoT
+
+### Fecha: 18/06/2026
+
+**Objetivo**: Esta versión fortalece la confiabilidad del ciclo de release/despliegue y mejora flujos funcionales clave de la app. El foco estuvo en reducir errores operativos de pipeline y asegurar una evolución más consistente entre app, stack y despliegues.
+
+## 🚀 Evolutivos
+
+- **📍 Redirección raíz en ingress de `miot-app` y pin de stack en coordinador** *(Integración OSS — MIOT-0.5.17)*
+  - **Key point**: Se incorporó una opción para redirigir `/` hacia una ruta de aplicación configurada y se fijó el stack chart compatible en despliegues de coordinador.
+  - **Technical detail**: Se añadió superficie de configuración en charts/workflows para soportar `redirectRoot` y versionado de stack, incluyendo sincronización de manifiestos de entorno.
+
+- **📍 Selección de recursos acreditados sin dependencia de client RUT** *(Integración OSS — MIOT-0.5.17)*
+  - **Key point**: La selección de recursos (transportistas, conductores, camiones y ramplas) dejó de bloquearse cuando el servicio no tiene cliente asociado.
+  - **Technical detail**: El flujo de app/BFF ahora acepta `rutMandante` nulo y mantiene el contrato RPC enviando `p_rut_mandante` (con `null` cuando corresponde), preservando compatibilidad para casos con cliente.
+
+- **📍 Unificación de login usuario/clave vía Auth0 y conexión configurable** *(Integración OSS — MIOT-0.5.17)*
+  - **Key point**: Se dejó definido el trabajo para unificar el sign-in de usuario/clave con sesiones JWT homogéneas y mantener fallback a Alfresco cuando Auth0 no esté configurado.
+  - **Technical detail**: El alcance contempla parametrizar IDs de conexiones Auth0 por variables de entorno y eliminar dependencias hardcodeadas. *(Trabajo planificado; issue abierto).*
+
+## 🐛 Correcciones
+
+- **🐛 El release planner no detectaba cambios de app cuando el milestone estaba en issues** *(Integración OSS — MIOT-0.5.17)*
+  - **Impacto**: Podía marcar componentes como “sin cambios” y reutilizar versiones incorrectas en planes de stack.
+  - **Solución**: Se corrigió la resolución para tomar issues del milestone y sus PRs vinculados/cerradores, manteniendo soporte de milestones en PRs.
+
+- **🐛 Incompatibilidades del `repository_dispatch` de stack por límite/forma del payload** *(Integración OSS — MIOT-0.5.17)*
+  - **Impacto**: Se producían fallas en despliegues release/nightly por exceso de propiedades top-level o por desalineación con workflows que esperaban campos planos.
+  - **Solución**: Se aplicó compatibilidad enviando payload plano acotado para despliegue y moviendo metadatos al manifiesto; además quedó trabajo planificado para tolerar formas anidadas y reforzar compatibilidad en transición. *(Incluye issues abiertos en curso).*
+
+## 📊 Beneficios
+
+- Menos riesgo de fallas en pipelines de release y nightly por contratos de payload.
+- Mayor trazabilidad de cambios reales de app dentro de planes de release.
+- Mejor experiencia operativa al soportar redirección raíz en ingress de forma configurable.
+- Despliegues de coordinador más predecibles al fijar versión de chart compatible.
+- Menor bloqueo funcional en planificación/asignación cuando no existe client RUT.
+- Base preparada para autenticación más uniforme y gobernada por Auth0 en distintos entornos.
+
+## 📌 Conclusión
+
+La versión 1.31.16 consolida estabilidad en puntos críticos de entrega continua y despliegue, corrigiendo brechas que impactaban la consistencia entre milestones, planes de stack y ejecución operativa.
+
+Al mismo tiempo, introduce mejoras funcionales concretas en app e infraestructura (ingress y selección de recursos), con impacto directo en continuidad de operación y mantenibilidad técnica.
+
+También deja encaminadas iniciativas abiertas relevantes —especialmente en autenticación y compatibilidad de payloads durante transición— para sostener una evolución segura en próximas iteraciones.

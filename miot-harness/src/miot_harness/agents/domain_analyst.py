@@ -62,7 +62,9 @@ Output ONLY a JSON object:
 """
 
 
-def _render_evidence(evidence: list[DataEvidence]) -> str:
+def render_evidence(evidence: list[DataEvidence]) -> str:
+    """Compact evidence block for planner/analyst prompts (shared with the
+    agentic planner — keep format changes in sync with both prompts)."""
     if not evidence:
         return "(no evidence collected yet)"
     lines: list[str] = []
@@ -94,7 +96,7 @@ async def domain_analyst_node(
         prefix_label=f"{profile.tool_prefix}*",
         primer=profile.primer,
     )
-    rendered = _render_evidence(evidence)
+    rendered = render_evidence(evidence)
     human = f"User question:\n{user_message}\n\nEvidence collected so far:\n{rendered}"
 
     response = await model.ainvoke(

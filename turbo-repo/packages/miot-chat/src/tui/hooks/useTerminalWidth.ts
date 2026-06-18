@@ -25,3 +25,24 @@ export function useTerminalWidth(): number {
 
   return Math.max(MIN_COLUMNS, columns);
 }
+
+const FALLBACK_ROWS = 24;
+const MIN_ROWS = 10;
+
+export function useTerminalRows(): number {
+  const { stdout } = useStdout();
+  const [rows, setRows] = useState<number>(stdout?.rows ?? FALLBACK_ROWS);
+
+  useEffect(() => {
+    if (!stdout) return;
+    const onResize = (): void => {
+      setRows(stdout.rows ?? FALLBACK_ROWS);
+    };
+    stdout.on("resize", onResize);
+    return (): void => {
+      stdout.off("resize", onResize);
+    };
+  }, [stdout]);
+
+  return Math.max(MIN_ROWS, rows);
+}

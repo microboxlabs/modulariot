@@ -96,9 +96,10 @@ interface UseAccreditedResourcesOpts {
 /**
  * Paginated accredited-resources feed, backed by
  * `/app/api/calendar/accredited-resources` (which in turn caches the upstream
- * pgrest function for 5 min). Stays idle until both `rutMandante` and
- * `delegacion` are set — matches the calendar UX where the combobox only
- * activates once a service is selected.
+ * pgrest function for 5 min). Stays idle until `delegacion` is set — matches
+ * the calendar UX where the combobox only activates once a service is
+ * selected. `rutMandante` (the service's client RUT) is optional: when absent
+ * it is forwarded as `null`, so resource selection no longer depends on it.
  *
  * Each change to `query` resets the feed to page 0 (SWR key is query-scoped).
  * `loadMore` fetches the next page; `hasMore` tracks whether the server still
@@ -116,7 +117,8 @@ export function useAccreditedResources(opts: UseAccreditedResourcesOpts) {
     enabled = true,
   } = opts;
 
-  const canFetch = Boolean(enabled && rutMandante && delegacion);
+  // clientRut (rutMandante) is no longer a gate — only delegacion is required.
+  const canFetch = Boolean(enabled && delegacion);
 
   // Stable, comma-joined form of the pin set so it can sit in the SWR key and
   // the `getKey` dependency list without churning on every render.

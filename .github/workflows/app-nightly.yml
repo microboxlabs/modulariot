@@ -25,12 +25,11 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   APP_IMAGE_NAME: miot-app
   MODULITH_IMAGE_NAME: miot-srv
-  JAVA_VERSION: "21"
 
 jobs:
   metadata:
@@ -64,9 +63,9 @@ jobs:
     outputs:
       image: ${{ steps.image.outputs.image }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -134,8 +133,8 @@ jobs:
             echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`sha-${{ needs.metadata.outputs.short_sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  build-modulith:
-    name: Build and publish nightly modulith image
+  resolve-modulith:
+    name: Resolve nightly modulith image
     runs-on: ubuntu-latest
     needs: metadata
     permissions:
@@ -144,22 +143,9 @@ jobs:
       id-token: write
     outputs:
       image: ${{ steps.image.outputs.image }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+      source_tag: ${{ steps.resolve.outputs.source_tag }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
-        with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: maven
-          cache-dependency-path: quarkus-srv/pom.xml
-
-      - name: Build and test modulith
-        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true
-        working-directory: quarkus-srv
-
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
-
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
@@ -168,32 +154,45 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        id: docker
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: quarkus-srv
-          file: quarkus-srv/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
-          labels: |
-            org.opencontainers.image.title=${{ env.MODULITH_IMAGE_NAME }}
-            org.opencontainers.image.description=ModularIoT modulith nightly build
-            org.opencontainers.image.vendor=MicroboxLabs
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
+      - name: Resolve source image
+        id: resolve
+        env:
+          SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:latest
+        run: |
+          if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null; then
+            source_image="$SHA_IMAGE"
+            source_tag="sha-${{ needs.metadata.outputs.short_sha }}"
+          else
+            source_image="$LATEST_IMAGE"
+            source_tag="latest"
+          fi
+
+          docker buildx imagetools inspect "$source_image" >/dev/null
+          {
+            echo "source_image=$source_image"
+            echo "source_tag=$source_tag"
+            echo "image_tag=nightly-${{ needs.metadata.outputs.nightly_date }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Promote nightly tags
+        env:
+          SOURCE_IMAGE: ${{ steps.resolve.outputs.source_image }}
+          NIGHTLY_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly
+          DATED_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}
+          SHA_NIGHTLY_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+        run: |
+          docker buildx imagetools create \
+            --tag "$NIGHTLY_IMAGE" \
+            --tag "$DATED_IMAGE" \
+            --tag "$SHA_NIGHTLY_IMAGE" \
+            "$SOURCE_IMAGE"
 
       - name: Resolve immutable image reference
         id: image
-        run: echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+        run: |
+          digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}" | awk '/^Digest:/ { print $2; exit }')"
+          echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Nightly summary
         run: |
@@ -201,13 +200,14 @@ jobs:
             echo "# MIOT Modulith Nightly"
             echo ""
             echo "- Image: \`${{ steps.image.outputs.image }}\`"
-            echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`sha-${{ needs.metadata.outputs.short_sha }}\`"
+            echo "- Source tag: \`${{ steps.resolve.outputs.source_tag }}\`"
+            echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     name: Dispatch development environment deploys
     runs-on: ubuntu-latest
-    needs: [metadata, build-app, build-modulith]
+    needs: [metadata, build-app, resolve-modulith]
     permissions:
       contents: read
     environment:
@@ -226,8 +226,9 @@ jobs:
           APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
           APP_IMAGE_REF: ${{ needs.build-app.outputs.image }}
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
-          MODULITH_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
-          MODULITH_IMAGE_REF: ${{ needs.build-modulith.outputs.image }}
+          MODULITH_IMAGE_TAG: ${{ needs.resolve-modulith.outputs.image_tag }}
+          MODULITH_IMAGE_REF: ${{ needs.resolve-modulith.outputs.image }}
+          MODULITH_SOURCE_TAG: ${{ needs.resolve-modulith.outputs.source_tag }}
         run: |
           DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
 
@@ -246,10 +247,10 @@ jobs:
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
+            --arg modulith_source_tag "$MODULITH_SOURCE_TAG" \
             '{
               event_type: "miot-stack-nightly",
               client_payload: {
-                deploy_kind: "nightly",
                 release_version: $release_version,
                 app_tag: $app_tag,
                 modulith_tag: $modulith_tag,

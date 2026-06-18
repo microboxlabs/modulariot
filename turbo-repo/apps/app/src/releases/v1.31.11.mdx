@@ -1,0 +1,51 @@
+# 🔔 Release Notes v1.31.11 — ModularIoT
+
+### Fecha: 16/06/2026
+
+**Objetivo**: Esta versión amplía las capacidades de la plataforma con un nuevo plano de control para trabajos de integración, una experiencia renovada en la TUI de miot-chat y mejoras en tablas y verificación documental, a la vez que estabiliza páginas clave de la aplicación frente a fallos de datos y picos de carga.
+
+## 🚀 Evolutivos
+
+- **📍 Ledger de trabajos asíncronos y plano de control para integraciones**
+  - **Punto clave**: Se incorpora el módulo `miot-integrations` con un ledger de trabajos (`async_jobs`) multi-tenant, auditable e idempotente, junto con una API REST con alcance organizacional (OIDC) para encolar, reclamar, reportar y reintentar trabajos. *(Integración OSS — MIOT-0.5.12)*
+  - **Detalle técnico**: Trabajadores externos (instancias ECM) encolan y reclaman trabajos mediante `FOR UPDATE SKIP LOCKED` con compuerta de cadena y recuperación de leases expirados; la máquina de estados gestiona reintentos con backoff exponencial. quarkus-srv actúa solo como ledger y plano de control, dejando la ejecución en ECM.
+
+- **📍 Restyling de la TUI de miot-chat con estética minimalista estilo grok**
+  - **Punto clave**: Se reemplaza el header denso por una interfaz calmada: línea de contexto delgada, editor con marco redondeado, línea rotativa de `Tip:`, estadísticas alineadas a la derecha y una tarjeta de bienvenida con logo ASCII y menú de acciones. Ninguna información del header anterior se pierde. *(Integración OSS — MIOT-0.5.12)*
+  - **Detalle técnico**: Las acciones del menú son keybindings globales reales (ctrl+r, ctrl+t, ctrl+g, ctrl+q) que reutilizan los manejadores de slash-commands existentes; todo el chrome usa tokens de tema (oscuro/claro/alto contraste) y el modo REPL headless permanece inalterado.
+
+- **📍 Nuevo sistema de tablas con DevExtreme DataGrid**
+  - **Punto clave**: Migración a un sistema de tablas basado en DevExtreme DataGrid con navegación por teclado, columnas expandibles/colapsables y corrección de la selección de datos en celdas. *(Integración OSS — MIOT-0.5.12)*
+  - **Detalle técnico**: Adopta el patrón de navegación por teclado del DataGrid con tema MaterialOrangeLight o equivalente del proyecto, soporta expansión inline de detalle de filas y resuelve la configuración CSS/componente que impedía seleccionar texto o filas.
+
+- **📍 Verificación de documentos: múltiples motivos de rechazo y observación obligatoria**
+  - **Punto clave**: El flujo de verificación documental permite ahora registrar múltiples motivos para un rechazo y exige una observación obligatoria al rechazar. *(Integración OSS — MIOT-0.5.12)*
+  - **Detalle técnico**: Cambios sobre el flujo de verificación que refuerzan la trazabilidad y la justificación de cada decisión de rechazo.
+
+## 🐛 Correcciones
+
+- **🐛 Caída de la página de edición de tareas con nodos multimedia sin stream de contenido**
+  - **Impacto**: En la página de edición de tareas, el panel multimedia bento leía `content.mimeType` sin protección; cuando Alfresco omitía el bloque `content` (p. ej. un nodo de imagen sin stream tras un disco lleno), se lanzaba un `TypeError` durante el render y React desmontaba toda la ruta de edición. *(Integración OSS — MIOT-0.5.12)*
+  - **Solución**: Se hace opcional `content` en el tipo de entrada de archivo, se protege cada acceso a `content`, se añade un helper `isImageEntry()` que recurre a la extensión del archivo como respaldo y se envuelve el panel en un `ErrorBoundary` reutilizable para contener cualquier error futuro a ese panel en lugar de tumbar la página.
+
+- **🐛 `/api/map` convertía un 429 transitorio en un 500, rompiendo el mapa**
+  - **Impacto**: El BFF del mapa geográfico transformaba un `429` reintentable de control de concurrencia (spike-arrest de APISIX) en un `500` duro, y la ausencia de amortiguación de concurrencia generaba un bucle de realimentación con los refetch de SWR, dejando la página del mapa rota. *(Integración OSS — MIOT-0.5.12)*
+  - **Solución**: Se añade coalescencia single-flight, caché de TTL corto (5s), reintentos acotados con backoff exponencial que honran `Retry-After`, y fallback con posiciones stale (`200` + `x-map-stale`); sin caché se devuelve un `503` reintentable en lugar de `500`, y el no autenticado retorna un `401` correcto. Además, `useMapPositions` incorpora `dedupingInterval` para evitar ráfagas en focus/reconexión.
+
+## 📊 Beneficios
+
+- Mayor resiliencia de la aplicación: los fallos de un panel multimedia ya no derriban toda la página de edición de tareas.
+- Disponibilidad del mapa geográfico ante picos de tráfico, evitando errores 500 y pantallas en blanco mediante caché, reintentos y datos stale.
+- Trazabilidad y auditabilidad de las integraciones gracias al ledger de trabajos asíncronos con reintentos y registro de intentos.
+- Experiencia de usuario más clara y moderna en la TUI de miot-chat, sin pérdida de información operativa.
+- Productividad mejorada en las tablas con navegación por teclado, columnas expandibles y selección de datos funcional.
+- Mejor control y justificación en la verificación documental, con múltiples motivos de rechazo y observación obligatoria.
+- Arquitectura preparada para escenarios multi-instancia y multi-tenant en el procesamiento de trabajos de integración.
+
+## 📌 Conclusión
+
+La versión 1.31.11 fortalece la estabilidad de superficies críticas de ModularIoT —edición de tareas y mapa geográfico— al contener errores de render y manejar correctamente la contrapresión de los servicios upstream, reduciendo interrupciones visibles para los usuarios.
+
+En el plano de capacidades, la introducción del ledger de trabajos asíncronos y su plano de control sienta las bases para integraciones ECM auditables, reintentables y desacopladas de la transacción del workflow, preparando el terreno para la babysitter UI de la siguiente fase.
+
+Finalmente, las mejoras en la TUI de miot-chat, el nuevo sistema de tablas y el flujo de verificación documental elevan la experiencia de uso y la trazabilidad operativa, consolidando un release equilibrado entre evolución funcional y robustez de la plataforma.

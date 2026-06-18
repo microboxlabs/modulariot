@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -265,6 +265,53 @@ async def test_fetcher_no_pending_step_is_noop():
     assert update.get("next_action") == "ready_to_synthesize"
 
 
+def _classify(payload: dict[str, Any]) -> DataEvidence:
+    from miot_harness.agents.data_fetcher import _evidence_from_output
+
+    return _evidence_from_output(
+        "step_1",
+        "coordinador_x",
+        payload,
+        warn_minutes=30,
+        source_label=NEXO_PROFILE.source_label,
+    )
+
+
+def test_freshness_status_fresh_rows_and_fresh_timestamp() -> None:
+    ev = _classify({"rows": [{"a": 1}], "refreshed_at": datetime.now(UTC)})
+    assert ev.freshness_status == "fresh"
+    assert ev.is_stale is False
+
+
+def test_freshness_status_rows_with_old_timestamp() -> None:
+    old = datetime(2026, 1, 1, tzinfo=UTC)
+    ev = _classify({"rows": [{"a": 1}], "refreshed_at": old})
+    assert ev.freshness_status == "stale"
+    assert ev.is_stale is True
+
+
+def test_freshness_status_rows_without_timestamp() -> None:
+    ev = _classify({"rows": [{"a": 1}]})
+    assert ev.freshness_status == "no_timestamp"
+    assert ev.is_stale is True
+
+
+def test_freshness_status_empty_with_fresh_timestamp_is_not_stale() -> None:
+    """0 rows + a fresh snapshot timestamp means 'no rows matched the
+    filter', NOT a stale snapshot — regression for the conflation bug."""
+    ev = _classify({"rows": [], "refreshed_at": datetime.now(UTC)})
+    assert ev.freshness_status == "empty"
+    assert ev.is_stale is False
+
+
+def test_freshness_status_empty_without_timestamp() -> None:
+    """0 rows and no refreshed_at — likely an unrefreshed snapshot; the
+    distinct status lets the synthesizer say so instead of guessing."""
+    ev = _classify({"rows": []})
+    assert ev.freshness_status == "empty_no_timestamp"
+    assert ev.is_stale is True
+
+
 def test_evidence_source_none_falls_back_to_profile_label() -> None:
     """A tool payload carrying source=None (or "") must fall back to the
     profile's source label instead of stringifying to the literal "None"."""
@@ -287,3 +334,44 @@ def test_evidence_source_none_falls_back_to_profile_label() -> None:
         source_label=NEXO_PROFILE.source_label,
     )
     assert evidence.source == NEXO_PROFILE.source_label
+
+
+def test_evidence_freshness_uses_freshest_row_across_layers() -> None:
+    """Multi-layer outputs (centro_control: one row per capa) must not be
+    flagged stale just because row 0 happens to be the stale layer."""
+    now = datetime.now(UTC)
+    stale = now - timedelta(days=33)
+    ev = _classify(
+        {
+            "rows": [
+                {"capa": "torre", "refreshed_at_torre": stale},
+                {"capa": "servicios", "refreshed_at_servicios": now},
+            ]
+        }
+    )
+    assert ev.freshness_status == "fresh"
+    assert ev.is_stale is False
+    assert ev.refreshed_at == now
+
+
+def test_evidence_handles_naive_datetimes_without_crashing() -> None:
+    """pg `timestamp` (no tz) columns arrive as naive datetimes; mixing
+    them with aware ones must not raise TypeError in max()/subtraction —
+    naive values are coerced to UTC."""
+    now_aware = datetime.now(UTC)
+    naive_old = datetime(2026, 1, 1, 12, 0)  # no tzinfo
+    ev = _classify(
+        {
+            "rows": [
+                {"capa": "a", "refreshed_at_x": naive_old},
+                {"capa": "b", "refreshed_at_y": now_aware},
+            ]
+        }
+    )
+    assert ev.freshness_status == "fresh"
+    assert ev.refreshed_at == now_aware
+
+    # All-naive also works (coerced to UTC, then age math succeeds).
+    ev = _classify({"rows": [{"refreshed_at_x": datetime(2026, 1, 1, 12, 0)}]})
+    assert ev.freshness_status == "stale"
+    assert ev.refreshed_at is not None and ev.refreshed_at.tzinfo is not None

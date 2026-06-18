@@ -41,6 +41,38 @@ async def test_boot_without_dsn_returns_disabled() -> None:
 
 
 @pytest.mark.asyncio
+async def test_boot_registers_composable_primitives(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful boot must register the four nexo_* primitives in the
+    shared registry (agentic executor surface) alongside the curated tools."""
+    from miot_harness.integrations.nexo.boot import NexoBootResult
+
+    async def _fake_pool(*args: object, **kwargs: object) -> object:
+        return object()
+
+    async def _fake_load(*args: object, **kwargs: object) -> NexoBootResult:
+        return NexoBootResult(enabled=True, registered=["coordinador_centro_control"])
+
+    monkeypatch.setattr(
+        "miot_harness.integrations.nexo.provider.create_nexo_pool", _fake_pool
+    )
+    monkeypatch.setattr(
+        "miot_harness.integrations.nexo.provider.load_nexo_tools", _fake_load
+    )
+    provider = NexoProvider()
+    registry = ToolRegistry()
+    result = await provider.boot(
+        registry, HarnessSettings(datasource_dsn="postgresql://u:p@h:5/db")
+    )
+    assert result.enabled is True
+    for name in ("nexo_describe", "nexo_select", "nexo_grep", "nexo_explain"):
+        assert name in registry.names()
+        assert registry.get(name).kind == "primitive"
+        assert name in result.registered
+
+
+@pytest.mark.asyncio
 async def test_boot_pool_failure_returns_disabled_and_no_leak(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1,0 +1,16 @@
+kind: playbook
+id: delivery-compliance-story
+name: Delivery Compliance Story
+description: Build an evidence-backed delivery-compliance story and a dashboard widget draft.
+when_to_use: >
+  User asks about delivery compliance, late deliveries, the operational
+  bottleneck, or suggesting a dashboard widget for compliance.
+tools:
+  - get_delivery_compliance_metrics
+  - get_workflow_bottlenecks
+  - get_dashboard_context
+  - create_story_draft
+  - create_dashboard_widget_draft
+  - apply_dashboard_patch
+playbook_ref: delivery_compliance_story.md
+scope: { kind: global }

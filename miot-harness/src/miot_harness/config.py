@@ -45,8 +45,23 @@ class HarnessSettings(BaseSettings):
     datasource_freshness_warn_minutes: int | None = Field(default=None, ge=0)
     # None → profile default.
     datasource_freshness_refuse_minutes: int | None = Field(default=None, ge=0)
+    # Boot-time per-function freshness survey (Gap 2): probes every
+    # zero-required-arg datasource function once and exposes the result
+    # in /health and the meta-agent catalog. Kill switch if boot latency
+    # against the real DB becomes a problem.
+    datasource_freshness_survey_enabled: bool = True
     agents_max_turns: int = 8
+    # Agentic-mode turn cap. Looser than the canned cap (8) because
+    # exploration is the whole point of the agentic loop; each turn is
+    # one planner LLM call + at most one tool invocation.
+    agents_agentic_max_turns: int = Field(default=12, gt=0)
     agents_critic_enabled: bool = False
+
+    # Provenance log for agentic tool invocations (plan 13, E4). One JSONL
+    # line per executed step under `<dir>/YYYY-MM-DD.jsonl`; the weekly
+    # curation pass mines these for curated-function candidates.
+    provenance_log_dir: Path = Path("evals/provenance")
+    provenance_log_enabled: bool = True
 
     # Phase E (plan 13): LLM intent router. Default model is Haiku tier
     # for cost — the router is invoked on every "auto" request. Below
@@ -71,6 +86,39 @@ class HarnessSettings(BaseSettings):
     # outputs (3–5K tokens each) blow a uniform turn count. Must be
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
+
+    # Context & Skills subsystem (Phase 1: file-backed). Default dirs are
+    # packaged in the image so it boots with zero mounted config; a K8s
+    # ConfigMap/volume overrides them. The loader handles a missing dir
+    # gracefully (diagnostic, not a crash), so no existence check here —
+    # `get_settings()` stays side-effect-free.
+    context_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "context"
+    skills_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "skills"
+    # Source-kind seam for the future API/DB-backed source (Phase 2).
+    context_source_kind: str = "file"
+    skills_source_kind: str = "file"
+    # Hard cap on connector tools registered from skill files — bounds the
+    # blast radius of a misconfigured/oversized ConfigMap.
+    max_connector_tools: int = Field(default=50, ge=0)
+    # When True, an ERROR-level context/skills diagnostic fails readiness
+    # (/health/ready 503) instead of only logging. Default False = log and
+    # continue, matching the datasource boot contract. Prod sets True.
+    context_skills_strict: bool = False
+
+    # Virtual filesystem scratchpad. An in-memory, per-conversation file
+    # store that lets agents offload notes/plans/intermediate findings out
+    # of the LLM context window across a multi-turn run (see
+    # tools/filesystem.py). On by default; flip `fs_enabled=False` to drop
+    # the four `fs_*` tools from the registry. The per-conversation caps
+    # bound a single scratchpad's memory footprint (exceeding any returns a
+    # typed `ok=False` tool result, no partial write); `fs_max_conversations`
+    # is a global LRU bound on how many scratchpads stay in memory so the
+    # store can't grow without limit as new conversation/thread ids arrive.
+    fs_enabled: bool = True
+    fs_max_file_bytes: int = Field(default=65_536, gt=0)
+    fs_max_total_bytes: int = Field(default=1_048_576, gt=0)
+    fs_max_files: int = Field(default=64, gt=0)
+    fs_max_conversations: int = Field(default=512, gt=0)
 
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

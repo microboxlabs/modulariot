@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from miot_harness.config import HarnessSettings
-from miot_harness.runtime.conversation_policy import InMemoryConversationPolicyStore
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.conversation_policy import InMemoryConversationPolicyStore
 from miot_harness.runtime.permissions import PermissionMode, PermissionPolicy
 from miot_harness.runtime.supervisor import HarnessSupervisor
 

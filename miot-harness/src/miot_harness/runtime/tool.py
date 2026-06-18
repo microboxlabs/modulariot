@@ -7,7 +7,12 @@ from pydantic import BaseModel, ConfigDict
 
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.permissions import PermissionDecision, PermissionMode, PermissionResult, evaluate_rules
+from miot_harness.runtime.permissions import (
+    PermissionDecision,
+    PermissionMode,
+    PermissionResult,
+    evaluate_rules,
+)
 from miot_harness.utils.truncation import truncate_for_trace
 
 InputT = TypeVar("InputT", bound=BaseModel)
@@ -81,7 +86,8 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 mode is PermissionMode.AUTO_SAFE and not self.destructive
             )
             if auto_approve:
-                assert mode is not None  # auto_approve is True only when mode is BYPASS or AUTO_SAFE
+                # auto_approve is only True when mode is BYPASS or AUTO_SAFE
+                assert mode is not None
                 progress(
                     HarnessEvent(
                         run_id=ctx.run_id,

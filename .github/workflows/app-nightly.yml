@@ -253,14 +253,17 @@ jobs:
               client_payload: {
                 deploy_kind: "nightly",
                 release_version: $release_version,
-                app_tag: $app_tag,
-                modulith_tag: $modulith_tag,
-                app_image_repository: $app_image_repository,
-                app_image_tag: $app_image_tag,
-                app_image_ref: $app_image_ref,
-                modulith_image_repository: $modulith_image_repository,
-                modulith_image_tag: $modulith_image_tag,
-                modulith_image_ref: $modulith_image_ref,
+                manifest_version: 1,
+                legacy: {
+                  app_tag: $app_tag,
+                  modulith_tag: $modulith_tag,
+                  app_image_repository: $app_image_repository,
+                  app_image_tag: $app_image_tag,
+                  app_image_ref: $app_image_ref,
+                  modulith_image_repository: $modulith_image_repository,
+                  modulith_image_tag: $modulith_image_tag,
+                  modulith_image_ref: $modulith_image_ref
+                },
                 components: {
                   app: {
                     changed: true,

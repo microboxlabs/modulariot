@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { useMemo, useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type {
   DashletComponentProps,
@@ -116,20 +116,20 @@ function buildStickyThClass(
   firstStickyRightIdx: number
 ): string {
   const base =
-    "relative sticky top-0 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
+    "relative overflow-hidden bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
   if (colIdx <= lastStickyIdx) {
     const shadow =
       colIdx === lastStickyIdx
         ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
         : "";
-    return `${base} left-0 z-30${shadow}`;
+    return `${base} sticky left-0 z-30${shadow}`;
   }
   if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
     const shadow =
       colIdx === firstStickyRightIdx
         ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
         : "";
-    return `${base} right-0 z-30${shadow}`;
+    return `${base} sticky right-0 z-30${shadow}`;
   }
   return base;
 }
@@ -168,7 +168,7 @@ function buildStickyTdClass(
       ? " relative after:absolute after:right-0 after:top-3 after:bottom-3 after:w-px after:bg-gray-200/30 dark:after:bg-gray-600/25"
       : "";
   const rowBorder = "border-t border-gray-200 dark:border-gray-600";
-  const base = `${rowBorder} select-text px-4 py-4 text-gray-700 dark:text-gray-300${divider}`;
+  const base = `${rowBorder} overflow-hidden select-text px-4 py-4 text-gray-700 dark:text-gray-300${divider}`;
   if (colIdx <= lastStickyIdx) {
     const shadow =
       colIdx === lastStickyIdx
@@ -483,7 +483,7 @@ function ResizeHandle({ onMouseDown, onDoubleClick }: Readonly<ResizeHandleProps
     <div
       role="separator"
       aria-orientation="vertical"
-      className="group/rh absolute inset-y-0 -right-1.5 z-10 flex w-4 cursor-col-resize select-none items-center justify-center"
+      className="group/rh absolute inset-y-0 right-0 z-10 flex w-3 cursor-col-resize select-none items-center justify-center"
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
     >
@@ -613,6 +613,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // ── Sticky column offsets ───────────────────────────────────────────────────
   const headerRowRef = useRef<HTMLTableRowElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   const [stickyLeftOffsets, setStickyLeftOffsets] = useState<
     Record<number, number>
   >({});
@@ -686,6 +687,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // from that point the last column continues to fill whatever space is left.
   const [columnWidths, setColumnWidths] = useState<(number | null)[]>([]);
   const thRefs = useRef<(HTMLTableCellElement | null)[]>([]);
+  const colRefs = useRef<(HTMLTableColElement | null)[]>([]);
   const columnsRef = useRef(columns);
   columnsRef.current = columns;
   const columnWidthsRef = useRef(columnWidths);
@@ -696,55 +698,72 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     thRefs.current = [];
   }, [columns.length]);
 
+  // Measure natural content widths (auto layout) and commit them so the table
+  // can stay in table-layout:fixed (via Tailwind class) for all user interaction.
+  // Temporarily overrides the Tailwind class with an inline style for measurement,
+  // then clears it so the class takes back over.
+  useLayoutEffect(() => {
+    const table = tableRef.current;
+    const headerRow = headerRowRef.current;
+    if (!table || !headerRow) return;
+    if (!columnWidthsRef.current.every((w) => w === null)) return;
+    const cols = columnsRef.current;
+    if (!headerRow.children.length || !cols.length) return;
+
+    table.style.tableLayout = "auto";
+    table.style.width = "max-content";
+    void table.offsetWidth; // force reflow in auto mode
+
+    const cells = headerRow.children;
+    const snapshot = cols.map((_, i) =>
+      i === cols.length - 1 ? null : ((cells[i] as HTMLElement)?.offsetWidth ?? null)
+    );
+
+    table.style.tableLayout = ""; // restore: Tailwind table-fixed takes over
+    table.style.width = "";
+
+    columnWidthsRef.current = snapshot;
+    setColumnWidths(snapshot);
+  }, [loading, fetchError, columns.length]);
+
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent, colIdx: number) => {
       e.preventDefault();
       e.stopPropagation();
 
+      const colEl = colRefs.current[colIdx];
       const thEl = thRefs.current[colIdx];
-      if (!thEl) return;
-
-      // On the very first drag, lock in the auto-layout widths so switching to
-      // table-layout:fixed doesn't cause a visual jump.
-      if (columnWidthsRef.current.every((w) => w === null)) {
-        const cols = columnsRef.current;
-        const snapshot = cols.map((_, i) =>
-          i === cols.length - 1 ? null : (thRefs.current[i]?.offsetWidth ?? null)
-        );
-        // Apply directly to DOM first so the layout is identical when React
-        // re-renders with table-layout:fixed.
-        snapshot.forEach((w, i) => {
-          const th = thRefs.current[i];
-          if (th && w != null) th.style.width = `${w}px`;
-        });
-        columnWidthsRef.current = snapshot;
-        setColumnWidths(snapshot);
-      }
+      if (!colEl) return;
 
       const startX = e.clientX;
-      const startWidth = thEl.offsetWidth;
+      const startWidth = colEl.offsetWidth;
 
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
 
+      const applyWidth = (w: number) => {
+        const px = `${w}px`;
+        colEl.style.width = px; colEl.style.minWidth = px; colEl.style.maxWidth = px;
+        if (thEl) { thEl.style.width = px; thEl.style.minWidth = px; thEl.style.maxWidth = px; }
+        tableRef.current?.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${colIdx + 1})`).forEach(td => {
+          td.style.width = px; td.style.minWidth = px; td.style.maxWidth = px;
+        });
+      };
+
       const onMouseMove = (ev: MouseEvent) => {
-        const newWidth = Math.max(48, startWidth + (ev.clientX - startX));
-        thEl.style.width = `${newWidth}px`;
+        applyWidth(Math.max(80, startWidth + (ev.clientX - startX)));
       };
 
       const onMouseUp = (ev: MouseEvent) => {
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-
-        const finalWidth = Math.max(48, startWidth + (ev.clientX - startX));
-        thEl.style.width = `${finalWidth}px`;
-
+        const finalWidth = Math.max(80, startWidth + (ev.clientX - startX));
+        applyWidth(finalWidth);
         setColumnWidths((prev) => {
           const next = [...prev];
           next[colIdx] = finalWidth;
           return next;
         });
-
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
       };
@@ -755,60 +774,48 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     []
   );
 
-  const hasExplicitWidths = columnWidths.some((w) => w !== null);
 
   // Double-click a resize handle → auto-fit the column to its content width.
-  // All DOM mutations happen synchronously before the next browser paint → no flash.
   const autoFitColumn = useCallback((colIdx: number) => {
+    const colEl = colRefs.current[colIdx];
     const thEl = thRefs.current[colIdx];
-    const table = thEl?.closest("table") as HTMLTableElement | null;
-    if (!thEl || !table) return;
+    const table = tableRef.current;
+    if (!colEl || !thEl || !table) return;
 
-    // Save current state so we can restore everything except the target column.
-    const prevLayout = table.style.tableLayout;
-    const prevWidth = table.style.width;
-    const savedWidths = columnsRef.current.map(
-      (_, i) => thRefs.current[i]?.style.width ?? ""
+    const savedColWidths = columnsRef.current.map(
+      (_, i) => colRefs.current[i]?.style.width ?? ""
     );
 
-    // Remove all explicit widths and switch to auto layout with unconstrained
-    // table width — each column now sizes to its true content width.
+    // Clear all col widths + temp-switch to auto to measure content width.
     columnsRef.current.forEach((_, i) => {
-      const th = thRefs.current[i];
-      if (th) th.style.width = "";
+      const col = colRefs.current[i];
+      if (col) col.style.width = "";
     });
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
-
-    // Synchronous reflow: browser computes content-based widths.
-    const _reflow = table.offsetWidth;
+    void table.offsetWidth; // force reflow
     const contentWidth = thEl.offsetWidth;
 
-    // Restore all other columns and table state.
+    // Restore other columns and clear inline override → Tailwind class kicks in.
     columnsRef.current.forEach((_, i) => {
       if (i !== colIdx) {
-        const th = thRefs.current[i];
-        if (th) th.style.width = savedWidths[i];
+        const col = colRefs.current[i];
+        if (col) col.style.width = savedColWidths[i];
       }
     });
-    table.style.tableLayout = prevLayout;
-    table.style.width = prevWidth;
-    const _reflow2 = table.offsetWidth;
+    table.style.tableLayout = "";
+    table.style.width = "";
+    void table.offsetWidth;
 
-    // Apply the measured width to the target column.
-    thEl.style.width = `${contentWidth}px`;
+    colEl.style.width = `${contentWidth}px`;
 
-    // Commit to React state (initialize fixed layout if this is the first resize).
     if (columnWidthsRef.current.every((w) => w === null)) {
       const cols = columnsRef.current;
       const snapshot = cols.map((_, i): number | null => {
         if (i === cols.length - 1) return null;
         if (i === colIdx) return contentWidth;
-        return thRefs.current[i]?.offsetWidth ?? null;
-      });
-      snapshot.forEach((w, i) => {
-        const th = thRefs.current[i];
-        if (th && w != null) th.style.width = `${w}px`;
+        const col = colRefs.current[i];
+        return col ? (parseFloat(col.style.width) || null) : null;
       });
       columnWidthsRef.current = snapshot;
       setColumnWidths(snapshot);
@@ -863,32 +870,30 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
         {!loading && !fetchError && (
           <table
-            className="border-separate border-spacing-0 text-sm"
-            style={{ tableLayout: hasExplicitWidths ? "fixed" : "auto", minWidth: "100%" }}
+            ref={tableRef}
+            className="text-sm"
+            style={{ tableLayout: "fixed", borderCollapse: "collapse", width: "100%" }}
           >
-            <thead className="sticky top-0 z-20">
+            <colgroup>
+              {columns.map((col, i) => (
+                <col
+                  key={col.key}
+                  ref={(el) => { colRefs.current[i] = el; }}
+                  style={columnWidths[i] != null ? { width: `${columnWidths[i]}px`, minWidth: `${columnWidths[i]}px`, maxWidth: `${columnWidths[i]}px` } : undefined}
+                />
+              ))}
+              {hasActions && <col />}
+            </colgroup>
+            <thead className="sticky top-0 z-20 bg-red-500!">
               <tr ref={headerRowRef} className="bg-gray-50 dark:bg-gray-700">
                 {columns.map((col, colIdx) => (
                   <th
                     key={col.key}
                     ref={(el) => { thRefs.current[colIdx] = el; }}
-                    className={buildStickyThClass(
-                      colIdx,
-                      lastStickyIdx,
-                      firstStickyRightIdx
-                    )}
+                    className={buildStickyThClass(colIdx, lastStickyIdx, firstStickyRightIdx)}
                     style={{
-                      // Last column: no explicit width — fills remaining space.
-                      ...(columnWidths[colIdx] != null && colIdx < columns.length - 1
-                        ? { width: columnWidths[colIdx] }
-                        : {}),
-                      ...buildStickyStyle(
-                        colIdx,
-                        stickyLeftOffsets,
-                        stickyRightOffsets,
-                        lastStickyIdx,
-                        firstStickyRightIdx
-                      ),
+                      ...(columnWidths[colIdx] != null ? { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` } : {}),
+                      ...(buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx) ?? {}),
                     }}
                   >
                     <div className="flex items-center gap-1 overflow-hidden">
@@ -1026,13 +1031,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                             columns.length,
                             rowColor
                           )}
-                          style={buildStickyStyle(
-                            colIdx,
-                            stickyLeftOffsets,
-                            stickyRightOffsets,
-                            lastStickyIdx,
-                            firstStickyRightIdx
-                          )}
+                          style={{
+                            ...(columnWidths[colIdx] != null ? { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` } : {}),
+                            ...(buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx) ?? {}),
+                          }}
                         >
                           {(() => {
                             const cell = renderCell(

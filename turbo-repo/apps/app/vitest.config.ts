@@ -8,6 +8,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    server: {
+      deps: {
+        // next-auth imports "next/server" extensionless; inline it so the
+        // resolve alias below applies (externalized deps bypass aliases).
+        inline: [/next-auth/, /@auth\/core/],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -43,6 +50,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@assets': path.resolve(__dirname, './public'),
+      // next-auth imports "next/server" without an extension, which Vite can't
+      // resolve against Next's exports map outside the Next.js build.
+      'next/server': 'next/server.js',
+      'server-only': path.resolve(__dirname, './src/test/server-only-stub.ts'),
     },
   },
 }) 

@@ -1,0 +1,41 @@
+{
+  "stack_version": "0.5.18",
+  "stack_tag": "miot-stack@v0.5.18",
+  "milestone": "MIOT-0.5.18",
+  "pull_requests": [
+    {
+      "number": 634,
+      "title": "feat(auth): validate username/password against Auth0, env-driven conn…",
+      "source_issues": [
+        {
+          "number": 635,
+          "title": "feat: unify username/password sign-in through Auth0 and make Auth0 connection IDs configurable"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.test.ts",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth.service.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth0-password.test.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth0-password.ts",
+    "turbo-repo/apps/app/src/test/server-only-stub.ts",
+    "turbo-repo/apps/app/src/types/next-auth.d.ts",
+    "turbo-repo/apps/app/vitest.config.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.17",
+      "tag": "app@v0.5.17"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.15",
+      "tag": "modulith@v0.5.15"
+    }
+  }
+}

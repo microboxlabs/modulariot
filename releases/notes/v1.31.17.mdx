@@ -1,0 +1,28 @@
+# 🔔 Release Notes v1.31.17 — ModularIoT
+
+### Fecha: 18/06/2026
+
+**Objetivo**: Unificar la autenticación de la app para reducir diferencias entre proveedores sociales y usuario/contraseña, y mejorar la portabilidad entre tenants de Auth0. Esta versión también preserva continuidad operativa en entornos sin Auth0 configurado.
+
+## 🚀 Evolutivos
+
+- **📍 Inicio de sesión unificado con Auth0 y conexiones configurables** *(Integración OSS — MIOT-0.5.18)*
+  - **Key point**: Se unificó el flujo de login de usuario/contraseña con el de OAuth para que, cuando Auth0 está configurado, ambos generen una sesión con forma JWT (`rawJWT`, refresh token y expiración), evitando depender de ticket de Alfresco como credencial de sesión.
+  - **Technical detail**: Los IDs de conexiones de Auth0 dejaron de estar acoplados al código y pasan a ser configurables por variables de entorno (con valores por defecto para compatibilidad), manteniendo fallback a autenticación contra Alfresco cuando no hay configuración `AUTH_AUTH0_*` y sin cambios en el comportamiento de Google y Entra ID.
+
+## 📊 Beneficios
+
+- Experiencia de autenticación más consistente entre login social y login con credenciales.
+- Menor complejidad en servicios consumidores al reducir la bifurcación de formatos de sesión.
+- Mayor cobertura de políticas de Auth0 para usuarios con email/contraseña (por ejemplo, controles de seguridad centralizados).
+- Mejor continuidad en desarrollo local y CI gracias al fallback a Alfresco cuando Auth0 no está activo.
+- Despliegues más flexibles entre tenants al parametrizar IDs de conexión por entorno.
+- Menor acoplamiento operativo a nombres de conexión específicos definidos en código fuente.
+
+## 📌 Conclusión
+
+La versión 1.31.17 consolida una mejora clave en autenticación: el acceso con usuario/contraseña se alinea con el modelo JWT ya utilizado por los proveedores OAuth cuando Auth0 está disponible. Esto simplifica la integración aguas abajo y estandariza el manejo de sesiones.
+
+Al mismo tiempo, la release mantiene compatibilidad con escenarios donde Auth0 no está configurado, preservando el ingreso vía Alfresco. Este equilibrio entre unificación y fallback reduce riesgo operativo durante adopción incremental.
+
+Finalmente, mover los IDs de conexión a configuración de entorno mejora la mantenibilidad y acelera la adaptación de la plataforma a distintos contextos de despliegue sin cambios de código.

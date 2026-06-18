@@ -218,6 +218,32 @@ describe("POST /api/data-sources/test (stateless)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("validates the OAuth tokenUrl against SSRF before exchanging the token", async () => {
+    // First validateTargetUrl call (the tokenUrl check) fails.
+    validateTargetUrlMock.mockResolvedValueOnce({ valid: false, reason: "blocked private address" });
+    exchangeOAuthTokenMock.mockResolvedValue({ accessToken: "minted", detectedFormat: "form", expiresAt: 0 });
+    const { POST } = await loadRoute();
+
+    const res = await POST(
+      makeRequest({
+        type: "POSTGREST",
+        url: "https://db.example.com",
+        authMethod: "OAUTH",
+        clientId: "cid",
+        clientSecret: "csecret",
+        tokenUrl: "https://169.254.169.254/token",
+      })
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(false);
+    expect(body.error).toContain("blocked private address");
+    // Must not attempt the token exchange (or any upstream fetch) on SSRF rejection.
+    expect(exchangeOAuthTokenMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("reports success:false when the target URL fails SSRF validation", async () => {
     validateTargetUrlMock.mockResolvedValue({ valid: false, reason: "blocked private address" });
     const { POST } = await loadRoute();

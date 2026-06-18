@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveSiteForRequest } from "@/app/api/utils/org-resolver";
+import { validateTargetUrl } from "@/app/api/utils/url-validator";
 import { exchangeOAuthToken } from "@/app/api/data-sources/resolve-credentials";
 import { testPostgrestConnection } from "@/app/api/data-sources/test-connection";
 import { TestConnectionSchema } from "@/features/data-sources/types";
@@ -40,6 +41,15 @@ export async function POST(request: Request) {
     if (data.authMethod === "TOKEN") {
       token = data.token;
     } else {
+      // SSRF guard: validate the token URL before the exchange, mirroring the
+      // by-id path (resolveOAuthToken). data.url is validated in the probe.
+      const tokenUrlCheck = await validateTargetUrl(data.tokenUrl);
+      if (!tokenUrlCheck.valid) {
+        return NextResponse.json({
+          success: false,
+          error: tokenUrlCheck.reason ?? "Invalid token URL",
+        });
+      }
       try {
         const oauth = await exchangeOAuthToken(
           data.tokenUrl,

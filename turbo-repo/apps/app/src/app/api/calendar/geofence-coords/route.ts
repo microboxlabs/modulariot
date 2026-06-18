@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "../../utils/alfresco-crud-client";
-import { fetchGeofenceCentroids } from "../../utils/pgrest-client";
+import { requireAuth } from "@/app/api/utils/alfresco-crud-client";
+import { fetchGeofenceCentroids } from "@/app/api/utils/pgrest-client";
 import { logger } from "@/lib/logger";
 
 /**

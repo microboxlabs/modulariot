@@ -3,16 +3,7 @@
 import useSWR from "swr";
 import fetcher from "@/features/common/providers/fetcher";
 import type { FetcherError } from "@/features/common/providers/fetcher.types";
-
-export interface GeofencePoint {
-  latitude: number;
-  longitude: number;
-}
-
-interface GeofenceCoordsResponse {
-  origin: GeofencePoint | null;
-  destination: GeofencePoint | null;
-}
+import type { GeofenceCoordsResponse } from "./geofence-coords.service.types";
 
 /**
  * Resolve a service's origin/destination geofence names to centroids via
@@ -24,11 +15,13 @@ export function useGeofenceCoords(
   origin?: string | null,
   destination?: string | null
 ) {
+  const normalizedOrigin = origin?.trim() || null;
+  const normalizedDestination = destination?.trim() || null;
   const params = new URLSearchParams();
-  if (origin) params.set("origin", origin);
-  if (destination) params.set("destination", destination);
+  if (normalizedOrigin) params.set("origin", normalizedOrigin);
+  if (normalizedDestination) params.set("destination", normalizedDestination);
   const key =
-    origin || destination
+    normalizedOrigin || normalizedDestination
       ? `/app/api/calendar/geofence-coords?${params.toString()}`
       : null;
 

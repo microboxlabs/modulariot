@@ -204,7 +204,7 @@ function TruckMapDisplay({
           mapRef={mapRef}
           onZoomChange={handleZoomChange}
         />
-        {(distanceToOriginKm != null || eta) && (
+        {(distanceToOriginKm != null || eta != null) && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow dark:border-gray-700 dark:bg-gray-800/90">
             {distanceToOriginKm != null && (
               <span className="flex items-center gap-1">
@@ -218,10 +218,10 @@ function TruckMapDisplay({
                 <span>{distanceToOriginKm.toFixed(1)} km</span>
               </span>
             )}
-            {distanceToOriginKm != null && eta && (
+            {distanceToOriginKm != null && eta != null && (
               <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
             )}
-            {eta && (
+            {eta != null && (
               <span className="flex items-center gap-1">
                 <span className="font-semibold">
                   {tr("pages.planning.sidebar.assignment.etaTrip", dict)}:
